@@ -26,6 +26,16 @@ public class Params implements Serializable {
     private Integer valueTwo;
     private Integer valueThree;
     private Integer valueFour;
+    /**
+     * Doubles 64 bits des quatre valeurs ci-dessus. Les champs Integer restent la forme historique attendue par les
+     * appelants existants, mais une valorisation de stock (22 000 produits) depasse Integer.MAX_VALUE et repartait
+     * jusqu'ici en negatif. Les valeurs longues sont alimentees en meme temps que les Integer, par les constructeurs
+     * comme par les setters : les deux formes restent coherentes quel que soit le chemin utilise.
+     */
+    private long valueLong;
+    private long valueTwoLong;
+    private long valueThreeLong;
+    private long valueFourLong;
     private String dtStart = LocalDate.now().toString();
     private String dtEnd = dtStart;
     private String hrEnd;
@@ -123,6 +133,7 @@ public class Params implements Serializable {
 
     public void setValue(Integer value) {
         this.value = value;
+        this.valueLong = value == null ? 0L : value;
     }
 
     public Integer getValueTwo() {
@@ -131,6 +142,7 @@ public class Params implements Serializable {
 
     public void setValueTwo(Integer valueTwo) {
         this.valueTwo = valueTwo;
+        this.valueTwoLong = valueTwo == null ? 0L : valueTwo;
     }
 
     public Integer getValueThree() {
@@ -139,6 +151,7 @@ public class Params implements Serializable {
 
     public void setValueThree(Integer valueThree) {
         this.valueThree = valueThree;
+        this.valueThreeLong = valueThree == null ? 0L : valueThree;
     }
 
     public Integer getValueFour() {
@@ -147,6 +160,47 @@ public class Params implements Serializable {
 
     public void setValueFour(Integer valueFour) {
         this.valueFour = valueFour;
+        this.valueFourLong = valueFour == null ? 0L : valueFour;
+    }
+
+    // Les lectures 64 bits ne sont volontairement PAS nommees getXxx() : les listes de Params sont renvoyees au
+    // navigateur par new JSONArray(liste), qui serialise tout accesseur getXxx(). Des getters ajouteraient quatre
+    // champs aux reponses JSON de tous les ecrans qui manipulent des Params.
+
+    public long longValue() {
+        return valueLong;
+    }
+
+    public void setLongValue(long valueLong) {
+        this.valueLong = valueLong;
+        this.value = (int) valueLong;
+    }
+
+    public long longValueTwo() {
+        return valueTwoLong;
+    }
+
+    public void setLongValueTwo(long valueTwoLong) {
+        this.valueTwoLong = valueTwoLong;
+        this.valueTwo = (int) valueTwoLong;
+    }
+
+    public long longValueThree() {
+        return valueThreeLong;
+    }
+
+    public void setLongValueThree(long valueThreeLong) {
+        this.valueThreeLong = valueThreeLong;
+        this.valueThree = (int) valueThreeLong;
+    }
+
+    public long longValueFour() {
+        return valueFourLong;
+    }
+
+    public void setLongValueFour(long valueFourLong) {
+        this.valueFourLong = valueFourLong;
+        this.valueFour = (int) valueFourLong;
     }
 
     public String getUserId() {
@@ -183,7 +237,7 @@ public class Params implements Serializable {
     }
 
     public Params(String ref, long value) {
-        this.value = (int) value;
+        setLongValue(value);
         this.ref = ref;
     }
 
@@ -193,35 +247,35 @@ public class Params implements Serializable {
     }
 
     public Params(long value, long valueTwo) {
-        this.value = (int) value;
-        this.valueTwo = (int) valueTwo;
+        setLongValue(value);
+        setLongValueTwo(valueTwo);
     }
 
     public Params(long value, long valueTwo, long valueTree) {
-        this.value = (int) value;
-        this.valueTwo = (int) valueTwo;
-        this.valueThree = (int) valueTree;
+        setLongValue(value);
+        setLongValueTwo(valueTwo);
+        setLongValueThree(valueTree);
     }
 
     public Params(String description, String ref, long value, long nbreClient, long nbreBons) {
-        this.value = (int) value;
-        this.valueTwo = (int) nbreClient;
-        this.valueThree = (int) nbreBons;
+        setLongValue(value);
+        setLongValueTwo(nbreClient);
+        setLongValueThree(nbreBons);
         this.ref = ref;
         this.description = description;
     }
 
     public Params(String ref, long value, long montantFacture, long montantRestant) {
-        this.value = (int) value;
-        this.valueTwo = (int) montantFacture;
-        this.valueThree = (int) montantRestant;
+        setLongValue(value);
+        setLongValueTwo(montantFacture);
+        setLongValueThree(montantRestant);
         this.ref = ref;
     }
 
     public Params(Params p, TTiersPayant payant) {
-        this.value = p.getValue();
-        this.valueTwo = p.getValueTwo();
-        this.valueThree = p.getValueThree();
+        setValue(p.getValue());
+        setValueTwo(p.getValueTwo());
+        setValueThree(p.getValueThree());
         this.refTwo = p.getDescription();
 
         try {
@@ -232,9 +286,9 @@ public class Params implements Serializable {
     }
 
     public Params(String description, String ref, double value, double nbreClient, double nbreBons) {
-        this.value = (int) value;
-        this.valueTwo = (int) nbreClient;
-        this.valueThree = (int) nbreBons;
+        setLongValue((long) value);
+        setLongValueTwo((long) nbreClient);
+        setLongValueThree((long) nbreBons);
         this.ref = ref;
         this.description = description;
     }

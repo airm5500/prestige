@@ -45,4 +45,24 @@ public final class PaginationUtil {
         }
         return Math.min(d + limit, t);
     }
+
+    /**
+     * La tranche de lignes demandee par l'ecran.
+     *
+     * A utiliser des que les lignes sont construites en memoire (plusieurs requetes par ligne, agregats...) et ne
+     * peuvent donc pas etre decoupees par la base.
+     *
+     * @param lignes
+     *            toutes les lignes disponibles
+     * @param start
+     *            indice de la premiere ligne demandee par l'ecran
+     * @param limit
+     *            nombre de lignes par page demande par l'ecran (0 ou negatif : tout le reste)
+     */
+    public static <T> java.util.List<T> tranche(java.util.List<T> lignes, int start, int limit) {
+        if (lignes == null || lignes.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return lignes.subList(debut(start, lignes.size()), fin(start, limit, lignes.size()));
+    }
 }

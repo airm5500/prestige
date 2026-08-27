@@ -1,4 +1,6 @@
-var url_services_data_balanceagee = '../webservices/tierspayantmanagement/tierspayant/ws_data_balance_agee.jsp';
+// Lignes de la balance agee recapitulative, en REST. Memes methodes metier et memes cles JSON
+// que la JSP ws_data_balance_agee.jsp qu'elle remplace.
+var url_services_data_balanceagee = '../api/v1/balance-agee/recap/liste';
 
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
@@ -195,8 +197,8 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
                             var lg_TIERS_PAYANT_ID = value;
 
                             var OGrid = Ext.getCmp('GridBalanceAgeeID');
-                            var url_services_data_balanceagee = '../webservices/tierspayantmanagement/tierspayant/ws_data_balance_agee.jsp';
-                            OGrid.getStore().getProxy().url = url_services_data_balanceagee + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID;
+                            OGrid.getStore().getProxy().url = url_services_data_balanceagee
+                                    + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID;
                             OGrid.getStore().reload();
 
                         }

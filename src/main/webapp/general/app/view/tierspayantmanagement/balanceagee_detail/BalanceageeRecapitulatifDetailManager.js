@@ -1,6 +1,14 @@
-var url_services_data_balance_agee_recapitulatifdetail = '../webservices/tierspayantmanagement/tierspayant/ws_data_balance_agee_recapitulatifdetail.jsp';
+// Lignes de la balance agee recapitulative, en REST. Memes methodes metier et memes cles JSON
+// que la JSP ws_data_balance_agee_recapitulatifdetail.jsp qu'elle remplace.
+var url_services_data_balance_agee_recapitulatifdetail = '../api/v1/balance-agee/detail/liste';
 var url_services_data_tierspayant_other = '../webservices/tierspayantmanagement/tierspayant/ws_data_other.jsp';
 var url_services_data_client = '../webservices/configmanagement/client/ws_data_compteclttierspayants.jsp';
+// Listes deroulantes de CET ecran, en REST : memes methodes metier et memes cles JSON que les
+// JSP qu'elles remplacent. Des noms propres a l'ecran, et non les variables globales ci-dessus :
+// ces globales sont redeclarees par plusieurs autres fichiers, la valeur retenue dependrait donc
+// de l'ordre de chargement.
+var url_rest_balance_tierspayant = '../api/v1/tierspayant/combo';
+var url_rest_balance_clients = '../api/v1/tierspayant/clients-combo';
 var url_services_transaction_facturetierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 var lg_TIERS_PAYANT_ID = "";
 var lg_COMPTE_CLIENT_ID = "";
@@ -94,11 +102,14 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
 
         var store_tierspayant = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
-            pageSize: 10,
+            // pageSize a 0 : aucune limite n'est demandee au serveur, la liste deroulante montre
+            // TOUS les tiers payants. A 10, elle n'en montrait que dix et les autres etaient
+            // introuvables sans les taper au clavier.
+            pageSize: 0,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_tierspayant_other,
+                url: url_rest_balance_tierspayant,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -110,11 +121,12 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
 
         var store_client = new Ext.data.Store({
             model: 'testextjs.model.Client',
-            pageSize: itemsPerPage,
+            // 0 : tous les clients rattaches au tiers payant choisi, sans limite de page
+            pageSize: 0,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_client,
+                url: url_rest_balance_clients,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -249,8 +261,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
 
                             var lg_COMPTE_CLIENT_ID = Ext.getCmp('lg_COMPTE_CLIENT_ID');
                             //lg_COMPTE_CLIENT_ID.enable();
-                            var url_services_data_client = '../webservices/configmanagement/client/ws_data_compteclttierspayants.jsp';
-                            lg_COMPTE_CLIENT_ID.getStore().getProxy().url = url_services_data_client + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID;
+                            lg_COMPTE_CLIENT_ID.getStore().getProxy().url = url_rest_balance_clients + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID;
                             lg_COMPTE_CLIENT_ID.getStore().reload();
                         }
                     }

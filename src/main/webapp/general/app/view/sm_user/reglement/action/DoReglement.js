@@ -640,24 +640,24 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                                 }, {
                                     text: 'Nom & Pr&eacute;nom(s)',
                                     flex: 1,
-                                    dataIndex: 'CLIENT_FULL_NAME',
+                                    dataIndex: 'CLIENT_FULL_NAME'
                                     // align: 'right'
                                 }, {
                                     text: 'Num Matricule',
                                     flex: 1,
-                                    dataIndex: 'CLIENT_MATRICULE',
+                                    dataIndex: 'CLIENT_MATRICULE'
                                     // align: 'right'
                                 },
                                 {
                                     text: 'Date Vente',
                                     flex: 1,
-                                    dataIndex: 'dt_DATE',
+                                    dataIndex: 'dt_DATE'
                                     // align: 'right'
                                 },
                                 {
                                     text: 'Heure Vente',
                                     flex: 1,
-                                    dataIndex: 'dt_HEURE',
+                                    dataIndex: 'dt_HEURE'
                                     // align: 'right'
                                 },
                                 {
@@ -815,7 +815,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                                             id: 'str_NOM',
                                             fieldLabel: 'Nom',
                                             hidden: true,
-                                            flex: 2,
+                                            flex: 2
 //                                            allowBlank: false
                                         },
                                         {
@@ -824,7 +824,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                                             id: 'str_BANQUE',
                                             fieldLabel: 'Banque',
                                             hidden: true,
-                                            flex: 1,
+                                            flex: 1
 //                                            allowBlank: false
                                         },
                                         {
@@ -978,7 +978,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                         Ext.each(listProductSelected, function (lg, index) {
                             CODEstore.each(function (r, id) {
                                 record = CODEstore.findRecord('lg_FACTURE_DETAIL_ID', lg);
-                                if (record != null) {
+                                if (record !== null) {
 
                                     record.set('isChecked', 'true');
                                 }
@@ -1383,7 +1383,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
 
             if (TYPE_REGLEMENT === 'Especes' || TYPE_REGLEMENT === '1') {
                 MODE_REGLEMENT = 1;
-                if (Ext.getCmp('int_AMOUNT_RECU').getValue() == null || Number(Ext.getCmp('int_AMOUNT_RECU').getValue()) === 0) {
+                if (Ext.getCmp('int_AMOUNT_RECU').getValue() === null || Number(Ext.getCmp('int_AMOUNT_RECU').getValue()) === 0) {
                     Ext.MessageBox.show({
                         title: 'Avertissement',
                         width: 320,
@@ -1602,7 +1602,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
         var store = Ext.getCmp('gridDetailBordereau').getStore();
         var rec = store.getAt(rowIndex); // on recupere la ligne courante de la grid
         var TYPE_REGLEMENT = Ext.getCmp('lg_TYPE_REGLEMENT_ID').getValue();
-        if (checked == true) {
+        if (checked === true) {
             net += Number(rec.get('dbl_MONTANT_RESTANT'));
             listProductSelected.push(rec.get('lg_FACTURE_DETAIL_ID')); //on ajoute l'index de la ligne selectionnée au tableau
             checkedList.unset(rec.get('lg_FACTURE_DETAIL_ID'));

@@ -591,6 +591,40 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
 
                         }
                     }
+                }, {
+                    xtype: 'tbseparator'
+                }, {
+                    // Releve des factures de groupe : reprend EXACTEMENT les criteres affiches
+                    // (periode, groupe, recherche), pour que le papier montre la meme liste que
+                    // l'ecran. Le bouton "Imprimer" de chaque ligne, lui, edite la facture elle-meme.
+                    //
+                    // Deux decoupages possibles, d'ou le menu : par facture de groupe (le decoupage
+                    // de la liste) ou par tiers payant (toutes les factures d'un organisme sur la
+                    // periode, rassemblees avec leur sous-total).
+                    text: 'Relevé',
+                    tooltip: 'Imprimer le relev&eacute; des factures de groupe affich&eacute;es',
+                    iconCls: 'printable',
+                    scope: this,
+                    menu: {
+                        items: [{
+                                text: 'Sous-total par facture de groupe',
+                                tooltip: 'Un bloc par facture de groupe, comme la liste &agrave; l\'&eacute;cran',
+                                iconCls: 'printable',
+                                scope: this,
+                                handler: function () {
+                                    this.onReleveClick('facture');
+                                }
+                            }, {
+                                text: 'Sous-total par tiers payant',
+                                tooltip: 'Toutes les factures d\'un organisme sur la p&eacute;riode, '
+                                        + 'rassembl&eacute;es avec leur sous-total',
+                                iconCls: 'printable',
+                                scope: this,
+                                handler: function () {
+                                    this.onReleveClick('tierspayant');
+                                }
+                            }]
+                    }
                 }
 
 
@@ -646,6 +680,29 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
     },
     loadStore: function () {
         this.getStore().load();
+    },
+
+    /**
+     * Releve des factures de groupe de la periode affichee.
+     *
+     * Les memes criteres que la grille sont transmis au serveur : aucune date n'est inventee ici,
+     * c'est le servlet qui applique la periode par defaut (un an) quand l'ecran n'en donne pas.
+     */
+    onReleveClick: function (regroupement) {
+        const parametres = {
+            dt_start: Ext.getCmp('dt_start').getSubmitValue() || '',
+            dt_end: Ext.getCmp('dt_end').getSubmitValue() || '',
+            lg_GROUPE_ID: Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue() || '',
+            search_value: Ext.getCmp('groupeSearch').getValue() || '',
+            // 'facture' : un bloc par facture de groupe. 'tierspayant' : un bloc par organisme
+            // sur toute la periode. Le serveur retombe sur 'facture' si la valeur est inconnue.
+            regroupement: regroupement === 'tierspayant' ? 'tierspayant' : 'facture'
+        };
+        // ecran ouvert sur UNE facture de groupe precise : on releve celle-la, pas la periode
+        if (codeFact !== undefined && codeFact !== null && codeFact !== '') {
+            parametres.CODEGROUPE = codeFact;
+        }
+        window.open('../releveFactureGroupeServlet?' + Ext.Object.toQueryString(parametres));
     },
 
     onPrint: function (grid, rowIndex) {

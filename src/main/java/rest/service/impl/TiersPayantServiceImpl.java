@@ -170,6 +170,9 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             json.put("groupingByTaux", tTiersPayant.getGroupingByTaux());
             json.put("str_MODE_TRI_FACTURE",
                     tTiersPayant.getStrMODETRIFACTURE() != null ? tTiersPayant.getStrMODETRIFACTURE() : "ALPHABETIQUE");
+            // Mise en page de la facture : 0 = automatique (la presentation propre a chaque modele)
+            json.put("int_NB_BONS_PAR_PAGE", tTiersPayant.bonsParPageEffectif());
+            json.put("int_TAILLE_POLICE", tTiersPayant.taillePoliceEffective());
             json.put("str_STATUT", tTiersPayant.getStrSTATUT());
             json.put("b_IsAbsolute", tTiersPayant.getBIsAbsolute());
             json.put("db_CONSOMMATION_MENSUELLE", encoursParTp.getOrDefault(tTiersPayant.getLgTIERSPAYANTID(), 0));

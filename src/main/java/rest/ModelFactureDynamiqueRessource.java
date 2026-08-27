@@ -8,6 +8,7 @@ import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Phrase;
+import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -88,7 +89,9 @@ public class ModelFactureDynamiqueRessource {
         COLONNES_DISPONIBLES.put("MONTANT_BRUT", new Object[] { "Montant brut", true });
         COLONNES_DISPONIBLES.put("REMISE", new Object[] { "Remise", true });
         COLONNES_DISPONIBLES.put("PART_CLIENT", new Object[] { "Part client", true });
-        COLONNES_DISPONIBLES.put("PART_TIERS_PAYANT", new Object[] { "Part tiers payant", true });
+        // « Part TP » et non « Part tiers payant » : le libelle long forcait sa colonne a etre
+        // large pour son seul entete, au detriment du nom du client juste a cote.
+        COLONNES_DISPONIBLES.put("PART_TIERS_PAYANT", new Object[] { "Part TP", true });
     }
 
     /** Registre des colonnes disponibles pour le DETAIL DES PRODUITS d'un bon (lignes de vente). */
@@ -170,8 +173,9 @@ public class ModelFactureDynamiqueRessource {
                         .put("description", StringUtils.defaultString(m.getDescription()))
                         .put("modeTri", m.getModeTri()).put("afficherEntete", m.isAfficherEntete())
                         .put("afficherPiedPage", m.isAfficherPiedPage())
-                        .put("detaillerProduits", m.isDetaillerProduits()).put("colonnes", cols)
-                        .put("colonnesProduit", colsProduit).put("nbColonnes", cols.length())
+                        .put("detaillerProduits", m.isDetaillerProduits())
+                        .put("taillePolice", m.taillePoliceEffective()).put("nbBonsParPage", m.bonsParPageEffectif())
+                        .put("colonnes", cols).put("colonnesProduit", colsProduit).put("nbColonnes", cols.length())
                         .put("nbTiersPayants", nbTp));
             }
             return reponseJson(new JSONObject().put("data", data).put("total", data.length()));
@@ -248,6 +252,8 @@ public class ModelFactureDynamiqueRessource {
             @DefaultValue("true") @FormParam("afficherEntete") boolean afficherEntete,
             @DefaultValue("true") @FormParam("afficherPiedPage") boolean afficherPiedPage,
             @DefaultValue("false") @FormParam("detaillerProduits") boolean detaillerProduits,
+            @DefaultValue("8") @FormParam("taillePolice") int taillePolice,
+            @DefaultValue("0") @FormParam("nbBonsParPage") int nbBonsParPage,
             @DefaultValue("[]") @FormParam("colonnes") String colonnesParam,
             @DefaultValue("[]") @FormParam("colonnesProduit") String colonnesProduitParam) {
         if (utilisateurSession() == null) {
@@ -303,6 +309,10 @@ public class ModelFactureDynamiqueRessource {
             modele.setAfficherEntete(afficherEntete);
             modele.setAfficherPiedPage(afficherPiedPage);
             modele.setDetaillerProduits(detaillerProduits);
+            // Une taille hors bornes revient a la valeur d'origine : taillePoliceEffective() s'en charge
+            modele.setTaillePolice(taillePolice);
+            // Un nombre hors bornes revient a « automatique » : bonsParPageEffectif() s'en charge
+            modele.setNbBonsParPage(nbBonsParPage);
             for (int i = 0; i < colonnes.length(); i++) {
                 JSONObject o = colonnes.getJSONObject(i);
                 ModelFactureDynamiqueColonne col = new ModelFactureDynamiqueColonne();
@@ -585,6 +595,31 @@ public class ModelFactureDynamiqueRessource {
         TPreenregistrementCompteClientTiersPayent dossier;
     }
 
+    /*
+     * Palette du modele 0202, celle des etats retravailles pour l'officine. Le PDF produit par le createur de modeles
+     * doit se presenter comme eux : bandeau de colonnes bleu marine, lignes alternees, filet fin sous chaque ligne,
+     * bloc de totaux sur fond bleu pale. Les valeurs sont copiees telles quelles depuis rp_facture_0202.jrxml pour que
+     * les deux se ressemblent vraiment, et non « a peu pres ».
+     */
+    /** Bandeau des colonnes et filets structurants. */
+    private static final BaseColor MARINE = new BaseColor(30, 58, 95);
+    /** Fond d'une ligne sur deux. */
+    private static final BaseColor ZEBRE = new BaseColor(242, 246, 250);
+    /** Filet fin sous chaque ligne de donnees. */
+    private static final BaseColor FILET = new BaseColor(214, 222, 232);
+    /** Fond du bloc de totaux. */
+    private static final BaseColor FOND_TOTAL = new BaseColor(221, 230, 240);
+    /** Fond du sous-tableau des produits. */
+    private static final BaseColor FOND_PRODUIT = new BaseColor(247, 249, 252);
+    /** Filet vert-bleu qui borde a gauche le cartouche de la facture. */
+    private static final BaseColor SARCELLE = new BaseColor(72, 169, 166);
+    /** Fond du cartouche de la facture. */
+    private static final BaseColor FOND_CARTOUCHE = new BaseColor(237, 242, 248);
+    /** Gris-bleu des mentions secondaires de l'en-tete. */
+    private static final BaseColor ENCRE_DOUCE = new BaseColor(90, 107, 125);
+    /** Marge haute du modele de reference : l'en-tete repete commence juste en dessous. */
+    private static final float MARGE_HAUTE = 20f;
+
     private byte[] genererPdf(EntityManager em, TFacture facture, TTiersPayant tiersPayant,
             ModelFactureDynamique modele) throws Exception {
         List<TFactureDetail> details = em
@@ -613,61 +648,88 @@ public class ModelFactureDynamiqueRessource {
 
         // Polices calquees sur le modele de reference de l'officine (rp_facture) : titre en grand,
         // bandeau de colonnes en 7 gras, lignes en 8.
-        Font fontInstitution = FontFactory.getFont(FontFactory.HELVETICA_BOLDOBLIQUE, 18);
-        Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-        Font fontEnteteColonne = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
+        Font fontInstitution = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, MARINE);
+        Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA, 8, ENCRE_DOUCE);
+        Font fontEnteteColonne = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7, BaseColor.WHITE);
         Font fontCellule = FontFactory.getFont(FontFactory.HELVETICA, 8);
-        Font fontTotal = FontFactory.getFont(FontFactory.HELVETICA_BOLDOBLIQUE, 8);
+        Font fontTotal = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, MARINE);
         Font fontBloc = FontFactory.getFont(FontFactory.HELVETICA, 8);
         Font fontBlocGras = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-        Font fontFacture = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
         Font fontSignature = FontFactory.getFont(FontFactory.COURIER_BOLD, 8);
         fontSignature.setStyle(Font.UNDERLINE);
         BaseColor gris = new BaseColor(204, 204, 204);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        // Marges du modele de reference : 5 pt lateralement, 20 pt en haut et en bas.
-        Document document = new Document(PageSize.A4, 5, 5, 20, modele.isAfficherPiedPage() ? 40 : 20);
-        PdfWriter writer = PdfWriter.getInstance(document, out);
-        if (modele.isAfficherPiedPage()) {
-            writer.setPageEvent(new PiedDePage(gris));
+        /*
+         * L'en-tete est peint sur CHAQUE page, et non ajoute une seule fois au fil du document. Une facture qui tient
+         * sur cinq pages doit rappeler sur chacune de quelle officine elle vient, quel est son numero et a quel
+         * organisme elle s'adresse : la page 2 arrivait jusqu'ici avec le seul bandeau des colonnes.
+         */
+        PdfPTable entete = modele.isAfficherEntete()
+                ? construireEntete(facture, tiersPayant, officine, fontInstitution, fontSousTitre) : null;
+        float hauteurEntete = 0f;
+        if (entete != null) {
+            entete.setTotalWidth(PageSize.A4.getWidth() - 10);
+            entete.setLockedWidth(true);
+            hauteurEntete = entete.getTotalHeight();
         }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // Marges du modele de reference : 5 pt lateralement, 20 pt en bas. En haut, la place de
+        // l'en-tete repete, plus les 20 pt du modele.
+        Document document = new Document(PageSize.A4, 5, 5, MARGE_HAUTE + hauteurEntete + 8,
+                modele.isAfficherPiedPage() ? 40 : 20);
+        PdfWriter writer = PdfWriter.getInstance(document, out);
+        writer.setPageEvent(new HabillagePage(entete, modele.isAfficherPiedPage() ? gris : null));
         document.open();
 
-        if (modele.isAfficherEntete()) {
-            ajouterEntete(document, facture, tiersPayant, officine, fontInstitution, fontSousTitre, fontBloc,
-                    fontBlocGras, fontFacture, gris);
-        }
-
-        float[] largeurs = new float[colonnes.size()];
-        for (int i = 0; i < colonnes.size(); i++) {
-            largeurs[i] = JrxmlFactureBuilder.largeurRelative(colonnes.get(i).getChamp());
+        // Largeurs partagees avec le fichier .jrxml : les deux presentations decoupent la page de
+        // la meme facon, et chaque colonne recoit d'abord de quoi ne pas couper son contenu.
+        int[] points = JrxmlFactureBuilder.largeursColonnes(colonnes);
+        float[] largeurs = new float[points.length];
+        for (int i = 0; i < points.length; i++) {
+            largeurs[i] = points[i];
         }
         PdfPTable table = new PdfPTable(largeurs);
         table.setWidthPercentage(100);
         table.setHeaderRows(1);
         for (ModelFactureDynamiqueColonne c : colonnes) {
             PdfPCell cell = new PdfPCell(new Phrase(StringUtils.upperCase(c.getLibelle()), fontEnteteColonne));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            // Un libelle de montant est cadre a droite, comme la colonne qu'il coiffe : c'est ce
+            // qui fait qu'on lit une colonne de chiffres sans hesiter.
+            cell.setHorizontalAlignment(estNumerique(c.getChamp()) ? Element.ALIGN_RIGHT : Element.ALIGN_CENTER);
             cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            cell.setBackgroundColor(gris);
-            cell.setBorderWidth(0.25f);
+            cell.setBackgroundColor(MARINE);
+            cell.setBorder(Rectangle.NO_BORDER);
             cell.setMinimumHeight(18f);
-            cell.setPadding(2f);
+            cell.setPaddingTop(3f);
+            cell.setPaddingBottom(3f);
+            cell.setPaddingLeft(3f);
+            cell.setPaddingRight(4f);
             table.addCell(cell);
         }
 
         Map<String, Long> totaux = new LinkedHashMap<>();
         int numero = 1;
         for (LigneFacture l : lignes) {
+            // Une ligne sur deux sur fond bleu tres pale : c'est ce qui permet de suivre une ligne
+            // du regard jusqu'au bout sur une facture large, sans quadriller toute la page.
+            boolean paire = numero % 2 == 0;
             for (ModelFactureDynamiqueColonne c : colonnes) {
                 String champ = c.getChamp();
                 PdfPCell cell = new PdfPCell(new Phrase(valeurChamp(champ, l, numero), fontCellule));
                 cell.setHorizontalAlignment(alignement(champ));
                 cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                cell.setBorderWidth(0.25f);
+                cell.setBorder(Rectangle.BOTTOM);
+                cell.setBorderColorBottom(FILET);
+                cell.setBorderWidthBottom(0.25f);
+                if (paire) {
+                    cell.setBackgroundColor(ZEBRE);
+                }
                 cell.setMinimumHeight(14f);
-                cell.setPadding(2f);
+                cell.setPaddingTop(2f);
+                cell.setPaddingBottom(2f);
+                cell.setPaddingLeft(3f);
+                cell.setPaddingRight(4f);
                 if (estNumerique(champ)) {
                     totaux.merge(champ, valeurNumerique(champ, l), Long::sum);
                 }
@@ -680,7 +742,9 @@ public class ModelFactureDynamiqueRessource {
                 if (sousTable != null) {
                     PdfPCell porteur = new PdfPCell(sousTable);
                     porteur.setColspan(colonnes.size());
-                    porteur.setBorderWidth(0.25f);
+                    porteur.setBorder(Rectangle.BOTTOM);
+                    porteur.setBorderColorBottom(FILET);
+                    porteur.setBorderWidthBottom(0.25f);
                     porteur.setPaddingLeft(14f);
                     porteur.setPaddingTop(1f);
                     porteur.setPaddingBottom(3f);
@@ -705,8 +769,7 @@ public class ModelFactureDynamiqueRessource {
                     PdfPCell cell = new PdfPCell(new Phrase(
                             conversion.AmountFormat(totaux.getOrDefault(c.getChamp(), 0L).intValue()), fontTotal));
                     cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    cell.setBorderWidth(0.5f);
-                    cell.setPadding(3f);
+                    habillerTotal(cell);
                     totalTable.addCell(cell);
                     i++;
                 } else {
@@ -716,8 +779,7 @@ public class ModelFactureDynamiqueRessource {
                     }
                     PdfPCell cell = new PdfPCell(new Phrase(libellePose ? "" : "TOTAUX", fontTotal));
                     cell.setColspan(fusion);
-                    cell.setBorderWidth(0.5f);
-                    cell.setPadding(3f);
+                    habillerTotal(cell);
                     totalTable.addCell(cell);
                     libellePose = true;
                     i += fusion;
@@ -775,13 +837,20 @@ public class ModelFactureDynamiqueRessource {
         }
         PdfPTable sousTable = new PdfPTable(largeurs);
         sousTable.setWidthPercentage(100);
-        Font fontEnteteProduit = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 6.5f);
+        // Le sous-tableau des produits reste discret : c'est le detail d'un bon, pas un second
+        // tableau principal. Fond tres pale, libelles en italique, aucun cadre.
+        Font fontEnteteProduit = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 6.5f, MARINE);
         for (ModelFactureDynamiqueColonne c : colonnesProduit) {
             PdfPCell cell = new PdfPCell(new Phrase(c.getLibelle(), fontEnteteProduit));
             cell.setHorizontalAlignment(alignementProduit(c.getChamp()));
-            cell.setBackgroundColor(gris);
-            cell.setBorderWidth(0.25f);
-            cell.setPadding(1.5f);
+            cell.setBackgroundColor(FOND_PRODUIT);
+            cell.setBorder(Rectangle.BOTTOM);
+            cell.setBorderColorBottom(FILET);
+            cell.setBorderWidthBottom(0.25f);
+            cell.setPaddingTop(1.5f);
+            cell.setPaddingBottom(1.5f);
+            cell.setPaddingLeft(3f);
+            cell.setPaddingRight(4f);
             sousTable.addCell(cell);
         }
         Font fontProduit = FontFactory.getFont(FontFactory.HELVETICA, 7);
@@ -789,8 +858,11 @@ public class ModelFactureDynamiqueRessource {
             for (ModelFactureDynamiqueColonne c : colonnesProduit) {
                 PdfPCell cell = new PdfPCell(new Phrase(valeurChampProduit(c.getChamp(), d), fontProduit));
                 cell.setHorizontalAlignment(alignementProduit(c.getChamp()));
-                cell.setBorderWidth(0.25f);
-                cell.setPadding(1.5f);
+                cell.setBorder(Rectangle.NO_BORDER);
+                cell.setPaddingTop(1.5f);
+                cell.setPaddingBottom(1.5f);
+                cell.setPaddingLeft(3f);
+                cell.setPaddingRight(4f);
                 sousTable.addCell(cell);
             }
         }
@@ -843,73 +915,115 @@ public class ModelFactureDynamiqueRessource {
         }
     }
 
+    /** Bloc de totaux : fond bleu pale et filet marine au-dessus, comme le bandeau de total du 0202. */
+    private static void habillerTotal(PdfPCell cellule) {
+        cellule.setBackgroundColor(FOND_TOTAL);
+        cellule.setBorder(Rectangle.TOP);
+        cellule.setBorderColorTop(MARINE);
+        cellule.setBorderWidthTop(0.6f);
+        cellule.setPaddingTop(4f);
+        cellule.setPaddingBottom(4f);
+        cellule.setPaddingLeft(3f);
+        cellule.setPaddingRight(4f);
+    }
+
     /**
-     * Bloc d'en-tete du modele de reference : nom de l'officine centre, sous-titre, filet gris, puis sur une meme ligne
-     * le numero de facture et la periode a gauche, l'identification du tiers payant a droite.
+     * Bloc d'en-tete repris du modele de reference rp_facture_0202, sous forme de tableau pour pouvoir etre repeint a
+     * l'identique en haut de CHAQUE page.
+     *
+     * <p>
+     * Trois bandes : le nom de l'officine et son pharmacien, centres ; un filet bleu marine ; puis le cartouche de la
+     * facture (numero et periode sur fond bleu pale a filet vert-bleu) a gauche et l'identification du tiers payant
+     * cadree a droite.
+     * </p>
      */
-    private void ajouterEntete(Document document, TFacture facture, TTiersPayant tiersPayant, TOfficine officine,
-            Font fontInstitution, Font fontSousTitre, Font fontBloc, Font fontBlocGras, Font fontFacture,
-            BaseColor gris) throws Exception {
+    PdfPTable construireEntete(TFacture facture, TTiersPayant tiersPayant, TOfficine officine, Font fontInstitution,
+            Font fontSousTitre) {
+        PdfPTable entete = new PdfPTable(1);
+        entete.setWidthPercentage(100);
+
+        Paragraph identite = new Paragraph();
         if (officine != null) {
-            Paragraph institution = new Paragraph(StringUtils.defaultString(officine.getStrNOMABREGE()),
-                    fontInstitution);
-            institution.setAlignment(Element.ALIGN_CENTER);
-            document.add(institution);
+            identite.add(new Phrase(StringUtils.defaultString(officine.getStrNOMABREGE()) + "\n", fontInstitution));
             String sousTitre = (StringUtils.defaultString(officine.getStrFIRSTNAME()) + " "
                     + StringUtils.defaultString(officine.getStrLASTNAME())).trim();
             if (StringUtils.isNotBlank(sousTitre)) {
-                Paragraph p = new Paragraph(sousTitre, fontSousTitre);
-                p.setAlignment(Element.ALIGN_CENTER);
-                document.add(p);
+                identite.add(new Phrase(sousTitre, fontSousTitre));
             }
         }
-        // filet gris de separation
-        PdfPTable filet = new PdfPTable(1);
-        filet.setWidthPercentage(100);
-        PdfPCell celluleFilet = new PdfPCell(new Phrase(" ", fontBloc));
-        celluleFilet.setFixedHeight(2f);
-        celluleFilet.setBorder(0);
-        celluleFilet.setBackgroundColor(gris);
-        filet.addCell(celluleFilet);
-        filet.setSpacingBefore(4f);
-        filet.setSpacingAfter(6f);
-        document.add(filet);
+        identite.setAlignment(Element.ALIGN_CENTER);
+        PdfPCell celluleIdentite = new PdfPCell(identite);
+        celluleIdentite.setBorder(Rectangle.NO_BORDER);
+        // Le centrage se regle sur la CELLULE : pose sur le seul paragraphe, il est ignore et le
+        // nom de l'officine revient contre le bord gauche.
+        celluleIdentite.setHorizontalAlignment(Element.ALIGN_CENTER);
+        celluleIdentite.setPaddingBottom(6f);
+        entete.addCell(celluleIdentite);
 
-        // date de la facture, alignee a droite
-        if (facture.getDtCREATED() != null) {
-            Paragraph dateFacture = new Paragraph(date.FULDATE.format(facture.getDtCREATED()), fontBloc);
-            dateFacture.setAlignment(Element.ALIGN_RIGHT);
-            document.add(dateFacture);
-        }
+        // Filet bleu marine qui separe l'identite de l'officine du cartouche de la facture.
+        PdfPCell filet = new PdfPCell(new Phrase(" ", fontSousTitre));
+        filet.setFixedHeight(2f);
+        filet.setBorder(Rectangle.NO_BORDER);
+        filet.setBackgroundColor(MARINE);
+        entete.addCell(filet);
 
-        PdfPTable bandeau = new PdfPTable(new float[] { 55f, 45f });
+        PdfPCell porteur = new PdfPCell(cartouche(facture, tiersPayant));
+        porteur.setBorder(Rectangle.NO_BORDER);
+        porteur.setPaddingTop(6f);
+        porteur.setPaddingBottom(2f);
+        entete.addCell(porteur);
+        return entete;
+    }
+
+    /**
+     * Le cartouche de la facture, repris du modele rp_facture_0202 : le numero et la periode poses sur un rectangle
+     * bleu tres pale borde a gauche d'un filet vert-bleu, et en face, cadres a droite, la date puis le tiers payant et
+     * ses coordonnees. C'est ce bloc que l'officine reconnait au premier coup d'oeil.
+     */
+    PdfPTable cartouche(TFacture facture, TTiersPayant tiersPayant) {
+        Font fontNumero = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, MARINE);
+        Font fontPeriode = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, ENCRE_DOUCE);
+        Font fontMention = FontFactory.getFont(FontFactory.HELVETICA, 7.5f, ENCRE_DOUCE);
+        Font fontDestinataire = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, MARINE);
+
+        PdfPTable bandeau = new PdfPTable(new float[] { 52f, 48f });
         bandeau.setWidthPercentage(100);
-        bandeau.setSpacingBefore(6f);
-        bandeau.setSpacingAfter(8f);
 
         Paragraph gauche = new Paragraph();
         gauche.add(
-                new Phrase("FACTURE N° " + StringUtils.defaultString(facture.getStrCODEFACTURE()) + "\n", fontFacture));
+                new Phrase("FACTURE N° " + StringUtils.defaultString(facture.getStrCODEFACTURE()) + "\n", fontNumero));
         if (facture.getDtDEBUTFACTURE() != null && facture.getDtFINFACTURE() != null) {
             gauche.add(new Phrase("PERIODE DU " + date.formatterShort.format(facture.getDtDEBUTFACTURE()) + " AU "
-                    + date.formatterShort.format(facture.getDtFINFACTURE()), fontBlocGras));
+                    + date.formatterShort.format(facture.getDtFINFACTURE()), fontPeriode));
         }
         PdfPCell celluleGauche = new PdfPCell(gauche);
-        celluleGauche.setBorder(0);
+        celluleGauche.setBorder(Rectangle.LEFT);
+        celluleGauche.setBorderColorLeft(SARCELLE);
+        celluleGauche.setBorderWidthLeft(3f);
+        celluleGauche.setBackgroundColor(FOND_CARTOUCHE);
+        celluleGauche.setPaddingLeft(10f);
+        celluleGauche.setPaddingTop(5f);
+        celluleGauche.setPaddingBottom(6f);
         bandeau.addCell(celluleGauche);
 
         Paragraph droite = new Paragraph();
+        droite.setAlignment(Element.ALIGN_RIGHT);
+        if (facture.getDtCREATED() != null) {
+            droite.add(new Phrase(date.FULDATE.format(facture.getDtCREATED()) + "\n", fontMention));
+        }
         if (tiersPayant != null) {
-            droite.add(new Phrase(StringUtils.defaultString(tiersPayant.getStrFULLNAME()) + "\n", fontBlocGras));
-            ajouterLigneBloc(droite, tiersPayant.getStrADRESSE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrCOMPTECONTRIBUABLE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrCODEOFFICINE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrREGISTRECOMMERCE(), fontBloc);
+            droite.add(new Phrase(StringUtils.defaultString(tiersPayant.getStrFULLNAME()) + "\n", fontDestinataire));
+            ajouterLigneBloc(droite, tiersPayant.getStrADRESSE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrCOMPTECONTRIBUABLE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrCODEOFFICINE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrREGISTRECOMMERCE(), fontMention);
         }
         PdfPCell celluleDroite = new PdfPCell(droite);
-        celluleDroite.setBorder(0);
+        celluleDroite.setBorder(Rectangle.NO_BORDER);
+        celluleDroite.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        celluleDroite.setPaddingLeft(10f);
         bandeau.addCell(celluleDroite);
-        document.add(bandeau);
+        return bandeau;
     }
 
     private static void ajouterLigneBloc(Paragraph bloc, String valeur, Font police) {
@@ -918,21 +1032,42 @@ public class ModelFactureDynamiqueRessource {
         }
     }
 
-    /** Pied de page numerote, comme le pageFooter du modele de reference. */
-    private static final class PiedDePage extends PdfPageEventHelper {
-        private final BaseColor gris;
+    /**
+     * Ce qui se repete sur chaque page : l'en-tete en haut et, s'il est demande, le pied de page numerote en bas.
+     *
+     * <p>
+     * L'en-tete ne peut pas etre simplement ajoute au fil du document : il ne sortirait alors que sur la premiere page.
+     * On le peint donc a chaque changement de page, toujours au meme endroit, la marge haute du document ayant ete
+     * reservee pour lui.
+     * </p>
+     */
+    static final class HabillagePage extends PdfPageEventHelper {
+        /** null quand le modele n'affiche pas d'en-tete. */
+        private final PdfPTable entete;
+        /** null quand le modele n'affiche pas de pied de page. */
+        private final BaseColor grisPied;
 
-        private PiedDePage(BaseColor gris) {
-            this.gris = gris;
+        HabillagePage(PdfPTable entete, BaseColor grisPied) {
+            this.entete = entete;
+            this.grisPied = grisPied;
         }
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
-            Font police = FontFactory.getFont(FontFactory.HELVETICA, 8);
             PdfContentByte toile = writer.getDirectContent();
+            if (entete != null) {
+                // Le tableau se dessine vers le BAS a partir de l'ordonnee donnee : on part donc
+                // du haut de la page, sous la marge du modele de reference.
+                entete.writeSelectedRows(0, -1, document.left(), document.getPageSize().getHeight() - MARGE_HAUTE,
+                        toile);
+            }
+            if (grisPied == null) {
+                return;
+            }
+            Font police = FontFactory.getFont(FontFactory.HELVETICA, 8);
             float y = document.bottom() - 14;
             toile.saveState();
-            toile.setColorFill(gris);
+            toile.setColorFill(grisPied);
             toile.rectangle(document.left(), y + 14, document.right() - document.left(), 2);
             toile.fill();
             toile.restoreState();
@@ -986,7 +1121,7 @@ public class ModelFactureDynamiqueRessource {
             return modele.getModeTri();
         }
         String triTp = tiersPayant != null ? tiersPayant.getStrMODETRIFACTURE() : null;
-        return "DATE_BON".equalsIgnoreCase(StringUtils.trimToEmpty(triTp)) ? ModelFactureDynamique.TRI_DATE_BON
+        return rest.report.TriFacture.parDateDeBon(triTp) == 1 ? ModelFactureDynamique.TRI_DATE_BON
                 : ModelFactureDynamique.TRI_ALPHABETIQUE;
     }
 
@@ -999,6 +1134,13 @@ public class ModelFactureDynamiqueRessource {
 
     private static String nomCompletNormalise(LigneFacture l) {
         TPreenregistrement pre = l.dossier.getLgPREENREGISTREMENTID();
+        // NOM puis PRENOM, comme l'ORDER BY de l'etat genere. L'apercu du createur de modeles
+        // classait par prenom : le meme modele donnait donc deux ordres differents selon qu'on
+        // regardait l'apercu ou la facture reellement editee.
+        //
+        // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
+        // client libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ strLASTNAME. Le nom
+        // complet se compose donc FIRST puis LAST, et non l'inverse.
         String nom = (StringUtils.defaultString(pre.getStrFIRSTNAMECUSTOMER()) + " "
                 + StringUtils.defaultString(pre.getStrLASTNAMECUSTOMER())).trim();
         return Normalizer.normalize(nom, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase();

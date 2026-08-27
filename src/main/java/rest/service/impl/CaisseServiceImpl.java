@@ -2207,15 +2207,30 @@ public class CaisseServiceImpl implements CaisseService {
             List<String> typeIds = Arrays.asList(Constant.TYPE_REGLEMENT_ORANGE, Constant.MODE_MTN, Constant.MODE_MOOV,
                     Constant.MODE_WAVE, Constant.MODE_DJAMO, Constant.MODE_CB);
             Map<String, Object[]> aggregats = new HashMap<>();
+            // Montant NET du jour : la vente annulee et sa contre-ecriture se compensent.
+            //
+            // L'ancienne requete excluait les ventes annulees (b_IS_CANCEL = 0). Or, lors d'une
+            // annulation ou d'une modification, l'originale est marquee annulee tandis que la
+            // contre-ecriture negative naît, elle, non annulee (clonePrevente / cloneVente
+            // recopient b_IS_CANCEL AVANT de passer l'originale a true). Le point ne gardait donc
+            // que la partie negative : une vente encaissee puis annulee le meme jour affichait
+            // -10 000 au lieu de 0. On garde desormais les deux ecritures, qui s'annulent.
+            //
+            // Le nombre de ventes est compte de la meme facon : chaque couple (vente, mode) pese
+            // +1 si son net est positif, -1 s'il est negatif (contre-ecriture), 0 s'il se solde a
+            // zero. Le regroupement par vente evite de compter deux fois une vente reglee par
+            // plusieurs lignes du meme mode.
             List<Object[]> rows = getEntityManager()
-                    .createNativeQuery("SELECT tr.lg_TYPE_REGLEMENT_ID, SUM(vr.montant_attentu) AS montant,"
-                            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes" + " FROM vente_reglement vr"
+                    .createNativeQuery("SELECT x.typeReglement, SUM(x.montant) AS montant, SUM(x.signe) AS nbVentes"
+                            + " FROM (SELECT tr.lg_TYPE_REGLEMENT_ID AS typeReglement,"
+                            + " SUM(vr.montant_attentu) AS montant, SIGN(SUM(vr.montant_attentu)) AS signe"
+                            + " FROM vente_reglement vr"
                             + " INNER JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
                             + " INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
                             + " WHERE DATE(vr.mvtDate) = CURDATE() AND p.lg_USER_CAISSIER_ID = ?1"
-                            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+                            + " AND p.str_STATUT = 'is_Closed'"
                             + " AND tr.lg_TYPE_REGLEMENT_ID IN (?2, ?3, ?4, ?5, ?6, ?7)"
-                            + " GROUP BY tr.lg_TYPE_REGLEMENT_ID")
+                            + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, vr.vente_id) x" + " GROUP BY x.typeReglement")
                     .setParameter(1, user.getLgUSERID()).setParameter(2, Constant.TYPE_REGLEMENT_ORANGE)
                     .setParameter(3, Constant.MODE_MTN).setParameter(4, Constant.MODE_MOOV)
                     .setParameter(5, Constant.MODE_WAVE).setParameter(6, Constant.MODE_DJAMO)

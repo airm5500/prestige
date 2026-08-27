@@ -20,6 +20,20 @@ public class ValorisationDTO implements Serializable {
     Integer montantPu = 0, montantFacture = 0, montantTarif = 0, montantPmd = 0;
     List<ValorisationDTO> datas = new ArrayList<>();
     ValorisationDTO tvas;
+    /**
+     * Faux lorsque la date demandee n'a fait l'objet d'aucun releve. Sans ce drapeau, une journee jamais relevee rend
+     * les memes zeros qu'une officine reellement vide, et l'etat imprime se lit comme une mesure alors qu'il n'en est
+     * pas une. Vrai par defaut : les etats a la date du jour sont calcules en direct.
+     */
+    boolean releveDisponible = true;
+
+    public boolean isReleveDisponible() {
+        return releveDisponible;
+    }
+
+    public void setReleveDisponible(boolean releveDisponible) {
+        this.releveDisponible = releveDisponible;
+    }
 
     public String getTypeId() {
         return typeId;

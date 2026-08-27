@@ -126,8 +126,13 @@ public interface ProduitService {
     JSONObject valorisationStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
             String lgZONEGEOID, String end, String begin, String emplacementId) throws JSONException;
 
-    Params getValeurStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId);
+    /**
+     * Compare, pour une date passee, la valorisation issue de l'archive JSON et celle issue du releve relationnel.
+     * Outil de validation de la migration : aucune ecriture, les deux sources sont lues telles quelles.
+     */
+    JSONObject comparerValorisationHistorique(int mode, LocalDate dtStart, String lgGROSSISTEID,
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String end, String begin, String emplacementId,
+            String typeStock) throws JSONException;
 
     ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
             String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock);

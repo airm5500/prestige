@@ -164,7 +164,9 @@ public class TiersPayantRessource {
             @DefaultValue("-1") @FormParam("montantFact") int montantFact,
             @DefaultValue("false") @FormParam("groupingByTaux") boolean groupingByTaux,
             @DefaultValue("false") @FormParam("cmu") boolean cmu, @DefaultValue("0") @FormParam("caution") int caution,
-            @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture) {
+            @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture,
+            @FormParam("int_NB_BONS_PAR_PAGE") Integer nbBonsParPage,
+            @FormParam("int_TAILLE_POLICE") Integer taillePolice) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
@@ -182,7 +184,7 @@ public class TiersPayantRessource {
                     dateDerniereEdition, numeroIdfOrganisme, montantFClient, baseRemise, codeDocComptoire, enabled,
                     villeId, typeTiersPayantId, typeContratId, regimeCaisseId, risque, codeOfficine, registreCommerce,
                     compteContribuable, quotaConsoMensuelle, isAbsolute, groupeId, nbrBons, montantFact, groupingByTaux,
-                    cmu, caution, strModeTriFacture);
+                    cmu, caution, strModeTriFacture, nbBonsParPage, taillePolice);
             return reponseSimple(otm.getMessage(), otm.getDetailmessage());
         } catch (Exception e) {
             LOG_GESTION.log(Level.SEVERE, "updateTiersPayant", e);
@@ -317,6 +319,398 @@ public class TiersPayantRessource {
         } catch (Exception e) {
             LOG_GESTION.log(Level.SEVERE, "compteTiersPayant", e);
             return Response.ok().entity(new JSONObject().put("data", new JSONArray()).put("total", 0).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    // =============================================================================================
+    // Mise a jour selective : appliquer un meme reglage a plusieurs tiers payants a la fois.
+    //
+    // L'officine peut avoir des dizaines d'organismes a regler de la meme facon (meme code
+    // d'edition de bordereau, meme nombre de bons par page, meme taille de police). Les reprendre
+    // un par un dans la fiche est long et laisse passer des oublis.
+    //
+    // Trois regles tenues ici :
+    // - le droit P_BTN_MAJ_SELECTIVE_TIERS_PAYANT est verifie SUR LE SERVEUR, pas seulement a
+    // l'ecran : masquer un bouton n'empeche personne d'appeler l'adresse directement ;
+    // - un reglage laisse vide n'est PAS applique, il n'ecrase donc rien ;
+    // - les memes bornes que la fiche s'appliquent (rest.report.MiseEnPageFacture).
+    // =============================================================================================
+
+    /** Le droit de faire des mises a jour selectives, pour afficher ou masquer le bouton. */
+    @GET
+    @Path("mise-a-jour-selective/privilege")
+    public Response privilegeMiseAJourSelective() {
+        return Response.ok().entity(new JSONObject().put("autorise", peutMettreAJourEnMasse()).toString()).build();
+    }
+
+    private boolean peutMettreAJourEnMasse() {
+        HttpSession session = servletRequest.getSession();
+        if (session.getAttribute(Constant.AIRTIME_USER) == null) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        List<TPrivilege> privileges = (List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        return privileges != null
+                && DateConverter.hasAuthorityByName(privileges, Constant.P_BTN_MAJ_SELECTIVE_TIERS_PAYANT);
+    }
+
+    /**
+     * Les tiers payants a cocher, avec la valeur ACTUELLE des trois reglages : c'est ce qui permet de voir avant de
+     * modifier, et de repartir de ce qui existe.
+     *
+     * @param tout
+     *            true pour recevoir tout le resultat de la recherche, toutes pages confondues (bouton « Tout cocher »)
+     */
+    @GET
+    @Path("mise-a-jour-selective/rechercher")
+    public Response rechercherPourMiseAJour(@DefaultValue("") @QueryParam("query") String query,
+            @DefaultValue("") @QueryParam("groupeId") String groupeId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("25") @QueryParam("limit") int limit,
+            @DefaultValue("false") @QueryParam("tout") boolean tout) {
+        if (!peutMettreAJourEnMasse()) {
+            return reponseNonAutorise();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String recherche = "%" + StringUtils.defaultString(query).trim() + "%";
+            String filtre = "FROM TTiersPayant t WHERE (t.strFULLNAME LIKE ?1 OR t.strNAME LIKE ?1"
+                    + " OR t.strCODEORGANISME LIKE ?1) AND t.strSTATUT = ?2";
+            // Filtre par groupe. Le groupe est designe par son libelle, comme partout ailleurs dans
+            // l'application (la fiche du tiers payant enregistre elle aussi le libelle).
+            boolean parGroupe = StringUtils.isNotBlank(groupeId);
+            if (parGroupe) {
+                filtre += " AND t.lgGROUPEID.strLIBELLE = ?3";
+            }
+            javax.persistence.EntityManager em = odm.getEm();
+            javax.persistence.TypedQuery<Long> requeteTotal = em.createQuery("SELECT COUNT(t) " + filtre, Long.class)
+                    .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable);
+            javax.persistence.TypedQuery<dal.TTiersPayant> requete = em
+                    .createQuery("SELECT t " + filtre + " ORDER BY t.strFULLNAME", dal.TTiersPayant.class)
+                    .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable);
+            if (parGroupe) {
+                requeteTotal.setParameter(3, groupeId.trim());
+                requete.setParameter(3, groupeId.trim());
+            }
+            long total = requeteTotal.getSingleResult();
+            if (!tout) {
+                requete.setFirstResult(Math.max(0, start)).setMaxResults(limit > 0 ? limit : 25);
+            }
+            JSONArray resultats = new JSONArray();
+            for (dal.TTiersPayant tp : requete.getResultList()) {
+                resultats
+                        .put(new JSONObject().put("lg_TIERS_PAYANT_ID", tp.getLgTIERSPAYANTID())
+                                .put("str_NAME", StringUtils.defaultString(tp.getStrNAME()))
+                                .put("str_FULLNAME", StringUtils.defaultString(tp.getStrFULLNAME()))
+                                .put("str_CODE_ORGANISME", StringUtils.defaultString(tp.getStrCODEORGANISME()))
+                                .put("str_CODE_EDIT_BORDEREAU", tp.getLgMODELFACTUREID() != null
+                                        ? StringUtils.defaultString(tp.getLgMODELFACTUREID().getStrVALUE()) : "")
+                                .put("int_NB_BONS_PAR_PAGE", tp.bonsParPageEffectif())
+                                .put("int_TAILLE_POLICE", tp.taillePoliceEffective()));
+            }
+            return Response.ok().entity(new JSONObject().put("total", total).put("results", resultats).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "rechercherPourMiseAJour", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Applique les reglages renseignes aux tiers payants coches.
+     *
+     * Chaque reglage est facultatif : celui qu'on laisse vide n'est pas touche. On peut donc ne changer que le code
+     * d'edition, ou que la police, sans rien ecraser d'autre.
+     */
+    @POST
+    @Path("mise-a-jour-selective/appliquer")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response appliquerMiseAJourSelective(@FormParam("tiersPayants") String tiersPayants,
+            @FormParam("codeEditBordereau") String codeEditBordereau, @FormParam("nbBonsParPage") String nbBonsParPage,
+            @FormParam("taillePolice") String taillePolice) {
+        if (!peutMettreAJourEnMasse()) {
+            return reponseNonAutorise();
+        }
+        List<String> identifiants = MiseAJourSelectiveUtil.identifiants(tiersPayants);
+        if (identifiants.isEmpty()) {
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Cochez au moins un tiers payant.");
+        }
+        boolean poseCode = StringUtils.isNotBlank(codeEditBordereau);
+        Integer bons = MiseAJourSelectiveUtil.entierOuNull(nbBonsParPage);
+        Integer police = MiseAJourSelectiveUtil.entierOuNull(taillePolice);
+        if (!poseCode && bons == null && police == null) {
+            return reponseSimple(commonparameter.PROCESS_FAILED,
+                    "Renseignez au moins un réglage à appliquer (code d'édition, bons par page ou police).");
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser sessionUser = utilisateurSession();
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            tierspayantManagement otm = new tierspayantManagement(odm, user);
+            dal.TModelFacture modele = poseCode ? otm.getModelFacture(codeEditBordereau.trim()) : null;
+            if (poseCode && modele == null) {
+                return reponseSimple(commonparameter.PROCESS_FAILED,
+                        "Le code d'édition « " + codeEditBordereau + " » n'existe pas.");
+            }
+            // Une seule transaction pour toute la selection : soit tous les tiers payants sont
+            // regles, soit aucun. Une coupure au milieu laisserait l'officine avec la moitie des
+            // organismes reglee et l'autre non, sans savoir lesquels.
+            odm.beginTransaction();
+            int modifies = 0;
+            for (String id : identifiants) {
+                dal.TTiersPayant tp = odm.getEm().find(dal.TTiersPayant.class, id);
+                if (tp == null) {
+                    continue;
+                }
+                if (modele != null) {
+                    tp.setStrCODEEDITBORDEREAU(modele.getStrVALUE());
+                    tp.setLgMODELFACTUREID(modele);
+                }
+                if (bons != null) {
+                    tp.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(bons));
+                }
+                if (police != null) {
+                    tp.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(police));
+                }
+                tp.setDtUPDATED(new java.util.Date());
+                odm.getEm().merge(tp);
+                modifies++;
+            }
+            odm.CloseTransaction();
+            return reponseSimple(commonparameter.PROCESS_SUCCESS,
+                    modifies + " tiers payant(s) mis à jour." + (modifies < identifiants.size()
+                            ? " " + (identifiants.size() - modifies) + " introuvable(s), ignoré(s)." : ""));
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "appliquerMiseAJourSelective", e);
+            try {
+                if (odm.getEm().getTransaction().isActive()) {
+                    odm.RejectTransaction();
+                }
+            } catch (Exception ignore) {
+                // la transaction etait deja close : rien a annuler
+            }
+            return reponseSimple(commonparameter.PROCESS_FAILED,
+                    "La mise à jour n'a pas abouti : " + messageClair(e) + " Aucun tiers payant n'a été modifié.");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Le message le plus parlant de la chaine d'erreurs, pour que le support sache quoi regarder. */
+    private static String messageClair(Exception e) {
+        Throwable cause = e;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String message = StringUtils.defaultString(cause.getMessage());
+        return message.isEmpty() ? cause.getClass().getSimpleName() : message;
+    }
+
+    private Response reponseNonAutorise() {
+        return Response.ok()
+                .entity(new JSONObject().put("success", commonparameter.PROCESS_FAILED).put("autorise", false)
+                        .put("errors", "Vous n'avez pas l'autorisation de mise à jour sélective des tiers payants.")
+                        .toString())
+                .build();
+    }
+
+    // =============================================================================================
+    // Listes deroulantes des ecrans de balance agee, en REST.
+    //
+    // Memes methodes metier et MEMES cles JSON que les JSP qu'elles remplacent, y compris la ligne
+    // « Tous » ajoutee en fin de liste : les ecrans qui s'en servent ne voient aucune difference.
+    // Les JSP restent en place pour les autres ecrans qui les appellent encore.
+    // =============================================================================================
+
+    /** Tiers payants d'une liste deroulante. Remplace ws_data_other.jsp. */
+    @GET
+    @Path("combo")
+    public Response combo(@DefaultValue("") @QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("query") String query,
+            @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("") @QueryParam("cmb_TYPE_TIERS_PAYANT") String typeTiersPayantId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String recherche = StringUtils.isNotEmpty(query) ? query : StringUtils.defaultString(searchValue);
+            String tp = StringUtils.isNotEmpty(tiersPayantId) ? tiersPayantId : "%%";
+            String type = StringUtils.isNotEmpty(typeTiersPayantId) ? typeTiersPayantId : "%%";
+            List<dal.TTiersPayant> liste = new tierspayantManagement(odm).ShowAllOrOneTierspayant(recherche, tp, type);
+            JSONArray resultats = new JSONArray();
+            for (dal.TTiersPayant tiersPayant : PaginationUtil.tranche(liste, start, limit)) {
+                resultats.put(ligneCombo(tiersPayant));
+            }
+            // Ligne « Tous » en fin de liste, comme la JSP : elle sert a lever le filtre.
+            resultats.put(new JSONObject().put("lg_TIERS_PAYANT_ID", "").put("str_FULLNAME", "Tous"));
+            return Response.ok()
+                    .entity(new JSONObject().put("total", liste.size()).put("results", resultats).toString()).build();
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "combo tiers payants", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Memes cles que ws_data_other.jsp, y compris celles qu'aucun ecran n'affiche aujourd'hui. */
+    private static JSONObject ligneCombo(dal.TTiersPayant tp) {
+        JSONObject json = new JSONObject();
+        json.put("lg_TIERS_PAYANT_ID", tp.getLgTIERSPAYANTID());
+        json.put("str_CODE_ORGANISME", tp.getStrCODEORGANISME());
+        json.put("str_NAME", tp.getStrNAME());
+        json.put("str_FULLNAME", tp.getStrFULLNAME());
+        json.put("str_ADRESSE", tp.getStrADRESSE());
+        json.put("str_MOBILE", tp.getStrMOBILE());
+        json.put("str_TELEPHONE", tp.getStrTELEPHONE());
+        json.put("str_MAIL", tp.getStrMAIL());
+        json.put("dbl_PLAFOND_CREDIT", tp.getDblPLAFONDCREDIT());
+        json.put("dbl_TAUX_REMBOURSEMENT", tp.getDblTAUXREMBOURSEMENT());
+        json.put("str_NUMERO_CAISSE_OFFICIEL", tp.getStrNUMEROCAISSEOFFICIEL());
+        json.put("str_CENTRE_PAYEUR", tp.getStrCENTREPAYEUR());
+        json.put("str_CODE_REGROUPEMENT", tp.getStrCODEREGROUPEMENT());
+        json.put("dbl_SEUIL_MINIMUM", tp.getDblSEUILMINIMUM());
+        json.put("bool_INTERDICTION", tp.getBoolINTERDICTION());
+        json.put("str_CODE_COMPTABLE", tp.getStrCODECOMPTABLE());
+        json.put("bool_PRENUM_FACT_SUBROGATOIRE", tp.getBoolPRENUMFACTSUBROGATOIRE());
+        json.put("int_NUMERO_DECOMPTE", tp.getIntNUMERODECOMPTE());
+        json.put("str_CODE_PAIEMENT", tp.getStrCODEPAIEMENT());
+        json.put("dt_DELAI_PAIEMENT", tp.getDtDELAIPAIEMENT());
+        json.put("dbl_POURCENTAGE_REMISE", tp.getDblPOURCENTAGEREMISE());
+        json.put("dbl_REMISE_FORFETAIRE", tp.getDblREMISEFORFETAIRE());
+        json.put("str_CODE_EDIT_BORDEREAU", tp.getStrCODEEDITBORDEREAU());
+        json.put("int_NBRE_EXEMPLAIRE_BORD", tp.getIntNBREEXEMPLAIREBORD());
+        json.put("int_PERIODICITE_EDIT_BORD", tp.getIntPERIODICITEEDITBORD());
+        json.put("int_DATE_DERNIERE_EDITION", tp.getIntDATEDERNIEREEDITION());
+        json.put("str_NUMERO_IDF_ORGANISME", tp.getStrNUMEROIDFORGANISME());
+        json.put("dbl_MONTANT_F_CLIENT", tp.getDblMONTANTFCLIENT());
+        json.put("dbl_BASE_REMISE", tp.getDblBASEREMISE());
+        json.put("str_CODE_DOC_COMPTOIRE", tp.getStrCODEDOCCOMPTOIRE());
+        json.put("bool_ENABLED", tp.getBoolENABLED());
+        json.put("lg_CUSTOMER_ID", tp.getLgTIERSPAYANTID());
+        json.put("str_LIBELLE", tp.getStrNAME());
+        if (tp.getLgVILLEID() != null) {
+            json.put("lg_VILLE_ID", tp.getLgVILLEID().getStrName());
+        }
+        if (tp.getLgTYPETIERSPAYANTID() != null) {
+            json.put("lg_TYPE_TIERS_PAYANT_ID", tp.getLgTYPETIERSPAYANTID().getStrLIBELLETYPETIERSPAYANT());
+        }
+        if (tp.getLgTYPECONTRATID() != null) {
+            json.put("lg_TYPE_CONTRAT_ID", tp.getLgTYPECONTRATID().getStrLIBELLETYPECONTRAT());
+        }
+        if (tp.getLgRISQUEID() != null) {
+            json.put("lg_RISQUE_ID", tp.getLgRISQUEID().getStrLIBELLERISQUE());
+        }
+        if (tp.getLgREGIMECAISSEID() != null) {
+            json.put("lg_REGIMECAISSE_ID", tp.getLgREGIMECAISSEID().getStrCODEREGIMECAISSE());
+        }
+        json.put("str_STATUT", tp.getStrSTATUT());
+        json.put("str_PHOTO", tp.getStrPHOTO());
+        if (tp.getDtCREATED() != null) {
+            json.put("dt_CREATED", toolkits.utils.date.formatterOrange.format(tp.getDtCREATED()));
+        }
+        if (tp.getDtUPDATED() != null) {
+            json.put("dt_UPDATED", toolkits.utils.date.formatterOrange.format(tp.getDtUPDATED()));
+        }
+        return json;
+    }
+
+    /** Types de tiers payant d'une liste deroulante. Remplace typetierspayant/ws_data.jsp. */
+    @GET
+    @Path("types")
+    public Response types(@DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("0") @QueryParam("limit") int limit) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            List<dal.TTypeTiersPayant> liste = odm.getEm()
+                    .createQuery("SELECT t FROM TTypeTiersPayant t WHERE t.strSTATUT = ?1"
+                            + " ORDER BY t.strLIBELLETYPETIERSPAYANT", dal.TTypeTiersPayant.class)
+                    .setParameter(1, commonparameter.statut_enable).getResultList();
+            JSONArray resultats = new JSONArray();
+            for (dal.TTypeTiersPayant type : PaginationUtil.tranche(liste, start, limit)) {
+                JSONObject json = new JSONObject();
+                json.put("lg_TYPE_TIERS_PAYANT_ID", type.getLgTYPETIERSPAYANTID());
+                json.put("str_CODE_TYPE_TIERS_PAYANT", type.getStrCODETYPETIERSPAYANT());
+                json.put("str_LIBELLE_TYPE_TIERS_PAYANT", type.getStrLIBELLETYPETIERSPAYANT());
+                json.put("str_STATUT", type.getStrSTATUT());
+                if (type.getDtCREATED() != null) {
+                    json.put("dt_CREATED", toolkits.utils.date.formatterOrange.format(type.getDtCREATED()));
+                }
+                if (type.getDtUPDATED() != null) {
+                    json.put("dt_UPDATED", toolkits.utils.date.formatterOrange.format(type.getDtUPDATED()));
+                }
+                resultats.put(json);
+            }
+            return Response.ok()
+                    .entity(new JSONObject().put("total", liste.size()).put("results", resultats).toString()).build();
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "types de tiers payant", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Clients rattaches a un tiers payant, pour la liste deroulante. Remplace ws_data_compteclttierspayants.jsp. */
+    @GET
+    @Path("clients-combo")
+    public Response clientsCombo(@DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("") @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String compte = StringUtils.isNotEmpty(compteClientId) ? compteClientId : "%%";
+            String tp = StringUtils.isNotEmpty(tiersPayantId) ? tiersPayantId : "%%";
+            List<dal.TCompteClientTiersPayant> liste = new bll.configManagement.clientManagement(odm)
+                    .getTiersPayantsByClient(compte, tp);
+            JSONArray resultats = new JSONArray();
+            for (dal.TCompteClientTiersPayant ligne : PaginationUtil.tranche(liste, start, limit)) {
+                JSONObject json = new JSONObject();
+                json.put("lg_COMPTE_CLIENT_TIERS_PAYANT_ID", ligne.getLgCOMPTECLIENTTIERSPAYANTID());
+                json.put("lg_COMPTE_CLIENT_ID", ligne.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID());
+                json.put("lg_TIERS_PAYANT_ID", ligne.getLgTIERSPAYANTID().getLgTIERSPAYANTID());
+                json.put("str_STATUT", ligne.getStrSTATUT());
+                json.put("int_POURCENTAGE", ligne.getIntPOURCENTAGE());
+                json.put("str_FIRST_LAST_NAME",
+                        StringUtils.defaultString(ligne.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME()) + " "
+                                + StringUtils
+                                        .defaultString(ligne.getLgCOMPTECLIENTID().getLgCLIENTID().getStrLASTNAME()));
+                if (ligne.getDtCREATED() != null) {
+                    json.put("dt_CREATED", toolkits.utils.date.formatterOrange.format(ligne.getDtCREATED()));
+                }
+                if (ligne.getDtUPDATED() != null) {
+                    json.put("dt_UPDATED", toolkits.utils.date.formatterOrange.format(ligne.getDtUPDATED()));
+                }
+                resultats.put(json);
+            }
+            // Ligne « Tous » en fin de liste, comme la JSP.
+            resultats.put(new JSONObject().put("lg_COMPTE_CLIENT_TIERS_PAYANT_ID", "").put("lg_COMPTE_CLIENT_ID", "")
+                    .put("str_FIRST_LAST_NAME", "Tous"));
+            return Response.ok()
+                    .entity(new JSONObject().put("total", liste.size()).put("results", resultats).toString()).build();
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "clients d'un tiers payant", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
                     .build();
         } finally {
             odm.closeEntityManager();

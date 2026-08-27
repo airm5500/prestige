@@ -8,7 +8,9 @@ var url_services_data_typetierspayant_tp = '../webservices/tierspayantmanagement
 var url_services_data_typecontrat_tp = '../webservices/configmanagement/typecontrat/ws_data.jsp';
 var url_services_data_regimecaisse_tp = '../webservices/configmanagement/regimecaisse/ws_data.jsp';
 var url_services_data_risque_tp = '../webservices/configmanagement/risque/ws_data.jsp';
-var url_services_data_modelfacture_rp = '../webservices/tierspayantmanagement/tierspayant/ws_data_model.jsp';
+// Liste des modeles de facture : service REST. La reponse garde la forme lue par l'ecran
+// (total + results, memes noms de colonnes) : le combo se comporte exactement comme avant.
+var url_services_data_modelfacture_rp = '../api/v1/facturation/modelfacture/liste';
 
 var Oview;
 var Omode;
@@ -157,38 +159,113 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
         });
 
+        /*
+         * Habillage de la fiche.
+         *
+         * Une feuille de style deposee une seule fois : titres de blocs en bleu marine, blocs sur
+         * fond blanc detache du fond de la fenetre, libelles adoucis. Les memes couleurs que les
+         * etats de facture retravailles pour l'officine, pour que l'application et le papier se
+         * ressemblent.
+         */
+        if (!Ext.util.CSS.getRule('.fiche-tp .x-fieldset-header-text')) {
+            Ext.util.CSS.createStyleSheet(
+                    '.fiche-tp .x-panel-body{background:#F4F6F9;}'
+                    + '.fiche-tp .x-fieldset{border:1px solid #D3DBE5;border-radius:3px;'
+                    + 'background:#FFFFFF;padding:6px 12px 10px 12px;margin-bottom:10px;}'
+                    + '.fiche-tp .x-fieldset-header-text{color:#1E3A5F;font-weight:700;font-size:12px;}'
+                    + '.fiche-tp .x-fieldset-header{padding-left:2px;}'
+                    + '.fiche-tp .x-form-item-label{color:#5A6779;}'
+                    + '.fiche-tp .x-form-cb-label{color:#5A6779;}',
+                    'fiche-tiers-payant');
+        }
+
+        /*
+         * Champs conserves mais retires de l'ecran.
+         *
+         * L'officine ne renseigne aucun de ces vingt champs : les afficher obligeait a parcourir
+         * six blocs pour atteindre les quelques-uns qui servent vraiment. Ils restent presents
+         * dans le formulaire, charges et renvoyes tels quels a l'enregistrement : la valeur deja
+         * en base ne bouge pas, et il suffit de retirer un champ de cette liste pour le revoir.
+         */
+        var champsMasques = {
+            xtype: 'container',
+            hidden: true,
+            itemId: 'champsMasques',
+            defaultType: 'textfield',
+            items: [
+                {fieldLabel: 'Ville', xtype: 'combobox', name: 'lg_VILLE_ID', id: 'lg_VILLE_ID',
+                    store: store_ville_tp, valueField: 'lg_VILLE_ID', displayField: 'STR_NAME',
+                    queryMode: 'remote'},
+                // Une fiche creee est faite pour servir : sans la case a l'ecran, le nouveau tiers
+                // payant serait enregistre inactif.
+                {fieldLabel: 'Active', xtype: 'checkbox', name: 'bool_ENABLED', id: 'bool_ENABLED',
+                    checked: Omode !== 'update'},
+                {fieldLabel: 'Periodicite.edit.bord', name: 'int_PERIODICITE_EDIT_BORD',
+                    id: 'int_PERIODICITE_EDIT_BORD'},
+                {fieldLabel: 'Fact.Subrogatoire', xtype: 'checkbox', name: 'bool_PRENUM_FACT_SUBROGATOIRE',
+                    id: 'bool_PRENUM_FACT_SUBROGATOIRE'},
+                {fieldLabel: 'No IDF', name: 'str_NUMERO_IDF_ORGANISME', id: 'str_NUMERO_IDF_ORGANISME'},
+                {fieldLabel: 'Taux.Remboursement', name: 'dbl_TAUX_REMBOURSEMENT', id: 'dbl_TAUX_REMBOURSEMENT'},
+                {fieldLabel: 'Montant F Client', name: 'dbl_MONTANT_F_CLIENT', id: 'dbl_MONTANT_F_CLIENT'},
+                {fieldLabel: 'Base Remise', name: 'dbl_BASE_REMISE', id: 'dbl_BASE_REMISE'},
+                {fieldLabel: 'Code Comptable', name: 'str_CODE_COMPTABLE', id: 'str_CODE_COMPTABLE'},
+                {fieldLabel: 'N0 Decompte', name: 'int_NUMERO_DECOMPTE', id: 'int_NUMERO_DECOMPTE'},
+                {fieldLabel: 'N0 Caisse Officiel', name: 'str_NUMERO_CAISSE_OFFICIEL',
+                    id: 'str_NUMERO_CAISSE_OFFICIEL'},
+                {fieldLabel: 'Code Doc Comptoire', name: 'str_CODE_DOC_COMPTOIRE', id: 'str_CODE_DOC_COMPTOIRE'},
+                {fieldLabel: 'Regime.Caisse', xtype: 'combobox', name: 'lg_REGIMECAISSE_ID', id: 'lg_REGIMECAISSE_ID',
+                    store: store_regime_tp, valueField: 'lg_REGIMECAISSE_ID', displayField: 'str_LIBELLEREGIMECAISSE',
+                    queryMode: 'remote'},
+                {fieldLabel: 'Type.Contrat', xtype: 'combobox', name: 'lg_TYPE_CONTRAT_ID', id: 'lg_TYPE_CONTRAT_ID',
+                    store: store_typecontrat_tp, valueField: 'lg_TYPE_CONTRAT_ID',
+                    displayField: 'str_LIBELLE_TYPE_CONTRAT', queryMode: 'remote'},
+                {fieldLabel: 'Code Regroupement', name: 'str_CODE_REGROUPEMENT', id: 'str_CODE_REGROUPEMENT'},
+                {fieldLabel: 'Risque', xtype: 'combobox', name: 'lg_RISQUE_ID', id: 'lg_RISQUE_ID',
+                    store: store_risque_tp, valueField: 'lg_RISQUE_ID', displayField: 'str_LIBELLE_RISQUE',
+                    queryMode: 'remote'},
+                {fieldLabel: 'Centre payeur', name: 'str_CENTRE_PAYEUR', id: 'str_CENTRE_PAYEUR'},
+                {fieldLabel: 'Caution', name: 'caution', id: 'caution'},
+                {fieldLabel: 'Seuil minimum', name: 'dbl_SEUIL_MINIMUM', id: 'dbl_SEUIL_MINIMUM'},
+                {fieldLabel: 'Code Paiement', name: 'str_CODE_PAIEMENT', id: 'str_CODE_PAIEMENT'}
+            ]
+        };
+
         var form = new Ext.form.Panel({
-            bodyPadding: 15,
+            cls: 'fiche-tp',
+            bodyPadding: 12,
+            scrollable: true,
             fieldDefaults: {
                 labelAlign: 'right',
-                labelWidth: 150,
-                layout: {
-                    type: 'vbox',
-                    align: 'stretch',
-                    padding: 10
-                },
-                defaults: {
-                    flex: 1
-                },
+                labelWidth: 130,
                 msgTarget: 'side'
+            },
+            /*
+             * Quatre blocs seulement, et une meme grille de quatre colonnes sur toutes les lignes.
+             *
+             * Le premier reunit ce qu'on regarde en premier : qui est l'organisme et comment le
+             * joindre. Viennent ensuite ce qui decide de sa facture, ses conditions, puis son
+             * compte. Tout le reste est masque (voir champsMasques ci-dessus).
+             *
+             * Aucun champ n'a change de nom ni d'identifiant : l'enregistrement et le chargement
+             * sont exactement ceux d'avant.
+             */
+            defaults: {
+                xtype: 'fieldset',
+                collapsible: true,
+                layout: 'vbox',
+                defaultType: 'textfield',
+                defaults: {anchor: '100%'}
             },
             items: [
                 {
-                    xtype: 'fieldset',
-                    collapsible: true,
-                    layout: 'vbox',
-                    title: 'Informations.Generales',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-                    },
-                    items: [{
+                    title: 'Identification et coordonn&eacute;es',
+                    items: [
+                        {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     allowBlank: false,
@@ -212,7 +289,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             }
                                         }
                                     }
-                                    
                                 },
                                 {
                                     allowBlank: false,
@@ -220,58 +296,15 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     emptyText: 'Nom complet',
                                     name: 'str_FULLNAME',
                                     id: 'str_FULLNAME',
-                                    style: 'background-color: #ffffe0;',
-                                    //width: 500
+                                    style: 'background-color: #ffffe0;'
                                 },
-                                {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Code.Edit.Bordereau',
-                                    displayField: 'str_VALUE',
-                                    valueField: 'str_VALUE',
-                                    id: 'str_CODE_EDIT_BORDEREAU',
-                                    emptyText: 'Code.Edit.Bordereau',
-                                    queryMode: 'remote',
-                                    store: store_modelfacture
-
-
-                                },
-                                {
-                                    // Tri des lignes lors de la generation de la facture de ce tiers payant
-                                    // (4e colonne des informations generales)
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Tri facture',
-                                    name: 'str_MODE_TRI_FACTURE',
-                                    id: 'str_MODE_TRI_FACTURE_TP',
-                                    store: Ext.create('Ext.data.ArrayStore', {
-                                        data: [
-                                            ['ALPHABETIQUE', 'Alphabétique (nom du client)'],
-                                            ['DATE_BON', 'Date du bon / opération']
-                                        ],
-                                        fields: [{name: 'value', type: 'string'}, {name: 'libelle', type: 'string'}]
-                                    }),
-                                    valueField: 'value',
-                                    displayField: 'libelle',
-                                    editable: false,
-                                    queryMode: 'local',
-                                    value: 'ALPHABETIQUE'
-                                }
-                            ]
-                        }, {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
                                 {
                                     allowBlank: false,
-                                    fieldLabel: 'Adresse',
-                                    emptyText: 'ADRESSE',
-                                    name: 'str_ADRESSE',
-                                    id: 'str_ADRESSE',
-                                    style: 'background-color: #ffffe0;',
-                                    value: 'ABJ'
+                                    fieldLabel: 'Code.Organisme',
+                                    emptyText: 'CODE ORGANISME',
+                                    name: 'str_CODE_ORGANISME',
+                                    id: 'str_CODE_ORGANISME',
+                                    style: 'background-color: #ffffe0;'
                                 },
                                 {
                                     allowBlank: false,
@@ -282,24 +315,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     store: store_type_tp,
                                     valueField: 'lg_TYPE_TIERS_PAYANT_ID',
                                     displayField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
-//                                    typeAhead: true,
                                     editable: false,
                                     queryMode: 'remote',
                                     emptyText: 'Choisir un type tiers payant ...',
                                     style: 'background-color: #ffffe0;'
-                                },
-                                {
-                                            // allowBlank: false,
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Nbre.Exemplaire.Bord',
-                                            emptyText: 'Nbre.Exemplaire.Bord',
-                                            name: 'int_NBRE_EXEMPLAIRE_BORD',
-                                            id: 'int_NBRE_EXEMPLAIRE_BORD',
-                                            minValue: 1
-                                        },
-                                {
-                                    // 4e colonne vide : garde l'alignement des colonnes
-                                    xtype: 'container'
                                 }
                             ]
                         },
@@ -307,56 +326,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
-                                    allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Telephone',
-                                    emptyText: 'TELEPHONE',
-                                    name: 'str_TELEPHONE',
-                                    id: 'str_TELEPHONE',
-                                    style: 'background-color: #ffffe0;',
-                                    value: '225'
-                                },
-                                {
-                                    allowBlank: false,
-                                    fieldLabel: 'Code.Organisme',
-                                    emptyText: 'CODE ORGANISME',
-                                    name: 'str_CODE_ORGANISME',
-                                    id: 'str_CODE_ORGANISME',
-                                    style: 'background-color: #ffffe0;',
-                                    //width: 500
-                                    
-                                },
-                                {
-
-                                    fieldLabel: 'Code Officine',
-                                    emptyText: 'Code Officine',
-                                    name: 'str_CODE_OFFICINE',
-                                    id: 'str_CODE_OFFICINE',
-                                    //width: 500
-                                },
-                                {
-                                    // 4e colonne vide : garde l'alignement des colonnes
-                                    xtype: 'container'
-                                }
-                            ]
-                        },
-
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-
-                                {
-                                    //allowBlank: false,
                                     xtype: 'combobox',
                                     fieldLabel: 'Groupe',
                                     name: 'lg_GROUPE_ID',
@@ -365,7 +338,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     valueField: 'str_LIBELLE',
                                     displayField: 'str_LIBELLE',
                                     typeAhead: true,
-//                                    width: 400,
                                     queryMode: 'remote',
                                     emptyText: 'Choisir un groupe...',
                                     listeners: {
@@ -381,195 +353,226 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     }
                                 },
                                 {
-                                    // allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Nbre Bons à facturer',
-                                    emptyText: 'Nbre Bons à facturer',
-                                    name: 'nbrbons',
-                                    id: 'nbrbons'
+                                    fieldLabel: 'Code Officine',
+                                    emptyText: 'Code Officine',
+                                    name: 'str_CODE_OFFICINE',
+                                    id: 'str_CODE_OFFICINE'
                                 },
                                 {
-
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Montant Facture',
-                                    emptyText: 'Montant Facture',
-                                    name: 'montantFact',
-                                    id: 'montantFact'
+                                    allowBlank: false,
+                                    fieldLabel: 'Adresse',
+                                    emptyText: 'ADRESSE',
+                                    name: 'str_ADRESSE',
+                                    id: 'str_ADRESSE',
+                                    style: 'background-color: #ffffe0;',
+                                    value: 'ABJ'
                                 },
                                 {
-                                    // 4e colonne vide : garde l'alignement des colonnes
-                                    xtype: 'container'
+                                    allowBlank: false,
+                                    maskRe: /[0-9.]/,
+                                    fieldLabel: 'Telephone',
+                                    emptyText: 'TELEPHONE',
+                                    name: 'str_TELEPHONE',
+                                    id: 'str_TELEPHONE',
+                                    style: 'background-color: #ffffe0;',
+                                    value: '225'
                                 }
-
-
                             ]
                         },
-
                         {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
-
                                 {
-
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Grouper les factures par taux',
-                                    name: 'groupingByTaux',
-                                    id: 'groupingByTaux'
+                                    maskRe: /[0-9.]/,
+                                    fieldLabel: 'Mobile',
+                                    emptyText: 'Mobile',
+                                    name: 'str_MOBILE',
+                                    id: 'str_MOBILE'
                                 },
                                 {
-
+                                    fieldLabel: 'Mail',
+                                    emptyText: 'MAIL',
+                                    name: 'str_MAIL',
+                                    id: 'str_MAIL'
+                                },
+                                {
                                     fieldLabel: 'Compte Contribuable',
                                     emptyText: 'Compte Contribuable',
                                     name: 'str_COMPTE_CONTRIBUABLE',
                                     id: 'str_COMPTE_CONTRIBUABLE'
                                 },
-
                                 {
-
                                     fieldLabel: 'Registre de Commerce',
                                     emptyText: 'Registre de Commerce',
                                     name: 'str_REGISTRE_COMMERCE',
                                     id: 'str_REGISTRE_COMMERCE'
-                                },
-                                {
-                                    // 4e colonne vide : garde l'alignement des colonnes
-                                    xtype: 'container'
                                 }
-
                             ]
                         }
-
-
-
                     ]
                 },
                 {
-                    xtype: 'fieldset',
-                    collapsible: true,
-                    layout: 'vbox',
-                    title: 'Informations.Supplementaire',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-                    },
+                    /*
+                     * Tout ce qui decide de la facture de ce tiers payant. La 4e colonne porte les
+                     * trois reglages de l'edition, l'un sous l'autre : tri des bons, nombre de bons
+                     * par page, taille de police.
+                     */
+                    title: 'Facturation et &eacute;dition de la facture',
+                    items: [
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            margin: '0 0 2 0',
+                            defaults: {
+                                flex: 1,
+                                margin: '0 10 0 0',
+                                xtype: 'container',
+                                layout: 'anchor',
+                                defaultType: 'textfield',
+                                defaults: {anchor: '100%', labelWidth: 105, margin: '0 0 4 0'}
+                            },
+                            items: [
+                                {
+                                    items: [
+                                        {
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Nbre Bons &agrave; facturer',
+                                            emptyText: 'Nbre Bons à facturer',
+                                            name: 'nbrbons',
+                                            id: 'nbrbons'
+                                        },
+                                        {
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Montant Facture',
+                                            emptyText: 'Montant Facture',
+                                            name: 'montantFact',
+                                            id: 'montantFact'
+                                        },
+                                        {
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Nbre.Exempl.Bord',
+                                            emptyText: 'Nbre.Exemplaire.Bord',
+                                            name: 'int_NBRE_EXEMPLAIRE_BORD',
+                                            id: 'int_NBRE_EXEMPLAIRE_BORD',
+                                            minValue: 1
+                                        }
+                                    ]
+                                },
+                                {
+                                    items: [
+                                        {
+                                            xtype: 'combobox',
+                                            fieldLabel: 'Code.Edit.Bordereau',
+                                            displayField: 'str_VALUE',
+                                            valueField: 'str_VALUE',
+                                            id: 'str_CODE_EDIT_BORDEREAU',
+                                            emptyText: 'Code.Edit.Bordereau',
+                                            queryMode: 'remote',
+                                            store: store_modelfacture
+                                        },
+                                        {
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Date.dern.edition',
+                                            name: 'int_DATE_DERNIERE_EDITION',
+                                            id: 'int_DATE_DERNIERE_EDITION'
+                                        },
+                                        {
+                                            xtype: 'checkbox',
+                                            fieldLabel: 'Grouper par taux',
+                                            name: 'groupingByTaux',
+                                            id: 'groupingByTaux'
+                                        }
+                                    ]
+                                },
+                                {
+                                    // 3e colonne libre : elle garde l'alignement des quatre colonnes
+                                    items: []
+                                },
+                                {
+                                    // 4e colonne : les trois reglages de l'edition, l'un sous l'autre.
+                                    items: [
+                                        {
+                                            xtype: 'combobox',
+                                            fieldLabel: 'Tri facture',
+                                            name: 'str_MODE_TRI_FACTURE',
+                                            id: 'str_MODE_TRI_FACTURE_TP',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [
+                                                    ['ALPHABETIQUE', 'Alphabétique (nom du client)'],
+                                                    ['DATE_BON', 'Date du bon / opération']
+                                                ],
+                                                fields: [{name: 'value', type: 'string'},
+                                                    {name: 'libelle', type: 'string'}]
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            editable: false,
+                                            queryMode: 'local',
+                                            value: 'ALPHABETIQUE'
+                                        },
+                                        {
+                                            xtype: 'numberfield',
+                                            fieldLabel: 'Bons par page',
+                                            name: 'int_NB_BONS_PAR_PAGE',
+                                            id: 'int_NB_BONS_PAR_PAGE',
+                                            emptyText: 'Automatique',
+                                            allowBlank: true,
+                                            allowDecimals: false,
+                                            minValue: 5,
+                                            maxValue: 500,
+                                            step: 5,
+                                            // 20 bons par page par defaut. Vider le champ revient a
+                                            // « automatique » : la page se remplit alors d'elle-meme.
+                                            value: 20
+                                        },
+                                        {
+                                            xtype: 'combobox',
+                                            fieldLabel: 'Police facture',
+                                            name: 'int_TAILLE_POLICE',
+                                            id: 'int_TAILLE_POLICE',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [
+                                                    [0, 'Automatique (taille du modèle)'],
+                                                    [5, '5 points'],
+                                                    [6, '6 points'],
+                                                    [7, '7 points'],
+                                                    [8, '8 points'],
+                                                    [9, '9 points'],
+                                                    [10, '10 points'],
+                                                    [11, '11 points'],
+                                                    [12, '12 points']
+                                                ],
+                                                fields: [{name: 'value', type: 'int'},
+                                                    {name: 'libelle', type: 'string'}]
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            editable: false,
+                                            queryMode: 'local',
+                                            // 7 points : la taille moyenne des modeles livres.
+                                            value: 7
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    title: 'Conditions commerciales',
                     items: [
                         {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-
-                                {
-                                    // allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Taux.Remboursement',
-                                    emptyText: 'Taux.Remboursement',
-                                    name: 'dbl_TAUX_REMBOURSEMENT',
-                                    id: 'dbl_TAUX_REMBOURSEMENT'
-                                },
-                                {
-                                    // allowBlank: false,
-                                    fieldLabel: 'N0 Caisse Officiel',
-                                    emptyText: 'N0 Caisse Officiel',
-                                    name: 'str_NUMERO_CAISSE_OFFICIEL',
-                                    id: 'str_NUMERO_CAISSE_OFFICIEL'
-                                },
-                                {
-                                    // allowBlank: false,
-                                    fieldLabel: 'Code Comptable',
-                                    emptyText: 'Code Comptable',
-                                    name: 'str_CODE_COMPTABLE',
-                                    id: 'str_CODE_COMPTABLE'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
-                                    // allowBlank: false,
-                                    fieldLabel: 'Centre payeur',
-                                    emptyText: 'Centre payeur',
-                                    name: 'str_CENTRE_PAYEUR',
-                                    id: 'str_CENTRE_PAYEUR'
-                                },
-                                {
-                                    //  allowBlank: false,
-                                    fieldLabel: 'Code Regroupement',
-                                    emptyText: 'Code Regroupement',
-                                    name: 'str_CODE_REGROUPEMENT',
-                                    id: 'str_CODE_REGROUPEMENT'
-                                },
-                                {
-                                    //  allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Seuil minimum',
-                                    emptyText: 'Seuil minimum',
-                                    name: 'dbl_SEUIL_MINIMUM',
-                                    id: 'dbl_SEUIL_MINIMUM'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                // int_NUMERO_DECOMPTE*
-                                {
-                                    // allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'N0 Decompte',
-                                    emptyText: 'N0 Decompte',
-                                    name: 'int_NUMERO_DECOMPTE',
-                                    id: 'int_NUMERO_DECOMPTE'
-                                },
-                                // str_CODE_PAIEMENT
-                                {
-                                    // allowBlank: false,
-                                    fieldLabel: 'Code Paiement',
-                                    emptyText: 'Code Paiement',
-                                    name: 'str_CODE_PAIEMENT',
-                                    id: 'str_CODE_PAIEMENT'
-                                },
-                                // dt_DELAI_PAIEMENT
-                                {
-                                    //xtype: 'datefield',
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Date delai paiement',
-                                    name: 'dt_DELAI_PAIEMENT',
-                                    id: 'dt_DELAI_PAIEMENT'
-                                    // allowBlank: false
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                // dbl_POURCENTAGE_REMISE*
-                                {
-                                    // allowBlank: false,
                                     maskRe: /[0-9.]/,
                                     fieldLabel: 'Pourcentage.Remise',
                                     emptyText: 'POURCENTAGE_REMISE',
@@ -577,7 +580,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'dbl_POURCENTAGE_REMISE'
                                 },
                                 {
-                                    // allowBlank: false,
                                     maskRe: /[0-9.]/,
                                     fieldLabel: 'Remise.Forfetaire',
                                     emptyText: 'REMISE_FORFETAIRE',
@@ -585,284 +587,47 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'dbl_REMISE_FORFETAIRE'
                                 },
                                 {
-                                    //allowBlank: false,
                                     maskRe: /[0-9.]/,
-                                    fieldLabel: 'Mobile',
-                                    emptyText: 'Mobile',
-                                    name: 'str_MOBILE',
-                                    id: 'str_MOBILE'
-                                }
-                                /* {
-                                 // allowBlank: false,
-                                 fieldLabel: 'Code.Edit.Bordereau',
-                                 emptyText: 'Code.Edit.Bordereau',
-                                 name: 'str_CODE_EDIT_BORDEREAU',
-                                 id: 'str_CODE_EDIT_BORDEREAU'
-                                 }*/
-                            ]
-                        },
-                        ,
-                                {
-                                    xtype: 'container',
-                                    layout: 'hbox',
-                                    defaultType: 'textfield',
-                                    margin: '0 0 5 0',
-                                    items: [
-                                        // dbl_POURCENTAGE_REMISE*
-                                        ,
-                                        {
-                                    // allowBlank: false,
-                                    fieldLabel: 'No IDF',
-                                    emptyText: 'No IDF',
-                                    name: 'str_NUMERO_IDF_ORGANISME',
-                                    id: 'str_NUMERO_IDF_ORGANISME'
+                                    fieldLabel: 'D&eacute;lai paiement',
+                                    name: 'dt_DELAI_PAIEMENT',
+                                    id: 'dt_DELAI_PAIEMENT'
                                 },
-                                        {
-                                            // allowBlank: false,
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Periodicite.edit.bord',
-                                            emptyText: 'Periodicite.edit.bord',
-                                            name: 'int_PERIODICITE_EDIT_BORD',
-                                            id: 'int_PERIODICITE_EDIT_BORD'
-                                        },
-                                        {
-                                            // int_DATE_DERNIERE_EDITION
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Date.derniere.edition',
-                                            name: 'int_DATE_DERNIERE_EDITION',
-                                            id: 'int_DATE_DERNIERE_EDITION'
-                                                    // allowBlank: false
-                                        }
-                                    ]
-                                },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                // dbl_MONTANT_F_CLIENT*
-                                {
-                                    // allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Montant F Client',
-                                    emptyText: 'Montant F Client',
-                                    name: 'dbl_MONTANT_F_CLIENT',
-                                    id: 'dbl_MONTANT_F_CLIENT'
-                                },
-                                {
-                                    // allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Base Remise',
-                                    emptyText: 'Base Remise',
-                                    name: 'dbl_BASE_REMISE',
-                                    id: 'dbl_BASE_REMISE'
-                                },
-                                {
-                                    fieldLabel: 'Code Doc Comptoire',
-                                    emptyText: 'Code Doc Comptoire',
-                                    name: 'str_CODE_DOC_COMPTOIRE',
-                                    id: 'str_CODE_DOC_COMPTOIRE'
-                                }
-                            ]
-                        }
-                        ,
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 30 0',
-                            items: [
-                                {
-                                    // allowBlank: false,
-                                    fieldLabel: 'Mail',
-                                    emptyText: 'MAIL',
-                                    name: 'str_MAIL',
-                                    id: 'str_MAIL'
-                                },
-                                {
-                                    //  allowBlank: false,
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Prepayer',
-                                    emptyText: 'Prepayer',
-                                    name: 'bool_IsACCOUNT',
-                                    id: 'bool_IsACCOUNT',
-                                    listeners: {
-                                        change: function (checkbox, newValue, oldValue, eOpts) {
-                                            if (newValue) {
-                                                //alert("value vrai " + newValue);
-                                                Ext.getCmp('int_ACCOUNT').show();
-                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').disable();
-                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').setValue(0);
-                                            } else {
-                                                //alert("value faux " + newValue);
-
-                                                // Ext.getCmp('int_ENCOURS').show();
-                                                Ext.getCmp('int_ACCOUNT').hide();
-                                                Ext.getCmp('int_ACCOUNT').setValue(0);
-                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').enable();
-                                            }
-                                        }
-                                    }
-                                }
-
+                                {xtype: 'container'}
                             ]
                         },
                         {
                             xtype: 'container',
                             layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '-25 0 5 0',
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
-                                    // allowBlank: false,
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Risque',
-                                    name: 'lg_RISQUE_ID',
-                                    id: 'lg_RISQUE_ID',
-                                    store: store_risque_tp,
-                                    valueField: 'lg_RISQUE_ID',
-                                    displayField: 'str_LIBELLE_RISQUE',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un risque...'
-                                },
-                                {
-                                    // allowBlank: false,
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Type.Contrat',
-                                    name: 'lg_TYPE_CONTRAT_ID',
-                                    id: 'lg_TYPE_CONTRAT_ID',
-                                    store: store_typecontrat_tp,
-                                    valueField: 'lg_TYPE_CONTRAT_ID',
-                                    displayField: 'str_LIBELLE_TYPE_CONTRAT',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un type contrat...'
-                                },
-                                {
-                                    //  allowBlank: false,
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Regime.Caisse',
-                                    name: 'lg_REGIMECAISSE_ID',
-                                    id: 'lg_REGIMECAISSE_ID',
-                                    store: store_regime_tp,
-                                    valueField: 'lg_REGIMECAISSE_ID',
-                                    displayField: 'str_LIBELLEREGIMECAISSE',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un regime caisse...'
-                                }
-                            ]},
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                {
-                                    // allowBlank: false,
                                     xtype: 'checkbox',
                                     fieldLabel: 'Interdiction',
-                                    emptyText: 'Interdiction',
                                     name: 'bool_INTERDICTION',
                                     id: 'bool_INTERDICTION'
                                 },
-                                // bool_PRENUM_FACT_SUBROGATOIRE
                                 {
-                                    //allowBlank: false,
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Fact.Subrogatoire',
-                                    emptyText: 'Fact.Subrogatoire',
-                                    name: 'bool_PRENUM_FACT_SUBROGATOIRE',
-                                    id: 'bool_PRENUM_FACT_SUBROGATOIRE'
-                                },
-                                // str_CODE_DOC_COMPTOIRE
-                                {
-                                    // allowBlank: false,
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Active',
-                                    emptyText: 'Active',
-                                    name: 'bool_ENABLED',
-                                    id: 'bool_ENABLED'
-                                }
-                            ]
-                        },
-
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-
-                                {
-                                    //allowBlank: false,
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Ville',
-                                    name: 'lg_VILLE_ID',
-                                    id: 'lg_VILLE_ID',
-                                    store: store_ville_tp,
-                                    valueField: 'lg_VILLE_ID',
-                                    displayField: 'STR_NAME',
-                                    typeAhead: true,
-//                                    width: 400,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir une ville...',
-                                    listeners: {
-                                        keypress: function (field, e) {
-                                            if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
-
-                                                if (field.getValue().length === 1) {
-                                                    field.getStore().load();
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                },
-                                {
-
                                     xtype: 'checkbox',
                                     fieldLabel: 'Utilise la cmu',
                                     name: 'cmu',
                                     id: 'cmu'
-                                }
-                                ,
-                                {
-
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Caution',
-                                    name: 'caution',
-                                    id: 'caution'
-                                }
+                                },
+                                {xtype: 'container'},
+                                {xtype: 'container'}
                             ]
                         }
                     ]
-
                 },
                 {
-                    xtype: 'fieldset',
-                    collapsible: true,
-                    layout: 'vbox',
-                    title: 'Informations sur le compte',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-                    },
-                    items: [{
+                    title: 'Compte et plafonds',
+                    items: [
+                        {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            // 4 colonnes de largeur egale et libelles alignes sur tout le bloc
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     allowBlank: false,
@@ -875,7 +640,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 {
                                     allowBlank: false,
                                     fieldLabel: 'Quota',
-
                                     emptyText: 'Quota',
                                     name: 'dbl_QUOTA_CONSO_MENSUELLE',
                                     id: 'dbl_QUOTA_CONSO_MENSUELLE',
@@ -884,7 +648,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 },
                                 {
                                     allowBlank: false,
-
                                     fieldLabel: 'Plafond credit',
                                     emptyText: 'Plafond credit',
                                     name: 'dbl_PLAFOND_CREDIT',
@@ -892,16 +655,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     selectOnFocus: true,
                                     value: 0
                                 },
-
-                                {
-                                    xtype: 'checkbox',
-                                    boxLabel: 'Le plafond est-il absolu ?',
-                                    name: 'b_IsAbsolute',
-                                    checked: false,
-                                    id: 'b_IsAbsolute'
-
-                                },
-
                                 {
                                     allowBlank: false,
                                     fieldLabel: 'Accompte',
@@ -911,11 +664,48 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'int_ACCOUNT',
                                     value: 0
                                 }
-
+                            ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
+                            items: [
+                                {
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Prepayer',
+                                    name: 'bool_IsACCOUNT',
+                                    id: 'bool_IsACCOUNT',
+                                    listeners: {
+                                        change: function (checkbox, newValue, oldValue, eOpts) {
+                                            if (newValue) {
+                                                Ext.getCmp('int_ACCOUNT').show();
+                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').disable();
+                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').setValue(0);
+                                            } else {
+                                                Ext.getCmp('int_ACCOUNT').hide();
+                                                Ext.getCmp('int_ACCOUNT').setValue(0);
+                                                Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').enable();
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Plafond absolu',
+                                    boxLabel: 'Le plafond est-il absolu ?',
+                                    name: 'b_IsAbsolute',
+                                    checked: false,
+                                    id: 'b_IsAbsolute'
+                                },
+                                {xtype: 'container'},
+                                {xtype: 'container'}
                             ]
                         }
                     ]
-                }
+                },
+                champsMasques
             ]
 
         });
@@ -981,6 +771,13 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('nbrbons').setValue(this.getOdatasource().nbrbons);
             Ext.getCmp('groupingByTaux').setValue(this.getOdatasource().groupingByTaux);
             Ext.getCmp('str_MODE_TRI_FACTURE_TP').setValue(this.getOdatasource().str_MODE_TRI_FACTURE || 'ALPHABETIQUE');
+            // Un tiers payant deja regle garde SA valeur. Celui qui n'a jamais ete regle
+            // (0 en base = automatique) affiche la valeur par defaut de la fiche : 20 bons par
+            // page et 7 points. Tant qu'on n'enregistre pas, rien n'est ecrit en base.
+            var bonsParPage = this.getOdatasource().int_NB_BONS_PAR_PAGE;
+            Ext.getCmp('int_NB_BONS_PAR_PAGE').setValue(bonsParPage > 0 ? bonsParPage : 20);
+            var taillePolice = this.getOdatasource().int_TAILLE_POLICE;
+            Ext.getCmp('int_TAILLE_POLICE').setValue(taillePolice > 0 ? taillePolice : 7);
             Ext.getCmp('cmu').setValue(this.getOdatasource().cmu);
             Ext.getCmp('caution').setValue(this.getOdatasource().caution);
             
@@ -995,7 +792,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             autoShow: true,
             title: this.getTitre(),
             width: '85%',
-            height: 620,
+            // Quatre blocs de deux a trois lignes : la fiche tient sans qu'on ait a agrandir la
+            // fenetre a la main. Bornee a l'ecran, et le formulaire garde son ascenseur au cas ou
+            // un theme ou une resolution rendrait les champs plus hauts que prevu.
+            height: Math.min(600, Ext.Element.getViewportHeight() - 40),
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
@@ -1110,6 +910,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     nbrbons: Ext.getCmp('nbrbons').getValue(),
                     groupingByTaux: Ext.getCmp('groupingByTaux').getValue(),
                     str_MODE_TRI_FACTURE: Ext.getCmp('str_MODE_TRI_FACTURE_TP').getValue(),
+                    // Champ vide = automatique : on transmet 0, la facture garde sa presentation actuelle
+                    int_NB_BONS_PAR_PAGE: Ext.getCmp('int_NB_BONS_PAR_PAGE').getValue() || 0,
+                    int_TAILLE_POLICE: Ext.getCmp('int_TAILLE_POLICE').getValue() || 0,
                     cmu: Ext.getCmp('cmu').getValue(),
                     caution: Ext.getCmp('caution').getValue()
                 },

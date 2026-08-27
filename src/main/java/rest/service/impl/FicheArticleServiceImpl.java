@@ -299,7 +299,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return new JSONObject().put("success", false).put("count", 0).put("message",
                     "Aucun produit perime avec ces criteres");
         }
-        String name = "Inventaire peremptions proches "
+        String name = "INVENTAIRE PEREMPTIONS PROCHES "
                 + java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         int count = inventaireService.create(ids, name, name);
         return new JSONObject().put("success", true).put("count", count).put("name", name);
@@ -1609,7 +1609,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
         java.util.Set<String> ids = datas.stream().map(ArticleDTO::getId).collect(Collectors.toSet());
 
-        String title = "Inventaire comparaison stock du "
+        String title = "INVENTAIRE COMPARAISON STOCK DU "
                 + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
         int count = inventaireService.create(ids, title);
@@ -1734,7 +1734,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             periode = "";
         }
 
-        String title = "Inventaire produits saisis périmés " + periode;
+        String title = "INVENTAIRE PRODUITS SAISIE PERIMES " + periode;
 
         int count = inventaireService.create(ids, title);
 

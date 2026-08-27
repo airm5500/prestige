@@ -28,7 +28,10 @@ import rest.service.SupportEventService;
 import rest.service.SupportMaintenanceService;
 import static rest.service.SupportMaintenanceService.ACTION_COMMANDES_EN_COURS;
 import static rest.service.SupportMaintenanceService.ACTION_ETIQUETTES;
+import static rest.service.SupportMaintenanceService.ACTION_LOTS_PERIMES_FANTOMES;
+import static rest.service.SupportMaintenanceService.ACTION_PIECES_JOINTES;
 import static rest.service.SupportMaintenanceService.ACTION_SUGGESTIONS;
+import static rest.service.SupportMaintenanceService.PIECES_JOINTES_JOURS_DEFAUT;
 
 /**
  * Vidages de maintenance : suppressions en SQL natif, details supprimes AVANT les entetes pour respecter les liens

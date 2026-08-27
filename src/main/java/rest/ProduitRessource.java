@@ -39,6 +39,7 @@ import rest.service.MvtProduitService;
 import rest.service.ProduitService;
 import rest.service.ReserveService;
 import rest.service.SuggestionService;
+import rest.service.impl.StockSnapshotBackfillService;
 import rest.service.dto.CreationProduitDTO;
 import util.DateConverter;
 import util.Constant;
@@ -62,6 +63,8 @@ public class ProduitRessource {
     SuggestionService suggestionService;
     @EJB
     ReserveService reserveService;
+    @EJB
+    StockSnapshotBackfillService backfillService;
 
     @GET
     @Path("produit-desactives")
@@ -499,6 +502,61 @@ public class ProduitRessource {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
 
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Compare, pour une date passee, la valorisation calculee depuis l'archive JSON et celle calculee depuis le releve
+     * relationnel. Sert a valider la migration avant de basculer la lecture (parametre KEY_VALORISATION_SOURCE).
+     *
+     * <p>
+     * Le calcul JSON parcourt l'historique complet de tous les produits : l'appel dure une dizaine de secondes. C'est
+     * une action de verification volontaire, a lancer hors affluence, pas un ecran de consultation.
+     * </p>
+     */
+    @GET
+    @Path("valorisation/comparaison")
+    public Response comparaisonValorisation(@QueryParam(value = "mode") int mode,
+            @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "lgFAMILLEARTICLEID") String lgFAMILLEARTICLEID,
+            @QueryParam(value = "lgGROSSISTEID") String lgGROSSISTEID,
+            @QueryParam(value = "lgZONEGEOID") String lgZONEGEOID, @QueryParam(value = "END") String end,
+            @QueryParam(value = "BEGIN") String begin, @QueryParam(value = "typeStock") String typeStock)
+            throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject jsono = produitService.comparerValorisationHistorique(mode, LocalDate.parse(dtStart), lgGROSSISTEID,
+                lgFAMILLEARTICLEID, lgZONEGEOID, end, begin, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), typeStock);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Declenche immediatement la reprise de l'historique de valorisation, sans attendre le passage planifie de 01:30.
+     *
+     * <p>
+     * La reprise part en tache de fond : la reponse est immediate. Elle memorise sa progression et se declare terminee
+     * une fois l'historique repris, de sorte qu'un appel repete ne refait rien. Pour la rejouer volontairement,
+     * remettre termine a 0 dans stock_snapshot_backfill.
+     * </p>
+     */
+    @GET
+    @Path("valorisation/reprise")
+    public Response lancerRepriseValorisation() throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        backfillService.executerAsync();
+        return Response.ok()
+                .entity(new JSONObject().put("success", true)
+                        .put("msg",
+                                "Reprise de l'historique lancee en tache de fond. "
+                                        + "Suivre l'avancement dans la table stock_snapshot_backfill.")
+                        .toString())
+                .build();
     }
 
     // Suivi UG : produits ayant du stock d'unites gratuites (intUG > 0)

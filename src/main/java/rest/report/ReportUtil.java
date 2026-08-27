@@ -48,6 +48,7 @@ import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
 import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
 import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
 import org.apache.commons.lang3.StringUtils;
+import toolkits.parameters.commonparameter;
 import toolkits.utils.jdom;
 import util.DateConverter;
 
@@ -73,22 +74,71 @@ public class ReportUtil {
         return parameter != null ? parameter.getStrVALUE() : null;
     }
 
+    /**
+     * Ville imprimée en pied de récapitulatif (« ABIDJAN, le 16/08/2026 »).
+     *
+     * Le modèle portait cette ville EN DUR — celle de l'officine pour laquelle il avait été créé — et toute autre
+     * officine imprimait donc la ville d'une autre. Elle se règle désormais dans l'écran « Gestion des paramétrages ».
+     *
+     * La ligne du paramètre est créée ici si elle n'existe pas encore : sans cela l'écran ne l'afficherait pas et
+     * l'officine n'aurait aucun endroit où saisir sa ville, sans passer par une commande en base. Elle est créée VIDE :
+     * tant que rien n'est saisi, le récapitulatif se contente de « le &lt;date&gt; », ce qui vaut mieux qu'une ville
+     * fausse.
+     */
+    public String lieuEdition() {
+        return LieuEdition.valeur(em);
+    }
+
+    /**
+     * Charge un etat : le .jasper deja compile si on peut le relire, sinon on le recompile depuis le .jrxml.
+     *
+     * Un .jasper est un objet Java SERIALISE. Il n'est relisible que par une version de JasperReports compatible avec
+     * celle qui l'a produit : des qu'un champ change de type, la relecture echoue avec "Error loading object from
+     * InputStream / incompatible types for field ...". Le code ne rattrapait QUE le fichier absent
+     * (FileNotFoundException) : un .jasper present mais illisible faisait echouer l'impression, alors que le .jrxml a
+     * cote suffisait a la produire.
+     *
+     * Cas rencontre sur le releve des factures clients : le champ columnCount de JRBaseReport est un int jusqu'a
+     * JasperReports 6.21 et devient un Integer en 7.0. Un .jasper compile par un outil 7.x (Jaspersoft Studio recent
+     * enregistre un .jasper a cote du .jrxml des qu'on ouvre ou previsualise l'etat) est donc illisible par
+     * l'application, qui embarque la 6.18.1. Rien n'avait change dans le code : c'est le FICHIER depose dans le dossier
+     * des etats qui avait change.
+     *
+     * La recompilation reecrit le .jasper dans la version de l'application : l'incident ne se produit qu'une fois par
+     * etat, et l'officine n'a rien a faire.
+     */
     public JasperReport getReport(String reportName, String reportPath) throws JRException, Exception {
 
-        try (InputStream resource = new FileInputStream(reportPath + reportName + ".jasper")) {
-            return (JasperReport) JRLoader.loadObject(resource);
-        } catch (FileNotFoundException e) {
-            LOG.log(Level.SEVERE, String.format("Le fichier n'est pas accessible %s", reportName), reportName);
-            try {
-                return compileReport(reportName, reportPath);
-            } catch (FileNotFoundException e2) {
-                // Dernier recours : modele .jrxml embarque dans le war (src/main/resources/reports)
-                JasperReport fromClasspath = compileFromClasspath(reportName);
-                if (fromClasspath != null) {
-                    return fromClasspath;
-                }
-                throw e2;
+        File jasper = new File(reportPath + reportName + ".jasper");
+        if (jasper.isFile()) {
+            try (InputStream resource = new FileInputStream(jasper)) {
+                return (JasperReport) JRLoader.loadObject(resource);
+            } catch (Exception e) {
+                // .jasper illisible : compile par une autre version de JasperReports, tronque ou
+                // corrompu. Le .jrxml reste la source de verite, on repart de lui.
+                //
+                // La pile complete n'est PAS journalisee ici : l'incident est rattrape, l'edition
+                // aboutit, et une pile de quatre-vingts lignes dans le journal laisse croire a une
+                // panne. Le message dit ce qui s'est passe et ce qui a ete fait ; la pile reste
+                // disponible en niveau FINE pour qui diagnostique.
+                LOG.log(Level.WARNING,
+                        "Etat {0} : le fichier .jasper deja compile n''a pas pu etre relu ({1}). "
+                                + "Recompilation depuis le .jrxml : l''edition se poursuit normalement.",
+                        new Object[] { reportName, e.getMessage() });
+                LOG.log(Level.FINE, "Detail de la lecture du .jasper de " + reportName, e);
             }
+        } else {
+            LOG.log(Level.INFO, "Etat {0} : pas de .jasper compile, compilation depuis le .jrxml.", reportName);
+        }
+        try {
+            return compileReport(reportName, reportPath);
+        } catch (FileNotFoundException e2) {
+            // Dernier recours : modele .jrxml embarque dans le war (src/main/resources/reports)
+            JasperReport fromClasspath = compileFromClasspath(reportName);
+            if (fromClasspath != null) {
+                return fromClasspath;
+            }
+            throw e2;
         }
 
     }
@@ -109,42 +159,38 @@ public class ReportUtil {
         }
     }
 
+    /**
+     * Compile le .jrxml, publie le .jasper obtenu et renvoie l'etat compile.
+     *
+     * L'ecriture passe par un fichier temporaire renomme a la fin. Sans cela, deux impressions simultanees du meme etat
+     * ecrivent dans le meme fichier en meme temps et peuvent laisser un .jasper tronque - donc definitivement
+     * illisible. Le cas est loin d'etre theorique : quand un .jasper devient illisible, TOUS les postes qui impriment
+     * cet etat declenchent la recompilation en meme temps.
+     */
     public JasperReport compileReport(String reportName, String reportPath) throws Exception {
-        InputStream in = null;
-        InputStream in2 = null;
-        FileOutputStream out = null;
-        File jasperFile = null;
+        File jrxmlFile = new File(reportPath + reportName + ".jrxml");
+        File dir = jrxmlFile.getParentFile();
+        File jasperFile = new File(dir, reportName + ".jasper");
+        File temporaire = new File(dir, reportName + ".jasper.tmp" + java.util.UUID.randomUUID());
 
         try {
-
-            File jrxmlFile = new File(reportPath + reportName + ".jrxml");
-            File dir = jrxmlFile.getParentFile();
-            jasperFile = new File(dir, reportName + ".jasper");
-            in = new FileInputStream(jrxmlFile);
-
-            out = new FileOutputStream(jasperFile);
-            JasperCompileManager.compileReportToStream(in, out);
-            in2 = new FileInputStream(jasperFile);
-            return (JasperReport) JRLoader.loadObject(in2);
-
-        } catch (FileNotFoundException | JRException e) {
-
-            if (jasperFile != null) {
-                jasperFile.delete();
+            try (InputStream in = new FileInputStream(jrxmlFile);
+                    FileOutputStream out = new FileOutputStream(temporaire)) {
+                JasperCompileManager.compileReportToStream(in, out);
             }
-
+            // Le .jasper n'est remplace qu'une fois la compilation terminee : un autre poste qui
+            // lit au meme moment voit soit l'ancien fichier, soit le nouveau, jamais un fichier a
+            // moitie ecrit.
+            java.nio.file.Files.move(temporaire.toPath(), jasperFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            try (InputStream in2 = new FileInputStream(jasperFile)) {
+                return (JasperReport) JRLoader.loadObject(in2);
+            }
+        } catch (FileNotFoundException | JRException e) {
+            // le .jasper en place n'est pas touche : il valait mieux que rien
             throw e;
         } finally {
-            if (in != null) {
-                in.close();
-            }
-            if (in2 != null) {
-                in2.close();
-            }
-            if (out != null) {
-                out.close();
-            }
-
+            java.nio.file.Files.deleteIfExists(temporaire.toPath());
         }
     }
 
@@ -208,6 +254,9 @@ public class ReportUtil {
             parameters.put("P_H_INSTITUTION", institution);
             parameters.put("P_PRINTED_BY", " " + op.getStrFIRSTNAME() + "  " + op.getStrLASTNAME());
             parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+            // Ville d'edition du recapitulatif. Le modele la portait en dur ("TAFIRE") : toute
+            // officine imprimait donc la ville d'une autre. Vide, l'etat se contente de la date.
+            parameters.put("P_LIEU_EDITION", lieuEdition());
             if (StringUtils.isNotEmpty(oTOfficine.getStrREGISTRECOMMERCE())) {
                 footer += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
             }
@@ -438,11 +487,12 @@ public class ReportUtil {
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getReportDirectory(fileName));
-        } catch (JRException e) {
-            LOG.log(Level.SEVERE, null, e);
-
+        } catch (JRException | RuntimeException e) {
+            // Le message etait litteralement "null" : le journal ne disait meme pas QUEL etat avait
+            // echoue, alors que la methode sert 75 impressions differentes.
+            LOG.log(Level.SEVERE, "Echec de l'edition de l'etat " + reportName, e);
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, "Echec de l'edition de l'etat " + reportName, ex);
         }
         return "/data/reports/pdf/" + fileName;
     }

@@ -277,6 +277,20 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             } catch (e) {}
         }
 
+        // Bandeau "aucun releve" : une journee ou le traitement de nuit n'a pas tourne (poste
+        // eteint, traitement desactive) rend les memes zeros qu'un stock reellement nul. Le
+        // serveur le signale par data.releveDisponible=false ; sans ce bandeau, l'ecran
+        // afficherait une valorisation a zero qui se lit comme une officine vide.
+        var bandeauSansReleve = Ext.create('Ext.container.Container', {
+            id: 'valo_sans_releve', hidden: true, style: 'margin-bottom:10px;',
+            html: '<div style="background:#fdf3d8;border:1px solid #e0c36b;border-radius:8px;'
+                + 'padding:12px 16px;color:#7a5c00;font-size:1.15em;">'
+                + '<b>Aucun rel\u00e9v\u00e9 de stock pour cette date.</b> '
+                + 'Le traitement journalier n\u2019a pas tourn\u00e9 ce jour-l\u00e0 '
+                + '(poste \u00e9teint ou sauvegarde d\u00e9sactiv\u00e9e) : '
+                + 'les montants \u00e0 z\u00e9ro ne signifient pas que le stock \u00e9tait vide.</div>'
+        });
+
         var kpiTabs = Ext.create('Ext.tab.Panel', {
             id: 'valo_tabs', flex: 1, height: 250, plain: true, activeTab: 0,
             listeners: { tabchange: function (tp) { pulseActiveTab(tp); } },
@@ -337,8 +351,15 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
 
             Ext.getCmp('str_NAME_USER').setValue(meta.user || '');
             Ext.getCmp('dt_CREATED').setValue(meta.dtCREATED || '');
-            Ext.getCmp('btn_print').setDisabled(false);
-            Ext.getCmp('btn_excel').setDisabled(false);
+
+            // Absent de la reponse (ancien serveur) => on considere le releve disponible :
+            // seul false, envoye explicitement, declenche le bandeau.
+            var sansReleve = (data.releveDisponible === false);
+            Ext.getCmp('valo_sans_releve').setVisible(sansReleve);
+            // Pas d'impression ni d'export sur une journee sans mesure : le document produit
+            // presenterait des zeros comme une valorisation reelle.
+            Ext.getCmp('btn_print').setDisabled(sansReleve);
+            Ext.getCmp('btn_excel').setDisabled(sansReleve);
         }
 
         function callValorisation(params) {
@@ -439,6 +460,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                     height: 300,
                     style: 'margin-bottom:10px;'
                 },
+                bandeauSansReleve,
                 kpiTabs
             ],
 

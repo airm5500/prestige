@@ -60,6 +60,26 @@ public class ModelFactureDynamique implements Serializable {
     @Column(name = "b_DETAILLER_PRODUITS")
     private Boolean detaillerProduits = Boolean.FALSE;
 
+    /**
+     * Taille de police des lignes de la facture, en points.
+     *
+     * 8 est la valeur d'origine, celle qui etait figee dans le code : un modele qui n'y touche pas garde exactement la
+     * presentation qu'il avait. La descendre gagne de la place quand les colonnes sont nombreuses et que les noms sont
+     * longs ; la monter rend la facture plus lisible quand il y a peu de colonnes.
+     */
+    @Column(name = "int_TAILLE_POLICE")
+    private Integer taillePolice = TAILLE_POLICE_DEFAUT;
+
+    /**
+     * Nombre de bons imprimes par page.
+     *
+     * 0 = automatique, la valeur d'origine : la page se remplit d'elle-meme et la coupure tombe la ou elle tombe
+     * aujourd'hui. Un modele qui n'y touche pas garde donc exactement sa presentation. Une valeur choisie ici sert de
+     * valeur par defaut au modele ; la fiche d'un tiers payant peut encore la remplacer pour ses propres factures.
+     */
+    @Column(name = "int_NB_BONS_PAR_PAGE")
+    private Integer nbBonsParPage = 0;
+
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCreated;
@@ -71,6 +91,52 @@ public class ModelFactureDynamique implements Serializable {
     @OneToMany(mappedBy = "modele", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordre ASC")
     private List<ModelFactureDynamiqueColonne> colonnes = new ArrayList<>();
+
+    /** Taille de police d'origine, figee dans le code avant que le createur ne la propose. */
+    public static final int TAILLE_POLICE_DEFAUT = 8;
+
+    /** En deca, plus rien n'est lisible sur papier. */
+    public static final int TAILLE_POLICE_MINIMUM = 5;
+
+    /** Au-dela, une ligne de bon ne tiendrait plus dans la hauteur prevue. */
+    public static final int TAILLE_POLICE_MAXIMUM = 12;
+
+    /**
+     * Taille de police retenue, ramenee entre le minimum et le maximum.
+     *
+     * Une valeur absente ou aberrante - un modele cree avant cette option, ou une saisie fantaisiste - revient a la
+     * taille d'origine plutot que de produire une facture illisible.
+     */
+    public int taillePoliceEffective() {
+        if (taillePolice == null || taillePolice < TAILLE_POLICE_MINIMUM || taillePolice > TAILLE_POLICE_MAXIMUM) {
+            return TAILLE_POLICE_DEFAUT;
+        }
+        return taillePolice;
+    }
+
+    /**
+     * Nombre de bons par page retenu, 0 quand rien n'a ete choisi ou que la valeur est aberrante : la page se remplit
+     * alors d'elle-meme, comme avant.
+     */
+    public int bonsParPageEffectif() {
+        return rest.report.MiseEnPageFacture.bonsParPage(nbBonsParPage);
+    }
+
+    public Integer getNbBonsParPage() {
+        return nbBonsParPage;
+    }
+
+    public void setNbBonsParPage(Integer nbBonsParPage) {
+        this.nbBonsParPage = nbBonsParPage;
+    }
+
+    public Integer getTaillePolice() {
+        return taillePolice;
+    }
+
+    public void setTaillePolice(Integer taillePolice) {
+        this.taillePolice = taillePolice;
+    }
 
     public Integer getId() {
         return id;

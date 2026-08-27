@@ -6412,6 +6412,39 @@ public class Preenregistrement extends bll.bllBase {
         return qty;
     }
 
+    /**
+     * Nombre total de dossiers impayes sur un LOT de factures, en une seule requete.
+     *
+     * Le comptage facture par facture ({@link #getNombreDossierImpayeParFacture(String)}) coute une requete par facture
+     * : sur une balance agee qui couvre sept periodes et des centaines de factures, c'est ce qui faisait attendre
+     * l'ecran plusieurs secondes. Le resultat est identique - chaque ligne de detail appartient a une seule facture, la
+     * somme des comptes vaut donc le compte de la reunion.
+     *
+     * @param lgFactureIds
+     *            identifiants des factures ; une liste vide renvoie 0 sans interroger la base
+     */
+    public long getNombreDossierImpayeParFactures(java.util.List<String> lgFactureIds) {
+        if (lgFactureIds == null || lgFactureIds.isEmpty()) {
+            return 0L;
+        }
+        long total = 0L;
+        // Par paquets : une clause IN de plusieurs milliers d'elements finit par etre refusee.
+        final int paquet = 500;
+        for (int debut = 0; debut < lgFactureIds.size(); debut += paquet) {
+            java.util.List<String> tranche = lgFactureIds.subList(debut, Math.min(lgFactureIds.size(), debut + paquet));
+            try {
+                Object object = this.getOdataManager().getEm()
+                        .createQuery("SELECT COUNT(o) FROM TFactureDetail o WHERE o.dblMONTANTRESTANT > 0d"
+                                + " AND o.lgFACTUREID.lgFACTUREID IN ?1")
+                        .setParameter(1, tranche).getSingleResult();
+                total += Long.valueOf(object + "");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return total;
+    }
+
     public long getNombreDossierImpayeParFacture(String lg_FACTURE_ID) {
         long count = 0l;
         try {

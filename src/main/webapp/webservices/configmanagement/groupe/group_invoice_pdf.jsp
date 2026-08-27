@@ -149,6 +149,11 @@
     Map parameters = new HashMap();
     parameters.put("P_H_LOGO", P_H_LOGO);
     parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
+    // Ville imprimee en pied de recapitulatif, saisie dans « Gestion des parametrages ».
+    // Cette page construit sa propre liste de parametres : sans cette ligne, la ville
+    // saisie ne sortirait pas sur le recapitulatif imprime depuis cet ecran.
+    parameters.put(rest.report.LieuEdition.PARAMETRE,
+            rest.report.LieuEdition.valeur(obllBase.getOdataManager().getEm()));
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
     parameters.put("P_PRINTED_BY", " LE PHARMACIEN ");
     // parameters.put("P_AUTRE_DESC",  oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
@@ -211,6 +216,9 @@
         parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
         parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
         parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
+        // Chaque sous-facture suit l'ordre demande sur la fiche de SON tiers payant
+        parameters.put(rest.report.TriFacture.PARAMETRE,
+                rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
         parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
 
         // parameters.put("P_NUMBERPERPAGE", 12);

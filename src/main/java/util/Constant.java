@@ -103,6 +103,14 @@ public final class Constant {
     public static final String KEY_PARAMS = "KEY_PARAMS";
     public static final String KEY_TAKE_INTO_ACCOUNT = "KEY_TAKE_INTO_ACCOUNT";
     public static final String KEY_NOMBRE_TICKETS_VNO = "KEY_NOMBRE_TICKETS_VNO";
+    /**
+     * Ville d'édition imprimée en pied de récapitulatif ("ABIDJAN, le 16/08/2026").
+     *
+     * Le modèle rp_facturerecap portait la ville en dur — celle de l'officine pour laquelle il avait été créé — et
+     * toutes les autres officines l'imprimaient donc à tort. Tant que ce paramètre n'est pas renseigné, la ligne se lit
+     * simplement « le &lt;date&gt; ».
+     */
+    public static final String KEY_LIEU_EDITION = "KEY_LIEU_EDITION";
     public static final String SMS_TOKEN_TYPE = "Bearer";
     public static final String GRANT_TYPE = "client_credentials";
     public static final String KEY_SMS_CLOTURE_CAISSE = "KEY_SMS_CLOTURE_CAISSE";
@@ -185,6 +193,8 @@ public final class Constant {
     public static final String DEFAUL_CODE_TVA = "1";
     public static final String STATUT_DISABLE = "disable";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
+    /** Mise a jour d'un meme reglage sur plusieurs tiers payants a la fois : droit a part. */
+    public static final String P_BTN_MAJ_SELECTIVE_TIERS_PAYANT = "P_BTN_MAJ_SELECTIVE_TIERS_PAYANT";
     // Privileges des boutons de la fiche article (gestion du stock)
     public static final String P_BTN_RECALCULER_SEUILS = "P_BTN_RECALCULER_SEUILS";
     public static final String P_BTN_MAJ_SEUIL = "P_BTN_MAJ_SEUIL";

@@ -3059,7 +3059,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (CollectionUtils.isEmpty(data)) {
             return new JSONObject().put("count", 0);
         }
-        String title = "Inventaire articles vendus du "
+        String title = "INVENTAIRE ARTICLES VENDUS DU "
                 + params.getDtStart().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
                 + params.getDtEnd().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         int count = inventaireService.create(Set.copyOf(data), title);

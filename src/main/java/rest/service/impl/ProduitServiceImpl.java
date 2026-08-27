@@ -49,9 +49,6 @@ import dal.TMouvementReserve;
 import dal.TParameters;
 import dal.TPreenregistrementDetail;
 import dal.TRetourFournisseurDetail;
-import dal.TStockSnapshot;
-import dal.TStockSnapshotPK_;
-import dal.TStockSnapshot_;
 import dal.TTypeStock;
 import dal.TTypeStockFamille;
 import dal.TTypeetiquette;
@@ -88,7 +85,6 @@ import javax.persistence.criteria.Join;
 import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import javax.persistence.criteria.Subquery;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -114,6 +110,12 @@ import util.NotificationUtils;
 public class ProduitServiceImpl implements ProduitService {
 
     private static final Logger LOG = Logger.getLogger(ProduitServiceImpl.class.getName());
+
+    /**
+     * Support de JSON_TABLE par le serveur de base de donnees, determine au premier besoin puis memorise pour la duree
+     * de vie du serveur d'application.
+     */
+    private static volatile Boolean jsonTableDisponible;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -1686,22 +1688,28 @@ public class ProduitServiceImpl implements ProduitService {
         // On ajoute la valorisation RESERVE et le TOTAL (rayon + reserve) pour les 3 onglets.
         Params rayon;
         Params reserve;
-        if (dtStart.equals(LocalDate.now())) {
+        boolean dateDuJour = dtStart.equals(LocalDate.now());
+        boolean sourceRelationnelle = !dateDuJour && lireDepuisReleveRelationnel();
+        if (dateDuJour) {
             rayon = getValeurStockFrorCurrenDate(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
                     emplacementId);
             reserve = getValeurReserveStockForCurrentDate(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
                     BEGIN, emplacementId);
         } else {
-            // Historique : on lit le meme archive JSON (stock_snapshot) que l'historique du stock rayon existant.
-            Params hist = getValeurStockFromJson(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
-                    BEGIN);
-            rayon = new Params((long) nz(hist.getValue()), (long) nz(hist.getValueTwo()));
-            reserve = new Params((long) nz(hist.getValueThree()), (long) nz(hist.getValueFour()));
+            // Historique : releve relationnel si la bascule est active, sinon archive JSON (comportement d'origine).
+            Params hist = sourceRelationnelle
+                    ? getValeurStockFromReleve(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
+                            BEGIN)
+                    : getValeurStockFromJson(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN);
+            rayon = new Params(hist.longValue(), hist.longValueTwo());
+            reserve = new Params(hist.longValueThree(), hist.longValueFour());
         }
-        int rAchat = nz(rayon.getValue());
-        int rVente = nz(rayon.getValueTwo());
-        int reAchat = nz(reserve.getValue());
-        int reVente = nz(reserve.getValueTwo());
+        // Montants en 64 bits : la valorisation totale de l'officine depasse Integer.MAX_VALUE (2,1 milliards) et
+        // repartait jusqu'ici tronquee, voire negative.
+        long rAchat = rayon.longValue();
+        long rVente = rayon.longValueTwo();
+        long reAchat = reserve.longValue();
+        long reVente = reserve.longValueTwo();
         JSONObject data = new JSONObject();
         data.put("value", rAchat);
         data.put("valueTwo", rVente);
@@ -1709,11 +1717,37 @@ public class ProduitServiceImpl implements ProduitService {
         data.put("reserveValueTwo", reVente);
         data.put("totalValue", rAchat + reAchat);
         data.put("totalValueTwo", rVente + reVente);
+        // Une journee jamais relevee renvoie les memes zeros qu'une officine reellement vide. Le drapeau permet a
+        // l'ecran de dire "aucun releve pour cette date" plutot que d'afficher un total qui ressemble a une mesure.
+        data.put("releveDisponible",
+                releveDisponible(dateDuJour, sourceRelationnelle, () -> compterLignesReleve(dtStart)));
         return new JSONObject().put("data", data);
     }
 
-    private int nz(Integer v) {
-        return v == null ? 0 : v;
+    /**
+     * Indique si la date demandee a effectivement fait l'objet d'un releve.
+     *
+     * <p>
+     * Trois cas. La date du jour est calculee en direct sur le stock courant : la mesure existe toujours. L'historique
+     * lu dans le releve relationnel se verifie en comptant les lignes de la journee : zero ligne signifie que le
+     * traitement n'a pas tourne ce jour-la, pas que le stock etait nul. L'historique lu dans l'archive JSON, lui, n'est
+     * pas verifiable a cout raisonnable ; ce mode n'etant qu'un retour arriere temporaire, il conserve son comportement
+     * d'origine et ne signale rien.
+     * </p>
+     *
+     * @param dateDuJour
+     *            la valorisation porte sur aujourd'hui
+     * @param sourceRelationnelle
+     *            l'historique est lu dans stock_snapshot_day
+     * @param lignesRelevees
+     *            compte des lignes de la journee, evalue seulement lorsque c'est necessaire
+     */
+    static boolean releveDisponible(boolean dateDuJour, boolean sourceRelationnelle,
+            java.util.function.LongSupplier lignesRelevees) {
+        if (dateDuJour || !sourceRelationnelle) {
+            return true;
+        }
+        return lignesRelevees.getAsLong() > 0L;
     }
 
     /**
@@ -1815,17 +1849,295 @@ public class ProduitServiceImpl implements ProduitService {
      * jour (prixPaf/prixUni stockes dans le JSON), comme l'historique existant. Necessite MariaDB 10.6+ (JSON_TABLE) ;
      * en cas d'erreur, retourne 0 (comportement neutre, identique a l'historique vide actuel).
      */
+    @Override
+    public JSONObject comparerValorisationHistorique(int mode, LocalDate dtStart, String lgGROSSISTEID,
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) throws JSONException {
+
+        long debutJson = System.currentTimeMillis();
+        Params json = getValeurStockFromJson(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN);
+        long dureeJson = System.currentTimeMillis() - debutJson;
+
+        long debutReleve = System.currentTimeMillis();
+        Params releve = getValeurStockFromReleve(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
+                BEGIN);
+        long dureeReleve = System.currentTimeMillis() - debutReleve;
+
+        JSONObject montants = new JSONObject();
+        montants.put("rayonAchat", comparerMontant(json.longValue(), releve.longValue()));
+        montants.put("rayonVente", comparerMontant(json.longValueTwo(), releve.longValueTwo()));
+        montants.put("reserveAchat", comparerMontant(json.longValueThree(), releve.longValueThree()));
+        montants.put("reserveVente", comparerMontant(json.longValueFour(), releve.longValueFour()));
+
+        boolean montantsIdentiques = json.longValue() == releve.longValue()
+                && json.longValueTwo() == releve.longValueTwo() && json.longValueThree() == releve.longValueThree()
+                && json.longValueFour() == releve.longValueFour();
+
+        // Etat detaille (celui des exports PDF) : on compare les totaux et le nombre de groupes restitues.
+        ValorisationDTO detailJson = valorisation(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
+                BEGIN, emplacementId, typeStock);
+        ValorisationDTO detailReleve = valorisationDepuisReleve(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                lgZONEGEOID, END, BEGIN, emplacementId, typeStock);
+
+        JSONObject detail = new JSONObject();
+        detail.put("montantAchat",
+                comparerMontant(montant(detailJson.getMontantFacture()), montant(detailReleve.getMontantFacture())));
+        detail.put("montantVente",
+                comparerMontant(montant(detailJson.getMontantPu()), montant(detailReleve.getMontantPu())));
+        detail.put("nombreGroupes", comparerMontant(nombreGroupes(detailJson), nombreGroupes(detailReleve)));
+
+        boolean detailIdentique = montant(detailJson.getMontantFacture()) == montant(detailReleve.getMontantFacture())
+                && montant(detailJson.getMontantPu()) == montant(detailReleve.getMontantPu())
+                && nombreGroupes(detailJson) == nombreGroupes(detailReleve);
+
+        JSONObject data = new JSONObject();
+        data.put("date", dtStart.toString());
+        data.put("mode", mode);
+        data.put("typeStock", typeStock == null ? "" : typeStock);
+        data.put("lignesReleve", compterLignesReleve(dtStart));
+        data.put("montants", montants);
+        data.put("detail", detail);
+        data.put("dureeJsonMs", dureeJson);
+        data.put("dureeReleveMs", dureeReleve);
+        data.put("identique", montantsIdentiques && detailIdentique);
+        data.put("source", lireDepuisReleveRelationnel() ? "TABLE" : "JSON");
+
+        LOG.log(Level.INFO,
+                "Comparaison valorisation {0} mode {1} : {2} (JSON {3} ms, releve {4} ms, {5} lignes relevees)",
+                new Object[] { dtStart, mode, (montantsIdentiques && detailIdentique) ? "identique" : "ECART",
+                        dureeJson, dureeReleve, data.get("lignesReleve") });
+
+        return new JSONObject().put("data", data);
+    }
+
+    private JSONObject comparerMontant(long json, long releve) throws JSONException {
+        return new JSONObject().put("json", json).put("releve", releve).put("ecart", releve - json);
+    }
+
+    /** Montant d'un etat detaille en 64 bits, tolerant a l'absence de valeur. */
+    private long montant(Integer valeur) {
+        return valeur == null ? 0L : valeur.longValue();
+    }
+
+    private long nombreGroupes(ValorisationDTO dto) {
+        return dto == null || dto.getDatas() == null ? 0L : dto.getDatas().size();
+    }
+
+    /** Nombre de lignes relevees pour la journee : permet de distinguer un ecart d'une reprise incomplete. */
+    private long compterLignesReleve(LocalDate date) {
+        try {
+            int dateInt = date.getYear() * 10000 + date.getMonthValue() * 100 + date.getDayOfMonth();
+            Object r = getEntityManager()
+                    .createNativeQuery("SELECT COUNT(*) FROM stock_snapshot_day WHERE stock_of_day = :dateInt")
+                    .setParameter("dateInt", dateInt).getSingleResult();
+            return r == null ? 0L : ((Number) r).longValue();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "compterLignesReleve", e);
+            return 0L;
+        }
+    }
+
+    /**
+     * Source de lecture des valorisations historiques, pilotee par le parametre KEY_VALORISATION_SOURCE.
+     *
+     * <p>
+     * {@code TABLE} lit le releve journalier relationnel (stock_snapshot_day) ; toute autre valeur, dont l'absence du
+     * parametre, conserve la lecture de l'archive JSON. Le retour arriere se fait donc en base, sans redeploiement : il
+     * suffit de remettre le parametre a JSON.
+     * </p>
+     */
+    private boolean lireDepuisReleveRelationnel() {
+        return getParamettre("KEY_VALORISATION_SOURCE")
+                .map(p -> "TABLE".equalsIgnoreCase(org.apache.commons.lang3.StringUtils.trimToEmpty(p.getStrVALUE())))
+                .orElse(Boolean.FALSE);
+    }
+
+    /**
+     * Valorisation historique lue dans le releve relationnel : la journee est filtree par la cle primaire, MariaDB
+     * agrege et ne renvoie que les quatre montants. Aucun document JSON n'est transfere ni analyse.
+     */
+    private Params getValeurStockFromReleve(int mode, LocalDate date, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String END, String BEGIN) {
+        Params p = new Params(0L, 0L);
+        p.setLongValueThree(0L);
+        p.setLongValueFour(0L);
+        try {
+            List<String> predicates = new ArrayList<>();
+            Map<String, Object> parasm = new HashMap<>();
+            StringBuilder query = new StringBuilder(
+                    "SELECT COALESCE(SUM(s.prix_paf*s.qty),0) AS rayonAchat, COALESCE(SUM(s.prix_uni*s.qty),0) AS rayonVente, "
+                            + "COALESCE(SUM(s.prix_paf*s.qty_reserve),0) AS resAchat, "
+                            + "COALESCE(SUM(s.prix_uni*s.qty_reserve),0) AS resVente ");
+            query.append(fromReleveSelonMode(mode, date, predicates, parasm, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                    lgZONEGEOID, END, BEGIN, false));
+            appliquerPredicats(query, predicates);
+
+            Query q = getEntityManager().createNativeQuery(query.toString());
+            parasm.forEach((k, v) -> q.setParameter(k, v));
+            Object[] r = (Object[]) q.getSingleResult();
+            p.setLongValue(r[0] == null ? 0L : ((Number) r[0]).longValue());
+            p.setLongValueTwo(r[1] == null ? 0L : ((Number) r[1]).longValue());
+            p.setLongValueThree(r[2] == null ? 0L : ((Number) r[2]).longValue());
+            p.setLongValueFour(r[3] == null ? 0L : ((Number) r[3]).longValue());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return p;
+    }
+
+    /**
+     * Construit la clause FROM du releve relationnel et les predicats communs et propres au mode demande.
+     *
+     * <p>
+     * Le magasin est fige a l'officine, exactement comme le traitement qui ecrit le releve : filtrer sur le magasin
+     * transmis par l'ecran exposerait a un total vide si sa valeur differait de celle enregistree, et ne pas filtrer du
+     * tout compterait deux fois un produit present dans deux magasins.
+     * </p>
+     *
+     * @param avecTva
+     *            ajoute la jointure sur le code TVA, necessaire aux ventilations par taux
+     *
+     * @return le fragment FROM, les predicats etant ajoutes a {@code predicates}
+     */
+    private String fromReleveSelonMode(int mode, LocalDate date, List<String> predicates, Map<String, Object> parasm,
+            String lgGROSSISTEID, String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN,
+            boolean avecTva) {
+
+        int dateInt = date.getYear() * 10000 + date.getMonthValue() * 100 + date.getDayOfMonth();
+        predicates.add(" f.lg_FAMILLE_ID=s.produit_id ");
+        predicates.add(" f.str_STATUT = :statut ");
+        predicates.add(" s.stock_of_day = :dateInt ");
+        predicates.add(" s.magasin_id = :magasinId ");
+        parasm.put("statut", DateConverter.STATUT_ENABLE);
+        parasm.put("dateInt", dateInt);
+        parasm.put("magasinId", Constant.OFFICINE);
+
+        String tva = avecTva ? ", t_code_tva v " : "";
+        if (avecTva) {
+            predicates.add(" v.lg_CODE_TVA_ID=f.lg_CODE_TVA_ID ");
+        }
+
+        switch (mode) {
+        case 3:
+            predicates.add(" f.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
+            if (estFiltreExplicite(lgGROSSISTEID)) {
+                ajouterFiltreIds(predicates, parasm, "f.lg_GROSSISTE_ID", lgGROSSISTEID);
+            } else {
+                ajouterBornesCode(predicates, parasm, "g.str_CODE", END, BEGIN);
+            }
+            return " FROM stock_snapshot_day s, t_famille f, t_grossiste g " + tva;
+        case 2:
+            predicates.add(" f.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
+            if (estFiltreExplicite(lgZONEGEOID)) {
+                ajouterFiltreIds(predicates, parasm, "f.lg_ZONE_GEO_ID", lgZONEGEOID);
+            } else {
+                ajouterBornesCode(predicates, parasm, "g.str_CODE", END, BEGIN);
+            }
+            return " FROM stock_snapshot_day s, t_famille f, t_zone_geographique g " + tva;
+        case 1:
+            predicates.add(" f.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
+            if (estFiltreExplicite(lgFAMILLEARTICLEID)) {
+                ajouterFiltreIds(predicates, parasm, "f.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
+            } else {
+                ajouterBornesCode(predicates, parasm, "g.str_CODE_FAMILLE", END, BEGIN);
+            }
+            return " FROM stock_snapshot_day s, t_famille f, t_famillearticle g " + tva;
+        default:
+            return " FROM stock_snapshot_day s, t_famille f " + (avecTva ? ", t_code_tva v " : "");
+        }
+    }
+
+    /** Un identifiant vaut filtre explicite s'il designe une selection reelle et non "tous" ("0", "%%", vide). */
+    private boolean estFiltreExplicite(String id) {
+        return id != null && !"0".equals(id) && !"%%".equals(id) && !"".equals(id);
+    }
+
+    private void ajouterBornesCode(List<String> predicates, Map<String, Object> parasm, String colonne, String END,
+            String BEGIN) {
+        if (BEGIN != null && !"".equals(BEGIN)) {
+            predicates.add(" " + colonne + " >= :debut ");
+            parasm.put("debut", BEGIN);
+        }
+        if (END != null && !"".equals(END)) {
+            predicates.add(" " + colonne + " <= :fin ");
+            parasm.put("fin", END);
+        }
+    }
+
+    private void appliquerPredicats(StringBuilder query, List<String> predicates) {
+        query.append(" WHERE ");
+        for (int i = 0; i < predicates.size(); i++) {
+            if (i > 0) {
+                query.append(" AND ");
+            }
+            query.append(predicates.get(i));
+        }
+    }
+
     private Params getValeurStockFromJson(int mode, LocalDate date, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
             String lgZONEGEOID, String END, String BEGIN) {
-        try {
-            // Voie rapide : JSON_TABLE (MariaDB 10.6+).
-            return getValeurStockFromJsonTable(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN);
-        } catch (Exception e) {
-            // MariaDB < 10.6 (JSON_TABLE absent) ou erreur SQL : on bascule sur l'extraction cote Java.
-            LOG.log(Level.WARNING,
-                    "JSON_TABLE indisponible/erreur, bascule sur le fallback Java pour la valorisation historique", e);
-            return getValeurStockFromJsonJava(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN);
+        if (isJsonTableDisponible()) {
+            try {
+                // Voie rapide : JSON_TABLE (MariaDB 10.6+).
+                return getValeurStockFromJsonTable(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
+                        BEGIN);
+            } catch (Exception e) {
+                // La version annoncait JSON_TABLE mais la requete echoue : on ne retentera plus jusqu'au prochain
+                // demarrage, au lieu de rejouer l'echec a chaque affichage.
+                jsonTableDisponible = Boolean.FALSE;
+                LOG.log(Level.WARNING,
+                        "JSON_TABLE indisponible/erreur, bascule sur le fallback Java pour la valorisation historique",
+                        e);
+            }
         }
+        return getValeurStockFromJsonJava(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN);
+    }
+
+    /**
+     * Indique si le serveur de base de donnees connait JSON_TABLE (MariaDB 10.6+, MySQL 8+). Le resultat est calcule
+     * une fois puis memorise.
+     *
+     * <p>
+     * Avant cette verification, chaque affichage d'une valorisation historique lancait la requete JSON_TABLE, la voyait
+     * echouer en erreur de syntaxe 1064 sur MariaDB 10.5, et journalisait une trace complete : un aller-retour SQL et
+     * une pile d'exception perdus a chaque clic, sur une base qui ne supportera jamais la fonction.
+     * </p>
+     */
+    private boolean isJsonTableDisponible() {
+        Boolean connu = jsonTableDisponible;
+        if (connu != null) {
+            return connu;
+        }
+        boolean disponible = false;
+        String version = "inconnue";
+        try {
+            Object v = getEntityManager().createNativeQuery("SELECT VERSION()").getSingleResult();
+            version = v == null ? "" : v.toString();
+            disponible = supporteJsonTable(version);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Version du serveur de base de donnees illisible : JSON_TABLE suppose absent", e);
+        }
+        LOG.log(Level.INFO, "Valorisation historique : base {0}, JSON_TABLE {1}",
+                new Object[] { version, disponible ? "disponible" : "absent (extraction Java)" });
+        jsonTableDisponible = disponible;
+        return disponible;
+    }
+
+    /** Extrait le couple majeur.mineur de la banniere de version et le compare au seuil de chaque moteur. */
+    static boolean supporteJsonTable(String version) {
+        if (version == null) {
+            return false;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+)\\.(\\d+)").matcher(version.trim());
+        if (!m.find()) {
+            return false;
+        }
+        int majeur = Integer.parseInt(m.group(1));
+        int mineur = Integer.parseInt(m.group(2));
+        if (version.toLowerCase().contains("mariadb")) {
+            return majeur > 10 || (majeur == 10 && mineur >= 6);
+        }
+        return majeur >= 8;
     }
 
     /**
@@ -1923,10 +2235,10 @@ public class ProduitServiceImpl implements ProduitService {
             Query q = getEntityManager().createNativeQuery(query.toString());
             parasm.forEach((k, v) -> q.setParameter(k, v));
             Object[] r = (Object[]) q.getSingleResult();
-            p.setValue(r[0] == null ? 0 : ((Number) r[0]).intValue());
-            p.setValueTwo(r[1] == null ? 0 : ((Number) r[1]).intValue());
-            p.setValueThree(r[2] == null ? 0 : ((Number) r[2]).intValue());
-            p.setValueFour(r[3] == null ? 0 : ((Number) r[3]).intValue());
+            p.setLongValue(r[0] == null ? 0L : ((Number) r[0]).longValue());
+            p.setLongValueTwo(r[1] == null ? 0L : ((Number) r[1]).longValue());
+            p.setLongValueThree(r[2] == null ? 0L : ((Number) r[2]).longValue());
+            p.setLongValueFour(r[3] == null ? 0L : ((Number) r[3]).longValue());
         }
         return p;
     }
@@ -2040,10 +2352,10 @@ public class ProduitServiceImpl implements ProduitService {
                     }
                 }
             }
-            p.setValue((int) rayonAchat);
-            p.setValueTwo((int) rayonVente);
-            p.setValueThree((int) resAchat);
-            p.setValueFour((int) resVente);
+            p.setLongValue(rayonAchat);
+            p.setLongValueTwo(rayonVente);
+            p.setLongValueThree(resAchat);
+            p.setLongValueFour(resVente);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
@@ -2191,19 +2503,6 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     @Override
-    public Params getValeurStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
-
-        if (dtStart.equals(LocalDate.now())) {
-            return getValeurStockFrorCurrenDate(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
-                    emplacementId);
-        }
-        return getValeurStaticStock(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
-                emplacementId);
-
-    }
-
-    @Override
     public ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID,
             String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
             String typeStock) {
@@ -2212,7 +2511,15 @@ public class ProduitServiceImpl implements ProduitService {
             return valorisationCurrentStock(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
                     emplacementId, typeStock);
         }
-        // Historique detaille (PDF) : lecture depuis l'archive JSON, par type de stock (rayon/reserve/total).
+        // Historique detaille (PDF), par type de stock (rayon/reserve/total) : releve relationnel si la bascule est
+        // active, sinon archive JSON.
+        if (lireDepuisReleveRelationnel()) {
+            ValorisationDTO etat = valorisationDepuisReleve(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                    lgZONEGEOID, END, BEGIN, emplacementId, typeStock);
+            // Un etat vide sur une journee jamais relevee ne doit pas se lire comme une officine vide.
+            etat.setReleveDisponible(releveDisponible(false, true, () -> compterLignesReleve(dtStart)));
+            return etat;
+        }
         return valorisation(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN, emplacementId,
                 typeStock);
     }
@@ -2255,88 +2562,193 @@ public class ProduitServiceImpl implements ProduitService {
         }
         return "s.int_NUMBER_AVAILABLE";
     }
-    // on obtient le stock ds produit qui n'ont pas subit de mvt à cette date
 
-    private Params getValeurStaticStock(int mode, LocalDate date, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+    /**
+     * Agrege les groupes d'une valorisation historique detaillee (par grossiste, rayon, famille ou taux de TVA) et
+     * calcule les totaux. Logique commune aux deux sources de lecture, archive JSON et releve relationnel, pour que les
+     * deux produisent exactement le meme etat.
+     */
+    private ValorisationDTO agregerGroupes(List<Object[]> result, final int mode) {
+        List<ValorisationDTO> os = new ArrayList<>();
+        ValorisationDTO valorisation = new ValorisationDTO();
+        LongAdder _montantFacture = new LongAdder();
+        LongAdder _montantPu = new LongAdder();
+        LongAdder _montantTarif = new LongAdder();
+        LongAdder _qty = new LongAdder();
+        LongAdder pmp = new LongAdder();
+        result.forEach((_item) -> {
+            Integer qty = Integer.valueOf(_item[3] + "");
+            if (qty == null || qty <= 0) {
+                return; // on n'affiche pas les groupes sans stock/reserve
+            }
+            ValorisationDTO dTO = new ValorisationDTO();
+            Integer montantFacture = Integer.valueOf(_item[0] + "");
+            _montantFacture.add(montantFacture);
+            dTO.setMontantFacture(montantFacture);
+            Integer montantPu = Integer.valueOf(_item[1] + "");
+            dTO.setMontantPu(montantPu);
+            _montantPu.add(montantPu);
+            Integer montantTarif = Integer.valueOf(_item[2] + "");
+            _montantTarif.add(montantTarif);
+            dTO.setMontantTarif(montantTarif);
+            _qty.add(qty);
+            int _pmp = Double.valueOf(_item[4] + "").intValue();
+            pmp.add(_pmp);
+            dTO.setMontantPmd(_pmp);
+            if (mode == 0) {
+                dTO.setLibelle("Tva " + _item[5]);
+            } else {
+                dTO.setLibelle("" + _item[5]);
+                dTO.setCode("" + _item[6]);
+            }
+            os.add(dTO);
+        });
+        valorisation.setDatas(os);
+        valorisation.setMontantFacture(_montantFacture.intValue());
+        valorisation.setMontantTarif(_montantTarif.intValue());
+        valorisation.setMontantPu(_montantPu.intValue());
+        valorisation.setMontantPmd(pmp.intValue());
+        return valorisation;
+    }
+
+    /** Expression SQL de la quantite a valoriser cote releve relationnel selon typeStock. Defaut = rayon. */
+    private String qtyExprReleve(String typeStock) {
+        if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
+            return "s.qty_reserve";
+        }
+        if ("0".equals(typeStock) || "total".equalsIgnoreCase(typeStock)) {
+            return "(s.qty + s.qty_reserve)";
+        }
+        return "s.qty";
+    }
+
+    /**
+     * Taux de TVA d'une ligne de releve : le taux fige au jour du releve, et a defaut celui de la fiche produit.
+     *
+     * <p>
+     * Les lignes reprises depuis l'archive JSON n'ont pas de taux, le document ne le portait pas : elles retombent sur
+     * la fiche produit, soit exactement le comportement de l'etat actuel. Les releves ecrits depuis la mise en place du
+     * releve relationnel portent le taux du jour, et une modification ulterieure du taux ne deforme plus une
+     * ventilation deja publiee.
+     * </p>
+     */
+    private String tauxTvaReleve() {
+        return "COALESCE(NULLIF(s.valeur_tva,0), v.int_VALUE)";
+    }
+
+    /** Valorisation historique detaillee (PDF), lue dans le releve relationnel. Pendant de {@link #valorisation}. */
+    private ValorisationDTO valorisationDepuisReleve(final int mode, LocalDate date, String lgGROSSISTEID,
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) {
         try {
-            List<Predicate> predicates = new ArrayList<>();
-            List<Predicate> predicates2 = new ArrayList<>();
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<Params> cq = cb.createQuery(Params.class);
-            Root<TStockSnapshot> root = cq.from(TStockSnapshot.class);
-            cq.select(cb.construct(Params.class,
-                    cb.sumAsLong(cb.prod(root.get(TStockSnapshot_.prixPaf), root.get(TStockSnapshot_.qty))),
-                    cb.sumAsLong(cb.prod(root.get(TStockSnapshot_.prixUni), root.get(TStockSnapshot_.qty)))));
-            predicates2.add(cb.equal(root.get(TStockSnapshot_.tStockSnapshotPK).get(TStockSnapshotPK_.id), date));
-            predicates2.add(
-                    cb.equal(root.get(TStockSnapshot_.tStockSnapshotPK).get(TStockSnapshotPK_.magasin), emplacementId));
-            Subquery<String> sub = cq.subquery(String.class);
-            Root<TFamille> subroot = sub.from(TFamille.class);
-            sub.select(subroot.get(TFamille_.lgFAMILLEID));
-            predicates.add(cb.equal(subroot.get(TFamille_.lgFAMILLEID),
-                    root.get(TStockSnapshot_.tStockSnapshotPK).get(TStockSnapshotPK_.familleId)));
+            String qte = qtyExprReleve(typeStock);
+            List<String> predicates = new ArrayList<>();
+            Map<String, Object> parasm = new HashMap<>();
+            StringBuilder query = new StringBuilder();
+            query.append("SELECT SUM(s.prix_paf*" + qte + ") AS montantFacture, SUM(s.prix_uni*" + qte
+                    + ") AS montantPu , 0 AS montantTarif , SUM(" + qte
+                    + ") AS qty , SUM(s.prix_moyen_pondere) AS pmp ");
+
+            boolean parTva = mode != 1 && mode != 2 && mode != 3;
             switch (mode) {
             case 3:
-                Join<TFamille, TGrossiste> gr = subroot.join(TFamille_.lgGROSSISTEID, JoinType.INNER);
-                if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
-                        && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(construireFiltreIds(cb, gr.get(TGrossiste_.lgGROSSISTEID), lgGROSSISTEID));
-
-                } else {
-                    if (BEGIN != null && !"".equals(BEGIN)) {
-                        predicates.add(cb.greaterThanOrEqualTo(gr.get(TGrossiste_.strCODE), BEGIN));
-                    }
-                    if (END != null && !"".equals(END)) {
-                        predicates.add(cb.lessThanOrEqualTo(gr.get(TGrossiste_.strCODE), END));
-                    }
-                }
+                query.append(",g.str_LIBELLE AS LIBELLE,g.str_CODE AS CODE ");
                 break;
             case 2:
-                Join<TFamille, TZoneGeographique> zne = subroot.join(TFamille_.lgZONEGEOID, JoinType.INNER);
-                if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
-                        && !"".equals(lgZONEGEOID)) {
-                    predicates.add(construireFiltreIds(cb, zne.get(TZoneGeographique_.lgZONEGEOID), lgZONEGEOID));
-                } else {
-                    if (BEGIN != null && !"".equals(BEGIN)) {
-                        predicates.add(cb.greaterThanOrEqualTo(zne.get(TZoneGeographique_.strCODE), BEGIN));
-                    }
-                    if (END != null && !"".equals(END)) {
-                        predicates.add(cb.lessThanOrEqualTo(zne.get(TZoneGeographique_.strCODE), END));
-                    }
-                }
+                query.append(",g.str_LIBELLEE AS LIBELLE,g.str_CODE AS CODE ");
                 break;
-
             case 1:
-                Join<TFamille, TFamillearticle> fm = subroot.join(TFamille_.lgFAMILLEARTICLEID, JoinType.INNER);
-                if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
-                        && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(
-                            construireFiltreIds(cb, fm.get(TFamillearticle_.lgFAMILLEARTICLEID), lgFAMILLEARTICLEID));
-
-                } else {
-                    if (BEGIN != null && !"".equals(BEGIN)) {
-                        predicates.add(cb.greaterThanOrEqualTo(fm.get(TFamillearticle_.strCODEFAMILLE), BEGIN));
-                    }
-                    if (END != null && !"".equals(END)) {
-                        predicates.add(cb.lessThanOrEqualTo(fm.get(TFamillearticle_.strCODEFAMILLE), END));
-                    }
-                }
+                query.append(",g.str_LIBELLE AS LIBELLE,g.str_CODE_FAMILLE AS CODE ");
                 break;
             default:
-
+                query.append("," + tauxTvaReleve() + " AS tva ");
                 break;
             }
-            sub.where(predicates.toArray(Predicate[]::new));
-            predicates2
-                    .add(cb.in(root.get(TStockSnapshot_.tStockSnapshotPK).get(TStockSnapshotPK_.familleId)).value(sub));
-            cq.where(predicates2.toArray(Predicate[]::new));
-            TypedQuery<Params> q = getEntityManager().createQuery(cq);
-            // q.setMaxResults(1);
-            return q.getSingleResult();
+
+            query.append(fromReleveSelonMode(mode, date, predicates, parasm, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                    lgZONEGEOID, END, BEGIN, parTva));
+            appliquerPredicats(query, predicates);
+
+            switch (mode) {
+            case 3:
+                query.append(" GROUP BY g.lg_GROSSISTE_ID ORDER BY g.str_CODE ASC ");
+                break;
+            case 2:
+                query.append(" GROUP BY g.lg_ZONE_GEO_ID ORDER BY g.str_CODE ASC ");
+                break;
+            case 1:
+                query.append(" GROUP BY g.lg_FAMILLEARTICLE_ID ORDER BY g.str_CODE_FAMILLE ASC ");
+                break;
+            default:
+                query.append(" GROUP BY " + tauxTvaReleve());
+                break;
+            }
+
+            Query q = getEntityManager().createNativeQuery(query.toString());
+            parasm.forEach((k, v) -> q.setParameter(k, v));
+            ValorisationDTO valorisation = agregerGroupes(q.getResultList(), mode);
+            valorisation.setTvas(valorisationTvaDepuisReleve(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
+                    END, BEGIN, emplacementId, typeStock));
+            return valorisation;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return new Params(0, 0);
+            return new ValorisationDTO();
+        }
+    }
+
+    /** Ventilation par taux de TVA, lue dans le releve relationnel. Pendant de {@link #valorisationTva}. */
+    private ValorisationDTO valorisationTvaDepuisReleve(final int mode, LocalDate date, String lgGROSSISTEID,
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) {
+        try {
+            String qte = qtyExprReleve(typeStock);
+            List<String> predicates = new ArrayList<>();
+            Map<String, Object> parasm = new HashMap<>();
+            StringBuilder query = new StringBuilder();
+            query.append("SELECT SUM(s.prix_paf*" + qte + ") AS montantFacture, SUM(s.prix_uni*" + qte
+                    + ") AS montantPu , 0 AS montantTarif , SUM(" + qte + ") AS qty , " + tauxTvaReleve()
+                    + " AS tva , SUM(s.prix_moyen_pondere) AS pmp ");
+            query.append(fromReleveSelonMode(mode, date, predicates, parasm, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                    lgZONEGEOID, END, BEGIN, true));
+            appliquerPredicats(query, predicates);
+            query.append(" GROUP BY " + tauxTvaReleve());
+
+            Query q = getEntityManager().createNativeQuery(query.toString());
+            parasm.forEach((k, v) -> q.setParameter(k, v));
+            List<Object[]> result = q.getResultList();
+
+            List<ValorisationDTO> os = new ArrayList<>();
+            ValorisationDTO valorisation = new ValorisationDTO();
+            LongAdder _montantFacture = new LongAdder();
+            LongAdder _montantPu = new LongAdder();
+            LongAdder pmp = new LongAdder();
+            result.forEach((_item) -> {
+                Integer qty = Integer.valueOf(_item[3] + "");
+                if (qty == null || qty <= 0) {
+                    return;
+                }
+                ValorisationDTO dTO = new ValorisationDTO();
+                Integer montantFacture = Integer.valueOf(_item[0] + "");
+                _montantFacture.add(montantFacture);
+                dTO.setMontantFacture(montantFacture);
+                Integer montantPu = Integer.valueOf(_item[1] + "");
+                dTO.setMontantPu(montantPu);
+                _montantPu.add(montantPu);
+                dTO.setMontantTarif(Integer.valueOf(_item[2] + ""));
+                int _pmp = Double.valueOf(_item[5] + "").intValue();
+                pmp.add(_pmp);
+                dTO.setMontantPmd(_pmp);
+                dTO.setLibelle("Tva " + _item[4]);
+                os.add(dTO);
+            });
+            valorisation.setDatas(os);
+            valorisation.setMontantFacture(_montantFacture.intValue());
+            valorisation.setMontantPu(_montantPu.intValue());
+            valorisation.setMontantPmd(pmp.intValue());
+            return valorisation;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return new ValorisationDTO();
         }
     }
 
@@ -2349,8 +2761,7 @@ public class ProduitServiceImpl implements ProduitService {
             String qte = qtyExprJson(typeStock);
             String jt = jsonTableExpr();
             List<String> predicates = new ArrayList<>();
-            List<ValorisationDTO> os = new ArrayList<>();
-            ValorisationDTO valorisation = new ValorisationDTO();
+            ValorisationDTO valorisation;
             Map<String, Object> parasm = new HashMap<>();
             StringBuilder query = new StringBuilder();
             query.append("SELECT SUM(jt.prixPaf*" + qte + ") AS montantFacture, SUM(jt.prixUni*" + qte
@@ -2456,45 +2867,7 @@ public class ProduitServiceImpl implements ProduitService {
 
             Query q = getEntityManager().createNativeQuery(query.toString());
             parasm.forEach((k, v) -> q.setParameter(k, v));
-            List<Object[]> result = q.getResultList();
-            LongAdder _montantFacture = new LongAdder();
-            LongAdder _montantPu = new LongAdder();
-            LongAdder _montantTarif = new LongAdder();
-            LongAdder _qty = new LongAdder();
-            LongAdder pmp = new LongAdder();
-            result.forEach((_item) -> {
-                Integer qty = Integer.valueOf(_item[3] + "");
-                if (qty == null || qty <= 0) {
-                    return; // on n'affiche pas les groupes sans stock/reserve
-                }
-                ValorisationDTO dTO = new ValorisationDTO();
-                Integer montantFacture = Integer.valueOf(_item[0] + "");
-                _montantFacture.add(montantFacture);
-                dTO.setMontantFacture(montantFacture);
-                Integer montantPu = Integer.valueOf(_item[1] + "");
-                dTO.setMontantPu(montantPu);
-                _montantPu.add(montantPu);
-                Integer montantTarif = Integer.valueOf(_item[2] + "");
-                _montantTarif.add(montantTarif);
-                dTO.setMontantTarif(montantTarif);
-                _qty.add(qty);
-                int _pmp = Double.valueOf(_item[4] + "").intValue();
-                pmp.add(_pmp);
-                dTO.setMontantPmd(_pmp);
-                if (mode == 0) {
-                    dTO.setLibelle("Tva " + _item[5]);
-                } else {
-                    dTO.setLibelle("" + _item[5]);
-                    dTO.setCode("" + _item[6]);
-                }
-                os.add(dTO);
-            });
-            valorisation.setDatas(os);
-            valorisation.setMontantFacture(_montantFacture.intValue());
-            valorisation.setMontantTarif(_montantTarif.intValue());
-            Integer montantPu = _montantPu.intValue();
-            valorisation.setMontantPu(montantPu);
-            valorisation.setMontantPmd(pmp.intValue());
+            valorisation = agregerGroupes(q.getResultList(), mode);
             ValorisationDTO tvas = valorisationTva(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
                     BEGIN, emplacementId, typeStock);
             valorisation.setTvas(tvas);

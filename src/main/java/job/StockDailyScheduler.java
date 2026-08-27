@@ -25,7 +25,10 @@ public class StockDailyScheduler {
 
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void runOnStartup() {
-        dailyStockService.processAsync(LocalDate.now());
+        // Rattrapage : ne releve la journee que si le declenchement de 00:05 n'a pas eu lieu (serveur eteint cette
+        // nuit-la). Si elle a deja ete relevee, on ne la reecrit pas : un redemarrage a 15 h remplacerait le stock a
+        // la cloture de la veille par un stock de milieu de journee.
+        dailyStockService.processAsync(LocalDate.now(), true);
     }
 
     @Schedule(hour = "0", minute = "5", second = "0", persistent = false)
@@ -33,9 +36,10 @@ public class StockDailyScheduler {
         if (!appConfig.isServerMode()) {
             return;
         }
-        // Genere le snapshot par produit (stock_snapshot.stock_journalier, avec qtyReserve) chaque jour, sans dependre
-        // d'un redemarrage du serveur. processAsync est garde par isEnabled() (KEY_VALORISATION_JOURNALIERE).
-        dailyStockService.processAsync(LocalDate.now());
+        // Genere le snapshot par produit (stock_snapshot_day et, le temps de la periode de securite,
+        // stock_snapshot.stock_journalier) chaque jour, sans dependre d'un redemarrage du serveur. processAsync est
+        // garde par isEnabled() (KEY_VALORISATION_JOURNALIERE).
+        dailyStockService.processAsync(LocalDate.now(), false);
         dailyStockService.updateStockDailyValueAsync();
     }
 

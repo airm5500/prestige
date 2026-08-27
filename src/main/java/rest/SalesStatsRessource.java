@@ -218,7 +218,7 @@ public class SalesStatsRessource {
             return Response.ok().entity(new JSONObject().put("success", false)
                     .put("message", "Aucun produit dans les ventes en attente").toString()).build();
         }
-        String name = "Inventaire produits en attente "
+        String name = "INVENTAIRE PRODUITS EN ATTENTE DU "
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         int count = inventaireService.create(produitIds, name, name);
         return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();

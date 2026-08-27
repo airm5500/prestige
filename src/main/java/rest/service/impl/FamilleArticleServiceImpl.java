@@ -1199,7 +1199,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
         default:
             throw new AssertionError();
         }
-        String title = "Inventaire produits 20/80 (" + type + ") " + periode;
+        String title = "IINVENTAIRE PRODUITS 20/80 (" + type + ") " + periode;
 
         int count = inventaireService.create(ids, title);
 

@@ -218,6 +218,20 @@ public class TTiersPayant implements Serializable {
     @Column(name = "str_MODE_TRI_FACTURE", length = 30)
     private String strMODETRIFACTURE = "ALPHABETIQUE";
 
+    /**
+     * Nombre de bons imprimes par page. 0 = automatique, c'est-a-dire le comportement historique : la page se remplit
+     * d'elle-meme et la coupure tombe ou elle tombe.
+     */
+    @Column(name = "int_NB_BONS_PAR_PAGE", nullable = false)
+    private Integer intNBBONSPARPAGE = 0;
+
+    /**
+     * Taille de la police des lignes de bon. 0 = automatique : chaque modele garde la taille qui lui est propre (elle
+     * va de 6 a 8 points selon le nombre de colonnes du modele).
+     */
+    @Column(name = "int_TAILLE_POLICE", nullable = false)
+    private Integer intTAILLEPOLICE = 0;
+
     // Rattachement optionnel a un modele de facture dynamique (NULL = circuit Jasper historique)
 
     @OneToMany(mappedBy = "tiersPayant")
@@ -255,6 +269,34 @@ public class TTiersPayant implements Serializable {
 
     public void setStrMODETRIFACTURE(String strMODETRIFACTURE) {
         this.strMODETRIFACTURE = strMODETRIFACTURE;
+    }
+
+    public Integer getIntNBBONSPARPAGE() {
+        return intNBBONSPARPAGE;
+    }
+
+    public void setIntNBBONSPARPAGE(Integer intNBBONSPARPAGE) {
+        this.intNBBONSPARPAGE = intNBBONSPARPAGE;
+    }
+
+    public Integer getIntTAILLEPOLICE() {
+        return intTAILLEPOLICE;
+    }
+
+    public void setIntTAILLEPOLICE(Integer intTAILLEPOLICE) {
+        this.intTAILLEPOLICE = intTAILLEPOLICE;
+    }
+
+    /** Nombre de bons par page utilisable a l'impression : 0 (automatique) si le reglage est absent ou aberrant. */
+    public int bonsParPageEffectif() {
+        return rest.report.MiseEnPageFacture.bonsParPage(intNBBONSPARPAGE);
+    }
+
+    /**
+     * Taille de police utilisable a l'impression : 0 (taille propre au modele) si le reglage est absent ou aberrant.
+     */
+    public int taillePoliceEffective() {
+        return rest.report.MiseEnPageFacture.taillePolice(intTAILLEPOLICE);
     }
 
     public TTiersPayant() {

@@ -30,7 +30,7 @@ public final class JrxmlFactureBuilder {
     private static final int HAUTEUR_LIGNE_PRODUIT = 13;
     private static final int HAUTEUR_ENTETE_PRODUIT = 11;
     /** Hauteur du bloc d'en-tete (nom de l'officine, bloc tiers payant, numero de facture). */
-    private static final int HAUTEUR_ENTETE = 155;
+    private static final int HAUTEUR_ENTETE = 150;
 
     /** Definition d'une colonne : expression Jasper, classe, format, alignement, largeur souhaitee. */
     private static final class Champ {
@@ -39,17 +39,33 @@ public final class JrxmlFactureBuilder {
         final String pattern;
         final String alignement;
         final int largeur;
+        /**
+         * Largeur en dessous de laquelle la colonne coupe son contenu sur deux lignes.
+         *
+         * <p>
+         * Mesuree a la police de l'etat sur la plus longue valeur courante de la colonne (un numero de bon, un
+         * matricule, un nom complet), majoree des marges interieures de la cellule. C'est ce qui empeche un numero de
+         * bon ou un nom de passer a la ligne.
+         * </p>
+         */
+        final int largeurMini;
         /** Champ SQL a declarer dans le .jrxml (null pour les colonnes calculees). */
         final String champSql;
         final boolean numerique;
 
         Champ(String expression, String classe, String pattern, String alignement, int largeur, String champSql,
                 boolean numerique) {
+            this(expression, classe, pattern, alignement, largeur, largeur, champSql, numerique);
+        }
+
+        Champ(String expression, String classe, String pattern, String alignement, int largeur, int largeurMini,
+                String champSql, boolean numerique) {
             this.expression = expression;
             this.classe = classe;
             this.pattern = pattern;
             this.alignement = alignement;
             this.largeur = largeur;
+            this.largeurMini = largeurMini;
             this.champSql = champSql;
             this.numerique = numerique;
         }
@@ -58,28 +74,29 @@ public final class JrxmlFactureBuilder {
     private static final Map<String, Champ> CHAMPS = new LinkedHashMap<>();
 
     static {
-        CHAMPS.put("NUMERO", new Champ("$V{REPORT_COUNT}", "java.lang.Integer", null, "Center", 30, null, false));
+        CHAMPS.put("NUMERO", new Champ("$V{REPORT_COUNT}", "java.lang.Integer", null, "Center", 30, 21, null, false));
         CHAMPS.put("DATE_BON",
-                new Champ("$F{dt_CREATED}", "java.sql.Timestamp", "dd/MM/yyyy", "Center", 55, "dt_CREATED", false));
-        CHAMPS.put("REF_BON", new Champ("$F{strREFBON}", "java.lang.String", null, "Center", 55, "strREFBON", false));
-        CHAMPS.put("NOM_CLIENT", new Champ("$F{str_FIRST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 75,
+                new Champ("$F{dt_CREATED}", "java.sql.Timestamp", "dd/MM/yyyy", "Center", 55, 47, "dt_CREATED", false));
+        CHAMPS.put("REF_BON",
+                new Champ("$F{strREFBON}", "java.lang.String", null, "Center", 70, 62, "strREFBON", false));
+        CHAMPS.put("NOM_CLIENT", new Champ("$F{str_FIRST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 90, 80,
                 "str_FIRST_NAME_CUSTOMER", false));
-        CHAMPS.put("PRENOM_CLIENT", new Champ("$F{str_LAST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 95,
+        CHAMPS.put("PRENOM_CLIENT", new Champ("$F{str_LAST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 95, 80,
                 "str_LAST_NAME_CUSTOMER", false));
         CHAMPS.put("NOM_COMPLET", new Champ("$F{str_FIRST_NAME_CUSTOMER} + \" \" + $F{str_LAST_NAME_CUSTOMER}",
-                "java.lang.String", null, "Left", 135, null, false));
+                "java.lang.String", null, "Left", 175, 155, null, false));
         CHAMPS.put("MATRICULE",
-                new Champ("$F{SECURITE_SOCIAL}", "java.lang.String", null, "Center", 65, "SECURITE_SOCIAL", false));
-        CHAMPS.put("REF_VENTE", new Champ("$F{str_REF}", "java.lang.String", null, "Center", 60, "str_REF", false));
-        CHAMPS.put("TAUX", new Champ("$F{TAUX_TP}", "java.lang.Integer", null, "Center", 40, "TAUX_TP", false));
+                new Champ("$F{SECURITE_SOCIAL}", "java.lang.String", null, "Center", 72, 59, "SECURITE_SOCIAL", false));
+        CHAMPS.put("REF_VENTE", new Champ("$F{str_REF}", "java.lang.String", null, "Center", 70, 62, "str_REF", false));
+        CHAMPS.put("TAUX", new Champ("$F{TAUX_TP}", "java.lang.Integer", null, "Center", 40, 39, "TAUX_TP", false));
         CHAMPS.put("MONTANT_BRUT",
-                new Champ("$F{int_PRICE}", "java.lang.Integer", "#,##0", "Right", 70, "int_PRICE", true));
-        CHAMPS.put("REMISE", new Champ("$F{dbl_MONTANT_REMISE}", "java.math.BigDecimal", "#,##0", "Right", 65,
+                new Champ("$F{int_PRICE}", "java.lang.Integer", "#,##0", "Right", 70, 63, "int_PRICE", true));
+        CHAMPS.put("REMISE", new Champ("$F{dbl_MONTANT_REMISE}", "java.math.BigDecimal", "#,##0", "Right", 65, 43,
                 "dbl_MONTANT_REMISE", true));
         CHAMPS.put("PART_CLIENT",
-                new Champ("$F{int_CUST_PART}", "java.lang.Integer", "#,##0", "Right", 65, "int_CUST_PART", true));
-        CHAMPS.put("PART_TIERS_PAYANT", new Champ("$F{str_TIERS_PAYANT_RO}", "java.lang.Double", "#,##0", "Right", 80,
-                "str_TIERS_PAYANT_RO", true));
+                new Champ("$F{int_CUST_PART}", "java.lang.Integer", "#,##0", "Right", 65, 53, "int_CUST_PART", true));
+        CHAMPS.put("PART_TIERS_PAYANT", new Champ("$F{str_TIERS_PAYANT_RO}", "java.lang.Double", "#,##0", "Right", 65,
+                43, "str_TIERS_PAYANT_RO", true));
     }
 
     /** Retrait du sous-tableau des produits sous la ligne du bon. */
@@ -104,15 +121,6 @@ public final class JrxmlFactureBuilder {
     }
 
     private JrxmlFactureBuilder() {
-    }
-
-    /**
-     * Largeur relative d'une colonne, partagee avec l'edition PDF pour que les deux presentations (PDF genere et
-     * fichier .jrxml exporte) aient exactement les memes proportions de colonnes.
-     */
-    public static float largeurRelative(String champ) {
-        Champ c = CHAMPS.get(champ);
-        return c != null ? c.largeur : 60f;
     }
 
     /** Nom de fichier propose pour le modele (sans extension), utilisable comme nom de rapport Jasper. */
@@ -175,12 +183,31 @@ public final class JrxmlFactureBuilder {
                 .append(" whenNoDataType=\"AllSectionsNoDetail\" isSummaryWithPageHeaderAndFooter=\"true\"")
                 .append(" isFloatColumnFooter=\"true\" uuid=\"").append(uuid()).append("\">\n");
 
+        // Taille demandee sur le modele. Les lignes de PRODUIT restent d'un point plus petites que
+        // la ligne du bon, comme avant : c'est ce qui les distingue au premier coup d'oeil.
+        int taille = modele.taillePoliceEffective();
+        int tailleProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
+        xml.append(stylesCommuns(taille, avecProduits ? Integer.valueOf(tailleProduit) : null));
+
         for (String p : new String[] { "P_H_INSTITUTION", "P_AUTRE_DESC", "P_INSTITUTION_ADRESSE", "P_H_LOGO",
                 "P_H_CLT_INFOS", "P_PRINTED_BY", "P_LG_FACTURE_ID", "P_LG_TIERS_PAYANT_ID", "P_CODE_COMPTABLE",
                 "P_TIERS_PAYANT_NAME", "P_CODE_FACTURE", "P_TOTAL_GENERAL", "P_ATT_AMOUNT", "P_TOTAL_IN_LETTERS",
                 "P_CODE_POSTALE", "P_COMPTE_CONTRIBUABLE", "P_CODE_OFFICINE", "P_REGISTRE_COMMERCE" }) {
             xml.append("\t<parameter name=\"").append(p).append("\" class=\"java.lang.String\"/>\n");
         }
+        // Tri demande sur la fiche du tiers payant : entier lie (0/1), jamais un fragment de SQL.
+        xml.append("\t<parameter name=\"").append(TriFacture.PARAMETRE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[0]]>")
+                .append("</defaultValueExpression>\n\t</parameter>\n");
+        // Mise en page. La valeur par defaut est celle choisie dans le createur ; la fiche d'un
+        // tiers payant peut encore la remplacer au moment d'imprimer SES factures. Quand la fiche
+        // est sur « automatique », elle ne transmet rien et c'est la valeur du modele qui sert.
+        xml.append("\t<parameter name=\"").append(MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[Integer.valueOf(")
+                .append(modele.bonsParPageEffectif()).append(")]]></defaultValueExpression>\n\t</parameter>\n");
+        xml.append("\t<parameter name=\"").append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[Integer.valueOf(0)]]>")
+                .append("</defaultValueExpression>\n\t</parameter>\n");
 
         xml.append("\t<queryString>\n\t\t<![CDATA[").append(requeteSql(modele, avecProduits))
                 .append("]]>\n\t</queryString>\n");
@@ -234,13 +261,39 @@ public final class JrxmlFactureBuilder {
                         .append("]]></variableExpression>\n\t</variable>\n");
             }
         }
+        // Coupure de page tous les N bons. Sans detail produit, une ligne SQL = un bon : le compte
+        // des enregistrements suffit et la page porte exactement N bons. Avec le detail produit,
+        // une ligne SQL = un PRODUIT : il faut compter les bons, c'est-a-dire les groupes, et la
+        // coupure se pose sur l'en-tete de groupe pour ne jamais separer un bon de ses produits.
+        String coupureDetail = "", coupureGroupe = "";
+        if (avecProduits) {
+            xml.append("\t<variable name=\"NB_BONS_PAGE\" class=\"java.lang.Integer\" resetType=\"Page\"")
+                    .append(" calculation=\"Count\" incrementType=\"Group\" incrementGroup=\"grpBon\">\n")
+                    .append("\t\t<variableExpression><![CDATA[$V{REPORT_COUNT}]]></variableExpression>\n")
+                    .append("\t</variable>\n");
+            // La coupure se pose sur le PIED du bon, apres ses lignes de produit : un bon n'est
+            // jamais separe de ses produits, et la page en porte exactement le nombre demande.
+            // Mesure faite : JasperReports ignore purement et simplement un <break> pose dans un
+            // en-tete de groupe ; il ne l'honore que dans la bande de detail et dans le pied de
+            // groupe. Au pied du bon numero k de la page, NB_BONS_PAGE vaut k.
+            coupureGroupe = coupure("$P{" + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "} != null && $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE
+                    + "}.intValue() > 0 && $V{NB_BONS_PAGE} != null && $V{NB_BONS_PAGE}.intValue() >= $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "}.intValue()");
+        } else {
+            coupureDetail = coupure("$P{" + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "} != null && $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE
+                    + "}.intValue() > 0 && ($V{REPORT_COUNT}.intValue() % $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "}.intValue()) == 0");
+        }
+
         if (avecProduits) {
             xml.append("\t<group name=\"grpBon\" isReprintHeaderOnEachPage=\"true\">\n")
                     .append("\t\t<groupExpression><![CDATA[$F{lg_PREENREGISTREMENT_ID}]]></groupExpression>\n")
                     .append(bandeGroupHeader(colonnes, largeurs, positions, colonnesProduit, largeursProduit,
                             positionsProduit))
-                    .append("\t\t<groupFooter>\n\t\t\t<band height=\"3\"/>\n\t\t</groupFooter>\n")
-                    .append("\t</group>\n");
+                    .append("\t\t<groupFooter>\n\t\t\t<band height=\"3\">\n").append(coupureGroupe)
+                    .append("\t\t\t</band>\n\t\t</groupFooter>\n").append("\t</group>\n");
         }
 
         xml.append("\t<background>\n\t\t<band splitType=\"Stretch\"/>\n\t</background>\n");
@@ -249,7 +302,7 @@ public final class JrxmlFactureBuilder {
         // groupe et la bande de detail porte les lignes de produit.
         xml.append(bandeDetail(avecProduits ? colonnesProduit : colonnes, avecProduits ? largeursProduit : largeurs,
                 avecProduits ? positionsProduit : positions, avecProduits ? CHAMPS_PRODUIT : CHAMPS,
-                avecProduits ? 7 : 8));
+                avecProduits ? STYLE_LIGNE_PRODUIT : STYLE_LIGNE_BON, coupureDetail));
         xml.append(bandePageFooter(avecPiedPage));
         xml.append(bandeSummary(colonnes, largeurs, positions));
         xml.append("</jasperReport>\n");
@@ -265,39 +318,51 @@ public final class JrxmlFactureBuilder {
         StringBuilder b = new StringBuilder();
         b.append("\t<columnHeader>\n\t\t<band height=\"").append(hauteur).append("\">\n");
         if (avecEntete) {
-            // nom de l'officine et sous-titre, centres en haut de page
-            b.append(texteParametre("P_H_INSTITUTION", 46, 6, 493, 31, "Center", 20, true, "Century Gothic"));
-            b.append(texteParametre("P_AUTRE_DESC", 46, 36, 493, 17, "Center", 8, true, null));
-            // filet gris de separation
-            b.append(filetGris(2, 53, 582));
-            // date de la facture, a droite
-            b.append("\t\t\t<textField pattern=\"EEEEE dd MMMMM yyyy\">\n").append(reportElement(420, 58, 160, 15))
-                    .append("\t\t\t\t<textElement textAlignment=\"Left\"><font size=\"8\"/></textElement>\n")
+            /*
+             * En-tete repris du modele rp_facture_0202, au pixel pres.
+             *
+             * Le logo et l'identite de l'officine en haut, centres sur la PAGE et non sur l'espace a cote du logo.
+             * Puis, sous un filet bleu marine, la facture posee sur un rectangle bleu pale a filet vert-bleu, et le
+             * destinataire cadre a droite. C'est ce bloc que l'officine reconnait au premier coup d'oeil.
+             */
+            b.append("\t\t\t<image>\n").append(reportElement(0, 0, 72, 43))
+                    .append("\t\t\t\t<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>\n")
+                    .append("\t\t\t</image>\n");
+            b.append(texteEntete("$P{P_H_INSTITUTION}", 0, 0, 585, 24, "Center", "13", true, MARINE));
+            b.append(texteEntete("$P{P_AUTRE_DESC}", 0, 24, 585, 13, "Center", "8", false, ENCRE_DOUCE));
+            b.append(filetSeparation(0, 46, 585));
+
+            // Le cartouche de la facture : fond bleu pale, filet vert-bleu a gauche.
+            b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"0\" y=\"58\" width=\"300\"")
+                    .append(" height=\"42\" backcolor=\"").append(FOND_CARTOUCHE).append("\" uuid=\"").append(uuid())
+                    .append("\"/>\n\t\t\t\t<box><pen lineWidth=\"0.0\"/><leftPen lineWidth=\"3.0\" lineColor=\"")
+                    .append(SARCELLE).append("\"/></box>\n\t\t\t\t<text><![CDATA[]]></text>\n\t\t\t</staticText>\n");
+            b.append(texteEntete("$P{P_CODE_FACTURE}", 0, 60, 300, 17, "Left", "10", true, MARINE, 10));
+            b.append(texteEntete("$P{P_H_CLT_INFOS}", 0, 79, 300, 14, "Left", "8", true, ENCRE_DOUCE, 10));
+            b.append(texteEntete("$P{P_CODE_COMPTABLE}", 0, 105, 585, 12, "Left", "7.5", false, ENCRE_DOUCE, 10));
+
+            // Le destinataire, cadre a droite.
+            b.append("\t\t\t<textField pattern=\"EEEEE dd MMMMM yyyy\" isBlankWhenNull=\"true\">\n")
+                    .append(reportElementCouleur(310, 58, 275, 13, ENCRE_DOUCE))
+                    .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">")
+                    .append("<font fontName=\"SansSerif\" size=\"7.5\"/></textElement>\n")
                     .append("\t\t\t\t<textFieldExpression><![CDATA[$F{DATEFACTURE}]]></textFieldExpression>\n")
                     .append("\t\t\t</textField>\n");
-            // bloc d'identification du tiers payant, a droite
-            b.append(texteParametre("P_TIERS_PAYANT_NAME", 359, 76, 221, 15, "Left", 8, true, null));
-            b.append(texteParametre("P_CODE_POSTALE", 359, 91, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_COMPTE_CONTRIBUABLE", 359, 106, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_CODE_OFFICINE", 359, 121, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_REGISTRE_COMMERCE", 359, 136, 221, 15, "Left", 8, false, null));
-            // numero de facture et periode, a gauche
-            b.append("\t\t\t<textField>\n").append(reportElement(45, 121, 102, 15))
-                    .append("\t\t\t\t<textElement textAlignment=\"Right\">")
-                    .append("<font size=\"9\" isBold=\"true\" pdfFontName=\"Helvetica-Bold\"/></textElement>\n")
-                    .append("\t\t\t\t<textFieldExpression><![CDATA[\"FACTURE N° \" + $F{str_CODE_FACTURE}]]>")
-                    .append("</textFieldExpression>\n\t\t\t</textField>\n");
-            b.append(texteParametre("P_H_CLT_INFOS", 156, 121, 198, 15, "Left", 9, true, null));
+            b.append(texteEntete("$P{P_TIERS_PAYANT_NAME}", 310, 72, 275, 15, "Right", "10", true, MARINE));
+            b.append(texteEntete("$P{P_CODE_POSTALE}", 310, 87, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_COMPTE_CONTRIBUABLE}", 310, 99, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_CODE_OFFICINE}", 310, 111, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_REGISTRE_COMMERCE}", 310, 123, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
         }
-        // bandeau des colonnes, sur fond gris
+
+        // Bandeau des colonnes : fond bleu marine, libelles blancs, et cadre a droite au-dessus
+        // d'une colonne de montants - la presentation du modele 0202.
         for (int i = 0; i < colonnes.size(); i++) {
-            b.append("\t\t\t<staticText>\n").append("\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positions[i])
-                    .append("\" y=\"").append(decalage).append("\" width=\"").append(largeurs[i]).append("\" height=\"")
-                    .append(HAUTEUR_ENTETE_COLONNES).append("\" backcolor=\"#CCCCCC\" uuid=\"").append(uuid())
-                    .append("\"/>\n").append(encadrement("0.25"))
-                    .append("\t\t\t\t<textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">")
-                    .append("<font size=\"7\" isBold=\"true\" pdfFontName=\"Helvetica-Bold\" pdfEncoding=\"Cp1250\"")
-                    .append(" isPdfEmbedded=\"true\"/></textElement>\n").append("\t\t\t\t<text><![CDATA[")
+            boolean montant = CHAMPS.get(colonnes.get(i).getChamp()).numerique;
+            b.append("\t\t\t<staticText>\n")
+                    .append(reportElement(positions[i], decalage, largeurs[i], HAUTEUR_ENTETE_COLONNES,
+                            montant ? STYLE_ENTETE_MONTANT : STYLE_ENTETE_COLONNE))
+                    .append("\t\t\t\t<text><![CDATA[")
                     .append(echapper(StringUtils.upperCase(colonnes.get(i).getLibelle()))).append("]]></text>\n")
                     .append("\t\t\t</staticText>\n");
         }
@@ -306,18 +371,19 @@ public final class JrxmlFactureBuilder {
     }
 
     private static String bandeDetail(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            Map<String, Champ> registre, int taillePolice) {
+            Map<String, Champ> registre, String style, String coupure) {
         int hauteur = registre == CHAMPS ? HAUTEUR_LIGNE : HAUTEUR_LIGNE_PRODUIT;
         StringBuilder b = new StringBuilder();
         b.append("\t<detail>\n\t\t<band height=\"").append(hauteur).append("\" splitType=\"Stretch\">\n");
-        b.append(cellulesLigne(colonnes, largeurs, positions, registre, taillePolice, hauteur, 0));
+        b.append(coupure);
+        b.append(cellulesLigne(colonnes, largeurs, positions, registre, style, hauteur, 0));
         b.append("\t\t</band>\n\t</detail>\n");
         return b.toString();
     }
 
     /** Cellules encadrees d'une ligne de donnees, a la position verticale demandee dans la bande. */
     private static String cellulesLigne(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            Map<String, Champ> registre, int taillePolice, int hauteur, int y) {
+            Map<String, Champ> registre, String style, int hauteur, int y) {
         StringBuilder b = new StringBuilder();
         for (int i = 0; i < colonnes.size(); i++) {
             Champ def = registre.get(colonnes.get(i).getChamp());
@@ -325,12 +391,10 @@ public final class JrxmlFactureBuilder {
             if (def.pattern != null) {
                 b.append(" pattern=\"").append(def.pattern).append("\"");
             }
-            b.append(">\n").append(reportElement(positions[i], y, largeurs[i], hauteur)).append(encadrement("0.25"))
+            b.append(">\n").append(reportElement(positions[i], y, largeurs[i], hauteur, style))
                     .append("\t\t\t\t<textElement textAlignment=\"").append(def.alignement)
-                    .append("\" verticalAlignment=\"Middle\"><font size=\"").append(taillePolice).append("\"/>")
-                    .append("<paragraph leftIndent=\"3\" rightIndent=\"1\"/></textElement>\n")
-                    .append("\t\t\t\t<textFieldExpression><![CDATA[").append(def.expression)
-                    .append("]]></textFieldExpression>\n\t\t\t</textField>\n");
+                    .append("\" verticalAlignment=\"Middle\"/>\n").append("\t\t\t\t<textFieldExpression><![CDATA[")
+                    .append(def.expression).append("]]></textFieldExpression>\n\t\t\t</textField>\n");
         }
         return b.toString();
     }
@@ -344,13 +408,12 @@ public final class JrxmlFactureBuilder {
         StringBuilder b = new StringBuilder();
         b.append("\t\t<groupHeader>\n\t\t\t<band height=\"").append(HAUTEUR_LIGNE + HAUTEUR_ENTETE_PRODUIT)
                 .append("\" splitType=\"Stretch\">\n");
-        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, 8, HAUTEUR_LIGNE, 0));
+        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, STYLE_LIGNE_BON, HAUTEUR_LIGNE, 0));
         for (int i = 0; i < colonnesProduit.size(); i++) {
             b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positionsProduit[i])
                     .append("\" y=\"").append(HAUTEUR_LIGNE).append("\" width=\"").append(largeursProduit[i])
-                    .append("\" height=\"").append(HAUTEUR_ENTETE_PRODUIT).append("\" backcolor=\"#EEEEEE\" uuid=\"")
-                    .append(uuid()).append("\"/>\n").append(encadrement("0.25"))
-                    .append("\t\t\t\t<textElement textAlignment=\"")
+                    .append("\" height=\"").append(HAUTEUR_ENTETE_PRODUIT).append("\" backcolor=\"#F7F9FC\" uuid=\"")
+                    .append(uuid()).append("\"/>\n").append("\t\t\t\t<textElement textAlignment=\"")
                     .append(CHAMPS_PRODUIT.get(colonnesProduit.get(i).getChamp()).alignement)
                     .append("\" verticalAlignment=\"Middle\"><font size=\"6\" isItalic=\"true\"/></textElement>\n")
                     .append("\t\t\t\t<text><![CDATA[").append(echapper(colonnesProduit.get(i).getLibelle()))
@@ -366,7 +429,7 @@ public final class JrxmlFactureBuilder {
         }
         StringBuilder b = new StringBuilder();
         b.append("\t<pageFooter>\n\t\t<band height=\"40\">\n");
-        b.append(filetGris(0, 4, 584));
+        b.append(filetSeparation(0, 4, 584));
         b.append("\t\t\t<textField>\n").append(reportElement(229, 12, 80, 15))
                 .append("\t\t\t\t<textElement textAlignment=\"Right\"><font size=\"8\"/></textElement>\n")
                 .append("\t\t\t\t<textFieldExpression><![CDATA[\"Page \" + $V{PAGE_NUMBER} + \" sur\"]]>")
@@ -389,10 +452,8 @@ public final class JrxmlFactureBuilder {
             Champ def = CHAMPS.get(c.getChamp());
             if (def.numerique) {
                 b.append("\t\t\t<textField pattern=\"#,##0\" isBlankWhenNull=\"true\">\n")
-                        .append(reportElement(positions[i], 5, largeurs[i], HAUTEUR_LIGNE)).append(encadrement("0.5"))
-                        .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">")
-                        .append("<font size=\"8\" isBold=\"true\" pdfFontName=\"Helvetica-BoldOblique\"/>")
-                        .append("<paragraph rightIndent=\"1\"/></textElement>\n")
+                        .append(reportElement(positions[i], 5, largeurs[i], HAUTEUR_LIGNE, STYLE_TOTAL))
+                        .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\"/>\n")
                         .append("\t\t\t\t<textFieldExpression><![CDATA[$V{v_TOTAL_").append(c.getChamp())
                         .append("}]]></textFieldExpression>\n\t\t\t</textField>\n");
             } else if (!libelleTotalPose) {
@@ -401,10 +462,9 @@ public final class JrxmlFactureBuilder {
                 for (int j = i; j < colonnes.size() && !CHAMPS.get(colonnes.get(j).getChamp()).numerique; j++) {
                     largeur += largeurs[j];
                 }
-                b.append("\t\t\t<staticText>\n").append(reportElement(positions[i], 5, largeur, HAUTEUR_LIGNE))
-                        .append(encadrement("0.5")).append("\t\t\t\t<textElement verticalAlignment=\"Middle\">")
-                        .append("<font size=\"8\" isBold=\"true\" pdfFontName=\"Helvetica-BoldOblique\"/>")
-                        .append("<paragraph leftIndent=\"3\"/></textElement>\n")
+                b.append("\t\t\t<staticText>\n")
+                        .append(reportElement(positions[i], 5, largeur, HAUTEUR_LIGNE, STYLE_TOTAL))
+                        .append("\t\t\t\t<textElement verticalAlignment=\"Middle\"/>\n")
                         .append("\t\t\t\t<text><![CDATA[TOTAUX]]></text>\n\t\t\t</staticText>\n");
                 libelleTotalPose = true;
             }
@@ -449,16 +509,154 @@ public final class JrxmlFactureBuilder {
         return b.toString();
     }
 
-    private static String filetGris(int x, int y, int largeur) {
+    /**
+     * Un libelle de l'en-tete : couleur, taille et alignement libres.
+     *
+     * <p>
+     * La taille est passee en texte parce que le modele 0202 utilise des demi-points ({@code 7.5}), que JasperReports
+     * accepte mais qu'un entier ne saurait pas porter.
+     * </p>
+     */
+    private static String texteEntete(String expression, int x, int y, int largeur, int hauteur, String alignement,
+            String taille, boolean gras, String couleur) {
+        return texteEntete(expression, x, y, largeur, hauteur, alignement, taille, gras, couleur, 0);
+    }
+
+    /** Meme libelle, decale de la marge interieure demandee - le texte pose dans le cartouche respire. */
+    private static String texteEntete(String expression, int x, int y, int largeur, int hauteur, String alignement,
+            String taille, boolean gras, String couleur, int margeGauche) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t\t\t<textField isBlankWhenNull=\"true\">\n")
+                .append(reportElementCouleur(x, y, largeur, hauteur, couleur));
+        if (margeGauche > 0) {
+            b.append("\t\t\t\t<box leftPadding=\"").append(margeGauche).append("\"><pen lineWidth=\"0.0\"/></box>\n");
+        }
+        b.append("\t\t\t\t<textElement textAlignment=\"").append(alignement)
+                .append("\" verticalAlignment=\"Middle\"><font fontName=\"SansSerif\" size=\"").append(taille)
+                .append("\" isBold=\"").append(gras).append("\"/></textElement>\n")
+                .append("\t\t\t\t<textFieldExpression><![CDATA[").append(expression)
+                .append("]]></textFieldExpression>\n\t\t\t</textField>\n");
+        return b.toString();
+    }
+
+    /** Filet de separation, du meme bleu marine que le bandeau des colonnes. */
+    private static String filetSeparation(int x, int y, int largeur) {
         return "\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"" + x + "\" y=\"" + y + "\" width=\""
-                + largeur + "\" height=\"2\" backcolor=\"#CCCCCC\" uuid=\"" + uuid() + "\"/>\n"
+                + largeur + "\" height=\"2\" backcolor=\"" + MARINE + "\" uuid=\"" + uuid() + "\"/>\n"
                 + "\t\t\t\t<text><![CDATA[]]></text>\n\t\t\t</staticText>\n";
     }
 
     private static String reportElement(int x, int y, int largeur, int hauteur) {
-        return "\t\t\t\t<reportElement x=\"" + x + "\" y=\"" + y + "\" width=\"" + largeur + "\" height=\"" + hauteur
-                + "\" uuid=\"" + uuid() + "\"/>\n";
+        return reportElement(x, y, largeur, hauteur, null);
     }
+
+    private static String reportElement(int x, int y, int largeur, int hauteur, String style) {
+        return "\t\t\t\t<reportElement" + (style != null ? " style=\"" + style + "\"" : "") + " x=\"" + x + "\" y=\""
+                + y + "\" width=\"" + largeur + "\" height=\"" + hauteur + "\" uuid=\"" + uuid() + "\"/>\n";
+    }
+
+    /** Le meme element, avec la couleur du texte. */
+    private static String reportElementCouleur(int x, int y, int largeur, int hauteur, String couleur) {
+        return "\t\t\t\t<reportElement x=\"" + x + "\" y=\"" + y + "\" width=\"" + largeur + "\" height=\"" + hauteur
+                + "\" forecolor=\"" + couleur + "\" uuid=\"" + uuid() + "\"/>\n";
+    }
+
+    /*
+     * Presentation reprise du modele rp_facture_0202 retravaille pour l'officine : bandeau de colonnes bleu marine a
+     * texte blanc, lignes alternees sur fond bleu tres pale, filet fin sous chaque ligne plutot qu'un quadrillage
+     * complet, bloc de totaux sur fond bleu pale. Les couleurs sont celles du modele, a la valeur pres, pour que le PDF
+     * du createur et les etats livres se ressemblent vraiment.
+     */
+    private static final String MARINE = "#1E3A5F";
+    private static final String ZEBRE = "#F2F6FA";
+    private static final String FILET = "#D6DEE8";
+    private static final String FOND_TOTAL = "#DDE6F0";
+
+    /** Le vert-bleu du filet vertical qui borde le cartouche de la facture, dans le modele 0202. */
+    private static final String SARCELLE = "#48A9A6";
+
+    /** Le bleu tres pale du fond du cartouche de la facture. */
+    private static final String FOND_CARTOUCHE = "#EDF2F8";
+
+    /** Le gris-bleu des mentions secondaires de l'en-tete. */
+    private static final String ENCRE_DOUCE = "#5A6B7D";
+
+    /** Nom du style du bandeau des colonnes. */
+    private static final String STYLE_ENTETE_COLONNE = "EnteteColonne";
+
+    /** Meme bandeau, cadre a droite pour les colonnes de montant. */
+    private static final String STYLE_ENTETE_MONTANT = "EnteteColonneMontant";
+
+    /** Nom du style du bloc de totaux. */
+    private static final String STYLE_TOTAL = "TotalLigne";
+
+    /** Les styles communs a tous les modeles generes. */
+    private static String stylesCommuns(int tailleBon, Integer tailleProduit) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t<style name=\"").append(STYLE_ENTETE_COLONNE).append("\" mode=\"Opaque\" backcolor=\"")
+                .append(MARINE).append("\" forecolor=\"#FFFFFF\" fontName=\"SansSerif\" fontSize=\"7\"")
+                .append(" isBold=\"true\" vAlign=\"Middle\" hAlign=\"Center\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"3\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n\t\t</box>\n\t</style>\n");
+        b.append("\t<style name=\"").append(STYLE_ENTETE_MONTANT).append("\" style=\"").append(STYLE_ENTETE_COLONNE)
+                .append("\" hAlign=\"Right\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n\t\t</box>\n\t</style>\n");
+        b.append(styleLigne(STYLE_LIGNE_BON, tailleBon, true));
+        if (tailleProduit != null) {
+            b.append(styleLigne(STYLE_LIGNE_PRODUIT, tailleProduit, false));
+        }
+        b.append("\t<style name=\"").append(STYLE_TOTAL).append("\" mode=\"Opaque\" backcolor=\"").append(FOND_TOTAL)
+                .append("\" forecolor=\"").append(MARINE)
+                .append("\" fontName=\"SansSerif\" fontSize=\"8\" isBold=\"true\" vAlign=\"Middle\">\n")
+                .append("\t\t<box topPadding=\"2\" bottomPadding=\"2\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n").append("\t\t\t<topPen lineWidth=\"0.6\" lineColor=\"")
+                .append(MARINE).append("\"/>\n").append("\t\t</box>\n\t</style>\n");
+        return b.toString();
+    }
+
+    /**
+     * Style d'une ligne de donnees : filet fin dessous, une ligne sur deux teintee, et une taille de police qui suit le
+     * reglage de la fiche du tiers payant.
+     *
+     * JasperReports ne sait pas calculer une taille de police : {@code <font size>} n'accepte pas d'expression. On
+     * declare donc une variante par taille possible, et c'est le parametre qui designe celle qui s'applique. Sans
+     * taille demandee, aucune variante ne s'applique et le modele garde la taille choisie dans le createur.
+     */
+    private static String styleLigne(String nom, int tailleModele, boolean zebre) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t<style name=\"").append(nom).append("\" mode=\"Transparent\" fontName=\"SansSerif\"")
+                .append(" fontSize=\"").append(tailleModele).append("\" vAlign=\"Middle\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n").append("\t\t\t<bottomPen lineWidth=\"0.25\" lineColor=\"")
+                .append(FILET).append("\"/>\n").append("\t\t</box>\n");
+        if (zebre) {
+            b.append("\t\t<conditionalStyle>\n\t\t\t<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]>")
+                    .append("</conditionExpression>\n\t\t\t<style mode=\"Opaque\" backcolor=\"").append(ZEBRE)
+                    .append("\"/>\n\t\t</conditionalStyle>\n");
+        }
+        for (int taille = MiseEnPageFacture.TAILLE_POLICE_MINIMUM; taille <= MiseEnPageFacture.TAILLE_POLICE_MAXIMUM; taille++) {
+            b.append("\t\t<conditionalStyle>\n\t\t\t<conditionExpression><![CDATA[$P{")
+                    .append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE).append("} != null && $P{")
+                    .append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE).append("}.intValue() == ").append(taille)
+                    .append("]]></conditionExpression>\n\t\t\t<style fontSize=\"").append(taille)
+                    .append("\"/>\n\t\t</conditionalStyle>\n");
+        }
+        return b.append("\t</style>\n").toString();
+    }
+
+    /** Element de coupure de page, pose en tete d'une bande et pilote par une condition. */
+    private static String coupure(String condition) {
+        return "\t\t\t<break>\n\t\t\t\t<reportElement x=\"0\" y=\"0\" width=\"100\" height=\"1\" uuid=\"" + uuid()
+                + "\">\n\t\t\t\t\t<printWhenExpression><![CDATA[" + condition
+                + "]]></printWhenExpression>\n\t\t\t\t</reportElement>\n\t\t\t</break>\n";
+    }
+
+    /** Nom du style porte par les lignes de bon. */
+    private static final String STYLE_LIGNE_BON = "LigneBon";
+
+    /** Nom du style porte par les lignes de produit, d'un point plus petites. */
+    private static final String STYLE_LIGNE_PRODUIT = "LigneProduit";
 
     private static String encadrement(String epaisseur) {
         return "\t\t\t\t<box leftPadding=\"1\" rightPadding=\"1\">\n" + "\t\t\t\t\t<topPen lineWidth=\"" + epaisseur
@@ -485,18 +683,69 @@ public final class JrxmlFactureBuilder {
         if (colonnes.isEmpty()) {
             return new int[0];
         }
-        int total = 0;
-        for (ModelFactureDynamiqueColonne c : colonnes) {
-            total += registre.get(c.getChamp()).largeur;
+        int nombre = colonnes.size();
+        int[] minima = new int[nombre];
+        int[] poids = new int[nombre];
+        int sommeMinima = 0;
+        int sommePoids = 0;
+        for (int i = 0; i < nombre; i++) {
+            Champ champ = registre.get(colonnes.get(i).getChamp());
+            minima[i] = Math.max(20, champ.largeurMini);
+            poids[i] = champ.largeur;
+            sommeMinima += minima[i];
+            sommePoids += poids[i];
         }
-        int[] largeurs = new int[colonnes.size()];
+        int[] largeurs = new int[nombre];
         int cumul = 0;
-        for (int i = 0; i < colonnes.size() - 1; i++) {
-            largeurs[i] = Math.max(20, registre.get(colonnes.get(i).getChamp()).largeur * disponible / total);
-            cumul += largeurs[i];
+        if (sommeMinima >= disponible) {
+            /*
+             * Trop de colonnes pour la largeur d'une page : aucune ne peut avoir sa largeur minimale. On les reduit
+             * alors TOUTES dans la meme proportion, plutot que d'en servir quelques-unes et d'ecraser les dernieres.
+             */
+            for (int i = 0; i < nombre - 1; i++) {
+                largeurs[i] = Math.max(20, minima[i] * disponible / sommeMinima);
+                cumul += largeurs[i];
+            }
+        } else {
+            /*
+             * Chaque colonne recoit d'abord de quoi ne PAS couper son contenu sur deux lignes, puis la place qui reste
+             * est partagee selon la largeur souhaitee de chacune : c'est le nom du client, la colonne la plus large,
+             * qui en profite le plus.
+             */
+            int surplus = disponible - sommeMinima;
+            int surplusDonne = 0;
+            for (int i = 0; i < nombre - 1; i++) {
+                int part = sommePoids > 0 ? surplus * poids[i] / sommePoids : 0;
+                largeurs[i] = minima[i] + part;
+                surplusDonne += part;
+                cumul += largeurs[i];
+            }
+            // Le reste entier va a la derniere colonne : la somme fait exactement la largeur utile.
+            largeurs[nombre - 1] = minima[nombre - 1] + (surplus - surplusDonne);
+            cumul += largeurs[nombre - 1];
         }
-        largeurs[colonnes.size() - 1] = Math.max(20, disponible - cumul);
+        if (cumul != disponible) {
+            largeurs[nombre - 1] = Math.max(20, largeurs[nombre - 1] + disponible - cumul);
+        }
         return largeurs;
+    }
+
+    /**
+     * Largeurs definitives des colonnes du BON, en points, pour la largeur utile d'une page A4.
+     *
+     * <p>
+     * L'apercu PDF du createur s'en sert lui aussi : les deux presentations decoupent ainsi la page exactement de la
+     * meme facon, et une colonne qui tient sur une ligne dans l'une tient sur une ligne dans l'autre.
+     * </p>
+     */
+    public static int[] largeursColonnes(List<ModelFactureDynamiqueColonne> colonnes) {
+        List<ModelFactureDynamiqueColonne> retenues = new ArrayList<>();
+        for (ModelFactureDynamiqueColonne c : colonnes) {
+            if (CHAMPS.containsKey(c.getChamp())) {
+                retenues.add(c);
+            }
+        }
+        return repartirLargeurs(retenues, CHAMPS, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE);
     }
 
     /** Abscisses cumulees des colonnes, a partir d'une marge de depart. */
@@ -515,12 +764,25 @@ public final class JrxmlFactureBuilder {
      * payant ajoute (colonne "Taux") et l'ordre de tri du modele.
      */
     private static String requeteSql(ModelFactureDynamique modele, boolean avecProduits) {
+        // ATTENTION aux noms de colonnes : dans cette base, str_FIRST_NAME porte le NOM et
+        // str_LAST_NAME porte les PRENOMS. Ce n'est pas une supposition - la fiche client de
+        // l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ strLASTNAME, et
+        // la table CHAMPS ci-dessus associe NOM_CLIENT a str_FIRST_NAME_CUSTOMER. Trier sur
+        // str_LAST_NAME revient donc a trier sur le PRENOM, ce qui donne un ordre illisible.
+        String nom = "p.str_FIRST_NAME_CUSTOMER", prenom = "p.str_LAST_NAME_CUSTOMER";
         String ordre;
         if (ModelFactureDynamique.TRI_DATE_BON.equals(modele.getModeTri())) {
-            ordre = "p.dt_CREATED";
+            ordre = "p.dt_CREATED, " + nom + ", " + prenom;
+        } else if (ModelFactureDynamique.TRI_ALPHABETIQUE.equals(modele.getModeTri())) {
+            // NOM puis PRENOM : l'ordre inverse etait applique, un annuaire ne se lit pas par prenom
+            ordre = nom + ", " + prenom + ", p.dt_CREATED";
         } else {
-            // alphabetique : c'est aussi le tri applique par defaut quand le modele suit la fiche du tiers payant
-            ordre = "p.str_FIRST_NAME_CUSTOMER, p.str_LAST_NAME_CUSTOMER";
+            // Le modele suit la fiche du tiers payant : l'etat ne peut pas la connaitre a la
+            // generation, il doit donc porter LES DEUX ordres et laisser le parametre trancher a
+            // l'impression. Auparavant il figeait l'ordre alphabetique, et une fiche reglee sur
+            // "date de bon" restait sans effet sur les modeles dynamiques.
+            ordre = "CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END,\n" + "          " + nom
+                    + ", " + prenom + ", p.dt_CREATED";
         }
         StringBuilder q = new StringBuilder(1200);
         q.append("SELECT p.*, fa.str_CODE_FACTURE, f.dbl_MONTANT AS str_TIERS_PAYANT_RO, f.dbl_MONTANT_REMISE,\n")

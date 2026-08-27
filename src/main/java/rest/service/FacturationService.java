@@ -54,6 +54,22 @@ public interface FacturationService {
 
     TModelFacture modelFactureById(String lgMODELFACTUREID);
 
+    /**
+     * Modèles de facture proposés dans la liste déroulante de la fiche tiers payant.
+     *
+     * Reprend à l'identique la sélection de l'ancienne JSP : uniquement les modèles ACTIFS, filtrés sur le libellé ou
+     * la valeur. La pagination se fait en base et non en mémoire — l'ancienne page chargeait la liste entière puis en
+     * découpait une tranche.
+     *
+     * @param query
+     *            texte saisi dans la liste déroulante, vide pour tout voir
+     * @param start
+     *            rang du premier élément
+     * @param limit
+     *            nombre d'éléments souhaités
+     */
+    JSONObject modelFacturesPourListeDeroulante(String query, int start, int limit) throws JSONException;
+
     ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId, String codeFacture,
             String searchTerm, String dtStart, String dtEnd);
 }

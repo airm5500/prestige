@@ -67,7 +67,9 @@
         modeId = request.getParameter("modeId");
 
     }
-    List<InputStream> inputPdfList = new ArrayList<>();
+    // Chemins des morceaux a assembler. Des CHEMINS et non des flux : un flux ouvert
+    // empeche d'effacer le fichier, et les morceaux s'accumulaient dans le dossier.
+    List<String> inputPdfList = new ArrayList<>();
     OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
 
     jdom Ojdom = new jdom();
@@ -167,9 +169,28 @@
     // Les alias sont ceux de la requete des modeles de facture (t_preenregistrement p, t_client c).
     // L'alias "preenreg" utilise ici auparavant n'existe dans AUCUN modele : des qu'un modele aurait
     // honore P_ORDER_BY, le tri par date de bon aurait produit une requete SQL invalide.
+    // Le choix de la fiche voyage maintenant sous forme d'un ENTIER lie (0/1) : chaque modele
+    // ecrit son propre ORDER BY avec SES alias. P_ORDER_BY reste transmis pour les modeles
+    // d'officine qui ne seraient pas encore repris, mais aucun des seize livres ne l'utilise.
+    parameters.put(rest.report.TriFacture.PARAMETRE,
+            rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
+    // Mise en page reglee sur la fiche du tiers payant. Les deux valent 0 = automatique : a 0 le modele
+    // imprime exactement comme avant (la page se remplit d'elle-meme, chaque modele garde sa taille de
+    // police). Un modele qui ne declare pas ces deux parametres les ignore simplement.
+    rest.report.MiseEnPageFacture.appliquer(parameters, OTiersPayant.getIntNBBONSPARPAGE(),
+            OTiersPayant.getIntTAILLEPOLICE());
+    // Ville imprimee en pied de recapitulatif (« ABIDJAN, le 16/08/2026 »), saisie dans « Gestion des
+    // parametrages ». Cette page construit sa propre liste de parametres : sans cette ligne, la ville
+    // saisie ne sortait pas sur le recapitulatif imprime depuis cet ecran, alors qu'elle sortait bien
+    // sur celui imprime par le service REST.
+    parameters.put(rest.report.LieuEdition.PARAMETRE,
+            rest.report.LieuEdition.valeur(obllBase.getOdataManager().getEm()));
+    // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
+    // client de l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ
+    // strLASTNAME. Trier sur str_LAST_NAME revenait donc a trier sur le PRENOM.
     String triFacture = "c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
     try {
-        if ("DATE_BON".equalsIgnoreCase(OTiersPayant.getStrMODETRIFACTURE())) {
+        if (rest.report.TriFacture.DATE_BON.equalsIgnoreCase(OTiersPayant.getStrMODETRIFACTURE())) {
             triFacture = "p.dt_CREATED ASC, c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
         }
     } catch (Exception e) {
@@ -224,7 +245,7 @@
 
     if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
         OreportManager.BuildReport(parameters, Ojconnexion);
-        inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facturerecap" + report_generate_file));
+        inputPdfList.add(Ojdom.scr_report_pdf + "rp_facturerecap" + report_generate_file);
     }
 
     JsonDataSourceApp app = null;
@@ -247,10 +268,9 @@
             Path = app.fill(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()), Ojdom.scr_report_file + "rp_groupbycompany.jrxml", "rp_groupbycompany_" + date.FILENAME.format(new Date()) + ".pdf");
 
             outputStreamFile = Ojdom.scr_report_pdf + Path;
-            inputPdfList.add(new FileInputStream(outputStreamFile));
+            inputPdfList.add(outputStreamFile);
             str_file = factureFileName;
-            outputStream = new FileOutputStream(Ojdom.scr_report_pdf + str_file);
-            PdfFiles.mergePdfFiles(inputPdfList, outputStream);
+            rest.report.FusionPdf.assembler(inputPdfList, Ojdom.scr_report_pdf + str_file);
             ObllBase.setKey(new date());
             ObllBase.setOTranslate(OTranslate);
             ObllBase.setOTUser(OTUser);
@@ -267,9 +287,8 @@
 
             str_file = factureFileName;
             outputStreamFile = Ojdom.scr_report_pdf + str_file;
-            inputPdfList.add(new FileInputStream(complementairePath));
-            outputStream = new FileOutputStream(outputStreamFile);
-            PdfFiles.mergePdfFiles(inputPdfList, outputStream);
+            inputPdfList.add(complementairePath);
+            rest.report.FusionPdf.assembler(inputPdfList, outputStreamFile);
             ObllBase.setKey(new date());
             ObllBase.setOTranslate(OTranslate);
             ObllBase.setOTUser(OTUser);
@@ -334,7 +353,7 @@
 
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
                 OreportManager.BuildReport(parameters, Ojconnexion);
-                inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file));
+                inputPdfList.add(Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file);
 
             }
             break;
@@ -358,7 +377,7 @@
                 OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " (" + conversion.AmountFormat(Double.valueOf(idCMP.getDouble("Montant")).intValue()) + " FCFA)");
                 OreportManager.BuildReport(parameters, Ojconnexion);
-                inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
+                inputPdfList.add(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
 
             }
             break;
@@ -419,21 +438,21 @@
             parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
             // parameters.put("REMISE", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
             parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME() + " ( NOMBRE DE BONS =" + OFacture.getTFactureDetailCollection().size() + " )");
-            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-            OreportManager.BuildReport(parameters, Ojconnexion);
-            inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
-
-            //generer selon le code 14 qui sera la facture ou des bons peuvent avoir ete regle montant restant
-            //autre que 14 la generation sera normal montant total sans tenir compte des regles
+            // Le montant en lettres depend du code de facture : on le fixe AVANT d'editer, et on
+            // n'edite qu'une fois. Auparavant l'etat etait construit une premiere fois, puis le
+            // montant en lettres etait recalcule, puis l'etat etait reconstruit dans LE MEME
+            // fichier et ajoute UNE SECONDE FOIS a l'assemblage : la facture sortait donc en
+            // double, alors que la fiche du tiers payant demandait un seul exemplaire.
+            //
+            // code 14 : facture dont des bons peuvent avoir ete regles, le montant en lettres
+            // suit le restant du a la facture. Tout autre code : montant total.
             if (codeFACT == 14) {
-                //parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
             } else {
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-
             }
             OreportManager.BuildReport(parameters, Ojconnexion);
-            inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
+            inputPdfList.add(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
 
             break;
 
@@ -442,8 +461,7 @@
     //String str_file = "rp_facture_" + key.GetNumberRandom() + ".pdf";
     str_file = factureFileName;
     outputStreamFile = Ojdom.scr_report_pdf + str_file;
-    outputStream = new FileOutputStream(outputStreamFile);
-    PdfFiles.mergePdfFiles(inputPdfList, outputStream);
+    rest.report.FusionPdf.assembler(inputPdfList, outputStreamFile);
     ObllBase.setKey(new date());
     ObllBase.setOTranslate(OTranslate);
     ObllBase.setOTUser(OTUser);
