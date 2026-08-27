@@ -64,6 +64,32 @@ public class dataManager {
     }
 
     /**
+     * Construit la factory partagee EN AVANCE, au demarrage de l'application (voir dal.AppContextListener).
+     *
+     * <p>
+     * Sans ce prechauffage, la factory se construisait a la PREMIERE requete apres un (re)demarrage : EclipseLink relit
+     * alors les metadonnees de toutes les classes du war - vingt a trente secondes sur un poste d'officine - et, le
+     * verrou de classe etant tenu pendant la construction, TOUTES les requetes de la premiere vague (menu, tuiles du
+     * tableau de bord) attendaient derriere. C'est le blocage photographie par le watchdog : quatre threads BLOCKED sur
+     * dataManager.class pendant que le cinquieme construisait la factory.
+     */
+    public static void prechaufferSharedEntityManagerFactory() {
+        long debut = System.currentTimeMillis();
+        try {
+            // createEntityManager + close : la factory seule ne suffit pas, EclipseLink ne
+            // deploie la session et n'ouvre la connexion (login) qu'au premier EntityManager.
+            sharedEntityManagerFactory().createEntityManager().close();
+            java.util.logging.Logger.getLogger(dataManager.class.getName()).log(java.util.logging.Level.INFO,
+                    "Factory JPA partagee prechauffee en {0} ms : la premiere requete ne paiera pas sa construction",
+                    System.currentTimeMillis() - debut);
+        } catch (RuntimeException e) {
+            // La premiere requete retentera par le chemin normal ; ne pas empecher le demarrage.
+            java.util.logging.Logger.getLogger(dataManager.class.getName()).log(java.util.logging.Level.WARNING,
+                    "prechauffage de la factory JPA", e);
+        }
+    }
+
+    /**
      * Ferme la factory partagee. A appeler UNIQUEMENT a l'arret/undeploy de l'application (voir dal.AppContextListener)
      * : sans cette fermeture, la session EclipseLink de l'ancien deploiement survit dans le registre du serveur et
      * renvoie des entites chargees par l'ancien classloader, d'ou des ClassCastException (TSousMenu -> TSousMenu) apres

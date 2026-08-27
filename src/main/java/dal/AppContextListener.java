@@ -56,6 +56,15 @@ public class AppContextListener implements ServletContextListener {
         } catch (RuntimeException e) {
             // la configuration du log ne doit jamais empecher le demarrage
         }
+        // Prechauffage de la factory JPA partagee, en arriere-plan pour ne pas retarder le
+        // deploiement : sa construction (20-30 s sur un poste d'officine, EclipseLink relit
+        // toutes les classes du war) se paie ainsi PENDANT le demarrage du serveur, et non a
+        // la premiere requete d'un utilisateur - ou elle bloquait le menu et toutes les
+        // tuiles du tableau de bord derriere le verrou de dataManager (blocage vu au watchdog).
+        Thread prechauffage = new Thread(dataManager::prechaufferSharedEntityManagerFactory,
+                "prechauffage-factory-jpa");
+        prechauffage.setDaemon(true);
+        prechauffage.start();
     }
 
     @Override
