@@ -14,7 +14,6 @@ import rest.service.calculation.dto.CalculationInput;
 import rest.service.calculation.dto.CalculationResult;
 import rest.service.calculation.dto.NatureVente;
 import dal.Rate;
-import java.util.Objects;
 import javax.ejb.Stateless;
 import rest.service.calculation.dto.SaleItemInput;
 import rest.service.calculation.dto.TiersPayantInput;
@@ -57,6 +56,17 @@ public class TiersPayantCalculationService {
 
             BigDecimal actualShare = applyCeilings(remainingAmountForTps, tpInput, warnings);
 
+            // Plafond de credit de la fiche de l'organisme : la part de cette vente doit tenir
+            // dans ce qu'il RESTE de l'encours (plafond moins consommation globale). Un
+            // depassement ne s'ecrete pas en reportant la difference sur le client : il est
+            // remonte comme motif de refus, et la cloture s'y refusera.
+            PlafondsTiersPayant
+                    .motifDeRefus(tpInput.getTiersPayantFullName(),
+                            tpInput.getPlafondCreditTiersPayant() != null
+                                    ? tpInput.getPlafondCreditTiersPayant().doubleValue() : null,
+                            tpInput.getConsoGlobaleTiersPayant(), actualShare.intValue())
+                    .ifPresent(calculationResult.getMotifsRefus()::add);
+
             totalAmountAssurance = totalAmountAssurance.add(actualShare).subtract(remainingAmountForTps);
             totalAmountAssurance = totalAmountAssurance.setScale(0, RoundingMode.HALF_UP);
             TiersPayantLineOutput lineOutput = new TiersPayantLineOutput();
@@ -88,13 +98,10 @@ public class TiersPayantCalculationService {
     }
 
     private BigDecimal computeThirdPartyPart(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);// plafon
-
-        return computePlafondClient(tp, totalNetAmount);
-    }
-
-    private BigDecimal computePlafondClient(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);// plafon
+        // Une seule application de chaque plafond : le plafond d'encours du COMPTE CLIENT
+        // (computePlafond) puis le plafond PAR VENTE du lien (computePlafondVente). L'ancien
+        // enchainement rappelait computePlafond une seconde fois sur son propre resultat.
+        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);
 
         return computePlafondVente(tp.getPlafondJournalierClient(), totalNetAmount);
     }
@@ -114,13 +121,11 @@ public class TiersPayantCalculationService {
             return BigDecimal.ZERO;
         }
         BigDecimal plafond = tp.getPlafondConso();
-        BigDecimal plafondCreditTiersPayant = tp.getPlafondCreditTiersPayant();// plafond sur la fiche tp
         BigDecimal conso = tp.getConsoMensuelle();
 
-        if (Objects.nonNull(plafondCreditTiersPayant) && plafondCreditTiersPayant.compareTo(BigDecimal.ZERO) > 0) {
-            partTiersPayantNet = partTiersPayantNet.min(plafondCreditTiersPayant);
-
-        }
+        // Le plafond de credit de la fiche de l'organisme n'ecrete plus la part ici : il etait
+        // applique sans deduire la consommation globale, et un depassement doit REFUSER la vente,
+        // pas reporter silencieusement la difference sur le client (voir calculate()).
 
         if (plafond == null || plafond.compareTo(BigDecimal.ZERO) == 0) {
             return partTiersPayantNet; // Pas de plafond → on rembourse tout

@@ -222,6 +222,10 @@ Ext.define('testextjs.model.TiersPayant', {
             name: 'dbl_PLAFOND',
             type: 'double'
         }, {
+            // Plafond par vente predefini par l'organisme (fiche tiers payant)
+            name: 'dbl_PLAFOND_VENTE',
+            type: 'double'
+        }, {
             name: 'dbl_QUOTA_CONSO_MENSUELLE',
             type: 'double'
         }, {

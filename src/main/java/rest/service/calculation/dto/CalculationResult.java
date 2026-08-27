@@ -13,6 +13,15 @@ public class CalculationResult {
     private BigDecimal discountAmount = BigDecimal.ZERO;
     private List<TiersPayantLineOutput> tiersPayantLines = new ArrayList<>();
     private String warningMessage;
+    /**
+     * Motifs de REFUS de la vente (plafond de credit de l'organisme depasse) : contrairement aux avertissements, ils ne
+     * decrivent pas un ecretage mais un depassement qui doit empecher la cloture.
+     */
+    private List<String> motifsRefus = new ArrayList<>();
+
+    public List<String> getMotifsRefus() {
+        return motifsRefus;
+    }
 
     public List<CalculatedShare> getItemShares() {
         return itemShares;

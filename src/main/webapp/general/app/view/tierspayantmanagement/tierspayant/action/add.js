@@ -697,6 +697,18 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     value: 0
                                 },
                                 {
+                                    // Valeur predefinie du plafond des liens client/tiers payant :
+                                    // heritee par les nouveaux clients, propagee aux liens actifs
+                                    // quand elle change. 0 = aucun plafond predefini.
+                                    fieldLabel: 'Plafond par vente',
+                                    emptyText: 'Plafond par vente',
+                                    name: 'dbl_PLAFOND_VENTE',
+                                    id: 'dbl_PLAFOND_VENTE',
+                                    maskRe: /[0-9.]/,
+                                    selectOnFocus: true,
+                                    value: 0
+                                },
+                                {
                                     allowBlank: false,
                                     fieldLabel: 'Accompte',
                                     emptyText: 'Accompte',
@@ -788,6 +800,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
 
             Ext.getCmp('dbl_PLAFOND_CREDIT').setValue(this.getOdatasource().dbl_PLAFOND_CREDIT);
+            Ext.getCmp('dbl_PLAFOND_VENTE').setValue(this.getOdatasource().dbl_PLAFOND_VENTE || 0);
             Ext.getCmp('dbl_TAUX_REMBOURSEMENT').setValue(this.getOdatasource().dbl_TAUX_REMBOURSEMENT);
 
             Ext.getCmp('str_NUMERO_IDF_ORGANISME').setValue(this.getOdatasource().str_NUMERO_IDF_ORGANISME);
@@ -937,6 +950,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     dbl_CAUTION: Ext.getCmp('dbl_CAUTION').getValue(),
                     bool_IsACCOUNT: Ext.getCmp('bool_IsACCOUNT').getValue(),
                     dbl_PLAFOND_CREDIT: Ext.getCmp('dbl_PLAFOND_CREDIT').getValue(),
+                    // En modification, le service REST pose la valeur et la propage aux liens
+                    // actifs au changement. En creation, la JSP historique l'ignore : elle part
+                    // dans le second temps ci-dessous, avec « gere comme depot ».
+                    dbl_PLAFOND_VENTE: Ext.getCmp('dbl_PLAFOND_VENTE').getValue() || 0,
                     dbl_TAUX_REMBOURSEMENT: Ext.getCmp('dbl_TAUX_REMBOURSEMENT').getValue(),
                     str_NUMERO_CAISSE_OFFICIEL: Ext.getCmp('str_NUMERO_CAISSE_OFFICIEL').getValue(),
                     str_CENTRE_PAYEUR: Ext.getCmp('str_CENTRE_PAYEUR').getValue(),
@@ -997,6 +1014,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                          * l'instant. En modification, elle est deja posee par le service REST. */
                         var poserDepot = (Omode === "create" && Ext.getCmp('is_depot').isVisible()
                                 && Ext.getCmp('is_depot').getValue());
+                        var plafondVenteCree = (Omode === "create"
+                                ? (parseFloat(Ext.getCmp('dbl_PLAFOND_VENTE').getValue()) || 0) : 0);
                         var terminer = function (messageEnPlus) {
                             Ext.MessageBox.alert('Confirmation',
                                     object.errors + (messageEnPlus ? '<br><br>' + messageEnPlus : ''));
@@ -1004,7 +1023,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             Me_Workflow = Oview;
                             Me_Workflow.getStore().reload();
                         };
-                        if (!poserDepot) {
+                        if (!poserDepot && plafondVenteCree <= 0) {
                             terminer();
                             return;
                         }
@@ -1014,15 +1033,16 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             params: {
                                 str_NAME: Ext.getCmp('str_NAME_ADD').getValue(),
                                 lg_TYPE_TIERS_PAYANT_ID: Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').getValue(),
-                                is_depot: true
+                                is_depot: poserDepot,
+                                dbl_PLAFOND_VENTE: plafondVenteCree
                             },
                             success: function (reponseDepot) {
                                 var r = Ext.JSON.decode(reponseDepot.responseText, true) || {};
                                 terminer(r.success ? '' : r.message);
                             },
                             failure: function () {
-                                terminer("L'option « géré comme dépôt » n'a pas pu être posée."
-                                        + " Ouvrez la fiche depuis la liste pour la cocher.");
+                                terminer("Les options (géré comme dépôt, plafond par vente) n'ont pas pu être posées."
+                                        + " Ouvrez la fiche depuis la liste pour les renseigner.");
                             }
                         });
                     }

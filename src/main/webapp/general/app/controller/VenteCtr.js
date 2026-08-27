@@ -4097,26 +4097,48 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         let      typeVenteCombo = me.getTypeVenteCombo().getValue();
         let client = me.getClient();
-        me.ancienTierspayant = client.get('lgTIERSPAYANTID');
 
-        if (client) {
-            let clientwin;
-            if (typeVenteCombo === '2') {
-                clientwin = Ext.create('testextjs.view.vente.user.addClientAssurance');
-                me.getTpComplementaireGrid().getStore().load({
-                    params: {"clientId": client.get('lgCLIENTID')}
-                });
-                me.getClientAssuranceForm().loadRecord(client);
-                clientwin.show();
-                me.getNomAssClient().focus(false, 50);
-//                me.getTiersvo().setReadOnly(true);// Pour la modification du tiers payant à la vente , modifie le 22 02 2020
-            } else if (typeVenteCombo === '3') {
-                clientwin = Ext.create('testextjs.view.vente.user.AddCarnet');
-                me.getClientCarnetForm().loadRecord(client);
-                clientwin.show();
-                me.getNomCarnetClient().focus(false, 100);
-//                me.getCarnetVo().setReadOnly(true);//Pour la modification du tiers payant à la vente , modifie le 22 02 2020
+        if (!client) {
+            return;
+        }
+        // Le record retenu vient de la recherche precedente : entre-temps le client a pu changer
+        // (propagation d'un plafond depuis la fiche du tiers payant, modification sur un autre
+        // poste). On recharge depuis la base avant d'alimenter le formulaire ; si la lecture
+        // echoue, on garde le record en memoire plutot que d'empecher la modification.
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/client/client-assurance/' + client.get('lgCLIENTID') + '/0',
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success && result.data) {
+                    client = new testextjs.model.caisse.ClientAssurance(result.data);
+                    me.client = client;
+                }
+                me.ouvrirModificationClient(typeVenteCombo, client);
+            },
+            failure: function () {
+                me.ouvrirModificationClient(typeVenteCombo, client);
             }
+        });
+    },
+
+    ouvrirModificationClient: function (typeVenteCombo, client) {
+        const me = this;
+        me.ancienTierspayant = client.get('lgTIERSPAYANTID');
+        let clientwin;
+        if (typeVenteCombo === '2') {
+            clientwin = Ext.create('testextjs.view.vente.user.addClientAssurance');
+            me.getTpComplementaireGrid().getStore().load({
+                params: {"clientId": client.get('lgCLIENTID')}
+            });
+            me.getClientAssuranceForm().loadRecord(client);
+            clientwin.show();
+            me.getNomAssClient().focus(false, 50);
+        } else if (typeVenteCombo === '3') {
+            clientwin = Ext.create('testextjs.view.vente.user.AddCarnet');
+            me.getClientCarnetForm().loadRecord(client);
+            clientwin.show();
+            me.getNomCarnetClient().focus(false, 100);
         }
     },
     onbtnClientAssurence: function () {

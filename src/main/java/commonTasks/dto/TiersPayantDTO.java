@@ -41,6 +41,24 @@ public class TiersPayantDTO implements Serializable {
         this.strFULLNAME = strFULLNAME;
     }
 
+    public TiersPayantDTO(String lgTIERSPAYANTID, String strNAME, String strFULLNAME, Double dblPLAFONDVENTE) {
+        this(lgTIERSPAYANTID, strNAME, strFULLNAME);
+        this.dblPLAFONDVENTE = dblPLAFONDVENTE != null ? dblPLAFONDVENTE : 0;
+    }
+
+    /**
+     * Plafond par vente predefini sur la fiche de l'organisme (0 = aucun) : preremplit la zone du formulaire client.
+     */
+    private double dblPLAFONDVENTE;
+
+    public double getDblPLAFONDVENTE() {
+        return dblPLAFONDVENTE;
+    }
+
+    public void setDblPLAFONDVENTE(double dblPLAFONDVENTE) {
+        this.dblPLAFONDVENTE = dblPLAFONDVENTE;
+    }
+
     public String getStrADRESSE() {
         return strADRESSE;
     }

@@ -303,8 +303,8 @@ public class ClientServiceImpl implements ClientService {
             CriteriaQuery<TiersPayantDTO> cq = cb.createQuery(TiersPayantDTO.class);
             Root<TTiersPayant> root = cq.from(TTiersPayant.class);
             cq.select(cb.construct(TiersPayantDTO.class, root.get(TTiersPayant_.lgTIERSPAYANTID),
-                    root.get(TTiersPayant_.strNAME), root.get(TTiersPayant_.strFULLNAME)))
-                    .orderBy(cb.asc(root.get(TTiersPayant_.strNAME)));
+                    root.get(TTiersPayant_.strNAME), root.get(TTiersPayant_.strFULLNAME),
+                    root.get(TTiersPayant_.dblPLAFONDVENTE))).orderBy(cb.asc(root.get(TTiersPayant_.strNAME)));
             predicates.add(cb.and(cb.equal(root.get(TTiersPayant_.strSTATUT), Constant.STATUT_ENABLE)));
             if (type != null && !"".equals(type)) {
                 predicates.add(cb.equal(
@@ -569,16 +569,19 @@ public class ClientServiceImpl implements ClientService {
         oTCompteClientTiersPayant.setIntPRIORITY(cdto.getIntPRIORITY());
         oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
         oTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
-        oTCompteClientTiersPayant.setDblPLAFOND(0.0);
         oTCompteClientTiersPayant.setDblQUOTACONSOVENTE(0.0);
         oTCompteClientTiersPayant.setIsCapped(Boolean.FALSE);
         if (cdto.getDbPLAFONDENCOURS() > 0) {
             oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
             oTCompteClientTiersPayant.setDbPLAFONDENCOURS(cdto.getDbPLAFONDENCOURS());
         }
-        if (cdto.getDblQUOTACONSOMENSUELLE() > 0) {
+        // Plafond par vente : la valeur saisie sur le client prime ; a defaut, celle
+        // predefinie sur la fiche de l'organisme ; sinon zero, qui veut dire aucun plafond.
+        double plafondInitial = rest.service.calculation.PlafondsTiersPayant
+                .plafondInitialDuLien(cdto.getDblQUOTACONSOMENSUELLE(), p.getDblPLAFONDVENTE());
+        oTCompteClientTiersPayant.setDblPLAFOND(plafondInitial);
+        if (plafondInitial > 0) {
             oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
-            oTCompteClientTiersPayant.setDblPLAFOND(Double.valueOf(cdto.getDblQUOTACONSOMENSUELLE()));
         }
         em.persist(oTCompteClientTiersPayant);
     }
@@ -593,12 +596,12 @@ public class ClientServiceImpl implements ClientService {
             oTCompteClientTiersPayant.setBIsAbsolute(p.isbIsAbsolute());
             oTCompteClientTiersPayant.setDtCREATED(new Date());
             oTCompteClientTiersPayant.setDtUPDATED(oTCompteClientTiersPayant.getDtCREATED());
+            TTiersPayant tiersPayant = findTiersPayantById(p.getLgTIERSPAYANTID());
             oTCompteClientTiersPayant.setLgCOMPTECLIENTID(oTCompteClient);
-            oTCompteClientTiersPayant.setLgTIERSPAYANTID(findTiersPayantById(p.getLgTIERSPAYANTID()));
+            oTCompteClientTiersPayant.setLgTIERSPAYANTID(tiersPayant);
             oTCompteClientTiersPayant.setIntPOURCENTAGE(p.getTaux());
             oTCompteClientTiersPayant.setIntPRIORITY(p.getOrder());
             oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
-            oTCompteClientTiersPayant.setDblPLAFOND(0.0);
             oTCompteClientTiersPayant.setDblQUOTACONSOVENTE(0.0);
             oTCompteClientTiersPayant.setIsCapped(Boolean.FALSE);
             oTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
@@ -606,9 +609,12 @@ public class ClientServiceImpl implements ClientService {
                 oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
                 oTCompteClientTiersPayant.setDbPLAFONDENCOURS(p.getDbPLAFONDENCOURS());
             }
-            if (p.getDblQUOTACONSOMENSUELLE() > 0) {
+            // Plafond par vente : valeur du client, sinon celle predefinie par l'organisme.
+            double plafondInitial = rest.service.calculation.PlafondsTiersPayant.plafondInitialDuLien(
+                    p.getDblQUOTACONSOMENSUELLE(), tiersPayant != null ? tiersPayant.getDblPLAFONDVENTE() : null);
+            oTCompteClientTiersPayant.setDblPLAFOND(plafondInitial);
+            if (plafondInitial > 0) {
                 oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
-                oTCompteClientTiersPayant.setDblPLAFOND(Double.valueOf(p.getDblQUOTACONSOMENSUELLE()));
             }
             em.persist(oTCompteClientTiersPayant);
 
@@ -627,6 +633,9 @@ public class ClientServiceImpl implements ClientService {
         oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
         oTCompteClientTiersPayant.setIsCapped(Boolean.FALSE);
         oTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
+        // Zone videe a l'ecran = zero enregistre : l'ancien plafond ne survit plus a sa
+        // suppression pendant la modification (il restait en base et continuait de plafonner).
+        oTCompteClientTiersPayant.setDblPLAFOND(0.0);
         if (cdto.getDbPLAFONDENCOURS() > 0) {
             oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
             oTCompteClientTiersPayant.setDbPLAFONDENCOURS(cdto.getDbPLAFONDENCOURS());
@@ -652,6 +661,8 @@ public class ClientServiceImpl implements ClientService {
         oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
         oTCompteClientTiersPayant.setIsCapped(Boolean.FALSE);
         oTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
+        // Meme regle que findAndUpdate : la zone videe enregistre zero, rien ne survit.
+        oTCompteClientTiersPayant.setDblPLAFOND(0.0);
         if (cdto.getDbPLAFONDENCOURS() > 0) {
             oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
             oTCompteClientTiersPayant.setDbPLAFONDENCOURS(cdto.getDbPLAFONDENCOURS());
@@ -682,8 +693,9 @@ public class ClientServiceImpl implements ClientService {
                 oTCompteClientTiersPayant.setBIsAbsolute(p.isbIsAbsolute());
                 oTCompteClientTiersPayant.setDtCREATED(new Date());
                 oTCompteClientTiersPayant.setDtUPDATED(oTCompteClientTiersPayant.getDtCREATED());
+                TTiersPayant tiersPayant = findTiersPayantById(p.getLgTIERSPAYANTID());
                 oTCompteClientTiersPayant.setLgCOMPTECLIENTID(oCompteClient);
-                oTCompteClientTiersPayant.setLgTIERSPAYANTID(findTiersPayantById(p.getLgTIERSPAYANTID()));
+                oTCompteClientTiersPayant.setLgTIERSPAYANTID(tiersPayant);
                 oTCompteClientTiersPayant.setIntPOURCENTAGE(p.getTaux());
                 oTCompteClientTiersPayant.setIntPRIORITY(p.getOrder());
                 oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
@@ -693,9 +705,12 @@ public class ClientServiceImpl implements ClientService {
                     oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
                     oTCompteClientTiersPayant.setDbPLAFONDENCOURS(p.getDbPLAFONDENCOURS());
                 }
-                if (p.getDblQUOTACONSOMENSUELLE() > 0) {
+                // Plafond par vente : valeur du client, sinon celle predefinie par l'organisme.
+                double plafondInitial = rest.service.calculation.PlafondsTiersPayant.plafondInitialDuLien(
+                        p.getDblQUOTACONSOMENSUELLE(), tiersPayant != null ? tiersPayant.getDblPLAFONDVENTE() : null);
+                oTCompteClientTiersPayant.setDblPLAFOND(plafondInitial);
+                if (plafondInitial > 0) {
                     oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
-                    oTCompteClientTiersPayant.setDblPLAFOND(Double.valueOf(p.getDblQUOTACONSOMENSUELLE()));
                 }
                 em.persist(oTCompteClientTiersPayant);
             }
@@ -1072,7 +1087,8 @@ public class ClientServiceImpl implements ClientService {
             json.put("success", true).put("data", new JSONObject(data));
             return json;
         } catch (Exception e) {
-
+            // L'echec etait avale sans trace : impossible de diagnostiquer un client refuse.
+            LOG.log(Level.SEVERE, "creation/modification client", e);
             json.put("success", false).put("msg", "Erreur de création du client");
             return json;
 

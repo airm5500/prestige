@@ -117,6 +117,8 @@ public class TTiersPayant implements Serializable {
     private String strMAIL;
     @Column(name = "dbl_PLAFOND_CREDIT", precision = 12, scale = 2)
     private Double dblPLAFONDCREDIT;
+    @Column(name = "dbl_PLAFOND_VENTE", precision = 12, scale = 2)
+    private Double dblPLAFONDVENTE;
     @Column(name = "dbl_TAUX_REMBOURSEMENT", precision = 5, scale = 2)
     private Double dblTAUXREMBOURSEMENT;
     @Column(name = "str_NUMERO_CAISSE_OFFICIEL", length = 40)
@@ -376,6 +378,18 @@ public class TTiersPayant implements Serializable {
 
     public void setDblPLAFONDCREDIT(Double dblPLAFONDCREDIT) {
         this.dblPLAFONDCREDIT = dblPLAFONDCREDIT;
+    }
+
+    /**
+     * Plafond par vente predefini par l'organisme : valeur initiale du plafond des liens client/tiers payant. 0 ou null
+     * = aucun plafond predefini. Distinct de {@link #getDblPLAFONDCREDIT()}, qui controle l'encours global.
+     */
+    public Double getDblPLAFONDVENTE() {
+        return dblPLAFONDVENTE;
+    }
+
+    public void setDblPLAFONDVENTE(Double dblPLAFONDVENTE) {
+        this.dblPLAFONDVENTE = dblPLAFONDVENTE;
     }
 
     public Double getDblTAUXREMBOURSEMENT() {

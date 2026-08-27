@@ -13,8 +13,18 @@ public class TiersPayantInput {
     private BigDecimal plafondConso;
     private BigDecimal plafondCreditTiersPayant;
     private BigDecimal consoMensuelle = BigDecimal.ZERO;
+    /** Consommation deja enregistree pour l'ORGANISME entier, a confronter au plafond de credit de sa fiche. */
+    private BigDecimal consoGlobaleTiersPayant = BigDecimal.ZERO;
     private BigDecimal plafondJournalierClient;
     private int priorite;
+
+    public BigDecimal getConsoGlobaleTiersPayant() {
+        return consoGlobaleTiersPayant;
+    }
+
+    public void setConsoGlobaleTiersPayant(BigDecimal consoGlobaleTiersPayant) {
+        this.consoGlobaleTiersPayant = consoGlobaleTiersPayant;
+    }
 
     public String getClientTiersPayantId() {
         return clientTiersPayantId;

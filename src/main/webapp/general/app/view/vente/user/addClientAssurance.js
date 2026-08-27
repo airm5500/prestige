@@ -86,7 +86,9 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
             idProperty: 'lgTIERSPAYANTID',
             fields: [
                 {name: 'lgTIERSPAYANTID', type: 'string'},
-                {name: 'strFULLNAME', type: 'string'}
+                {name: 'strFULLNAME', type: 'string'},
+                // Plafond par vente predefini sur la fiche de l'organisme (0 = aucun)
+                {name: 'dblPLAFONDVENTE', type: 'float'}
             ],
             pageSize: null,
             autoLoad: true,
@@ -346,6 +348,16 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                             if (e.getKey() === e.ENTER) {
                                                                 e.stopEvent();
                                                                 me.down('#intPOURCENTAGE').focus(false, 100);
+                                                            }
+                                                        },
+                                                        // La zone Plafond.Vente reprend la valeur predefinie
+                                                        // sur la fiche de l'organisme. Une valeur deja saisie
+                                                        // sur le client n'est pas ecrasee.
+                                                        select: function (combo, records) {
+                                                            var rec = records && records[0];
+                                                            var zone = me.down('[name=dblQUOTACONSOMENSUELLE]');
+                                                            if (rec && zone && !(zone.getValue() > 0)) {
+                                                                zone.setValue(rec.get('dblPLAFONDVENTE') || 0);
                                                             }
                                                         }
                                                     }

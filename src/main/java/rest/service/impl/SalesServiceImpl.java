@@ -824,6 +824,27 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Premier motif de refus rencontre parmi les organismes de la vente : part tiers payant superieure a ce qu'il reste
+     * du plafond de credit de la fiche. Vide quand tout passe - aucun plafond pose, ou encours suffisant.
+     */
+    private java.util.Optional<String> refusPlafondCreditTiersPayant(String venteId) {
+        for (TPreenregistrementCompteClientTiersPayent item : getClientTiersPayents(venteId)) {
+            TCompteClientTiersPayant lien = item.getLgCOMPTECLIENTTIERSPAYANTID();
+            if (lien == null || lien.getLgTIERSPAYANTID() == null) {
+                continue;
+            }
+            TTiersPayant organisme = lien.getLgTIERSPAYANTID();
+            java.util.Optional<String> refus = rest.service.calculation.PlafondsTiersPayant.motifDeRefus(
+                    organisme.getStrFULLNAME(), organisme.getDblPLAFONDCREDIT(), organisme.getDbCONSOMMATIONMENSUELLE(),
+                    item.getIntPRICE() != null ? item.getIntPRICE() : 0);
+            if (refus.isPresent()) {
+                return refus;
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
     private List<TPreenregistrementCompteClientTiersPayent> getClientTiersPayents(String preenregistrement) {
         try {
             TypedQuery<TPreenregistrementCompteClientTiersPayent> tq = em.createQuery(
@@ -1940,6 +1961,17 @@ public class SalesServiceImpl implements SalesService {
             if (diffAmount(montant, lstTPreenregistrementDetail)) {
                 json.put("success", false);
                 json.put("msg", "Désolé impossible de terminer la vente. Veuillez recalculer le montant de la vente ");
+                json.put("codeError", 0);
+                return json;
+            }
+            // Plafond de credit des organismes : la part de CETTE vente doit tenir dans ce qu'il
+            // reste d'encours (plafond de la fiche moins consommation globale), relu au moment de
+            // la cloture - la consommation a pu bouger depuis l'affichage du net a payer. Un
+            // depassement REFUSE la vente ; rien n'est ecrete ni reporte sur le client.
+            java.util.Optional<String> refusPlafond = refusPlafondCreditTiersPayant(venteId);
+            if (refusPlafond.isPresent()) {
+                json.put("success", false);
+                json.put("msg", refusPlafond.get());
                 json.put("codeError", 0);
                 return json;
             }

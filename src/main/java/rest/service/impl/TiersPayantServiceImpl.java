@@ -106,6 +106,8 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             json.put("str_MAIL", tTiersPayant.getStrMAIL());
             // dbl_PLAFOND_CREDIT
             json.put("dbl_PLAFOND_CREDIT", tTiersPayant.getDblPLAFONDCREDIT());
+            json.put("dbl_PLAFOND_VENTE",
+                    tTiersPayant.getDblPLAFONDVENTE() != null ? tTiersPayant.getDblPLAFONDVENTE() : 0);
             // dbl_TAUX_REMBOURSEMENT (à associer à la table TRembourcement
             json.put("dbl_TAUX_REMBOURSEMENT", tTiersPayant.getDblTAUXREMBOURSEMENT());
             // str_NUMERO_CAISSE_OFFICIEL
@@ -180,6 +182,8 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             json.put("b_IsAbsolute", tTiersPayant.getBIsAbsolute());
             json.put("db_CONSOMMATION_MENSUELLE", encoursParTp.getOrDefault(tTiersPayant.getLgTIERSPAYANTID(), 0));
             json.put("dbl_PLAFOND_CREDIT", tTiersPayant.getDblPLAFONDCREDIT());
+            json.put("dbl_PLAFOND_VENTE",
+                    tTiersPayant.getDblPLAFONDVENTE() != null ? tTiersPayant.getDblPLAFONDVENTE() : 0);
             json.put("nbrbons", (tTiersPayant.getIntNBREBONS() != null)
                     ? (tTiersPayant.getIntNBREBONS() > 0 ? tTiersPayant.getIntNBREBONS() : 0) : 0);
             json.put("montantFact", (tTiersPayant.getIntMONTANTFAC() != null)

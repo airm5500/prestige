@@ -297,8 +297,16 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
 
         montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
-        montantAPaye.setRestructuring(StringUtils.isNoneEmpty(output.getWarningMessage()));
-        montantAPaye.setMessage(output.getWarningMessage());
+        // Les motifs de refus (plafond de credit de l'organisme depasse) passent DEVANT les
+        // avertissements d'ecretage : le vendeur doit les voir avant meme de tenter la cloture,
+        // qui refusera de toute facon.
+        String messagePlafonds = output.getWarningMessage();
+        if (!output.getMotifsRefus().isEmpty()) {
+            messagePlafonds = String.join("\n", output.getMotifsRefus())
+                    + (StringUtils.isNotEmpty(messagePlafonds) ? "\n" + messagePlafonds : "");
+        }
+        montantAPaye.setRestructuring(StringUtils.isNoneEmpty(messagePlafonds));
+        montantAPaye.setMessage(messagePlafonds);
 
         return montantAPaye;
 
@@ -389,6 +397,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             Optional.ofNullable(tiersPayant.getDblPLAFONDCREDIT())
                     .ifPresent(v -> ti.setPlafondCreditTiersPayant(BigDecimal.valueOf(v))); // plafond sur la fiche du
             // TP
+            // Consommation globale de l'organisme : c'est elle qui se confronte au plafond de
+            // credit de sa fiche pour dire ce qu'il reste d'encours.
+            Optional.ofNullable(tiersPayant.getDbCONSOMMATIONMENSUELLE())
+                    .ifPresent(v -> ti.setConsoGlobaleTiersPayant(BigDecimal.valueOf(v)));
             Optional.ofNullable(ctp.getDbPLAFONDENCOURS()).ifPresent(v -> ti.setPlafondConso(BigDecimal.valueOf(v)));
             Optional.ofNullable(ctp.getDbCONSOMMATIONMENSUELLE())
                     .ifPresent(v -> ti.setConsoMensuelle(BigDecimal.valueOf(v)));
@@ -455,8 +467,16 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
 
         montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
-        montantAPaye.setRestructuring(StringUtils.isNoneEmpty(output.getWarningMessage()));
-        montantAPaye.setMessage(output.getWarningMessage());
+        // Les motifs de refus (plafond de credit de l'organisme depasse) passent DEVANT les
+        // avertissements d'ecretage : le vendeur doit les voir avant meme de tenter la cloture,
+        // qui refusera de toute facon.
+        String messagePlafonds = output.getWarningMessage();
+        if (!output.getMotifsRefus().isEmpty()) {
+            messagePlafonds = String.join("\n", output.getMotifsRefus())
+                    + (StringUtils.isNotEmpty(messagePlafonds) ? "\n" + messagePlafonds : "");
+        }
+        montantAPaye.setRestructuring(StringUtils.isNoneEmpty(messagePlafonds));
+        montantAPaye.setMessage(messagePlafonds);
 
         return montantAPaye;
 

@@ -1759,8 +1759,10 @@ public class tierspayantManagement extends bllBase {
             OTCompteClientTiersPayant.setIntPRIORITY(int_PRIORITY);
             OTCompteClientTiersPayant.setStrSTATUT(commonparameter.statut_enable);
             OTCompteClientTiersPayant.setDtCREATED(new Date());
-            OTCompteClientTiersPayant.setDblPLAFOND(dbl_PLAFOND);
-            // OTCompteClientTiersPayant.setDblPLAFOND(dbl_QUOTA_CONSO_VENTE);
+            // Plafond par vente : la valeur saisie prime ; a defaut, celle predefinie
+            // sur la fiche de l'organisme ; sinon zero (aucun plafond).
+            OTCompteClientTiersPayant.setDblPLAFOND(rest.service.calculation.PlafondsTiersPayant
+                    .plafondInitialDuLien(dbl_PLAFOND, OTTiersPayant.getDblPLAFONDVENTE()));
             OTCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(str_NUMERO_SECURITE_SOCIAL);
             OTCompteClientTiersPayant.setDblQUOTACONSOVENTE(dbl_QUOTA_CONSO_VENTE);
             OTCompteClientTiersPayant.setDbPLAFONDENCOURS(dbPLAFONDENCOURS);

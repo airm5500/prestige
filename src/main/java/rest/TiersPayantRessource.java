@@ -167,7 +167,8 @@ public class TiersPayantRessource {
             @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture,
             @FormParam("int_NB_BONS_PAR_PAGE") Integer nbBonsParPage,
             @FormParam("int_TAILLE_POLICE") Integer taillePolice,
-            @DefaultValue("false") @FormParam("is_depot") boolean isDepot) {
+            @DefaultValue("false") @FormParam("is_depot") boolean isDepot,
+            @DefaultValue("-1") @FormParam("dbl_PLAFOND_VENTE") double plafondVente) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
@@ -189,12 +190,59 @@ public class TiersPayantRessource {
             // « Gere comme depot » n'est pas porte par la methode metier historique, partagee avec
             // la JSP : on pose l'indicateur a part, sur l'entite, une fois la modification faite.
             marquerDepot(odm.getEm(), tiersPayantId, isDepot);
+            // Meme logique pour le plafond par vente : -1 = zone absente de l'ecran, on ne touche rien.
+            poserPlafondVente(odm.getEm(), tiersPayantId, plafondVente);
             return reponseSimple(otm.getMessage(), otm.getDetailmessage());
         } catch (Exception e) {
             LOG_GESTION.log(Level.SEVERE, "updateTiersPayant", e);
             return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de modifier ce tiers payant");
         } finally {
             odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Pose le plafond par vente sur la fiche de l'organisme et, quand la valeur CHANGE et devient positive, la propage
+     * au plafond de tous les liens client/tiers payant actifs.
+     *
+     * <p>
+     * La propagation n'a lieu qu'au changement : re-enregistrer la fiche sans toucher au plafond n'ecrase donc pas les
+     * valeurs saisies individuellement sur des clients. Et remettre la fiche a zero n'efface rien : zero veut dire «
+     * aucun plafond predefini », pas « effacer les plafonds des clients ».
+     *
+     * @param plafondVente
+     *            valeur de l'ecran ; negative quand la zone n'etait pas presente (rien n'est ecrit)
+     */
+    private void poserPlafondVente(javax.persistence.EntityManager em, String tiersPayantId, double plafondVente) {
+        if (plafondVente < 0 || StringUtils.isBlank(tiersPayantId)) {
+            return;
+        }
+        dal.TTiersPayant tp = em.find(dal.TTiersPayant.class, tiersPayantId);
+        if (tp == null) {
+            return;
+        }
+        double ancienne = tp.getDblPLAFONDVENTE() != null ? tp.getDblPLAFONDVENTE() : 0;
+        if (ancienne == plafondVente) {
+            return;
+        }
+        tp.setDblPLAFONDVENTE(plafondVente);
+        javax.persistence.EntityTransaction transaction = em.getTransaction();
+        boolean aNous = !transaction.isActive();
+        if (aNous) {
+            transaction.begin();
+        }
+        em.merge(tp);
+        if (plafondVente > 0) {
+            int touches = em
+                    .createQuery("UPDATE TCompteClientTiersPayant c SET c.dblPLAFOND = ?1, c.isCapped = TRUE,"
+                            + " c.dtUPDATED = CURRENT_TIMESTAMP"
+                            + " WHERE c.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2 AND c.strSTATUT = 'enable'")
+                    .setParameter(1, plafondVente).setParameter(2, tiersPayantId).executeUpdate();
+            LOG_GESTION.log(Level.INFO, "Plafond par vente {0} propage a {1} lien(s) client du tiers payant {2}",
+                    new Object[] { plafondVente, touches, tiersPayantId });
+        }
+        if (aNous) {
+            transaction.commit();
         }
     }
 
@@ -244,7 +292,8 @@ public class TiersPayantRessource {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response marquerDepotApresCreation(@DefaultValue("") @FormParam("str_NAME") String name,
             @DefaultValue("") @FormParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
-            @DefaultValue("false") @FormParam("is_depot") boolean isDepot) {
+            @DefaultValue("false") @FormParam("is_depot") boolean isDepot,
+            @DefaultValue("-1") @FormParam("dbl_PLAFOND_VENTE") double plafondVente) {
         if (utilisateurSession() == null) {
             return reponseDeconnecte();
         }
@@ -260,12 +309,17 @@ public class TiersPayantRessource {
                     .getResultList();
             if (candidats.size() != 1) {
                 return Response.ok().entity(new JSONObject().put("success", false)
-                        .put("message", "Le tiers payant a bien ete cree, mais l'option « gere comme depot » n'a pas pu"
-                                + " etre posee automatiquement. Ouvrez la fiche depuis la liste pour la cocher.")
+                        .put("message", "Le tiers payant a bien ete cree, mais ses options (gere comme depot, plafond"
+                                + " par vente) n'ont pas pu etre posees automatiquement. Ouvrez la fiche depuis la"
+                                + " liste pour les renseigner.")
                         .toString()).build();
             }
             dal.TTiersPayant tp = candidats.get(0);
             tp.setIsDepot(isDepot);
+            if (plafondVente >= 0) {
+                // Fiche neuve : aucun lien client n'existe encore, poser la valeur suffit.
+                tp.setDblPLAFONDVENTE(plafondVente);
+            }
             ecrire(odm.getEm(), tp);
             return Response.ok().entity(new JSONObject().put("success", true).toString()).build();
         } catch (Exception e) {
@@ -659,6 +713,7 @@ public class TiersPayantRessource {
         json.put("str_TELEPHONE", tp.getStrTELEPHONE());
         json.put("str_MAIL", tp.getStrMAIL());
         json.put("dbl_PLAFOND_CREDIT", tp.getDblPLAFONDCREDIT());
+        json.put("dbl_PLAFOND_VENTE", tp.getDblPLAFONDVENTE() != null ? tp.getDblPLAFONDVENTE() : 0);
         json.put("dbl_TAUX_REMBOURSEMENT", tp.getDblTAUXREMBOURSEMENT());
         json.put("str_NUMERO_CAISSE_OFFICIEL", tp.getStrNUMEROCAISSEOFFICIEL());
         json.put("str_CENTRE_PAYEUR", tp.getStrCENTREPAYEUR());
