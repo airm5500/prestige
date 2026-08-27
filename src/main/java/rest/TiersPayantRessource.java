@@ -112,6 +112,95 @@ public class TiersPayantRessource {
     }
 
     /**
+     * Creation d'un tiers payant : MEME methode metier tierspayantManagement.create que la JSP historique
+     * (mode=create), sequencier compris, avec les MEMES valeurs par defaut quand un champ n'est pas transmis. L'ecran
+     * pose ensuite « gere comme depot » et le plafond par vente par l'appel depot-apres-creation, comme avant - la
+     * methode metier ne rend pas l'identifiant cree.
+     */
+    @POST
+    @Path("gestion/create")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response creerGestion(@DefaultValue("") @FormParam("str_CODE_ORGANISME") String codeOrganisme,
+            @DefaultValue("") @FormParam("str_NAME") String name,
+            @DefaultValue("") @FormParam("str_FULLNAME") String fullName,
+            @DefaultValue("") @FormParam("str_ADRESSE") String adresse,
+            @DefaultValue("") @FormParam("str_MOBILE") String mobile,
+            @DefaultValue("") @FormParam("str_TELEPHONE") String telephone,
+            @DefaultValue("") @FormParam("str_MAIL") String mail,
+            @DefaultValue("0") @FormParam("dbl_PLAFOND_CREDIT") double plafondCredit,
+            @DefaultValue("0") @FormParam("dbl_TAUX_REMBOURSEMENT") double tauxRemboursement,
+            @DefaultValue("") @FormParam("str_NUMERO_CAISSE_OFFICIEL") String numeroCaisseOfficiel,
+            @DefaultValue("") @FormParam("str_CENTRE_PAYEUR") String centrePayeur,
+            @DefaultValue("") @FormParam("str_CODE_REGROUPEMENT") String codeRegroupement,
+            @DefaultValue("0") @FormParam("dbl_SEUIL_MINIMUM") double seuilMinimum,
+            @DefaultValue("false") @FormParam("bool_INTERDICTION") boolean interdiction,
+            @DefaultValue("46700000000") @FormParam("str_CODE_COMPTABLE") String codeComptable,
+            @DefaultValue("false") @FormParam("bool_PRENUM_FACT_SUBROGATOIRE") boolean prenumFactSubrogatoire,
+            @DefaultValue("0") @FormParam("int_NUMERO_DECOMPTE") int numeroDecompte,
+            @DefaultValue("") @FormParam("str_CODE_PAIEMENT") String codePaiement,
+            @DefaultValue("0") @FormParam("dt_DELAI_PAIEMENT") int delaiPaiement,
+            @DefaultValue("0") @FormParam("dbl_POURCENTAGE_REMISE") double pourcentageRemise,
+            @DefaultValue("0") @FormParam("dbl_REMISE_FORFETAIRE") double remiseForfetaire,
+            @DefaultValue("") @FormParam("str_CODE_EDIT_BORDEREAU") String codeEditBordereau,
+            @DefaultValue("1") @FormParam("int_NBRE_EXEMPLAIRE_BORD") int nbreExemplaireBord,
+            @DefaultValue("0") @FormParam("int_PERIODICITE_EDIT_BORD") int periodiciteEditBord,
+            @DefaultValue("0") @FormParam("int_DATE_DERNIERE_EDITION") int dateDerniereEdition,
+            @DefaultValue("") @FormParam("str_NUMERO_IDF_ORGANISME") String numeroIdfOrganisme,
+            @DefaultValue("0") @FormParam("dbl_MONTANT_F_CLIENT") double montantFClient,
+            @DefaultValue("0") @FormParam("dbl_BASE_REMISE") double baseRemise,
+            @DefaultValue("") @FormParam("str_CODE_DOC_COMPTOIRE") String codeDocComptoire,
+            @DefaultValue("false") @FormParam("bool_ENABLED") boolean enabled,
+            @DefaultValue("") @FormParam("lg_VILLE_ID") String villeId,
+            @DefaultValue("") @FormParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @DefaultValue("") @FormParam("lg_TYPE_CONTRAT_ID") String typeContratId,
+            @DefaultValue("") @FormParam("lg_REGIMECAISSE_ID") String regimeCaisseId,
+            @DefaultValue("") @FormParam("lg_RISQUE_ID") String risqueId,
+            @DefaultValue("0") @FormParam("dbl_CAUTION") double cautionDepot,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_MENSUELLE") double quotaConsoMensuelle,
+            @DefaultValue("0") @FormParam("dbl_SOLDE") int solde,
+            @DefaultValue("false") @FormParam("bool_IsACCOUNT") boolean isAccount,
+            @DefaultValue("") @FormParam("str_REGISTRE_COMMERCE") String registreCommerce,
+            @DefaultValue("") @FormParam("str_CODE_OFFICINE") String codeOfficine,
+            @DefaultValue("") @FormParam("str_COMPTE_CONTRIBUABLE") String compteContribuable,
+            @DefaultValue("false") @FormParam("b_IsAbsolute") boolean isAbsolute,
+            @DefaultValue("") @FormParam("lg_GROUPE_ID") String groupeId,
+            @DefaultValue("-1") @FormParam("nbrbons") int nbrBons,
+            @DefaultValue("-1") @FormParam("montantFact") int montantFact,
+            @DefaultValue("false") @FormParam("groupingByTaux") boolean groupingByTaux,
+            @DefaultValue("false") @FormParam("cmu") boolean cmu, @DefaultValue("0") @FormParam("caution") int caution,
+            @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture,
+            @DefaultValue("0") @FormParam("int_NB_BONS_PAR_PAGE") int nbBonsParPage,
+            @DefaultValue("0") @FormParam("int_TAILLE_POLICE") int taillePolice) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            tierspayantManagement otm = new tierspayantManagement(odm, user);
+            dal.TSequencier sequencier = new bll.facture.factureManagement(odm, user).CreateSequencier();
+            String risque = StringUtils.isNotBlank(risqueId) ? risqueId : RISQUE_DEFAUT;
+            otm.create(codeOrganisme, name, fullName, adresse, mobile, telephone, mail, plafondCredit,
+                    tauxRemboursement, numeroCaisseOfficiel, centrePayeur, codeRegroupement, seuilMinimum, interdiction,
+                    codeComptable, prenumFactSubrogatoire, numeroDecompte, codePaiement, delaiPaiement,
+                    pourcentageRemise, remiseForfetaire, codeEditBordereau, nbreExemplaireBord, periodiciteEditBord,
+                    dateDerniereEdition, numeroIdfOrganisme, montantFClient, baseRemise, codeDocComptoire, enabled,
+                    villeId, typeTiersPayantId, typeContratId, regimeCaisseId, risque, cautionDepot,
+                    quotaConsoMensuelle, solde, isAccount, sequencier, registreCommerce, codeOfficine,
+                    compteContribuable, isAbsolute, groupeId, nbrBons, montantFact, groupingByTaux, cmu, caution,
+                    strModeTriFacture, nbBonsParPage, taillePolice);
+            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "createTiersPayant", e);
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de créer ce tiers payant");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
      * Modification d'un tiers payant : MEME methode metier tierspayantManagement.update que la JSP historique
      * (mode=update), avec les MEMES valeurs par defaut quand un champ n'est pas transmis.
      */

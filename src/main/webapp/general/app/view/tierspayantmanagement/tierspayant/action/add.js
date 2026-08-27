@@ -917,9 +917,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
             if (Omode === "create") {
 
-                internal_url = url_services_transaction_tierspayant + 'create';
-
-                //alert("CREATION DE TP OK");
+                // Creation en REST (memes regles metier et meme reponse que la JSP historique) ;
+                // les options « gere comme depot » et plafond par vente partent toujours dans le
+                // second temps (depot-apres-creation), la creation ne rendant pas l'identifiant.
+                internal_url = '../api/v1/tierspayant/gestion/create';
 
             } else {
                 // Modification en REST (memes regles metier que la JSP) ; l'identifiant est

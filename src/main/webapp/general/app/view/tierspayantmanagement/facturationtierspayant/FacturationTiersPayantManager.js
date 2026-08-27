@@ -422,7 +422,7 @@ Ext.define('testextjs.view.tierspayantmanagement.facturationtierspayant.Facturat
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_tierspayant + 'delete',
+                            url: '../api/v1/tierspayant/gestion/delete', // meme metier et meme reponse que la JSP historique
                             params: {
                                 lg_TIERS_PAYANT_ID: rec.get('lg_TIERS_PAYANT_ID')
                             },
