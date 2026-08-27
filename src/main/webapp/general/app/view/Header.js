@@ -150,6 +150,20 @@ Ext.define('testextjs.view.Header', {
                                 + '<i class="fa fa-medkit"></i>'
                                 + '<span id="officine" class="hdr-animated-text--pharmacy">' + OFFICINE + '</span>'
                                 + '</div>'
+                    },
+                    /* Ventes ratees : panier + petite croix, pastille = produits distincts
+                     * non commandes du jour. A gauche de la cloche. */
+                    {
+                        xtype: 'component',
+                        id: 'vr-panier-btn',
+                        width: 38,
+                        margin: '0 6 0 6',
+                        html: '<span class="hdr-bell hdr-panier" onclick="prestigeShowVentesRatees()"'
+                                + ' title="Ventes ratées : produits demandés non vendus">'
+                                + '<i class="fa fa-shopping-basket"></i>'
+                                + '<span class="hdr-panier-croix">✕</span>'
+                                + '<span id="vr-badge" style="display:none;">0</span>'
+                                + '</span>'
                     }, {
                 xtype: 'component',
                 id: 'notif-bell',
@@ -196,6 +210,10 @@ Ext.define('testextjs.view.Header', {
         // Charge le compteur de notifications (articles a reassortir)
         this.on('afterrender', function () {
             refreshNotificationBadge();
+            // Pastille des ventes ratees (produits distincts non commandes du jour)
+            if (typeof prestigeVentesRateesBadge === 'function') {
+                prestigeVentesRateesBadge();
+            }
             // Rafraichissement du badge : delai configurable via le parametre
             // KEY_NOTIFICATION_REFRESH_SECONDS (t_parameters), defaut 60s,
             // minimum 15s pour ne pas surcharger le serveur.
@@ -207,6 +225,9 @@ Ext.define('testextjs.view.Header', {
                     }
                     window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
                         refreshNotificationBadge();
+                        if (typeof prestigeVentesRateesBadge === 'function') {
+                            prestigeVentesRateesBadge();
+                        }
                     }, delai * 1000);
                 };
                 Ext.Ajax.request({

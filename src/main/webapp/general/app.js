@@ -802,6 +802,7 @@ Ext.application({
         'VingthManagerCtr',
         'AnalyseTiersPayantCtr',
         'DetailsCtr',
+        'VentesRateesCtr',
         'AbcManagerCtr',
         'FeuilleDeMatchCtr',
         'peremptionManagerCtr',

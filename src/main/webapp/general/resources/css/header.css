@@ -318,6 +318,45 @@
     font-family: 'Segoe UI', Tahoma, sans-serif;
 }
 
+/* ---- Bouton ventes ratées : panier + petite croix + pastille compteur ---- */
+/* Reprend la forme de la cloche (.hdr-bell) ; la croix marque la vente NON aboutie
+   et la pastille compte les produits distincts non commandés du jour. */
+#app-header .hdr-panier .fa-shopping-basket {
+    font-size: 17px;
+    color: #ffffff;
+}
+
+#app-header .hdr-panier .hdr-panier-croix {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #c0392b;
+    color: #ffffff;
+    border-radius: 50%;
+    border: 2px solid var(--nav-header-bg, #152d4e);
+    width: 15px;
+    height: 15px;
+    font-size: 8px;
+    font-weight: bold;
+    line-height: 11px;
+    text-align: center;
+}
+
+#app-header .hdr-panier #vr-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e74c3c;
+    color: #ffffff;
+    border-radius: 10px;
+    border: 2px solid var(--nav-header-bg, #152d4e);
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.4;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
 /* ---- Carte utilisateur : photo + nom + rôle (informatif, sans action) ---- */
 #app-header .hdr-user {
     display: inline-flex;
