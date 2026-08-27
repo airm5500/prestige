@@ -117,9 +117,12 @@
   <!-- Espace produit en fenetre modale : la surcouche couvre toute la page de connexion,
        le contenu (espace-produit.html) est charge dans le cadre, et son bouton
        « Retour à la connexion » referme la fenetre (voir espace-produit.html). -->
+  <!-- Le cadre est exactement la carte de recherche : pas de page blanche autour,
+       le defilement se fait DANS la vue elle-meme (voir espace-produit.html, mode embarque). -->
   <div id="ep-modale" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,32,54,.55);">
-    <div style="position:absolute;inset:24px;background:#fff;border-radius:10px;overflow:hidden;
-                box-shadow:0 12px 40px rgba(0,0,0,.35);">
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+                width:min(1140px,94vw);height:min(88vh,780px);background:#fff;border-radius:10px;
+                overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35);">
       <iframe id="ep-cadre" title="Espace produit"
               style="width:100%;height:100%;border:0;display:block;"></iframe>
     </div>

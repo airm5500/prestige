@@ -55,7 +55,7 @@ public class EspaceProduitRessource {
         // entretenue sur toutes les bases, seul le couple (total, reserve) est fiable partout.
         @SuppressWarnings("unchecked")
         List<Object[]> resultats = em.createNativeQuery("SELECT f.int_CIP, f.str_NAME, z.str_LIBELLEE, f.int_PRICE,"
-                + " COALESCE(reserve.int_NUMBER, 0), s.int_NUMBER_AVAILABLE" + " FROM t_famille f"
+                + " COALESCE(reserve.int_NUMBER, 0), s.int_NUMBER_AVAILABLE, f.lg_FAMILLE_ID" + " FROM t_famille f"
                 + " INNER JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.str_STATUT = 'enable'"
                 + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
                 + " LEFT JOIN t_type_stock_famille reserve ON reserve.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
@@ -70,9 +70,60 @@ public class EspaceProduitRessource {
             lignes.put(new JSONObject().put("cip", texteDe(r[0])).put("designation", texteDe(r[1]))
                     .put("emplacement", texteDe(r[2])).put("prixVente", nombreDe(r[3]))
                     .put("stockRayon", Math.max(0, total - reserve)).put("stockReserve", reserve)
-                    .put("stockTotal", total));
+                    .put("stockTotal", total).put("id", texteDe(r[6])));
         }
         return Response.ok().entity(reponse.put("total", lignes.length()).put("data", lignes).toString()).build();
+    }
+
+    /**
+     * Courbe d'evolution des ventes d'UN produit, par mois, sur l'annee en cours - la meme regle de calcul que le menu
+     * « Statistique vente produit » : ventes cloturees, non annulees, prix > 0, hors ventes depot. Seules les QUANTITES
+     * sortent - aucun montant, aucune donnee d'achat.
+     */
+    @GET
+    @Path("ventes-mensuelles")
+    public Response ventesMensuelles(@QueryParam("id") String id) {
+        String familleId = StringUtils.trimToEmpty(id);
+        JSONObject reponse = new JSONObject();
+        int annee = java.time.Year.now().getValue();
+        long[] quantites = new long[12];
+        String designation = "";
+        String cip = "";
+        if (!familleId.isEmpty()) {
+            Object[] produit = null;
+            @SuppressWarnings("unchecked")
+            List<Object[]> fiche = em
+                    .createNativeQuery("SELECT f.str_NAME, f.int_CIP FROM t_famille f WHERE f.lg_FAMILLE_ID = ?1")
+                    .setParameter(1, familleId).getResultList();
+            if (!fiche.isEmpty()) {
+                produit = fiche.get(0);
+                designation = texteDe(produit[0]);
+                cip = texteDe(produit[1]);
+                @SuppressWarnings("unchecked")
+                List<Object[]> mois = em
+                        .createNativeQuery("SELECT MONTH(p.dt_UPDATED) AS mois," + " SUM(d.int_QUANTITY) AS qte"
+                                + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d"
+                                + "   ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                                + " WHERE d.lg_FAMILLE_ID = ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+                                + "   AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> ?2"
+                                + "   AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4 GROUP BY MONTH(p.dt_UPDATED)")
+                        .setParameter(1, familleId).setParameter(2, util.DateConverter.DEPOT_EXTENSION)
+                        .setParameter(3, java.sql.Timestamp.valueOf(annee + "-01-01 00:00:00"))
+                        .setParameter(4, java.sql.Timestamp.valueOf((annee + 1) + "-01-01 00:00:00")).getResultList();
+                for (Object[] m : mois) {
+                    int numero = (int) nombreDe(m[0]);
+                    if (numero >= 1 && numero <= 12) {
+                        quantites[numero - 1] = nombreDe(m[1]);
+                    }
+                }
+            }
+        }
+        JSONArray data = new JSONArray();
+        for (long quantite : quantites) {
+            data.put(quantite);
+        }
+        return Response.ok().entity(reponse.put("annee", annee).put("designation", designation).put("cip", cip)
+                .put("data", data).toString()).build();
     }
 
     private static String texteDe(Object valeur) {

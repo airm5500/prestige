@@ -29,6 +29,29 @@
     td.num, th.num { text-align: right; }
     .ep-vide { padding: 26px 10px; text-align: center; color: #5A6B80; }
     .ep-total { margin-top: 10px; font-size: 13px; color: #5A6B80; }
+    td.ep-col-btn, th.ep-col-btn { width: 42px; text-align: center; }
+    .ep-btn-courbe { border: 1px solid #4C9A46; background: #F0F8F0; color: #2E6B3E; border-radius: 5px;
+                     padding: 3px 8px; cursor: pointer; font-size: 14px; }
+    .ep-btn-courbe:hover { background: #4C9A46; color: #fff; }
+
+    /* Mode EMBARQUE (fenetre modale de l'ecran de connexion) : la carte EST la vue,
+       sans page blanche autour ; le defilement se fait dans la carte elle-meme. */
+    body.ep-embarquee { padding: 0; background: transparent; }
+    body.ep-embarquee .ep-carte { max-width: none; height: 100vh; margin: 0; border: 0; border-radius: 0;
+                                  box-shadow: none; box-sizing: border-box; overflow-y: auto; }
+
+    /* Courbe d'evolution des ventes : surcouche interne */
+    #ep-graph { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(15,32,54,.45); }
+    #ep-graph .ep-graph-carte { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+                                width: min(1020px, 94%); background: #fff; border-radius: 10px;
+                                padding: 18px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+    #ep-graph .ep-graph-entete { display: flex; justify-content: space-between; align-items: baseline;
+                                 gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+    #ep-graph h2 { font-size: 16px; }
+    #ep-graph .ep-graph-fermer { border: 1px solid #1E5FA8; background: #fff; color: #1E5FA8;
+                                 border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 13px; }
+    #ep-graph .ep-graph-fermer:hover { background: #1E5FA8; color: #fff; }
+    #ep-graph svg { width: 100%; height: auto; display: block; }
   </style>
 </head>
 <body>
@@ -49,13 +72,26 @@
           <th>CIP</th><th>Désignation</th><th>Emplacement</th>
           <th class="num">Prix vente</th><th class="num">Stock rayon</th>
           <th class="num">Stock réserve</th><th class="num">Stock total</th>
+          <th class="ep-col-btn" title="Évolution des ventes">📈</th>
         </tr>
       </thead>
       <tbody id="ep-corps">
-        <tr><td colspan="7" class="ep-vide">Saisissez un CIP ou un nom de produit pour lancer la recherche.</td></tr>
+        <tr><td colspan="8" class="ep-vide">Saisissez un CIP ou un nom de produit pour lancer la recherche.</td></tr>
       </tbody>
     </table>
     <div class="ep-total" id="ep-total"></div>
+  </div>
+
+  <!-- Courbe d'evolution des ventes par mois, annee en cours : la quantite vendue
+       est posee sur chaque pique de mois. -->
+  <div id="ep-graph">
+    <div class="ep-graph-carte">
+      <div class="ep-graph-entete">
+        <h2 id="ep-graph-titre">Évolution des ventes</h2>
+        <button type="button" class="ep-graph-fermer" id="ep-graph-fermer">✕ Fermer</button>
+      </div>
+      <div id="ep-graph-zone"></div>
+    </div>
   </div>
 
   <script>
@@ -91,7 +127,7 @@
 
       function afficher(lignes, texte) {
         if (!lignes.length) {
-          corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Aucun produit ne correspond à «&nbsp;'
+          corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Aucun produit ne correspond à «&nbsp;'
               + echapper(texte) + '&nbsp;».</td></tr>';
           total.textContent = '';
           return;
@@ -102,7 +138,10 @@
           html += '<tr><td>' + echapper(l.cip) + '</td><td>' + echapper(l.designation) + '</td><td>'
               + echapper(l.emplacement) + '</td><td class="num">' + montant(l.prixVente) + '</td><td class="num">'
               + montant(l.stockRayon) + '</td><td class="num">' + montant(l.stockReserve) + '</td><td class="num">'
-              + montant(l.stockTotal) + '</td></tr>';
+              + montant(l.stockTotal) + '</td><td class="ep-col-btn">'
+              + '<button type="button" class="ep-btn-courbe" title="Évolution des ventes par mois (année en cours)"'
+              + ' data-id="' + echapper(l.id) + '" data-nom="' + echapper(l.designation) + '">📈</button>'
+              + '</td></tr>';
         }
         corps.innerHTML = html;
         total.textContent = lignes.length + ' produit(s)' + (lignes.length >= 50 ? ' — liste limitée à 50, précisez la recherche' : '');
@@ -111,7 +150,7 @@
       function chercher() {
         var texte = champ.value.trim();
         if (texte.length < 2) {
-          corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Saisissez au moins 2 caractères.</td></tr>';
+          corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Saisissez au moins 2 caractères.</td></tr>';
           total.textContent = '';
           return;
         }
@@ -121,7 +160,7 @@
         x.onload = function () {
           if (numero !== derniereRequete) { return; } // une frappe plus recente a pris la main
           try { afficher(JSON.parse(x.responseText).data || [], texte); }
-          catch (e) { corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Erreur de lecture.</td></tr>'; }
+          catch (e) { corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Erreur de lecture.</td></tr>'; }
         };
         x.send();
       }
@@ -135,13 +174,89 @@
       });
 
       // Ouverte en fenetre MODALE sur l'ecran de connexion (iframe) : le bouton retour
-      // referme la fenetre au lieu de naviguer. En acces direct par l'URL, il navigue.
+      // referme la fenetre au lieu de naviguer, et la carte occupe toute la vue (pas de
+      // page blanche autour, defilement dans la carte). En acces direct, rien ne change.
       if (window.self !== window.top) {
+        document.body.classList.add('ep-embarquee');
         document.getElementById('ep-retour').addEventListener('click', function (e) {
           e.preventDefault();
           try { window.parent.prestigeFermerEspaceProduit(); } catch (err) { }
         });
       }
+
+      // ---------------- Courbe d'evolution des ventes (annee en cours) ----------------
+      // Meme regle de calcul que le menu « Statistique vente produit » ; la quantite
+      // vendue est posee sur chaque pique de mois.
+      var MOIS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin',
+        'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+
+      function dessinerCourbe(quantites, annee) {
+        var largeur = 980, hauteur = 400;
+        var gauche = 46, droite = 18, haut = 34, bas = 34;
+        var zoneL = largeur - gauche - droite, zoneH = hauteur - haut - bas;
+        var maxi = 1;
+        for (var i = 0; i < 12; i++) { if (quantites[i] > maxi) { maxi = quantites[i]; } }
+        var x = function (i) { return gauche + (zoneL * i / 11); };
+        var y = function (q) { return haut + zoneH - (zoneH * q / maxi); };
+
+        var s = '<svg viewBox="0 0 ' + largeur + ' ' + hauteur + '" xmlns="http://www.w3.org/2000/svg">';
+        // quadrillage horizontal + valeurs d'echelle
+        for (var g = 0; g <= 4; g++) {
+          var qg = Math.round(maxi * g / 4), yg = y(qg);
+          s += '<line x1="' + gauche + '" y1="' + yg + '" x2="' + (largeur - droite) + '" y2="' + yg
+              + '" stroke="#E4E9F0"/>'
+              + '<text x="' + (gauche - 8) + '" y="' + (yg + 4) + '" text-anchor="end" font-size="11"'
+              + ' fill="#5A6B80">' + qg.toLocaleString('fr-FR') + '</text>';
+        }
+        // surface sous la courbe
+        var chemin = '';
+        for (i = 0; i < 12; i++) { chemin += (i ? ' L ' : 'M ') + x(i) + ' ' + y(quantites[i]); }
+        s += '<path d="' + chemin + ' L ' + x(11) + ' ' + (haut + zoneH) + ' L ' + x(0) + ' ' + (haut + zoneH)
+            + ' Z" fill="rgba(76,154,70,.12)" stroke="none"/>';
+        // courbe
+        s += '<path d="' + chemin + '" fill="none" stroke="#4C9A46" stroke-width="2.5"'
+            + ' stroke-linejoin="round" stroke-linecap="round"/>';
+        // points, quantites sur chaque pique, mois en abscisse
+        for (i = 0; i < 12; i++) {
+          var xi = x(i), yi = y(quantites[i]);
+          s += '<circle cx="' + xi + '" cy="' + yi + '" r="4" fill="#2E6B3E"/>'
+              + '<text x="' + xi + '" y="' + (yi - 10) + '" text-anchor="middle" font-size="12"'
+              + ' font-weight="bold" fill="#1E3A5F">' + quantites[i].toLocaleString('fr-FR') + '</text>'
+              + '<text x="' + xi + '" y="' + (hauteur - 10) + '" text-anchor="middle" font-size="11"'
+              + ' fill="#5A6B80">' + MOIS[i] + '</text>';
+        }
+        return s + '</svg>';
+      }
+
+      function ouvrirCourbe(id, nom) {
+        var x = new XMLHttpRequest();
+        x.open('GET', '../api/v1/espace-produit/ventes-mensuelles?id=' + encodeURIComponent(id), true);
+        x.onload = function () {
+          try {
+            var r = JSON.parse(x.responseText);
+            var quantites = [];
+            for (var i = 0; i < 12; i++) { quantites.push(Number((r.data || [])[i] || 0)); }
+            document.getElementById('ep-graph-titre').textContent =
+                'Évolution des ventes ' + r.annee + ' — ' + (r.designation || nom)
+                + (r.cip ? ' (' + r.cip + ')' : '');
+            document.getElementById('ep-graph-zone').innerHTML = dessinerCourbe(quantites, r.annee);
+            document.getElementById('ep-graph').style.display = 'block';
+          } catch (e) { /* silencieux : la liste reste utilisable */ }
+        };
+        x.send();
+      }
+
+      corps.addEventListener('click', function (e) {
+        var bouton = e.target.closest ? e.target.closest('.ep-btn-courbe') : null;
+        if (bouton) { ouvrirCourbe(bouton.getAttribute('data-id'), bouton.getAttribute('data-nom')); }
+      });
+      document.getElementById('ep-graph-fermer').addEventListener('click', function () {
+        document.getElementById('ep-graph').style.display = 'none';
+        champ.focus();
+      });
+      document.getElementById('ep-graph').addEventListener('click', function (e) {
+        if (e.target === this) { this.style.display = 'none'; champ.focus(); }
+      });
     })();
   </script>
 </body>

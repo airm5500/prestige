@@ -41,7 +41,9 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
             // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
             // 50 lignes au plus - voir rest.EspaceProduitRessource.
-            "v1/espace-produit/recherche");
+            "v1/espace-produit/recherche",
+            // Courbe des ventes mensuelles (quantites seules) d'un produit de l'espace produit
+            "v1/espace-produit/ventes-mensuelles");
 
     @Inject
     private HttpServletRequest servletRequest;
