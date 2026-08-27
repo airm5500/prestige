@@ -49,9 +49,10 @@
               <span class="pl-brand__mark" aria-hidden="true">✚</span>
               <span class="pl-brand__text pl-animated-text--brand"><%= jdom.APP_NAME %></span>
             </div>
-            <!-- Espace produit : consultation LIBRE, sans compte. La page ne montre que
-                 CIP, designation, emplacement, prix de vente et stocks. -->
+            <!-- Espace produit : consultation LIBRE, sans compte. S'ouvre en fenetre MODALE
+                 par-dessus l'ecran de connexion ; son bouton « Retour » la referme. -->
             <a href="espace-produit.html" id="espaceProduit"
+               onclick="prestigeOuvrirEspaceProduit(); return false;"
                style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;padding:7px 14px;
                       background:#4C9A46;color:#fff;border-radius:18px;text-decoration:none;
                       font-size:13px;font-weight:600;white-space:nowrap;">
@@ -113,6 +114,29 @@
       </div>
     </section>
   </main>
+
+  <!-- Espace produit en fenetre modale : la surcouche couvre toute la page de connexion,
+       le contenu (espace-produit.html) est charge dans le cadre, et son bouton
+       « Retour à la connexion » referme la fenetre (voir espace-produit.html). -->
+  <div id="ep-modale" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,32,54,.55);">
+    <div style="position:absolute;inset:24px;background:#fff;border-radius:10px;overflow:hidden;
+                box-shadow:0 12px 40px rgba(0,0,0,.35);">
+      <iframe id="ep-cadre" title="Espace produit"
+              style="width:100%;height:100%;border:0;display:block;"></iframe>
+    </div>
+  </div>
+  <script>
+    function prestigeOuvrirEspaceProduit() {
+      var modale = document.getElementById('ep-modale');
+      var cadre = document.getElementById('ep-cadre');
+      if (!cadre.src) { cadre.src = 'espace-produit.html'; }
+      modale.style.display = 'block';
+      try { cadre.contentWindow.focus(); } catch (e) { }
+    }
+    function prestigeFermerEspaceProduit() {
+      document.getElementById('ep-modale').style.display = 'none';
+    }
+  </script>
 
   <!-- Récupération du nom de la pharmacie -->
   <script>

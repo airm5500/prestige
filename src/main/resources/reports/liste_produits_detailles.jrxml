@@ -13,6 +13,13 @@
               name="liste_produits_detailles" pageWidth="842" pageHeight="595" orientation="Landscape"
               columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
               whenNoDataType="AllSectionsNoDetail">
+    <!-- La mention « Détail désactivé » ressort en rouge gras, comme à l'écran -->
+    <style name="celluleDetail">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{detailDesactive}]]></conditionExpression>
+            <style forecolor="#C0392B" isBold="true"/>
+        </conditionalStyle>
+    </style>
     <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
     <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
     <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
@@ -27,6 +34,7 @@
     <field name="nomPD" class="java.lang.String"/>
     <field name="contenance" class="java.lang.Long"/>
     <field name="stockPD" class="java.lang.Long"/>
+    <field name="detailDesactive" class="java.lang.Boolean"/>
 
     <title>
         <band height="76" splitType="Stretch">
@@ -137,9 +145,9 @@
                 <textFieldExpression><![CDATA[$F{cipPD}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="530" y="1" width="220" height="14"/>
+                <reportElement style="celluleDetail" x="530" y="1" width="220" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
-                <textFieldExpression><![CDATA[$F{nomPD}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[Boolean.TRUE.equals($F{detailDesactive}) ? "Détail désactivé" : $F{nomPD}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
                 <reportElement x="754" y="1" width="46" height="14"/>

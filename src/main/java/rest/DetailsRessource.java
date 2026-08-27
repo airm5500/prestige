@@ -77,7 +77,8 @@ public class DetailsRessource {
             ProduitDetailleDTO l = lignes.get(i);
             data.put(new JSONObject().put("cipPP", l.getCipPP()).put("nomPP", l.getNomPP())
                     .put("stockPP", l.getStockPP()).put("cipPD", l.getCipPD()).put("nomPD", l.getNomPD())
-                    .put("contenance", l.getContenance()).put("stockPD", l.getStockPD()));
+                    .put("contenance", l.getContenance()).put("stockPD", l.getStockPD())
+                    .put("detailDesactive", l.isDetailDesactive()));
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", lignes.size()).put("data", data).toString())
@@ -158,7 +159,7 @@ public class DetailsRessource {
                     row.createCell(col++).setCellValue(dto.getStockPP());
                     row.createCell(col++).setCellValue(dto.getContenance());
                     row.createCell(col++).setCellValue(dto.getCipPD());
-                    row.createCell(col++).setCellValue(dto.getNomPD());
+                    row.createCell(col++).setCellValue(dto.getNomPDAffiche());
                     row.createCell(col++).setCellValue(dto.getStockPD());
                 });
         return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")

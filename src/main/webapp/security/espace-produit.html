@@ -35,7 +35,7 @@
   <div class="ep-carte">
     <div class="ep-entete">
       <h1>Espace produit</h1>
-      <a href="index.jsp">← Retour à la connexion</a>
+      <a href="index.jsp" id="ep-retour">← Retour à la connexion</a>
     </div>
     <div class="ep-officine" id="ep-officine"></div>
     <div class="ep-recherche">
@@ -133,6 +133,15 @@
       champ.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { if (tampon) { clearTimeout(tampon); } chercher(); }
       });
+
+      // Ouverte en fenetre MODALE sur l'ecran de connexion (iframe) : le bouton retour
+      // referme la fenetre au lieu de naviguer. En acces direct par l'URL, il navigue.
+      if (window.self !== window.top) {
+        document.getElementById('ep-retour').addEventListener('click', function (e) {
+          e.preventDefault();
+          try { window.parent.prestigeFermerEspaceProduit(); } catch (err) { }
+        });
+      }
     })();
   </script>
 </body>

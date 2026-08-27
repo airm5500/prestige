@@ -19,6 +19,11 @@ public class ProduitDetailleDTO implements Serializable {
     private String nomPD;
     private long contenance;
     private long stockPD;
+    /**
+     * Vrai quand un produit detail a EXISTE pour ce chapeau mais a ete desactive : la zone detail est vide, et l'ecran
+     * porte la mention « Détail désactivé ». Faux quand le detail n'a simplement jamais ete cree.
+     */
+    private boolean detailDesactive;
 
     public String getFamilleIdPP() {
         return familleIdPP;
@@ -90,5 +95,21 @@ public class ProduitDetailleDTO implements Serializable {
 
     public void setStockPD(long stockPD) {
         this.stockPD = stockPD;
+    }
+
+    public boolean isDetailDesactive() {
+        return detailDesactive;
+    }
+
+    public void setDetailDesactive(boolean detailDesactive) {
+        this.detailDesactive = detailDesactive;
+    }
+
+    /** Libelle detail pour les editions : le nom du detail actif, ou la mention quand il a ete desactive. */
+    public String getNomPDAffiche() {
+        if (detailDesactive) {
+            return "Détail désactivé";
+        }
+        return nomPD;
     }
 }

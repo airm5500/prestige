@@ -83,7 +83,8 @@ Ext.define('testextjs.view.produits.DetailsManager', {
         // ---------- Onglet 2 : liste des produits detailles ----------
         var storeProduits = new Ext.data.Store({
             fields: ['cipPP', 'nomPP', 'cipPD', 'nomPD',
-                {name: 'stockPP', type: 'int'}, {name: 'contenance', type: 'int'}, {name: 'stockPD', type: 'int'}],
+                {name: 'stockPP', type: 'int'}, {name: 'contenance', type: 'int'}, {name: 'stockPD', type: 'int'},
+                {name: 'detailDesactive', type: 'boolean'}],
             pageSize: 50,
             autoLoad: false,
             proxy: {
@@ -126,7 +127,14 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                                 return '<span style="color:#1c7c1c;font-weight:bold;">' + entier(v) + '</span>';
                             }},
                         {header: 'Identifiant PD', dataIndex: 'cipPD', width: 120},
-                        {header: 'Produit Détail', dataIndex: 'nomPD', flex: 2},
+                        {header: 'Produit Détail', dataIndex: 'nomPD', flex: 2,
+                            renderer: function (v, meta, record) {
+                                // zone vide : distinguer le detail jamais cree du detail desactive
+                                if (!v && record.get('detailDesactive')) {
+                                    return '<span style="color:#c0392b;font-weight:bold;">Détail désactivé</span>';
+                                }
+                                return Ext.String.htmlEncode(v || '');
+                            }},
                         {header: 'Stock Détail', dataIndex: 'stockPD', width: 90, align: 'right', renderer: entier}
                     ],
                     bbar: {

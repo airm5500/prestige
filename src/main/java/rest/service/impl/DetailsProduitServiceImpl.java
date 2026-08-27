@@ -40,8 +40,12 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
         StringBuilder sql = new StringBuilder("SELECT fp.lg_FAMILLE_ID AS id_pp, fp.int_CIP AS cip_pp,"
                 + " fp.str_NAME AS nom_pp, COALESCE(sp.int_NUMBER_AVAILABLE, 0) AS stock_pp,"
                 + " fd.lg_FAMILLE_ID AS id_pd, fd.int_CIP AS cip_pd, fd.str_NAME AS nom_pd,"
-                + " COALESCE(fp.int_NUMBERDETAIL, 0) AS contenance, COALESCE(sd.int_NUMBER_AVAILABLE, 0) AS stock_pd"
-                + " FROM t_famille fp" + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID"
+                + " COALESCE(fp.int_NUMBERDETAIL, 0) AS contenance, COALESCE(sd.int_NUMBER_AVAILABLE, 0) AS stock_pd,"
+                // zone detail vide : distinguer « jamais cree » d'un detail qui a existe puis a ete desactive
+                + " CASE WHEN fd.lg_FAMILLE_ID IS NULL AND EXISTS (SELECT 1 FROM t_famille fx"
+                + "   WHERE fx.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID AND fx.bool_DECONDITIONNE = 1)"
+                + "   THEN 1 ELSE 0 END AS detail_desactive" + " FROM t_famille fp"
+                + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID"
                 + "   AND fd.bool_DECONDITIONNE = 1 AND fd.str_STATUT = 'enable'"
                 + " LEFT JOIN t_famille_stock sp ON sp.lg_FAMILLE_ID = fp.lg_FAMILLE_ID AND sp.str_STATUT = 'enable'"
                 + " LEFT JOIN t_famille_stock sd ON sd.lg_FAMILLE_ID = fd.lg_FAMILLE_ID AND sd.str_STATUT = 'enable'"
@@ -78,6 +82,7 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
             dto.setNomPD(texte(r[6]));
             dto.setContenance(nombre(r[7]));
             dto.setStockPD(nombre(r[8]));
+            dto.setDetailDesactive(nombre(r[9]) == 1L);
             lignes.add(dto);
         }
         return lignes;
