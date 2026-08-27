@@ -952,7 +952,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         let lg_FAMILLE_ID1 = rec.get('lg_FAMILLE_ID');
         let lg_GROSSISTE_LIBELLE = rec.get('lg_GROSSISTE_LIBELLE');
         let win = Ext.create("Ext.window.Window", {
-            titre: "Ajouter un code article  [" + fam + "]",
+            // « titre » n'est pas une configuration d'ExtJS : la fenetre s'ouvrait sans aucun titre.
+            title: "Ajouter un code article  [" + fam + "]",
             modal: true,
             width: 500,
             height: 200,
@@ -1087,8 +1088,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             }
             Ext.Ajax.request({
                 method: 'PUT',
-                url: '../api/v1/fichearticle/code-ean/' + familleId,
-                params: {ean: code},
+                // Le code voyage dans l'adresse et non dans le corps : le service n'accepte que du
+                // JSON, et un corps de formulaire lui vaudrait un refus « 415 ».
+                url: '../api/v1/fichearticle/code-ean/' + familleId + '?ean=' + encodeURIComponent(code),
                 success: function (response) {
                     let reponse = Ext.JSON.decode(response.responseText, true) || {};
                     if (reponse.success) {
@@ -1129,8 +1131,27 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     allowBlank: false,
                                     enableKeyEvents: true,
                                     listeners: {
+                                        /* On presente le code actuel s'il en existe un, entierement
+                                         * selectionne : la douchette ou la frappe le remplacent d'un
+                                         * coup, et Entree seule le revalide - ce qui remet d'accord
+                                         * un produit et son detail qui auraient diverge. */
                                         afterrender: function (champ) {
                                             champ.focus(true, 50);
+                                            Ext.Ajax.request({
+                                                method: 'GET',
+                                                url: '../api/v1/fichearticle/code-ean/' + familleId,
+                                                success: function (response) {
+                                                    let lu = Ext.JSON.decode(response.responseText, true) || {};
+                                                    if (!lu.success || !lu.codeEan) {
+                                                        return;
+                                                    }
+                                                    champ.setValue(lu.codeEan);
+                                                    champ.focus(true, 50);
+                                                    Ext.defer(function () {
+                                                        champ.selectText();
+                                                    }, 80);
+                                                }
+                                            });
                                         },
                                         specialkey: function (champ, e) {
                                             if (e.getKey() === e.ENTER) {

@@ -71,6 +71,18 @@ public interface FicheArticleService {
      */
     JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException;
 
+    /**
+     * Code EAN actuel d'un article, pour le presenter avant correction.
+     *
+     * <p>
+     * Renvoie aussi le nombre d'articles du groupe - produit et deconditionne - afin que l'ecran puisse annoncer sur
+     * quoi portera la correction.
+     *
+     * @param lgFAMILLEID
+     *            article sur lequel l'utilisateur a clique
+     */
+    JSONObject lireCodeEan(String lgFAMILLEID) throws JSONException;
+
     List<ArticleDTO> articleSurStock(TUser u, String query, String codeFamile, String codeRayon, String codeGrossiste,
             int nbreMois, int nbreConsommation, int start, int limit, boolean all);
 

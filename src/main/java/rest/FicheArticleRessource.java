@@ -104,6 +104,14 @@ public class FicheArticleRessource {
         return Response.ok().entity(ficheArticleService.modifierCodeEan(id, ean).toString()).build();
     }
 
+    /** Code EAN actuel d'un article, presente avant correction. */
+    @GET
+    @Path("code-ean/{id}")
+    public Response lireCodeEan(@PathParam("id") String id) throws JSONException {
+
+        return Response.ok().entity(ficheArticleService.lireCodeEan(id).toString()).build();
+    }
+
     @GET
     @Path("surstocks")
     public Response articleSurStock(@QueryParam(value = "nbreMois") int nbreMois,

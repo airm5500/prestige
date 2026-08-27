@@ -385,6 +385,28 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
+    public JSONObject lireCodeEan(String lgFAMILLEID) throws JSONException {
+        try {
+            TFamille famille = getEntityManager().find(TFamille.class, lgFAMILLEID);
+            if (famille == null) {
+                return new JSONObject().put("success", false).put("message", "Article introuvable.");
+            }
+            String racine = rest.CodeEanUtil.identifiantDeGroupe(famille.getLgFAMILLEID(),
+                    famille.getLgFAMILLEPARENTID());
+            Long taille = getEntityManager()
+                    .createQuery("SELECT COUNT(f) FROM TFamille f WHERE f.lgFAMILLEID = ?1 OR f.lgFAMILLEPARENTID = ?1",
+                            Long.class)
+                    .setParameter(1, racine).getSingleResult();
+            return new JSONObject().put("success", true)
+                    .put("codeEan", rest.CodeEanUtil.normaliser(famille.getIntEAN13()))
+                    .put("nombre", taille == null ? 1 : taille.intValue());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "lecture du code EAN de " + lgFAMILLEID, e);
+            return new JSONObject().put("success", false).put("message", "Lecture impossible.");
+        }
+    }
+
+    @Override
     public JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException {
         String code = rest.CodeEanUtil.normaliser(codeEan);
         if (!rest.CodeEanUtil.estRenseigne(code)) {
