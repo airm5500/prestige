@@ -95,10 +95,19 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             // Fiche article uniquement : le mode "contient" place un joker devant le texte.
             // Les autres ecrans (commande, vente) passent par les memes requetes sans cette transformation.
             String motif = rest.RechercheArticle.motif(search, modeRechercheFicheArticle());
-            getAllLite(false, motif, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true, start,
-                    limit).forEach(
-                            tuple -> arrayObj
-                                    .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
+            List<Object[]> tuples = getAllLite(false, motif, diciId, empl, type, zoneGeoId, stockOperator, stockValue,
+                    tvaId, true, start, limit);
+            // Etat produit (en commande, en suggestion, entree en stock) calcule EN UNE PASSE
+            // pour toute la page : trois requetes par ligne rendaient la recherche lente.
+            List<String> ids = new java.util.ArrayList<>();
+            for (Object[] tuple : tuples) {
+                ids.add(((TFamille) tuple[0]).getLgFAMILLEID());
+            }
+            java.util.Map<String, rest.service.dto.EtatProduit> etats = productStateService.getEtatProduits(ids);
+            for (Object[] tuple : tuples) {
+                arrayObj.put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate,
+                        etats.get(((TFamille) tuple[0]).getLgFAMILLEID())));
+            }
             data.put("total",
                     getAllCount(motif, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true));
         }
@@ -507,6 +516,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      */
     private JSONObject buildProduitDataLite(boolean canceledAction, Object[] tuple, Object[] objArray, String empl,
             boolean checkExpirationdate) {
+        return buildProduitDataLite(canceledAction, tuple, objArray, empl, checkExpirationdate, null);
+    }
+
+    /** Variante avec l'etat produit deja calcule (par lot) : aucun aller-retour supplementaire par ligne. */
+    private JSONObject buildProduitDataLite(boolean canceledAction, Object[] tuple, Object[] objArray, String empl,
+            boolean checkExpirationdate, rest.service.dto.EtatProduit etatPrecharge) {
         JSONObject json = new JSONObject();
         try {
             TFamille t = (TFamille) tuple[0];
@@ -609,7 +624,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
         TFamille t = (TFamille) tuple[0];
 
-        json.put("produitState", new JSONObject(productStateService.getEtatProduit(t.getLgFAMILLEID())));
+        json.put("produitState", new JSONObject(
+                etatPrecharge != null ? etatPrecharge : productStateService.getEtatProduit(t.getLgFAMILLEID())));
 
         return json;
     }
