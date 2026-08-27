@@ -482,6 +482,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                                 var price = form.down('#int_PRICE');
                                                 if (field.getValue() > 1 && price) {
                                                     price.focus(true, 10);
+                                                    // Le recalcul lie au changement de quantite peut reecrire le
+                                                    // prix apres le focus, ce qui replace le curseur en fin de
+                                                    // champ : on reselectionne le contenu une fois le recalcul
+                                                    // passe, pour pouvoir l'ecraser d'un coup (demande 6.2).
+                                                    Ext.defer(function () {
+                                                        if (price.hasFocus) {
+                                                            price.selectText();
+                                                        }
+                                                    }, 250);
                                                 } else if (field.getValue() <= 1) {
                                                     Ext.MessageBox.show({
                                                         title: 'Valeur incorrecte',
