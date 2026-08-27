@@ -80,12 +80,20 @@ public class EspaceProduitRessource {
      * « Statistique vente produit » : ventes cloturees, non annulees, prix > 0, hors ventes depot. Seules les QUANTITES
      * sortent - aucun montant, aucune donnee d'achat.
      */
+    /**
+     * Annee presentee par la courbe : en janvier, l'annee qui commence n'a pratiquement rien a montrer, c'est donc
+     * l'annee ECOULEE qui s'affiche ; a partir de fevrier, l'annee en cours.
+     */
+    static int anneeDeLaCourbe(java.time.LocalDate jour) {
+        return jour.getMonthValue() == 1 ? jour.getYear() - 1 : jour.getYear();
+    }
+
     @GET
     @Path("ventes-mensuelles")
     public Response ventesMensuelles(@QueryParam("id") String id) {
         String familleId = StringUtils.trimToEmpty(id);
         JSONObject reponse = new JSONObject();
-        int annee = java.time.Year.now().getValue();
+        int annee = anneeDeLaCourbe(java.time.LocalDate.now());
         long[] quantites = new long[12];
         String designation = "";
         String cip = "";
