@@ -94,7 +94,7 @@
 
             <!-- Espace produit : consultation LIBRE (choix de l'officine), sans compte.
                  La page ne montre que CIP, designation, emplacement, prix de vente et stocks. -->
-            <a href="espace-produit.jsp" class="pl-btn" id="espaceProduit"
+            <a href="espace-produit.html" class="pl-btn" id="espaceProduit"
                style="margin-top:10px;text-decoration:none;text-align:center;background:#4C9A46;">
               <span>🔎 Espace produit</span>
             </a>

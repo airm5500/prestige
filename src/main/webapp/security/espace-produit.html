@@ -1,27 +1,23 @@
-<%@page import="toolkits.utils.jdom"%>
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
-<%
-  jdom.InitRessource();
-  jdom.LoadRessource();
-%>
 <!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= jdom.APP_NAME %> · Espace produit</title>
+  <title>Espace produit</title>
   <link rel="shortcut icon" href="../resources/images/favicon.ico"/>
   <style>
-    /* Page autonome, en libre acces : aucune dependance a l'application connectee. */
+    /* Page STATIQUE en libre acces : aucune JSP, aucune dependance a l'application connectee.
+       Toutes les donnees viennent de l'API REST (espace-produit/recherche, officine). */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Segoe UI", Arial, sans-serif; background: #F4F6F9; color: #1E3A5F; padding: 24px; }
     .ep-carte { max-width: 1100px; margin: 0 auto; background: #FFFFFF; border: 1px solid #D3DBE5;
                 border-radius: 8px; padding: 20px 24px; box-shadow: 0 2px 10px rgba(30,58,95,.08); }
     .ep-entete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-                 margin-bottom: 14px; }
+                 margin-bottom: 4px; }
     .ep-entete h1 { font-size: 20px; }
     .ep-entete a { color: #1E5FA8; text-decoration: none; font-size: 14px; }
     .ep-entete a:hover { text-decoration: underline; }
+    .ep-officine { color: #5A6B80; font-size: 13px; margin-bottom: 12px; }
     .ep-recherche { display: flex; gap: 10px; margin-bottom: 16px; }
     .ep-recherche input { flex: 1; font-size: 17px; padding: 10px 14px; border: 2px solid #1E5FA8;
                           border-radius: 6px; outline: none; }
@@ -41,6 +37,7 @@
       <h1>Espace produit</h1>
       <a href="index.jsp">← Retour à la connexion</a>
     </div>
+    <div class="ep-officine" id="ep-officine"></div>
     <div class="ep-recherche">
       <input id="ep-q" type="text" placeholder="CIP, nom du produit ou code EAN (2 caractères minimum)…"
              autocomplete="off" autofocus>
@@ -75,6 +72,22 @@
         return d.innerHTML;
       }
       function montant(n) { return Number(n || 0).toLocaleString('fr-FR'); }
+
+      // Nom de l'officine : le meme service public que celui de l'ecran de connexion.
+      (function () {
+        var x = new XMLHttpRequest();
+        x.open('GET', '../api/v1/officine', true);
+        x.onload = function () {
+          try {
+            var o = JSON.parse(x.responseText);
+            if (o && o[0] && o[0].nomComplet) {
+              document.getElementById('ep-officine').textContent = o[0].nomComplet;
+              document.title = 'Espace produit · ' + o[0].nomComplet;
+            }
+          } catch (e) { /* la page reste utilisable sans le nom */ }
+        };
+        x.send();
+      })();
 
       function afficher(lignes, texte) {
         if (!lignes.length) {
