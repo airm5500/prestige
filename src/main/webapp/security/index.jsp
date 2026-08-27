@@ -92,6 +92,13 @@
               <span class="pl-btn__arrow" aria-hidden="true">→</span>
             </button>
 
+            <!-- Espace produit : consultation LIBRE (choix de l'officine), sans compte.
+                 La page ne montre que CIP, designation, emplacement, prix de vente et stocks. -->
+            <a href="espace-produit.jsp" class="pl-btn" id="espaceProduit"
+               style="margin-top:10px;text-decoration:none;text-align:center;background:#4C9A46;">
+              <span>🔎 Espace produit</span>
+            </a>
+
             <span class="pl-loader" id="loader" role="status" aria-live="polite" aria-label="Connexion en cours" style="display:none;">
               <span class="pl-loader__card">
                 <span class="pl-loader__ring" aria-hidden="true">

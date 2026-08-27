@@ -1,0 +1,126 @@
+<%@page import="toolkits.utils.jdom"%>
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%
+  jdom.InitRessource();
+  jdom.LoadRessource();
+%>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= jdom.APP_NAME %> · Espace produit</title>
+  <link rel="shortcut icon" href="../resources/images/favicon.ico"/>
+  <style>
+    /* Page autonome, en libre acces : aucune dependance a l'application connectee. */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: #F4F6F9; color: #1E3A5F; padding: 24px; }
+    .ep-carte { max-width: 1100px; margin: 0 auto; background: #FFFFFF; border: 1px solid #D3DBE5;
+                border-radius: 8px; padding: 20px 24px; box-shadow: 0 2px 10px rgba(30,58,95,.08); }
+    .ep-entete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+                 margin-bottom: 14px; }
+    .ep-entete h1 { font-size: 20px; }
+    .ep-entete a { color: #1E5FA8; text-decoration: none; font-size: 14px; }
+    .ep-entete a:hover { text-decoration: underline; }
+    .ep-recherche { display: flex; gap: 10px; margin-bottom: 16px; }
+    .ep-recherche input { flex: 1; font-size: 17px; padding: 10px 14px; border: 2px solid #1E5FA8;
+                          border-radius: 6px; outline: none; }
+    .ep-note { color: #5A6B80; font-size: 13px; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th { background: #4C9A46; color: #FFFFFF; text-align: left; padding: 8px 10px; white-space: nowrap; }
+    tbody td { border-bottom: 1px solid #E4E9F0; padding: 7px 10px; }
+    tbody tr:nth-child(even) { background: #F7FAF7; }
+    td.num, th.num { text-align: right; }
+    .ep-vide { padding: 26px 10px; text-align: center; color: #5A6B80; }
+    .ep-total { margin-top: 10px; font-size: 13px; color: #5A6B80; }
+  </style>
+</head>
+<body>
+  <div class="ep-carte">
+    <div class="ep-entete">
+      <h1>Espace produit</h1>
+      <a href="index.jsp">← Retour à la connexion</a>
+    </div>
+    <div class="ep-recherche">
+      <input id="ep-q" type="text" placeholder="CIP, nom du produit ou code EAN (2 caractères minimum)…"
+             autocomplete="off" autofocus>
+    </div>
+    <div class="ep-note">La recherche trouve le texte n'importe où dans le nom. Consultation seule.</div>
+    <table>
+      <thead>
+        <tr>
+          <th>CIP</th><th>Désignation</th><th>Emplacement</th>
+          <th class="num">Prix vente</th><th class="num">Stock rayon</th>
+          <th class="num">Stock réserve</th><th class="num">Stock total</th>
+        </tr>
+      </thead>
+      <tbody id="ep-corps">
+        <tr><td colspan="7" class="ep-vide">Saisissez un CIP ou un nom de produit pour lancer la recherche.</td></tr>
+      </tbody>
+    </table>
+    <div class="ep-total" id="ep-total"></div>
+  </div>
+
+  <script>
+    (function () {
+      var champ = document.getElementById('ep-q');
+      var corps = document.getElementById('ep-corps');
+      var total = document.getElementById('ep-total');
+      var tampon = null;
+      var derniereRequete = 0;
+
+      function echapper(t) {
+        var d = document.createElement('div');
+        d.textContent = t == null ? '' : String(t);
+        return d.innerHTML;
+      }
+      function montant(n) { return Number(n || 0).toLocaleString('fr-FR'); }
+
+      function afficher(lignes, texte) {
+        if (!lignes.length) {
+          corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Aucun produit ne correspond à «&nbsp;'
+              + echapper(texte) + '&nbsp;».</td></tr>';
+          total.textContent = '';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < lignes.length; i++) {
+          var l = lignes[i];
+          html += '<tr><td>' + echapper(l.cip) + '</td><td>' + echapper(l.designation) + '</td><td>'
+              + echapper(l.emplacement) + '</td><td class="num">' + montant(l.prixVente) + '</td><td class="num">'
+              + montant(l.stockRayon) + '</td><td class="num">' + montant(l.stockReserve) + '</td><td class="num">'
+              + montant(l.stockTotal) + '</td></tr>';
+        }
+        corps.innerHTML = html;
+        total.textContent = lignes.length + ' produit(s)' + (lignes.length >= 50 ? ' — liste limitée à 50, précisez la recherche' : '');
+      }
+
+      function chercher() {
+        var texte = champ.value.trim();
+        if (texte.length < 2) {
+          corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Saisissez au moins 2 caractères.</td></tr>';
+          total.textContent = '';
+          return;
+        }
+        var numero = ++derniereRequete;
+        var x = new XMLHttpRequest();
+        x.open('GET', '../api/v1/espace-produit/recherche?q=' + encodeURIComponent(texte), true);
+        x.onload = function () {
+          if (numero !== derniereRequete) { return; } // une frappe plus recente a pris la main
+          try { afficher(JSON.parse(x.responseText).data || [], texte); }
+          catch (e) { corps.innerHTML = '<tr><td colspan="7" class="ep-vide">Erreur de lecture.</td></tr>'; }
+        };
+        x.send();
+      }
+
+      champ.addEventListener('input', function () {
+        if (tampon) { clearTimeout(tampon); }
+        tampon = setTimeout(chercher, 500);
+      });
+      champ.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { if (tampon) { clearTimeout(tampon); } chercher(); }
+      });
+    })();
+  </script>
+</body>
+</html>

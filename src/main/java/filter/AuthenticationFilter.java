@@ -37,7 +37,11 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/balance/etat-annuel", "v1/etat-control-bon/etat-annuel", "v1/balance/balanceventecaisse",
             "v1/recap/dashboardmob", "v1/recap/creditsmob", "v1/recap/credits/totauxmob", "v3/tvamobile",
             "v1/produit/stats/vente-annuellep", "v1/evaluation-vente/produit", "v1/info", "v1/officine",
-            "v1/modereglement", "v1/licence/find", "v1/licence/save/", "v1/motifreglement", "v1/modereglement/all");
+            "v1/modereglement", "v1/licence/find", "v1/licence/save/", "v1/motifreglement", "v1/modereglement/all",
+            // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
+            // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
+            // 50 lignes au plus - voir rest.EspaceProduitRessource.
+            "v1/espace-produit/recherche");
 
     @Inject
     private HttpServletRequest servletRequest;
