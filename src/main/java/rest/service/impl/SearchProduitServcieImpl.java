@@ -92,12 +92,15 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             data.put("total", 1);
         } else {
-            getAllLite(false, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true, start,
+            // Fiche article uniquement : le mode "contient" place un joker devant le texte.
+            // Les autres ecrans (commande, vente) passent par les memes requetes sans cette transformation.
+            String motif = rest.RechercheArticle.motif(search, modeRechercheFicheArticle());
+            getAllLite(false, motif, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true, start,
                     limit).forEach(
                             tuple -> arrayObj
                                     .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
             data.put("total",
-                    getAllCount(search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true));
+                    getAllCount(motif, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true));
         }
         data.put("results", arrayObj);
         return data;
@@ -117,13 +120,16 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
-            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, true);
+            // L'inventaire cree depuis la fiche article doit porter sur la MEME liste que celle
+            // affichee : la recherche suit donc le meme mode ("contient" ou "commence par").
+            String motif = rest.RechercheArticle.motif(search, modeRechercheFicheArticle());
+            applyFilters(sql, motif, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, true);
             if (onlyReserve) {
                 sql.append("AND t.bool_RESERVE = 1 ");
             }
 
             Query q = em.createNativeQuery(sql.toString());
-            setFilterParameters(q, empl, search, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
+            setFilterParameters(q, empl, motif, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
 
             List<?> rows = q.getResultList();
             List<String> ids = new java.util.ArrayList<>();
@@ -184,6 +190,19 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     em.getReference(TParameters.class, "KEY_ACTIVATE_PEREMPTION_DATE").getStrVALUE().trim()) == 1;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * Mode de recherche de la fiche article. Parametre absent ou illisible : le defaut ("contient") s'applique, la
+     * regle de repli etant portee par {@link rest.RechercheArticle}.
+     */
+    private String modeRechercheFicheArticle() {
+        try {
+            TParameters parametre = em.find(TParameters.class, rest.RechercheArticle.PARAMETRE);
+            return parametre != null ? parametre.getStrVALUE() : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 

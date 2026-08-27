@@ -947,6 +947,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             width: 230,
                             fieldStyle: 'background-color: orange; background-image: none;color:blue;font-weight:bold;font-size:1.3em',
                             emptyText: 'Recherche',
+                            enableKeyEvents: true,
                             listeners: {
                                 render: function (cmp) {
                                     cmp.getEl().on('keypress', function (e) {
@@ -954,6 +955,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                             Me_Workflow.onRechClick();
                                         }
                                     });
+                                },
+                                // Recherche a la frappe : a partir de 2 caracteres, une fois la
+                                // saisie posee (buffer) - une seule requete part, pas une par touche.
+                                // Champ vide a nouveau : on ne recharge que si une recherche a deja
+                                // ete lancee, l'ecran restant vide a l'ouverture.
+                                change: {
+                                    buffer: 600,
+                                    fn: function (field, newValue) {
+                                        var texte = (newValue || '').trim();
+                                        if (texte.length >= 2) {
+                                            Me_Workflow.onRechClick();
+                                        } else if (texte.length === 0 && Me_Workflow.rechercheDejaLancee) {
+                                            Me_Workflow.onRechClick();
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -1058,12 +1074,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         
         this.callParent(arguments);
 
-
-        this.on('afterrender', function (grid) {
-            Ext.defer(function () {
-                grid.loadStore();
-            }, 300);
-        }, this);
+        // L'ecran s'ouvre VIDE : aucune requete au chargement, l'affichage part de la
+        // premiere recherche (frappe, Entree, bouton) ou d'un filtre. loadStore reste
+        // disponible pour demander explicitement la liste complete.
 
     },
     loadStore: function () {
@@ -1547,6 +1560,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     onRechClick: function () {
         const val = Me_Workflow.fmField('rechecher');
+
+        // Une recherche a ete demandee au moins une fois : effacer le champ pourra
+        // desormais recharger la liste complete (voir le listener change du champ).
+        Me_Workflow.rechercheDejaLancee = true;
 
         Me_Workflow.getStore().loadPage(1, {
             params: {

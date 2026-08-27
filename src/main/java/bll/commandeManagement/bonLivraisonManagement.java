@@ -925,8 +925,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public boolean isRefBLExistForGrossiste(String str_REF_LIVRAISON, String lg_GROSSISTE_ID) {
         boolean result = false;
         try {
+            // Meme regle que le flux REST : un BL annule (statut delete, contre-passation comprise)
+            // libere sa reference pour ce grossiste.
             TBonLivraison OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery(
-                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2")
+                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2 AND t.strSTATUT <> 'delete'")
                     .setParameter(1, str_REF_LIVRAISON).setParameter(2, lg_GROSSISTE_ID).setMaxResults(1)
                     .getSingleResult();
             if (OTBonLivraison != null) {

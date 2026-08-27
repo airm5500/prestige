@@ -299,10 +299,14 @@ public class OrderServiceImpl implements OrderService {
     private boolean isRefBLExistForGrossiste(String ref, String idGrossiste) {
 
         try {
+            // Les BL annules (statut delete, y compris leur contre-passation) ne bloquent plus
+            // la reference : un numero annule - souvent une erreur de saisie - doit pouvoir etre
+            // ressaisi pour ce meme grossiste.
             TypedQuery<TBonLivraison> q = getEmg().createQuery(
-                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2",
+                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2 AND t.strSTATUT <> ?3",
                     TBonLivraison.class);
-            q.setParameter(1, ref).setParameter(2, idGrossiste).setMaxResults(1);
+            q.setParameter(1, ref).setParameter(2, idGrossiste).setParameter(3, Constant.STATUT_DELETE)
+                    .setMaxResults(1);
             return q.getSingleResult() != null;
         } catch (Exception e) {
             return false;
