@@ -89,7 +89,7 @@ public class ReleveFactureGroupeServlet extends HttpServlet {
         String search = request.getParameter("search_value");
         String codeFacture = request.getParameter("CODEGROUPE");
         Integer idGroupe = entier(request.getParameter("lg_GROUPE_ID"));
-        String regroupement = ReleveGroupeFactureService.normaliser(request.getParameter("regroupement"));
+        String regroupement = rest.service.ModeRegroupement.normaliser(request.getParameter("regroupement"));
 
         ReleveGroupeFactureDTO datas = releveGroupeFactureService.releve(dtStart, dtEnd, idGroupe, search, codeFacture,
                 regroupement);

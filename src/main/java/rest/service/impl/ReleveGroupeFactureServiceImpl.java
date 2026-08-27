@@ -12,7 +12,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
-import static rest.service.ReleveGroupeFactureService.PAR_TIERS_PAYANT;
+import static rest.service.ModeRegroupement.PAR_TIERS_PAYANT;
 
 import rest.service.ReleveGroupeFactureService;
 import rest.service.dto.ReleveGroupeDTO;

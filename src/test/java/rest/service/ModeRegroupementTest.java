@@ -16,19 +16,16 @@ class ModeRegroupementTest {
     @Test
     @DisplayName("Le mode « par tiers payant » est reconnu, quelle que soit la casse ou les espaces")
     void parTiersPayant() {
-        assertEquals(ReleveGroupeFactureService.PAR_TIERS_PAYANT, ReleveGroupeFactureService.normaliser("tierspayant"));
-        assertEquals(ReleveGroupeFactureService.PAR_TIERS_PAYANT,
-                ReleveGroupeFactureService.normaliser("  TiersPayant  "));
+        assertEquals(ModeRegroupement.PAR_TIERS_PAYANT, ModeRegroupement.normaliser("tierspayant"));
+        assertEquals(ModeRegroupement.PAR_TIERS_PAYANT, ModeRegroupement.normaliser("  TiersPayant  "));
     }
 
     @Test
     @DisplayName("Tout le reste reste le decoupage de la liste")
     void parDefautParFactureDeGroupe() {
-        assertEquals(ReleveGroupeFactureService.PAR_FACTURE_DE_GROUPE,
-                ReleveGroupeFactureService.normaliser("facture"));
-        assertEquals(ReleveGroupeFactureService.PAR_FACTURE_DE_GROUPE, ReleveGroupeFactureService.normaliser(null));
-        assertEquals(ReleveGroupeFactureService.PAR_FACTURE_DE_GROUPE, ReleveGroupeFactureService.normaliser(""));
-        assertEquals(ReleveGroupeFactureService.PAR_FACTURE_DE_GROUPE,
-                ReleveGroupeFactureService.normaliser("n'importe quoi"));
+        assertEquals(ModeRegroupement.PAR_FACTURE_DE_GROUPE, ModeRegroupement.normaliser("facture"));
+        assertEquals(ModeRegroupement.PAR_FACTURE_DE_GROUPE, ModeRegroupement.normaliser(null));
+        assertEquals(ModeRegroupement.PAR_FACTURE_DE_GROUPE, ModeRegroupement.normaliser(""));
+        assertEquals(ModeRegroupement.PAR_FACTURE_DE_GROUPE, ModeRegroupement.normaliser("n'importe quoi"));
     }
 }
