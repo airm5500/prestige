@@ -34,15 +34,29 @@ class NomDePosteTest {
     }
 
     @Test
-    @DisplayName("Deuxieme appel servi par le cache, sans nouvelle resolution")
-    void deuxiemeAppelServiParLeCache() {
-        String premier = NomDePoste.resoudre("127.0.0.1");
-        long debut = System.nanoTime();
-        String second = NomDePoste.resoudre("127.0.0.1");
-        long dureeMs = (System.nanoTime() - debut) / 1_000_000;
-        assertEquals(premier, second);
-        // Servi par le cache : bien en dessous du delai maximal de resolution.
-        assertTrue(dureeMs < NomDePoste.DELAI_MS, "appel cache trop lent : " + dureeMs + " ms");
+    @DisplayName("Une fois la resolution terminee, les appels suivants sont servis par le cache")
+    void deuxiemeAppelServiParLeCache() throws InterruptedException {
+        // Le premier appel peut depasser le delai borne (il rend alors l'IP pendant que la
+        // resolution se termine en arriere-plan) : on attend que le cache soit reellement
+        // rempli avant de mesurer, sinon le test rejoue une resolution complete.
+        NomDePoste.resoudre("127.0.0.1");
+        long dateLimite = System.currentTimeMillis() + 5000;
+        long dureeMs = Long.MAX_VALUE;
+        String valeurCachee = "";
+        while (System.currentTimeMillis() < dateLimite) {
+            long debut = System.nanoTime();
+            valeurCachee = NomDePoste.resoudre("127.0.0.1");
+            dureeMs = (System.nanoTime() - debut) / 1_000_000;
+            if (dureeMs < 50) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        // Servi par le cache : une simple lecture de table, tres loin du delai de resolution.
+        assertTrue(dureeMs < 50, "appel cache trop lent : " + dureeMs + " ms");
+        assertFalse(valeurCachee.trim().isEmpty());
+        // Et la valeur est stable d'un appel a l'autre.
+        assertEquals(valeurCachee, NomDePoste.resoudre("127.0.0.1"));
     }
 
     @Test
