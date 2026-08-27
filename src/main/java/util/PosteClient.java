@@ -5,15 +5,14 @@
  */
 package util;
 
-import com.kstruct.gethostname4j.Hostname;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * Identification du poste client qui constate un evenement : adresse IP et nom du poste. Meme mecanique que
  * l'authentification (UserServiceImpl.getHostName) : si la requete vient du serveur lui-meme, le nom de la machine
- * serveur est utilise ; sinon le nom reseau du poste distant (reverse DNS, qui retombe sur l'IP si le nom n'est pas
- * resolvable).
+ * serveur est utilise ; sinon le nom reseau du poste, resolu de facon bornee et memoisee par {@link NomDePoste} (qui
+ * retombe sur l'IP si le nom n'est pas connu a temps).
  *
  * @author koben
  */
@@ -32,12 +31,7 @@ public final class PosteClient {
                 return "";
             }
             String ip = StringUtils.defaultString(request.getRemoteAddr());
-            String poste;
-            if (ip.equals(request.getLocalAddr())) {
-                poste = Hostname.getHostname();
-            } else {
-                poste = StringUtils.defaultString(request.getRemoteHost());
-            }
+            String poste = NomDePoste.depuis(request);
             String info = "IP " + ip;
             if (StringUtils.isNotBlank(poste) && !poste.equals(ip)) {
                 info += " - poste " + poste;

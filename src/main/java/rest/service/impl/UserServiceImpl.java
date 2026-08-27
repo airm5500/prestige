@@ -5,7 +5,6 @@
  */
 package rest.service.impl;
 
-import com.kstruct.gethostname4j.Hostname;
 import commonTasks.dto.ManagedUserVM;
 import dal.*;
 import dal.enumeration.TypeLog;
@@ -85,10 +84,13 @@ public class UserServiceImpl implements UserService {
             user.setIntCONNEXION(user.getIntCONNEXION() + 1);
             user.setBIsConnected(true);
             getEm().merge(user);
+            // Une seule lecture du nom de poste : elle etait faite deux fois, et chacune pouvait
+            // bloquer sur la resolution DNS inverse (voir util.NomDePoste).
+            String nomPoste = getHostName(request);
             String desc = "Authentification de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
-                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
-            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user,
-                    getHostName(request), request.getRemoteAddr());
+                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + nomPoste;
+            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user, nomPoste,
+                    request.getRemoteAddr());
             afficheur("Caisse: " + user.getStrLASTNAME());
             return user;
         } catch (Exception e) {
@@ -174,9 +176,11 @@ public class UserServiceImpl implements UserService {
             getEm().merge(user);
             HttpSession hs = request.getSession();
             hs.invalidate();
+            // Une seule lecture du nom de poste, comme dans connexion().
+            String nomPoste = getHostName(request);
             String desc = " Déconnection de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
-                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
-            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.DECONNECTION, user, getHostName(request),
+                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + nomPoste;
+            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.DECONNECTION, user, nomPoste,
                     request.getRemoteAddr());
             afficheur("   CAISSE FERMEE");
             return true;
@@ -267,12 +271,9 @@ public class UserServiceImpl implements UserService {
     }
 
     private String getHostName(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        String localAddr = request.getLocalAddr();
-        if (remoteAddr.equals(localAddr)) {
-            return Hostname.getHostname();
-        }
-        return request.getRemoteHost();
+        // Resolution bornee et memoisee : getRemoteHost() faisait une resolution DNS inverse
+        // bloquante a chaque connexion/deconnexion (voir util.NomDePoste).
+        return NomDePoste.depuis(request);
     }
 
     @Override
