@@ -1971,11 +1971,13 @@ public class CaisseServiceImpl implements CaisseService {
                 : sql.replace("{userId}", "");
     }
 
+    /**
+     * Le parametre porte un type, ou plusieurs separes par des virgules : le journal de caisse n'affiche plus que les
+     * entrees, les sorties et les reglements tiers payant, et il lui en faut donc trois d'un coup. Aucune signature ne
+     * change ; les autres appelants, qui n'envoient qu'un identifiant, se comportent exactement comme avant.
+     */
     private String replaceTypeMvtPlaceholder(String sql, String typeMvtId) {
-        return StringUtils.isNotEmpty(typeMvtId)
-                ? sql.replace("{typeMvt}",
-                        String.format(" AND m.lg_TYPE_MVT_CAISSE_ID='%s' ", typeMvtId.replace("'", "")))
-                : sql.replace("{typeMvt}", " ");
+        return sql.replace("{typeMvt}", rest.FiltreTypesMvtCaisse.fragment("m.lg_TYPE_MVT_CAISSE_ID", typeMvtId));
     }
 
     @Override
