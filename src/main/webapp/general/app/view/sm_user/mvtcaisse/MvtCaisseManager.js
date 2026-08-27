@@ -329,6 +329,25 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                                 }
                             }
                         }]
+                },
+                {
+                    /* Reedition du ticket du mouvement : le meme que celui sorti au moment de
+                     * l'operation, commentaire compris. Rien a reconstruire, c'est le service
+                     * d'impression existant qui le refait a l'identique. */
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/printer.png',
+                            tooltip: 'Reediter le ticket de ce mouvement',
+                            scope: this,
+                            handler: this.onReediterTicket,
+                            getClass: function (value, metadata, record) {
+                                // Sans identifiant de mouvement, il n'y a pas de ticket a refaire.
+                                return record.get('id') ? 'x-display-hide' : 'x-hide-display';
+                            }
+                        }]
                 }
 
 
@@ -509,6 +528,27 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
         const rec = grid.getStore().getAt(rowIndex);
         Ext.create('testextjs.view.sm_user.mvtcaisse.action.Detail', {data: rec.data}).show();
 
+    },
+
+    /**
+     * Ressort le ticket d'un mouvement de caisse, a l'identique de celui imprime au moment de
+     * l'operation - le service d'impression le rebatit a partir du mouvement, commentaire compris.
+     * L'impression est silencieuse quand tout va bien : seul un echec se signale.
+     */
+    onReediterTicket: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const mvtCaisseId = rec.get('id');
+        if (!mvtCaisseId) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + encodeURIComponent(mvtCaisseId),
+            failure: function (response) {
+                Ext.MessageBox.alert('Reedition du ticket',
+                        "Le ticket n'a pas pu etre reedite : " + response.status + ' ' + response.statusText);
+            }
+        });
     },
     modifyClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
