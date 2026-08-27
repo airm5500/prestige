@@ -58,6 +58,8 @@ public class SlowRequestFilter implements Filter {
 
     @EJB
     private SupportEventService supportEventService;
+    @EJB
+    private rest.service.SuggestionLenteurService suggestionLenteurService;
 
     private volatile long lastConfigLoad = 0L;
     private volatile boolean enabled = true;
@@ -131,6 +133,12 @@ public class SlowRequestFilter implements Filter {
         dto.setStack(detail.toString());
         // Enregistrement asynchrone (record est @Asynchronous) : aucun surcout ajoute a la requete.
         supportEventService.record(dto, utilisateur);
+        // Ouverture de suggestion : on ajoute au constat generique un diagnostic des deux causes connues
+        // (lignes de vente en double, index manquant) et les requetes a executer. Lui aussi asynchrone,
+        // et espace dans le temps par le service : il ne change rien a la mesure ci-dessus.
+        if (suggestionLenteurService != null && rest.DiagnosticSuggestionLente.estAppelSuggestion(chemin)) {
+            suggestionLenteurService.diagnostiquer(chemin, req.getQueryString(), dureeMs, thresholdMs, utilisateur);
+        }
     }
 
     private String utilisateur(HttpServletRequest req) {
