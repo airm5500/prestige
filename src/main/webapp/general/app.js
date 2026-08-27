@@ -801,6 +801,7 @@ Ext.application({
         'FamilleArticleStatsCtr',
         'VingthManagerCtr',
         'AnalyseTiersPayantCtr',
+        'DetailsCtr',
         'AbcManagerCtr',
         'FeuilleDeMatchCtr',
         'peremptionManagerCtr',
