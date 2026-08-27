@@ -49,6 +49,14 @@
               <span class="pl-brand__mark" aria-hidden="true">✚</span>
               <span class="pl-brand__text pl-animated-text--brand"><%= jdom.APP_NAME %></span>
             </div>
+            <!-- Espace produit : consultation LIBRE, sans compte. La page ne montre que
+                 CIP, designation, emplacement, prix de vente et stocks. -->
+            <a href="espace-produit.html" id="espaceProduit"
+               style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;padding:7px 14px;
+                      background:#4C9A46;color:#fff;border-radius:18px;text-decoration:none;
+                      font-size:13px;font-weight:600;white-space:nowrap;">
+              <span aria-hidden="true">🔎</span><span>Espace produit</span>
+            </a>
           </div>
 
           <div class="pl-pharmacy-stack">
@@ -91,13 +99,6 @@
               <span>Se connecter</span>
               <span class="pl-btn__arrow" aria-hidden="true">→</span>
             </button>
-
-            <!-- Espace produit : consultation LIBRE (choix de l'officine), sans compte.
-                 La page ne montre que CIP, designation, emplacement, prix de vente et stocks. -->
-            <a href="espace-produit.html" class="pl-btn" id="espaceProduit"
-               style="margin-top:10px;text-decoration:none;text-align:center;background:#4C9A46;">
-              <span>🔎 Espace produit</span>
-            </a>
 
             <span class="pl-loader" id="loader" role="status" aria-live="polite" aria-label="Connexion en cours" style="display:none;">
               <span class="pl-loader__card">

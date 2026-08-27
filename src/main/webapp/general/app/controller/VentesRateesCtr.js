@@ -14,7 +14,11 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
     init: function () {
         this.control({
             'ventesrateesmanager': {
-                afterrender: this.onEcranAffiche
+                afterrender: this.onEcranAffiche,
+                tabchange: this.onChangementOnglet
+            },
+            'ventesrateesmanager #grilleRegistre': {
+                itemdblclick: this.onDoubleClicRegistre
             },
             'ventesrateesmanager #btnRechercher': {
                 click: this.onRechercher
@@ -46,6 +50,12 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             'ventesrateesmanager #btnAnalyser': {
                 click: this.onAnalyser
             },
+            'ventesrateesmanager #btnAnalysePdf': {
+                click: this.onImprimerAnalyse
+            },
+            'ventesrateesmanager #btnAnalyseExcel': {
+                click: this.onExcelAnalyse
+            },
             'ventesrateesmanager #filtreProduit': {
                 specialkey: this.onToucheEntree
             },
@@ -61,6 +71,23 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
 
     onEcranAffiche: function (ecran) {
         this.chargerRegistre(ecran);
+    },
+
+    /** L'onglet Analyse se charge seul a sa premiere ouverture, sur la journee en cours. */
+    onChangementOnglet: function (ecran, nouvelOnglet) {
+        if (nouvelOnglet && nouvelOnglet.getItemId() === 'ongletAnalyse' && !ecran.analyseChargee) {
+            ecran.analyseChargee = true;
+            this.onAnalyser(ecran.down('#btnAnalyser'));
+        }
+    },
+
+    /** Double-clic sur une ligne du registre : la fenetre de modification s'ouvre preremplie. */
+    onDoubleClicRegistre: function (vue, record) {
+        var me = this;
+        var ecran = vue.up('ventesrateesmanager');
+        me.ouvrirSaisie(record, function () {
+            me.chargerRegistre(ecran);
+        });
     },
 
     onToucheEntree: function (champ, e) {
@@ -225,11 +252,11 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             Ext.Msg.alert('Message', 'Cette demande est déjà liée à un produit de la base.');
             return;
         }
-        var comboProduit = me.comboProduit('Produit de la base', 420);
+        var comboProduit = me.comboProduit('Produit de la base', 580);
         var fenetre = Ext.create('Ext.window.Window', {
             title: 'Rattacher « ' + record.get('designation') + ' » à un produit',
             modal: true,
-            width: 480,
+            width: 640,
             bodyPadding: 12,
             items: [comboProduit],
             buttons: [{
@@ -314,9 +341,16 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             displayField: 'designation',
             forceSelection: false,
             emptyText: 'CIP, nom du produit, ou texte libre si inconnu',
+            // Liste deroulante plus large que le champ : le CIP, le nom et le stock tiennent
+            // sur UNE ligne, sans fusion ni retour a la ligne.
+            matchFieldWidth: false,
             listConfig: {
+                minWidth: 640,
                 getInnerTpl: function () {
-                    return '<div>{cip} - {designation} <span style="color:#888;">(stock : {stock})</span></div>';
+                    return '<div style="white-space:nowrap;">'
+                            + '<span style="color:#1a4f8b;font-weight:bold;">{cip}</span>'
+                            + ' &nbsp;{designation}&nbsp; '
+                            + '<span style="color:#888;">(stock : {stock})</span></div>';
                 }
             }
         });
@@ -331,45 +365,36 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
         var me = this;
         var enModification = !!record;
 
-        var comboProduit = me.comboProduit('Produit demandé', 430);
+        // Champ de recherche large : le CIP, le nom et le stock restent sur une ligne.
+        var comboProduit = me.comboProduit('Produit demandé', 600);
         var storeMotifs = new Ext.data.Store({
             fields: ['id', 'libelle'],
             proxy: {type: 'ajax', url: '../api/v1/ventes-ratees/motifs', reader: {type: 'json', root: 'data'}},
             autoLoad: true
         });
-        var storeClients = new Ext.data.Store({
-            fields: ['lgCLIENTID', 'fullName'],
-            pageSize: 10,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/client/list',
-                reader: {type: 'json', root: 'data', totalProperty: 'total'}
-            }
-        });
 
         var champCip = Ext.create('Ext.form.field.Text', {
-            fieldLabel: 'CIP libre', labelWidth: 110, width: 300,
+            fieldLabel: 'CIP libre', labelWidth: 110, width: 320,
             emptyText: 'Facultatif, produit inconnu'
         });
         var champQuantite = Ext.create('Ext.form.field.Number', {
-            fieldLabel: 'Quantité', labelWidth: 110, width: 200, value: 1, minValue: 1, allowBlank: false
+            fieldLabel: 'Quantité', labelWidth: 110, width: 210, value: 1, minValue: 1, allowBlank: false
         });
-        var comboClient = Ext.create('Ext.form.field.ComboBox', {
-            fieldLabel: 'Client standard', labelWidth: 110, width: 430,
-            store: storeClients, queryMode: 'remote', queryParam: 'query', minChars: 2,
-            valueField: 'lgCLIENTID', displayField: 'fullName', forceSelection: false,
+        // Information saisie librement, pas une recherche dans la base des clients.
+        var champClient = Ext.create('Ext.form.field.Text', {
+            fieldLabel: 'Client', labelWidth: 110, width: 600,
             emptyText: 'Facultatif : nom du client'
         });
         var champTelephone = Ext.create('Ext.form.field.Text', {
-            fieldLabel: 'Téléphone', labelWidth: 110, width: 300, emptyText: 'Facultatif'
+            fieldLabel: 'Téléphone', labelWidth: 110, width: 320, emptyText: 'Facultatif'
         });
         var comboMotif = Ext.create('Ext.form.field.ComboBox', {
-            fieldLabel: 'Motif', labelWidth: 110, width: 430,
+            fieldLabel: 'Motif *', labelWidth: 110, width: 600, allowBlank: false,
             store: storeMotifs, queryMode: 'local', valueField: 'id', displayField: 'libelle',
-            editable: false, emptyText: 'Motif de la vente ratée'
+            editable: false, emptyText: 'Motif de la vente ratée (obligatoire)'
         });
         var champCommentaire = Ext.create('Ext.form.field.TextArea', {
-            fieldLabel: 'Commentaire', labelWidth: 110, width: 430, height: 54, emptyText: 'Facultatif'
+            fieldLabel: 'Commentaire', labelWidth: 110, width: 600, height: 54, emptyText: 'Facultatif'
         });
 
         if (enModification) {
@@ -382,7 +407,7 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 champCip.setValue(record.get('cip'));
             }
             champQuantite.setValue(record.get('quantite'));
-            comboClient.setRawValue(record.get('nomClient'));
+            champClient.setValue(record.get('nomClient'));
             champTelephone.setValue(record.get('telephone'));
             if (record.get('motifId')) {
                 storeMotifs.on('load', function () {
@@ -400,16 +425,18 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 Ext.Msg.alert('Message', 'Indiquez le produit demandé (recherche ou texte libre).');
                 return;
             }
-            var clientId = comboClient.getValue();
-            var clientChoisi = clientId ? comboClient.findRecordByValue(clientId) : null;
+            if (!comboMotif.getValue()) {
+                Ext.Msg.alert('Message', 'Le motif de la vente ratée est obligatoire.', function () {
+                    comboMotif.focus(false, 100);
+                });
+                return;
+            }
             var donnees = {
                 familleId: choisi ? familleId : '',
                 cip: choisi ? choisi.get('cip') : (champCip.getValue() || ''),
                 designation: designation,
                 quantite: champQuantite.getValue() || 1,
-                clientId: clientChoisi ? clientId : '',
-                nomClient: clientChoisi ? clientChoisi.get('fullName')
-                        : Ext.String.trim(comboClient.getRawValue() || ''),
+                nomClient: Ext.String.trim(champClient.getValue() || ''),
                 telephone: champTelephone.getValue() || '',
                 motifId: comboMotif.getValue() || '',
                 commentaire: champCommentaire.getValue() || ''
@@ -432,8 +459,7 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                         comboProduit.setRawValue('');
                         champCip.setValue('');
                         champQuantite.setValue(1);
-                        comboClient.setValue(null);
-                        comboClient.setRawValue('');
+                        champClient.setValue('');
                         champTelephone.setValue('');
                         comboMotif.setValue(null);
                         champCommentaire.setValue('');
@@ -454,10 +480,10 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
         var fenetre = Ext.create('Ext.window.Window', {
             title: enModification ? 'Modifier la demande' : 'Nouvelle vente ratée',
             modal: true,
-            width: 480,
+            width: 650,
             bodyPadding: 12,
             layout: {type: 'vbox'},
-            items: [comboProduit, champCip, champQuantite, comboClient, champTelephone, comboMotif,
+            items: [comboProduit, champCip, champQuantite, champClient, champTelephone, comboMotif,
                 champCommentaire],
             buttons: [{
                     text: enModification ? 'Enregistrer' : 'Ajouter',
@@ -502,6 +528,33 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 Ext.Msg.alert('Message', 'L\'analyse n\'a pas pu être calculée.');
             }
         });
+    },
+
+    onImprimerAnalyse: function (bouton) {
+        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventes-ratees/analyse/print',
+            params: this.ecran(bouton).parametresAnalyse(),
+            success: function (response) {
+                progress.hide();
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                if (r.success && r.msg) {
+                    window.open(r.msg);
+                } else {
+                    Ext.Msg.alert('Message', r.msg || 'Le PDF n\'a pas pu être généré.');
+                }
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Le PDF n\'a pas pu être généré.');
+            }
+        });
+    },
+
+    onExcelAnalyse: function (bouton) {
+        window.open('../api/v1/ventes-ratees/analyse/excel?'
+                + Ext.Object.toQueryString(this.ecran(bouton).parametresAnalyse()));
     },
 
     statics: {
@@ -613,7 +666,11 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             store: storeJour,
             flex: 3,
             columns: [
-                {header: 'Heure', dataIndex: 'date', width: 100},
+                // Date et heure completes, bien lisibles
+                {header: 'Date et heure', dataIndex: 'date', width: 145,
+                    renderer: function (v) {
+                        return '<span style="font-size:12px;">' + Ext.String.htmlEncode(v || '') + '</span>';
+                    }},
                 {header: 'CIP', dataIndex: 'cip', width: 80},
                 {header: 'Produit / désignation', dataIndex: 'designation', flex: 2,
                     renderer: function (v, meta, r) {
@@ -623,10 +680,22 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 {header: 'Qté', dataIndex: 'quantite', width: 46, align: 'right'},
                 {header: 'Client', dataIndex: 'nomClient', flex: 1},
                 {header: 'Motif', dataIndex: 'motif', flex: 1},
-                {header: 'État', dataIndex: 'etat', width: 100, renderer: etatRenderer}
+                {header: 'État', dataIndex: 'etat', width: 135, renderer: etatRenderer}
             ],
+            viewConfig: {
+                // Lignes un peu plus hautes : date, heure et etat restent lisibles
+                getRowClass: function () {
+                    return 'vr-ligne-lisible';
+                }
+            },
+            listeners: {
+                // Double-clic sur une ligne : la fenetre de modification s'ouvre preremplie.
+                itemdblclick: function (vue, record) {
+                    me.ouvrirSaisie(record, recharger);
+                }
+            },
             tbar: [
-                {text: 'Marquer commandé', iconCls: 'saveicon', handler: function () {
+                {text: 'Marquer commandé', iconCls: 'check_icon', handler: function () {
                         var s = grilleJour.getSelectionModel().getSelection();
                         if (!s.length) {
                             Ext.Msg.alert('Message', 'Sélectionnez d\'abord une demande.');
@@ -638,7 +707,7 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                         }
                         me.commanderAvecConfirmation(s[0].get('id'), recharger);
                     }},
-                {text: 'Supprimer', iconCls: 'cancelicon', handler: function () {
+                {text: 'Supprimer', iconCls: 'icon-clear-group', handler: function () {
                         var s = grilleJour.getSelectionModel().getSelection();
                         if (!s.length) {
                             Ext.Msg.alert('Message', 'Sélectionnez d\'abord une demande.');
@@ -702,16 +771,31 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                     }
                 }, '->', {
                     xtype: 'tbtext',
-                    id: 'vr-modale-total'
+                    id: 'vr-modale-total',
+                    // marge droite : le texte ne colle pas au bord de la fenetre
+                    margin: '0 12 0 0'
                 }],
             listeners: {
                 afterrender: function () {
                     recharger();
-                    storeJour.on('load', function (s) {
-                        var texte = Ext.get('vr-modale-total');
-                        if (texte) {
-                            texte.update(s.getCount() + ' demande(s) aujourd\'hui');
+                    // « Nombre de produits : N » en rouge, bien visible : les produits
+                    // distincts non commandes du jour (la meme regle que la pastille).
+                    storeSynthese.on('load', function (s) {
+                        var texte = Ext.getCmp('vr-modale-total');
+                        if (!texte) {
+                            return;
                         }
+                        var produits = 0;
+                        s.each(function (g) {
+                            if (g.get('nonCommandees') > 0) {
+                                produits++;
+                            }
+                        });
+                        // setText (et non update du DOM) : la barre recalcule sa mise en page,
+                        // sinon le texte deborde du bord droit de la fenetre.
+                        texte.setText('<span style="font-size:14px;">Nombre de produits : '
+                                + '<span style="color:#c0392b;font-weight:bold;font-size:19px;">'
+                                + produits + '</span></span>');
                     });
                 }
             }

@@ -47,10 +47,13 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                     format: 'd/m/Y', submitFormat: 'Y-m-d'},
                 {xtype: 'datefield', itemId: 'histoFin', fieldLabel: 'Au', labelWidth: 22, width: 150,
                     format: 'd/m/Y', submitFormat: 'Y-m-d'},
+                {xtype: 'textfield', itemId: 'histoRech', fieldLabel: 'Recherche', labelWidth: 62, width: 320,
+                    emptyText: 'CIP, produit ou utilisateur (contient)', enableKeyEvents: true},
                 {itemId: 'btnHistoRechercher', tooltip: 'Rechercher', iconCls: 'searchicon', text: 'Rechercher'},
                 '->',
-                {itemId: 'btnHistoImprimer', tooltip: 'Imprimer la liste affichée', iconCls: 'printericon', text: 'PDF'},
-                {itemId: 'btnHistoExcel', tooltip: 'Exporter la liste affichée', iconCls: 'excelicon', text: 'Excel'}
+                {itemId: 'btnHistoImprimer', tooltip: 'Imprimer la liste affichée', iconCls: 'printable', text: 'PDF'},
+                {itemId: 'btnHistoExcel', tooltip: 'Exporter la liste affichée', iconCls: 'export_excel_icon',
+                    text: 'Excel'}
             ],
             items: [{
                     xtype: 'grid',
@@ -96,17 +99,17 @@ Ext.define('testextjs.view.produits.DetailsManager', {
             itemId: 'ongletListe',
             layout: 'fit',
             tbar: [
-                {xtype: 'textfield', itemId: 'rechPP', fieldLabel: 'Produit Principal', labelWidth: 100, width: 300,
-                    emptyText: 'CIP ou nom (contient)', enableKeyEvents: true},
-                {xtype: 'textfield', itemId: 'rechPD', fieldLabel: 'Produit Détail', labelWidth: 90, width: 290,
-                    emptyText: 'CIP ou nom (contient)', enableKeyEvents: true},
+                // Une seule zone de recherche : elle trouve par le produit principal OU par le detail.
+                {xtype: 'textfield', itemId: 'rech', fieldLabel: 'Produit', labelWidth: 48, width: 380,
+                    emptyText: 'CIP ou nom, principal ou détail (contient)', enableKeyEvents: true},
                 {xtype: 'numberfield', itemId: 'rechContenance', fieldLabel: 'Contenance', labelWidth: 75, width: 160,
                     minValue: 0, hideTrigger: true, emptyText: 'Toutes'},
                 {itemId: 'btnListeRechercher', tooltip: 'Rechercher', iconCls: 'searchicon'},
-                {itemId: 'btnListeVider', tooltip: 'Vider les filtres', iconCls: 'cancelicon'},
+                {itemId: 'btnListeVider', tooltip: 'Vider les filtres', iconCls: 'icon-clear-group'},
                 '->',
-                {itemId: 'btnListeImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printericon', text: 'PDF'},
-                {itemId: 'btnListeExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'excelicon', text: 'Excel'},
+                {itemId: 'btnListeImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printable', text: 'PDF'},
+                {itemId: 'btnListeExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'export_excel_icon',
+                    text: 'Excel'},
                 {itemId: 'btnListeInventaire', tooltip: 'Créer un inventaire avec les produits de la liste filtrée',
                     iconCls: 'icon-grid', text: 'Inventaire'}
             ],
@@ -117,10 +120,13 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                     columns: [
                         {header: 'Identifiant PP', dataIndex: 'cipPP', width: 120},
                         {header: 'Produit Principal', dataIndex: 'nomPP', flex: 2},
-                        {header: 'Stock PP', dataIndex: 'stockPP', width: 80, align: 'right', renderer: entier},
+                        {header: 'Stock CH', dataIndex: 'stockPP', width: 80, align: 'right', renderer: entier},
+                        {header: 'Contenance', dataIndex: 'contenance', width: 95, align: 'right',
+                            renderer: function (v) {
+                                return '<span style="color:#1c7c1c;font-weight:bold;">' + entier(v) + '</span>';
+                            }},
                         {header: 'Identifiant PD', dataIndex: 'cipPD', width: 120},
                         {header: 'Produit Détail', dataIndex: 'nomPD', flex: 2},
-                        {header: 'Contenance', dataIndex: 'contenance', width: 90, align: 'right', renderer: entier},
                         {header: 'Stock Détail', dataIndex: 'stockPD', width: 90, align: 'right', renderer: entier}
                     ],
                     bbar: {
@@ -144,19 +150,19 @@ Ext.define('testextjs.view.produits.DetailsManager', {
     /** Filtres de l'onglet liste, tels qu'affiches : la meme source sert l'ecran, le PDF, l'Excel et l'inventaire. */
     parametresListe: function () {
         return {
-            rechPP: this.down('#rechPP').getValue() || '',
-            rechPD: this.down('#rechPD').getValue() || '',
+            rech: this.down('#rech').getValue() || '',
             contenance: this.down('#rechContenance').getValue() || 0
         };
     },
 
-    /** Periode de l'onglet historique (vide = tout l'historique). */
+    /** Periode et recherche de l'onglet historique (vides = tout l'historique). */
     parametresHistorique: function () {
         var debut = this.down('#histoDebut').getValue();
         var fin = this.down('#histoFin').getValue();
         return {
             dtStart: debut ? Ext.Date.format(debut, 'Y-m-d') : '',
-            dtEnd: fin ? Ext.Date.format(fin, 'Y-m-d') : ''
+            dtEnd: fin ? Ext.Date.format(fin, 'Y-m-d') : '',
+            recherche: this.down('#histoRech').getValue() || ''
         };
     }
 });

@@ -110,15 +110,16 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
                         comboTroisEtats('filtreRattache', 'Rattachement', 80, 235,
                                 [['', 'Tous'], ['rattache', 'Rattachées'], ['arattacher', 'À rattacher']]),
                         {itemId: 'btnRechercher', tooltip: 'Rechercher', iconCls: 'searchicon', text: 'Rechercher'},
-                        {itemId: 'btnVider', tooltip: 'Vider les filtres', iconCls: 'cancelicon'},
+                        {itemId: 'btnVider', tooltip: 'Vider les filtres', iconCls: 'icon-clear-group',
+                            text: 'Vider'},
                         '->',
                         {itemId: 'btnNouvelle', tooltip: 'Saisir une nouvelle demande', iconCls: 'addicon',
                             text: 'Nouvelle demande'},
-                        {itemId: 'btnImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printericon',
+                        {itemId: 'btnImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printable',
                             text: 'PDF'},
-                        {itemId: 'btnExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'excelicon',
+                        {itemId: 'btnExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'export_excel_icon',
                             text: 'Excel'},
-                        {itemId: 'btnCsv', tooltip: 'Exporter la liste filtrée en CSV', iconCls: 'excelicon',
+                        {itemId: 'btnCsv', tooltip: 'Exporter la liste filtrée en CSV', iconCls: 'export_csv_icon',
                             text: 'CSV'}
                     ]
                 }],
@@ -146,11 +147,11 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
                         displayMsg: 'Demandes {0} - {1} sur {2}',
                         emptyMsg: 'Aucune demande',
                         items: ['-',
-                            {itemId: 'btnModifier', text: 'Modifier', iconCls: 'editicon',
-                                tooltip: 'Modifier la demande sélectionnée'},
-                            {itemId: 'btnCommander', text: 'Marquer commandé', iconCls: 'saveicon',
+                            {itemId: 'btnModifier', text: 'Modifier', iconCls: 'edit',
+                                tooltip: 'Modifier la demande sélectionnée (ou double-clic sur la ligne)'},
+                            {itemId: 'btnCommander', text: 'Marquer commandé', iconCls: 'check_icon',
                                 tooltip: 'Marquer la demande sélectionnée comme commandée'},
-                            {itemId: 'btnRattacher', text: 'Rattacher', iconCls: 'icon-grid',
+                            {itemId: 'btnRattacher', text: 'Rattacher', iconCls: 'fusionicon',
                                 tooltip: 'Rattacher la saisie libre sélectionnée à un produit'}]
                     }
                 }]
@@ -162,13 +163,19 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
             autoScroll: true,
             bodyPadding: 12,
             tbar: [
+                // Par defaut : la journee en cours, chargee automatiquement a l'ouverture de l'onglet
                 {xtype: 'datefield', itemId: 'analyseDebut', fieldLabel: 'Du', labelWidth: 22, width: 148,
-                    format: 'd/m/Y'},
+                    format: 'd/m/Y', value: new Date()},
                 {xtype: 'datefield', itemId: 'analyseFin', fieldLabel: 'Au', labelWidth: 22, width: 148,
-                    format: 'd/m/Y'},
-                {itemId: 'btnAnalyser', tooltip: 'Actualiser l\'analyse', iconCls: 'searchicon', text: 'Actualiser'}
+                    format: 'd/m/Y', value: new Date()},
+                {itemId: 'btnAnalyser', tooltip: 'Actualiser l\'analyse', iconCls: 'searchicon', text: 'Actualiser'},
+                '->',
+                {itemId: 'btnAnalysePdf', tooltip: 'Imprimer l\'analyse affichée', iconCls: 'printable',
+                    text: 'PDF'},
+                {itemId: 'btnAnalyseExcel', tooltip: 'Exporter l\'analyse affichée', iconCls: 'export_excel_icon',
+                    text: 'Excel'}
             ],
-            html: '<div id="vr-analyse">Choisissez une période puis cliquez sur « Actualiser ».</div>'
+            html: '<div id="vr-analyse">Chargement de la journée en cours…</div>'
         };
 
         Ext.apply(me, {

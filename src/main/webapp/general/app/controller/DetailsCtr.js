@@ -39,14 +39,14 @@ Ext.define('testextjs.controller.DetailsCtr', {
                 click: this.onCreerInventaire
             },
             /* Entree dans un filtre lance la recherche, sans viser le bouton. */
-            'detailsmanager #rechPP': {
-                specialkey: this.onToucheEntree
-            },
-            'detailsmanager #rechPD': {
+            'detailsmanager #rech': {
                 specialkey: this.onToucheEntree
             },
             'detailsmanager #rechContenance': {
                 specialkey: this.onToucheEntree
+            },
+            'detailsmanager #histoRech': {
+                specialkey: this.onToucheEntreeHistorique
             }
         });
     },
@@ -63,6 +63,12 @@ Ext.define('testextjs.controller.DetailsCtr', {
     onToucheEntree: function (champ, e) {
         if (e.getKey() === e.ENTER) {
             this.chargerListe(this.ecran(champ));
+        }
+    },
+
+    onToucheEntreeHistorique: function (champ, e) {
+        if (e.getKey() === e.ENTER) {
+            this.chargerHistorique(this.ecran(champ));
         }
     },
 
@@ -90,8 +96,7 @@ Ext.define('testextjs.controller.DetailsCtr', {
 
     onViderFiltres: function (bouton) {
         var ecran = this.ecran(bouton);
-        ecran.down('#rechPP').setValue('');
-        ecran.down('#rechPD').setValue('');
+        ecran.down('#rech').setValue('');
         ecran.down('#rechContenance').setValue(null);
         this.chargerListe(ecran);
     },
@@ -152,7 +157,7 @@ Ext.define('testextjs.controller.DetailsCtr', {
                         headers: {'Content-Type': 'application/json'},
                         url: '../api/v1/details/produits/inventaire',
                         params: Ext.JSON.encode({
-                            rechPP: p.rechPP, rechPD: p.rechPD, contenance: p.contenance,
+                            rech: p.rech, contenance: p.contenance,
                             name: 'INVENTAIRE PRODUITS DETAILLES ' + horodatage
                         }),
                         success: function (response) {

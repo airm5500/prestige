@@ -812,3 +812,9 @@
     background-color: #CE93D8 !important; /* violet moyen-clair */
     color: #1a1a1a !important;
 }
+
+/* ---- Ventes ratées : lignes des grilles (modale du jour) plus lisibles ---- */
+.vr-ligne-lisible .x-grid-cell {
+    font-size: 12.5px;
+    line-height: 22px;
+}

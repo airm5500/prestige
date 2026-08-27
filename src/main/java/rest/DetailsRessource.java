@@ -36,8 +36,8 @@ import util.Constant;
 @Consumes("application/json")
 public class DetailsRessource {
 
-    private static final String[] ENTETES_LISTE = { "Identifiant PP", "Produit Principal", "Stock PP", "Identifiant PD",
-            "Produit Détail", "Contenance", "Stock Détail" };
+    private static final String[] ENTETES_LISTE = { "Identifiant PP", "Produit Principal", "Stock CH", "Contenance",
+            "Identifiant PD", "Produit Détail", "Stock Détail" };
     private static final String[] ENTETES_HISTORIQUE = { "Date", "Code CH", "Nom CH", "Qté Det", "Code Det", "Nom Det",
             "Stock avant", "Stock après", "Utilisateur" };
 
@@ -64,13 +64,13 @@ public class DetailsRessource {
 
     @GET
     @Path("produits")
-    public Response produits(@QueryParam("rechPP") String rechPP, @QueryParam("rechPD") String rechPD,
+    public Response produits(@QueryParam("rech") String rech,
             @DefaultValue("0") @QueryParam("contenance") int contenance,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rechPP, rechPD, contenance);
+        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rech, contenance);
         JSONArray data = new JSONArray();
         int fin = limit > 0 ? Math.min(lignes.size(), start + limit) : lignes.size();
         for (int i = Math.min(start, lignes.size()); i < fin; i++) {
@@ -87,11 +87,12 @@ public class DetailsRessource {
     @GET
     @Path("historique")
     public Response historique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
-            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
+            @QueryParam("recherche") String recherche, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("0") @QueryParam("limit") int limit) {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd);
+        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd, recherche);
         JSONArray data = new JSONArray();
         int fin = limit > 0 ? Math.min(lignes.size(), start + limit) : lignes.size();
         for (int i = Math.min(start, lignes.size()); i < fin; i++) {
@@ -109,16 +110,16 @@ public class DetailsRessource {
     /** Edition PDF de la liste filtree, au format de l'apercu de reference. */
     @GET
     @Path("produits/print")
-    public Response imprimerProduits(@QueryParam("rechPP") String rechPP, @QueryParam("rechPD") String rechPD,
+    public Response imprimerProduits(@QueryParam("rech") String rech,
             @DefaultValue("0") @QueryParam("contenance") int contenance) {
         TUser user = utilisateur();
         if (user == null) {
             return deconnecte();
         }
-        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rechPP, rechPD, contenance);
+        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rech, contenance);
         Map<String, Object> parametres = reportUtil.officineData(user);
         parametres.put("P_H_CLT_INFOS", "LISTE DES PRODUITS DETAILLES");
-        parametres.put("P_PERIODE", sousTitreListe(rechPP, rechPD, contenance, lignes.size()));
+        parametres.put("P_PERIODE", sousTitreListe(rech, contenance, lignes.size()));
         String url = reportUtil.buildReport(parametres, "liste_produits_detailles", lignes);
         return reponseEdition(url);
     }
@@ -126,12 +127,13 @@ public class DetailsRessource {
     /** Edition PDF de l'historique, au format de l'apercu de reference. */
     @GET
     @Path("historique/print")
-    public Response imprimerHistorique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) {
+    public Response imprimerHistorique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("recherche") String recherche) {
         TUser user = utilisateur();
         if (user == null) {
             return deconnecte();
         }
-        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd);
+        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd, recherche);
         Map<String, Object> parametres = reportUtil.officineData(user);
         parametres.put("P_H_CLT_INFOS", "HISTORIQUE DES DECONDITIONNEMENTS");
         parametres.put("P_PERIODE", sousTitreHistorique(dtStart, dtEnd, lignes.size()));
@@ -142,21 +144,21 @@ public class DetailsRessource {
     @GET
     @Path("produits/excel")
     @Produces("application/vnd.ms-excel")
-    public Response excelProduits(@QueryParam("rechPP") String rechPP, @QueryParam("rechPD") String rechPD,
+    public Response excelProduits(@QueryParam("rech") String rech,
             @DefaultValue("0") @QueryParam("contenance") int contenance) throws java.io.IOException {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rechPP, rechPD, contenance);
+        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(rech, contenance);
         byte[] data = reportExcelExportService.createExcelReport("LISTE DES PRODUITS DETAILLES", ENTETES_LISTE, lignes,
                 (row, dto) -> {
                     int col = 0;
                     row.createCell(col++).setCellValue(dto.getCipPP());
                     row.createCell(col++).setCellValue(dto.getNomPP());
                     row.createCell(col++).setCellValue(dto.getStockPP());
+                    row.createCell(col++).setCellValue(dto.getContenance());
                     row.createCell(col++).setCellValue(dto.getCipPD());
                     row.createCell(col++).setCellValue(dto.getNomPD());
-                    row.createCell(col++).setCellValue(dto.getContenance());
                     row.createCell(col++).setCellValue(dto.getStockPD());
                 });
         return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
@@ -166,12 +168,12 @@ public class DetailsRessource {
     @GET
     @Path("historique/excel")
     @Produces("application/vnd.ms-excel")
-    public Response excelHistorique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd)
-            throws java.io.IOException {
+    public Response excelHistorique(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("recherche") String recherche) throws java.io.IOException {
         if (utilisateur() == null) {
             return deconnecte();
         }
-        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd);
+        List<DeconditionnementHistoDTO> lignes = detailsProduitService.historique(dtStart, dtEnd, recherche);
         byte[] data = reportExcelExportService.createExcelReport("HISTORIQUE DES DECONDITIONNEMENTS",
                 ENTETES_HISTORIQUE, lignes, (row, dto) -> {
                     int col = 0;
@@ -201,8 +203,8 @@ public class DetailsRessource {
             return deconnecte();
         }
         JSONObject in = new JSONObject(StringUtils.defaultIfBlank(body, "{}"));
-        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(in.optString("rechPP"),
-                in.optString("rechPD"), in.optInt("contenance", 0));
+        List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(in.optString("rech"),
+                in.optInt("contenance", 0));
         Set<String> ids = new LinkedHashSet<>();
         for (ProduitDetailleDTO l : lignes) {
             if (StringUtils.isNotBlank(l.getFamilleIdPP())) {
@@ -234,13 +236,10 @@ public class DetailsRessource {
         return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).toString()).build();
     }
 
-    private static String sousTitreListe(String rechPP, String rechPD, int contenance, int nb) {
+    private static String sousTitreListe(String rech, int contenance, int nb) {
         StringBuilder sb = new StringBuilder();
-        if (StringUtils.isNotBlank(rechPP)) {
-            sb.append("produit principal « ").append(rechPP.trim()).append(" »");
-        }
-        if (StringUtils.isNotBlank(rechPD)) {
-            sb.append(sb.length() > 0 ? " — " : "").append("produit détail « ").append(rechPD.trim()).append(" »");
+        if (StringUtils.isNotBlank(rech)) {
+            sb.append("produit « ").append(rech.trim()).append(" »");
         }
         if (contenance > 0) {
             sb.append(sb.length() > 0 ? " — " : "").append("contenance ").append(contenance);

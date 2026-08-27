@@ -36,7 +36,7 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
     private EntityManager em;
 
     @Override
-    public List<ProduitDetailleDTO> produitsDetailles(String recherchePP, String recherchePD, int contenance) {
+    public List<ProduitDetailleDTO> produitsDetailles(String recherche, int contenance) {
         StringBuilder sql = new StringBuilder("SELECT fp.lg_FAMILLE_ID AS id_pp, fp.int_CIP AS cip_pp,"
                 + " fp.str_NAME AS nom_pp, COALESCE(sp.int_NUMBER_AVAILABLE, 0) AS stock_pp,"
                 + " fd.lg_FAMILLE_ID AS id_pd, fd.int_CIP AS cip_pd, fd.str_NAME AS nom_pd,"
@@ -47,25 +47,23 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
                 + " LEFT JOIN t_famille_stock sd ON sd.lg_FAMILLE_ID = fd.lg_FAMILLE_ID AND sd.str_STATUT = 'enable'"
                 + " WHERE fp.str_STATUT = 'enable' AND fp.bool_DECONDITIONNE = 0"
                 + " AND (fd.lg_FAMILLE_ID IS NOT NULL OR fp.bool_DECONDITIONNE_EXIST = 1 OR fp.int_NUMBERDETAIL > 0)");
-        if (StringUtils.isNotBlank(recherchePP)) {
-            sql.append(" AND (fp.int_CIP LIKE ?1 OR fp.str_NAME LIKE ?1)");
-        }
-        if (StringUtils.isNotBlank(recherchePD)) {
-            sql.append(" AND (fd.int_CIP LIKE ?2 OR fd.str_NAME LIKE ?2)");
+        // Numerotation sequentielle obligatoire : Hibernate refuse les trous (?1 puis ?3).
+        List<Object> parametres = new ArrayList<>();
+        if (StringUtils.isNotBlank(recherche)) {
+            // Un seul champ de recherche : il trouve indifferemment par le principal OU par le detail.
+            int p = parametres.size() + 1;
+            sql.append(" AND (fp.int_CIP LIKE ?").append(p).append(" OR fp.str_NAME LIKE ?").append(p)
+                    .append(" OR fd.int_CIP LIKE ?").append(p).append(" OR fd.str_NAME LIKE ?").append(p).append(")");
+            parametres.add("%" + recherche.trim() + "%");
         }
         if (contenance > 0) {
-            sql.append(" AND fp.int_NUMBERDETAIL = ?3");
+            sql.append(" AND fp.int_NUMBERDETAIL = ?").append(parametres.size() + 1);
+            parametres.add(contenance);
         }
         sql.append(" ORDER BY fp.str_NAME");
         Query query = em.createNativeQuery(sql.toString()).setMaxResults(MAX_LIGNES);
-        if (StringUtils.isNotBlank(recherchePP)) {
-            query.setParameter(1, "%" + recherchePP.trim() + "%");
-        }
-        if (StringUtils.isNotBlank(recherchePD)) {
-            query.setParameter(2, "%" + recherchePD.trim() + "%");
-        }
-        if (contenance > 0) {
-            query.setParameter(3, contenance);
+        for (int i = 0; i < parametres.size(); i++) {
+            query.setParameter(i + 1, parametres.get(i));
         }
         List<ProduitDetailleDTO> lignes = new ArrayList<>();
         for (Object ligne : query.getResultList()) {
@@ -86,7 +84,7 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
     }
 
     @Override
-    public List<DeconditionnementHistoDTO> historique(String dtStart, String dtEnd) {
+    public List<DeconditionnementHistoDTO> historique(String dtStart, String dtEnd, String recherche) {
         StringBuilder sql = new StringBuilder("SELECT DATE_FORMAT(h.mvtdate, '%d/%m/%Y') AS jour,"
                 + " fp.int_CIP AS code_ch, fp.str_NAME AS nom_ch, h.qteMvt AS qte_det,"
                 + " fd.int_CIP AS code_det, fd.str_NAME AS nom_det, h.qteDebut AS stock_avant,"
@@ -95,20 +93,30 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
                 + " FROM hmvtproduit h" + " INNER JOIN t_famille fp ON fp.lg_FAMILLE_ID = h.lg_FAMILLE_ID"
                 + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID AND fd.bool_DECONDITIONNE = 1"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = h.lg_USER_ID" + " WHERE h.typeMvt = ?1");
+        // Numerotation sequentielle obligatoire : Hibernate refuse les trous (?1 puis ?4).
+        List<Object> parametres = new ArrayList<>();
+        parametres.add(util.Constant.DECONDTIONNEMENT_NEGATIF);
         if (StringUtils.isNotBlank(dtStart)) {
-            sql.append(" AND h.mvtdate >= ?2");
+            sql.append(" AND h.mvtdate >= ?").append(parametres.size() + 1);
+            parametres.add(dtStart.trim());
         }
         if (StringUtils.isNotBlank(dtEnd)) {
-            sql.append(" AND h.mvtdate <= ?3");
+            sql.append(" AND h.mvtdate <= ?").append(parametres.size() + 1);
+            parametres.add(dtEnd.trim());
+        }
+        if (StringUtils.isNotBlank(recherche)) {
+            // Recherche « contient » : produit chapeau, produit detail ou operateur.
+            int p = parametres.size() + 1;
+            sql.append(" AND (fp.int_CIP LIKE ?").append(p).append(" OR fp.str_NAME LIKE ?").append(p)
+                    .append(" OR fd.int_CIP LIKE ?").append(p).append(" OR fd.str_NAME LIKE ?").append(p)
+                    .append(" OR CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, '')) LIKE ?")
+                    .append(p).append(")");
+            parametres.add("%" + recherche.trim() + "%");
         }
         sql.append(" ORDER BY h.createdAt DESC");
-        Query query = em.createNativeQuery(sql.toString()).setParameter(1, util.Constant.DECONDTIONNEMENT_NEGATIF)
-                .setMaxResults(MAX_LIGNES);
-        if (StringUtils.isNotBlank(dtStart)) {
-            query.setParameter(2, dtStart.trim());
-        }
-        if (StringUtils.isNotBlank(dtEnd)) {
-            query.setParameter(3, dtEnd.trim());
+        Query query = em.createNativeQuery(sql.toString()).setMaxResults(MAX_LIGNES);
+        for (int i = 0; i < parametres.size(); i++) {
+            query.setParameter(i + 1, parametres.get(i));
         }
         List<DeconditionnementHistoDTO> lignes = new ArrayList<>();
         for (Object ligne : query.getResultList()) {

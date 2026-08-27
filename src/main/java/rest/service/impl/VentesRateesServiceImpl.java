@@ -74,6 +74,9 @@ public class VentesRateesServiceImpl implements VentesRateesService {
         if (StringUtils.isBlank(v.getStrDESIGNATION())) {
             throw new IllegalArgumentException("La designation du produit demande est obligatoire");
         }
+        if (StringUtils.isBlank(v.getLgMOTIFID())) {
+            throw new IllegalArgumentException("Le motif de la vente ratée est obligatoire");
+        }
         em.persist(v);
         return v;
     }
@@ -83,6 +86,9 @@ public class VentesRateesServiceImpl implements VentesRateesService {
     public VenteRatee modifier(String id, VenteRateeDTO demande, TUser auteur) {
         VenteRatee v = existante(id);
         appliquer(v, demande);
+        if (StringUtils.isBlank(v.getLgMOTIFID())) {
+            throw new IllegalArgumentException("Le motif de la vente ratée est obligatoire");
+        }
         v.setDtUPDATED(new Date());
         return em.merge(v);
     }

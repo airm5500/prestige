@@ -267,6 +267,90 @@ public class VentesRateesRessource {
                 .analyse(filtres(dtStart, dtEnd, userId, null, null, motifId, "", "", "")).toString()).build();
     }
 
+    /** Edition PDF de l'analyse : indicateurs en tete, puis chaque section en bloc de lignes. */
+    @GET
+    @Path("analyse/print")
+    public Response imprimerAnalyse(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("userId") String userId, @QueryParam("motifId") String motifId) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject analyse = ventesRateesService
+                .analyse(filtres(dtStart, dtEnd, userId, null, null, motifId, "", "", ""));
+        Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_H_CLT_INFOS", "ANALYSE DES VENTES RATEES");
+        parametres.put("P_PERIODE",
+                sousTitre(dtStart, dtEnd, analyse.getJSONObject("indicateurs").getInt("nbDemandes")));
+        parametres.put("P_INDICATEURS", indicateursTexte(analyse.getJSONObject("indicateurs")));
+        String url = reportUtil.buildReport(parametres, "analyse_ventes_ratees", lignesAnalyse(analyse));
+        if (StringUtils.isBlank(url)) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "L'edition n'a pas pu etre generee").toString())
+                    .build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).put("url", url).toString())
+                .build();
+    }
+
+    @GET
+    @Path("analyse/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response excelAnalyse(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("userId") String userId, @QueryParam("motifId") String motifId) throws java.io.IOException {
+        TUser user = utilisateur();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject analyse = ventesRateesService
+                .analyse(filtres(dtStart, dtEnd, userId, null, null, motifId, "", "", ""));
+        List<commonTasks.dto.AnalyseVenteRateeLigneDTO> lignes = lignesAnalyse(analyse);
+        String titre = "ANALYSE DES VENTES RATEES - " + indicateursTexte(analyse.getJSONObject("indicateurs"));
+        byte[] data = reportExcelExportService.createExcelReport(titre,
+                new String[] { "Section", "Libellé", "Demandes", "Quantité", "Non commandées" }, lignes, (row, dto) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(dto.getSection());
+                    row.createCell(col++).setCellValue(dto.getLibelle());
+                    row.createCell(col++).setCellValue(dto.getDemandes());
+                    row.createCell(col++).setCellValue(dto.getQuantite());
+                    row.createCell(col++).setCellValue(dto.getNonCommandees());
+                });
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("Content-Disposition", "attachment; filename=analyse-ventes-ratees.xls").build();
+    }
+
+    /** Resume des indicateurs sur une ligne, pour l'en-tete du PDF et le titre de l'Excel. */
+    private static String indicateursTexte(JSONObject ind) {
+        return ind.getInt("nbDemandes") + " demandes - " + ind.getInt("quantiteTotale") + " unités demandées - "
+                + ind.getInt("produitsDistincts") + " produits distincts - " + ind.getInt("clientsDistincts")
+                + " clients - " + ind.getInt("commandees") + " commandées (" + ind.getInt("proportionCommandees")
+                + "%) - " + ind.getInt("nonCommandees") + " non commandées - " + ind.getInt("inconnues")
+                + " saisies libres";
+    }
+
+    /** Met a plat les sections de l'analyse : une table unique [section, libelle, demandes, quantite, non cdees]. */
+    private static List<commonTasks.dto.AnalyseVenteRateeLigneDTO> lignesAnalyse(JSONObject analyse) {
+        List<commonTasks.dto.AnalyseVenteRateeLigneDTO> lignes = new java.util.ArrayList<>();
+        Object[][] sections = { { "Produits les plus demandés", "plusDemandes" },
+                { "Plus grosses quantités cumulées", "plusGrossesQuantites" },
+                { "Produits les plus souvent non commandés", "plusNonCommandes" },
+                { "Produits inconnus les plus saisis", "libresFrequents" }, { "Principaux motifs", "parMotif" },
+                { "Demandes par jour", "parJour" }, { "Par utilisateur", "parUtilisateur" } };
+        for (Object[] section : sections) {
+            JSONArray table = analyse.optJSONArray((String) section[1]);
+            if (table == null) {
+                continue;
+            }
+            for (int i = 0; i < table.length(); i++) {
+                JSONObject l = table.getJSONObject(i);
+                lignes.add(
+                        new commonTasks.dto.AnalyseVenteRateeLigneDTO((String) section[0], l.optString("libelle", ""),
+                                l.optInt("demandes", 0), l.optInt("quantite", 0), l.optInt("nonCommandees", 0)));
+            }
+        }
+        return lignes;
+    }
+
     @GET
     @Path("utilisateurs")
     public Response utilisateurs() {
