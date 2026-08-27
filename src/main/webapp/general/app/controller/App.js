@@ -944,6 +944,11 @@ Ext.define('testextjs.controller.App', {
                     data: data
 
                 });
+        // Ecrans "colles" : meme regle que onLoadNewComponent - ce chemin (menu Metro)
+        // ouvrait les ecrans sans leur appliquer la presentation collee.
+        if (window.PrestigeAffichage) {
+            window.PrestigeAffichage.appliquerSiConcerne(cmp);
+        }
         contentPanel.add(cmp);
         if (cmp.floating) {
             cmp.show();

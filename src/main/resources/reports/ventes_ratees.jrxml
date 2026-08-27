@@ -101,12 +101,12 @@
                     <text><![CDATA[Téléphone]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="490" y="0" width="94" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="490" y="0" width="112" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Motif]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="586" y="0" width="80" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="606" y="0" width="60" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Commentaire]]></text>
                 </staticText>
@@ -127,55 +127,55 @@
     <detail>
         <band height="16" splitType="Stretch">
             <line>
-                <reportElement x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+                <reportElement positionType="Float" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
             </line>
             <textField isBlankWhenNull="true">
-                <reportElement x="2" y="1" width="66" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="66" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{date}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="70" y="1" width="62" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="70" y="1" width="62" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="134" y="1" width="168" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="134" y="1" width="168" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{designation} + ($F{produitRattache} != null && !$F{produitRattache}.isEmpty() ? " → " + $F{produitRattache} : "")]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="304" y="1" width="28" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="304" y="1" width="28" height="14"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="336" y="1" width="88" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="336" y="1" width="88" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{nomClient}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="426" y="1" width="62" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="426" y="1" width="62" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{telephone}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="490" y="1" width="94" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="490" y="1" width="112" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{motif}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="586" y="1" width="80" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="606" y="1" width="60" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{commentaire}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="668" y="1" width="66" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="668" y="1" width="66" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{utilisateur}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="736" y="1" width="64" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="736" y="1" width="64" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{etat}]]></textFieldExpression>
             </textField>

@@ -202,6 +202,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // stock
     'ajustementmanager', 'etatstock', 'inventaire',
     'monitoringproduct', 'suivientreevente', 'monitoringarticlecomplet',
+    'detailsmanager',
+    // service client
+    'ventesrateesmanager',
     // etats et tableaux de bord
     'etatscontrolemanager', 'etatannuel', 'achatgrossistemensuel',
     'tableauPhama', 'tableauPhamaCarnet', 'statistiqueTVA',

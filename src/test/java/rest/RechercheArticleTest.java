@@ -51,9 +51,24 @@ class RechercheArticleTest {
     }
 
     @Test
-    @DisplayName("Un CIP garde sa recherche exacte en mode historique, elargie en mode contient")
-    void rechercheParCip() {
+    @DisplayName("Un code (CIP, EAN) reste en « commence par » meme en mode contient : indexe, immediat")
+    void rechercheParCode() {
+        // on tape ou on scanne un code depuis le DEBUT : le joker en tete ne sert a rien
+        // et forcerait un parcours complet du catalogue a chaque frappe
         assertEquals("3006000", RechercheArticle.motif("3006000", "commence par"));
-        assertEquals("%3006000", RechercheArticle.motif("3006000", "contient"));
+        assertEquals("3006000", RechercheArticle.motif("3006000", "contient"));
+        assertEquals("30", RechercheArticle.motif("30", null));
+        // un texte mele de lettres reste une recherche de nom : mode contient
+        assertEquals("%doli 500", RechercheArticle.motif("doli 500", "contient"));
+    }
+
+    @Test
+    @DisplayName("Reconnaissance d'un code : chiffres uniquement")
+    void reconnaissanceDUnCode() {
+        assertTrue(RechercheArticle.estUnCode("3006000"));
+        assertTrue(RechercheArticle.estUnCode(" 123 "));
+        assertFalse(RechercheArticle.estUnCode("doli"));
+        assertFalse(RechercheArticle.estUnCode("3006A"));
+        assertFalse(RechercheArticle.estUnCode("  "));
     }
 }

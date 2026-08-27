@@ -956,15 +956,19 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                         }
                                     });
                                 },
-                                // Recherche a la frappe : a partir de 2 caracteres, une fois la
+                                // Recherche a la frappe : a partir de 3 caracteres, une fois la
                                 // saisie posee (buffer) - une seule requete part, pas une par touche.
+                                // Le seuil est a 3 car en mode « contient », un motif de 2 lettres
+                                // ramene et trie des milliers d'articles pour rien : c'est ce qui
+                                // rendait la frappe lourde sur les gros catalogues. Le bouton et la
+                                // touche Entree restent utilisables des le premier caractere.
                                 // Champ vide a nouveau : on ne recharge que si une recherche a deja
                                 // ete lancee, l'ecran restant vide a l'ouverture.
                                 change: {
                                     buffer: 600,
                                     fn: function (field, newValue) {
                                         var texte = (newValue || '').trim();
-                                        if (texte.length >= 2) {
+                                        if (texte.length >= 3) {
                                             Me_Workflow.onRechClick();
                                         } else if (texte.length === 0 && Me_Workflow.rechercheDejaLancee) {
                                             Me_Workflow.onRechClick();

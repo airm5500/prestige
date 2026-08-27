@@ -135,7 +135,8 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 progress.hide();
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
-                    window.open(r.msg);
+                    // URL relative au contexte, comme les autres editions de l'application
+                    window.open('..' + r.msg, '_blank');
                 } else {
                     Ext.Msg.alert('Message', r.msg || 'Le PDF n\'a pas pu être généré.');
                 }
@@ -547,7 +548,8 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 progress.hide();
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
-                    window.open(r.msg);
+                    // URL relative au contexte, comme les autres editions de l'application
+                    window.open('..' + r.msg, '_blank');
                 } else {
                     Ext.Msg.alert('Message', r.msg || 'Le PDF n\'a pas pu être généré.');
                 }

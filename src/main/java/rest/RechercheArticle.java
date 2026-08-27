@@ -39,13 +39,32 @@ public final class RechercheArticle {
     }
 
     /**
+     * Un texte entierement numerique est un CODE (CIP, EAN) : on le tape ou on le scanne depuis le DEBUT. Le joker en
+     * tete ne lui apporte rien et coute tres cher : il interdit tout index, et chaque frappe déclenche alors un
+     * parcours complet du catalogue. Ces recherches restent donc en « commence par », indexees et immediates.
+     */
+    static boolean estUnCode(String recherche) {
+        String texte = recherche.trim();
+        for (int i = 0; i < texte.length(); i++) {
+            if (!Character.isDigit(texte.charAt(i))) {
+                return false;
+            }
+        }
+        return !texte.isEmpty();
+    }
+
+    /**
      * Texte a passer a la requete : inchange en mode « commence par », precede d'un joker en mode « contient ». Un
-     * texte vide reste vide - la requete saura qu'il n'y a pas de filtre.
+     * texte vide reste vide - la requete saura qu'il n'y a pas de filtre. Un texte entierement numerique (CIP, EAN)
+     * n'est jamais transforme : voir {@link #estUnCode}.
      */
     public static String motif(String recherche, String valeurParametre) {
         if (recherche == null || recherche.trim().isEmpty()) {
             return recherche;
         }
-        return estCommencePar(valeurParametre) ? recherche : "%" + recherche;
+        if (estCommencePar(valeurParametre) || estUnCode(recherche)) {
+            return recherche;
+        }
+        return "%" + recherche;
     }
 }
