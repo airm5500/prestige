@@ -157,7 +157,9 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         let dtEnd = me.getDtEnd().getSubmitValue();
         let linkUrl = ""; 
         if (itemId === 'ventePanel'  ) {
-            linkUrl = '../TiersPayantExcludServlet?mode=RETOUR_CARNET_DEPOT&dtStart=' + dtStart +
+            // L'onglet Ventes imprimait l'edition « RETOUR DEPOT » (mode RETOUR_CARNET_DEPOT),
+            // sans rapport avec son contenu : il imprime desormais les ventes du depot.
+            linkUrl = '../TiersPayantExcludServlet?mode=VENTES_CARNET_DEPOT&dtStart=' + dtStart +
                     '&dtEnd=' + dtEnd + '&tiersPayantId=' + tiersPayantId;
         } else if(itemId==='produitsPanel'){
                linkUrl = '../TiersPayantExcludServlet?mode=PRODUITS&dtStart=' + dtStart +

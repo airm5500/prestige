@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -52,7 +53,7 @@ public class TiersPayantExcludServlet extends HttpServlet {
     private RetourCarnetService retourCarnetService;
 
     private enum Action {
-        VENTE, REGLEMENTS, RETOUR, PRODUITS, RETOUR_CARNET_DEPOT, REGLEMENTS_CARNET_DEPOT
+        VENTE, REGLEMENTS, RETOUR, PRODUITS, RETOUR_CARNET_DEPOT, REGLEMENTS_CARNET_DEPOT, VENTES_CARNET_DEPOT
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -102,6 +103,9 @@ public class TiersPayantExcludServlet extends HttpServlet {
             break;
         case RETOUR_CARNET_DEPOT:
             file = retourCarnetDepot(tiersPayantId, query, dtStart, dtEnd, OTUser);
+            break;
+        case VENTES_CARNET_DEPOT:
+            file = ventesCarnetDepot(tiersPayantId, dtStart, dtEnd, period, OTUser);
             break;
         case REGLEMENTS_CARNET_DEPOT: {
             if (period == 0) {
@@ -371,6 +375,51 @@ public class TiersPayantExcludServlet extends HttpServlet {
         reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
                 jdom.scr_report_pdf + "rp_retour_au_depot_" + report_generate_file, datas);
         return "/data/reports/pdf/rp_retour_au_depot_" + report_generate_file;
+    }
+
+    /**
+     * Edition de l'onglet Ventes de la gestion carnet depot : les ventes des comptes depot sur la periode, dans les
+     * memes gabarits d'extrait de compte que les autres editions de l'ecran. Le bouton imprimer de cet onglet sortait
+     * auparavant l'edition « RETOUR DEPOT » (mode RETOUR_CARNET_DEPOT), sans rapport.
+     */
+    public String ventesCarnetDepot(String tiersPayantId, String dtStart, String dtEnd, long period, TUser tu)
+            throws IOException {
+        LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
+        try {
+            dtSt = LocalDate.parse(dtStart);
+            dtEn = LocalDate.parse(dtEnd);
+        } catch (Exception e) {
+        }
+
+        String P_H_CLT_INFOS = "VENTES DEPOT ";
+        String tiersPayant = " ";
+        String scr_report_file;
+        if (period == 0) {
+            scr_report_file = StringUtils.isEmpty(tiersPayantId) ? "rp_extrait_compte_carnet"
+                    : "rp_extrait_compte_carnet_only_one";
+        } else {
+            scr_report_file = StringUtils.isEmpty(tiersPayantId) ? "rp_extrait_compte_carnet_monthy"
+                    : "rp_extrait_compte_carnet_only_monthly";
+        }
+        if (StringUtils.isNotEmpty(tiersPayantId)) {
+            tiersPayant = carnetAsDepotService.getTiersPayantName(tiersPayantId) + " ";
+        }
+
+        Map<String, Object> parameters = reportUtil.officineData(tu);
+        String P_PERIODE = " PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        if (!dtEn.isEqual(dtSt)) {
+            P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        }
+        parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS + tiersPayant + P_PERIODE);
+        String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_dd_MM_HH_mm_ss"))
+                + ".pdf";
+        List<ExtraitCompteClientDTO> datas = carnetAsDepotService
+                .fetchVente(tiersPayantId, LocalDate.parse(dtStart), LocalDate.parse(dtEnd), 0, 0, true).stream()
+                .map(ExtraitCompteClientDTO::new).collect(Collectors.toList());
+        datas.sort(Comparator.comparing(ExtraitCompteClientDTO::getTierspayantName));
+        reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
+                jdom.scr_report_pdf + "ventes_depot_" + report_generate_file, datas);
+        return "/data/reports/pdf/ventes_depot_" + report_generate_file;
     }
 
     public String reglementCarnetDepot(String tiersPayantId, TypeReglementCarnet typeReglementCarnet, String dtStart,

@@ -718,7 +718,9 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     @Override
     public List<DepotProduitVendusDTO> produitVenduParDepot(String tiersPayantId, LocalDate dtStart, LocalDate dtEnd,
             String query, int start, int size, boolean all) {
-        String sqlQuery = "SELECT SUM(d.int_QUANTITY) AS quantite,SUM(d.int_PRICE) AS montantVente,SUM(d.int_QUANTITY*f.int_PAF) AS montantAchat,  f.int_PAF AS prixAchat,f.int_PRICE AS prixUni ,f.int_CIP AS codeCip,f.str_NAME AS produitName ,f.lg_FAMILLE_ID AS produitId,f.int_EAN13 AS codeEan FROM  t_preenregistrement_detail d ,t_famille f, t_preenregistrement v,t_preenregistrement_compte_client_tiers_payent cpl,t_compte_client_tiers_payant cp,t_tiers_payant p WHERE d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID AND d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND v.str_STATUT ='is_Closed' AND v.lg_PREENREGISTREMENT_ID=cpl.lg_PREENREGISTREMENT_ID AND cpl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID AND p.lg_TIERS_PAYANT_ID=cp.lg_TIERS_PAYANT_ID AND DATE( v.dt_UPDATED) BETWEEN ?1 AND ?2 AND p.is_depot=1 ";
+        // COALESCE sur le montant d'achat : un prix d'achat non renseigne (int_PAF NULL) rendait la
+        // ligne inconstructible (NullPointerException) et vidait toute la liste.
+        String sqlQuery = "SELECT SUM(d.int_QUANTITY) AS quantite,SUM(d.int_PRICE) AS montantVente,COALESCE(SUM(d.int_QUANTITY*f.int_PAF),0) AS montantAchat,  f.int_PAF AS prixAchat,f.int_PRICE AS prixUni ,f.int_CIP AS codeCip,f.str_NAME AS produitName ,f.lg_FAMILLE_ID AS produitId,f.int_EAN13 AS codeEan FROM  t_preenregistrement_detail d ,t_famille f, t_preenregistrement v,t_preenregistrement_compte_client_tiers_payent cpl,t_compte_client_tiers_payant cp,t_tiers_payant p WHERE d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID AND d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND v.str_STATUT ='is_Closed' AND v.lg_PREENREGISTREMENT_ID=cpl.lg_PREENREGISTREMENT_ID AND cpl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID AND p.lg_TIERS_PAYANT_ID=cp.lg_TIERS_PAYANT_ID AND DATE( v.dt_UPDATED) BETWEEN ?1 AND ?2 AND p.is_depot=1 ";
         sqlQuery += closeWhereTp(tiersPayantId);
         sqlQuery += closeWhereSearch(query, tiersPayantId);
         sqlQuery += "  GROUP BY f.lg_FAMILLE_ID";
@@ -780,7 +782,9 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     @Override
     public DepotProduitVendusDTO produitVenduParDepotSummary(String tiersPayantId, LocalDate dtStart, LocalDate dtEnd,
             String query) {
-        String sqlQuery = "SELECT SUM(d.int_PRICE) AS montantVente,SUM(d.int_QUANTITY*f.int_PAF) AS montantAchat FROM  t_preenregistrement_detail d ,t_famille f, t_preenregistrement v,t_preenregistrement_compte_client_tiers_payent cpl,t_compte_client_tiers_payant cp,t_tiers_payant p WHERE d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID AND d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND v.str_STATUT ='is_Closed' AND v.lg_PREENREGISTREMENT_ID=cpl.lg_PREENREGISTREMENT_ID AND cpl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID AND p.lg_TIERS_PAYANT_ID=cp.lg_TIERS_PAYANT_ID AND DATE( v.dt_UPDATED)BETWEEN ?1 AND ?2 AND p.is_depot=1 ";
+        // COALESCE : sans vente de depot sur la periode (ou prix d'achat non renseigne), SUM renvoie
+        // NULL et la construction du resume levait une NullPointerException (vue en officine).
+        String sqlQuery = "SELECT COALESCE(SUM(d.int_PRICE),0) AS montantVente,COALESCE(SUM(d.int_QUANTITY*f.int_PAF),0) AS montantAchat FROM  t_preenregistrement_detail d ,t_famille f, t_preenregistrement v,t_preenregistrement_compte_client_tiers_payent cpl,t_compte_client_tiers_payant cp,t_tiers_payant p WHERE d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID AND d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND v.str_STATUT ='is_Closed' AND v.lg_PREENREGISTREMENT_ID=cpl.lg_PREENREGISTREMENT_ID AND cpl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID AND p.lg_TIERS_PAYANT_ID=cp.lg_TIERS_PAYANT_ID AND DATE( v.dt_UPDATED)BETWEEN ?1 AND ?2 AND p.is_depot=1 ";
         sqlQuery += closeWhereTp(tiersPayantId);
         sqlQuery += closeWhereSearch(query, tiersPayantId);
 
