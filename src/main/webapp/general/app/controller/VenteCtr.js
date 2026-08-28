@@ -2586,6 +2586,12 @@ Ext.define('testextjs.controller.VenteCtr', {
 
         let monnais = 0;
         if (montantRecu > 0) {
+            if (!data) {
+                // Aucun net a payer calcule (vente encore vide, ou recalcul en cours) : on ne peut
+                // ni rendre la monnaie ni autoriser la cloture. Sans cette garde, chaque frappe
+                // dans MONTANT RECU levait « data is null » (vu en officine dans le log support).
+                return;
+            }
             let netTopay = data.montantNet;
             me.getVnobtnCloture().enable();
             monnais = (montantRecu > netTopay) ? montantRecu - netTopay : 0;
