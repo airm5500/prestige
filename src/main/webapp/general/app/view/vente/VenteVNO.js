@@ -217,10 +217,12 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
                                                 {
                                                     // Icone seule : le libelle « Modifier Infos » prenait la largeur
-                                                    // que l'on vient de gagner. L'infobulle dit ce que fait le bouton.
+                                                    // que l'on vient de gagner. L'infobulle dit ce que fait le bouton,
+                                                    // et vp-btn-plat retire le cadre bleu du theme : l'icone directement.
                                                     itemId: 'btnModifierInfo',
                                                     icon: 'resources/images/icons/fam/user_edit.png',
                                                     tooltip: 'Cliquez ici pour modifier',
+                                                    cls: 'vp-btn-plat',
                                                     width: 34, height: 34,
                                                     xtype: 'button'
 
@@ -287,6 +289,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'btnModifierAyant',
                                                     icon: 'resources/images/icons/fam/user_add.png',
                                                     tooltip: 'Cliquez ici pour choisir un autre ayant droit',
+                                                    // Meme presentation que le bouton de la carte client : icone sans cadre.
+                                                    cls: 'vp-btn-plat',
                                                     width: 34, height: 34,
                                                     xtype: 'button'
 

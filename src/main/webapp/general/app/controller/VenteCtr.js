@@ -3502,6 +3502,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (montant && montant.setFieldLabel) {
             montant.setFieldLabel(carnet ? 'PART CARNET:' : 'PART ASSURANCE:');
         }
+        // En vente carnet, la carte du client ne concerne pas un assure : elle prend le nom du metier.
+        const carteClient = me.getAssureCmp && me.getAssureCmp();
+        if (carteClient && carteClient.setTitle) {
+            carteClient.setTitle('<span style="color:blue;">'
+                    + (carnet ? 'INFOS CLIENT CARNET' : 'INFOS ASSURE') + '</span>');
+        }
     },
     resetTitle: function (typeVente) {
         const me = this;
@@ -5038,57 +5044,109 @@ Ext.define('testextjs.controller.VenteCtr', {
         };
     },
 
+    montantCarnet: function (v) {
+        return Ext.util.Format.number(v, '0,000') + ' F';
+    },
+
     /**
-     * Ligne « Encours / Plafond » du compte carnet, avec l'avertissement quand le plafond est atteint.
-     * Renvoie null hors carnet : la vente assurance n'a pas de compte a plafonner de cette facon.
+     * Une information du compte carnet (icone + libelle + valeur), en police agrandie : ces montants
+     * se lisent de loin par la caissiere, sur la meme ligne que le numero de bon.
      */
-    ligneCompteCarnet: function (record) {
+    texteInfoCarnet: function (icone, libelle, valeur, couleur) {
+        return '<img src="resources/images/icons/fam/' + icone + '" style="vertical-align:-2px;margin-right:5px;">'
+                + '<span style="font-size:15px;font-weight:bold;color:#333;">' + libelle + ' : </span>'
+                + '<span style="font-size:17px;font-weight:800;color:' + couleur + ';">' + valeur + '</span>';
+    },
+
+    /**
+     * Champs « Encours / Plafond / Caution » du compte carnet, places sur la MEME ligne que le numero
+     * de bon (l'espace a droite du bouton Retirer etait perdu), avec l'avertissement quand le plafond
+     * est atteint. Uniquement en carnet : la vente assurance n'a pas de compte a plafonner ainsi.
+     */
+    champsCompteCarnet: function (record) {
         const me = this;
         const etat = me.etatDuPlafondCarnet(record);
-        const montant = function (v) {
-            return Ext.util.Format.number(v, '0,000') + ' F';
-        };
         const items = [{
                 xtype: 'displayfield',
-                fieldLabel: 'Encours:',
-                labelWidth: 60,
+                hideLabel: true,
                 flex: 1,
                 itemId: 'encoursCarnet' + record.order,
-                fieldStyle: 'color:' + (etat.atteint ? 'red' : 'blue') + ';font-weight:bold;',
-                value: montant(etat.encours),
-                margin: '0 10 0 0'
+                margin: '0 10 0 0',
+                value: me.texteInfoCarnet('cash.png', 'Encours',
+                        me.montantCarnet(etat.encours), etat.atteint ? 'red' : '#1A3FC4')
             }, {
                 xtype: 'displayfield',
-                fieldLabel: 'Plafond:',
-                labelWidth: 60,
+                hideLabel: true,
                 flex: 1,
                 itemId: 'plafondCarnet' + record.order,
-                fieldStyle: 'color:blue;font-weight:bold;',
-                value: etat.sansPlafond ? 'aucun' : montant(etat.plafond),
-                margin: '0 10 0 0'
+                margin: '0 10 0 0',
+                value: me.texteInfoCarnet('chart_bar.png', 'Plafond',
+                        etat.sansPlafond ? 'aucun' : me.montantCarnet(etat.plafond), '#1A3FC4')
+            }, {
+                // Caution du compte (celle du menu « Gestion de cautions carnet », pas le champ de la
+                // fiche tiers payant) : le champ reste cache tant que la requete lancee au rendu n'a
+                // pas confirme qu'une caution existe pour ce compte.
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                hidden: true,
+                itemId: 'cautionCarnet' + record.order,
+                margin: '0 10 0 0',
+                listeners: {
+                    afterrender: function (champ) {
+                        me.rappelerCautionCarnet(champ, record);
+                    }
+                }
             }];
         if (etat.atteint) {
             items.push({
                 xtype: 'displayfield',
                 hideLabel: true,
-                flex: 2,
+                flex: 1.4,
                 itemId: 'alertePlafond' + record.order,
                 cls: 'vp-alerte-plafond',
                 value: 'attention!!! ce client payera en especes'
             });
         }
-        return {
-            xtype: 'fieldcontainer',
-            layout: {type: 'hbox', align: 'stretch'},
-            items: items
-        };
+        return items;
+    },
+
+    /**
+     * Interroge les cautions du compte carnet et affiche le solde si une caution existe ; sans
+     * caution, le champ reste invisible. Best-effort : un echec de la requete laisse simplement la
+     * ligne sans rappel de caution.
+     */
+    rappelerCautionCarnet: function (champ, record) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/cautions',
+            params: {tiersPayantId: record.lgTIERSPAYANTID, start: 0, limit: 20},
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                const cautions = (result && result.data) || [];
+                if (!cautions.length || champ.isDestroyed) {
+                    return;
+                }
+                let solde = 0;
+                Ext.each(cautions, function (c) {
+                    solde += Number(c.montant || 0);
+                });
+                champ.setValue(me.texteInfoCarnet('argent.png', 'Caution',
+                        me.montantCarnet(solde), solde > 0 ? '#1E8449' : 'red'));
+                champ.show();
+            }
+        });
     },
 
     buildCmp: function (record) {
         let percent = '30%';
         let me = this, typeVente = me.getTypeVenteCombo().getValue();
-        if (typeVente === '3') {
-            percent = '40%';
+        const carnet = (typeVente === '3');
+        if (carnet) {
+            // Un seul compte en carnet : toute la largeur, pour loger encours, plafond et caution
+            // sur la ligne du numero de bon au lieu d'une ligne supplementaire.
+            percent = '100%';
         }
         const cmp = {
             xtype: 'container',
@@ -5102,7 +5160,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     items: [{
                             xtype: 'displayfield',
                             fieldLabel: 'TP' + record.order,
-                            flex: 1.5,
+                            // En carnet la ligne fait toute la largeur : largeurs fixes pour que
+                            // le taux reste colle au nom du compte au lieu de partir a droite.
+                            ...(carnet ? {width: 500} : {flex: 1.5}),
                             labelWidth: 30,
                             fieldStyle: "color:blue;font-weight:bold;",
                             value: record.tpFullName,
@@ -5111,7 +5171,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'displayfield',
                             fieldLabel: 'Taux:',
-                            flex: 0.5,
+                            ...(carnet ? {width: 180} : {flex: 0.5}),
                             labelWidth: 30,
                             name: 'taux' + record.order,
                             itemId: 'taux' + record.order,
@@ -5123,7 +5183,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 ,
                 {
                     xtype: 'fieldcontainer',
-                    layout: {type: 'hbox', align: 'stretch'},
+                    layout: {type: 'hbox', align: 'middle'},
                     items: [{
                             xtype: 'textfield',
                             fieldLabel: 'Numéro de bon:',
@@ -5131,7 +5191,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                             labelWidth: 100,
                             name: 'refBon' + record.order,
                             itemId: 'refBon' + record.order,
-                            flex: 1,
+                            // En carnet le conteneur occupe toute la largeur : le champ garde une
+                            // largeur raisonnable et laisse la place aux infos du compte a sa droite.
+                            ...(carnet ? {width: 520} : {flex: 1}),
                             height: 30,
                             margin: '0 10 0 0',
                             value: record.numBon,
@@ -5159,12 +5221,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 me.removetierspayant(compteTp[0].value);
                                 container.destroy();
                             }
-                        }
+                        },
+                        // Compte carnet : encours, plafond et caution sous les yeux de la caissiere,
+                        // sur la ligne du bon (l'espace a droite etait perdu), avec l'avertissement
+                        // quand le plafond est atteint. Rien en vente assurance.
+                        ...(carnet ? me.champsCompteCarnet(record) : [])
                     ]
                 },
-                // Compte carnet : encours et plafond sous les yeux de la caissiere, avec
-                // l'avertissement quand le plafond est atteint. Rien en vente assurance.
-                ...(typeVente === '3' ? [me.ligneCompteCarnet(record)] : []),
                 {
                     xtype: 'hiddenfield',
                     name: 'compteTp' + record.order,

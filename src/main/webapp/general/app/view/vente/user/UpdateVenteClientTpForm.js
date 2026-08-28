@@ -1287,6 +1287,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                     me.data = result.data;
                     me.typeVente = me.getData().lgTYPEVENTEID;
                     let form = me.down('form');
+                    if (me.typeVente === '3') {
+                        // Vente carnet : la carte du client ne concerne pas un assure.
+                        const carteClient = form.down('#assureCmp');
+                        if (carteClient && carteClient.setTitle) {
+                            carteClient.setTitle('<span style="color:blue;">INFOS CLIENT CARNET</span>');
+                        }
+                    }
                     let montantPaye = form.down('#montantPaye');
                     me.client = me.getData().client;
                     me.tiersparent = me.getData().tierspayants;

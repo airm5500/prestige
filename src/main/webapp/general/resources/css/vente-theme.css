@@ -164,6 +164,32 @@ body.x-body,
     padding: 2px 10px 4px;
 }
 
+/* Boutons « modifier » des cartes client : l'icône directement, sans le cadre bleu du thème.
+   Le thème pose son dégradé en !important, d'où les !important en face. */
+.vp-vente .x-btn.vp-btn-plat,
+.vp-vente .x-btn.vp-btn-plat .x-btn-tc,
+.vp-vente .x-btn.vp-btn-plat .x-btn-tl,
+.vp-vente .x-btn.vp-btn-plat .x-btn-tr,
+.vp-vente .x-btn.vp-btn-plat .x-btn-mc,
+.vp-vente .x-btn.vp-btn-plat .x-btn-ml,
+.vp-vente .x-btn.vp-btn-plat .x-btn-mr,
+.vp-vente .x-btn.vp-btn-plat .x-btn-bc,
+.vp-vente .x-btn.vp-btn-plat .x-btn-bl,
+.vp-vente .x-btn.vp-btn-plat .x-btn-br {
+    background: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.vp-vente .x-btn.vp-btn-plat {
+    transition: transform .12s ease;
+}
+
+.vp-vente .x-btn.vp-btn-plat:hover {
+    transform: scale(1.2);
+}
+
 /* Infos tiers payants : le fond bleuté couvre TOUTE la section */
 .vp-vente .x-fieldset.vp-tp-card,
 .vp-vente .x-fieldset.vp-tp-card .x-fieldset-body,
