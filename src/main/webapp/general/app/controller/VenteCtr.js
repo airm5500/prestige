@@ -3378,7 +3378,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         me.client = new testextjs.model.caisse.ClientAssurance(clientData);
         me.showAssureContainer(lgTYPEVENTEID);
-        me.buildtierspayantContainer();
+        // Le type de vente est passe explicitement : la combo type de vente est repositionnee par un
+        // rappel ASYNCHRONE (updateComboxFields) et vaut encore « comptant » a cet instant du
+        // rechargement - les blocs carnet (encours/plafond/caution) ne se construisaient jamais.
+        me.buildtierspayantContainer(lgTYPEVENTEID);
         me.updateAssurerCmp();
         me.ayantDroit = ayantDroit;
         if (lgTYPEVENTEID === '2') {
@@ -4845,11 +4848,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         });
         return e;
     },
-    buildtierspayantContainer: function () {
+    buildtierspayantContainer: function (typeVente) {
         var me = this, tpContainerForm = me.getTpContainerForm(), client = me.getClient();
         var tierspayants = client.get('preenregistrementstp');
         Ext.each(tierspayants, function (item) {
-            var cmp = me.buildCmp(item);
+            var cmp = me.buildCmp(item, typeVente);
             tpContainerForm.add(cmp);
         });
         me.buildBtnAddTierspayant();
@@ -5034,12 +5037,18 @@ Ext.define('testextjs.controller.VenteCtr', {
     /**
      * Etat du plafond d'un compte carnet.
      *
+     * Attention au nommage historique des colonnes : le VRAI encours du compte est
+     * db_CONSOMMATION_MENSUELLE - c'est elle que la cloture d'une vente incremente et que la
+     * fiche tiers payant affiche dans sa colonne Encours - tandis que db_PLAFOND_ENCOURS est le
+     * PLAFOND de consommation du compte (celui du blocage bCANBEUSE cote serveur). L'ecran
+     * lisait db_PLAFOND_ENCOURS comme un encours : il restait a 0 apres chaque vente.
+     *
      * Un plafond a zero, absent ou nul veut dire « pas de plafond » : le compte n'est alors jamais
      * signale comme atteint, sans quoi tous les carnets sans plafond declencheraient l'alerte.
      */
     etatDuPlafondCarnet: function (record) {
-        const encours = Number(record.dbPLAFONDENCOURS || 0);
-        const plafond = Number(record.dblPLAFOND || 0);
+        const encours = Number(record.dbCONSOMMATIONMENSUELLE || 0);
+        const plafond = Number(record.dbPLAFONDENCOURS || 0);
         const sansPlafond = !(plafond > 0);
         return {
             encours: encours,
@@ -5168,9 +5177,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         });
     },
 
-    buildCmp: function (record) {
+    buildCmp: function (record, typeVenteForce) {
         let percent = '30%';
-        let me = this, typeVente = me.getTypeVenteCombo().getValue();
+        // typeVenteForce : fourni par le rechargement d'une vente existante, ou la combo type de
+        // vente n'est pas encore repositionnee (rappel asynchrone) au moment de construire le bloc.
+        let me = this, typeVente = typeVenteForce || me.getTypeVenteCombo().getValue();
         const carnet = (typeVente === '3');
         if (carnet) {
             // Un seul compte en carnet : toute la largeur, pour loger encours, plafond et caution

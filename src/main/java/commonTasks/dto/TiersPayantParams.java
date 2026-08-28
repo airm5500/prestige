@@ -185,11 +185,15 @@ public class TiersPayantParams implements Serializable {
             this.lgTIERSPAYANTID = payant.getLgTIERSPAYANTID();
             this.numSecurity = cp.getStrNUMEROSECURITESOCIAL();
             this.order = cp.getIntPRIORITY();
-            // Plafond et encours du compte, comme dans le constructeur sur TCompteClientTiersPayant :
-            // sans eux, le rappel a l'ecran (plafond vente en assurance, encours/plafond en carnet)
-            // affichait zero au rechargement d'une vente existante.
+            // Plafonds et consommation du compte, comme dans le constructeur sur
+            // TCompteClientTiersPayant : sans eux, le rappel a l'ecran (plafond vente en assurance,
+            // encours/plafond en carnet) affichait zero au rechargement d'une vente existante.
+            // La consommation mensuelle est le veritable encours du compte (incremente a chaque
+            // cloture) ; db_PLAFOND_ENCOURS est, malgre son nom, le plafond de cette consommation.
             this.dblPLAFOND = cp.getDblPLAFOND() != null ? cp.getDblPLAFOND().intValue() : 0;
             this.dbPLAFONDENCOURS = cp.getDbPLAFONDENCOURS() != null ? cp.getDbPLAFONDENCOURS() : 0;
+            this.dbCONSOMMATIONMENSUELLE = cp.getDbCONSOMMATIONMENSUELLE() != null ? cp.getDbCONSOMMATIONMENSUELLE()
+                    : 0;
 
         } catch (Exception e) {
         }
