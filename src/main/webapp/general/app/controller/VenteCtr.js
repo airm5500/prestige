@@ -4865,12 +4865,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                         let newStore = Array.from(tierspayants);
                         let items = tpContainerForm.items;
                         Ext.each(items.items, function (item) {
-                            if (item.items) {
-                                let tp = item.items.items[3].getValue();
-                                newStore = me.buildRecord(newStore, tp);
+                            // Recherche par itemId : la position des enfants du bloc n'est pas stable.
+                            const champTp = me.champDuBlocTp(item, 'hiddenfield', 'lgTIERSPAYANTID');
+                            if (champTp) {
+                                newStore = me.buildRecord(newStore, champTp.getValue());
                             }
-
-
                         });
                         let tpclientStore = new Ext.data.Store({
                             model: 'testextjs.model.caisse.ClientTiersPayant',
@@ -5272,6 +5271,7 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                 {
                     xtype: 'numberfield',
+                    itemId: 'tauxValeur' + record.order,
                     value: record.taux,
                     hidden: true
                 },
@@ -5893,28 +5893,40 @@ Ext.define('testextjs.controller.VenteCtr', {
             });
         }
     },
+    /**
+     * Retrouve un champ d'un bloc tiers payant par son type et le prefixe de son itemId
+     * (les itemId portent le numero d'ordre du tiers payant : refBon1, compteTp2...).
+     *
+     * Les blocs etaient lus par POSITION dans la liste des enfants : le moindre composant
+     * ajoute ou retire du bloc (ligne encours/plafond du carnet, rappel du plafond vente)
+     * decalait les indices et cassait l'ajout de produit et la cloture avec un
+     * « cmtp.getValue is not a function ». La recherche par itemId est insensible a la
+     * mise en page.
+     */
+    champDuBlocTp: function (bloc, xtype, prefixe) {
+        if (!bloc || !bloc.query) {
+            return null;
+        }
+        const candidats = bloc.query(xtype) || [];
+        for (let i = 0; i < candidats.length; i++) {
+            if (candidats[i].itemId && candidats[i].itemId.indexOf(prefixe) === 0) {
+                return candidats[i];
+            }
+        }
+        return null;
+    },
     checkEmptyBonRef: function () {
         const me = this;
         let tpContainerForm = me.getTpContainerForm();
         let items = tpContainerForm.items;
         let result = null;
-        let emptyRef = false;
-        let numBonField;
         Ext.each(items.items, function (item) {
-            if (item.items) {
-                numBonField = item.items.items[1].items.items[0];
-
-                if (numBonField.getValue().trim() === '') {
-                    emptyRef = true;
-                    return;
-                }
+            const numBonField = me.champDuBlocTp(item, 'textfield', 'refBon');
+            if (numBonField && numBonField.getValue().trim() === '') {
+                result = numBonField;
+                return false;
             }
         });
-        if (emptyRef) {
-            result = numBonField;
-
-        }
-
         return result;
     },
     buildAssuranceData: function () {
@@ -5922,23 +5934,22 @@ Ext.define('testextjs.controller.VenteCtr', {
         let items = tpContainerForm.items;
         let tierspayants = [];
         Ext.each(items.items, function (item) {
-            if (item.items) {
-                const numBonField = item.items.items[1].items.items[0];
-                /*tp = item.items.items[3].getValue(),*/
-                const taux = item.items.items[4];
-                const cmtp = item.items.items[2];
-                const cmu = item.items.items[5];
-                tierspayants.push(
-                        {
-                            "compteTp": cmtp.getValue(),
-                            "numBon": numBonField.getValue(),
-                            "taux": parseInt(taux.getValue()),
-                            "cmu": cmu.getValue()
-                        }
-                );
+            const cmtp = me.champDuBlocTp(item, 'hiddenfield', 'compteTp');
+            if (!cmtp) {
+                // bouton « Ajouter une assurance complémentaire » ou composant etranger au bloc
+                return;
             }
-
-
+            const numBonField = me.champDuBlocTp(item, 'textfield', 'refBon');
+            const taux = me.champDuBlocTp(item, 'numberfield', 'tauxValeur');
+            const cmu = me.champDuBlocTp(item, 'hiddenfield', 'cmu');
+            tierspayants.push(
+                    {
+                        "compteTp": cmtp.getValue(),
+                        "numBon": numBonField ? numBonField.getValue() : '',
+                        "taux": parseInt(taux ? taux.getValue() : 0, 10),
+                        "cmu": cmu ? cmu.getValue() : 'false'
+                    }
+            );
         });
         return tierspayants;
     },
