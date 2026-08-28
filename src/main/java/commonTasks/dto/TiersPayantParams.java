@@ -185,6 +185,11 @@ public class TiersPayantParams implements Serializable {
             this.lgTIERSPAYANTID = payant.getLgTIERSPAYANTID();
             this.numSecurity = cp.getStrNUMEROSECURITESOCIAL();
             this.order = cp.getIntPRIORITY();
+            // Plafond et encours du compte, comme dans le constructeur sur TCompteClientTiersPayant :
+            // sans eux, le rappel a l'ecran (plafond vente en assurance, encours/plafond en carnet)
+            // affichait zero au rechargement d'une vente existante.
+            this.dblPLAFOND = cp.getDblPLAFOND() != null ? cp.getDblPLAFOND().intValue() : 0;
+            this.dbPLAFONDENCOURS = cp.getDbPLAFONDENCOURS() != null ? cp.getDbPLAFONDENCOURS() : 0;
 
         } catch (Exception e) {
         }

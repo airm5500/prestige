@@ -5045,7 +5045,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     montantCarnet: function (v) {
-        return Ext.util.Format.number(v, '0,000') + ' F';
+        // Espace insecable : le « F » ne doit jamais passer seul a la ligne sous le montant.
+        return Ext.util.Format.number(v, '0,000') + ' F';
     },
 
     /**
@@ -5112,6 +5113,29 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     /**
+     * Rappel du plafond vente en vente assurance, a droite du bouton Retirer de chaque tiers
+     * payant : uniquement quand un plafond est pose sur le compte (0 = pas de plafond, rien ne
+     * s'affiche). Contrairement au carnet, on ne rappelle QUE le plafond.
+     */
+    champPlafondVenteAssurance: function (record) {
+        const me = this;
+        const plafond = Number(record.dblPLAFOND || 0);
+        if (!(plafond > 0)) {
+            return [];
+        }
+        return [{
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1.2,
+                itemId: 'plafondVenteTp' + record.order,
+                margin: '0 5 0 0',
+                fieldStyle: 'white-space:nowrap;',
+                value: me.texteInfoCarnet('chart_bar.png', 'Plafond vente',
+                        me.montantCarnet(plafond), '#1A3FC4')
+            }];
+    },
+
+    /**
      * Interroge les cautions du compte carnet et affiche le solde si une caution existe ; sans
      * caution, le champ reste invisible. Best-effort : un echec de la requete laisse simplement la
      * ligne sans rappel de caution.
@@ -5147,6 +5171,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             // Un seul compte en carnet : toute la largeur, pour loger encours, plafond et caution
             // sur la ligne du numero de bon au lieu d'une ligne supplementaire.
             percent = '100%';
+        } else if (Number(record.dblPLAFOND || 0) > 0) {
+            // Assurance avec plafond vente : un peu plus large, pour que le rappel du plafond
+            // tienne a droite du bouton Retirer sans ecraser le champ du numero de bon.
+            percent = '40%';
         }
         const cmp = {
             xtype: 'container',
@@ -5224,8 +5252,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                         },
                         // Compte carnet : encours, plafond et caution sous les yeux de la caissiere,
                         // sur la ligne du bon (l'espace a droite etait perdu), avec l'avertissement
-                        // quand le plafond est atteint. Rien en vente assurance.
-                        ...(carnet ? me.champsCompteCarnet(record) : [])
+                        // quand le plafond est atteint. En vente assurance, seul le plafond vente
+                        // est rappele, et seulement s'il est pose.
+                        ...(carnet ? me.champsCompteCarnet(record) : me.champPlafondVenteAssurance(record))
                     ]
                 },
                 {
