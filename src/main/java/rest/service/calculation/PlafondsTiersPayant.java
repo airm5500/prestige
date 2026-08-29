@@ -13,9 +13,10 @@ import java.util.Optional;
  * <li>le <b>plafond par vente</b> ({@code dbl_PLAFOND_VENTE}) : valeur predefinie du plafond des liens client/tiers
  * payant. Il ne s'applique jamais directement a une vente - il ne fait qu'alimenter le plafond du lien, ou une valeur
  * saisie sur le client reste prioritaire ;</li>
- * <li>le <b>plafond de credit</b> ({@code dbl_PLAFOND_CREDIT}) : encours global de l'organisme. Une vente dont la part
- * tiers payant depasse ce qu'il en reste est REFUSEE - elle n'est pas ecretee en reportant la difference sur le
- * client.</li>
+ * <li>le <b>plafond de credit</b> ({@code dbl_PLAFOND_CREDIT}) : encours global de l'organisme. La part tiers payant
+ * d'une vente est ECRETEE a ce qu'il en reste (plafond moins consommation globale) : la difference passe a la charge du
+ * client (especes ou autre reglement), exactement comme pour le plafond par vente. La vente n'est plus refusee - un
+ * avertissement previent simplement la caisse.</li>
  * </ul>
  */
 public final class PlafondsTiersPayant {
@@ -56,32 +57,23 @@ public final class PlafondsTiersPayant {
     }
 
     /**
-     * Motif de refus de la vente, ou vide si elle peut passer.
+     * Part tiers payant ecretee a ce qu'il reste du plafond de credit de l'organisme.
      *
      * <p>
-     * Le controle porte sur la part tiers payant seule - jamais sur le total de la vente - et tient compte de l'encours
-     * deja consomme : un client dont l'organisme est deja au plafond ne passe plus, meme pour une petite vente.
+     * Sans plafond pose, la part passe entiere. Un organisme deja au plafond (ou au-dela) ne rembourse plus rien :
+     * l'ecretage descend a zero, jamais en negatif. La difference est a la charge du client - c'est le meme
+     * fonctionnement que le plafond par vente, il n'y a plus de refus de vente.
      *
-     * @param nomTiersPayant
-     *            nom montre dans le message
      * @param plafondCredit
-     *            plafond de credit de la fiche de l'organisme (null ou 0 = aucun controle)
+     *            plafond de credit de la fiche de l'organisme (null ou 0 = aucun ecretage)
      * @param consommationGlobale
      *            consommation deja enregistree pour l'organisme (null = 0)
      * @param partTiersPayant
      *            part de CETTE vente mise a la charge de l'organisme
      */
-    public static Optional<String> motifDeRefus(String nomTiersPayant, Double plafondCredit, Number consommationGlobale,
-            int partTiersPayant) {
+    public static BigDecimal partEcreteeAuCredit(Double plafondCredit, Number consommationGlobale,
+            BigDecimal partTiersPayant) {
         return encoursRestant(plafondCredit, consommationGlobale)
-                .filter(reste -> BigDecimal.valueOf(partTiersPayant).compareTo(reste) > 0)
-                .map(reste -> "Vente refusée : la part du tiers payant " + nomTiersPayant + " ("
-                        + format(BigDecimal.valueOf(partTiersPayant))
-                        + ") dépasse ce qu'il reste de son plafond de crédit (" + format(reste.max(BigDecimal.ZERO))
-                        + " sur " + format(BigDecimal.valueOf(plafondCredit)) + ").");
-    }
-
-    private static String format(BigDecimal montant) {
-        return montant.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+                .map(reste -> partTiersPayant.min(reste.max(BigDecimal.ZERO))).orElse(partTiersPayant);
     }
 }

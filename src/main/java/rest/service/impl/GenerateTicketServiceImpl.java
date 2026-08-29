@@ -901,10 +901,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (oPreenregistrement.getIntPRICEREMISE() > 0) {
                 datas.add("* ;(-) " + DateConverter.amountFormat(oPreenregistrement.getIntPRICEREMISE()) + "; F CFA;1");
             }
+            // La part client (intCUSTPART) est DEJA nette de la remise (le moteur de calcul la
+            // deduit) : la re-deduire ici faisait passer le net du ticket en negatif - « Net à
+            // payer : -2 » sur une vente assurance couverte a 100 % avec une petite remise. La
+            // ligne « (-) remise » ci-dessus reste purement informative.
             int montantApayer = venteNet;
-            if (!(lgTyvente.equals(Constant.VENTE_AVEC_CARNET) && isTauxZero(oPreenregistrement))) {
-                montantApayer = venteNet - oPreenregistrement.getIntPRICEREMISE();
-            }
             datas.add("Net à payer: ;     " + DateConverter.amountFormat(Maths.arrondiModuloOfNumber(montantApayer, 5))
                     + "; F CFA;1");
             if (venteReglements.size() > 1) {
@@ -923,9 +924,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         + DateConverter.amountFormat(Maths.arrondiModuloOfNumber(
                                 montantVerseAfficheTicket(venteReglements, clotureVenteParams.getMontantRecu()), 5))
                         + "; F CFA;0");
+                // Meme regle que pour le net : la part client est deja nette de la remise.
                 final Integer change = clotureVenteParams.getMontantRecu()
-                        - (DateConverter.arrondiModuloOfNumber(oPreenregistrement.getIntCUSTPART(), 5)
-                                - oPreenregistrement.getIntPRICEREMISE());
+                        - DateConverter.arrondiModuloOfNumber(oPreenregistrement.getIntCUSTPART(), 5);
                 datas.add("Monnaie: ;     " + DateConverter.amountFormat((change >= 0 ? change : 0)) + "; F CFA;0");
 
             }
@@ -971,10 +972,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             } else {
                 venteNet = (-1) * DateConverter.arrondiModuloOfNumber((-1) * venteNet, 5);
             }
+            // La part client (intCUSTPART) est DEJA nette de la remise : le moteur de calcul la
+            // deduit (part client = total - part tiers payant - remise). La re-deduire ici
+            // faisait passer le net du ticket en negatif - « Net à payer : -2 » sur une vente
+            // assurance couverte a 100 % avec une petite remise. La ligne « (-) remise »
+            // ci-dessus reste purement informative.
             int montantApayer = venteNet;
-            if (!(lgTyvente.equals(Constant.VENTE_AVEC_CARNET) && isTauxZero(oPreenregistrement))) {
-                montantApayer = venteNet - remise;
-            }
             datas.add("Net à payer: ;     " + DateConverter.amountFormat(Maths.arrondiModuloOfNumber(montantApayer, 5))
                     + "; F CFA;1");
             if (venteReglements.size() > 1) {

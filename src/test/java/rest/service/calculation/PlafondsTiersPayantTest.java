@@ -1,18 +1,17 @@
 package rest.service.calculation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Plafonds portes par la fiche du tiers payant : heritage du plafond par vente a la creation du lien client, et refus
- * de la vente quand la part tiers payant depasse ce qu'il reste du plafond de credit.
+ * Plafonds portes par la fiche du tiers payant : heritage du plafond par vente a la creation du lien client, et
+ * ecretage de la part tiers payant a ce qu'il reste du plafond de credit (la difference passe au client, plus de refus
+ * de vente).
  */
 class PlafondsTiersPayantTest {
 
@@ -37,12 +36,14 @@ class PlafondsTiersPayantTest {
     }
 
     @Test
-    @DisplayName("Sans plafond de credit, aucun encours n'est calcule et rien n'est refuse")
+    @DisplayName("Sans plafond de credit, aucun encours n'est calcule et rien n'est ecrete")
     void sansPlafondDeCredit() {
         assertTrue(PlafondsTiersPayant.encoursRestant(null, 100000).isEmpty());
         assertTrue(PlafondsTiersPayant.encoursRestant(0.0, 100000).isEmpty());
-        assertTrue(PlafondsTiersPayant.motifDeRefus("CNPS", null, 100000, 1000000).isEmpty());
-        assertTrue(PlafondsTiersPayant.motifDeRefus("CNPS", 0.0, 100000, 1000000).isEmpty());
+        assertEquals(BigDecimal.valueOf(1000000),
+                PlafondsTiersPayant.partEcreteeAuCredit(null, 100000, BigDecimal.valueOf(1000000)));
+        assertEquals(BigDecimal.valueOf(1000000),
+                PlafondsTiersPayant.partEcreteeAuCredit(0.0, 100000, BigDecimal.valueOf(1000000)));
     }
 
     @Test
@@ -54,29 +55,25 @@ class PlafondsTiersPayantTest {
     }
 
     @Test
-    @DisplayName("Le cas rapporte : plafond 500, vente dont la part tiers payant fait 1000 - refusee")
+    @DisplayName("Le cas rapporte : plafond 500, part de 1000 - ecretee a 500, la difference revient au client")
     void venteSuperieureAuPlafond() {
-        Optional<String> refus = PlafondsTiersPayant.motifDeRefus("MUGEFCI", 500.0, 0, 1000);
-        assertTrue(refus.isPresent());
-        assertTrue(refus.get().contains("MUGEFCI"), refus.get());
-        assertTrue(refus.get().contains("1000"), refus.get());
-        assertTrue(refus.get().contains("500"), refus.get());
+        assertEquals(0, PlafondsTiersPayant.partEcreteeAuCredit(500.0, 0, BigDecimal.valueOf(1000))
+                .compareTo(BigDecimal.valueOf(500)));
     }
 
     @Test
-    @DisplayName("Un encours anterieur au plafond compte : l'organisme deja au plafond ne passe plus")
+    @DisplayName("Un encours anterieur au plafond compte : l'organisme deja au plafond ne rembourse plus rien")
     void encoursAnterieurPrisEnCompte() {
-        // plafond pose apres coup ; la conso etait deja de 600 : plus rien ne passe
-        assertTrue(PlafondsTiersPayant.motifDeRefus("CNPS", 500.0, 600, 1).isPresent());
-        // et l'encours restant montre est ramene a zero, pas negatif
-        String motif = PlafondsTiersPayant.motifDeRefus("CNPS", 500.0, 600, 1).orElseThrow();
-        assertTrue(motif.contains("(0 sur 500)"), motif);
+        // plafond pose apres coup ; la conso etait deja de 600 : la part descend a zero, jamais en negatif
+        assertEquals(0, PlafondsTiersPayant.partEcreteeAuCredit(500.0, 600, BigDecimal.ONE).compareTo(BigDecimal.ZERO));
     }
 
     @Test
-    @DisplayName("La part qui tient exactement dans l'encours restant passe")
+    @DisplayName("La part qui tient exactement dans l'encours restant passe entiere")
     void partExactementDansLEncours() {
-        assertFalse(PlafondsTiersPayant.motifDeRefus("CNPS", 500.0, 200, 300).isPresent());
-        assertTrue(PlafondsTiersPayant.motifDeRefus("CNPS", 500.0, 200, 301).isPresent());
+        assertEquals(0, PlafondsTiersPayant.partEcreteeAuCredit(500.0, 200, BigDecimal.valueOf(300))
+                .compareTo(BigDecimal.valueOf(300)));
+        assertEquals(0, PlafondsTiersPayant.partEcreteeAuCredit(500.0, 200, BigDecimal.valueOf(301))
+                .compareTo(BigDecimal.valueOf(300)));
     }
 }

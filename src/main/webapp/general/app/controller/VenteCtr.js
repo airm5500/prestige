@@ -4103,6 +4103,15 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     addTpCmp: function (record) {
         let me = this, tpContainerForm = me.getTpContainerForm();
+        // Ne pas perdre le numero de bon deja saisi : la reconstruction du bloc (apres
+        // enregistrement de la fiche client par exemple) repart du record serveur, qui ne
+        // connait pas encore ce bon - il vidait la saisie de la caissiere.
+        if (!record.numBon) {
+            const bonExistant = me.champDuBlocTp(tpContainerForm, 'textfield', 'refBon');
+            if (bonExistant && bonExistant.getValue()) {
+                record.numBon = bonExistant.getValue();
+            }
+        }
         tpContainerForm.removeAll();
         let cmp = me.buildCmp(record);
         tpContainerForm.add(cmp);
@@ -6059,7 +6068,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 const restructuring = result.data.restructuring;
                                 if (restructuring === true) {
                                     Ext.MessageBox.show({
-                                        title: 'Message d\'erreur',
+                                        // Avertissement, pas une erreur : la vente continue, la
+                                        // difference ecretee est a payer en especes ou autrement.
+                                        title: 'Avertissement plafond',
                                         width: 500,
                                         msg: message,
                                         buttons: Ext.MessageBox.OK,

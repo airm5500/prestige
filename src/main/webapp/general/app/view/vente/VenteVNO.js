@@ -174,11 +174,12 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     items: [
                                         {
                                             xtype: 'container',
-                                            flex: 1,
                                             /* Mise en page libre et classe vp-ligne-client : les trois champs
                                              * s'enchainent en ligne et reviennent a la ligne d'eux-memes quand la
                                              * place manque. Ils restent TROIS composants distincts, avec leurs
-                                             * itemId : tout le code qui les renseigne fonctionne sans changement. */
+                                             * itemId : tout le code qui les renseigne fonctionne sans changement.
+                                             * Pas de flex : le conteneur epouse son contenu, pour que l'icone de
+                                             * modification vienne se coller au nom au lieu de partir a droite. */
                                             layout: 'auto',
                                             cls: 'vp-ligne-client',
                                             items: [
@@ -210,25 +211,21 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
                                         },
                                         {
-                                            xtype: 'container',
-                                            width: 44,
-                                            layout: {type: 'vbox', align: 'middle'},
-                                            items: [
-
-                                                {
-                                                    // Icone seule : le libelle « Modifier Infos » prenait la largeur
-                                                    // que l'on vient de gagner. L'infobulle dit ce que fait le bouton,
-                                                    // et vp-btn-plat retire le cadre bleu du theme : l'icone directement.
-                                                    itemId: 'btnModifierInfo',
-                                                    icon: 'resources/images/icons/fam/user_edit.png',
-                                                    tooltip: 'Cliquez ici pour modifier',
-                                                    cls: 'vp-btn-plat',
-                                                    width: 34, height: 34,
-                                                    xtype: 'button'
-
-                                                }
-
-                                            ]
+                                            // Icone seule, juste a cote du nom (elle etait rejetee a
+                                            // l'extreme droite de la carte). L'infobulle dit ce que fait
+                                            // le bouton, et vp-btn-plat retire le cadre bleu du theme.
+                                            itemId: 'btnModifierInfo',
+                                            icon: 'resources/images/icons/fam/user_edit.png',
+                                            tooltip: 'Cliquez ici pour modifier',
+                                            cls: 'vp-btn-plat',
+                                            margin: '0 0 0 6',
+                                            width: 34, height: 34,
+                                            xtype: 'button'
+                                        },
+                                        {
+                                            // Ressort : occupe le reste de la carte.
+                                            xtype: 'component',
+                                            flex: 1
                                         }
                                     ]
 

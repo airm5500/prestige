@@ -7,6 +7,9 @@ public class TiersPayantLineOutput {
     private String numBon;
     private BigDecimal montant;
     private int finalTaux;
+    // Taux reellement utilise par le calcul (contractuel ou saisi en caisse) : celui a memoriser
+    // sur la ligne de vente et a imprimer, contrairement a finalTaux (part ecretee / total).
+    private int tauxApplique;
 
     public String getClientTiersPayantId() {
         return clientTiersPayantId;
@@ -30,6 +33,14 @@ public class TiersPayantLineOutput {
 
     public void setFinalTaux(int finalTaux) {
         this.finalTaux = finalTaux;
+    }
+
+    public int getTauxApplique() {
+        return tauxApplique;
+    }
+
+    public void setTauxApplique(int tauxApplique) {
+        this.tauxApplique = tauxApplique;
     }
 
     public String getNumBon() {

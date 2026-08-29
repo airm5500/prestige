@@ -91,16 +91,17 @@ class TiersPayantCalculationServiceTest {
     }
 
     @Test
-    @DisplayName("Plafond de credit de l'organisme depasse : la part n'est PAS ecretee, la vente est refusee")
-    void plafondCreditRefuseSansEcreter() {
+    @DisplayName("Plafond de credit de l'organisme depasse : la part est ECRETEE au reste, avec avertissement")
+    void plafondCreditEcreteAvecAvertissement() {
         TiersPayantInput tp = organisme();
         tp.setPlafondCreditTiersPayant(BigDecimal.valueOf(500));
         tp.setConsoGlobaleTiersPayant(BigDecimal.ZERO);
         CalculationResult r = new TiersPayantCalculationService().calculate(vente(tp));
-        // la part reste la part reelle - l'ancien moteur l'aurait silencieusement ramenee a 500
-        assertEquals(0, partTiersPayant(r).compareTo(BigDecimal.valueOf(10000)));
-        assertEquals(1, r.getMotifsRefus().size());
-        assertTrue(r.getMotifsRefus().get(0).contains("MUGEFCI"), r.getMotifsRefus().get(0));
+        // meme fonctionnement que le plafond par vente : la difference passe au client (retour d'officine)
+        assertEquals(0, partTiersPayant(r).compareTo(BigDecimal.valueOf(500)));
+        assertTrue(r.getMotifsRefus().isEmpty());
+        assertTrue(r.getWarningMessage().contains("MUGEFCI"), r.getWarningMessage());
+        assertTrue(r.getWarningMessage().contains("9500"), r.getWarningMessage());
     }
 
     @Test
@@ -110,13 +111,14 @@ class TiersPayantCalculationServiceTest {
         tp.setPlafondCreditTiersPayant(BigDecimal.valueOf(50000));
         tp.setConsoGlobaleTiersPayant(BigDecimal.valueOf(45000));
         CalculationResult r = new TiersPayantCalculationService().calculate(vente(tp));
-        // reste 5000, part demandee 10000 : refus - l'ancien moteur laissait passer
+        // reste 5000, part demandee 10000 : ecretee a 5000 - l'ancien moteur laissait passer
         // (il comparait 10000 au plafond total de 50000, sans deduire les 45000 consommes)
-        assertEquals(1, r.getMotifsRefus().size());
+        assertEquals(0, partTiersPayant(r).compareTo(BigDecimal.valueOf(5000)));
+        assertTrue(r.getMotifsRefus().isEmpty());
     }
 
     @Test
-    @DisplayName("Encours suffisant : rien n'est refuse et la part reste entiere")
+    @DisplayName("Encours suffisant : aucun ecretage, la part reste entiere")
     void encoursSuffisant() {
         TiersPayantInput tp = organisme();
         tp.setPlafondCreditTiersPayant(BigDecimal.valueOf(50000));
@@ -127,7 +129,7 @@ class TiersPayantCalculationServiceTest {
     }
 
     @Test
-    @DisplayName("Priorite complete : plafond client, puis plafond par vente, et le credit en controle final")
+    @DisplayName("Priorite complete : plafond client, puis plafond par vente, puis l'encours de credit")
     void prioritesComposees() {
         TiersPayantInput tp = organisme();
         tp.setPlafondConso(BigDecimal.valueOf(9000)); // encours client : reste 9000
@@ -136,9 +138,9 @@ class TiersPayantCalculationServiceTest {
         tp.setPlafondCreditTiersPayant(BigDecimal.valueOf(100000));
         tp.setConsoGlobaleTiersPayant(BigDecimal.valueOf(97000)); // reste 3000 < 4000
         CalculationResult r = new TiersPayantCalculationService().calculate(vente(tp));
-        // part ecretee au plafond par vente (4000)...
-        assertEquals(0, partTiersPayant(r).compareTo(BigDecimal.valueOf(4000)));
-        // ... mais l'encours de credit (3000) ne la couvre pas : refus
-        assertEquals(1, r.getMotifsRefus().size());
+        // part d'abord ecretee au plafond par vente (4000)...
+        // ... puis a l'encours de credit restant (3000), sans refus
+        assertEquals(0, partTiersPayant(r).compareTo(BigDecimal.valueOf(3000)));
+        assertTrue(r.getMotifsRefus().isEmpty());
     }
 }

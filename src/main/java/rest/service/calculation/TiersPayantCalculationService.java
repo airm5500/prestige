@@ -56,23 +56,19 @@ public class TiersPayantCalculationService {
 
             BigDecimal actualShare = applyCeilings(remainingAmountForTps, tpInput, warnings);
 
-            // Plafond de credit de la fiche de l'organisme : la part de cette vente doit tenir
-            // dans ce qu'il RESTE de l'encours (plafond moins consommation globale). Un
-            // depassement ne s'ecrete pas en reportant la difference sur le client : il est
-            // remonte comme motif de refus, et la cloture s'y refusera.
-            PlafondsTiersPayant
-                    .motifDeRefus(tpInput.getTiersPayantFullName(),
-                            tpInput.getPlafondCreditTiersPayant() != null
-                                    ? tpInput.getPlafondCreditTiersPayant().doubleValue() : null,
-                            tpInput.getConsoGlobaleTiersPayant(), actualShare.intValue())
-                    .ifPresent(calculationResult.getMotifsRefus()::add);
-
             totalAmountAssurance = totalAmountAssurance.add(actualShare).subtract(remainingAmountForTps);
             totalAmountAssurance = totalAmountAssurance.setScale(0, RoundingMode.HALF_UP);
             TiersPayantLineOutput lineOutput = new TiersPayantLineOutput();
             lineOutput.setClientTiersPayantId(tpInput.getClientTiersPayantId());
             lineOutput.setMontant(actualShare);
             lineOutput.setFinalTaux(calculateFinalTaux(actualShare, calculationResult.getTotalSaleAmount()));
+            // Taux effectivement UTILISE par le calcul (contractuel ou saisi par la caisse) : c'est
+            // lui qui doit etre memorise sur la ligne de vente et imprime sur le ticket. Le taux
+            // effectif ci-dessus (part ecretee / total) ne doit JAMAIS etre reecrit comme taux de la
+            // ligne : chaque recalcul le reprendrait comme taux contractuel et degraderait la part a
+            // chaque modification de produit (100 -> 92 -> 85...), en figeant le resultat meme apres
+            // un relevement de plafond.
+            lineOutput.setTauxApplique(Math.round(tpInput.getTaux() * 100));
             lineOutput.setNumBon(tpInput.getNumBon());
             lineOutputs.add(lineOutput);
         }
@@ -88,22 +84,32 @@ public class TiersPayantCalculationService {
     private BigDecimal applyCeilings(BigDecimal partTiersPayantNet, TiersPayantInput tp, StringBuilder warnings) {
         BigDecimal finalAmount = computeThirdPartyPart(tp, partTiersPayantNet);
         if (finalAmount.compareTo(partTiersPayantNet) != 0) {
-            warnings.append("Le montant remboursé pour le tiers payant ")
+            BigDecimal difference = partTiersPayantNet.subtract(finalAmount).setScale(0, RoundingMode.HALF_UP);
+            warnings.append("⚠ Plafond du tiers payant ")
                     .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ")
-                    .append(tp.getTiersPayantFullName()).append("</span> a été plafonné à ")
+                    .append(tp.getTiersPayantFullName()).append("</span> atteint : sa part est ramenée de ")
+                    .append(partTiersPayantNet.setScale(0, RoundingMode.HALF_UP)).append(" à ")
                     .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ")
-                    .append(finalAmount).append("</span>.\n");
+                    .append(finalAmount.setScale(0, RoundingMode.HALF_UP)).append("</span>. La différence de ")
+                    .append(" <span style='font-weight:900;color:red;'> ").append(difference)
+                    .append("</span> sera payée en espèces ou par un autre règlement.\n");
         }
         return finalAmount;
     }
 
     private BigDecimal computeThirdPartyPart(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        // Une seule application de chaque plafond : le plafond d'encours du COMPTE CLIENT
-        // (computePlafond) puis le plafond PAR VENTE du lien (computePlafondVente). L'ancien
-        // enchainement rappelait computePlafond une seconde fois sur son propre resultat.
+        // Une seule application de chaque plafond, dans l'ordre : le plafond d'encours du COMPTE
+        // CLIENT (computePlafond), le plafond PAR VENTE du lien (computePlafondVente), puis le
+        // plafond de CREDIT de la fiche de l'organisme - qui ECRETE desormais la part au lieu de
+        // refuser la vente : la difference passe a la charge du client, comme pour les autres
+        // plafonds (retour d'officine).
         BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);
 
-        return computePlafondVente(tp.getPlafondJournalierClient(), totalNetAmount);
+        totalNetAmount = computePlafondVente(tp.getPlafondJournalierClient(), totalNetAmount);
+
+        return PlafondsTiersPayant.partEcreteeAuCredit(
+                tp.getPlafondCreditTiersPayant() != null ? tp.getPlafondCreditTiersPayant().doubleValue() : null,
+                tp.getConsoGlobaleTiersPayant(), totalNetAmount);
     }
 
     private BigDecimal computePlafondVente(BigDecimal plafondVente, BigDecimal totalNetAmount) {

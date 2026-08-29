@@ -268,7 +268,12 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                 TCompteClientTiersPayant tcctp = venteTiersPayantItem.getLgCOMPTECLIENTTIERSPAYANTID();
                 venteTiersPayantItem.setIntPERCENT(tcctp.getIntPOURCENTAGE());
             } else {
-                venteTiersPayantItem.setIntPERCENT(lineResult.getFinalTaux());
+                // Taux UTILISE par le calcul, jamais le taux effectif (part ecretee / total) :
+                // ecrire ce dernier degradait le taux a chaque recalcul (100 -> 92 -> 85...),
+                // faisait deriver les montants a chaque modification de produit et figeait la
+                // part meme apres relevement d'un plafond. Le ticket retrouve aussi le taux
+                // contractuel (100 % en carnet).
+                venteTiersPayantItem.setIntPERCENT(lineResult.getTauxApplique());
             }
             venteTiersPayantItem.setIntPRICE(lineResult.getMontant().intValue());
             venteTiersPayantItem.setStrREFBON(lineResult.getNumBon());
@@ -297,14 +302,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
 
         montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
-        // Les motifs de refus (plafond de credit de l'organisme depasse) passent DEVANT les
-        // avertissements d'ecretage : le vendeur doit les voir avant meme de tenter la cloture,
-        // qui refusera de toute facon.
+        // Plus de motifs de refus : tous les plafonds (compte, par vente, credit de l'organisme)
+        // ECRETENT la part tiers payant, et l'avertissement dit la difference laissee au client.
         String messagePlafonds = output.getWarningMessage();
-        if (!output.getMotifsRefus().isEmpty()) {
-            messagePlafonds = String.join("\n", output.getMotifsRefus())
-                    + (StringUtils.isNotEmpty(messagePlafonds) ? "\n" + messagePlafonds : "");
-        }
         montantAPaye.setRestructuring(StringUtils.isNoneEmpty(messagePlafonds));
         montantAPaye.setMessage(messagePlafonds);
 
@@ -438,7 +438,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                 TCompteClientTiersPayant tcctp = saleLine.getLgCOMPTECLIENTTIERSPAYANTID();
                 saleLine.setIntPERCENT(tcctp.getIntPOURCENTAGE());
             } else {
-                saleLine.setIntPERCENT(lineResult.getFinalTaux());
+                // Meme regle que sur l'autre chemin de calcul : le taux memorise est celui
+                // utilise par le calcul, pas le taux effectif apres ecretage.
+                saleLine.setIntPERCENT(lineResult.getTauxApplique());
             }
             saleLine.setIntPRICE(lineResult.getMontant().intValue());
             saleLine.setStrREFBON(lineResult.getNumBon());
@@ -467,14 +469,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
 
         montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
-        // Les motifs de refus (plafond de credit de l'organisme depasse) passent DEVANT les
-        // avertissements d'ecretage : le vendeur doit les voir avant meme de tenter la cloture,
-        // qui refusera de toute facon.
+        // Plus de motifs de refus : tous les plafonds (compte, par vente, credit de l'organisme)
+        // ECRETENT la part tiers payant, et l'avertissement dit la difference laissee au client.
         String messagePlafonds = output.getWarningMessage();
-        if (!output.getMotifsRefus().isEmpty()) {
-            messagePlafonds = String.join("\n", output.getMotifsRefus())
-                    + (StringUtils.isNotEmpty(messagePlafonds) ? "\n" + messagePlafonds : "");
-        }
         montantAPaye.setRestructuring(StringUtils.isNoneEmpty(messagePlafonds));
         montantAPaye.setMessage(messagePlafonds);
 
