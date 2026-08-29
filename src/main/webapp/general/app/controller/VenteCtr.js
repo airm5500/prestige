@@ -5283,17 +5283,32 @@ Ext.define('testextjs.controller.VenteCtr', {
                     }
                 }
             }];
-        if (etat.atteint) {
-            items.push({
-                xtype: 'displayfield',
-                hideLabel: true,
-                flex: 1.4,
-                itemId: 'alertePlafond' + record.order,
-                cls: 'vp-alerte-plafond',
-                value: 'attention!!! ce client payera en especes'
-            });
-        }
         return items;
+    },
+
+    /**
+     * Ligne d'avertissement du compte carnet (plafond atteint), SOUS la ligne du bon : sur la meme
+     * ligne, le message ecrasait les plafonds quand tout ne tenait pas en largeur (retour d'officine).
+     * Rien n'est rendu tant qu'il n'y a pas de message.
+     */
+    ligneAlerteCarnet: function (record) {
+        const me = this;
+        const etat = me.etatDuPlafondCarnet(record);
+        if (!etat.atteint) {
+            return [];
+        }
+        return [{
+                xtype: 'fieldcontainer',
+                layout: {type: 'hbox', align: 'middle'},
+                items: [{
+                        xtype: 'displayfield',
+                        hideLabel: true,
+                        flex: 1,
+                        itemId: 'alertePlafond' + record.order,
+                        cls: 'vp-alerte-plafond',
+                        value: 'attention!!! ce client payera en especes'
+                    }]
+            }];
     },
 
     /**
@@ -5407,8 +5422,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                             name: 'refBon' + record.order,
                             itemId: 'refBon' + record.order,
                             // En carnet le conteneur occupe toute la largeur : le champ garde une
-                            // largeur raisonnable et laisse la place aux infos du compte a sa droite.
-                            ...(carnet ? {width: 520} : {flex: 1}),
+                            // largeur raisonnable et laisse la place aux infos du compte a sa droite
+                            // (raccourci — retour d'officine : la zone etait trop longue).
+                            ...(carnet ? {width: 380} : {flex: 1}),
                             height: 30,
                             margin: '0 10 0 0',
                             value: record.numBon,
@@ -5424,26 +5440,29 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 }
                             }
                         },
-                        {
-                            xtype: 'button',
-                            text: 'Retirer',
-                            icon: 'resources/images/icons/fam/delete.png',
-                            margin: '0 10 0 0',
-                            handler: function (btn) {
-                                const cp = btn.up('fieldcontainer');
-                                const container = cp.up('container');
-                                const compteTp = container.query('hiddenfield:first');
-                                me.removetierspayant(compteTp[0].value);
-                                container.destroy();
-                            }
-                        },
+                        // Retirer : pas en carnet (retour d'officine) — le compte unique du carnet
+                        // se remplace en rappelant un autre client, il ne se « retire » pas.
+                        ...(carnet ? [] : [{
+                                xtype: 'button',
+                                text: 'Retirer',
+                                icon: 'resources/images/icons/fam/delete.png',
+                                margin: '0 10 0 0',
+                                handler: function (btn) {
+                                    const cp = btn.up('fieldcontainer');
+                                    const container = cp.up('container');
+                                    const compteTp = container.query('hiddenfield:first');
+                                    me.removetierspayant(compteTp[0].value);
+                                    container.destroy();
+                                }
+                            }]),
                         // Compte carnet : encours, plafond et caution sous les yeux de la caissiere,
-                        // sur la ligne du bon (l'espace a droite etait perdu), avec l'avertissement
-                        // quand le plafond est atteint. En vente assurance, seul le plafond vente
-                        // est rappele, et seulement s'il est pose.
+                        // sur la ligne du bon (l'espace a droite etait perdu). En vente assurance,
+                        // seul le plafond vente est rappele, et seulement s'il est pose.
                         ...(carnet ? me.champsCompteCarnet(record) : me.champPlafondVenteAssurance(record))
                     ]
                 },
+                // Avertissement du compte carnet (plafond atteint) : sur SA ligne, sous celle du bon
+                ...(carnet ? me.ligneAlerteCarnet(record) : []),
                 {
                     xtype: 'hiddenfield',
                     name: 'compteTp' + record.order,
