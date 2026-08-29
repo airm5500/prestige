@@ -5097,7 +5097,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                 margin: '0 10 0 0',
                 value: me.texteInfoCarnet('chart_bar.png', 'Plafond',
                         etat.sansPlafond ? 'aucun' : me.montantCarnet(etat.plafond), '#1A3FC4')
-            }, {
+            },
+            // Plafond par vente (celui de la fiche tiers payant, herite sur le compte) : distinct du
+            // plafond de consommation ci-dessus, il borne chaque passage en caisse. Affiche seulement
+            // s'il est pose, avec la meme presentation qu'en vente assurance.
+            ...me.champPlafondVenteAssurance(record), {
                 // Caution du compte (celle du menu « Gestion de cautions carnet », pas le champ de la
                 // fiche tiers payant) : le champ reste cache tant que la requete lancee au rendu n'a
                 // pas confirme qu'une caution existe pour ce compte.
