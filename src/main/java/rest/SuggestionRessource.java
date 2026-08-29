@@ -245,6 +245,23 @@ public class SuggestionRessource {
         return Response.ok().build();
     }
 
+    /** Creation d'une suggestion VIDE de type manuelle (lot 3). */
+    @POST
+    @Path("create-manuelle")
+    @Consumes(MediaType.WILDCARD)
+    public Response createManuelle(@QueryParam(value = "grossisteId") String grossisteId) {
+        return Response.ok().entity(this.suggestionService.createSuggestionManuelle(grossisteId).toString()).build();
+    }
+
+    /** Fusion des suggestions cochees, sur le modele de la fusion des commandes en cours (lot 3). */
+    @POST
+    @Path("merge-selection")
+    public Response mergeSelection(commonTasks.dto.SuggestionIdsDTO ids) {
+        return Response.ok().entity(
+                this.suggestionService.mergeSuggestionSelection(ids == null ? null : ids.getSuggestionId()).toString())
+                .build();
+    }
+
     @POST
     @Path("clean")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

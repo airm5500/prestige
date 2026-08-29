@@ -66,10 +66,19 @@ public class Vinght20x80 extends HttpServlet {
         } catch (NumberFormatException e) {
             topN = null;
         }
+        String stockFilter = request.getParameter("stockFilter");
+        Integer stockMin = null;
+        try {
+            if (StringUtils.isNotBlank(request.getParameter("stockMin"))) {
+                stockMin = Integer.valueOf(request.getParameter("stockMin").trim());
+            }
+        } catch (NumberFormatException e) {
+            stockMin = null;
+        }
 
         // String mode = "pdf";
         geVingtQuatreVingt(request, response, dtStart, dtEnd, oUser, codeFamile, codeRayon, codeGrossiste,
-                quatreVingtType, action, topN);
+                quatreVingtType, action, topN, stockFilter, stockMin);
 
     }
 
@@ -125,7 +134,8 @@ public class Vinght20x80 extends HttpServlet {
 
     public void geVingtQuatreVingt(HttpServletRequest request, HttpServletResponse response, String dtStart,
             String dtEnd, TUser tu, String codeFamile, String codeRayon, String codeGrossiste,
-            VingtQuatreVingtType quatreVingtType, String mode, Integer topN) throws IOException {
+            VingtQuatreVingtType quatreVingtType, String mode, Integer topN, String stockFilter, Integer stockMin)
+            throws IOException {
 
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
@@ -164,7 +174,14 @@ public class Vinght20x80 extends HttpServlet {
             reportGenerateFile = reportGenerateFile + ".xlsx";
         }
         List<VenteDetailsDTO> datas = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon,
-                codeGrossiste, 0, 0, true, quatreVingtType, topN);
+                codeGrossiste, 0, 0, true, quatreVingtType, topN, stockFilter, stockMin);
+        // Le gabarit jasper (sur site, hors depot) affiche sa colonne « Stock » depuis
+        // intQUANTITYSERVED : on y verse le stock TOTAL (rayon + reserve) pour que
+        // l'edition montre le total sans avoir a retoucher le gabarit des officines.
+        datas.forEach(d -> {
+            d.setIntQUANTITYSERVED(d.getStockTotal());
+            d.setStockReserve(0); // la reserve est desormais comptee dans intQUANTITYSERVED
+        });
 
         if ("pdf".equals(mode)) {
             reportUtil.buildReport(parameters, scrReportFile, jdom.scr_report_file,

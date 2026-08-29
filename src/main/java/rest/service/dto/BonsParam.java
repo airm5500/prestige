@@ -25,6 +25,10 @@ public class BonsParam {
     private String hEnd;
     private String search;
     private String tiersPayantId;
+    /** Filtre par type de tiers payant (Assurance/Carnet...) — lot 3. */
+    private String typeTiersPayantId;
+    /** Filtre par groupe de tiers payant — lot 3. */
+    private String groupeId;
     private int start;
     private int limit;
     private String emplacementId;

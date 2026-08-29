@@ -70,6 +70,18 @@ public class TModeReglement implements Serializable {
     @Lob
     @Column(name = "qr_code", columnDefinition = "MEDIUMBLOB")
     private byte[] qrCode;
+    // Client standard par defaut du mode (mobile money) : propose en selection
+    // rapide a la vente quand ce mode est choisi (lot 3).
+    @Column(name = "lg_CLIENT_DEFAUT_ID", length = 40)
+    private String lgCLIENTDEFAUTID;
+
+    public String getLgCLIENTDEFAUTID() {
+        return lgCLIENTDEFAUTID;
+    }
+
+    public void setLgCLIENTDEFAUTID(String lgCLIENTDEFAUTID) {
+        this.lgCLIENTDEFAUTID = lgCLIENTDEFAUTID;
+    }
 
     public TModeReglement() {
     }

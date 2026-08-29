@@ -238,6 +238,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             selector: 'doventemanager #contenu #infosClientStandard'
         },
         {
+            ref: 'btnClientComptant',
+            selector: 'doventemanager #contenu #btnClientComptant'
+        },
+        {
             ref: 'clientSearchTextField',
             selector: 'doventemanager #contenu #clientSearchTextField'
         },
@@ -648,6 +652,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     },
                     'doventemanager #contenu #clientSearchTextField': {
                         specialkey: this.onClientSearchTextField
+                    },
+                    'doventemanager #contenu #btnClientComptant': {
+                        click: this.onBtnClientComptantClick
                     }
                     , 'assuranceClient #queryClientAssurance': {
                         specialkey: this.onQueryClientAssurance,
@@ -814,6 +821,9 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantTp.hide();
         sansBon.hide();
         me.setGridFillHeight(true);
+        // Retour au comptant : le bouton « associer un client » redevient
+        // disponible si le reglement est en especes
+        me.refreshBtnClientComptant();
     },
     /* Comptant : la grille s'étire jusqu'au bas du panneau (plein écran, pour
      * occuper toute la hauteur quel que soit l'écran). En assurance/carnet le
@@ -896,6 +906,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         let assureContainer = me.getAssureContainer(), ayantDroyCmp = me.getAyantDroyCmp(),
                 montantTp = me.getMontantTp();
         montantTp.show();
+        // Assurance/carnet : le client est porté par la vente, pas par ce bouton
+        // (on ne lit pas la combo type de vente : elle peut etre encore en cours
+        // de repositionnement au rappel d'une vente — le parametre fait foi)
+        me.getBtnClientComptant() && me.getBtnClientComptant().hide();
         // "Vente sans bon" retiré de l'écran (le paramètre reste à false)
         me.setGridFillHeight(false);
         me.appliquerLibellesTiersPayant(typevente);
@@ -2371,6 +2385,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         // Mode réellement appliqué : sert de point de retour au garde-fou
         // « sans produit » et au rollback du bouton Annuler (fenêtre client)
         me._appliedTypeReglement = value;
+        me.refreshBtnClientComptant();
     }
     ,
     // Utilitaire: focus + sélection du texte sur Montant Reçu
@@ -2761,10 +2776,74 @@ Ext.define('testextjs.controller.VenteCtr', {
      * directement dans le champ de saisie : la caissière tape le nom
      * sans avoir à cliquer dans le champ.
      */
+    /*
+     * Volet « selection rapide » mobile money (lot 3, option A validee) : quand un
+     * mode mobile est choisi, la fenetre client s'ouvre avec, au-dessus du volet de
+     * recherche habituel, une tuile par client mobile money parametre sur la fiche
+     * du mode de reglement. La tuile du mode choisi passe en premier, en evidence.
+     * Un clic attache le client et ferme la fenetre — le volet normal reste la
+     * pour creer/chercher un vrai client.
+     */
+    ajouterSelectionRapideMobileMoney: function (win) {
+        const me = this;
+        const modeCourant = me.getSafeComboValue('getVnotypeReglement', '1');
+        if (!me.isMobileMode(modeCourant)) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/modereglement/clients-mobile-money',
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (!result || !result.data || !result.data.length || win.destroyed) {
+                    return;
+                }
+                const clients = result.data.slice();
+                // la tuile du mode choisi d'abord, en evidence
+                clients.sort(function (a, b) {
+                    const pa = (a.typeReglementId === modeCourant) ? 0 : 1;
+                    const pb = (b.typeReglementId === modeCourant) ? 0 : 1;
+                    return pa !== pb ? pa - pb : String(a.modeLibelle).localeCompare(String(b.modeLibelle));
+                });
+                const boutons = clients.map(function (c) {
+                    const enAvant = c.typeReglementId === modeCourant;
+                    return {
+                        xtype: 'button',
+                        margin: '0 6 6 0',
+                        height: 44,
+                        text: '<div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
+                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div>',
+                        style: enAvant
+                                ? 'background:#1E8449;border-color:#1E8449;'
+                                : 'background:#5D6D7E;border-color:#5D6D7E;',
+                        handler: function () {
+                            const record = Ext.create('testextjs.model.caisse.ClientLambda', {
+                                lgCLIENTID: c.clientId,
+                                strFIRSTNAME: c.nom,
+                                strLASTNAME: c.prenom,
+                                strADRESSE: c.telephone
+                            });
+                            me.updateClientStandard(record);
+                        }
+                    };
+                });
+                win.insert(0, {
+                    xtype: 'panel',
+                    bodyPadding: '8 8 2 8',
+                    border: false,
+                    title: '<span style="font-size:12px;">SÉLECTION RAPIDE MOBILE MONEY</span>',
+                    layout: {type: 'hbox', align: 'stretch'},
+                    style: 'border-bottom:2px solid #1E8449;',
+                    items: boutons
+                });
+            }
+        });
+    },
     openClientLambdaSearchWindow: function () {
         const me = this;
         const win = Ext.create('testextjs.view.vente.user.ClientLambda');
         win.add(me.buildLambdaClientGrid());
+        me.ajouterSelectionRapideMobileMoney(win);
         win.show();
         const queryField = win.down('#queryClientLambda');
         if (queryField) {
@@ -2849,6 +2928,46 @@ Ext.define('testextjs.controller.VenteCtr', {
             recu.setReadOnly(false);
         }
         recu.focus(true, 100);
+    },
+    /*
+     * Vente comptant en especes : association FACULTATIVE d'un client standard.
+     * Le circuit est celui des autres modes (fenetre ClientLambda, update/client
+     * sur la prevente) — on ne fait que l'ouvrir a la demande.
+     */
+    onBtnClientComptantClick: function () {
+        const me = this;
+        if (!me.getCurrent()) {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant d\'associer un client',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
+            });
+            return;
+        }
+        me.getInfosClientStandard().show();
+        me.openClientLambdaSearchWindow();
+    },
+    /*
+     * Le bouton « associer un client » n'a de sens qu'en vente comptant reglée
+     * en especes : partout ailleurs le client est deja demandé par le mode ou
+     * porté par la vente assurance/carnet.
+     */
+    refreshBtnClientComptant: function () {
+        const me = this;
+        const btn = me.getBtnClientComptant();
+        if (!btn) {
+            return;
+        }
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        const typeRegle = me.getSafeComboValue('getVnotypeReglement', '1');
+        btn.setVisible(typeVente === '1' && typeRegle === '1');
     },
     updateClientStandard: function (record) {
         const me = this;
@@ -3351,6 +3470,8 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     goBack: function () {
         const me = this;
+        // Sortie d'ecran : la vente rappelee redevient disponible pour les autres caisses
+        me.libererRappelVente();
         // Abandon d'une modification de vente clôturée : la copie en attente est supprimée pour ne pas
         // laisser traîner une vente orpheline qu'un autre utilisateur pourrait reprendre et clôturer.
         // (Le bouton ATTENTE reste le moyen de conserver volontairement la copie.)
@@ -6605,10 +6726,26 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         }
     },
+    /*
+     * Libere le verrou de rappel de la vente courante (lot 3). Appele a la
+     * remise en attente et au retour a la liste ; sans effet si la vente n'est
+     * pas verrouillee par ce poste (le serveur ne libere que son detenteur).
+     */
+    libererRappelVente: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente || !vente.lgPREENREGISTREMENTID) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/vente/rappel/liberer/' + vente.lgPREENREGISTREMENTID
+        });
+    },
     putToStandBy: function () {
         const me = this;
         me.rememberPreventeMode();
         me.saveModeReglementAttente();
+        me.libererRappelVente();
         me.resetAll();
         me.getVnoproduitCombo().focus(false, 100, function () {
         });

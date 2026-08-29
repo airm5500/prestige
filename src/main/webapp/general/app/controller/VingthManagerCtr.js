@@ -47,6 +47,14 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         {
             ref: 'topNField',
             selector: 'vingtquatrevingt #topN'
+        },
+        {
+            ref: 'comboStock',
+            selector: 'vingtquatrevingt #comboStock'
+        },
+        {
+            ref: 'stockValueField',
+            selector: 'vingtquatrevingt #stockValue'
         }
 
 
@@ -151,10 +159,20 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
         myProxy.setExtraParam('topN', me.getTopN());
+        myProxy.setExtraParam('stockFilter', me.getStockFilter());
+        myProxy.setExtraParam('stockMin', me.getStockMin());
     },
     getTopN: function () {
         const f = this.getTopNField();
         return (f && f.getValue()) ? f.getValue() : '';
+    },
+    getStockFilter: function () {
+        const f = this.getComboStock();
+        return (f && f.getValue()) ? f.getValue() : 'ALL';
+    },
+    getStockMin: function () {
+        const f = this.getStockValueField();
+        return (f && f.getValue() !== null && f.getValue() !== undefined) ? f.getValue() : '';
     },
     doInitStore: function () {
         const me = this;
@@ -181,7 +199,9 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             codeRayon: codeRayon,
             codeGrossiste: codeGrossiste,
             vingtType: comboVingt,
-            topN: me.getTopN()
+            topN: me.getTopN(),
+            stockFilter: me.getStockFilter(),
+            stockMin: me.getStockMin()
 
         };
     },
@@ -205,7 +225,8 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         }
         return  '&dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue()
                 + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
-                + '&vingtType=' + comboVingt + '&topN=' + me.getTopN();
+                + '&vingtType=' + comboVingt + '&topN=' + me.getTopN()
+                + '&stockFilter=' + me.getStockFilter() + '&stockMin=' + me.getStockMin();
 
     }
 

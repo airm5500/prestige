@@ -19,4 +19,18 @@ public interface ListDesBonService {
     JSONObject listBons(BonsParam bonsParam);
 
     BonsTotauxDTO listBonsTotaux(BonsParam bonsParam);
+
+    /**
+     * PDF de la liste des bons construit en code (sans gabarit jasper) — lot 3.
+     *
+     * @param avecProduits
+     *            true : chaque bon est suivi de ses produits (liste avec produits) ; false : une ligne par bon (liste
+     *            simple, utilisee quand le regroupement par groupe est demande).
+     * @param parGroupe
+     *            true : sections et totaux par groupe de tiers payant.
+     * @param entete
+     *            libelles d'entete (nom officine, periode, imprime par).
+     */
+    byte[] buildBonsPdf(BonsParam bonsParam, boolean avecProduits, boolean parGroupe, String entete, String periode,
+            String imprimePar);
 }

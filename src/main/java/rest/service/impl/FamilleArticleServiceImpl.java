@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
@@ -312,6 +313,14 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
     public List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
             String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
             Integer topN) {
+        return geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, start, limit, all,
+                vingtQuatreVingtType, topN, null, null);
+    }
+
+    @Override
+    public List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
+            Integer topN, String stockFilter, Integer stockMin) {
         List<VenteDetailsDTO> list = new ArrayList<>();
         try {
             String procedureName;
@@ -367,6 +376,13 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
                 list.add(dto);
             }
+            // Stock reserve puis filtre sur le stock TOTAL (avant le Top N, comme les autres filtres)
+            enrichStockReserve2080(list);
+            if (StringUtils.isNotBlank(stockFilter) && !"ALL".equalsIgnoreCase(stockFilter)) {
+                final String f = stockFilter;
+                final Integer min = stockMin;
+                list = list.stream().filter(d -> matchStockTotal(d, f, min)).collect(Collectors.toList());
+            }
             // Top N : la liste est deja triee DESC par le critere (CA/QTY/MARGE) dans la procedure,
             // on ne garde donc que les N premiers (les plus importants). topN null/<=0 = tous.
             if (topN != null && topN > 0 && list.size() > topN) {
@@ -382,12 +398,69 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) {
+            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN,
+            String stockFilter, Integer stockMin) {
         List<VenteDetailsDTO> data = geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, start,
-                limit, false, vingtQuatreVingtType, topN);
+                limit, false, vingtQuatreVingtType, topN, stockFilter, stockMin);
         int total = data.size();
 
         return new JSONObject().put("total", total).put("data", new JSONArray(data));
+    }
+
+    /** Stock reserve par produit (t_type_stock_famille type '2', emplacement courant) en une seule requete. */
+    private void enrichStockReserve2080(List<VenteDetailsDTO> list) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        try {
+            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            List<Object[]> rows = getEntityManager()
+                    .createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER),0)"
+                            + " FROM t_type_stock_famille t WHERE t.lg_TYPE_STOCK_ID = '2'"
+                            + " AND t.str_STATUT = 'enable' AND t.lg_EMPLACEMENT_ID = ?1 GROUP BY t.lg_FAMILLE_ID")
+                    .setParameter(1, emplacement).getResultList();
+            if (rows.isEmpty()) {
+                return;
+            }
+            Map<String, Integer> reserves = new HashMap<>();
+            for (Object[] r : rows) {
+                reserves.put((String) r[0], r[1] == null ? 0 : ((Number) r[1]).intValue());
+            }
+            for (VenteDetailsDTO d : list) {
+                Integer res = reserves.get(d.getLgFAMILLEID());
+                if (res != null) {
+                    d.setStockReserve(res);
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Enrichissement stock reserve 20/80 impossible", e);
+        }
+    }
+
+    /** Filtre stock du 20/80 : memes operateurs que la classification ABC (sans les seuils), sur le stock TOTAL. */
+    private boolean matchStockTotal(VenteDetailsDTO d, String stockFilter, Integer min) {
+        int stock = d.getStockTotal();
+        int val = (min != null) ? min : 0;
+        switch (stockFilter.trim().toUpperCase()) {
+        case "SUP":
+            return stock > val;
+        case "SUPEQ":
+            return stock >= val;
+        case "INF":
+            return stock < val;
+        case "INFEQ":
+            return stock <= val;
+        case "EGAL":
+            return stock == val;
+        case "POSITIF":
+            return stock > 0;
+        case "NUL":
+            return stock == 0;
+        case "NEGATIF":
+            return stock < 0;
+        default:
+            return true;
+        }
     }
 
     List<FamilleArticleStatDTO> fetchDataForStatisticVenteRayons(LocalDate dtStart, LocalDate dtEnd, String query,
@@ -1096,14 +1169,16 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public byte[] buildVingtQuatreVingtExcel(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException {
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN, String stockFilter,
+            Integer stockMin) throws JSONException {
         List<VenteDetailsDTO> datas = geVingtQuatreVingt(dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType, topN);
+                true, vingtQuatreVingtType, topN, stockFilter, stockMin);
         if (datas.isEmpty()) {
             return new byte[0];
         }
 
-        String[] headers = { "CIP", "Libellé", "Montant", "Marge", "Quantité", "Stock", "Famille" };
+        String[] headers = { "CIP", "Libellé", "Montant", "Marge", "Quantité", "Stock", "RES", "Stock total",
+                "Famille" };
         String title = "Rapport 20/80 du " + dtStart + " au " + dtEnd;
 
         try {
@@ -1115,8 +1190,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                 row.createCell(col++).setCellValue(d.getMarge());
                 row.createCell(col++).setCellValue(d.getIntQUANTITY());
                 row.createCell(col++).setCellValue(d.getIntQUANTITYSERVED());
+                row.createCell(col++).setCellValue(d.getStockReserve());
+                row.createCell(col++).setCellValue(d.getStockTotal());
                 row.createCell(col++).setCellValue(d.getTicketName());
-                row.createCell(col++).setCellValue(d.getMarge());
             });
         } catch (IOException e) {
             // LOG.log(Level.SEVERE, "buildVingtQuatreVingtExcel error", e);
@@ -1126,21 +1202,24 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public byte[] buildVingtQuatreVingtCsv(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException {
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN, String stockFilter,
+            Integer stockMin) throws JSONException {
         List<VenteDetailsDTO> datas = geVingtQuatreVingt(dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType, topN);
+                true, vingtQuatreVingtType, topN, stockFilter, stockMin);
         if (datas.isEmpty()) {
             return new byte[0];
         }
 
-        String[] headers = { "CIP", "Libellé", "Montant", "Marge", "Quantité", "Stock", "Famille" };
+        String[] headers = { "CIP", "Libellé", "Montant", "Marge", "Quantité", "Stock", "RES", "Stock total",
+                "Famille" };
         String title = "Rapport 20/80 du " + dtStart + " au " + dtEnd;
 
         try {
             byte[] raw = csvExportService.createCsvReport(title, headers, datas,
                     d -> new String[] { d.getIntCIP(), d.getStrNAME(), String.valueOf(d.getIntPRICE()),
                             String.valueOf(d.getMarge()), String.valueOf(d.getIntQUANTITY()),
-                            String.valueOf(d.getIntQUANTITYSERVED()), d.getTicketName() });
+                            String.valueOf(d.getIntQUANTITYSERVED()), String.valueOf(d.getStockReserve()),
+                            String.valueOf(d.getStockTotal()), d.getTicketName() });
             return csvExportService.addUtf8Bom(raw);
         } catch (IOException e) {
             // LOG.log(Level.SEVERE, "buildVingtQuatreVingtCsv error", e);
@@ -1150,12 +1229,12 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public JSONObject createInventaireVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile,
-            String codeRayon, String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN)
-            throws JSONException {
+            String codeRayon, String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN,
+            String stockFilter, Integer stockMin) throws JSONException {
 
         // Récupère le 20/80 correspondant aux filtres (limité au Top N si demandé)
         List<VenteDetailsDTO> data = geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType, topN);
+                true, vingtQuatreVingtType, topN, stockFilter, stockMin);
 
         if (data.isEmpty()) {
             return new JSONObject().put("count", 0);

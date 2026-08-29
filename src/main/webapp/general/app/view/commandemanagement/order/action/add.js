@@ -399,10 +399,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
                                 },
                                 {
-                                    text: 'Ajouter un nouvel article',
+                                    /* Visible en permanence : avant, la creation n'apparaissait que via la
+                                     * pseudo-ligne « Cliquez ici pour creer un nouvel article » de la recherche. */
+                                    text: 'Cr&eacute;er un produit',
                                     id: 'btn_add_article',
+                                    cls: 'btn-primaryb',
+                                    iconCls: 'addicon',
+                                    tooltip: 'Creer un nouveau produit (grossiste de la commande prerempli)',
                                     margins: '0 0 0 6',
-                                    hidden: true,
                                     xtype: 'button',
                                     handler: this.onbtnaddArticle
                                 },

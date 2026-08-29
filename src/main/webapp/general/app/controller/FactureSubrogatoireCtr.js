@@ -46,6 +46,13 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
         }
 
         , {
+            ref: 'typeTiersPayantId',
+            selector: 'facturesubrogatoireother #typeTiersPayantId'
+        }, {
+            ref: 'groupeId',
+            selector: 'facturesubrogatoireother #groupeId'
+        }
+        , {
             ref: 'montant',
             selector: 'facturesubrogatoireother #montant'
         }
@@ -79,8 +86,20 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
             'facturesubrogatoireother #query': {
                 specialkey: this.onSpecialKey
             },
+            'facturesubrogatoireother #typeTiersPayantId': {
+                select: this.doSearch
+            },
+            'facturesubrogatoireother #groupeId': {
+                select: this.doSearch
+            },
             'facturesubrogatoireother #printable': {
                 click: this.onPdfClick
+            },
+            'facturesubrogatoireother #printable #printSimple': {
+                click: this.onPdfClick
+            },
+            'facturesubrogatoireother #printable #printProduits': {
+                click: this.onPdfProduitsClick
             }
         });
     },
@@ -115,6 +134,8 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
         myProxy.setExtraParam('tiersPayantId', me.getTiersPayantId().getValue());
         myProxy.setExtraParam('hStart', me.getHStart().getSubmitValue());
         myProxy.setExtraParam('hEnd', me.getHEnd().getSubmitValue());
+        myProxy.setExtraParam('typeTiersPayantId', me.getTypeTiersPayantId().getValue());
+        myProxy.setExtraParam('groupeId', me.getGroupeId().getValue());
 
     },
 
@@ -133,7 +154,9 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
                 "dtEnd": me.getDtEnd().getSubmitValue(),
                 "tiersPayantId": me.getTiersPayantId().getValue(),
                 "hStart": me.getHStart().getSubmitValue(),
-                "hEnd": me.getHEnd().getSubmitValue()
+                "hEnd": me.getHEnd().getSubmitValue(),
+                "typeTiersPayantId": me.getTypeTiersPayantId().getValue(),
+                "groupeId": me.getGroupeId().getValue()
             }
         });
     },
@@ -148,25 +171,28 @@ Ext.define('testextjs.controller.FactureSubrogatoireCtr', {
         me.getNbreBonSug().setValue(rec.nbreBon);
 
     },
-    onPdfClick: function () {
+    buildPdfUrl: function (mode) {
         const me = this;
-        const dtStart = me.getDtStart().getSubmitValue();
-        const dtEnd = me.getDtEnd().getSubmitValue();
-        let tiersPayantId = me.getTiersPayantId().getValue();
-        let hStart = me.getHStart().getSubmitValue();
-        let  hEnd = me.getHEnd().getSubmitValue();
-        if (hStart == null) {
-            hStart = '';
-        }
-        if (hEnd == null) {
-            hEnd = '';
-        }
-        if (tiersPayantId == null) {
-            tiersPayantId = '';
-        }
-        let query = me.getQueryField().getValue();
-        let linkUrl = '../ListBonsServlet?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&tiersPayantId=' + tiersPayantId + '&query=' + query + '&hStart=' + hStart + '&hEnd=' + hEnd;
-        window.open(linkUrl);
+        const valeur = function (v) {
+            return (v === null || v === undefined) ? '' : v;
+        };
+        return '../ListBonsServlet?dtStart=' + me.getDtStart().getSubmitValue()
+                + '&dtEnd=' + me.getDtEnd().getSubmitValue()
+                + '&tiersPayantId=' + valeur(me.getTiersPayantId().getValue())
+                + '&query=' + valeur(me.getQueryField().getValue())
+                + '&hStart=' + valeur(me.getHStart().getSubmitValue())
+                + '&hEnd=' + valeur(me.getHEnd().getSubmitValue())
+                + '&typeTiersPayantId=' + valeur(me.getTypeTiersPayantId().getValue())
+                + '&groupeId=' + valeur(me.getGroupeId().getValue())
+                + '&mode=' + (mode || '');
+    },
+    /* Liste simple : la liste actuelle. Si un groupe est filtré, le serveur
+     * bascule de lui-même sur l'édition regroupée par groupe. */
+    onPdfClick: function () {
+        window.open(this.buildPdfUrl(''));
+    },
+    /* Liste avec produits : chaque bon est suivi de ses produits (lot 3). */
+    onPdfProduitsClick: function () {
+        window.open(this.buildPdfUrl('produits'));
     }
 });

@@ -17,6 +17,8 @@ public class AbcProduitDTO {
     private String codeGeoArticle;
     private String grossisteId;
     private int stockDisponible;
+    /** Stock en reserve (t_type_stock_famille type '2'). */
+    private int stockReserve;
     private int seuilMini;
     private int quantiteReappro;
     private long quantiteVendue;
@@ -109,6 +111,19 @@ public class AbcProduitDTO {
 
     public void setStockDisponible(int stockDisponible) {
         this.stockDisponible = stockDisponible;
+    }
+
+    public int getStockReserve() {
+        return stockReserve;
+    }
+
+    public void setStockReserve(int stockReserve) {
+        this.stockReserve = stockReserve;
+    }
+
+    /** Stock total = stock disponible (rayon) + stock reserve. Serialise vers la grille comme les autres getters. */
+    public int getStockTotal() {
+        return stockDisponible + stockReserve;
     }
 
     public int getSeuilMini() {

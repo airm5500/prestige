@@ -199,10 +199,43 @@ Ext.define('testextjs.controller.PendingCtr', {
         });
     },
 
+    /*
+     * Rappel d'une vente en attente (lot 3) : on demande d'abord le verrou au
+     * serveur. Si une autre caisse detient deja la vente, on previent et on
+     * n'ouvre pas ; si elle a ete validee entre temps, on rafraichit la liste.
+     * La protection absolue contre la double validation reste cote serveur, a
+     * la cloture.
+     */
     onEdite: function (rec) {
-        var data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'VENTE'};
-        var xtype = "doventemanager";
-        testextjs.app.getController('App').onRedirectTo(xtype, data);
+        var me = this;
+        var venteId = rec.get('lgPREENREGISTREMENTID');
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/vente/rappel/' + venteId,
+            success: function (response) {
+                var result = Ext.JSON.decode(response.responseText, true) || {};
+                if (!result.success) {
+                    Ext.MessageBox.show({
+                        title: 'Vente déjà rappelée',
+                        width: 480,
+                        msg: result.msg || 'Cette vente est déjà ouverte sur un autre poste',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.WARNING
+                    });
+                    if (result.cloturee) {
+                        me.doSearch();
+                    }
+                    return;
+                }
+                var data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'VENTE'};
+                testextjs.app.getController('App').onRedirectTo("doventemanager", data);
+            },
+            failure: function () {
+                // serveur injoignable : on n'empeche pas le travail, la garde de cloture protege
+                var data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'VENTE'};
+                testextjs.app.getController('App').onRedirectTo("doventemanager", data);
+            }
+        });
     },
     doBeforechange: function (page, currentPage) {
         var me = this;

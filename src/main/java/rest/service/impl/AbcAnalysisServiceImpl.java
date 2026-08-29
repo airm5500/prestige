@@ -176,7 +176,49 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             LOG.log(Level.SEVERE, "Erreur classification ABC", e);
             return Collections.emptyList();
         }
+        enrichStockReserve(list, emplacement);
         return list;
+    }
+
+    /**
+     * Complete chaque ligne avec son stock reserve (une seule requete). Fait ici, dans classifyForEmplacement, pour que
+     * tous les consommateurs (grille, PDF, exports, feuille de match, suggestion, inventaire) voient le meme stock
+     * total sans toucher aux procedures stockees.
+     */
+    private void enrichStockReserve(List<AbcProduitDTO> list, String emplacement) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        try {
+            String sql = "SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER),0) FROM t_type_stock_famille t"
+                    + " WHERE t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'";
+            boolean filtreEmpl = StringUtils.isNotBlank(emplacement);
+            if (filtreEmpl) {
+                sql += " AND t.lg_EMPLACEMENT_ID = :empl";
+            }
+            sql += " GROUP BY t.lg_FAMILLE_ID";
+            Query q = em.createNativeQuery(sql);
+            if (filtreEmpl) {
+                q.setParameter("empl", emplacement);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            Map<String, Integer> reserves = new HashMap<>();
+            for (Object[] r : rows) {
+                reserves.put(asStr(r[0]), asInt(r[1]));
+            }
+            if (reserves.isEmpty()) {
+                return;
+            }
+            for (AbcProduitDTO d : list) {
+                Integer res = reserves.get(d.getProduitId());
+                if (res != null) {
+                    d.setStockReserve(res);
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Enrichissement stock reserve ABC impossible", e);
+        }
     }
 
     private boolean matchSearch(AbcProduitDTO d, String search) {
@@ -194,7 +236,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         if (StringUtils.isBlank(stockFilter) || "ALL".equalsIgnoreCase(stockFilter)) {
             return true;
         }
-        int stock = d.getStockDisponible();
+        // Le filtre porte sur le stock TOTAL (rayon + reserve) — demande lot 3
+        int stock = d.getStockTotal();
         int val = (min != null) ? min : 0; // valeur libre saisie par l'utilisateur
         switch (stockFilter.trim().toUpperCase()) {
         // Operateurs avec valeur libre
@@ -484,8 +527,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     private static final int EXPORT_MONTHS = 7;
 
     private static final String[] EXPORT_HEADERS = { "CIP", "EAN", "Libellé", "Classe", "Famille", "Rayon", "Code Geo",
-            "Stock", "Seuil", "Qté réappro", "Qté vendue", "CA", "Marge", "Part %", "Cumul %", "Q1", "Q2", "Q3",
-            "Unité", "Conso M", "Conso M-1", "Conso M-2", "Conso M-3", "Conso M-4", "Conso M-5", "Conso M-6" };
+            "Stock", "RES", "Stock total", "Seuil", "Qté réappro", "Qté vendue", "CA", "Marge", "Part %", "Cumul %",
+            "Q1", "Q2", "Q3", "Unité", "Conso M", "Conso M-1", "Conso M-2", "Conso M-3", "Conso M-4", "Conso M-5",
+            "Conso M-6" };
 
     private static long consoAt(AbcProduitDTO d, int i) {
         long[] c = d.getConsoMois();
@@ -514,6 +558,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                         row.createCell(col++).setCellValue(nz(d.getRayon()));
                         row.createCell(col++).setCellValue(nz(d.getCodeGeoArticle()));
                         row.createCell(col++).setCellValue(d.getStockDisponible());
+                        row.createCell(col++).setCellValue(d.getStockReserve());
+                        row.createCell(col++).setCellValue(d.getStockTotal());
                         row.createCell(col++).setCellValue(d.getSeuilMini());
                         row.createCell(col++).setCellValue(d.getQuantiteReappro());
                         row.createCell(col++).setCellValue(d.getQuantiteVendue());
@@ -557,6 +603,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                         v.add(nz(d.getRayon()));
                         v.add(nz(d.getCodeGeoArticle()));
                         v.add(String.valueOf(d.getStockDisponible()));
+                        v.add(String.valueOf(d.getStockReserve()));
+                        v.add(String.valueOf(d.getStockTotal()));
                         v.add(String.valueOf(d.getSeuilMini()));
                         v.add(String.valueOf(d.getQuantiteReappro()));
                         v.add(String.valueOf(d.getQuantiteVendue()));
@@ -588,8 +636,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
         enrichWithConso(rows, EXPORT_MONTHS);
 
-        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Q.réa", "M", "M-1", "M-2",
-                "M-3", "CA", "Marge", "Part %", "Cumul %" };
+        // « Stock T. » = stock TOTAL (rayon + reserve) — remplace l'ancien stock rayon (lot 3)
+        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock T.", "Seuil", "Q.réa", "M", "M-1",
+                "M-2", "M-3", "CA", "Marge", "Part %", "Cumul %" };
         // Libelle large (nom sur 1 ligne) ; CA/Marge/Stock/Seuil/Part/Cumul reduits
         // pour loger Qte reappro + conso M..M-3.
         float[] widths = { 5f, 18f, 3f, 9f, 8f, 4f, 4f, 4.5f, 4f, 4f, 4f, 4f, 6.5f, 5.5f, 4.5f, 4.5f };
@@ -630,7 +679,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 table.addCell(cl);
                 table.addCell(new PdfPCell(new Phrase(nz(d.getFamille()), cellFont)));
                 table.addCell(new PdfPCell(new Phrase(nz(d.getRayon()), cellFont)));
-                table.addCell(rightCell(String.valueOf(d.getStockDisponible()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getStockTotal()), cellFont));
                 table.addCell(rightCell(String.valueOf(d.getSeuilMini()), cellFont));
                 table.addCell(rightCell(String.valueOf(d.getQuantiteReappro()), cellFont));
                 table.addCell(rightCell(String.valueOf(consoAt(d, 0)), cellFont));

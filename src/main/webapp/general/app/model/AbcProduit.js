@@ -13,6 +13,8 @@ Ext.define('testextjs.model.AbcProduit', {
         {name: 'codeGeoArticle', type: 'string'},
         {name: 'grossisteId', type: 'string'},
         {name: 'stockDisponible', type: 'int'},
+        {name: 'stockReserve', type: 'int'},
+        {name: 'stockTotal', type: 'int'},
         {name: 'seuilMini', type: 'int'},
         {name: 'quantiteReappro', type: 'int'},
         {name: 'quantiteVendue', type: 'number'},

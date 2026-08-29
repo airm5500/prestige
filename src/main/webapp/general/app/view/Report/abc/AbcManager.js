@@ -228,6 +228,9 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     xtype: 'gridpanel',
                     store: data,
                     sortableColumns: false,
+                    /* Memorisation des colonnes par poste (voir app.js) */
+                    stateful: true,
+                    stateId: 'grille-classification-abc',
                     viewConfig: {columnLines: true},
                     columns: [
                         {header: 'Id', width: 40, xtype: 'rownumberer'},
@@ -242,7 +245,11 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {header: 'Famille', dataIndex: 'famille', flex: 1},
                         {header: 'Rayon', dataIndex: 'rayon', flex: 1},
                         {header: 'Code Geo', dataIndex: 'codeGeoArticle', width: 100, hidden: true},
-                        {header: 'Stock', dataIndex: 'stockDisponible', width: 70, align: 'right', renderer: moneyRenderer},
+                        /* Lot 3 : seul le stock TOTAL est visible par defaut — rayon et reserve
+                         * restent cochables dans le menu de colonnes. */
+                        {header: 'Stock', dataIndex: 'stockDisponible', width: 70, align: 'right', renderer: moneyRenderer, hidden: true},
+                        {header: 'RES', dataIndex: 'stockReserve', width: 60, align: 'right', renderer: moneyRenderer, hidden: true},
+                        {header: 'Stock total', dataIndex: 'stockTotal', width: 80, align: 'right', renderer: moneyRenderer},
                         {header: 'Seuil', dataIndex: 'seuilMini', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté réappro', dataIndex: 'quantiteReappro', width: 80, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 80, align: 'right',

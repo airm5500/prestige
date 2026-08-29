@@ -142,6 +142,26 @@ requires: [
             }
 
         });
+        /* Lot 3 : filtres par type et par groupe de tiers payant */
+        const storeTypeTp = new Ext.data.Store({
+            fields: ['lg_TYPE_TIERS_PAYANT_ID', 'str_LIBELLE_TYPE_TIERS_PAYANT'],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/tierspayant/types',
+                reader: {type: 'json', root: 'results', totalProperty: 'total'}
+            }
+        });
+        const storeGroupeTp = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            autoLoad: false,
+            pageSize: 9999,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/groupetierspayant',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
         const me = this;
         Ext.apply(me, {
             dockedItems: [
@@ -224,6 +244,30 @@ requires: [
 
                             }
                         }, '-', {
+                            /* Lot 3 : filtre par type de tiers payant */
+                            xtype: 'combobox',
+                            itemId: 'typeTiersPayantId',
+                            flex: 1,
+                            store: storeTypeTp,
+                            valueField: 'lg_TYPE_TIERS_PAYANT_ID',
+                            displayField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
+                            queryMode: 'remote',
+                            editable: false,
+                            emptyText: 'Type de tiers payant...',
+                            triggerAction: 'all'
+                        }, '-', {
+                            /* Lot 3 : filtre par groupe de tiers payant */
+                            xtype: 'combobox',
+                            itemId: 'groupeId',
+                            flex: 1,
+                            store: storeGroupeTp,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            queryMode: 'remote',
+                            editable: false,
+                            emptyText: 'Groupe de tiers payant...',
+                            triggerAction: 'all'
+                        }, '-', {
                             text: 'rechercher',
                             itemId: 'rechercher',
                             tooltip: 'rechercher',
@@ -231,11 +275,27 @@ requires: [
                             iconCls: 'searchicon'
 //                    handler: this.onRechClick
                         }, {
+                            /* Lot 3 : deux editions — la liste actuelle et la liste avec produits */
+                            xtype: 'splitbutton',
                             text: 'Imprimer',
                             tooltip: 'imprimer',
                             scope: this,
                             iconCls: 'printable',
-                            itemId: 'printable'
+                            itemId: 'printable',
+                            menu: [
+                                {
+                                    text: 'Liste simple',
+                                    itemId: 'printSimple',
+                                    iconCls: 'printable',
+                                    tooltip: 'La liste actuelle : une ligne par bon'
+                                },
+                                {
+                                    text: 'Liste avec produits',
+                                    itemId: 'printProduits',
+                                    iconCls: 'printable',
+                                    tooltip: 'Chaque bon suivi de ses produits'
+                                }
+                            ]
                         }]
 
                 },

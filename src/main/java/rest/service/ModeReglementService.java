@@ -13,4 +13,13 @@ public interface ModeReglementService {
     List<ModeReglementTDO> fetchAll();
 
     JSONObject fetch();
+
+    /**
+     * Clients standards par defaut des modes mobile money (lot 3) : un par mode qui en a un de parametre. Sert au volet
+     * « selection rapide » de la fenetre client a la vente.
+     */
+    JSONObject clientsMobileMoney();
+
+    /** Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. */
+    JSONObject setClientDefaut(String modeReglementId, String clientId);
 }

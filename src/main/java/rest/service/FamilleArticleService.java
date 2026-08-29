@@ -32,8 +32,14 @@ public interface FamilleArticleService {
             String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
             Integer topN);
 
+    /** Variante avec filtre sur le stock TOTAL (rayon + reserve), operateurs identiques a la classification ABC. */
+    List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
+            Integer topN, String stockFilter, Integer stockMin);
+
     JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN);
+            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN,
+            String stockFilter, Integer stockMin);
 
     Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParRayons(String dtStart, String dtEnd,
             String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
@@ -54,12 +60,15 @@ public interface FamilleArticleService {
             String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 
     byte[] buildVingtQuatreVingtExcel(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN, String stockFilter,
+            Integer stockMin) throws JSONException;
 
     byte[] buildVingtQuatreVingtCsv(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN, String stockFilter,
+            Integer stockMin) throws JSONException;
 
     JSONObject createInventaireVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN, String stockFilter,
+            Integer stockMin) throws JSONException;
 
 }

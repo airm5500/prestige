@@ -169,6 +169,24 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Verrou de rappel d'une vente en attente (lot 3) : a appeler AVANT d'ouvrir la vente sur un poste. */
+    @POST
+    @Path("rappel/{id}")
+    public Response rappelerVenteEnAttente(@PathParam("id") String id) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        return Response.ok().entity(salesService.rappelerVenteEnAttente(id, tu).toString()).build();
+    }
+
+    /** Liberation du verrou de rappel (remise en attente, sortie d'ecran). */
+    @PUT
+    @Path("rappel/liberer/{id}")
+    public Response libererRappelVente(@PathParam("id") String id) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        return Response.ok().entity(salesService.libererRappelVente(id, tu).toString()).build();
+    }
+
     @POST
     @Path("net/vno")
     public Response netPayer(SalesParams params) throws JSONException {

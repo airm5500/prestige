@@ -864,6 +864,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     minChars: 3,
                                                     margin: '0 0 3 0',
                                                     triggerAction: 'all'
+                                                },
+                                                {
+                                                    /* Vente comptant en especes : associer un client standard
+                                                     * (facultatif) — les autres modes le demandent deja d'office. */
+                                                    xtype: 'button',
+                                                    itemId: 'btnClientComptant',
+                                                    text: 'ASSOCIER UN CLIENT',
+                                                    iconCls: 'addicon',
+                                                    cls: 'btn-primaryb',
+                                                    tooltip: 'Associer un client standard a cette vente en especes (facultatif)',
+                                                    maxWidth: 190,
+                                                    margin: '0 0 3 0'
                                                 }
                                             ]
                                         },

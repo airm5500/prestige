@@ -65,11 +65,12 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN,
+            @QueryParam(value = "stockFilter") String stockFilter, @QueryParam(value = "stockMin") Integer stockMin)
             throws JSONException {
 
         JSONObject jsono = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, 0, 0, vingtQuatreVingtType, topN);
+                codeGrossiste, 0, 0, vingtQuatreVingtType, topN, stockFilter, stockMin);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -79,11 +80,12 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN,
+            @QueryParam(value = "stockFilter") String stockFilter, @QueryParam(value = "stockMin") Integer stockMin)
             throws JSONException {
 
         List<VenteDetailsDTO> datas = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, 0, 0, true, vingtQuatreVingtType, topN);
+                codeGrossiste, 0, 0, true, vingtQuatreVingtType, topN, stockFilter, stockMin);
         JSONObject jsono = suggestionService.makeSuggestion(datas);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -146,10 +148,11 @@ public class FamilleArticleRessource {
             @QueryParam("dtEnd") String dtEnd, @QueryParam("codeFamillle") String codeFamillle,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
-            @QueryParam(value = "topN") Integer topN) throws JSONException {
+            @QueryParam(value = "topN") Integer topN, @QueryParam(value = "stockFilter") String stockFilter,
+            @QueryParam(value = "stockMin") Integer stockMin) throws JSONException {
 
         byte[] data = familleArticleService.buildVingtQuatreVingtExcel(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, vingtQuatreVingtType, topN);
+                codeGrossiste, vingtQuatreVingtType, topN, stockFilter, stockMin);
 
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"vingtQuatreVingt.xls\"").build();
     }
@@ -161,10 +164,11 @@ public class FamilleArticleRessource {
             @QueryParam("codeFamillle") String codeFamillle, @QueryParam("codeRayon") String codeRayon,
             @QueryParam("codeGrossiste") String codeGrossiste,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
-            @QueryParam(value = "topN") Integer topN) throws JSONException {
+            @QueryParam(value = "topN") Integer topN, @QueryParam(value = "stockFilter") String stockFilter,
+            @QueryParam(value = "stockMin") Integer stockMin) throws JSONException {
 
         byte[] data = familleArticleService.buildVingtQuatreVingtCsv(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, vingtQuatreVingtType, topN);
+                codeGrossiste, vingtQuatreVingtType, topN, stockFilter, stockMin);
 
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"vingtQuatreVingt.csv\"").build();
     }
@@ -175,11 +179,12 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN,
+            @QueryParam(value = "stockFilter") String stockFilter, @QueryParam(value = "stockMin") Integer stockMin)
             throws JSONException {
 
         JSONObject jsono = familleArticleService.createInventaireVingtQuatreVingt(dtStart, dtEnd, codeFamillle,
-                codeRayon, codeGrossiste, vingtQuatreVingtType, topN);
+                codeRayon, codeGrossiste, vingtQuatreVingtType, topN, stockFilter, stockMin);
 
         return Response.ok().entity(jsono.toString()).build();
     }

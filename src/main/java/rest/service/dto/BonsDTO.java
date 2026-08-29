@@ -34,6 +34,8 @@ public class BonsDTO {
     private String strNUMEROSECURITESOCIAL;
     private String lg_PREENREGISTREMENT_ID;
     private String typeTiersPayant;
+    /** Libelle du groupe de tiers payant (vide si le tiers payant n'a pas de groupe) — lot 3. */
+    private String groupeLibelle;
 
     /**
      * Date et heure du bon reunies : "05/08/2026 10:20".

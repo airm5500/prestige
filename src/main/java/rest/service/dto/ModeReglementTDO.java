@@ -43,4 +43,24 @@ public class ModeReglementTDO {
         this.qrCode = qrCode;
     }
 
+    /** Client standard par defaut du mode (mobile money) — lot 3. */
+    private String clientDefautId;
+    private String clientDefautNom;
+
+    public String getClientDefautId() {
+        return clientDefautId;
+    }
+
+    public void setClientDefautId(String clientDefautId) {
+        this.clientDefautId = clientDefautId;
+    }
+
+    public String getClientDefautNom() {
+        return clientDefautNom;
+    }
+
+    public void setClientDefautNom(String clientDefautNom) {
+        this.clientDefautNom = clientDefautNom;
+    }
+
 }

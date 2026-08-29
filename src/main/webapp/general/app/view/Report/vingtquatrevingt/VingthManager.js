@@ -20,6 +20,8 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 {name: 'intQUANTITY', type: 'number'},
                 {name: 'strNAME', type: 'string'},
                 {name: 'intQUANTITYSERVED', type: 'number'},
+                {name: 'stockReserve', type: 'number'},
+                {name: 'stockTotal', type: 'number'},
                 {name: 'marge', type: 'number'},
                 {name: 'intPRICE', type: 'number'}
 
@@ -138,6 +140,22 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 {id: 'MARGE', libelle: "Marge"}
             ]
         });
+        /* Filtre stock (lot 3), memes operateurs que la classification ABC — sans
+         * les operateurs de seuil, absents des donnees 20/80. Porte sur le stock TOTAL. */
+        const filtreStock = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [
+                {id: 'ALL', libelle: 'Tous les stocks'},
+                {id: 'SUP', libelle: 'Stock supérieur à'},
+                {id: 'SUPEQ', libelle: 'Stock supérieur ou égal à'},
+                {id: 'INF', libelle: 'Stock inférieur à'},
+                {id: 'INFEQ', libelle: 'Stock inférieur ou égal à'},
+                {id: 'EGAL', libelle: 'Stock égal à'},
+                {id: 'POSITIF', libelle: 'Stock positif'},
+                {id: 'NUL', libelle: 'Stock nul'},
+                {id: 'NEGATIF', libelle: 'Stock négatif'}
+            ]
+        });
         const me = this;
         Ext.applyIf(me, {
             dockedItems: [
@@ -232,6 +250,56 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             displayField: 'libelle'
                         },
                         {
+                            /* Filtre stock (lot 3) : identique a la classification ABC, applique
+                             * sur le stock TOTAL (rayon + reserve) cote serveur. */
+                            xtype: 'combo',
+                            value: 'ALL',
+                            flex: 1,
+                            itemId: 'comboStock',
+                            labelWidth: 1,
+                            editable: false,
+                            store: filtreStock,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            listeners: {
+                                select: function (cmp) {
+                                    const op = cmp.getValue();
+                                    const champ = cmp.up('toolbar').down('#stockValue');
+                                    const avecValeur = ['SUP', 'SUPEQ', 'INF', 'INFEQ', 'EGAL'].indexOf(op) !== -1;
+                                    champ.setVisible(avecValeur);
+                                    if (!avecValeur) {
+                                        champ.setValue(null);
+                                        const btn = cmp.up('toolbar').down('#rechercher');
+                                        if (btn) {
+                                            btn.fireEvent('click', btn);
+                                        }
+                                    } else {
+                                        champ.focus(true, 50);
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'numberfield',
+                            itemId: 'stockValue',
+                            width: 90,
+                            hidden: true,
+                            hideLabel: true,
+                            allowDecimals: false,
+                            margin: '0 5 0 0',
+                            emptyText: 'Valeur',
+                            listeners: {
+                                specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        const btn = f.up('toolbar').down('#rechercher');
+                                        if (btn) {
+                                            btn.fireEvent('click', btn);
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
                             xtype: 'numberfield',
                             itemId: 'topN',
                             width: 90,
@@ -321,6 +389,9 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 {
                     xtype: 'gridpanel',
                     store: data,
+                    /* Memorisation des colonnes par poste (voir app.js) */
+                    stateful: true,
+                    stateId: 'grille-vingt-quatre-vingt',
                     viewConfig: {
                         forceFit: true,
                         columnLines: true
@@ -386,9 +457,31 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
 
 
                         },
+                        /* Lot 3 : seul le stock TOTAL est visible par defaut — rayon et
+                         * reserve restent cochables dans le menu de colonnes. */
                         {
                             header: 'Stock',
                             dataIndex: 'intQUANTITYSERVED',
+                            align: 'right',
+                            hidden: true,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            },
+                            flex: 0.5
+                        },
+                        {
+                            header: 'RES',
+                            dataIndex: 'stockReserve',
+                            align: 'right',
+                            hidden: true,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            },
+                            flex: 0.5
+                        },
+                        {
+                            header: 'Stock total',
+                            dataIndex: 'stockTotal',
                             align: 'right',
                             renderer: function (v) {
                                 return Ext.util.Format.number(v, '0,000.');
@@ -442,7 +535,9 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 grossisteCmp = me.down('#grossiste'),
                 familleCmp = me.down('#codeFamile'),
                 comboVingtCmp = me.down('#comboVingt'),
-                topNCmp = me.down('#topN');
+                topNCmp = me.down('#topN'),
+                comboStockCmp = me.down('#comboStock'),
+                stockValueCmp = me.down('#stockValue');
 
         return {
             dtStart: dtStartCmp ? dtStartCmp.getSubmitValue() : null,
@@ -452,7 +547,9 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
             codeGrossiste: (grossisteCmp && grossisteCmp.getValue()) ? grossisteCmp.getValue() : '',
             // true si "Quantite", false si "Chiffre d'Affaires"
             vingtType: comboVingtCmp.getValue(),
-            topN: (topNCmp && topNCmp.getValue()) ? topNCmp.getValue() : ''
+            topN: (topNCmp && topNCmp.getValue()) ? topNCmp.getValue() : '',
+            stockFilter: (comboStockCmp && comboStockCmp.getValue()) ? comboStockCmp.getValue() : 'ALL',
+            stockMin: (stockValueCmp && stockValueCmp.getValue() !== null) ? stockValueCmp.getValue() : ''
         };
     },
 

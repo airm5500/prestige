@@ -574,6 +574,11 @@ public class VenteDetailsDTO implements Serializable {
         this.intQUANTITYSERVED = intQUANTITYSERVED;
     }
 
+    /** Stock total = stock rayon (intQUANTITYSERVED sur le 20/80) + stock reserve (champ plus bas). */
+    public Integer getStockTotal() {
+        return (intQUANTITYSERVED == null ? 0 : intQUANTITYSERVED) + getStockReserve();
+    }
+
     public Integer getIntPRICE() {
         return intPRICE;
     }

@@ -116,6 +116,14 @@ public class TPreenregistrement implements Serializable {
     private Integer intSENDTOSUGGESTION;
     @Column(name = "b_IS_CANCEL")
     private Boolean bISCANCEL;
+    // Verrou de rappel des ventes en attente (lot 3) : nom de la caisse qui a
+    // rappele la vente et heure du rappel. Libere a la cloture, a la remise en
+    // attente ou a la sortie d'ecran ; expire apres un delai cote service.
+    @Column(name = "str_RAPPEL_PAR", length = 120)
+    private String strRAPPELPAR;
+    @Column(name = "dt_RAPPEL_LE")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dtRAPPELLE;
     @Column(name = "str_FIRST_NAME_CUSTOMER", length = 70)
     private String strFIRSTNAMECUSTOMER;
     @Column(name = "str_LAST_NAME_CUSTOMER", length = 70)
@@ -488,6 +496,22 @@ public class TPreenregistrement implements Serializable {
 
     public void setBISCANCEL(Boolean bISCANCEL) {
         this.bISCANCEL = bISCANCEL;
+    }
+
+    public String getStrRAPPELPAR() {
+        return strRAPPELPAR;
+    }
+
+    public void setStrRAPPELPAR(String strRAPPELPAR) {
+        this.strRAPPELPAR = strRAPPELPAR;
+    }
+
+    public Date getDtRAPPELLE() {
+        return dtRAPPELLE;
+    }
+
+    public void setDtRAPPELLE(Date dtRAPPELLE) {
+        this.dtRAPPELLE = dtRAPPELLE;
     }
 
     public String getStrFIRSTNAMECUSTOMER() {

@@ -43,4 +43,20 @@ public class ModeReglementRessource {
     public Response fetchAll() {
         return Response.ok(modeReglementService.fetch().toString()).build();
     }
+
+    /** Clients standards par defaut des modes mobile money (lot 3) — volet selection rapide de la vente. */
+    @GET
+    @Path("/clients-mobile-money")
+    public Response clientsMobileMoney() {
+        return Response.ok(modeReglementService.clientsMobileMoney().toString()).build();
+    }
+
+    /** Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. */
+    @javax.ws.rs.POST
+    @Path("/client-defaut/{modeId}")
+    @Consumes(MediaType.WILDCARD)
+    public Response setClientDefaut(@javax.ws.rs.PathParam("modeId") String modeId,
+            @javax.ws.rs.QueryParam("clientId") String clientId) {
+        return Response.ok(modeReglementService.setClientDefaut(modeId, clientId).toString()).build();
+    }
 }

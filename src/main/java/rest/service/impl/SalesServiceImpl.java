@@ -1756,12 +1756,121 @@ public class SalesServiceImpl implements SalesService {
     private Object[] verrouillerEtLireVente(EntityManager emg, String venteId) {
         try {
             Object ligne = emg
-                    .createNativeQuery("SELECT p.str_STATUT, p.copy FROM t_preenregistrement p"
+                    .createNativeQuery("SELECT p.str_STATUT, p.copy, p.lg_USER_ID,"
+                            + " DATE_FORMAT(p.dt_UPDATED, '%H:%i') FROM t_preenregistrement p"
                             + " WHERE p.lg_PREENREGISTREMENT_ID = ?1 FOR UPDATE")
                     .setParameter(1, venteId).getSingleResult();
-            return (ligne instanceof Object[]) ? (Object[]) ligne : new Object[] { ligne, Boolean.FALSE };
+            return (ligne instanceof Object[]) ? (Object[]) ligne : new Object[] { ligne, Boolean.FALSE, null, null };
         } catch (javax.persistence.NoResultException e) {
             return null;
+        }
+    }
+
+    /**
+     * Vente deja cloturee : reponse selon QUI redemande la cloture (lot 3).
+     *
+     * <p>
+     * Meme caissier : reponse idempotente (succes, rien n'est rejoue) — c'est le cas du double appui ou de la reprise
+     * apres coupure reseau, l'objectif « cloturer cette vente » est atteint.
+     *
+     * <p>
+     * Caissier DIFFERENT : refus explicite nommant qui a valide et quand. Lui rendre un succes lui ferait croire qu'il
+     * vient d'encaisser la vente alors qu'une autre caisse l'a deja fait — c'est exactement la double validation d'une
+     * vente en attente rappelee sur deux postes.
+     */
+    private JSONObject reponseSelonDemandeur(JSONObject json, String chemin, String venteId, Object[] etatVente,
+            TUser demandeur) {
+        String closerId = etatVente.length > 2 && etatVente[2] != null ? String.valueOf(etatVente[2]) : "";
+        String heure = etatVente.length > 3 && etatVente[3] != null ? String.valueOf(etatVente[3]) : "";
+        signalerDoubleCloture(chemin, venteId, etatVente[1], demandeur);
+        if (demandeur != null && demandeur.getLgUSERID() != null && demandeur.getLgUSERID().equals(closerId)) {
+            return reponseVenteDejaCloturee(json, venteId, etatVente[1]);
+        }
+        String nomCloseur = closerId;
+        try {
+            TUser closer = getEm().find(TUser.class, closerId);
+            if (closer != null) {
+                nomCloseur = closer.getStrFIRSTNAME() + " " + closer.getStrLASTNAME();
+            }
+        } catch (Exception e) {
+            // le nom est un confort : l'identifiant suffit si la lecture echoue
+        }
+        return json.put("success", false).put("dejaCloturee", true).put("msg",
+                "Cette vente a déjà été validée par " + nomCloseur + (heure.isEmpty() ? "" : " à " + heure)
+                        + ". Elle ne peut pas être validée une seconde fois.");
+    }
+
+    // ------------------------------------------------------------------
+    // Verrou de rappel des ventes en attente (lot 3) : une vente rappelee
+    // par une caisse est marquee (qui + quand) ; une autre caisse qui tente
+    // le rappel est prevenue et bloquee tant que le verrou n'est pas libere
+    // ou expire. La protection absolue contre la double validation reste la
+    // garde de cloture ci-dessus.
+    // ------------------------------------------------------------------
+    private static final int RAPPEL_EXPIRATION_MINUTES = 15;
+
+    private String libelleCaisse(TUser tu) {
+        if (tu == null) {
+            return "";
+        }
+        return StringUtils.trimToEmpty(tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME());
+    }
+
+    @Override
+    public JSONObject rappelerVenteEnAttente(String venteId, TUser tu) {
+        JSONObject json = new JSONObject();
+        try {
+            EntityManager emg = this.getEm();
+            Object[] etatVente = verrouillerEtLireVente(emg, venteId);
+            if (etatVente == null) {
+                return json.put("success", false).put("msg", "Vente introuvable");
+            }
+            if (Constant.STATUT_IS_CLOSED.equals(String.valueOf(etatVente[0]))) {
+                return json.put("success", false).put("cloturee", true).put("msg",
+                        "Cette vente a déjà été validée : elle n'est plus en attente.");
+            }
+            TPreenregistrement vente = emg.find(TPreenregistrement.class, venteId);
+            String demandeur = libelleCaisse(tu);
+            String detenteur = StringUtils.trimToEmpty(vente.getStrRAPPELPAR());
+            boolean verrouActif = StringUtils.isNotEmpty(detenteur) && vente.getDtRAPPELLE() != null
+                    && vente.getDtRAPPELLE().toInstant().isAfter(new Date().toInstant().minus(RAPPEL_EXPIRATION_MINUTES,
+                            java.time.temporal.ChronoUnit.MINUTES));
+            if (verrouActif && !detenteur.equals(demandeur)) {
+                return json.put("success", false).put("verrouillee", true).put("msg",
+                        "Caisse : " + detenteur + " a déjà rappelé cette vente");
+            }
+            vente.setStrRAPPELPAR(demandeur);
+            vente.setDtRAPPELLE(new Date());
+            emg.merge(vente);
+            return json.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rappelerVenteEnAttente " + venteId, e);
+            // En cas d'imprevu on n'empeche PAS le travail : le rappel passe sans verrou,
+            // la garde de cloture reste la protection absolue.
+            return json.put("success", true);
+        }
+    }
+
+    @Override
+    public JSONObject libererRappelVente(String venteId, TUser tu) {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement vente = this.getEm().find(TPreenregistrement.class, venteId);
+            if (vente == null) {
+                return json.put("success", true);
+            }
+            String demandeur = libelleCaisse(tu);
+            // On ne libere que son propre verrou : liberer celui d'une autre caisse
+            // rouvrirait la porte au double rappel.
+            if (StringUtils.isEmpty(vente.getStrRAPPELPAR()) || vente.getStrRAPPELPAR().equals(demandeur)) {
+                vente.setStrRAPPELPAR(null);
+                vente.setDtRAPPELLE(null);
+                this.getEm().merge(vente);
+            }
+            return json.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "libererRappelVente " + venteId, e);
+            return json.put("success", true);
         }
     }
 
@@ -1909,11 +2018,13 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
             if (Constant.STATUT_IS_CLOSED.equals(String.valueOf(etatVente[0]))) {
-                signalerDoubleCloture("/api/v1/vente/cloturer/assurance", venteId, etatVente[1],
+                return reponseSelonDemandeur(json, "/api/v1/vente/cloturer/assurance", venteId, etatVente,
                         clotureVenteParams.getUserId());
-                return reponseVenteDejaCloturee(json, venteId, etatVente[1]);
             }
             tp = emg.find(TPreenregistrement.class, venteId);
+            // La vente quitte l'attente : son verrou de rappel n'a plus de raison d'etre
+            tp.setStrRAPPELPAR(null);
+            tp.setDtRAPPELLE(null);
             if (tp.getCopy()) {
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
                 if (checkChargedCompteClientPreenregistrement(venteAsupprimer.getLgPREENREGISTREMENTID()).isPresent()
@@ -2170,11 +2281,13 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
             if (Constant.STATUT_IS_CLOSED.equals(String.valueOf(etatVente[0]))) {
-                signalerDoubleCloture("/api/v1/vente/cloturer/vno", venteId, etatVente[1],
+                return reponseSelonDemandeur(json, "/api/v1/vente/cloturer/vno", venteId, etatVente,
                         clotureVenteParams.getUserId());
-                return reponseVenteDejaCloturee(json, venteId, etatVente[1]);
             }
             tp = emg.find(TPreenregistrement.class, venteId);
+            // La vente quitte l'attente : son verrou de rappel n'a plus de raison d'etre
+            tp.setStrRAPPELPAR(null);
+            tp.setDtRAPPELLE(null);
             if (tp.getCopy()) {
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
                 // l'annulation automatique de la vente originale est attribuée à l'utilisateur

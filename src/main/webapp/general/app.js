@@ -865,6 +865,26 @@ Ext.application({
 });
 
 // ---------------------------------------------------------------------
+// Memorisation des colonnes PAR POSTE (lot 3) : les grilles declarees
+// « stateful » (avec un stateId stable) conservent colonnes affichees ou
+// masquees, largeurs, ordre et tri dans le stockage local du navigateur.
+// L'etat survit au changement de menu et a la deconnexion, et disparait
+// quand le cache du navigateur est vide — comportement demande.
+// Seules les grilles explicitement marquees sont concernees : aucune
+// grille existante ne change de comportement sans stateId.
+// ---------------------------------------------------------------------
+(function () {
+    try {
+        if (window.localStorage && Ext.state && Ext.state.LocalStorageProvider) {
+            Ext.state.Manager.setProvider(new Ext.state.LocalStorageProvider({prefix: 'prestige-'}));
+        }
+    } catch (e) {
+        // stockage local indisponible (navigation privee, quota...) :
+        // pas de memorisation, comportement d'origine
+    }
+})();
+
+// ---------------------------------------------------------------------
 // Centre de Support : capture automatique des erreurs frontend
 // (erreurs JavaScript non gerees et echecs Ajax). Les evenements sont
 // envoyes au journal du Centre de Support ou ils sont dedupliques par

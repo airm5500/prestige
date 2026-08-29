@@ -18,7 +18,10 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                     [
                         {name: 'id', type: 'string'},
                         {name: 'name', type: 'string'},
-                        {name: 'qrCode', type: 'auto'}
+                        {name: 'qrCode', type: 'auto'},
+                        {name: 'typeReglementId', type: 'string'},
+                        {name: 'clientDefautId', type: 'string'},
+                        {name: 'clientDefautNom', type: 'string'}
                     ],
             autoLoad: true,
             pageSize: 20,
@@ -46,6 +49,18 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
 
                 {text: 'ID', dataIndex: 'id', hidden: true},
                 {text: 'Nom', dataIndex: 'name', flex: 0.5},
+                {
+                    /* Lot 3 : client standard propose en selection rapide a la vente
+                     * quand ce mode mobile money est choisi. */
+                    text: 'Client par défaut (mobile money)',
+                    dataIndex: 'clientDefautNom',
+                    flex: 1,
+                    renderer: function (value) {
+                        return value
+                                ? '<span style="color:#1e7e34;font-weight:bold;">' + value + '</span>'
+                                : '<span style="color:#999;">aucun</span>';
+                    }
+                },
 
                 {
                     text: 'QR Code',
@@ -71,6 +86,103 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                     }
                 },
 
+                {
+                    /* Lot 3 : associer/retirer le client standard par defaut du mode */
+                    xtype: 'actioncolumn',
+                    width: 40,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/add16.gif',
+                            tooltip: 'Associer le client par défaut (mobile money)',
+                            handler: function (view, rowIndex, colIndex, item, e, rec, row) {
+                                const grid = this.up('grid');
+                                const storeClients = Ext.create('Ext.data.Store', {
+                                    model: 'testextjs.model.caisse.ClientLambda',
+                                    autoLoad: false,
+                                    pageSize: 20,
+                                    proxy: {
+                                        type: 'ajax',
+                                        url: '../api/v1/client/lambda',
+                                        reader: {type: 'json', root: 'data', totalProperty: 'total'}
+                                    }
+                                });
+                                const win = Ext.create('Ext.window.Window', {
+                                    title: 'Client par défaut — ' + rec.get('name'),
+                                    modal: true,
+                                    width: 560,
+                                    bodyPadding: 10,
+                                    items: [{
+                                            xtype: 'combobox',
+                                            itemId: 'clientDefautCombo',
+                                            fieldLabel: 'Client',
+                                            labelWidth: 60,
+                                            width: 520,
+                                            store: storeClients,
+                                            valueField: 'lgCLIENTID',
+                                            displayField: 'strFIRSTNAME',
+                                            queryMode: 'remote',
+                                            queryParam: 'query',
+                                            minChars: 2,
+                                            emptyText: 'Rechercher un client standard (2 caractères)...',
+                                            listConfig: {
+                                                getInnerTpl: function () {
+                                                    return '<span>{strFIRSTNAME} {strLASTNAME} — {strADRESSE}</span>';
+                                                }
+                                            },
+                                            listeners: {
+                                                afterrender: function (cmp) {
+                                                    cmp.focus(true, 100);
+                                                }
+                                            }
+                                        }],
+                                    buttons: [
+                                        {
+                                            text: 'Associer',
+                                            handler: function () {
+                                                const clientId = win.down('#clientDefautCombo').getValue();
+                                                if (!clientId) {
+                                                    Ext.Msg.alert('Message', 'Veuillez choisir le client');
+                                                    return;
+                                                }
+                                                Ext.Ajax.request({
+                                                    method: 'POST',
+                                                    url: '../api/v1/modereglement/client-defaut/' + rec.get('id')
+                                                            + '?clientId=' + encodeURIComponent(clientId),
+                                                    success: function () {
+                                                        win.destroy();
+                                                        grid.getStore().reload();
+                                                    }
+                                                });
+                                            }
+                                        },
+                                        {
+                                            text: 'Retirer',
+                                            hidden: !rec.get('clientDefautId'),
+                                            handler: function () {
+                                                Ext.Ajax.request({
+                                                    method: 'POST',
+                                                    url: '../api/v1/modereglement/client-defaut/' + rec.get('id')
+                                                            + '?clientId=',
+                                                    success: function () {
+                                                        win.destroy();
+                                                        grid.getStore().reload();
+                                                    }
+                                                });
+                                            }
+                                        },
+                                        {
+                                            text: 'Fermer',
+                                            handler: function () {
+                                                win.destroy();
+                                            }
+                                        }
+                                    ]
+                                });
+                                win.show();
+                            }
+                        }]
+                },
                 {
                     xtype: 'actioncolumn',
                     width: 60,

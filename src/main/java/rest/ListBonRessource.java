@@ -42,8 +42,9 @@ public class ListBonRessource {
     public Response list(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
             @QueryParam(value = "start") int start, @QueryParam(value = "query") String query,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "hStart") String hStart, @QueryParam(value = "tiersPayantId") String tiersPayantId)
-            throws JSONException {
+            @QueryParam(value = "hStart") String hStart, @QueryParam(value = "tiersPayantId") String tiersPayantId,
+            @QueryParam(value = "typeTiersPayantId") String typeTiersPayantId,
+            @QueryParam(value = "groupeId") String groupeId) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -52,8 +53,9 @@ public class ListBonRessource {
         }
 
         JSONObject jsono = listDesBonService.listBons(BonsParam.builder().dtStart(dtStart).hStart(hStart).hEnd(hEnd)
-                .tiersPayantId(tiersPayantId).all(false).start(start).search(query).limit(limit).dtEnd(dtEnd)
-                .showAllAmount(true).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build());
+                .tiersPayantId(tiersPayantId).typeTiersPayantId(typeTiersPayantId).groupeId(groupeId).all(false)
+                .start(start).search(query).limit(limit).dtEnd(dtEnd).showAllAmount(true)
+                .emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build());
         return Response.ok().entity(jsono.toString()).build();
     }
 

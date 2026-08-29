@@ -56,6 +56,15 @@ public interface SalesService {
      */
     JSONObject statutVente(String venteId);
 
+    /**
+     * Verrou de rappel d'une vente en attente (lot 3) : marque la vente comme rappelee par la caisse donnee. Refuse si
+     * une autre caisse la detient (verrou non expire) ou si la vente est deja cloturee.
+     */
+    JSONObject rappelerVenteEnAttente(String venteId, dal.TUser tu);
+
+    /** Libere le verrou de rappel si la caisse donnee le detient (ou s'il est deja vide). */
+    JSONObject libererRappelVente(String venteId, dal.TUser tu);
+
     JSONObject clotureravoir(String id, TUser tUser);
 
     JSONObject closeventeBon(String id);
