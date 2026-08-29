@@ -5287,9 +5287,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     /**
-     * Ligne d'avertissement du compte carnet (plafond atteint), SOUS la ligne du bon : sur la meme
-     * ligne, le message ecrasait les plafonds quand tout ne tenait pas en largeur (retour d'officine).
-     * Rien n'est rendu tant qu'il n'y a pas de message.
+     * Avertissement du compte carnet (plafond atteint) : sur la ligne du numero de bon, a sa droite —
+     * sous les infos encours/plafonds de la ligne du dessus, sans ligne supplementaire (retour
+     * d'officine). Rien n'est rendu tant qu'il n'y a pas de message.
      */
     ligneAlerteCarnet: function (record) {
         const me = this;
@@ -5298,16 +5298,13 @@ Ext.define('testextjs.controller.VenteCtr', {
             return [];
         }
         return [{
-                xtype: 'fieldcontainer',
-                layout: {type: 'hbox', align: 'middle'},
-                items: [{
-                        xtype: 'displayfield',
-                        hideLabel: true,
-                        flex: 1,
-                        itemId: 'alertePlafond' + record.order,
-                        cls: 'vp-alerte-plafond',
-                        value: 'attention!!! ce client payera en especes'
-                    }]
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                itemId: 'alertePlafond' + record.order,
+                cls: 'vp-alerte-plafond',
+                margin: '0 0 0 20',
+                value: 'attention!!! ce client payera en especes'
             }];
     },
 
@@ -5386,13 +5383,14 @@ Ext.define('testextjs.controller.VenteCtr', {
             items: [
                 {
                     xtype: 'fieldcontainer',
-                    layout: {type: 'hbox', align: 'stretch'},
+                    layout: {type: 'hbox', align: 'middle'},
                     items: [{
                             xtype: 'displayfield',
                             fieldLabel: 'TP' + record.order,
-                            // En carnet la ligne fait toute la largeur : largeurs fixes pour que
-                            // le taux reste colle au nom du compte au lieu de partir a droite.
-                            ...(carnet ? {width: 500} : {flex: 1.5}),
+                            // En carnet : largeur au plus juste pour que le taux reste COLLE au nom
+                            // du compte, et que les infos (encours/plafonds) occupent la droite de
+                            // cette meme ligne (retour d'officine).
+                            ...(carnet ? {width: 320} : {flex: 1.5}),
                             labelWidth: 30,
                             fieldStyle: "color:blue;font-weight:bold;",
                             value: record.tpFullName,
@@ -5401,14 +5399,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'displayfield',
                             fieldLabel: 'Taux:',
-                            ...(carnet ? {width: 180} : {flex: 0.5}),
+                            ...(carnet ? {width: 120} : {flex: 0.5}),
                             labelWidth: 30,
                             name: 'taux' + record.order,
                             itemId: 'taux' + record.order,
                             fieldStyle: "color:blue;font-weight:bold;",
                             value: record.taux + '%',
                             margin: '0 10 0 0'
-                        }]
+                        },
+                        // Compte carnet : encours, plafond, plafond vente et caution a DROITE de la
+                        // ligne du tiers payant (retour d'officine)
+                        ...(carnet ? me.champsCompteCarnet(record) : [])]
                 }
                 ,
                 {
@@ -5455,14 +5456,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                                     container.destroy();
                                 }
                             }]),
-                        // Compte carnet : encours, plafond et caution sous les yeux de la caissiere,
-                        // sur la ligne du bon (l'espace a droite etait perdu). En vente assurance,
-                        // seul le plafond vente est rappele, et seulement s'il est pose.
-                        ...(carnet ? me.champsCompteCarnet(record) : me.champPlafondVenteAssurance(record))
+                        // Carnet : l'eventuel avertissement (plafond atteint) occupe la droite de la
+                        // ligne du bon, sous les infos de la ligne du dessus — pas de ligne en plus.
+                        // Assurance : rappel du plafond vente, seulement s'il est pose.
+                        ...(carnet ? me.ligneAlerteCarnet(record) : me.champPlafondVenteAssurance(record))
                     ]
                 },
-                // Avertissement du compte carnet (plafond atteint) : sur SA ligne, sous celle du bon
-                ...(carnet ? me.ligneAlerteCarnet(record) : []),
                 {
                     xtype: 'hiddenfield',
                     name: 'compteTp' + record.order,
