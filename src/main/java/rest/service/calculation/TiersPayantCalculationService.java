@@ -91,14 +91,14 @@ public class TiersPayantCalculationService {
         if (apresEncours.compareTo(partTiersPayantNet) < 0) {
             BigDecimal reste = tp.getPlafondConso().subtract(tp.getConsoMensuelle()).max(BigDecimal.ZERO);
             avertissement(warnings, "Plafond encours atteint", tp.getTiersPayantFullName(), partTiersPayantNet,
-                    apresEncours, "dépasse ce qu'il reste de son plafond d'encours (" + format(reste) + " sur "
-                            + format(tp.getPlafondConso()) + ")");
+                    apresEncours, "dépasse ce qu'il reste de son plafond d'encours (" + enRouge(format(reste)) + " sur "
+                            + enRouge(format(tp.getPlafondConso())) + ")");
         }
 
         BigDecimal apresVente = computePlafondVente(tp.getPlafondJournalierClient(), apresEncours);
         if (apresVente.compareTo(apresEncours) < 0) {
             avertissement(warnings, "Plafond vente atteint", tp.getTiersPayantFullName(), apresEncours, apresVente,
-                    "dépasse son plafond par vente (" + format(tp.getPlafondJournalierClient()) + ")");
+                    "dépasse son plafond par vente (" + enRouge(format(tp.getPlafondJournalierClient())) + ")");
         }
 
         BigDecimal apresCredit = PlafondsTiersPayant.partEcreteeAuCredit(
@@ -110,22 +110,33 @@ public class TiersPayantCalculationService {
                             tp.getConsoGlobaleTiersPayant() == null ? BigDecimal.ZERO : tp.getConsoGlobaleTiersPayant())
                     .max(BigDecimal.ZERO);
             avertissement(warnings, "Plafond crédit atteint", tp.getTiersPayantFullName(), apresVente, apresCredit,
-                    "dépasse ce qu'il reste de son plafond de crédit (" + format(resteCredit) + " sur "
-                            + format(tp.getPlafondCreditTiersPayant()) + ")");
+                    "dépasse ce qu'il reste de son plafond de crédit (" + enRouge(format(resteCredit)) + " sur "
+                            + enRouge(format(tp.getPlafondCreditTiersPayant())) + ")");
         }
         return apresCredit;
     }
 
+    /**
+     * Message d'avertissement lisible de loin : le NOM du plafond en tete et en rouge, chaque montant en gras et
+     * legerement agrandi (parts en bleu, limites et difference en rouge), la conclusion sur sa propre ligne.
+     */
     private void avertissement(StringBuilder warnings, String plafond, String tiersPayant, BigDecimal avant,
             BigDecimal apres, String detail) {
-        warnings.append("⚠ ").append(plafond).append(", la part du tiers payant ")
-                .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ").append(tiersPayant)
-                .append("</span> (").append(format(avant)).append(") ").append(detail)
-                .append(". Sa part est ramenée à ")
-                .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ").append(format(apres))
-                .append("</span> ; la différence de ").append(" <span style='font-weight:900;color:red;'> ")
-                .append(format(avant.subtract(apres)))
-                .append("</span> sera payée en espèces ou par un autre règlement.\n");
+        warnings.append("⚠ <span style='font-weight:900;color:#C0392B;text-transform:uppercase;'>").append(plafond)
+                .append("</span><br/>La part du tiers payant ")
+                .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'>").append(tiersPayant)
+                .append("</span> (").append(enBleu(format(avant))).append(") ").append(detail)
+                .append(".<br/>Sa part est ramenée à ").append(enBleu(format(apres))).append(" ; la différence de ")
+                .append(enRouge(format(avant.subtract(apres))))
+                .append(" sera payée en espèces ou par un autre règlement.<br/><br/>");
+    }
+
+    private String enRouge(String valeur) {
+        return " <span style='font-weight:900;color:#C0392B;font-size:1.15em;'>" + valeur + "</span> ";
+    }
+
+    private String enBleu(String valeur) {
+        return " <span style='font-weight:900;color:blue;font-size:1.15em;'>" + valeur + "</span> ";
     }
 
     private String format(BigDecimal montant) {
