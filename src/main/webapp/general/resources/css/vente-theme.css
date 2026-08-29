@@ -190,6 +190,15 @@ body.x-body,
     transform: scale(1.2);
 }
 
+/* Icône « modifier » agrandie (l'image de 16 px était perdue dans la carte) et centrée
+   dans son bouton pour rester alignée sur la ligne du texte du client. */
+.vp-vente .x-btn.vp-btn-plat .x-btn-icon-el {
+    width: 26px !important;
+    height: 26px !important;
+    background-size: 26px 26px !important;
+    background-position: center center !important;
+}
+
 /* Infos tiers payants : le fond bleuté couvre TOUTE la section */
 .vp-vente .x-fieldset.vp-tp-card,
 .vp-vente .x-fieldset.vp-tp-card .x-fieldset-body,

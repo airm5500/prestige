@@ -81,35 +81,55 @@ public class TiersPayantCalculationService {
         return calculationResult;
     }
 
+    /**
+     * Applique les trois plafonds dans l'ordre - encours du compte client, plafond par vente du lien, credit de
+     * l'organisme - en ECRETANT la part a chaque fois (jamais de refus de vente), et nomme dans l'avertissement LE
+     * plafond qui a joue, avec la difference laissee a la charge du client.
+     */
     private BigDecimal applyCeilings(BigDecimal partTiersPayantNet, TiersPayantInput tp, StringBuilder warnings) {
-        BigDecimal finalAmount = computeThirdPartyPart(tp, partTiersPayantNet);
-        if (finalAmount.compareTo(partTiersPayantNet) != 0) {
-            BigDecimal difference = partTiersPayantNet.subtract(finalAmount).setScale(0, RoundingMode.HALF_UP);
-            warnings.append("⚠ Plafond du tiers payant ")
-                    .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ")
-                    .append(tp.getTiersPayantFullName()).append("</span> atteint : sa part est ramenée de ")
-                    .append(partTiersPayantNet.setScale(0, RoundingMode.HALF_UP)).append(" à ")
-                    .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ")
-                    .append(finalAmount.setScale(0, RoundingMode.HALF_UP)).append("</span>. La différence de ")
-                    .append(" <span style='font-weight:900;color:red;'> ").append(difference)
-                    .append("</span> sera payée en espèces ou par un autre règlement.\n");
+        BigDecimal apresEncours = computePlafond(tp, partTiersPayantNet);
+        if (apresEncours.compareTo(partTiersPayantNet) < 0) {
+            BigDecimal reste = tp.getPlafondConso().subtract(tp.getConsoMensuelle()).max(BigDecimal.ZERO);
+            avertissement(warnings, "Plafond encours atteint", tp.getTiersPayantFullName(), partTiersPayantNet,
+                    apresEncours, "dépasse ce qu'il reste de son plafond d'encours (" + format(reste) + " sur "
+                            + format(tp.getPlafondConso()) + ")");
         }
-        return finalAmount;
+
+        BigDecimal apresVente = computePlafondVente(tp.getPlafondJournalierClient(), apresEncours);
+        if (apresVente.compareTo(apresEncours) < 0) {
+            avertissement(warnings, "Plafond vente atteint", tp.getTiersPayantFullName(), apresEncours, apresVente,
+                    "dépasse son plafond par vente (" + format(tp.getPlafondJournalierClient()) + ")");
+        }
+
+        BigDecimal apresCredit = PlafondsTiersPayant.partEcreteeAuCredit(
+                tp.getPlafondCreditTiersPayant() != null ? tp.getPlafondCreditTiersPayant().doubleValue() : null,
+                tp.getConsoGlobaleTiersPayant(), apresVente);
+        if (apresCredit.compareTo(apresVente) < 0) {
+            BigDecimal resteCredit = tp.getPlafondCreditTiersPayant()
+                    .subtract(
+                            tp.getConsoGlobaleTiersPayant() == null ? BigDecimal.ZERO : tp.getConsoGlobaleTiersPayant())
+                    .max(BigDecimal.ZERO);
+            avertissement(warnings, "Plafond crédit atteint", tp.getTiersPayantFullName(), apresVente, apresCredit,
+                    "dépasse ce qu'il reste de son plafond de crédit (" + format(resteCredit) + " sur "
+                            + format(tp.getPlafondCreditTiersPayant()) + ")");
+        }
+        return apresCredit;
     }
 
-    private BigDecimal computeThirdPartyPart(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        // Une seule application de chaque plafond, dans l'ordre : le plafond d'encours du COMPTE
-        // CLIENT (computePlafond), le plafond PAR VENTE du lien (computePlafondVente), puis le
-        // plafond de CREDIT de la fiche de l'organisme - qui ECRETE desormais la part au lieu de
-        // refuser la vente : la difference passe a la charge du client, comme pour les autres
-        // plafonds (retour d'officine).
-        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);
+    private void avertissement(StringBuilder warnings, String plafond, String tiersPayant, BigDecimal avant,
+            BigDecimal apres, String detail) {
+        warnings.append("⚠ ").append(plafond).append(", la part du tiers payant ")
+                .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ").append(tiersPayant)
+                .append("</span> (").append(format(avant)).append(") ").append(detail)
+                .append(". Sa part est ramenée à ")
+                .append(" <span style='font-weight:900;color:blue;text-decoration: underline;'> ").append(format(apres))
+                .append("</span> ; la différence de ").append(" <span style='font-weight:900;color:red;'> ")
+                .append(format(avant.subtract(apres)))
+                .append("</span> sera payée en espèces ou par un autre règlement.\n");
+    }
 
-        totalNetAmount = computePlafondVente(tp.getPlafondJournalierClient(), totalNetAmount);
-
-        return PlafondsTiersPayant.partEcreteeAuCredit(
-                tp.getPlafondCreditTiersPayant() != null ? tp.getPlafondCreditTiersPayant().doubleValue() : null,
-                tp.getConsoGlobaleTiersPayant(), totalNetAmount);
+    private String format(BigDecimal montant) {
+        return montant == null ? "0" : montant.setScale(0, RoundingMode.HALF_UP).toPlainString();
     }
 
     private BigDecimal computePlafondVente(BigDecimal plafondVente, BigDecimal totalNetAmount) {

@@ -384,7 +384,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             tiersPayantIds.add(tiersPayant.getLgTIERSPAYANTID());
             ti.setClientTiersPayantId(ctp.getLgCOMPTECLIENTTIERSPAYANTID());
             ti.setTiersPayantId(tiersPayant.getLgTIERSPAYANTID());
-            ti.setTiersPayantFullName(tiersPayant.getStrFULLNAME());
+            // Nom complet, sinon nom court : le message d'avertissement des plafonds doit toujours
+            // nommer le tiers payant.
+            ti.setTiersPayantFullName(
+                    StringUtils.defaultIfBlank(tiersPayant.getStrFULLNAME(), tiersPayant.getStrNAME()));
             // ti.setTaux(ctp.getIntPOURCENTAGE() / 100.0f);// apres les retours de franck, on prends le taux sais du
             // front
             if (Objects.nonNull(it.getIntPERCENT())) {

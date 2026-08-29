@@ -5101,16 +5101,18 @@ Ext.define('testextjs.controller.VenteCtr', {
                 flex: 1,
                 itemId: 'encoursCarnet' + record.order,
                 margin: '0 10 0 0',
+                // Encours en VERT (retour d'officine) ; il passe au rouge quand le plafond est atteint.
                 value: me.texteInfoCarnet('cash.png', 'Encours',
-                        me.montantCarnet(etat.encours), etat.atteint ? 'red' : '#1A3FC4')
+                        me.montantCarnet(etat.encours), etat.atteint ? 'red' : '#1E8449')
             }, {
                 xtype: 'displayfield',
                 hideLabel: true,
                 flex: 1,
                 itemId: 'plafondCarnet' + record.order,
                 margin: '0 10 0 0',
+                // Les valeurs de plafond sont en ROUGE (retour d'officine).
                 value: me.texteInfoCarnet('chart_bar.png', 'Plafond',
-                        etat.sansPlafond ? 'aucun' : me.montantCarnet(etat.plafond), '#1A3FC4')
+                        etat.sansPlafond ? 'aucun' : me.montantCarnet(etat.plafond), '#C0392B')
             },
             // Plafond par vente (celui de la fiche tiers payant, herite sur le compte) : distinct du
             // plafond de consommation ci-dessus, il borne chaque passage en caisse. Affiche seulement
@@ -5162,8 +5164,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 itemId: 'plafondVenteTp' + record.order,
                 margin: '0 5 0 0',
                 fieldStyle: 'white-space:nowrap;',
+                // Valeur de plafond : en rouge, comme les autres plafonds de l'ecran de vente.
                 value: me.texteInfoCarnet('chart_bar.png', 'Plafond vente',
-                        me.montantCarnet(plafond), '#1A3FC4')
+                        me.montantCarnet(plafond), '#C0392B')
             }];
     },
 
