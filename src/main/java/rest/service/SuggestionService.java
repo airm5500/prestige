@@ -88,10 +88,12 @@ public interface SuggestionService {
     JSONObject createSuggestionManuelle(String grossisteId);
 
     /**
-     * Fusionne les suggestions cochees (au moins deux, meme grossiste) dans la premiere, comme la fusion des commandes
-     * en cours : les lignes s'ajoutent, les doublons de produit additionnent leurs quantites, les suggestions sources
-     * sont supprimees. Le resultat devient de type manuelle (is_Process).
+     * Fusionne les suggestions cochees (au moins deux) comme la fusion des commandes en cours : les lignes s'ajoutent,
+     * les doublons de produit additionnent leurs quantites, les suggestions sources sont supprimees, le resultat
+     * devient manuelle (is_Process). Quand les suggestions melent plusieurs grossistes, grossisteCibleId designe celui
+     * qui porte la fusion ; s'il manque, la reponse liste les grossistes possibles (choixGrossisteRequis) pour que
+     * l'ecran fasse choisir.
      */
-    JSONObject mergeSuggestionSelection(List<String> suggestionIds);
+    JSONObject mergeSuggestionSelection(List<String> suggestionIds, String grossisteCibleId);
 
 }

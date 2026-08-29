@@ -2203,6 +2203,7 @@ Ext.define('testextjs.controller.VenteCtr', {
     handleMobileMoney: function () {
         const me = this;
         me.getCbContainer().hide();
+        me.refreshBtnClientComptant();
         if (Ext.isEmpty(me.getClient())) {
             me.showAndHideInfosStandardClient(true);
         }
@@ -2787,7 +2788,11 @@ Ext.define('testextjs.controller.VenteCtr', {
     ajouterSelectionRapideMobileMoney: function (win) {
         const me = this;
         const modeCourant = me.getSafeComboValue('getVnotypeReglement', '1');
-        if (!me.isMobileMode(modeCourant)) {
+        // Le volet vaut pour un mode mobile PRINCIPAL, et aussi (retour lot 3,
+        // point 3) pour le fractionnement « especes + autre mode » : la fenetre
+        // client s'ouvre alors juste avant que extraModeReglementId ne soit posé,
+        // d'ou l'evaluation differee dans la reponse du serveur.
+        if (!me.isMobileMode(modeCourant) && modeCourant !== '1') {
             return;
         }
         Ext.Ajax.request({
@@ -2798,15 +2803,22 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (!result || !result.data || !result.data.length || win.destroyed) {
                     return;
                 }
+                // Contexte au moment de l'affichage : mobile principal, ou second mode
+                // engagé sur une vente en especes. Sinon, pas de volet.
+                const contexteExtra = (modeCourant === '1' && !!me.extraModeReglementId);
+                if (!me.isMobileMode(modeCourant) && !contexteExtra) {
+                    return;
+                }
+                const modeEnAvant = contexteExtra ? me.extraModeReglementId : modeCourant;
                 const clients = result.data.slice();
                 // la tuile du mode choisi d'abord, en evidence
                 clients.sort(function (a, b) {
-                    const pa = (a.typeReglementId === modeCourant) ? 0 : 1;
-                    const pb = (b.typeReglementId === modeCourant) ? 0 : 1;
+                    const pa = (a.typeReglementId === modeEnAvant) ? 0 : 1;
+                    const pb = (b.typeReglementId === modeEnAvant) ? 0 : 1;
                     return pa !== pb ? pa - pb : String(a.modeLibelle).localeCompare(String(b.modeLibelle));
                 });
                 const boutons = clients.map(function (c) {
-                    const enAvant = c.typeReglementId === modeCourant;
+                    const enAvant = c.typeReglementId === modeEnAvant;
                     return {
                         xtype: 'button',
                         margin: '0 6 6 0',
@@ -2824,6 +2836,20 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 strADRESSE: c.telephone
                             });
                             me.updateClientStandard(record);
+                            // Retour lot 3, point 2 : cliquer la tuile d'un AUTRE operateur
+                            // bascule le reglement dessus (on a pu se tromper au depart).
+                            if (c.typeReglementId === modeEnAvant) {
+                                return;
+                            }
+                            if (contexteExtra) {
+                                // second mode : on remplace le mode engagé par celui de la tuile
+                                me.onModeReglementSelect({id: c.typeReglementId, libelle: c.modeLibelle});
+                            } else {
+                                // mode principal : la combo bascule et son etat d'ecran suit
+                                const combo = me.getVnotypeReglement();
+                                combo.setValue(c.typeReglementId);
+                                me.typeReglementSelectEvent(combo);
+                            }
                         }
                     };
                 });
@@ -2956,8 +2982,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     /*
      * Le bouton « associer un client » n'a de sens qu'en vente comptant reglée
-     * en especes : partout ailleurs le client est deja demandé par le mode ou
-     * porté par la vente assurance/carnet.
+     * en especes PURES : partout ailleurs (mobile money, cheque/CB/virement,
+     * assurance/carnet, ou especes avec un second mode engagé) le client est
+     * deja demandé par le mode ou porté par la vente (retour lot 3, point 1).
      */
     refreshBtnClientComptant: function () {
         const me = this;
@@ -2967,7 +2994,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         const typeRegle = me.getSafeComboValue('getVnotypeReglement', '1');
-        btn.setVisible(typeVente === '1' && typeRegle === '1');
+        btn.setVisible(typeVente === '1' && typeRegle === '1' && !me.extraModeReglementId);
     },
     updateClientStandard: function (record) {
         const me = this;
@@ -3381,6 +3408,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     if (_typeReglementId !== '1' && me.getCurrent()) {
                         me.typeReglementSelectEvent(cmp);
                     }
+                    // visibilite du bouton « associer un client » alignee sur le mode restauré
+                    me.refreshBtnClientComptant();
                 }
             });
         }
@@ -6896,10 +6925,19 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.showMontantRecuRequisMessage();
             return;
         }
+        // Message explicite (retour lot 3, point 4) : montant de la vente, montant
+        // saisi en rouge gras, et la difference a couvrir en gras.
+        const difference = netTopay - especesSaisies;
         Ext.MessageBox.show({
             title: 'Avertissement',
-            width: 550,
-            msg: 'le montant de la vente est de <span style="color: black; font-size: 1rem;font-weight: 900;">' + Ext.util.Format.number(netTopay, '0,000.') + '</span> voulez vous ajouter un autre mode ?',
+            width: 560,
+            msg: '⚠ Le montant de la vente est de <span style="font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(netTopay, '0,000.') + ' F</span>, vous avez saisi '
+                    + '<span style="color:#C0392B;font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(especesSaisies, '0,000.') + ' F</span>.<br/>'
+                    + 'Voulez-vous associer un autre mode de paiement pour la différence de '
+                    + '<span style="font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(difference, '0,000.') + ' F</span> ?',
             buttons: Ext.MessageBox.YESNO,
             icon: Ext.MessageBox.WARNING,
             fn: function (buttonId) {
@@ -6954,6 +6992,8 @@ Ext.define('testextjs.controller.VenteCtr', {
             montantExtra.setReadOnly(false);
         }
         me.handleExtraAmountInputValue();
+        // second mode engagé : le bouton « associer un client » n'a plus lieu d'etre
+        me.refreshBtnClientComptant();
         if (Ext.isEmpty(me.getClient())) {
             // La fenêtre « client lié » vient de s'ouvrir : le focus est dans
             // son champ de recherche ; il reviendra à l'encaissement après le
@@ -6977,6 +7017,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.extraModeReglementId = null;
         me.extraModeManualAmount = false;
         me.getBtnExtraMode()?.hide();
+        // plus de second mode engagé : le bouton « associer un client » revient si especes pures
+        me.refreshBtnClientComptant();
         // Ne pas voler le focus si la fenêtre « client lié » est ouverte
         // (son champ de recherche doit garder la main)
         if (!Ext.ComponentQuery.query('clientLambda').length) {
@@ -7094,7 +7136,11 @@ Ext.define('testextjs.controller.VenteCtr', {
     onBtnCancelModeReglement: function () {
         const me = this;
         const win = me.getReglementGrid();
-        win.destroy();
+        // La grille des modes peut ne pas etre ouverte : bascule d'operateur par
+        // une tuile de la selection rapide (retour lot 3, point 2)
+        if (win && !win.destroyed) {
+            win.destroy();
+        }
     },
     onBtnModeReglementClick: function (grid, rowIndex, colIndex) {
         const me = this;

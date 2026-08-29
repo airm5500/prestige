@@ -257,8 +257,9 @@ public class SuggestionRessource {
     @POST
     @Path("merge-selection")
     public Response mergeSelection(commonTasks.dto.SuggestionIdsDTO ids) {
-        return Response.ok().entity(
-                this.suggestionService.mergeSuggestionSelection(ids == null ? null : ids.getSuggestionId()).toString())
+        return Response.ok()
+                .entity(this.suggestionService.mergeSuggestionSelection(ids == null ? null : ids.getSuggestionId(),
+                        ids == null ? null : ids.getGrossisteId()).toString())
                 .build();
     }
 

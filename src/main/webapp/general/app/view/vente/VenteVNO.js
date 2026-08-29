@@ -874,7 +874,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     iconCls: 'addicon',
                                                     cls: 'btn-primaryb',
                                                     tooltip: 'Associer un client standard a cette vente en especes (facultatif)',
-                                                    maxWidth: 190,
+                                                    /* pleine largeur de la carte reglement (retour lot 3) */
                                                     margin: '0 0 3 0'
                                                 }
                                             ]

@@ -1634,14 +1634,15 @@ public class SuggestionImpl implements SuggestionService {
     }
 
     @Override
-    public JSONObject mergeSuggestionSelection(List<String> suggestionIds) {
+    public JSONObject mergeSuggestionSelection(List<String> suggestionIds, String grossisteCibleId) {
         try {
             if (suggestionIds == null || suggestionIds.size() < 2) {
                 return new JSONObject().put("success", false).put("msg",
                         "Sélectionnez au moins deux suggestions à fusionner");
             }
             List<TSuggestionOrder> suggestions = new ArrayList<>();
-            String grossisteId = null;
+            // grossistes presents dans la selection (id -> libelle), dans l'ordre de rencontre
+            java.util.LinkedHashMap<String, String> grossistes = new java.util.LinkedHashMap<>();
             for (String id : suggestionIds) {
                 TSuggestionOrder s = this.em.find(TSuggestionOrder.class, id);
                 if (s == null) {
@@ -1651,17 +1652,42 @@ public class SuggestionImpl implements SuggestionService {
                     return new JSONObject().put("success", false).put("msg",
                             "La suggestion " + s.getStrREF() + " est déjà commandée : fusion impossible");
                 }
-                String g = s.getLgGROSSISTEID() != null ? s.getLgGROSSISTEID().getLgGROSSISTEID() : "";
-                if (grossisteId == null) {
-                    grossisteId = g;
-                } else if (!grossisteId.equals(g)) {
-                    return new JSONObject().put("success", false).put("msg",
-                            "Veuillez sélectionner des suggestions du même grossiste");
-                }
+                TGrossiste g = s.getLgGROSSISTEID();
+                grossistes.put(g != null ? g.getLgGROSSISTEID() : "", g != null ? g.getStrLIBELLE() : "");
                 suggestions.add(s);
             }
-            // Fusion dans la premiere, sur le modele de la fusion des commandes en cours
+            // Plusieurs grossistes coches : l'utilisateur choisit celui qui porte la fusion
+            // (retour lot 3, point 6). Sans choix transmis, on renvoie la liste a l'ecran
+            // pour qu'il fasse choisir, au lieu de refuser.
+            if (grossistes.size() > 1 && StringUtils.isBlank(grossisteCibleId)) {
+                JSONArray choix = new JSONArray();
+                for (java.util.Map.Entry<String, String> g : grossistes.entrySet()) {
+                    choix.put(new JSONObject().put("id", g.getKey()).put("libelle", g.getValue()));
+                }
+                return new JSONObject().put("success", false).put("choixGrossisteRequis", true).put("grossistes",
+                        choix);
+            }
+            // Cible : la premiere suggestion cochee du grossiste choisi (ou la premiere tout court).
+            // Les lignes venues des autres grossistes basculent sur le grossiste de la cible
+            // (createMergeDetails les rattache a la suggestion cible et a SON grossiste).
             TSuggestionOrder cible = suggestions.get(0);
+            if (StringUtils.isNotBlank(grossisteCibleId)) {
+                TSuggestionOrder choisie = null;
+                for (TSuggestionOrder s : suggestions) {
+                    if (s.getLgGROSSISTEID() != null
+                            && grossisteCibleId.equals(s.getLgGROSSISTEID().getLgGROSSISTEID())) {
+                        choisie = s;
+                        break;
+                    }
+                }
+                if (choisie == null) {
+                    return new JSONObject().put("success", false).put("msg",
+                            "Le grossiste choisi ne correspond à aucune suggestion cochée");
+                }
+                suggestions.remove(choisie);
+                suggestions.add(0, choisie);
+                cible = choisie;
+            }
             Collection<TSuggestionOrderDetails> lignesCible = cible.getTSuggestionOrderDetailsCollection();
             for (int i = 1; i < suggestions.size(); i++) {
                 TSuggestionOrder source = suggestions.get(i);
