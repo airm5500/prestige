@@ -5048,7 +5048,12 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     etatDuPlafondCarnet: function (record) {
         const encours = Number(record.dbCONSOMMATIONMENSUELLE || 0);
-        const plafond = Number(record.dbPLAFONDENCOURS || 0);
+        // Plafond affiche : celui du COMPTE du client (champ « Plafond.Encours » de sa fiche
+        // carnet) s'il est pose, sinon le plafond CREDIT de la fiche du tiers payant (plafond
+        // global de l'organisme). Sans l'un ni l'autre : « aucun ».
+        const plafond = Number(record.dbPLAFONDENCOURS || 0) > 0
+                ? Number(record.dbPLAFONDENCOURS)
+                : Number(record.dblPLAFONDCREDIT || 0);
         const sansPlafond = !(plafond > 0);
         return {
             encours: encours,
