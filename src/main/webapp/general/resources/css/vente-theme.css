@@ -861,9 +861,31 @@ body.x-body,
 }
 
 /* --------------------------------------------------------------------------
+ * COULEURS DE MISE EN EVIDENCE DES LIGNES, REGLABLES PAR OFFICINE.
+ *
+ * Les valeurs ci-dessous sont les couleurs d'origine (orange au survol, violet
+ * a la selection). Elles servent de repli : au chargement, l'application lit
+ * les parametres COULEUR_SURVOL_LIGNE et COULEUR_SELECTION_LIGNE (ecran
+ * « Gestion des parametrages ») et redefinit ces variables sur <html> — voir
+ * PrestigeCouleursLignes dans app.js. Le lisere et la couleur du libelle sont
+ * deduits de la couleur choisie, il n'y a qu'un code a saisir par etat.
+ * -------------------------------------------------------------------------- */
+:root {
+    --vp-survol-fond: #ffcc80;
+    --vp-survol-bord: #e65100;
+    --vp-survol-texte: #1a1a1a;
+    /* Dans les listes, le libelle n'est force qu'au-dessus d'un fond FONCE :
+       sur un fond clair les colonnes gardent leurs couleurs (stock en bleu,
+       alertes en rouge). D'ou « inherit » par defaut. */
+    --vp-survol-texte-grille: inherit;
+    --vp-selection-fond: #CE93D8;
+    --vp-selection-texte: #1a1a1a;
+}
+
+/* --------------------------------------------------------------------------
  * Survol de ligne bien visible (retour d'officine) : le survol par defaut du
  * theme est un bleu tres pale (AliceBlue) qu'on ne distingue pas sur les
- * grandes listes. On le remplace par un ORANGE franc.
+ * grandes listes. On le remplace par une couleur franche.
  *
  * ExtJS 4.2 pose « x-grid-row-over » sur la ligne (les versions precedentes
  * posaient « x-grid-item-over ») : les deux sont ciblees, et le fond doit
@@ -889,10 +911,11 @@ body.x-body,
 .x-grid-row-over > .x-grid-cell,
 .x-grid-item-over > .x-grid-cell,
 .x-grid-data-row:hover > .x-grid-cell {
-    background-color: #ffcc80 !important;
+    background-color: var(--vp-survol-fond, #ffcc80) !important;
     background-image: none !important;
-    border-top: 1px solid #e65100 !important;
-    border-bottom: 1px solid #e65100 !important;
+    border-top: 1px solid var(--vp-survol-bord, #e65100) !important;
+    border-bottom: 1px solid var(--vp-survol-bord, #e65100) !important;
+    color: var(--vp-survol-texte-grille, inherit) !important;
 }
 
 .x-grid-row-over,
@@ -936,9 +959,9 @@ body.x-body,
 .vp-ligne-active > .x-grid-cell,
 .vp-ligne-active > .x-grid-cell > .x-grid-cell-inner,
 .vp-ligne-active > .x-grid-cell-selected {
-    background-color: #CE93D8 !important;
+    background-color: var(--vp-selection-fond, #CE93D8) !important;
     background-image: none !important;
-    color: #1a1a1a !important;
+    color: var(--vp-selection-texte, #1a1a1a) !important;
 }
 
 /* La navigation garde sa propre couleur de selection : ses regles

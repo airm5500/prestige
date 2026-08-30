@@ -120,6 +120,11 @@ Ext.define('testextjs.view.sm_user.parameter.action.add', {
                         }
                         Ext.MessageBox.alert('Confirmation', object.errors);
                         Oview.getStore().reload();
+                        // Couleurs des listes : effet immediat, sans recharger la page
+                        if ((ref === 'COULEUR_SURVOL_LIGNE' || ref === 'COULEUR_SELECTION_LIGNE')
+                                && window.PrestigeCouleursLignes) {
+                            window.PrestigeCouleursLignes.recharger();
+                        }
                     },
                     failure: function (response) {
                         Ext.MessageBox.alert('Error Message', response.responseText);

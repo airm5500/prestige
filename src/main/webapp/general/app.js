@@ -907,6 +907,137 @@ Ext.application({
 })();
 
 // ---------------------------------------------------------------------
+// Couleurs de mise en evidence des lignes, reglees par officine.
+//
+// Deux parametres de l'ecran « Gestion des parametrages » donnent la couleur
+// de la ligne survolee (COULEUR_SURVOL_LIGNE) et celle de la ligne
+// selectionnee (COULEUR_SELECTION_LIGNE). Il n'y a qu'un code hexadecimal a
+// saisir par etat : le lisere et la couleur du libelle en sont deduits, et un
+// fond clair recoit un texte sombre, un fond fonce un texte clair.
+//
+// Les valeurs sont posees en variables CSS sur <html> ; les feuilles de style
+// les utilisent avec la couleur d'origine en repli, donc un appel qui echoue
+// ou un parametre absent laisse l'application telle qu'elle etait.
+// ---------------------------------------------------------------------
+window.PrestigeCouleursLignes = (function () {
+    'use strict';
+
+    var DEFAUTS = {survol: '#ffcc80', selection: '#CE93D8'};
+
+    /** #abc ou #aabbcc -> {r, g, b}, null si le code n'est pas exploitable. */
+    function composantes(couleur) {
+        var code = String(couleur || '').trim().replace('#', '');
+        if (code.length === 3) {
+            code = code.charAt(0) + code.charAt(0) + code.charAt(1) + code.charAt(1)
+                    + code.charAt(2) + code.charAt(2);
+        }
+        if (!/^[0-9a-fA-F]{6}$/.test(code)) {
+            return null;
+        }
+        return {
+            r: parseInt(code.substring(0, 2), 16),
+            g: parseInt(code.substring(2, 4), 16),
+            b: parseInt(code.substring(4, 6), 16)
+        };
+    }
+
+    function enHexa(n) {
+        var v = Math.max(0, Math.min(255, Math.round(n))).toString(16);
+        return v.length === 1 ? '0' + v : v;
+    }
+
+    /**
+     * Lisere : meme teinte que le fond, mais franchement plus foncee et plus vive.
+     *
+     * Multiplier les trois composantes assombrirait aussi la couleur, mais en la
+     * ternissant (l'orange virait au brun). On passe donc par la teinte et la
+     * saturation, qui sont conservees, et seule la luminosite est baissee.
+     */
+    function lisere(rgb) {
+        var r = rgb.r / 255, v = rgb.g / 255, b = rgb.b / 255;
+        var maxi = Math.max(r, v, b), mini = Math.min(r, v, b);
+        var l = (maxi + mini) / 2;
+        var d = maxi - mini;
+        var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+        var h = 0;
+        if (d !== 0) {
+            if (maxi === r) {
+                h = 60 * (((v - b) / d) % 6);
+            } else if (maxi === v) {
+                h = 60 * (((b - r) / d) + 2);
+            } else {
+                h = 60 * (((r - v) / d) + 4);
+            }
+        }
+        if (h < 0) {
+            h += 360;
+        }
+        return versHexa(h, Math.min(1, s * 1.35 + 0.15), Math.max(0.18, l * 0.5));
+    }
+
+    /** Teinte, saturation, luminosite -> code hexadecimal. */
+    function versHexa(h, s, l) {
+        var c = (1 - Math.abs(2 * l - 1)) * s;
+        var x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+        var m = l - c / 2;
+        var t = (h < 60) ? [c, x, 0] : (h < 120) ? [x, c, 0] : (h < 180) ? [0, c, x]
+                : (h < 240) ? [0, x, c] : (h < 300) ? [x, 0, c] : [c, 0, x];
+        return '#' + enHexa((t[0] + m) * 255) + enHexa((t[1] + m) * 255) + enHexa((t[2] + m) * 255);
+    }
+
+    /** Libelle sombre sur fond clair, clair sur fond fonce. */
+    function couleurTexte(rgb) {
+        var luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b);
+        return luminance > 150 ? '#1a1a1a' : '#ffffff';
+    }
+
+    function poser(nom, valeur) {
+        if (document.documentElement && document.documentElement.style.setProperty) {
+            document.documentElement.style.setProperty(nom, valeur);
+        }
+    }
+
+    function appliquer(couleurs) {
+        var valeurs = couleurs || {};
+        var survol = composantes(valeurs.survol) || composantes(DEFAUTS.survol);
+        var selection = composantes(valeurs.selection) || composantes(DEFAUTS.selection);
+
+        poser('--vp-survol-fond', '#' + enHexa(survol.r) + enHexa(survol.g) + enHexa(survol.b));
+        poser('--vp-survol-bord', lisere(survol));
+        poser('--vp-survol-texte', couleurTexte(survol));
+        // Dans les listes, on ne force le libelle que si la couleur choisie est
+        // foncee : sur un fond clair, les colonnes gardent leurs couleurs
+        // (stock en bleu, alertes en rouge) au lieu d'etre uniformisees.
+        poser('--vp-survol-texte-grille', couleurTexte(survol) === '#ffffff' ? '#ffffff' : 'inherit');
+        poser('--vp-selection-fond', '#' + enHexa(selection.r) + enHexa(selection.g) + enHexa(selection.b));
+        poser('--vp-selection-texte', couleurTexte(selection));
+    }
+
+    function charger() {
+        try {
+            var requete = new XMLHttpRequest();
+            requete.open('GET', '../api/v1/app-params/couleurs-lignes', true);
+            requete.onreadystatechange = function () {
+                if (requete.readyState !== 4 || requete.status !== 200) {
+                    return;
+                }
+                try {
+                    appliquer(JSON.parse(requete.responseText));
+                } catch (e) {
+                    // reponse inattendue : on garde les couleurs d'origine
+                }
+            };
+            requete.send();
+        } catch (e) {
+            // pas de reseau : on garde les couleurs d'origine
+        }
+    }
+
+    charger();
+    return {appliquer: appliquer, recharger: charger};
+})();
+
+// ---------------------------------------------------------------------
 // Ligne active : au clic, c'est la LIGNE entiere qui est marquee (violet),
 // pas la seule cellule cliquee.
 //

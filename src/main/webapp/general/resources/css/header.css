@@ -809,8 +809,8 @@
 #GridArticleID .x-grid-row-selected .x-grid-cell-inner,
 #GridArticleID .x-grid-row-focused .x-grid-cell,
 #GridArticleID .x-grid-row-focused .x-grid-cell-inner {
-    background-color: #CE93D8 !important; /* violet moyen-clair */
-    color: #1a1a1a !important;
+    background-color: var(--vp-selection-fond, #CE93D8) !important;
+    color: var(--vp-selection-texte, #1a1a1a) !important;
 }
 
 /* ---- Ventes ratées : lignes des grilles (modale du jour) plus lisibles ---- */

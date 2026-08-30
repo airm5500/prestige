@@ -74,6 +74,41 @@ public class ParametreRessource {
         return Response.ok().entity(ResultFactory.getSuccessResult(value, 1)).build();
     }
 
+    /** Couleur de fond par defaut de la ligne survolee, si le parametre est vide ou invalide. */
+    static final String COULEUR_SURVOL_DEFAUT = "#FFCC80";
+    /** Couleur de fond par defaut de la ligne selectionnee, si le parametre est vide ou invalide. */
+    static final String COULEUR_SELECTION_DEFAUT = "#CE93D8";
+
+    /**
+     * Couleurs de mise en evidence des lignes de liste, reglees par officine depuis l'ecran « Gestion des parametrages
+     * » (cles COULEUR_SURVOL_LIGNE et COULEUR_SELECTION_LIGNE).
+     *
+     * Un seul appel au chargement de l'application plutot que deux : la page les pose ensuite en variables CSS. Une
+     * valeur vide ou qui n'est pas un code hexadecimal est remplacee par la couleur d'origine — une saisie erronee ne
+     * peut pas rendre les listes illisibles.
+     */
+    @GET
+    @Path("couleurs-lignes")
+    public Response couleursLignes() {
+        JSONObject couleurs = new JSONObject()
+                .put("survol",
+                        couleurValide(parametreService.getValue("COULEUR_SURVOL_LIGNE", ""), COULEUR_SURVOL_DEFAUT))
+                .put("selection", couleurValide(parametreService.getValue("COULEUR_SELECTION_LIGNE", ""),
+                        COULEUR_SELECTION_DEFAUT));
+        CacheControl cc = new CacheControl();
+        cc.setNoCache(true);
+        return Response.ok().cacheControl(cc).entity(couleurs.toString()).build();
+    }
+
+    /** Code hexadecimal #RGB ou #RRGGBB, sinon la valeur par defaut. */
+    static String couleurValide(String valeur, String defaut) {
+        String couleur = StringUtils.trimToEmpty(valeur);
+        if (!couleur.startsWith("#")) {
+            couleur = "#" + couleur;
+        }
+        return couleur.matches("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$") ? couleur.toUpperCase() : defaut;
+    }
+
     /**
      * Detail d'un parametre par cle : MEMES cles JSON que la JSP historique sm_user/parameter/ws_data.jsp (utilisee par
      * le controller LaborexWorkFlow, ex. KEY_ACTIVATE_CONTROLE_VENTE_USER).
