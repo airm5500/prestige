@@ -1994,7 +1994,10 @@ public class clientManagement extends bllBase {
 
                 json.put("lg_CATEGORIE_AYANTDROIT_ID", lg_CATEGORIE_AYANTDROIT_ID);
 
-                json.put("lg_TYPE_CLIENT_ID", c.getLgTYPECLIENTID().getStrNAME());
+                // un client sans type de client ne doit pas faire echouer toute la liste
+                if (c.getLgTYPECLIENTID() != null) {
+                    json.put("lg_TYPE_CLIENT_ID", c.getLgTYPECLIENTID().getStrNAME());
+                }
 
                 json.put("str_STATUT", c.getStrSTATUT());
 

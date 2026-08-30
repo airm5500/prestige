@@ -194,7 +194,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'parametermanager', 'kobysky', 'zonegeographiquemanager', 'usermanager',
     // caisse
     'listecaissemanager', 'visualisercaissemanager', 'gestcaissemanager',
-    'caisserecetterecap',
+    'caisserecetterecap', 'cashmovements',
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
     'ugmanager', 'mouvementprixvente',

@@ -7,6 +7,7 @@ package commonTasks.dto;
 
 import dal.TClient;
 import dal.TRemise;
+import dal.TTypeClient;
 import dal.TVille;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
@@ -207,6 +208,24 @@ public class ClientDTO implements Serializable {
     public ClientDTO() {
     }
 
+    /**
+     * Libelle du type de client, ou null si le client n'en a pas.
+     *
+     * Un client sans type de client existe en base (import ancien, fiche creee sans le renseigner). Enchainer
+     * getLgTYPECLIENTID().getStrNAME() sans garde levait alors un NullPointerException a la CONSTRUCTION du DTO : une
+     * seule fiche en defaut faisait echouer la liste entiere des clients, pas seulement sa propre ligne.
+     */
+    private static String libelleTypeClient(TClient client) {
+        TTypeClient type = client.getLgTYPECLIENTID();
+        return type == null ? null : type.getStrNAME();
+    }
+
+    /** Identifiant du type de client, ou null si le client n'en a pas. Meme raison que ci-dessus. */
+    private static String identifiantTypeClient(TClient client) {
+        TTypeClient type = client.getLgTYPECLIENTID();
+        return type == null ? null : type.getLgTYPECLIENTID();
+    }
+
     public ClientDTO(TClient client) {
         this.lgCLIENTID = client.getLgCLIENTID();
         TRemise remise = client.getRemise();
@@ -221,7 +240,7 @@ public class ClientDTO implements Serializable {
         this.strADRESSE = client.getStrADRESSE();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.email = client.getEmail();
-        this.libelleTypeClient = client.getLgTYPECLIENTID().getStrNAME();
+        this.libelleTypeClient = libelleTypeClient(client);
     }
 
     public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants, List<AyantDroitDTO> ayantDroits) {
@@ -239,7 +258,7 @@ public class ClientDTO implements Serializable {
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
-        this.lgTYPECLIENTID = client.getLgTYPECLIENTID().getLgTYPECLIENTID();
+        this.lgTYPECLIENTID = identifiantTypeClient(client);
         this.ayantDroits = ayantDroits;
         if (client.getDtNAISSANCE() != null) {
             this.dtNAISSANCE = dateFormat.format(client.getDtNAISSANCE());
@@ -279,7 +298,7 @@ public class ClientDTO implements Serializable {
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
-        this.lgTYPECLIENTID = client.getLgTYPECLIENTID().getLgTYPECLIENTID();
+        this.lgTYPECLIENTID = identifiantTypeClient(client);
         if (client.getDtNAISSANCE() != null) {
             this.dtNAISSANCE = dateFormat.format(client.getDtNAISSANCE());
         }
@@ -407,7 +426,7 @@ public class ClientDTO implements Serializable {
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
-        this.lgTYPECLIENTID = client.getLgTYPECLIENTID().getLgTYPECLIENTID();
+        this.lgTYPECLIENTID = identifiantTypeClient(client);
         this.ayantDroits = ayantDroits;
         this.preenregistrementstp = preenregistrementstp;
         if (client.getDtNAISSANCE() != null) {

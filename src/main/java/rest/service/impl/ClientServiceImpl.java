@@ -1836,7 +1836,10 @@ public class ClientServiceImpl implements ClientService {
                     row.put("lg_VILLE_ID", c.getLgVILLEID().getStrName());
                 }
                 row.put("lg_CATEGORIE_AYANTDROIT_ID", categorieAyantDroit);
-                row.put("lg_TYPE_CLIENT_ID", c.getLgTYPECLIENTID().getStrNAME());
+                // un client sans type de client ne doit pas faire echouer toute la liste
+                if (c.getLgTYPECLIENTID() != null) {
+                    row.put("lg_TYPE_CLIENT_ID", c.getLgTYPECLIENTID().getStrNAME());
+                }
                 row.put("str_STATUT", c.getStrSTATUT());
                 if (c.getDtCREATED() != null) {
                     row.put("dt_CREATED",
