@@ -245,29 +245,25 @@
    donc selectionnee, le survol ne se voyait pas — d'ou l'impression que le
    menu ne reagissait plus. La selection, elle, reste navy : les deux etats
    ne peuvent plus etre confondus. */
+/* « .x-grid-row » est ajoute pour que le survol passe DEVANT la selection :
+   sur l'entree qu'on vient d'ouvrir, donc selectionnee, c'est bien l'orange
+   du survol qui doit se voir. */
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell-inner,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell-inner {
+.prestige-nav .x-grid-row.x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell,
+.prestige-nav .x-grid-row.x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell-inner {
     background-color: var(--vp-survol-fond, #ffcc80) !important;
     background-image: none !important;
+    color: var(--vp-survol-texte, #1a1a1a) !important;
 }
 
-/* Le lisere doit etre pose sur la cellule ET sur l'interieur : les deux
-   portent un bord de 4 px (transparent au repos, turquoise a la selection).
-   En ne repeignant que la cellule, on voyait deux bandes cote a cote sur
-   une entree a la fois selectionnee et survolee - une orange, une turquoise. */
-.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
-.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell-inner,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell-inner {
-    border-left: 4px solid var(--vp-survol-bord, #e65100) !important;
-}
-
-.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell {
-    box-shadow: inset 0 0 0 1px var(--vp-survol-bord, #e65100) !important;
-}
+/* PAS de lisere a gauche (demande d'officine). L'entree du menu porte deux
+   bords de 4 px, un sur la cellule et un sur l'interieur ; l'interieur glisse
+   en plus de 5 px au survol, ce qui les separait : on lisait deux bandes
+   verticales avec le fond entre les deux. La ligne entiere est deja coloree,
+   le lisere n'apportait rien. Les 4 px restent reserves en transparent (regle
+   generale plus haut) pour que le libelle ne saute pas au passage de la
+   souris. Meme raison pour l'ombre interne, qui ajoutait un trait de 1 px. */
 
 /* Glissade du contenu. Pas d'agrandissement : mis a l'echelle, l'interieur
    depassait de 0,9 px au-dessus et en dessous de sa ligne et couvrait la
@@ -279,8 +275,8 @@
 }
 
 /* Sur fond orange, le libelle et les icones passent en fonce */
-.prestige-nav .x-grid-item-over .x-tree-node-text,
-.prestige-nav .x-grid-row-over .x-tree-node-text {
+.prestige-nav .x-grid-row.x-grid-item-over .x-tree-node-text,
+.prestige-nav .x-grid-row.x-grid-row-over .x-tree-node-text {
     color: var(--vp-survol-texte, #1a1a1a) !important;
     font-weight: 700 !important;
 }
@@ -290,31 +286,36 @@
 .prestige-nav .x-grid-row-over .fa { color: var(--vp-survol-bord, #bf360c) !important; }
 
 /* ---- HOVER sous-menus (feuilles affichees dans le panneau) : meme orange ---- */
-.prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell,
-.prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell-inner,
-.prestige-nav .x-tree-node-leaf.x-grid-row-over .x-grid-cell,
-.prestige-nav .x-tree-node-leaf.x-grid-row-over .x-grid-cell-inner {
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-item-over .x-grid-cell,
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-item-over .x-grid-cell-inner,
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-row-over .x-grid-cell,
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-row-over .x-grid-cell-inner {
     background: var(--vp-survol-fond, #ffcc80) !important;
     background-color: var(--vp-survol-fond, #ffcc80) !important;
     background-image: none !important;
-    /* lisere sur la cellule ET l'interieur : une seule bande, pas deux */
-    border-left: 4px solid var(--vp-survol-bord, #e65100) !important;
+    /* pas de lisere : meme raison que pour les menus principaux */
 }
 
-.prestige-nav .x-tree-node-leaf.x-grid-item-over .x-tree-node-text,
-.prestige-nav .x-tree-node-leaf.x-grid-row-over .x-tree-node-text {
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-item-over .x-tree-node-text,
+.prestige-nav .x-grid-row.x-tree-node-leaf.x-grid-row-over .x-tree-node-text {
     color: var(--vp-survol-texte, #1a1a1a) !important;
     font-weight: 600 !important;
 }
 
-/* ---- SÉLECTIONNÉ (x-grid-row-selected = ExtJS 4.2) ---- */
-.prestige-nav .x-grid-item-selected .x-grid-cell,
-.prestige-nav .x-grid-item-selected .x-grid-cell-inner,
-.prestige-nav .x-grid-row-selected .x-grid-cell,
-.prestige-nav .x-grid-row-selected .x-grid-cell-inner {
+/* ---- SÉLECTIONNÉ (x-grid-row-selected = ExtJS 4.2) ----
+   Le menu garde SON navy : la couleur de selection des listes ne doit pas
+   descendre ici. Le selecteur ajoute « .x-grid-row » pour passer devant la
+   regle generale de vente-theme.css, qui a la meme specificite mais est
+   chargee apres et repeignait l'interieur de la ligne.
+   Pas de lisere a gauche non plus (demande d'officine). */
+.prestige-nav .x-grid-row.x-grid-item-selected .x-grid-cell,
+.prestige-nav .x-grid-row.x-grid-item-selected .x-grid-cell-inner,
+.prestige-nav .x-grid-row.x-grid-row-selected .x-grid-cell,
+.prestige-nav .x-grid-row.x-grid-row-selected .x-grid-cell-inner {
     background: var(--nav-bg-selected) !important;
     background-color: var(--nav-bg-selected) !important;
-    border-left: 4px solid var(--nav-accent-2) !important;
+    background-image: none !important;
+    color: var(--nav-text) !important;
 }
 
 .prestige-nav .x-grid-item-selected .x-tree-node-text,
