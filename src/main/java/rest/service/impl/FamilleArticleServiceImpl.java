@@ -317,6 +317,22 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                 vingtQuatreVingtType, topN, null, null);
     }
 
+    /**
+     * Emplacement de l'utilisateur connecte, exige par la procedure d'analyse 20/80.
+     *
+     * Enchainer les appels sans garde donnait un NullPointerException nu quand le contexte utilisateur etait vide, sans
+     * dire lequel des trois maillons manquait (vu en officine sur l'edition, servie par une servlet ou le contexte
+     * n'etait pas alimente - voir filter.UtilisateurEditionFilter).
+     */
+    private String emplacementCourant() {
+        TUser utilisateur = sessionHelperService.getCurrentUser();
+        if (utilisateur == null || utilisateur.getLgEMPLACEMENTID() == null) {
+            throw new IllegalStateException("Analyse 20/80 : utilisateur connecte introuvable, "
+                    + "impossible de determiner l'emplacement. Session expiree ou edition ouverte hors session.");
+        }
+        return utilisateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+    }
+
     @Override
     public List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
             String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
@@ -351,7 +367,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             Query query = getEntityManager().createNativeQuery("CALL " + procedureName + "(?, ?, ?, ?, ?, ?)");
             query.setParameter(1, dtStart);
             query.setParameter(2, dtEnd);
-            query.setParameter(3, sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            query.setParameter(3, emplacementCourant());
             query.setParameter(4, codeFamile);
             query.setParameter(5, codeRayon);
             query.setParameter(6, codeGrossiste);
