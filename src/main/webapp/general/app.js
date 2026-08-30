@@ -882,6 +882,28 @@ Ext.application({
         // stockage local indisponible (navigation privee, quota...) :
         // pas de memorisation, comportement d'origine
     }
+
+    /*
+     * Identifiant STABLE par colonne, indispensable a la memorisation.
+     *
+     * ExtJS reconnait une colonne dans l'etat enregistre par « stateId ou headerId » ;
+     * faute de stateId, le headerId est genere a la creation (header-1234) et CHANGE a
+     * chaque nouvelle instance de la grille. L'etat etait donc bien enregistre mais ne
+     * pouvait plus etre applique en revenant sur le menu : tout repartait par defaut.
+     *
+     * On derive donc un identifiant du dataIndex (ou du rang pour les colonnes qui n'en
+     * ont pas, numeroteur et colonnes d'action), prefixe par la grille.
+     */
+    window.PrestigeEtatColonnes = {
+        identifier: function (prefixe, colonnes) {
+            (colonnes || []).forEach(function (colonne, rang) {
+                if (colonne && !colonne.stateId) {
+                    colonne.stateId = prefixe + '-' + (colonne.dataIndex || ('col' + rang));
+                }
+            });
+            return colonnes;
+        }
+    };
 })();
 
 // ---------------------------------------------------------------------

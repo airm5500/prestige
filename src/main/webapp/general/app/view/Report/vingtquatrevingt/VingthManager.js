@@ -397,7 +397,9 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                         columnLines: true
 
                     },
-                    columns: [
+                    /* identifiants stables : sans eux, l'etat enregistre n'est plus
+                     * reconnu quand on revient sur le menu (cf. app.js) */
+                    columns: window.PrestigeEtatColonnes.identifier('vingt2080', [
 
                         {
                             header: 'Id',
@@ -490,7 +492,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                         }
 
 
-                    ],
+                    ]),
                     selModel: {
                         selType: 'cellmodel'
                     },

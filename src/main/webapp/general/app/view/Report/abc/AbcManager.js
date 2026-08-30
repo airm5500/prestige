@@ -232,7 +232,9 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     stateful: true,
                     stateId: 'grille-classification-abc',
                     viewConfig: {columnLines: true},
-                    columns: [
+                    /* identifiants stables : sans eux, l'etat enregistre n'est plus
+                     * reconnu quand on revient sur le menu (cf. app.js) */
+                    columns: window.PrestigeEtatColonnes.identifier('abc', [
                         {header: 'Id', width: 40, xtype: 'rownumberer'},
                         {header: 'CIP', dataIndex: 'cip', width: 80},
                         {header: 'EAN', dataIndex: 'ean', width: 100, hidden: true},
@@ -330,7 +332,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                                 }
                             }]
                         }
-                    ],
+                    ]),
                     selModel: {selType: 'cellmodel'},
                     bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true},
                     listeners: {
