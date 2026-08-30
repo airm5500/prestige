@@ -220,6 +220,8 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                     xtype: 'gridpanel',
                     itemId: 'consoGrid',
                     store: store,
+                    /* survol de ligne bien visible (vente-theme.css) */
+                    cls: 'vp-grille-survol',
                     viewConfig: {
                         forceFit: true,
                         emptyText: '<h1 style="margin:10px 10px 10px 30%;">Pas de donn&eacute;es</h1>'
@@ -267,8 +269,22 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                             flex: 0.8,
                             renderer: function (v, metaData, record) {
                                 if (record.get('nbAchats') < 2) {
+                                    // un seul achat : aucune frequence calculable
+                                    metaData.tdAttr = 'data-qtitle="Fréquence d\'achat" '
+                                            + 'data-qtip="Un seul achat sur la période : la fréquence '
+                                            + 'ne peut pas être calculée (il en faut au moins deux)."';
                                     return '-';
                                 }
+                                // Explication de la valeur au survol (retour d'officine)
+                                var jours = Number(v) || 0;
+                                var repere = jours < 1 ? 'plusieurs achats le même jour'
+                                        : (jours <= 20 ? 'environ 2 fois par mois ou plus'
+                                                : (jours <= 45 ? 'environ une fois par mois'
+                                                        : (jours <= 120 ? 'quelques achats par an'
+                                                                : 'achats rares')));
+                                metaData.tdAttr = 'data-qtitle="Fréquence d\'achat" '
+                                        + 'data-qtip="Nombre moyen de jours entre deux achats du client '
+                                        + 'sur la période : ' + repere + '."';
                                 if (v < 1) {
                                     return '&lt; 1 jour';
                                 }
@@ -279,14 +295,26 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                             dataIndex: 'habitude',
                             align: 'center',
                             flex: 0.7,
-                            renderer: function (v) {
+                            renderer: function (v, metaData) {
                                 var colors = {
                                     'Mensuel': '#2E7D32',
                                     'Bimensuel': '#0D47A1',
                                     'Ponctuel': '#E65100',
                                     'Dormant': '#9E9E9E'
                                 };
+                                // Signification de chaque habitude au survol (retour d'officine) :
+                                // la couleur seule ne dit pas ce que vaut la valeur affichee.
+                                var explications = {
+                                    'Mensuel': 'Le client achète environ une fois par mois.',
+                                    'Bimensuel': 'Le client achète environ deux fois par mois.',
+                                    'Ponctuel': 'Le client achète de temps en temps, sans régularité.',
+                                    'Dormant': 'Le client n\'a plus acheté depuis longtemps.'
+                                };
                                 var color = colors[v] || '#333';
+                                if (metaData && explications[v]) {
+                                    metaData.tdAttr = 'data-qtitle="' + v + '" '
+                                            + 'data-qtip="' + explications[v] + '"';
+                                }
                                 return '<span style="color:' + color + ';font-weight:700;">' + v + '</span>';
                             }
                         }, {

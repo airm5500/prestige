@@ -93,6 +93,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             height: valheight,
             store: store,
             id: 'OGrid',
+            /* survol de ligne bien visible (vente-theme.css) */
+            cls: 'vp-grille-survol',
             columns: [{
                     header: 'lg_COMPTE_CLIENT_ID',
                     dataIndex: 'lg_COMPTE_CLIENT_ID',
@@ -164,6 +166,19 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             }
                         }
                         return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>" + complement;
+                    }
+                }, {
+                    // Taux de prise en charge de l'assurance PRINCIPALE (celle affichee dans
+                    // « Organisme ») — retour d'officine : on le voyait seulement en ouvrant la fiche.
+                    header: 'Taux',
+                    dataIndex: 'int_POURCENTAGE',
+                    align: 'center',
+                    flex: 0.4,
+                    renderer: function (val, metadata, record) {
+                        if (Ext.isEmpty(val) || !record.get('lg_TIERS_PAYANT_ID')) {
+                            return '';
+                        }
+                        return "<span style='font-weight: bold; color: #1565C0;'>" + val + "%</span>";
                     }
                 }, {
                     header: 'Encours',
@@ -255,10 +270,13 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                         }]
                 },
                 {
+                    // Colonne « Supprimer » masquee (retour d'officine) : la desactivation
+                    // reste le geste courant. Elle reste dans le menu des colonnes.
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden: true,
                     items: [{
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Supprimer',

@@ -63,6 +63,8 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
             height: 560,
             layout: 'fit',
             autoShow: true,
+            // Fenetre modale (retour d'officine) : evite les clics dans la liste derriere
+            modal: true,
             items: [
                 {
                     xtype: 'gridpanel',
@@ -100,11 +102,23 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                                     xtype: 'textfield',
                                     itemId: 'query',
                                     flex: 1,
-                                    emptyText: 'Produit (nom ou CIP)',
+                                    emptyText: 'Produit (nom ou CIP) — 2 caractères',
                                     enableKeyEvents: true,
                                     listeners: {
                                         specialkey: function (field, e) {
                                             if (e.getKey() === e.ENTER) {
+                                                me.doSearch();
+                                            }
+                                        },
+                                        /* recherche automatique des 2 caracteres (retour d'officine),
+                                         * en fin de frappe pour n'envoyer qu'une requete */
+                                        keyup: {
+                                            buffer: 350,
+                                            fn: function (champ) {
+                                                const valeur = champ.getValue() || '';
+                                                if (valeur.length === 1) {
+                                                    return;
+                                                }
                                                 me.doSearch();
                                             }
                                         }
@@ -117,6 +131,20 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                                         me.doSearch();
                                     }
                                 }, '-', {
+                                    text: 'Excel',
+                                    tooltip: 'Exporter le résultat en Excel',
+                                    iconCls: 'export_excel_icon',
+                                    handler: function () {
+                                        window.location = '../api/v1/client/consommation/excel?' + me.buildParams();
+                                    }
+                                }, {
+                                    text: 'Créer inventaire',
+                                    tooltip: 'Créer un inventaire avec les produits du résultat',
+                                    iconCls: 'addicon',
+                                    handler: function () {
+                                        me.creerInventaire();
+                                    }
+                                }, {
                                     text: 'Imprimer',
                                     tooltip: 'Imprimer la fiche de consommation du client',
                                     iconCls: 'printable',
@@ -243,5 +271,48 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
     },
     doSearch: function () {
         this.consoStore.loadPage(1);
+    },
+    /* Filtres courants, pour l'export Excel et la creation d'inventaire */
+    buildParams: function () {
+        const me = this;
+        return 'clientId=' + encodeURIComponent(me.getOdatasource().lg_CLIENT_ID)
+                + '&dtStart=' + me.down('#dtStart').getSubmitValue()
+                + '&dtEnd=' + me.down('#dtEnd').getSubmitValue()
+                + '&query=' + encodeURIComponent(me.down('#query').getValue() || '');
+    },
+    /*
+     * Inventaire des produits du resultat affiche (memes filtres), nomme
+     * « INVENTAIRE PRODUITS CONSO CLIENTS <horodatage> ».
+     */
+    creerInventaire: function () {
+        const me = this;
+        Ext.MessageBox.confirm('Créer un inventaire',
+                'Créer un inventaire avec les produits de ce résultat ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    testextjs.app.getController('App').ShowWaitingProcess();
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/client/consommation/inventaire?' + me.buildParams(),
+                        timeout: 600000,
+                        success: function (response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            const result = Ext.JSON.decode(response.responseText, true) || {};
+                            if (result.success) {
+                                Ext.Msg.alert('Inventaire',
+                                        (result.count || 0) + ' produit(s) dans l\'inventaire « '
+                                        + (result.libelle || '') + ' ».');
+                            } else {
+                                Ext.Msg.alert('Inventaire', result.msg || 'La création a échoué');
+                            }
+                        },
+                        failure: function (response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            Ext.Msg.alert('Inventaire', 'Erreur du serveur ' + response.status);
+                        }
+                    });
+                });
     }
 });

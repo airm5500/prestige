@@ -42,17 +42,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
 //    tools: [{type: "pin"}],
     closable: false,
     frame: true,
-    plugins: [{
-            ptype: 'rowexpander',
-            rowBodyTpl: new Ext.XTemplate(
-                    '<p> {str_FAMILLE_ITEM}</p>',
-                    {
-                        formatChange: function (v) {
-                            const color = v >= 0 ? 'green' : 'red';
-                            return '<span style="color: ' + color + ';">' + Ext.util.Format.usMoney(v) + '</span>';
-                        }
-                    })
-        }],
+    /* Le (+) d'expansion (liste des clients sous chaque ligne) est retire : le premier
+     * affichage est allege, et les clients se consultent A LA DEMANDE par le bouton
+     * « Clients » de la ligne (retour d'officine). */
+    cls: 'vp-grille-survol',
     initComponent: function () {
 
         Me_Workflow = this;
@@ -201,10 +194,13 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         }]
                 },
                 {
+                    // Colonne « Supprimer » masquee (retour d'officine) : la desactivation
+                    // reste le geste courant. Elle reste dans le menu des colonnes.
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden: true,
                     items: [{
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Supprimer',
@@ -251,6 +247,19 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         }]
                 },
 
+                {
+                    // Consultation des clients du tiers payant, a la demande (remplace le (+))
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/user.png',
+                            tooltip: 'Voir les clients du tiers payant',
+                            scope: this,
+                            handler: this.onClientsClick
+                        }]
+                },
                 {
                     xtype: 'actioncolumn',
                     width: 30,
@@ -683,6 +692,86 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
             odatasource: rec.data,
             parentview: this,
             titre: "Detail du tiers payant : [" + rec.get('str_FULLNAME') + "]"
+        });
+    },
+
+    /*
+     * Clients du tiers payant, a la demande (remplace le (+) de chaque ligne, qui alourdissait
+     * le premier affichage). Fenetre modale, meme source de donnees que l'onglet Clients du
+     * detail du tiers payant.
+     */
+    onClientsClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const tiersPayantId = rec.get('lg_TIERS_PAYANT_ID');
+        const clients = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.Client',
+            autoLoad: true,
+            pageSize: 20,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/tierspayant/gestion/clients?lg_TIERS_PAYANT_ID=' + tiersPayantId,
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        const win = Ext.create('Ext.window.Window', {
+            title: 'Clients du tiers payant : ' + rec.get('str_FULLNAME'),
+            modal: true,
+            autoShow: true,
+            width: '70%',
+            height: 560,
+            layout: 'fit',
+            maximizable: true,
+            items: [{
+                    xtype: 'grid',
+                    cls: 'vp-grille-survol',
+                    store: clients,
+                    viewConfig: {forceFit: true},
+                    columns: [
+                        {header: 'Id', flex: 0.3, xtype: 'rownumberer'},
+                        {text: 'Code Interne', flex: 0.8, dataIndex: 'str_CODE_INTERNE'},
+                        {text: 'N° S&eacute;curit&eacute;', flex: 1, dataIndex: 'str_NUMERO_SECURITE_SOCIAL'},
+                        {text: 'Nom &amp; Pr&eacute;nom(s)', flex: 2, dataIndex: 'str_FIRST_LAST_NAME'},
+                        {text: 'Date de naissance', flex: 1, dataIndex: 'dt_NAISSANCE'},
+                        {text: 'Sexe', flex: 0.4, dataIndex: 'str_SEXE'}
+                    ],
+                    dockedItems: [{
+                            dock: 'top',
+                            xtype: 'toolbar',
+                            items: [{
+                                    xtype: 'textfield',
+                                    itemId: 'rechercheClientTp',
+                                    emptyText: 'Rechercher un client...',
+                                    flex: 1,
+                                    enableKeyEvents: true,
+                                    listeners: {
+                                        // recherche au fil de la frappe des 2 caracteres
+                                        keyup: {
+                                            buffer: 350,
+                                            fn: function (champ) {
+                                                const valeur = champ.getValue() || '';
+                                                if (valeur.length === 1) {
+                                                    return;
+                                                }
+                                                clients.load({params: {query: valeur, start: 0}});
+                                            }
+                                        }
+                                    }
+                                }]
+                        }, {
+                            dock: 'bottom',
+                            xtype: 'pagingtoolbar',
+                            store: clients,
+                            displayInfo: true,
+                            displayMsg: 'Données affichées {0} - {1} sur {2}',
+                            emptyMsg: 'Pas de donnée à afficher'
+                        }]
+                }],
+            buttons: [{
+                    text: 'Fermer',
+                    handler: function () {
+                        win.close();
+                    }
+                }]
         });
     }
 

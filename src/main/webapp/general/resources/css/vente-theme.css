@@ -861,3 +861,24 @@ body.x-body,
         animation: none;
     }
 }
+
+/* --------------------------------------------------------------------------
+ * Survol de ligne bien visible (retour d'officine) : le survol par defaut du
+ * theme est trop pale pour suivre une ligne du regard sur les grandes listes.
+ * Applique aux grilles portant la classe vp-grille-survol.
+ * -------------------------------------------------------------------------- */
+.vp-grille-survol .x-grid-item-over .x-grid-cell,
+.vp-grille-survol .x-grid-item-over .x-grid-rowwrap-div {
+    background-color: #cfe6ff !important;
+    border-top: 1px solid #4a90d9 !important;
+    border-bottom: 1px solid #4a90d9 !important;
+}
+
+.vp-grille-survol .x-grid-item-over {
+    cursor: pointer;
+}
+
+/* La ligne selectionnee reste distincte du survol */
+.vp-grille-survol .x-grid-item-selected .x-grid-cell {
+    background-color: #b3d9ff !important;
+}

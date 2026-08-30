@@ -876,6 +876,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             minHeight: 200,
             layout: 'fit',
             plain: true,
+            // Fenetre modale, comme le detail du tiers payant : evite les clics
+            // dans la liste restee accessible derriere (retour d'officine).
+            modal: true,
             maximizable: true,
             items: form,
             buttons: [{

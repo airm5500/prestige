@@ -145,6 +145,40 @@ public class ClientRessource {
                 .location(java.net.URI.create(servletRequest.getContextPath() + file)).build();
     }
 
+    /** Export Excel de la consommation par medicament d'un client (memes filtres que la grille). */
+    @GET
+    @Path("consommation/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response consommationExcel(@QueryParam(value = "clientId") String clientId,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) throws Exception {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = clientConsommationService.exportConsommationExcel(clientId, dtStart, dtEnd, query);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"conso_par_medicament.xls\"")
+                .build();
+    }
+
+    /** Inventaire des produits de la consommation affichee (INVENTAIRE PRODUITS CONSO CLIENTS + horodatage). */
+    @POST
+    @Path("consommation/inventaire")
+    @Consumes(javax.ws.rs.core.MediaType.WILDCARD)
+    public Response consommationInventaire(@QueryParam(value = "clientId") String clientId,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(
+                clientConsommationService.createInventaireConsommation(clientId, dtStart, dtEnd, query).toString())
+                .build();
+    }
+
     @GET
     @Path("consommation/pdf")
     public Response consommationClientPdf(@QueryParam(value = "clientId") String clientId,

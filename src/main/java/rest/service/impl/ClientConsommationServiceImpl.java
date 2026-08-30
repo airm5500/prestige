@@ -75,6 +75,8 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
     private ReportExcelExportService reportExcelExportService;
     @EJB
     private ReportUtil reportUtil;
+    @EJB
+    private rest.service.InventaireService inventaireService;
 
     private LocalDate parseOr(String value, LocalDate fallback) {
         try {
@@ -328,12 +330,90 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
 
     /** Lignes par produit du client (pour l'impression), meme requete que la consommation a l'ecran. */
     private List<ClientConsoProduitDTO> produitsClient(String clientId, String dtStart, String dtEnd) {
+        return produitsClient(clientId, dtStart, dtEnd, null);
+    }
+
+    /**
+     * Export Excel de la consommation par medicament (lot 3, retour d'officine) : memes lignes et memes filtres que la
+     * grille de la fenetre.
+     */
+    @Override
+    public byte[] exportConsommationExcel(String clientId, String dtStart, String dtEnd, String query)
+            throws IOException {
+        List<ClientConsoProduitDTO> rows = produitsClient(clientId, dtStart, dtEnd, query);
+        if (rows.isEmpty()) {
+            return new byte[0];
+        }
+        String[] headers = { "CIP", "Produit", "Dernier achat", "Nb achats", "Qté totale", "Qté moyenne", "Fréquence",
+                "Montant", "Habitude" };
+        return reportExcelExportService.createExcelReport("Consommation par médicament " + periode(dtStart, dtEnd),
+                headers, rows, (row, dto) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(dto.getCip()));
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(dto.getName()));
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(dto.getDernierAchat()));
+                    row.createCell(col++).setCellValue(dto.getNbAchats());
+                    row.createCell(col++).setCellValue(dto.getQteTotale());
+                    row.createCell(col++).setCellValue(dto.getQteMoyenne());
+                    row.createCell(col++).setCellValue(frequenceLabel(dto.getNbAchats(), dto.getFrequenceJours()));
+                    row.createCell(col++).setCellValue(dto.getMontant());
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(dto.getHabitude()));
+                });
+    }
+
+    /**
+     * Inventaire des produits de la consommation affichee (memes filtres), nomme « INVENTAIRE PRODUITS CONSO CLIENTS
+     * &lt;horodatage&gt; » — l'horodatage distingue deux inventaires crees le meme jour.
+     */
+    @Override
+    public JSONObject createInventaireConsommation(String clientId, String dtStart, String dtEnd, String query) {
+        try {
+            java.util.Set<String> ids = idsProduitsClient(clientId, dtStart, dtEnd, query);
+            String libelle = "INVENTAIRE PRODUITS CONSO CLIENTS " + java.time.LocalDateTime.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+            if (ids.isEmpty()) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Aucun produit dans le résultat affiché : inventaire non créé");
+            }
+            int count = inventaireService.create(ids, libelle, libelle);
+            return new JSONObject().put("success", true).put("count", count).put("libelle", libelle);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Creation inventaire consommation client", e);
+            return new JSONObject().put("success", false).put("msg", "La création a échoué");
+        }
+    }
+
+    /** Identifiants produits de la consommation affichee (memes filtres que la grille). */
+    private java.util.Set<String> idsProduitsClient(String clientId, String dtStart, String dtEnd, String query) {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        try {
+            LocalDate fin = parseOr(dtEnd, LocalDate.now());
+            LocalDate debut = parseOr(dtStart, fin.minusMonths(12));
+            String search = StringUtils.isEmpty(query) ? "%%" : "%" + query + "%";
+            @SuppressWarnings("unchecked")
+            List<Tuple> tuples = em.createNativeQuery(DATA_QUERY, Tuple.class).setParameter(1, clientId)
+                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin)).setParameter(4, search)
+                    .getResultList();
+            for (Tuple t : tuples) {
+                String id = t.get("familleId", String.class);
+                if (StringUtils.isNotBlank(id)) {
+                    ids.add(id);
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return ids;
+    }
+
+    private List<ClientConsoProduitDTO> produitsClient(String clientId, String dtStart, String dtEnd, String query) {
         List<ClientConsoProduitDTO> rows = new ArrayList<>();
         try {
             LocalDate fin = parseOr(dtEnd, LocalDate.now());
             LocalDate debut = parseOr(dtStart, fin.minusMonths(12));
+            String search = StringUtils.isEmpty(query) ? "%%" : "%" + query + "%";
             Query q = em.createNativeQuery(DATA_QUERY, Tuple.class).setParameter(1, clientId)
-                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin)).setParameter(4, "%%");
+                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin)).setParameter(4, search);
             List<Tuple> tuples = q.getResultList();
             for (Tuple t : tuples) {
                 long nbAchats = ((Number) t.get("nbAchats")).longValue();

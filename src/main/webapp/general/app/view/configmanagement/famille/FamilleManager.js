@@ -186,7 +186,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             height: valheight,
 
             store: store,
-            cls: 'my-grid-header',
+            /* vp-grille-survol : survol de ligne bien visible (vente-theme.css) */
+            cls: 'my-grid-header vp-grille-survol',
             id: 'GridArticleID',
             columns: [
                 {

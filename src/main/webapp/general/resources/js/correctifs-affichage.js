@@ -196,13 +196,17 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
     // commandes et approvisionnement
-    'reservesuggestionsgrid', 'i_sugg_manager', //'suggerercdemanager',
+    'reservesuggestionsgrid', 'i_sugg_manager', 'suggerercdemanager',
   'i_order_manager', //'ordermanagerlist',
-  'bonlivraisonmanager','retourfrsmanager', //'bonlivraisondetail', 
+  'bonlivraisonmanager','retourfrsmanager', 'retourfournisseurmanagerlist', //'bonlivraisondetail',
     // stock
     'ajustementmanager', 'etatstock', 'inventaire',
     'monitoringproduct', 'suivientreevente', 'monitoringarticlecomplet',
-    'detailsmanager',
+    'detailsmanager', 'gestionsurstock',
+    // tiers payants et clients
+    'tierspayantmanager', 'clientmanager',
+    // analyses
+    'abcmanager', 'vingtquatrevingt',
     // service client
     'ventesrateesmanager',
     // etats et tableaux de bord

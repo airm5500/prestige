@@ -27,4 +27,13 @@ public interface ClientConsommationService {
             String sortBy);
 
     String printClient(TUser user, String clientId, String dtStart, String dtEnd);
+
+    /** Export Excel de la consommation par medicament d'un client (memes filtres que la grille). */
+    byte[] exportConsommationExcel(String clientId, String dtStart, String dtEnd, String query) throws IOException;
+
+    /**
+     * Inventaire des produits de la consommation affichee, nomme « INVENTAIRE PRODUITS CONSO CLIENTS &lt;horodatage&gt;
+     * ».
+     */
+    JSONObject createInventaireConsommation(String clientId, String dtStart, String dtEnd, String query);
 }
