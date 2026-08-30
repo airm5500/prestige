@@ -28,9 +28,46 @@ Ext.define('testextjs.view.caisseManager.Cashmovement', {
                 }
             }
         });
+
+        /* Types de mouvement de caisse : le controleur, l'impression et la
+           ressource REST attendent tous un typeMvtId, mais la liste deroulante
+           qui le fournit manquait a la barre d'outils. L'ecran plantait donc
+           des son ouverture (getTypeMvt() introuvable). Meme source que le
+           journal des mouvements de caisse. */
+        /* L'ecran ne retient que cinq types de mouvement (voir les predicats de
+           CaisseServiceImpl.mouvementCaisses : fonds de caisse, reglements differes,
+           reglements tiers payant, sorties et entrees de caisse). La liste ne propose
+           qu'eux : laisser choisir un type que l'ecran n'affiche jamais ne menerait
+           qu'a une grille vide sans explication. */
+        var TYPES_AFFICHES = ['1', '2', '3', '4', '5'];
+        var storeTypeMvt = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.TypeEcartMvt',
+            autoLoad: true,
+            pageSize: 999999,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/typeMvtCaisse/list',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            },
+            listeners: {
+                load: function (magasin) {
+                    magasin.filterBy(function (enregistrement) {
+                        return Ext.Array.contains(TYPES_AFFICHES,
+                                String(enregistrement.get('lg_TYPE_MVT_CAISSE_ID')));
+                    });
+                }
+            }
+        });
         var store = Ext.create('Ext.data.Store', {
-             idProperty: 'id',
-            filds: [
+            idProperty: 'id',
+            /* « filds » (faute de frappe) laissait le store SANS champ ni modele : la reponse du
+               serveur ne pouvait etre transformee en lignes, le chargement echouait et la grille
+               restait vide quoi qu'on cherche. */
+            fields: [
                 {
                     name: 'id',
                     type: 'string'
@@ -148,6 +185,19 @@ Ext.define('testextjs.view.caisseManager.Cashmovement', {
                             queryMode: 'remote',
                             emptyText: 'Choisir un utilisateur...'
 
+                        }, '-',
+                        {
+                            xtype: 'combobox',
+                            fieldLabel: 'Type',
+                            itemId: 'typeMvt',
+                            store: storeTypeMvt,
+                            valueField: 'lg_TYPE_MVT_CAISSE_ID',
+                            displayField: 'str_NAME',
+                            queryMode: 'local',
+                            editable: false,
+                            flex: 2,
+                            labelWidth: 35,
+                            emptyText: 'Tous les types...'
                         }, '-',
 
                         {

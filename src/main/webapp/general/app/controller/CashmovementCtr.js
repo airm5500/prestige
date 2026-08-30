@@ -70,45 +70,63 @@ Ext.define('testextjs.controller.CashmovementCtr', {
     },
     onPdfClick: function () {
         var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        var dtEnd = me.getDtEnd().getSubmitValue();
-        var user = me.getUser().getValue();
-        var typeMvt = me.getTypeMvt().getValue();
-        var linkUrl = '../BalancePdfServlet?mode=MVT_CAISSE&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&user=' + user
-                + '&typeMvtId=' + typeMvt;
+        var linkUrl = '../BalancePdfServlet?mode=MVT_CAISSE'
+                + '&dtStart=' + me.valeurCritere(me.getDtStart(), 'getSubmitValue')
+                + '&dtEnd=' + me.valeurCritere(me.getDtEnd(), 'getSubmitValue')
+                + '&user=' + me.valeurCritere(me.getUser(), 'getValue')
+                + '&typeMvtId=' + me.valeurCritere(me.getTypeMvt(), 'getValue');
         window.open(linkUrl);
     },
 
     doBeforechange: function (page, currentPage) {
         var me = this;
-        var myProxy = me.getCashGrid().getStore().getProxy();
+        var grille = me.getCashGrid();
+        if (!grille) {
+            return;
+        }
+        var myProxy = grille.getStore().getProxy();
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
             user: null,
             typeMvtId: null
-
-
         };
-         var user=me.getUser().getValue();
-        myProxy.setExtraParam('user', user);
-        myProxy.setExtraParam('typeMvtId', me.getTypeMvt().getValue());
-        myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
-        myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
+        myProxy.setExtraParam('user', me.valeurCritere(me.getUser(), 'getValue'));
+        myProxy.setExtraParam('typeMvtId', me.valeurCritere(me.getTypeMvt(), 'getValue'));
+        myProxy.setExtraParam('dtEnd', me.valeurCritere(me.getDtEnd(), 'getSubmitValue'));
+        myProxy.setExtraParam('dtStart', me.valeurCritere(me.getDtStart(), 'getSubmitValue'));
     },
     doInitStore: function () {
         var me = this;
         me.doSearch();
     },
+    /**
+     * Valeur d'un champ de la barre d'outils, vide s'il est absent.
+     *
+     * Les criteres sont lus des l'ouverture de l'ecran (viewready -> doSearch). Un seul champ
+     * manquant faisait echouer la lecture et l'ecran restait inutilisable, grille vide : c'est ce
+     * qui arrivait au filtre de type de mouvement, dont la liste deroulante manquait a la vue.
+     * Un critere absent vaut desormais « pas de filtre », la liste s'affiche quand meme.
+     */
+    valeurCritere: function (champ, methode) {
+        if (!champ || typeof champ[methode] !== 'function') {
+            return '';
+        }
+        var valeur = champ[methode]();
+        return Ext.isEmpty(valeur) ? '' : valeur;
+    },
     doSearch: function () {
         var me = this;
-        var user=me.getUser().getValue();
-        me.getCashGrid().getStore().load({
+        var grille = me.getCashGrid();
+        if (!grille) {
+            return;
+        }
+        grille.getStore().load({
             params: {
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue(),
-                user: user,
-                typeMvtId: me.getTypeMvt().getValue()
+                dtStart: me.valeurCritere(me.getDtStart(), 'getSubmitValue'),
+                dtEnd: me.valeurCritere(me.getDtEnd(), 'getSubmitValue'),
+                user: me.valeurCritere(me.getUser(), 'getValue'),
+                typeMvtId: me.valeurCritere(me.getTypeMvt(), 'getValue')
             }
         });
     }
