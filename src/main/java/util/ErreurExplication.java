@@ -107,6 +107,19 @@ public final class ErreurExplication {
             return "Le programme a tenté d'accéder à une donnée liée qui n'était plus chargée en mémoire "
                     + "(la connexion à la base était déjà refermée). Erreur purement technique, à corriger dans le code.";
         }
+        // Troncature de donnee : MySQL nomme la COLONNE fautive dans son message, jamais la valeur.
+        // On remonte au moins ce nom de colonne a l'utilisateur - sans lui, l'evenement du Centre de
+        // Support ne disait pas quelle donnee posait probleme et le diagnostic demandait un aller-retour.
+        if (nom.contains("DataTruncation") || StringUtils.containsIgnoreCase(message, "data too long for column")
+                || StringUtils.containsIgnoreCase(message, "data truncated for column")) {
+            String colonne = colonneCitee(message);
+            return "La valeur enregistrée est plus longue que ce que la colonne "
+                    + (colonne.isEmpty() ? "concernée" : "« " + colonne + " »") + " peut contenir : "
+                    + "l'écriture a été refusée et l'opération annulée. "
+                    + "Causes typiques : colonne plus étroite que l'identifiant ou le texte à y écrire "
+                    + "(base non alignée sur une mise à jour), ou saisie anormalement longue. "
+                    + "A vérifier : la largeur de cette colonne et la longueur de la valeur écrite.";
+        }
         if (nom.contains("ConstraintViolation") || nom.contains("IntegrityConstraint")) {
             return "L'écriture en base a violé une règle d'intégrité : doublon sur une valeur qui doit être unique, "
                     + "référence vers un enregistrement inexistant, ou champ obligatoire vide.";
@@ -142,5 +155,19 @@ public final class ErreurExplication {
         }
         return "Erreur technique non répertoriée (" + nom + "). Transmettez le détail complet au support éditeur "
                 + "via un ticket : le fichier log de l'événement contient la trace exacte.";
+    }
+
+    /**
+     * Nom de la colonne cite entre apostrophes par MySQL dans un message de troncature, par exemple « Data too long for
+     * column 'lg_COMPTE_CLIENT_ID' at row 1 ». Chaine vide si le message ne suit pas ce format.
+     */
+    static String colonneCitee(String message) {
+        String texte = StringUtils.defaultString(message);
+        int debut = texte.indexOf('\'');
+        if (debut < 0) {
+            return "";
+        }
+        int fin = texte.indexOf('\'', debut + 1);
+        return fin > debut ? texte.substring(debut + 1, fin) : "";
     }
 }
