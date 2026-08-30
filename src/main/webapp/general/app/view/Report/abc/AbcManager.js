@@ -186,8 +186,11 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                             fieldStyle: 'border:2px solid #1565C0;'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         {xtype: 'tbseparator'},
-                        {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
-                        {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
+                        /* Icones distinctes (retour d'officine) : le recalcul ne partage plus celle
+                         * de « Créer suggestion » (camion de reappro), et « Appliquer aux fiches »
+                         * ne partage plus celle d'« Imprimer » (imprimante). */
+                        {text: 'Recalculer classification', itemId: 'recalculer', icon: 'resources/images/icons/fam/table_refresh.png', tooltip: 'Recalcule la classification ABC sur la période'},
+                        {text: 'Appliquer aux fiches', itemId: 'appliquer', icon: 'resources/images/icons/fam/accept.png', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
                         {text: 'Courbe évolution', itemId: 'evolution', iconCls: 'charticon', tooltip: 'Évolution mensuelle des classes sur la période'},
                         {xtype: 'tbseparator'},
                         {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
