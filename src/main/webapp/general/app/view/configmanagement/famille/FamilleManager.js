@@ -693,8 +693,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
 
             ],
+            /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
+               marquee, pas la seule cellule cliquee (retour d'officine). */
             selModel: {
-                selType: 'cellmodel'
+                selType: 'rowmodel'
             },
             dockedItems: [
                 {

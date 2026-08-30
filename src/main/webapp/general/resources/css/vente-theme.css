@@ -277,9 +277,8 @@ body.x-body,
     background-color: #F5F8FB;
 }
 
-.vp-vente .x-grid-row-over .x-grid-cell {
-    background-color: #E3EEF9;
-}
+/* Le survol de l'ecran de vente suit la regle generale (orange franc)
+   definie en fin de fichier : plus de bleu pale specifique ici. */
 
 /* Bouton supprimer de la ligne : icône plus grande, bien visible */
 .vp-vente .x-action-col-cell img,
@@ -870,21 +869,37 @@ body.x-body,
  * ExtJS 4.2 pose « x-grid-row-over » sur la ligne (les versions precedentes
  * posaient « x-grid-item-over ») : les deux sont ciblees, et le fond doit
  * etre porte par les CELLULES, qui ont leur propre couleur de fond.
- * Applique aux grilles portant la classe vp-grille-survol.
+ *
+ * La regle est GLOBALE : elle couvre toutes les grilles de l'application,
+ * y compris celles qui seront ajoutees plus tard, sans avoir a poser une
+ * classe ecran par ecran. La classe vp-grille-survol reste acceptee pour
+ * les vues qui la portent deja (elle n'est plus necessaire).
+ * Seule la navigation est exclue : elle a son propre survol (navigation.css).
  * -------------------------------------------------------------------------- */
-.vp-grille-survol .x-grid-row-over > .x-grid-cell,
-.vp-grille-survol .x-grid-item-over > .x-grid-cell,
-.vp-grille-survol .x-grid-row-over .x-grid-cell,
-.vp-grille-survol .x-grid-item-over .x-grid-cell {
+.x-grid-row-over > .x-grid-cell,
+.x-grid-item-over > .x-grid-cell,
+.x-grid-row-over .x-grid-cell,
+.x-grid-item-over .x-grid-cell {
     background-color: #ffcc80 !important;
     background-image: none !important;
     border-top: 1px solid #e65100 !important;
     border-bottom: 1px solid #e65100 !important;
 }
 
-.vp-grille-survol .x-grid-row-over,
-.vp-grille-survol .x-grid-item-over {
+.x-grid-row-over,
+.x-grid-item-over {
     cursor: pointer;
+}
+
+/* La navigation garde le survol navy/accent defini dans navigation.css :
+   ses couleurs gagnent deja en specificite, on neutralise seulement les
+   liseres orange que la regle globale poserait sur le menu. */
+.prestige-nav .x-grid-row-over > .x-grid-cell,
+.prestige-nav .x-grid-item-over > .x-grid-cell,
+.prestige-nav .x-grid-row-over .x-grid-cell,
+.prestige-nav .x-grid-item-over .x-grid-cell {
+    border-top: 0 none !important;
+    border-bottom: 0 none !important;
 }
 
 /* La ligne selectionnee reste distincte du survol */
