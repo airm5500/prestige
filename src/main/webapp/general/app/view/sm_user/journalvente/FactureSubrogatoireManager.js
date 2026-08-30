@@ -435,6 +435,15 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
 
         this.callParent();
 
+        /* Les totaux sont recalcules a CHAQUE chargement de la grille.
+           Ils etaient jusqu'ici demandes par un callback pose sur le seul chargement
+           initial, et sans scope : ExtJS appelle alors le callback avec le STORE pour
+           « this », d'ou l'erreur « this.getStore is not a function » et des totaux
+           jamais calcules. En s'abonnant a l'evenement du store, le scope est explicite
+           et la recherche (onRechClick), qui rechargeait sans rien recalculer, met elle
+           aussi les totaux a jour. */
+        this.getStore().on('load', this.onStoreLoad, this);
+
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -443,9 +452,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
 
     },
     loadStore: function() {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
+        this.getStore().load();
     },
     onStoreLoad: function() {
         if (this.getStore().getCount() > 0) {

@@ -457,6 +457,13 @@ var searchstore = Ext.create('Ext.data.Store', {
 
         this.callParent();
 
+        /* Meme correction que sur les factures subrogatoires : le callback etait pose
+           sans scope, ExtJS appelait donc onStoreLoad avec le STORE pour « this » et
+           « this.getStore is not a function » empechait tout calcul. En s'abonnant a
+           l'evenement du store, le scope est explicite et la recherche met elle aussi
+           les valeurs a jour. */
+        this.getStore().on('load', this.onStoreLoad, this);
+
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -464,9 +471,7 @@ var searchstore = Ext.create('Ext.data.Store', {
 
     },
     loadStore: function() {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
+        this.getStore().load();
     },
     onStoreLoad: function() {
         if (this.getStore().getCount() > 0) {
