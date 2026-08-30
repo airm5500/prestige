@@ -921,6 +921,12 @@ Ext.application({
 // classe d'affichage vp-ligne-active sur la ligne qui porte la selection.
 // Purement cosmetique : la selection ExtJS, elle, ne change pas.
 //
+// La ligne CLIQUEE est marquee elle aussi, meme si elle n'est pas
+// selectionnee : sur la liste des factures par exemple, la selection est
+// volontairement reservee a la case a cocher (checkOnly) et refusee aux
+// factures non supprimables — cliquer une ligne ne selectionne donc rien
+// et il ne se passait rien a l'ecran.
+//
 // Les arbres (menu de navigation) heritent de Ext.tree.Panel et non de
 // Ext.grid.Panel : ils ne sont pas concernes et gardent leur propre style.
 // ---------------------------------------------------------------------
@@ -937,6 +943,14 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                 if (!modele || !vue) {
                     return;
                 }
+                var ligneCliquee = null;
+
+                var marquer = function (enregistrement) {
+                    var noeud = enregistrement ? vue.getNode(enregistrement) : null;
+                    if (noeud) {
+                        Ext.fly(noeud).addCls('vp-ligne-active');
+                    }
+                };
 
                 var repeindre = function () {
                     try {
@@ -946,12 +960,12 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                         Ext.Array.each(vue.getEl().query('.vp-ligne-active'), function (noeud) {
                             Ext.fly(noeud).removeCls('vp-ligne-active');
                         });
-                        Ext.Array.each(modele.getSelection() || [], function (enregistrement) {
-                            var noeud = vue.getNode(enregistrement);
-                            if (noeud) {
-                                Ext.fly(noeud).addCls('vp-ligne-active');
-                            }
-                        });
+                        Ext.Array.each(modele.getSelection() || [], marquer);
+                        // la ligne cliquee reste marquee tant qu'aucune autre
+                        // n'est cliquee ou selectionnee
+                        if (!(modele.getSelection() || []).length) {
+                            marquer(ligneCliquee);
+                        }
                     } catch (e) {
                         // rendu en cours de destruction : rien a repeindre
                     }
@@ -959,6 +973,15 @@ Ext.define('Prestige.override.GrilleLigneActive', {
 
                 modele.on('selectionchange', repeindre);
                 vue.on('refresh', repeindre);
+                grille.on('itemclick', function (v, enregistrement) {
+                    ligneCliquee = enregistrement;
+                    repeindre();
+                });
+                if (grille.getStore()) {
+                    grille.getStore().on('load', function () {
+                        ligneCliquee = null;
+                    });
+                }
             } catch (e) {
                 // grille atypique : on laisse le comportement d'origine
             }

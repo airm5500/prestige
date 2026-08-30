@@ -253,9 +253,19 @@
     background-image: none !important;
 }
 
+/* Le lisere doit etre pose sur la cellule ET sur l'interieur : les deux
+   portent un bord de 4 px (transparent au repos, turquoise a la selection).
+   En ne repeignant que la cellule, on voyait deux bandes cote a cote sur
+   une entree a la fois selectionnee et survolee - une orange, une turquoise. */
+.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
+.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell-inner,
+.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell,
+.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell-inner {
+    border-left: 4px solid #e65100 !important;
+}
+
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
 .prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell {
-    border-left: 4px solid #e65100 !important;
     box-shadow: inset 0 0 0 1px rgba(230, 81, 0, 0.35) !important;
 }
 
@@ -287,6 +297,7 @@
     background: #ffcc80 !important;
     background-color: #ffcc80 !important;
     background-image: none !important;
+    /* lisere sur la cellule ET l'interieur : une seule bande, pas deux */
     border-left: 4px solid #e65100 !important;
 }
 

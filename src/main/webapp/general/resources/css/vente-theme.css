@@ -555,10 +555,9 @@ body.x-body,
     font-weight: 800;
 }
 
-/* Facturation : mise en evidence de la ligne survolee (grille facturemanager) */
-.facture-row-over .x-grid-cell {
-    background-color: #fff3cd !important;
-}
+/* Facturation : la grille des factures avait sa propre classe de survol et son
+   propre jaune pale. Elle suit maintenant la regle generale (orange) definie en
+   fin de fichier, comme toutes les autres grilles. */
 
 /* ------------------------------------------------------------------------------
    Fiche d'inventaire de RESERVE.
@@ -876,10 +875,20 @@ body.x-body,
  * les vues qui la portent deja (elle n'est plus necessaire).
  * Seule la navigation est exclue : elle a son propre survol (navigation.css).
  * -------------------------------------------------------------------------- */
+/*
+ * Le fond est pose sur les cellules FILLES de la ligne survolee, jamais sur
+ * ses descendantes : dans une grille GROUPEE (liste des bons par organisme
+ * par exemple), ExtJS pose x-grid-row-over sur l'enveloppe du groupe et non
+ * sur la ligne pointee. En selecteur descendant, tout le groupe passait a
+ * l'orange - y compris sa ligne de totaux - et la ligne reellement sous la
+ * souris ne se distinguait plus.
+ *
+ * Le survol CSS natif (:hover) sur la ligne de donnees couvre justement ce
+ * cas : lui ne peut designer que la ligne pointee.
+ */
 .x-grid-row-over > .x-grid-cell,
 .x-grid-item-over > .x-grid-cell,
-.x-grid-row-over .x-grid-cell,
-.x-grid-item-over .x-grid-cell {
+.x-grid-data-row:hover > .x-grid-cell {
     background-color: #ffcc80 !important;
     background-image: none !important;
     border-top: 1px solid #e65100 !important;
@@ -887,7 +896,8 @@ body.x-body,
 }
 
 .x-grid-row-over,
-.x-grid-item-over {
+.x-grid-item-over,
+.x-grid-data-row:hover {
     cursor: pointer;
 }
 
@@ -896,6 +906,7 @@ body.x-body,
    liseres orange que la regle globale poserait sur le menu. */
 .prestige-nav .x-grid-row-over > .x-grid-cell,
 .prestige-nav .x-grid-item-over > .x-grid-cell,
+.prestige-nav .x-grid-data-row:hover > .x-grid-cell,
 .prestige-nav .x-grid-row-over .x-grid-cell,
 .prestige-nav .x-grid-item-over .x-grid-cell {
     border-top: 0 none !important;
@@ -914,14 +925,17 @@ body.x-body,
  * On ne peint que les lignes SELECTIONNEES (x-grid-row-selected /
  * x-grid-item-selected) et pas les lignes simplement focalisees, pour ne
  * pas marquer une ligne que l'utilisateur n'a pas choisie.
+ *
+ * Comme pour le survol, on vise les cellules FILLES : dans une grille
+ * groupee, peindre les descendantes colorerait tout le groupe.
  * -------------------------------------------------------------------------- */
-.x-grid-item-selected .x-grid-cell,
-.x-grid-item-selected .x-grid-cell-inner,
-.x-grid-row-selected .x-grid-cell,
-.x-grid-row-selected .x-grid-cell-inner,
-.vp-ligne-active .x-grid-cell,
-.vp-ligne-active .x-grid-cell-inner,
-.vp-ligne-active .x-grid-cell-selected {
+.x-grid-item-selected > .x-grid-cell,
+.x-grid-item-selected > .x-grid-cell > .x-grid-cell-inner,
+.x-grid-row-selected > .x-grid-cell,
+.x-grid-row-selected > .x-grid-cell > .x-grid-cell-inner,
+.vp-ligne-active > .x-grid-cell,
+.vp-ligne-active > .x-grid-cell > .x-grid-cell-inner,
+.vp-ligne-active > .x-grid-cell-selected {
     background-color: #CE93D8 !important;
     background-image: none !important;
     color: #1a1a1a !important;

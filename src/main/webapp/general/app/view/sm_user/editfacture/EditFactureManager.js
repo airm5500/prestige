@@ -127,10 +127,11 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     cls: 'facture-liste',
     width: "98%",
     height: 580,
-    // Mise en evidence de la ligne survolee (uniquement cette grille)
     viewConfig: {
+        // survol : la classe standard d'ExtJS, pour que la ligne soit orange
+        // comme dans toutes les autres grilles (vente-theme.css). Cette grille
+        // avait sa propre classe et son propre jaune pale.
         trackOver: true,
-        overItemCls: 'facture-row-over',
         // coche de selection masquee (CSS) pour les lignes non supprimables :
         // reglees, partiellement reglees ou avec facture/avoir FNE
         getRowClass: function (rec) {
