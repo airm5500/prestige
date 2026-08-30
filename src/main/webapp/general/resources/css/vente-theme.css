@@ -902,8 +902,31 @@ body.x-body,
     border-bottom: 0 none !important;
 }
 
-/* La ligne selectionnee reste distincte du survol */
-.vp-grille-survol .x-grid-item-selected .x-grid-cell,
-.vp-grille-survol .x-grid-row-selected .x-grid-cell {
-    background-color: #b3d9ff !important;
+/* --------------------------------------------------------------------------
+ * Ligne selectionnee au clic : violet moyen-clair, comme sur la fiche
+ * article (regle #GridArticleID de header.css). Globale elle aussi, pour
+ * que le comportement soit le meme sur toutes les grilles.
+ *
+ * Placee APRES le survol : sur une ligne selectionnee que l'on survole,
+ * c'est le violet de la selection qui reste visible - le comportement
+ * deja en place sur la fiche article.
+ *
+ * On ne peint que les lignes SELECTIONNEES (x-grid-row-selected /
+ * x-grid-item-selected) et pas les lignes simplement focalisees, pour ne
+ * pas marquer une ligne que l'utilisateur n'a pas choisie.
+ * -------------------------------------------------------------------------- */
+.x-grid-item-selected .x-grid-cell,
+.x-grid-item-selected .x-grid-cell-inner,
+.x-grid-row-selected .x-grid-cell,
+.x-grid-row-selected .x-grid-cell-inner,
+.vp-ligne-active .x-grid-cell,
+.vp-ligne-active .x-grid-cell-inner,
+.vp-ligne-active .x-grid-cell-selected {
+    background-color: #CE93D8 !important;
+    background-image: none !important;
+    color: #1a1a1a !important;
 }
+
+/* La navigation garde sa propre couleur de selection : ses regles
+   (navigation.css) gagnent en specificite pour le fond, et la couleur du
+   libelle est posee sur .x-tree-node-text, donc rien a neutraliser ici. */

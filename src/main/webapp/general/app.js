@@ -907,6 +907,66 @@ Ext.application({
 })();
 
 // ---------------------------------------------------------------------
+// Ligne active : au clic, c'est la LIGNE entiere qui est marquee (violet),
+// pas la seule cellule cliquee.
+//
+// La plupart des grilles de l'application sont en selection « cellule »
+// (selType cellmodel) : ExtJS ne marque alors que la cellule cliquee
+// (x-grid-cell-selected) et ne pose AUCUNE classe sur la ligne — il n'y a
+// donc rien a styler en CSS seul.
+//
+// Plutot que de basculer 230 grilles en selection « ligne », ce qui
+// changerait la semantique de selection (edition en cellule, appels a
+// getCurrentPosition, evenements select), on se contente d'ajouter une
+// classe d'affichage vp-ligne-active sur la ligne qui porte la selection.
+// Purement cosmetique : la selection ExtJS, elle, ne change pas.
+//
+// Les arbres (menu de navigation) heritent de Ext.tree.Panel et non de
+// Ext.grid.Panel : ils ne sont pas concernes et gardent leur propre style.
+// ---------------------------------------------------------------------
+Ext.define('Prestige.override.GrilleLigneActive', {
+    override: 'Ext.grid.Panel',
+
+    initComponent: function () {
+        this.callParent(arguments);
+
+        this.on('afterrender', function (grille) {
+            try {
+                var modele = grille.getSelectionModel();
+                var vue = grille.getView();
+                if (!modele || !vue) {
+                    return;
+                }
+
+                var repeindre = function () {
+                    try {
+                        if (!vue.rendered || !vue.getEl()) {
+                            return;
+                        }
+                        Ext.Array.each(vue.getEl().query('.vp-ligne-active'), function (noeud) {
+                            Ext.fly(noeud).removeCls('vp-ligne-active');
+                        });
+                        Ext.Array.each(modele.getSelection() || [], function (enregistrement) {
+                            var noeud = vue.getNode(enregistrement);
+                            if (noeud) {
+                                Ext.fly(noeud).addCls('vp-ligne-active');
+                            }
+                        });
+                    } catch (e) {
+                        // rendu en cours de destruction : rien a repeindre
+                    }
+                };
+
+                modele.on('selectionchange', repeindre);
+                vue.on('refresh', repeindre);
+            } catch (e) {
+                // grille atypique : on laisse le comportement d'origine
+            }
+        });
+    }
+});
+
+// ---------------------------------------------------------------------
 // Centre de Support : capture automatique des erreurs frontend
 // (erreurs JavaScript non gerees et echecs Ajax). Les evenements sont
 // envoyes au journal du Centre de Support ou ils sont dedupliques par
