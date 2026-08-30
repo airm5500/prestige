@@ -1249,6 +1249,45 @@ Ext.define('Prestige.override.GrilleLigneActive', {
         });
     }
 
+    // Garde sur Ext.EventManager.removeAll. ExtJS 4.2 y lit « element.id » sans verifier
+    // que l'element existe encore :
+    //     removeAll: function (n) { var o = (typeof n === "string") ? n : n.id, ... }
+    // Quand un composant est detruit deux fois, ou quand son noeud DOM a deja disparu,
+    // l'appel remonte « can't access property "id", n is undefined » et interrompt la
+    // destruction en cours : l'ecran reste a moitie ferme. Retirer les ecouteurs d'un
+    // element absent n'a aucun sens, il n'y a rien a retirer : on ne fait rien et on
+    // remonte l'incident une seule fois, avec la pile, pour identifier l'appelant.
+    (function () {
+        if (!window.Ext || !Ext.EventManager || typeof Ext.EventManager.removeAll !== 'function') {
+            return;
+        }
+        var removeAllOrigine = Ext.EventManager.removeAll;
+        var dejaSignale = false;
+        Ext.EventManager.removeAll = function (element) {
+            if (element === null || element === undefined) {
+                if (!dejaSignale) {
+                    dejaSignale = true;
+                    var pile = null;
+                    try {
+                        pile = new Error('removeAll sur un element absent').stack;
+                    } catch (ignore) {
+                        pile = null;
+                    }
+                    reportError({
+                        type: 'JS',
+                        niveau: 'WARN',
+                        module: 'FRONTEND',
+                        messageCourt: 'Ext.EventManager.removeAll appelé sur un élément absent (neutralisé)',
+                        urlOuEcran: String(window.location.pathname || '').substring(0, 255),
+                        stack: pile ? String(pile).substring(0, 8000) : null
+                    });
+                }
+                return;
+            }
+            return removeAllOrigine.apply(this, arguments);
+        };
+    })();
+
     Ext.onReady(function () {
         // Alimente le fil d'Ariane a chaque appel API (hors envois du support lui-meme).
         Ext.Ajax.on('beforerequest', function (conn, options) {
