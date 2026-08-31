@@ -177,9 +177,11 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                 align: 'stretch',
                 padding: 10
             },
-            defaults: {
-                flex: 1
-            },
+            // Pas de flex par defaut : il etait pose sur TOUS les enfants, barre de boutons
+            // comprise, et les quatre zones se partageaient la hauteur en parts egales. Sur un
+            // ecran plein page, les cadres du haut devenaient d'immenses cadres vides et le
+            // detail de la commande etait ecrase. Les cadres du haut prennent leur hauteur
+            // naturelle, le detail recoit la place restante.
             id: 'panelID',
             items: [
                 {
@@ -428,20 +430,19 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     title: 'Detail(s) Commandes',
                     collapsible: true,
                     cls: 'dg-card',
+                    // seul cadre a recevoir la place restante ; minHeight garde les 370 px
+                    // d'origine si l'ecran venait a etre affiche en hauteur automatique
+                    flex: 1,
+                    minHeight: 370,
                     defaultType: 'textfield',
-                    layout: 'anchor',
-                    defaults: {
-                        anchor: '100%'
-                    },
+                    layout: 'fit',
                     items: [
                         {
-                            columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelID',
                             cls: 'my-grid-header',
                             plugins: [this.cellEditing],
                             store: store_details_order,
-                            height: 370,
                             columns: [
                                 {
                                     xtype: 'rownumberer',

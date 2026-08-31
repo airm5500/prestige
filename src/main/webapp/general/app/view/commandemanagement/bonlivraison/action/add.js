@@ -99,7 +99,11 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
             cls: 'screen-wrap',
             fieldDefaults: {labelAlign: 'left', labelWidth: 150, anchor: '100%', msgTarget: 'side'},
             layout: {type: 'vbox', align: 'stretch', padding: 10},
-            defaults: {flex: 1},
+            // Pas de flex par defaut : il etait pose sur TOUS les enfants, barre de boutons
+            // comprise, et les trois zones se partageaient la hauteur en parts egales. Sur un
+            // ecran plein page, les infos generales devenaient un immense cadre vide et le
+            // detail de la commande etait ecrase. Le cadre du haut prend sa hauteur naturelle,
+            // le detail recoit la place restante.
             id: 'panelID',
             items: [
                 {
@@ -173,15 +177,17 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     title: '<span class="ig-title">Detail(s) de la Commande</span>',
                     collapsible: true,
                     cls: 'dg-card',
-                    layout: 'anchor',
-                    defaults: {anchor: '100%'},
+                    // seul cadre a recevoir la place restante ; minHeight garde les 370 px
+                    // d'origine si l'ecran venait a etre affiche en hauteur automatique
+                    flex: 1,
+                    minHeight: 370,
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',
                             id: 'gridpanelID',
                             cls: 'my-grid-header',
                             store: store_details_livraison,
-                            height: 370,
                             columns: [
                                 {text: 'Details Suggestion Id', flex: 1, sortable: true, hidden: true, dataIndex: 'lg_BON_LIVRAISON_DETAIL', id: 'lg_BON_LIVRAISON_DETAIL'},
                                 {text: 'Famille', flex: 1, sortable: true, hidden: true, dataIndex: 'lg_FAMILLE_ID'},

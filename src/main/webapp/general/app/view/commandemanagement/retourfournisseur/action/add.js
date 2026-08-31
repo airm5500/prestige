@@ -179,9 +179,11 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 align: 'stretch',
                 padding: 10
             },
-            defaults: {
-                flex: 1
-            },
+            // Pas de flex par defaut : il etait pose sur TOUS les enfants, barre de boutons
+            // comprise, et les quatre zones se partageaient la hauteur en parts egales. Sur un
+            // ecran plein page, les zones du haut devenaient d'immenses cadres vides et le
+            // detail du retour etait ecrase. Les zones du haut prennent leur hauteur naturelle,
+            // le detail recoit la place restante.
             items: [
                 {
                     items: [{
@@ -428,19 +430,18 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                     xtype: 'fieldset',
                     title: 'Detail(s) retour fournisseur',
                     collapsible: true,
+                    // seul cadre a recevoir la place restante ; minHeight garde les 400 px
+                    // d'origine si l'ecran venait a etre affiche en hauteur automatique
+                    flex: 1,
+                    minHeight: 400,
                     defaultType: 'textfield',
-                    layout: 'anchor',
-                    defaults: {
-                        anchor: '100%'
-                    },
+                    layout: 'fit',
                     items: [
                         {
-                            columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelID',
                             plugins: [this.cellEditing],
                             store: store_details_retourfournisseur,
-                            height: 400,
                             columns: [{
                                     text: 'Details Suggestion Id',
                                     flex: 1,

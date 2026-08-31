@@ -157,7 +157,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             cls: 'screen-wrap',
             fieldDefaults: {labelAlign: 'left', labelWidth: 90, anchor: '100%', msgTarget: 'side'},
             layout: {type: 'vbox', align: 'stretch', padding: 10},
-            defaults: {flex: 1},
+            // Pas de flex par defaut : il etait pose sur TOUS les enfants, y compris la barre
+            // de boutons, et les quatre zones se partageaient la hauteur en parts egales. Sur
+            // un ecran plein page, les deux cadres du haut devenaient d'immenses cadres vides
+            // et la liste des produits etait ecrasee. Les cadres du haut prennent desormais
+            // leur hauteur naturelle et c'est la liste qui recoit la place restante.
             id: 'panelID',
             items: [{
                 xtype: 'fieldset',
@@ -263,16 +267,17 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     xtype: 'fieldset',
                     title: 'Liste des produits de la suggestion',
                     cls: 'dg-card',
-                    collapsible: true, defaultType: 'textfield', layout: 'anchor',
-                    defaults: {anchor: '100%'},
+                    // seul cadre a recevoir la place restante ; minHeight garde les 370 px
+                    // d'origine si l'ecran venait a etre affiche en hauteur automatique
+                    flex: 1,
+                    minHeight: 370,
+                    collapsible: true, defaultType: 'textfield', layout: 'fit',
                     items: [{
-                            columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelSuggestionID',
                             cls: 'my-grid-header',
                             plugins: [this.cellEditing],
                             store: store_details_sugg,
-                            height: 370,
                             listeners: {
                                 cellclick: function (view, td, cellIndex, record) {
                                     Me_Window.showProduitInfos(record);
