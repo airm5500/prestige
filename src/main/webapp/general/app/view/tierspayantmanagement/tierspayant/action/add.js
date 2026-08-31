@@ -1,6 +1,10 @@
 /* global Ext */
 
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
+/* Consommation en cours de la fiche ouverte, relevee a l'ouverture et lue au moment
+ * d'enregistrer : onbtnsave est un handler de bouton, « this » y designe le BOUTON et
+ * non la fenetre, la source de donnees n'y est donc pas accessible. */
+var consommationEnCoursTiersPayant = 0;
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 
 /*
@@ -780,9 +784,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
         //Initialisation des valeur
 
 
+        consommationEnCoursTiersPayant = 0;
         if (Omode === "update") {
 
             ref = this.getOdatasource().lg_TIERS_PAYANT_ID;
+            consommationEnCoursTiersPayant = parseFloat(this.getOdatasource().db_CONSOMMATION_MENSUELLE) || 0;
 
             Ext.getCmp('str_CODE_ORGANISME').setValue(this.getOdatasource().str_CODE_ORGANISME);
             Ext.getCmp('str_NAME_ADD').setValue(this.getOdatasource().str_NAME);
@@ -937,6 +943,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             }
 
 
+            var envoyerLaFiche = function () {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
@@ -1061,6 +1068,36 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
                 }
             });
+            };
+
+            /* Plafond de credit inferieur a la consommation en cours : on PREVIENT, on ne bloque plus.
+             * La fiche etait auparavant refusee dans ce cas, ce qui rendait la zone inmodifiable des
+             * lors que la consommation avait depasse la valeur visee - y compris pour la ramener a
+             * zero, c'est-a-dire pour RETIRER le plafond. Zero veut dire "aucun plafond" : c'est le
+             * moyen de debloquer un organisme, il passe donc toujours sans question. */
+            var plafondSaisi = parseFloat(Ext.getCmp('dbl_PLAFOND_CREDIT').getValue()) || 0;
+            var consoEnCours = (Omode === "create") ? 0 : consommationEnCoursTiersPayant;
+            if (plafondSaisi > 0 && consoEnCours > plafondSaisi) {
+                var format = function (v) {
+                    return Ext.util.Format.number(v, '0,000') + ' F';
+                };
+                Ext.MessageBox.show({
+                    title: 'Plafond inférieur à la consommation',
+                    msg: 'La consommation en cours de cet organisme est de <b>' + format(consoEnCours)
+                            + '</b>, le plafond que vous enregistrez est de <b>' + format(plafondSaisi)
+                            + '</b>.<br><br>Le plafond sera bien enregistré : les ventes à venir seront'
+                            + ' contrôlées sur cette nouvelle valeur.<br><br>Enregistrer quand même ?',
+                    buttons: Ext.MessageBox.YESNO,
+                    icon: Ext.MessageBox.QUESTION,
+                    fn: function (bouton) {
+                        if (bouton === 'yes') {
+                            envoyerLaFiche();
+                        }
+                    }
+                });
+                return;
+            }
+            envoyerLaFiche();
 
         } else {
             Ext.MessageBox.show({

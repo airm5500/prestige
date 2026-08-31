@@ -206,6 +206,21 @@ public class SupportEventServiceImpl implements SupportEventService {
             event.setLastSeenAt(LocalDateTime.now());
             event.setLogRef(writeLogFile(event.getId(), dto, "WATCHDOG"));
             em.persist(event);
+            /*
+             * Deux incidents identiques peuvent tomber en meme temps (deux threads HTTP, ou une surveillance qui
+             * repasse pendant qu'un incident s'ecrit) : la lecture ci-dessus n'a alors rien trouve dans les deux, et
+             * les deux insertions se presentent avec la MEME signature. Sans ce flush, la violation de l'index unique
+             * ne se produisait qu'au COMMIT, donc apres la sortie de la methode - hors de portee du catch : elle
+             * ressortait en « Duplicate entry ... for key uk_application_event_signature » dans le journal du serveur,
+             * alors qu'il ne s'agit que d'un doublon sans consequence. On force donc l'ecriture ici pour la voir, et on
+             * sort sans bruit : l'autre appel a deja enregistre l'incident.
+             */
+            try {
+                em.flush();
+            } catch (Exception doublon) {
+                LOG.log(Level.FINE, "recordServerIncident: signature dupliquee, incident deja enregistre", doublon);
+                return;
+            }
             addOccurrence(event);
             applyAutoTicket(event);
         } catch (Exception e) {

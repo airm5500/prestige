@@ -201,8 +201,23 @@ public class FactureProvisoire extends HttpServlet {
                                 && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE()))
                                         ? OTiersPayant.getStrREGISTRECOMMERCE() : "");
 
-                /* fin du recap */
-                if (recapParam != null && Integer.parseInt(recapParam.getStrVALUE()) == 1) {
+                /*
+                 * fin du recap
+                 *
+                 * Le recapitulatif n'existe que pour UN modele de facture (codeFACT 7, rp_facturecapClient) : c'est le
+                 * seul cas ou scr_report_file est renseigne. Pour tous les autres modeles il restait vide, et le
+                 * chargement du modele partait chercher un fichier sans nom - « ...\REPORTS\.jrxml », introuvable -
+                 * puis la lecture du PDF de recap echouait a son tour sur « rp_facturerecap.pdf ». D'ou deux erreurs
+                 * dans le journal et une edition qui n'aboutissait pas.
+                 *
+                 * Le recap n'est donc joint que lorsqu'un modele de recap existe reellement. Pour une facture
+                 * provisoire sans modele de recap, l'edition sort les seules donnees de la facture, ce qui est
+                 * l'attendu : on n'imprime pas un recapitulatif dont on n'a pas la maquette.
+                 */
+                boolean recapDemande = recapParam != null && Integer.parseInt(recapParam.getStrVALUE()) == 1;
+                boolean recapDisponible = recapDemande
+                        && org.apache.commons.lang3.StringUtils.isNotBlank(scr_report_file);
+                if (recapDisponible) {
                     OreportManager.BuildReport(parameters, Ojconnexion);
                     inputPdfList.add(new FileInputStream(jdom.scr_report_pdf + recap));
                 }
@@ -421,7 +436,8 @@ public class FactureProvisoire extends HttpServlet {
                 }
                 inputPdfList.add(new FileInputStream(finalpath));
                 OreportManager.BuildReport(parameters, Ojconnexion);
-                if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
+                // meme condition que plus haut : pas de modele de recap, pas de recap a joindre
+                if (recapDisponible) {
                     inputPdfList.add(new FileInputStream(jdom.scr_report_pdf + recap));
                 }
             }

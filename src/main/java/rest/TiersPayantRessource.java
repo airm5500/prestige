@@ -281,7 +281,14 @@ public class TiersPayantRessource {
             marquerDepot(odm.getEm(), tiersPayantId, isDepot);
             // Meme logique pour le plafond par vente : -1 = zone absente de l'ecran, on ne touche rien.
             poserPlafondVente(odm.getEm(), tiersPayantId, plafondVente);
-            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+            // Plafond de credit inferieur a la consommation en cours : la modification aboutit, mais le
+            // fait est rappele dans le message de retour pour qu'il ne passe pas inapercu.
+            String detail = otm.getDetailmessage();
+            if (org.apache.commons.lang3.StringUtils.isNotBlank(otm.getAvertissementPlafond())) {
+                detail = org.apache.commons.lang3.StringUtils.defaultString(detail) + "<br><br>"
+                        + otm.getAvertissementPlafond();
+            }
+            return reponseSimple(otm.getMessage(), detail);
         } catch (Exception e) {
             LOG_GESTION.log(Level.SEVERE, "updateTiersPayant", e);
             return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de modifier ce tiers payant");
