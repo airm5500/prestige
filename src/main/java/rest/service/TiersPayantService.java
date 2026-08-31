@@ -11,7 +11,7 @@ import org.json.JSONObject;
 public interface TiersPayantService {
 
     JSONObject fetchList(int start, int limit, String search, String typeTierspayant, boolean btnDesactive,
-            boolean delete);
+            boolean delete, boolean modifierPlafond);
 
     int getAccount(String tp);
 }

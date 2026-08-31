@@ -780,7 +780,31 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
-                    items: ['->',
+                    items: [
+                        /* Export CSV de la commande en cours : meme fichier (CIP;QTE) que les
+                         * autres exports, telecharge directement au clic. */
+                        {
+                            text: 'Exporter CSV',
+                            id: 'btn_export_cmd_csv',
+                            cls: 'btn-primary',
+                            iconCls: 'export_csv_icon',
+                            tooltip: 'Exporter les lignes de cette commande au format CSV',
+                            scope: this,
+                            handler: this.onExportCsvCommande
+                        },
+                        /* Import de la reponse du grossiste : fichier CSV ou Excel, une ligne par
+                         * produit. L'import n'ecrit rien tout seul - il rend un compte rendu que
+                         * l'officine lit avant de decider, les substitutions etant signalees. */
+                        {
+                            text: 'Importer la réponse du grossiste',
+                            id: 'btn_import_reponse',
+                            cls: 'btn-primary',
+                            iconCls: 'importicon',
+                            tooltip: 'Charger le fichier de réponse (CSV ou Excel) envoyé par le grossiste',
+                            scope: this,
+                            handler: this.onImporterReponseGrossiste
+                        },
+                        '->',
                         {
                             text: 'CREER BON DE LIVRAISON',
                             id: 'btn_creerbl',
@@ -909,6 +933,214 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             }
         });
     },
+    /* Export CSV des lignes de la commande ouverte : meme format que les autres exports
+     * (code produit ; quantite), telecharge directement au clic. */
+    onExportCsvCommande: function () {
+        if (!ref_final || ref_final === "0") {
+            Ext.MessageBox.alert('Message', "Aucune commande ouverte : rien à exporter.");
+            return;
+        }
+        window.location = '../api/v1/commande/export-csv?id=' + encodeURIComponent(ref_final);
+    },
+
+    /*
+     * Import de la reponse du grossiste.
+     *
+     * Le fichier - CSV ou classeur Excel, sans ligne d'en-tete - porte une ligne par produit :
+     * code envoye ; quantite commandee ; code reponse ; quantite recue ; prix d'achat ; designation
+     * (la designation etant facultative).
+     *
+     * L'import n'ecrit RIEN : le serveur confronte le fichier aux lignes de la commande et rend un
+     * compte rendu en trois tas, que cette fenetre affiche. Les lignes ou le grossiste a servi un
+     * AUTRE produit ne sont jamais appliquees d'office : porter la quantite d'un produit sur la
+     * ligne d'un autre fausserait l'entree en stock. L'officine tranche, dossier en main.
+     */
+    onImporterReponseGrossiste: function () {
+        var me = this;
+        if (!ref_final || ref_final === "0") {
+            Ext.MessageBox.alert('Message', "Ouvrez d'abord une commande.");
+            return;
+        }
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: 'Importer la réponse du grossiste',
+            modal: true, width: 560, bodyPadding: 12, layout: 'anchor',
+            items: [{
+                    xtype: 'form', itemId: 'formImport', border: false,
+                    items: [{
+                            xtype: 'component',
+                            html: '<div style="margin-bottom:10px;color:#333;">Fichier <b>CSV</b> ou'
+                                    + ' <b>Excel</b>, une ligne par produit, sans ligne d\'en-tête :<br>'
+                                    + '<code>code envoyé ; qté commandée ; code réponse ; qté reçue ;'
+                                    + ' prix achat ; désignation</code><br>'
+                                    + '<span style="color:#666;">La désignation est facultative.</span></div>'
+                        }, {
+                            xtype: 'filefield', name: 'fichier', itemId: 'fichier', anchor: '100%',
+                            emptyText: 'Choisir le fichier de réponse...', buttonText: 'Parcourir',
+                            allowBlank: false
+                        }]
+                }],
+            buttons: [{
+                    text: 'Analyser le fichier', itemId: 'btnAnalyser',
+                    handler: function (bouton) {
+                        var formulaire = fenetre.down('#formImport').getForm();
+                        if (!formulaire.isValid()) {
+                            return;
+                        }
+                        bouton.disable();
+                        formulaire.submit({
+                            url: '../api/v1/order-detail/reponse-grossiste/' + encodeURIComponent(ref_final),
+                            waitMsg: 'Lecture du fichier . . .',
+                            success: function (form, action) {
+                                bouton.enable();
+                                fenetre.close();
+                                me.afficherCompteRenduReponse(action.result || {});
+                            },
+                            failure: function (form, action) {
+                                bouton.enable();
+                                /* ExtJS traite « success:false » comme un echec de formulaire : le
+                                 * compte rendu est pourtant dans la reponse, on l'affiche au lieu
+                                 * d'un message generique. */
+                                var r = action.result || {};
+                                if (r.reconnues || r.aArbitrer || r.rejetees) {
+                                    fenetre.close();
+                                    me.afficherCompteRenduReponse(r);
+                                } else {
+                                    Ext.MessageBox.alert('Message',
+                                            r.message || "Le fichier n'a pas pu être lu.");
+                                }
+                            }
+                        });
+                    }
+                }, {
+                    text: 'Annuler', handler: function () { fenetre.close(); }
+                }]
+        });
+        fenetre.show();
+    },
+
+    /*
+     * Compte rendu de l'import : trois listes, chacune avec son motif. Rien n'a encore ete ecrit.
+     *
+     * Le bouton « Appliquer » ne porte QUE sur les lignes reconnues, celles ou le produit, le code et la
+     * quantite concordent. Les lignes a arbitrer (substitution, quantite hors commande, produit non servi)
+     * restent au jugement de l'officine : elles se traitent a la main dans la grille de la commande.
+     */
+    afficherCompteRenduReponse: function (resultat) {
+        var me = this;
+        var lignes = [];
+        var ajouter = function (tableau, categorie) {
+            Ext.each(tableau || [], function (l) {
+                lignes.push(Ext.apply({categorie: categorie}, l));
+            });
+        };
+        var reconnues = resultat.reconnues || [];
+        ajouter(reconnues, 'Reconnue');
+        ajouter(resultat.aArbitrer, 'À arbitrer');
+        ajouter(resultat.rejetees, 'Rejetée');
+
+        var couleur = function (v) {
+            if (v === 'Reconnue') { return '<span style="color:#1e7b34;font-weight:bold;">' + v + '</span>'; }
+            if (v === 'À arbitrer') { return '<span style="color:#b36b00;font-weight:bold;">' + v + '</span>'; }
+            return '<span style="color:#c0392b;font-weight:bold;">' + v + '</span>';
+        };
+        Ext.create('Ext.window.Window', {
+            title: 'Réponse du grossiste — ' + (resultat.commande || '') + ' : ' + (resultat.lues || 0)
+                    + ' ligne(s) lue(s), ' + ((resultat.reconnues || []).length) + ' reconnue(s), '
+                    + ((resultat.aArbitrer || []).length) + ' à arbitrer, '
+                    + ((resultat.rejetees || []).length) + ' rejetée(s)',
+            modal: true, width: 1050, height: 520, layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    store: new Ext.data.Store({
+                        fields: ['categorie', 'ligne', 'cipEnvoye', 'cipReponse', 'produit', 'designation',
+                            'qteCommandee', 'qteCommandeeSysteme', 'qteRecue', 'prixAchat', 'motif'],
+                        data: lignes
+                    }),
+                    columns: [
+                        {header: 'État', dataIndex: 'categorie', width: 90, renderer: couleur},
+                        {header: 'Ligne', dataIndex: 'ligne', width: 55, align: 'center'},
+                        {header: 'Code envoyé', dataIndex: 'cipEnvoye', width: 100},
+                        {header: 'Code réponse', dataIndex: 'cipReponse', width: 100},
+                        {header: 'Produit', dataIndex: 'produit', flex: 1},
+                        {header: 'Qté cdée', dataIndex: 'qteCommandee', width: 75, align: 'center'},
+                        {header: 'Qté reçue', dataIndex: 'qteRecue', width: 75, align: 'center'},
+                        {header: 'Prix achat', dataIndex: 'prixAchat', width: 80, align: 'center'},
+                        {header: 'Commande', dataIndex: 'qteCommandeeSysteme', width: 110, align: 'center',
+                            renderer: function (v, meta, rec) {
+                                /* Ce que l'application va faire de la ligne, en clair. */
+                                if (rec.get('categorie') !== 'Reconnue') {
+                                    return v === null || v === undefined ? '' : v;
+                                }
+                                if (v === rec.get('qteRecue')) {
+                                    return v + ' <span style="color:#666;">(inchangé)</span>';
+                                }
+                                return v + ' → <b>' + rec.get('qteRecue') + '</b>';
+                            }},
+                        {header: 'Observation', dataIndex: 'motif', flex: 1}
+                    ]
+                }],
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'bottom', ui: 'footer',
+                    items: [{xtype: 'component', html: '<span style="color:#666;">Rien n\'est écrit tant que'
+                                + ' vous n\'avez pas appliqué. Seules les lignes reconnues sont appliquées ;'
+                                + ' les lignes à arbitrer restent à traiter dans la commande.</span>'},
+                        '->',
+                        {
+                            text: 'Appliquer les ' + reconnues.length + ' ligne(s) reconnue(s)',
+                            disabled: reconnues.length === 0,
+                            handler: function (bouton) {
+                                me.appliquerReponseGrossiste(reconnues, bouton.up('window'));
+                            }
+                        },
+                        {text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
+                }]
+        }).show();
+    },
+
+    /* Report effectif des quantites servies sur les lignes reconnues, apres confirmation. */
+    appliquerReponseGrossiste: function (reconnues, fenetre) {
+        var me = this;
+        var change = 0;
+        Ext.each(reconnues, function (l) {
+            if (l.qteRecue !== l.qteCommandeeSysteme) {
+                change++;
+            }
+        });
+        Ext.MessageBox.confirm('Confirmation',
+                'Appliquer la réponse du grossiste sur ' + reconnues.length + ' ligne(s) ?<br>'
+                + change + ' ligne(s) verront leur quantité changer.',
+                function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/order-detail/reponse-grossiste/'
+                                + encodeURIComponent(ref_final) + '/appliquer',
+                        headers: {'Content-Type': 'application/json'},
+                        jsonData: Ext.encode(Ext.Array.map(reconnues, function (l) {
+                            return {detailId: l.detailId, qteRecue: l.qteRecue};
+                        })),
+                        success: function (reponse) {
+                            var r = Ext.decode(reponse.responseText);
+                            Ext.MessageBox.alert('Message', r.message || '');
+                            if (r.success) {
+                                if (fenetre) {
+                                    fenetre.close();
+                                }
+                                Ext.getCmp('gridpanelID').getStore().reload();
+                                /* Les totaux d'achat et de vente de l'entete suivent les quantites. */
+                                me.getCommandeAmount(ref_final);
+                            }
+                        },
+                        failure: function () {
+                            Ext.MessageBox.alert('Message',
+                                    "La mise à jour des quantités n'a pas abouti.");
+                        }
+                    });
+                });
+    },
+
     onbtncancel: function () {
 
         testextjs.app.getController('App').onLoadNewComponentWithDataSource("i_order_manager", "", "", "");

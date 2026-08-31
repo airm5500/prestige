@@ -783,8 +783,17 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 }
             }
         });
+        /* Le titre portait l'identifiant technique de la suggestion, illisible et sans utilite
+         * pour l'usager. Il nomme desormais le grossiste et la reference du bon - ce que
+         * l'officine a sous les yeux dans la liste. L'identifiant reste disponible dans la
+         * colonne masquee pour qui en a besoin. */
+        const grossiste = rec.get('lg_GROSSISTE_ID') || rec.get('str_GROSSISTE') || '';
+        const reference = rec.get('str_REF') || '';
+        let intitule = 'Contenu de la suggestion';
+        if (grossiste) { intitule += ' — ' + grossiste; }
+        if (reference) { intitule += ' — REF ' + reference; }
         Ext.create('Ext.window.Window', {
-            title: 'Contenu de la suggestion [' + suggestionId + '] — consultation seule',
+            title: intitule + ' — consultation seule',
             modal: true,
             width: 950,
             height: 500,

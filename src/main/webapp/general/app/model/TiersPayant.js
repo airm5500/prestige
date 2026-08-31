@@ -276,6 +276,7 @@ Ext.define('testextjs.model.TiersPayant', {
             type: 'number'
         },
         {name: 'P_BTN_DESACTIVER_TIERS_PAYANT', type: 'boolean'},
+        {name: 'P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT', type: 'boolean'},
         {name: 'cmu', type: 'boolean'},
         // Gere comme depot : l'interrupteur de la fiche s'ouvre dans l'etat enregistre.
         {name: 'is_depot', type: 'boolean'},

@@ -702,10 +702,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 },
                                 {
                                     // Valeur predefinie du plafond des liens client/tiers payant :
-                                    // heritee par les nouveaux clients, propagee aux liens actifs
-                                    // quand elle change. 0 = aucun plafond predefini.
-                                    fieldLabel: 'Plafond par vente',
-                                    emptyText: 'Plafond par vente',
+                                    // heritee par les nouveaux clients, propagee quand elle change aux
+                                    // liens restes sur la valeur heritee - un plafond saisi a la main sur
+                                    // un client n'est pas ecrase. 0 = aucun plafond predefini.
+                                    fieldLabel: 'Plafond par tiers payant',
+                                    emptyText: 'Plafond par tiers payant',
                                     name: 'dbl_PLAFOND_VENTE',
                                     id: 'dbl_PLAFOND_VENTE',
                                     maskRe: /[0-9.]/,
@@ -783,6 +784,24 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
         });
         //Initialisation des valeur
 
+
+        /* Droit de saisir les plafonds : sans lui les deux zones sont grisees, comme demande en
+         * recette. Le droit voyage avec la ligne de la liste ; a la creation, la fiche n'a pas de
+         * ligne d'origine et les zones restent saisissables - il n'y a encore aucun plafond a
+         * proteger, et le controle de fond reste cote serveur. */
+        var plafondModifiable = (Omode !== "update")
+                || (this.getOdatasource() && this.getOdatasource().P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT !== false);
+        Ext.each(['dbl_PLAFOND_CREDIT', 'dbl_PLAFOND_VENTE'], function (id) {
+            var champ = Ext.getCmp(id);
+            if (champ && !plafondModifiable) {
+                champ.setReadOnly(true);
+                champ.addCls('x-item-disabled');
+                champ.setFieldStyle('background-color:#EDEDED;color:#7a7a7a;');
+                if (champ.setFieldLabel) {
+                    champ.setFieldLabel(champ.getFieldLabel() + ' <span style="color:#999;">(droit requis)</span>');
+                }
+            }
+        });
 
         consommationEnCoursTiersPayant = 0;
         if (Omode === "update") {

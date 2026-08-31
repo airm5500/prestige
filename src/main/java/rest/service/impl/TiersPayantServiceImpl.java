@@ -54,12 +54,14 @@ public class TiersPayantServiceImpl implements TiersPayantService {
      * @param typeTierspayant
      * @param btnDesactive
      * @param delete
+     * @param modifierPlafond
+     *            droit de saisir les plafonds sur la fiche ; sans lui l'ecran grise les zones
      *
      * @return
      */
     @Override
     public JSONObject fetchList(int start, int limit, String search, String typeTierspayant, boolean btnDesactive,
-            boolean delete) {
+            boolean delete, boolean modifierPlafond) {
         JSONObject data = new JSONObject();
         List<TTiersPayant> list = showAllOrOneTierspayant(search, typeTierspayant, start, limit);
         int count = showAllOrOneTierspayant(search, typeTierspayant);
@@ -212,6 +214,8 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             }
             json.put("BTNDELETE", delete);
             json.put("P_BTN_DESACTIVER_TIERS_PAYANT", btnDesactive);
+            // Droit de saisir les plafonds sur la fiche : lu par l'ecran pour griser les zones.
+            json.put("P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT", modifierPlafond);
             json.put("int_NUMBER_CLIENT", clients != null ? clients.nombre : 0);
             json.put("str_FAMILLE_ITEM", strProduct);
             jsonarray.put(json);

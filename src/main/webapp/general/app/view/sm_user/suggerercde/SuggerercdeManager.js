@@ -411,6 +411,14 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     items: ['->',
                         {text: 'Retour', id: 'btn_cancel',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
                         {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint},
+                        /* Export CSV de la suggestion en cours : meme fichier (CIP;QTE) que
+                         * l'export deja disponible depuis la liste des suggestions. Le
+                         * telechargement part du clic, pas d'un retour de requete : aucune
+                         * fenetre surgissante a debloquer. */
+                        {text: 'Exporter CSV', id: 'btn_export_csv', cls: 'btn-primary',
+                            iconCls: 'export_csv_icon', scope: this,
+                            tooltip: 'Exporter les lignes de cette suggestion au format CSV',
+                            handler: this.onbtnexportcsv},
                         
                         {
                             text: 'Nettoyer la suggestion',
@@ -572,6 +580,17 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     onPdfClick: function (lg_SUGGESTION_ORDER_ID) {
         var linkUrl = url_services_pdf_liste_suggerercde + "?lg_SUGGESTION_ORDER_ID=" + lg_SUGGESTION_ORDER_ID;
         window.open(linkUrl);
+    },
+
+    /* Export CSV de la suggestion ouverte : le fichier (CIP;QTE) que l'officine envoie au
+     * grossiste. Le telechargement part du clic lui-meme, sans passer par un retour de
+     * requete : rien a debloquer cote navigateur. */
+    onbtnexportcsv: function () {
+        if (!orderIdRef) {
+            Ext.MessageBox.alert('Message', "Aucune suggestion ouverte : rien à exporter.");
+            return;
+        }
+        window.location = '../api/v1/suggestion/csv?id=' + encodeURIComponent(orderIdRef);
     },
 
     setTitleFrame: function (str_data) {

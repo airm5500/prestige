@@ -193,6 +193,8 @@ public final class Constant {
     public static final String DEFAUL_CODE_TVA = "1";
     public static final String STATUT_DISABLE = "disable";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
+    /** Autorise la saisie des plafonds sur la fiche d'un tiers payant ; sans lui, les zones sont grisees. */
+    public static final String P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT = "P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT";
     /** Mise a jour d'un meme reglage sur plusieurs tiers payants a la fois : droit a part. */
     public static final String P_BTN_MAJ_SELECTIVE_TIERS_PAYANT = "P_BTN_MAJ_SELECTIVE_TIERS_PAYANT";
     // Privileges des boutons de la fiche article (gestion du stock)

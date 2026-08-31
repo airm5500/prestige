@@ -60,6 +60,9 @@ public class TiersPayantRessource {
         List<TPrivilege> privileges = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         boolean delete = DateConverter.hasAuthorityById(privileges, Util.ACTIONDELETE);
         boolean btnDesactive = DateConverter.hasAuthorityByName(privileges, Constant.P_BTN_DESACTIVER_TIERS_PAYANT);
+        // Droit de saisir les plafonds sur la fiche : transmis a l'ecran, qui grise les zones sans lui.
+        boolean modifierPlafond = DateConverter.hasAuthorityByName(privileges,
+                Constant.P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT);
 
         if (StringUtils.isNoneEmpty(query)) {
             search = query;
@@ -69,8 +72,8 @@ public class TiersPayantRessource {
             typeTierspayant = id;
         }
 
-        return Response.ok().entity(
-                tiersPayantService.fetchList(start, limit, search, typeTierspayant, btnDesactive, delete).toString())
+        return Response.ok().entity(tiersPayantService
+                .fetchList(start, limit, search, typeTierspayant, btnDesactive, delete, modifierPlafond).toString())
                 .build();
     }
 
@@ -93,6 +96,13 @@ public class TiersPayantRessource {
     // =============================================================================================
 
     private static final Logger LOG_GESTION = Logger.getLogger(TiersPayantRessource.class.getName());
+
+    /**
+     * Compte rendu de la derniere propagation du plafond par tiers payant, rendu a l'ecran avec le message de succes :
+     * combien de clients ont suivi, combien gardent un plafond qui leur est propre. Sans cela la cascade se ferait en
+     * silence et l'officine ne saurait pas ce qui a bouge.
+     */
+    private String derniereCascadePlafond;
     /** Valeur par defaut historique de ws_transaction.jsp pour le risque. */
     private static final String RISQUE_DEFAUT = "55181642844215217016";
 
@@ -279,12 +289,14 @@ public class TiersPayantRessource {
             // « Gere comme depot » n'est pas porte par la methode metier historique, partagee avec
             // la JSP : on pose l'indicateur a part, sur l'entite, une fois la modification faite.
             marquerDepot(odm.getEm(), tiersPayantId, isDepot);
-            // Meme logique pour le plafond par vente : -1 = zone absente de l'ecran, on ne touche rien.
+            // Meme logique pour le plafond par tiers payant : -1 = zone absente de l'ecran, on ne touche rien.
+            derniereCascadePlafond = null;
             poserPlafondVente(odm.getEm(), tiersPayantId, plafondVente);
             // Plafond de credit inferieur a la consommation en cours : la modification aboutit, mais le
             // fait est rappele dans le message de retour pour qu'il ne passe pas inapercu.
             String detail = otm.getDetailmessage();
-            for (String avertissement : new String[] { otm.getAvertissementPlafond(), otm.getAvertissementQuota() }) {
+            for (String avertissement : new String[] { otm.getAvertissementPlafond(), otm.getAvertissementQuota(),
+                    derniereCascadePlafond }) {
                 if (org.apache.commons.lang3.StringUtils.isNotBlank(avertissement)) {
                     detail = org.apache.commons.lang3.StringUtils.defaultString(detail) + "<br><br>" + avertissement;
                 }
@@ -330,13 +342,37 @@ public class TiersPayantRessource {
         }
         em.merge(tp);
         if (plafondVente > 0) {
-            int touches = em
+            /*
+             * Propagation aux clients : on ne touche QUE les liens restes sur la valeur heritee, c'est-a-dire ceux dont
+             * le plafond vaut encore l'ancienne valeur de la fiche (ou rien du tout). Un plafond saisi individuellement
+             * sur un client - parce que son cas le justifie - n'est pas ecrase : c'est la regle retenue en recette.
+             *
+             * Ecraser tout le monde, ce que faisait la version precedente, faisait disparaitre sans bruit un reglage
+             * pose a la main ; ne rien propager du tout laissait les clients sur une ancienne valeur, ce qui etait le
+             * defaut signale. Cette regle tient les deux bouts.
+             */
+            int misAJour = em
                     .createQuery("UPDATE TCompteClientTiersPayant c SET c.dblPLAFOND = ?1, c.isCapped = TRUE,"
                             + " c.dtUPDATED = CURRENT_TIMESTAMP"
-                            + " WHERE c.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2 AND c.strSTATUT = 'enable'")
-                    .setParameter(1, plafondVente).setParameter(2, tiersPayantId).executeUpdate();
-            LOG_GESTION.log(Level.INFO, "Plafond par vente {0} propage a {1} lien(s) client du tiers payant {2}",
-                    new Object[] { plafondVente, touches, tiersPayantId });
+                            + " WHERE c.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2 AND c.strSTATUT = 'enable'"
+                            + " AND (c.dblPLAFOND IS NULL OR c.dblPLAFOND = 0 OR c.dblPLAFOND = ?3)")
+                    .setParameter(1, plafondVente).setParameter(2, tiersPayantId).setParameter(3, ancienne)
+                    .executeUpdate();
+            Long personnalises = em
+                    .createQuery(
+                            "SELECT COUNT(c) FROM TCompteClientTiersPayant c"
+                                    + " WHERE c.lgTIERSPAYANTID.lgTIERSPAYANTID = ?1 AND c.strSTATUT = 'enable'"
+                                    + " AND c.dblPLAFOND IS NOT NULL AND c.dblPLAFOND <> 0 AND c.dblPLAFOND <> ?2",
+                            Long.class)
+                    .setParameter(1, tiersPayantId).setParameter(2, plafondVente).getSingleResult();
+            derniereCascadePlafond = "Plafond par tiers payant porté à " + (long) plafondVente + " : " + misAJour
+                    + " client(s) mis à jour" + (personnalises != null && personnalises > 0
+                            ? ", " + personnalises + " conservé(s) avec leur plafond propre" : "")
+                    + ".";
+            LOG_GESTION.log(Level.INFO,
+                    "Plafond par vente {0} propage a {1} lien(s) client du tiers payant {2}"
+                            + " ({3} lien(s) laisse(s) avec un plafond individuel)",
+                    new Object[] { plafondVente, misAJour, tiersPayantId, personnalises });
         }
         if (aNous) {
             transaction.commit();

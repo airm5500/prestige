@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -42,6 +43,74 @@ public class OrderDetailRessource {
 
     @Inject
     private HttpServletRequest servletRequest;
+    @javax.ejb.EJB
+    private rest.service.ReponseGrossisteService reponseGrossisteService;
+
+    /**
+     * Import de la reponse d'un grossiste a une commande, en APERCU : rien n'est ecrit.
+     *
+     * <p>
+     * Le fichier - CSV ou classeur Excel, sans ligne d'en-tete - porte une ligne par produit :
+     * {@code cip envoye ; qte commandee ; cip reponse ; qte recue ; prix achat ; designation}, la designation etant
+     * facultative. La reponse range les lignes en trois tas : celles qui correspondent sans ambiguite, celles a
+     * arbitrer (produit substitue par le grossiste, quantite superieure a la commande, ecart de quantite commandee) et
+     * celles qui ne se rattachent a rien. C'est l'ecran qui montre le compte rendu et l'officine qui decide : une
+     * substitution n'est jamais appliquee d'office, elle porterait la quantite d'un produit sur la ligne d'un autre.
+     *
+     * <p>
+     * Reponse servie en text/html : l'envoi de fichier d'ExtJS passe par une iframe cachee, qui n'accepte pas
+     * application/json.
+     */
+    @POST
+    @Path("reponse-grossiste/{commandeId}")
+    @Consumes(javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA)
+    @Produces(javax.ws.rs.core.MediaType.TEXT_HTML)
+    public Response importerReponseGrossiste(@javax.ws.rs.PathParam("commandeId") String commandeId) {
+        TUser sessionUser = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (sessionUser == null) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("message", util.Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        try {
+            org.apache.commons.fileupload.servlet.ServletFileUpload envoi = new org.apache.commons.fileupload.servlet.ServletFileUpload(
+                    new org.apache.commons.fileupload.disk.DiskFileItemFactory());
+            for (org.apache.commons.fileupload.FileItem element : envoi.parseRequest(servletRequest)) {
+                if (!element.isFormField()) {
+                    return Response.ok()
+                            .entity(reponseGrossisteService
+                                    .analyser(commandeId, element.getName(), element.getInputStream()).toString())
+                            .build();
+                }
+            }
+            return Response.ok().entity(
+                    new org.json.JSONObject().put("success", false).put("message", "Aucun fichier reçu").toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "importerReponseGrossiste " + commandeId, e);
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("message", "Lecture du fichier impossible").toString()).build();
+        }
+    }
+
+    /**
+     * Report des quantites servies sur les lignes de la commande, apres l'apercu ci-dessus.
+     *
+     * <p>
+     * L'ecran n'envoie que les lignes retenues par l'officine. Le serveur ne se fie pas a ce qu'il recoit : il relit
+     * chaque ligne, verifie son rattachement a la commande et refuse une commande qui n'est plus en cours.
+     */
+    @POST
+    @Path("reponse-grossiste/{commandeId}/appliquer")
+    public Response appliquerReponseGrossiste(@javax.ws.rs.PathParam("commandeId") String commandeId,
+            List<rest.service.dto.ReponseGrossisteLigneDTO> lignes) {
+        TUser sessionUser = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (sessionUser == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", util.Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        return Response.ok().entity(reponseGrossisteService.appliquer(commandeId, lignes).toString()).build();
+    }
 
     @GET
     @Path("list")
