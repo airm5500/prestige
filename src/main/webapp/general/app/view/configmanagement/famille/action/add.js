@@ -227,7 +227,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             defaultType: 'textfield',
                             margin: '0 0 5 0',
                             items: [
-                                { xtype: 'combobox', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', width: 400, itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
+                                /* forceSelection : l'emplacement doit etre CHOISI dans la liste. Sans cela, un
+                                 * libelle simplement saisi etait envoye tel quel au serveur, qui le cherchait
+                                 * parmi les libelles - et deux emplacements portant le meme nom faisaient
+                                 * echouer l'enregistrement. Le champ ne rend plus qu'un identifiant reel. */
+                                { xtype: 'combobox', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', width: 400, itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, minChars: 2, allowBlank: false, forceSelection: true, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
                                 { xtype: 'combobox', fieldLabel: 'Famille', name: 'lg_FAMILLEARTICLE_ID', width: 400, itemId: 'lg_FAMILLEARTICLE_ID', store: store_famillearticle_famille, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE', pageSize: 20, minChars: 2, queryMode: 'remote', allowBlank: false, emptyText: 'Choisir une famille...' },
                                 {
                                     fieldLabel: 'Prix.Vente', xtype: 'textfield', maskRe: /[0-9.]/, width: 350, emptyText: 'PRIX VENTE', name: 'int_PRICE', itemId: 'int_PRICE',
@@ -630,7 +634,29 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('int_PRICE_TIPS').setValue(ds.int_PRICE_TIPS);
             g('int_PRICE').setValue(ds.int_PRICE);
             g('lg_FAMILLEARTICLE_ID').setValue(ds.lg_FAMILLEARTICLE_ID);
-            g('lg_ZONE_GEO_ID').setValue(ds.lg_ZONE_GEO_ID);
+            /* Emplacement : on preremplit avec l'identifiant REEL quand la source le porte.
+               « lg_ZONE_GEO_ID » contient le LIBELLE, et un libelle ne peut pas servir de valeur
+               a une liste dont la valeur est l'identifiant.
+
+               La liste est chargee a la demande : son magasin est vide a l'ouverture. On y depose
+               donc l'emplacement du produit avant de poser la valeur, faute de quoi le champ
+               afficherait l'identifiant brut au lieu du libelle, et se viderait des qu'on le
+               quitte. Repli sur l'ancien champ pour les sources qui ne fournissent pas encore
+               l'identifiant, afin de ne rien casser. */
+            (function () {
+                var combo = g('lg_ZONE_GEO_ID');
+                var identifiant = ds.lg_ZONE_GEO_ID_REEL || ds.lg_ZONE_GEO_ID;
+                if (combo && identifiant) {
+                    var magasin = combo.getStore();
+                    if (magasin && magasin.findExact('lg_ZONE_GEO_ID', identifiant) === -1) {
+                        magasin.add({
+                            lg_ZONE_GEO_ID: identifiant,
+                            str_LIBELLEE: ds.lg_ZONE_GEO_ID || identifiant
+                        });
+                    }
+                }
+                if (combo) { combo.setValue(identifiant); }
+            })();
             // Socle ABC (Lot 0) : prefill code geo + affichage classe ABC (lecture seule)
             if (g('str_CODE_GEO_ARTICLE')) { g('str_CODE_GEO_ARTICLE').setValue(ds.str_CODE_GEO_ARTICLE); }
             if (g('classe_abc_display')) { g('classe_abc_display').setValue(abcClasseLetter(ds.lg_CLASSE_ABC_ID)); }

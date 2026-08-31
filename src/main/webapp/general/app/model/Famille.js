@@ -107,6 +107,13 @@ Ext.define('testextjs.model.Famille', {
             name: 'lg_ZONE_GEO_ID',
             type: 'string'
         },
+        /* Identifiant REEL de l'emplacement. « lg_ZONE_GEO_ID » porte historiquement le
+           LIBELLE, dont vivent les colonnes des grilles : ce champ-ci porte l'identifiant,
+           celui que la fiche article doit renvoyer au serveur. */
+        {
+            name: 'lg_ZONE_GEO_ID_REEL',
+            type: 'string'
+        },
         {
             name: 'str_CODE_GEO_ARTICLE',
             type: 'string'

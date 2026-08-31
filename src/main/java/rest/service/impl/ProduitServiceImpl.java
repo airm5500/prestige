@@ -3483,97 +3483,127 @@ public class ProduitServiceImpl implements ProduitService {
         return null;
     }
 
+    /**
+     * Premier resultat d'une recherche de referentiel, ou {@code null} quand il n'y en a aucun.
+     *
+     * <p>
+     * Toutes les recherches ci-dessous acceptent un identifiant OU un libelle : l'ecran envoie l'un ou l'autre selon
+     * que l'usager a choisi dans la liste deroulante ou saisi le texte a la main. Elles etaient ecrites sur le meme
+     * moule, avec deux defauts :
+     *
+     * <ul>
+     * <li>{@code getSingleResult()} etait appele DEUX fois - la requete partait deux fois pour un seul besoin ;</li>
+     * <li>il levait une exception des que le resultat n'etait pas unique. Deux emplacements portant exactement le meme
+     * libelle suffisaient a faire echouer l'enregistrement d'un produit ou d'un detail, avec une erreur interne
+     * illisible pour l'officine. Une valeur inconnue levait de meme au lieu de rendre {@code null}.</li>
+     * </ul>
+     *
+     * On borne donc a un resultat et on rend {@code null} quand il n'y en a pas. Le comportement des cas qui
+     * fonctionnaient est inchange : quand la recherche ne ramene qu'une ligne, c'est la meme qu'avant.
+     */
+    private static <T> T premier(TypedQuery<T> q) {
+        List<T> resultats = q.setMaxResults(1).getResultList();
+        return resultats.isEmpty() ? null : resultats.get(0);
+    }
+
     private TGrossiste getGrossiste(String grossisteId) {
-        TypedQuery<TGrossiste> q = em.createQuery(
-                "SELECT t FROM TGrossiste t WHERE (t.lgGROSSISTEID = ?1 OR t.strLIBELLE = ?1)", TGrossiste.class);
-        q.setParameter(1, grossisteId).getSingleResult();
-        return q.getSingleResult();
+        return premier(em.createQuery("SELECT t FROM TGrossiste t WHERE (t.lgGROSSISTEID = ?1 OR t.strLIBELLE = ?1)",
+                TGrossiste.class).setParameter(1, grossisteId));
     }
 
     private TCodeActe getCodeActe(String codeActeId) {
         if (StringUtils.isEmpty(codeActeId)) {
             return null;
         }
-        TypedQuery<TCodeActe> q = em.createQuery(
-                "SELECT t FROM TCodeActe t WHERE t.lgCODEACTEID LIKE ?1 OR t.strLIBELLEE LIKE ?2", TCodeActe.class);
-        q.setParameter(1, codeActeId).getSingleResult();
-        return q.getSingleResult();
+        return premier(em.createQuery("SELECT t FROM TCodeActe t WHERE t.lgCODEACTEID LIKE ?1 OR t.strLIBELLEE LIKE ?1",
+                TCodeActe.class).setParameter(1, codeActeId));
     }
 
     private TFamillearticle getFamillearticle(String id) {
         if (StringUtils.isEmpty(id)) {
             return null;
         }
-        TypedQuery<TFamillearticle> q = em.createQuery(
-                "SELECT t FROM TFamillearticle t WHERE (t.lgFAMILLEARTICLEID LIKE ?1 OR t.strLIBELLE LIKE ?1 OR t.strCODEFAMILLE LIKE ?1)",
-                TFamillearticle.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        // Meme regle que pour l'emplacement : l'identifiant d'abord, le libelle en repli.
+        TFamillearticle parId = em.find(TFamillearticle.class, id);
+        if (parId != null) {
+            return parId;
+        }
+        return premier(em
+                .createQuery("SELECT t FROM TFamillearticle t WHERE (t.strLIBELLE LIKE ?1 OR t.strCODEFAMILLE LIKE ?1)"
+                        + " ORDER BY t.strCODEFAMILLE", TFamillearticle.class)
+                .setParameter(1, id));
     }
 
+    /**
+     * Emplacement (rayon) d'un produit, designe par son identifiant ou par son libelle.
+     *
+     * <p>
+     * L'IDENTIFIANT est cherche en premier : c'est ce que l'ecran envoie quand l'emplacement a ete choisi dans la liste
+     * deroulante. Le libelle n'est qu'un repli, pour les appels qui n'ont que lui - et c'est la que deux emplacements
+     * nommes pareil faisaient echouer l'enregistrement. On prend desormais le premier dans l'ordre du code
+     * d'emplacement : le resultat est stable d'un appel a l'autre, au lieu de dependre de l'ordre rendu par la base.
+     *
+     * <p>
+     * En dernier ressort on retombe sur l'emplacement par defaut plutot que de rendre {@code null} : un produit a
+     * toujours eu un emplacement, ce n'est pas le moment de lui en retirer un.
+     */
     private TZoneGeographique getRayon(String id) {
         if (StringUtils.isEmpty(id)) {
             id = Constant.DEFAUL_RAYON_ID;
         }
-        TypedQuery<TZoneGeographique> q = em.createQuery(
-                "SELECT t FROM TZoneGeographique t WHERE (t.lgZONEGEOID LIKE ?1 OR t.strLIBELLEE LIKE ?1 )",
-                TZoneGeographique.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        TZoneGeographique parId = em.find(TZoneGeographique.class, id);
+        if (parId != null) {
+            return parId;
+        }
+        TZoneGeographique parLibelle = premier(
+                em.createQuery("SELECT t FROM TZoneGeographique t WHERE t.strLIBELLEE LIKE ?1 ORDER BY t.strCODE",
+                        TZoneGeographique.class).setParameter(1, id));
+        return parLibelle != null ? parLibelle : em.find(TZoneGeographique.class, Constant.DEFAUL_RAYON_ID);
     }
 
     private TCodeGestion getCodeGestion(String id) {
         if (StringUtils.isEmpty(id)) {
             return null;
         }
-        TypedQuery<TCodeGestion> q = em.createQuery(
-                "SELECT t FROM TCodeGestion t WHERE (t.lgCODEGESTIONID = ?1 OR t.strCODEBAREME = ?1)",
-                TCodeGestion.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        return premier(
+                em.createQuery("SELECT t FROM TCodeGestion t WHERE (t.lgCODEGESTIONID = ?1 OR t.strCODEBAREME = ?1)",
+                        TCodeGestion.class).setParameter(1, id));
     }
 
     private TTypeetiquette getTypeetiquette(String id) {
         if (StringUtils.isEmpty(id)) {
             id = Constant.DEFAUL_TYPEETIQUETTE;
         }
-        TypedQuery<TTypeetiquette> q = em.createQuery(
-                "SELECT t FROM TTypeetiquette t WHERE t.lgTYPEETIQUETTEID LIKE ?1 OR t.strDESCRIPTION LIKE ?2",
-                TTypeetiquette.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        return premier(em.createQuery(
+                "SELECT t FROM TTypeetiquette t WHERE t.lgTYPEETIQUETTEID LIKE ?1 OR t.strDESCRIPTION LIKE ?1",
+                TTypeetiquette.class).setParameter(1, id));
     }
 
     private TFormeArticle getFormeArticle(String id) {
         if (StringUtils.isEmpty(id)) {
             return null;
         }
-        TypedQuery<TFormeArticle> q = em.createQuery(
-                "SELECT t FROM TFormeArticle t WHERE t.lgFORMEARTICLEID LIKE ?1 OR t.strLIBELLE LIKE ?2",
-                TFormeArticle.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        return premier(
+                em.createQuery("SELECT t FROM TFormeArticle t WHERE t.lgFORMEARTICLEID LIKE ?1 OR t.strLIBELLE LIKE ?1",
+                        TFormeArticle.class).setParameter(1, id));
     }
 
     private TFabriquant getFabriquant(String id) {
         if (StringUtils.isEmpty(id)) {
             return null;
         }
-        TypedQuery<TFabriquant> q = em.createQuery(
-                "SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID LIKE ?1 OR t.strDESCRIPTION LIKE ?2",
-                TFabriquant.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        return premier(
+                em.createQuery("SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID LIKE ?1 OR t.strDESCRIPTION LIKE ?1",
+                        TFabriquant.class).setParameter(1, id));
     }
 
     private TCodeTva getCodeTva(String id) {
         if (StringUtils.isEmpty(id)) {
             id = Constant.DEFAUL_CODE_TVA;
         }
-        TypedQuery<TCodeTva> q = em.createQuery("SELECT t FROM TCodeTva t WHERE (t.strNAME = ?1 OR t.lgCODETVAID = ?1)",
-                TCodeTva.class);
-        q.setParameter(1, id).getSingleResult();
-        return q.getSingleResult();
+        return premier(
+                em.createQuery("SELECT t FROM TCodeTva t WHERE (t.strNAME = ?1 OR t.lgCODETVAID = ?1)", TCodeTva.class)
+                        .setParameter(1, id));
     }
 
     private boolean isExpirationDateActivated() {

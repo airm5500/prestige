@@ -495,6 +495,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         } else {
             json.put("lg_ZONE_GEO_ID", "");
         }
+        // Identifiant reel de l'emplacement, a cote du libelle : voir le commentaire ci-dessous.
+        json.put("lg_ZONE_GEO_ID_REEL", zone != null ? StringUtils.defaultString(zone.getLgZONEGEOID()) : "");
         // Grossiste par defaut : association EAGER, deja hydratee avec la famille
         json.put("lg_GROSSISTE_ID",
                 t.getLgGROSSISTEID() != null ? StringUtils.defaultString(t.getLgGROSSISTEID().getStrLIBELLE()) : "");
@@ -564,6 +566,13 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } else {
                 json.put("lg_ZONE_GEO_ID", "");
             }
+            // Identifiant REEL de l'emplacement, en plus du libelle. « lg_ZONE_GEO_ID » porte
+            // historiquement le libelle - les colonnes des grilles en vivent, on n'y touche pas -
+            // mais la fiche article a besoin de l'identifiant pour reafficher l'emplacement et le
+            // renvoyer tel quel. Sans lui, le formulaire renvoyait un libelle, que le serveur
+            // devait rechercher parmi les libelles : deux emplacements homonymes suffisaient a
+            // faire echouer l'enregistrement.
+            json.put("lg_ZONE_GEO_ID_REEL", zone != null ? StringUtils.defaultString(zone.getLgZONEGEOID()) : "");
 
             // Grossiste par defaut de l'article : l'association @ManyToOne est EAGER, le
             // grossiste est deja hydrate avec la famille (aucune requete en plus). Sans ce
@@ -704,6 +713,13 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } else {
                 json.put("lg_ZONE_GEO_ID", "");
             }
+            // Identifiant REEL de l'emplacement, en plus du libelle. « lg_ZONE_GEO_ID » porte
+            // historiquement le libelle - les colonnes des grilles en vivent, on n'y touche pas -
+            // mais la fiche article a besoin de l'identifiant pour reafficher l'emplacement et le
+            // renvoyer tel quel. Sans lui, le formulaire renvoyait un libelle, que le serveur
+            // devait rechercher parmi les libelles : deux emplacements homonymes suffisaient a
+            // faire echouer l'enregistrement.
+            json.put("lg_ZONE_GEO_ID_REEL", zone != null ? StringUtils.defaultString(zone.getLgZONEGEOID()) : "");
             if (t.getBoolDECONDITIONNE() == 0 && t.getBoolDECONDITIONNEEXIST() == 1) {
                 Object[] deconditionnement = getDecondionneParent(t.getLgFAMILLEID());
                 if (deconditionnement != null) {
