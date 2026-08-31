@@ -461,6 +461,93 @@ public class FacturationServiceImpl implements FacturationService {
         getEntityManager().remove(facture);
     }
 
+    /**
+     * Supprime plusieurs factures PROVISOIRES d'un coup, exactement comme le bouton de suppression ligne a ligne : la
+     * facture et ses lignes de detail disparaissent, et rien d'autre - generer une provisoire ne marque pas les bons,
+     * ils restent donc disponibles pour une nouvelle facturation.
+     *
+     * <p>
+     * Chaque identifiant est verifie une a une : une facture devenue definitive n'est PAS supprimee, elle est comptee a
+     * part et nommee dans le compte rendu. C'est le garde-fou demande en recette : une definitive engage l'officine
+     * vis-a-vis de l'organisme, elle ne se supprime pas par une action de masse.
+     *
+     * @param ids
+     *            identifiants des factures a supprimer
+     *
+     * @return compte rendu : nombre supprime, et le detail de ce qui a ete refuse
+     */
+    @Override
+    public JSONObject supprimerProvisoires(List<String> ids) {
+        JSONObject reponse = new JSONObject();
+        if (ids == null || ids.isEmpty()) {
+            return reponse.put("success", false).put("message", "Aucune facture sélectionnée.");
+        }
+        int supprimees = 0;
+        JSONArray refusees = new JSONArray();
+        for (String id : ids) {
+            if (id == null || id.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                TFacture facture = getEntityManager().find(TFacture.class, id.trim());
+                if (facture == null) {
+                    refusees.put(new JSONObject().put("id", id).put("motif", "Facture introuvable"));
+                    continue;
+                }
+                if (!Boolean.TRUE.equals(facture.getTemplate())) {
+                    refusees.put(new JSONObject().put("id", id)
+                            .put("code", facture.getStrCODEFACTURE() == null ? "" : facture.getStrCODEFACTURE())
+                            .put("motif",
+                                    "Cette facture n'est plus provisoire : elle a été transformée en définitive"));
+                    continue;
+                }
+                deleteFactureDetails(facture);
+                getEntityManager().remove(facture);
+                supprimees++;
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "supprimerProvisoires " + id, e);
+                refusees.put(new JSONObject().put("id", id).put("motif", "Suppression impossible : " + e.getMessage()));
+            }
+        }
+        return reponse.put("success", true).put("supprimees", supprimees).put("refusees", refusees);
+    }
+
+    /**
+     * Factures PROVISOIRES d'une periode, pour la purge : les memes filtres que l'ecran, plus les bornes de date.
+     *
+     * <p>
+     * La periode retenue est celle que l'ecran affiche dans sa colonne « Periode », c'est-a-dire la periode FACTUREE
+     * (debut et fin de facture) - et non la date de creation, qui vaut le jour de la generation pour toutes. Une
+     * facture est purgee quand sa periode facturee tient entierement dans les bornes demandees : purger « du 1er
+     * janvier au 30 juin » ne doit pas emporter une facture qui deborde sur juillet.
+     *
+     * <p>
+     * Cette methode ne supprime rien : elle sert d'abord a annoncer le nombre exact a l'usager, puis a fournir la liste
+     * a supprimer. La confirmation et la suppression sont deux gestes distincts.
+     */
+    @Override
+    public List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,
+            String dtStart, String dtEnd) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<TFacture> cq = cb.createQuery(TFacture.class);
+            Root<TFacture> root = cq.from(TFacture.class);
+            Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
+            cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)));
+            List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup, true);
+            predicates.add(cb.greaterThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtDEBUTFACTURE)),
+                    java.sql.Date.valueOf(dtStart)));
+            predicates.add(cb.lessThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtFINFACTURE)),
+                    java.sql.Date.valueOf(dtEnd)));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            return getEntityManager().createQuery(cq).getResultStream().map(FactureDTO::new)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "provisoiresDeLaPeriode", e);
+            return Collections.emptyList();
+        }
+    }
+
     private void deleteFactureDetails(TFacture facture) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();

@@ -130,6 +130,57 @@ public class FacturationRessouce {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Nombre de factures provisoires d'une periode, AVANT toute suppression : c'est ce nombre que la question de
+     * confirmation annonce, pour qu'on ne purge pas une periode a l'aveugle.
+     */
+    @GET
+    @Path("provisoires/periode")
+    public Response compterProvisoiresPeriode(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("tpid") String tpid, @QueryParam("groupTp") String groupTp, @QueryParam("typetp") String typetp,
+            @QueryParam("codegroup") String codegroup) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        List<commonTasks.dto.FactureDTO> factures = facturationService.provisoiresDeLaPeriode(groupTp, typetp, tpid,
+                codegroup, dtStart, dtEnd);
+        JSONArray ids = new JSONArray();
+        double montant = 0;
+        int dossiers = 0;
+        for (commonTasks.dto.FactureDTO f : factures) {
+            ids.put(f.getLgFACTUREID());
+            montant += f.getDblMONTANTCMDE() == null ? 0 : f.getDblMONTANTCMDE();
+            dossiers += f.getNbDossier() == null ? 0 : f.getNbDossier();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", factures.size())
+                .put("dossiers", dossiers).put("montant", montant).put("ids", ids).toString()).build();
+    }
+
+    /**
+     * Suppression en masse de factures PROVISOIRES, meme geste que le bouton ligne a ligne. Le corps porte la liste des
+     * identifiants ; le serveur refuse une par une celles qui ne sont plus provisoires.
+     */
+    @POST
+    @Path("provisoires/supprimer")
+    public Response supprimerProvisoires(String body) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        JSONArray recus = in.optJSONArray("ids");
+        List<String> ids = new java.util.ArrayList<>();
+        for (int i = 0; recus != null && i < recus.length(); i++) {
+            ids.add(recus.optString(i));
+        }
+        return Response.ok().entity(facturationService.supprimerProvisoires(ids).toString()).build();
+    }
+
     @DELETE
     @Path("{id}")
     public Response delete(@PathParam("id") String id) {

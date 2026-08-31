@@ -46,6 +46,16 @@ public interface FacturationService {
 
     void removeFacture(String idFacture);
 
+    /**
+     * Supprime plusieurs factures provisoires, comme le fait le bouton ligne a ligne. Une facture devenue definitive
+     * n'est pas supprimee : elle est nommee dans le compte rendu.
+     */
+    JSONObject supprimerProvisoires(List<String> ids);
+
+    /** Factures provisoires d'une periode, avec les filtres de l'ecran. Ne supprime rien. */
+    List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,
+            String dtStart, String dtEnd);
+
     List<FactureDetailDTO> findFacturesDetailsByFactureId(String id);
 
     List<VenteDetailsDTO> findArticleByFactureDetailsId(String id);
