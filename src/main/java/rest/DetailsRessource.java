@@ -101,6 +101,7 @@ public class DetailsRessource {
             data.put(new JSONObject().put("date", l.getDate()).put("codeCh", l.getCodeCh()).put("nomCh", l.getNomCh())
                     .put("qteDet", l.getQteDet()).put("codeDet", l.getCodeDet()).put("nomDet", l.getNomDet())
                     .put("stockAvant", l.getStockAvant()).put("stockApres", l.getStockApres())
+                    .put("stockAvantDet", l.getStockAvantDet()).put("stockApresDet", l.getStockApresDet())
                     .put("utilisateur", l.getUtilisateur()));
         }
         return Response.ok()

@@ -93,10 +93,18 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
         StringBuilder sql = new StringBuilder("SELECT DATE_FORMAT(h.mvtdate, '%d/%m/%Y') AS jour,"
                 + " fp.int_CIP AS code_ch, fp.str_NAME AS nom_ch, h.qteMvt AS qte_det,"
                 + " fd.int_CIP AS code_det, fd.str_NAME AS nom_det, h.qteDebut AS stock_avant,"
-                + " h.qteFinale AS stock_apres,"
+                + " h.qteFinale AS stock_apres, hd.qteDebut AS stock_avant_det, hd.qteFinale AS stock_apres_det,"
                 + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS operateur"
                 + " FROM hmvtproduit h" + " INNER JOIN t_famille fp ON fp.lg_FAMILLE_ID = h.lg_FAMILLE_ID"
                 + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID AND fd.bool_DECONDITIONNE = 1"
+                /*
+                 * Un deconditionnement ecrit DEUX mouvements au meme instant : le negatif sur la boite (type 06, celui
+                 * que la requete parcourt) et le positif sur le detail (type 05). L'ecran ne montrait que le stock de
+                 * la boite ; on rattache ici le mouvement du detail par son horodatage exact et par le produit, pour
+                 * rendre aussi son stock avant et apres - c'est pourtant lui que l'operation vise.
+                 */
+                + " LEFT JOIN hmvtproduit hd ON hd.createdAt = h.createdAt AND hd.typeMvt = '"
+                + util.Constant.DECONDTIONNEMENT_POSITIF + "'" + "   AND hd.lg_FAMILLE_ID = fd.lg_FAMILLE_ID"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = h.lg_USER_ID" + " WHERE h.typeMvt = ?1");
         // Numerotation sequentielle obligatoire : Hibernate refuse les trous (?1 puis ?4).
         List<Object> parametres = new ArrayList<>();
@@ -135,7 +143,9 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
             dto.setNomDet(texte(r[5]));
             dto.setStockAvant(nombre(r[6]));
             dto.setStockApres(nombre(r[7]));
-            dto.setUtilisateur(texte(r[8]));
+            dto.setStockAvantDet(nombre(r[8]));
+            dto.setStockApresDet(nombre(r[9]));
+            dto.setUtilisateur(texte(r[10]));
             lignes.add(dto);
         }
         return lignes;

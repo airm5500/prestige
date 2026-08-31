@@ -16,8 +16,15 @@ public class DeconditionnementHistoDTO implements Serializable {
     private long qteDet;
     private String codeDet;
     private String nomDet;
+    /*
+     * Deux stocks bougent a chaque deconditionnement : celui de la boite (CH) qui diminue, et celui du detail (DET) qui
+     * augmente. L'historique ne montrait que le premier - on ne pouvait pas verifier le second, qui est pourtant la
+     * raison de l'operation. Les deux paires sont desormais rendues.
+     */
     private long stockAvant;
     private long stockApres;
+    private long stockAvantDet;
+    private long stockApresDet;
     private String utilisateur;
 
     public String getDate() {
@@ -82,6 +89,22 @@ public class DeconditionnementHistoDTO implements Serializable {
 
     public void setStockApres(long stockApres) {
         this.stockApres = stockApres;
+    }
+
+    public long getStockAvantDet() {
+        return stockAvantDet;
+    }
+
+    public void setStockAvantDet(long stockAvantDet) {
+        this.stockAvantDet = stockAvantDet;
+    }
+
+    public long getStockApresDet() {
+        return stockApresDet;
+    }
+
+    public void setStockApresDet(long stockApresDet) {
+        this.stockApresDet = stockApresDet;
     }
 
     public String getUtilisateur() {

@@ -28,6 +28,8 @@
     <field name="nomDet" class="java.lang.String"/>
     <field name="stockAvant" class="java.lang.Long"/>
     <field name="stockApres" class="java.lang.Long"/>
+    <field name="stockAvantDet" class="java.lang.Long"/>
+    <field name="stockApresDet" class="java.lang.Long"/>
     <field name="utilisateur" class="java.lang.String"/>
 
     <title>
@@ -70,48 +72,58 @@
             <frame>
                 <reportElement mode="Opaque" x="0" y="0" width="802" height="20" backcolor="#4C9A46"/>
                 <staticText>
-                    <reportElement x="2" y="0" width="56" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="0" y="0" width="52" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Date]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="60" y="0" width="80" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="54" y="0" width="68" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Code CH]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="142" y="0" width="198" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="124" y="0" width="150" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Nom CH]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="342" y="0" width="42" height="20" forecolor="#FFFFFF"/>
-                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="276" y="0" width="42" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                    <text><![CDATA[St.av CH]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="320" y="0" width="42" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                    <text><![CDATA[St.ap CH]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="364" y="0" width="38" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Qté Det]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="388" y="0" width="80" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="404" y="0" width="68" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Code Det]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="470" y="0" width="188" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="474" y="0" width="150" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Nom Det]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="660" y="0" width="46" height="20" forecolor="#FFFFFF"/>
-                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                    <text><![CDATA[Stock avant]]></text>
+                    <reportElement x="626" y="0" width="42" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                    <text><![CDATA[St.av Det]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="708" y="0" width="46" height="20" forecolor="#FFFFFF"/>
-                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                    <text><![CDATA[Stock après]]></text>
+                    <reportElement x="670" y="0" width="42" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                    <text><![CDATA[St.ap Det]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="756" y="0" width="44" height="20" forecolor="#FFFFFF"/>
-                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <reportElement x="714" y="0" width="88" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
                     <text><![CDATA[Utilisateur]]></text>
                 </staticText>
             </frame>
@@ -120,52 +132,65 @@
 
     <detail>
         <band height="16" splitType="Stretch">
+            <!-- Ligne de separation FLOTTANTE : quand un libelle long fait grandir la
+                 ligne, le trait descend avec elle. Fixe, il restait a 15 px du haut et
+                 coupait le libelle en deux, ce qui le melait a la ligne suivante. -->
             <line>
-                <reportElement x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+                <reportElement positionType="Float" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
             </line>
-            <textField isBlankWhenNull="true">
-                <reportElement x="2" y="1" width="56" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0" y="1" width="52" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{date}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true">
-                <reportElement x="60" y="1" width="80" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="54" y="1" width="68" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{codeCh}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="142" y="1" width="198" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <reportElement x="124" y="1" width="150" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{nomCh}]]></textFieldExpression>
             </textField>
-            <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="342" y="1" width="42" height="14"/>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+            <textField pattern="#,##0" isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="276" y="1" width="42" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{stockAvant}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="320" y="1" width="42" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{stockApres}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="364" y="1" width="38" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{qteDet}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true">
-                <reportElement x="388" y="1" width="80" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="404" y="1" width="68" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{codeDet}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="470" y="1" width="188" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <reportElement x="474" y="1" width="150" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{nomDet}]]></textFieldExpression>
             </textField>
-            <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="660" y="1" width="46" height="14"/>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
-                <textFieldExpression><![CDATA[$F{stockAvant}]]></textFieldExpression>
+            <textField pattern="#,##0" isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="626" y="1" width="42" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{stockAvantDet}]]></textFieldExpression>
             </textField>
-            <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="708" y="1" width="46" height="14"/>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
-                <textFieldExpression><![CDATA[$F{stockApres}]]></textFieldExpression>
+            <textField pattern="#,##0" isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="670" y="1" width="42" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{stockApresDet}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true">
-                <reportElement x="756" y="1" width="44" height="14"/>
-                <textElement verticalAlignment="Middle"><font size="7"/></textElement>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="714" y="1" width="88" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{utilisateur}]]></textFieldExpression>
             </textField>
         </band>

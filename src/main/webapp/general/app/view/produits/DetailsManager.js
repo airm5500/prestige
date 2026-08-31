@@ -27,7 +27,8 @@ Ext.define('testextjs.view.produits.DetailsManager', {
         // ---------- Onglet 1 : historique ----------
         var storeHistorique = new Ext.data.Store({
             fields: ['date', 'codeCh', 'nomCh', 'codeDet', 'nomDet', 'utilisateur',
-                {name: 'qteDet', type: 'int'}, {name: 'stockAvant', type: 'int'}, {name: 'stockApres', type: 'int'}],
+                {name: 'qteDet', type: 'int'}, {name: 'stockAvant', type: 'int'}, {name: 'stockApres', type: 'int'},
+                {name: 'stockAvantDet', type: 'int'}, {name: 'stockApresDet', type: 'int'}],
             pageSize: 50,
             autoLoad: false,
             proxy: {
@@ -43,10 +44,13 @@ Ext.define('testextjs.view.produits.DetailsManager', {
             itemId: 'ongletHistorique',
             layout: 'fit',
             tbar: [
+                /* Periode du JOUR a l'ouverture : l'ecran chargeait tout l'historique, ce qui
+                 * n'a d'interet ni pour l'usage courant ni pour le temps de reponse. Les deux
+                 * champs restent libres : vider les dates redonne l'historique complet. */
                 {xtype: 'datefield', itemId: 'histoDebut', fieldLabel: 'Du', labelWidth: 22, width: 150,
-                    format: 'd/m/Y', submitFormat: 'Y-m-d'},
+                    format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date()},
                 {xtype: 'datefield', itemId: 'histoFin', fieldLabel: 'Au', labelWidth: 22, width: 150,
-                    format: 'd/m/Y', submitFormat: 'Y-m-d'},
+                    format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date()},
                 {xtype: 'textfield', itemId: 'histoRech', fieldLabel: 'Recherche', labelWidth: 62, width: 320,
                     emptyText: 'CIP, produit ou utilisateur (contient)', enableKeyEvents: true},
                 {itemId: 'btnHistoRechercher', tooltip: 'Rechercher', iconCls: 'searchicon', text: 'Rechercher'},
@@ -60,14 +64,23 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                     itemId: 'grilleHistorique',
                     store: storeHistorique,
                     columns: [
+                        /* Chaque bloc porte ses propres stocks : la boite a gauche avec ses
+                         * colonnes CH, le detail a droite avec les siennes. Les quantites sont
+                         * centrees dans leur colonne, comme demande en recette. */
                         {header: 'Date', dataIndex: 'date', width: 85},
                         {header: 'Code CH', dataIndex: 'codeCh', width: 110},
                         {header: 'Nom CH', dataIndex: 'nomCh', flex: 2},
-                        {header: 'Qté Det', dataIndex: 'qteDet', width: 70, align: 'right', renderer: entier},
+                        {header: 'Stock av. CH', dataIndex: 'stockAvant', width: 90, align: 'center',
+                            renderer: entier},
+                        {header: 'Stock ap. CH', dataIndex: 'stockApres', width: 90, align: 'center',
+                            renderer: entier},
+                        {header: 'Qté Det', dataIndex: 'qteDet', width: 70, align: 'center', renderer: entier},
                         {header: 'Code Det', dataIndex: 'codeDet', width: 110},
                         {header: 'Nom Det', dataIndex: 'nomDet', flex: 2},
-                        {header: 'Stock avant', dataIndex: 'stockAvant', width: 85, align: 'right', renderer: entier},
-                        {header: 'Stock après', dataIndex: 'stockApres', width: 85, align: 'right', renderer: entier},
+                        {header: 'Stock av. Det', dataIndex: 'stockAvantDet', width: 90, align: 'center',
+                            renderer: entier},
+                        {header: 'Stock ap. Det', dataIndex: 'stockApresDet', width: 90, align: 'center',
+                            renderer: entier},
                         {header: 'Utilisateur', dataIndex: 'utilisateur', width: 130}
                     ],
                     bbar: {
@@ -106,27 +119,31 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                 {xtype: 'numberfield', itemId: 'rechContenance', fieldLabel: 'Contenance', labelWidth: 75, width: 160,
                     minValue: 0, hideTrigger: true, emptyText: 'Toutes'},
                 {itemId: 'btnListeRechercher', tooltip: 'Rechercher', iconCls: 'searchicon'},
-                {itemId: 'btnListeVider', tooltip: 'Vider les filtres', iconCls: 'icon-clear-group'},
+                /* « icon-clear-group » represente un groupement de lignes et ne disait pas
+                 * « vider » : remplacee par un pictogramme d'effacement (cf. vente-theme.css). */
+                {itemId: 'btnListeVider', tooltip: 'Vider les filtres', iconCls: 'vp-icone-vider'},
                 '->',
                 {itemId: 'btnListeImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printable', text: 'PDF'},
                 {itemId: 'btnListeExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'export_excel_icon',
                     text: 'Excel'},
                 {itemId: 'btnListeInventaire', tooltip: 'Créer un inventaire avec les produits de la liste filtrée',
-                    iconCls: 'icon-grid', text: 'Inventaire'}
+                    iconCls: 'icon-grid', text: 'Créer inventaire'}
             ],
             items: [{
                     xtype: 'grid',
                     itemId: 'grilleProduits',
                     store: storeProduits,
                     columns: [
-                        {header: 'Identifiant PP', dataIndex: 'cipPP', width: 120},
+                        /* « Identifiant PP / PD » ne parlait qu'au developpeur : ce sont des codes CIP,
+                         * l'un de la boite (CH), l'autre du detail (DET). Quantites centrees. */
+                        {header: 'Code CIP CH', dataIndex: 'cipPP', width: 120},
                         {header: 'Produit Principal', dataIndex: 'nomPP', flex: 2},
-                        {header: 'Stock CH', dataIndex: 'stockPP', width: 80, align: 'right', renderer: entier},
-                        {header: 'Contenance', dataIndex: 'contenance', width: 95, align: 'right',
+                        {header: 'Stock CH', dataIndex: 'stockPP', width: 80, align: 'center', renderer: entier},
+                        {header: 'Contenance', dataIndex: 'contenance', width: 95, align: 'center',
                             renderer: function (v) {
                                 return '<span style="color:#1c7c1c;font-weight:bold;">' + entier(v) + '</span>';
                             }},
-                        {header: 'Identifiant PD', dataIndex: 'cipPD', width: 120},
+                        {header: 'Code CIP DET', dataIndex: 'cipPD', width: 120},
                         {header: 'Produit Détail', dataIndex: 'nomPD', flex: 2,
                             renderer: function (v, meta, record) {
                                 // zone vide : distinguer le detail jamais cree du detail desactive
@@ -135,7 +152,7 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                                 }
                                 return Ext.String.htmlEncode(v || '');
                             }},
-                        {header: 'Stock Détail', dataIndex: 'stockPD', width: 90, align: 'right', renderer: entier}
+                        {header: 'Stock Détail', dataIndex: 'stockPD', width: 90, align: 'center', renderer: entier}
                     ],
                     bbar: {
                         xtype: 'pagingtoolbar',

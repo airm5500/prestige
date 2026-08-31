@@ -114,6 +114,23 @@ Ext.define('testextjs.controller.DetailsCtr', {
      * au contexte, comme les autres editions). On ne parle a l'usager qu'en cas d'echec.
      */
     imprimer: function (url, params) {
+        /*
+         * L'onglet est ouvert TOUT DE SUITE, pendant le clic, puis on y charge le PDF quand le
+         * serveur repond. Ouvrir l'onglet dans le retour de la requete - ce que faisait ce code -
+         * revient a l'ouvrir hors de tout geste de l'utilisateur : le navigateur y voit une
+         * fenetre surgissante et la bloque, d'ou le « fenetre pop-up bloquee » signale en
+         * recette. Les autres editions n'ont pas ce message parce qu'elles ouvrent leur onglet
+         * directement au clic.
+         *
+         * Si la generation echoue, l'onglet ouvert pour rien est referme avant le message.
+         */
+        var onglet = window.open('', '_blank');
+        var echec = function (message) {
+            if (onglet && !onglet.closed) {
+                onglet.close();
+            }
+            Ext.Msg.alert('Message', message);
+        };
         Ext.Ajax.request({
             method: 'GET',
             url: url,
@@ -121,13 +138,19 @@ Ext.define('testextjs.controller.DetailsCtr', {
             success: function (response) {
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
-                    window.open('..' + r.msg, '_blank');
+                    var adresse = '..' + r.msg;
+                    if (onglet && !onglet.closed) {
+                        onglet.location.href = adresse;
+                    } else {
+                        // onglet ferme entre-temps, ou bloque malgre tout : dernier recours
+                        window.open(adresse, '_blank');
+                    }
                 } else {
-                    Ext.Msg.alert('Message', r.msg || 'Le PDF n\'a pas pu être généré.');
+                    echec(r.msg || 'Le PDF n\'a pas pu être généré.');
                 }
             },
             failure: function () {
-                Ext.Msg.alert('Message', 'Le PDF n\'a pas pu être généré.');
+                echec('Le PDF n\'a pas pu être généré.');
             }
         });
     },
