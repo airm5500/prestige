@@ -189,7 +189,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             /* vp-grille-survol : survol de ligne bien visible (vente-theme.css) */
             cls: 'my-grid-header vp-grille-survol',
             id: 'GridArticleID',
-            columns: [
+            /* Memorisation des colonnes par poste (voir app.js) : colonnes affichees ou
+               masquees, largeurs et ordre sont conserves dans le navigateur. */
+            stateful: true,
+            stateId: 'grille-fiche-article',
+            columns: window.PrestigeEtatColonnes.identifier('article', [
                 {
                     header: 'lg_FAMILLE_ID',
                     dataIndex: 'lg_FAMILLE_ID',
@@ -721,7 +725,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
 
 
-            ],
+            ]),
             /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
                marquee, pas la seule cellule cliquee (retour d'officine). */
             selModel: {

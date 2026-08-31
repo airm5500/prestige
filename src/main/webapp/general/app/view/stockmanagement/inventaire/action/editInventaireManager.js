@@ -258,6 +258,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             columnWidth: 0.65,
                             xtype: 'grid',
                             id: 'gridpanelInventaireID',
+                            /* Memorisation des colonnes par poste (voir app.js). */
+                            stateful: true,
+                            stateId: 'grille-travaux-inventaire',
                             plugins: [this.CellEditing],
                             features: [{ftype: 'grouping',
                                     groupHeaderTpl: "{[values.rows[0].data.str_CODE]} :{[values.rows[0].data.groupeby]}",
@@ -328,7 +331,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 }
                             },
                             
-                            columns: [{
+                            columns: window.PrestigeEtatColonnes.identifier('travinv', [{
                                     text: 'lg_INVENTAIRE_FAMILLE_ID',
                                     flex: 1,
                                     hidden: true,
@@ -660,7 +663,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     },
 
                                     sortable: true}
-                            ],
+                            ]),
                             tbar: [
                                 {
                                     xtype: 'combobox',
