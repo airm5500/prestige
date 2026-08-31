@@ -51,9 +51,17 @@ public class tierspayantManagement extends bllBase {
      */
     private String avertissementPlafond;
 
+    /** Meme principe pour le quota de consommation mensuelle du compte client. */
+    private String avertissementQuota;
+
     /** @return l'avertissement de plafond, ou null si le plafond pose ne pose aucune question */
     public String getAvertissementPlafond() {
         return avertissementPlafond;
+    }
+
+    /** @return l'avertissement de quota, ou null si le quota pose ne pose aucune question */
+    public String getAvertissementQuota() {
+        return avertissementQuota;
     }
 
     public tierspayantManagement(dataManager OdataManager) {
@@ -407,12 +415,22 @@ public class tierspayantManagement extends bllBase {
              * L'avertissement est desormais donne AVANT l'enregistrement, dans l'ecran, et l'utilisateur decide. Cote
              * serveur on se contente de poser la valeur ; l'ecart eventuel est ecrit dans le message de retour pour
              * qu'il reste visible meme quand la modification vient d'ailleurs que de l'ecran.
+             *
+             * ATTENTION au champ lu ici. db_CONSOMMATION_MENSUELLE de la fiche est un CUMUL, remis a zero a la
+             * facturation UNIQUEMENT pour les organismes non absolus (cf. updateInvoicePlafond) ; sur les autres il
+             * s'accumule indefiniment. Ce n'est PAS ce que montre l'ecran, qui affiche l'ENCOURS REEL recalcule - somme
+             * des restes a payer non factures (cf. TiersPayantServiceImpl.encoursParTiersPayant). Les deux valeurs
+             * portent le meme nom et peuvent tout a fait differer : d'ou un refus incomprehensible du temps ou ce
+             * controle bloquait, l'ecran affichant 0 pendant que le cumul se comptait en millions. Le message nomme
+             * donc explicitement la valeur dont il parle.
              */
-            int consommationEnCours = OTTiersPayant.getDbCONSOMMATIONMENSUELLE() != null
+            int cumulEnregistre = OTTiersPayant.getDbCONSOMMATIONMENSUELLE() != null
                     ? OTTiersPayant.getDbCONSOMMATIONMENSUELLE() : 0;
-            if (dbl_PLAFOND_CREDIT > 0 && consommationEnCours > dbl_PLAFOND_CREDIT) {
+            if (dbl_PLAFOND_CREDIT > 0 && cumulEnregistre > dbl_PLAFOND_CREDIT) {
                 this.avertissementPlafond = "Plafond de crédit posé à " + (long) dbl_PLAFOND_CREDIT
-                        + " alors que la consommation en cours est de " + consommationEnCours + ".";
+                        + ". Pour information, le cumul de consommation enregistré sur la fiche est de "
+                        + cumulEnregistre + " : ce cumul n'est remis à zéro à la facturation que pour les organismes"
+                        + " non absolus, il peut donc différer de l'encours affiché à l'écran.";
             }
             OTTiersPayant.setDblPLAFONDCREDIT(dbl_PLAFOND_CREDIT);
             OTTiersPayant.setBIsAbsolute(b_IsAbsolute);
@@ -463,10 +481,16 @@ public class tierspayantManagement extends bllBase {
              * compte client il n'y a simplement pas de quota a poser.
              */
             if (OTCompteClient != null) {
-                if (OTCompteClient.getDblQUOTACONSOMENSUELLE() > dbl_QUOTA_CONSO_MENSUELLE) {
-                    this.buildErrorTraceMessage(
-                            "Impossible de modifier le plafond. Etat du plafond supérieur au nouveau plafond.");
-                    return;
+                /*
+                 * Quota de consommation mensuelle : meme regle que le plafond de credit ci-dessus. La fiche etait
+                 * refusee des lors que l'etat du quota depassait la valeur visee, ce qui interdisait de baisser le
+                 * quota - et donc de le ramener a zero. On previent, on ne bloque plus.
+                 */
+                double quotaEnCours = OTCompteClient.getDblQUOTACONSOMENSUELLE() != null
+                        ? OTCompteClient.getDblQUOTACONSOMENSUELLE() : 0d;
+                if (dbl_QUOTA_CONSO_MENSUELLE > 0 && quotaEnCours > dbl_QUOTA_CONSO_MENSUELLE) {
+                    this.avertissementQuota = "Quota de consommation posé à " + (long) dbl_QUOTA_CONSO_MENSUELLE
+                            + " alors que l'état du quota est de " + (long) quotaEnCours + ".";
                 }
 
                 OTCompteClient.setDblPLAFOND(dbl_QUOTA_CONSO_MENSUELLE);

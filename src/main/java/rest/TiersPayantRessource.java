@@ -284,9 +284,10 @@ public class TiersPayantRessource {
             // Plafond de credit inferieur a la consommation en cours : la modification aboutit, mais le
             // fait est rappele dans le message de retour pour qu'il ne passe pas inapercu.
             String detail = otm.getDetailmessage();
-            if (org.apache.commons.lang3.StringUtils.isNotBlank(otm.getAvertissementPlafond())) {
-                detail = org.apache.commons.lang3.StringUtils.defaultString(detail) + "<br><br>"
-                        + otm.getAvertissementPlafond();
+            for (String avertissement : new String[] { otm.getAvertissementPlafond(), otm.getAvertissementQuota() }) {
+                if (org.apache.commons.lang3.StringUtils.isNotBlank(avertissement)) {
+                    detail = org.apache.commons.lang3.StringUtils.defaultString(detail) + "<br><br>" + avertissement;
+                }
             }
             return reponseSimple(otm.getMessage(), detail);
         } catch (Exception e) {
