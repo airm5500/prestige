@@ -111,11 +111,15 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                 {
                     header: 'Code',
                     dataIndex: 'str_CODE_ORGANISME',
+                    // masquee a l'affichage : le nom complet suffit a reconnaitre l'organisme.
+                    // La colonne reste disponible dans le selecteur de colonnes de la grille.
+                    hidden: true,
                     flex: 0.6
 
                 }, {
                     header: 'Nom Abrege',
                     dataIndex: 'str_NAME',
+                    hidden: true,
                     flex: 1/*,
                      editor: {
                      allowBlank: false

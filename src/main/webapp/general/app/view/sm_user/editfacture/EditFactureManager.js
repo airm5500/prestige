@@ -554,6 +554,9 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             }, {
                 header: 'Montant Forfaitaire',
                 dataIndex: 'MONTANTFORFETAIRE',
+                // masquee a l'affichage a la demande de l'officine ; la colonne reste
+                // disponible dans le selecteur de colonnes et dans les editions
+                hidden: true,
                 flex: 1,
                 renderer: renduAvecInfobulle('Montant forfaitaire', amountformat),
                 align: 'right'

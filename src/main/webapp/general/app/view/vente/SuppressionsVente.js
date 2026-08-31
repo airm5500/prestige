@@ -13,7 +13,7 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
     extend: 'Ext.panel.Panel',
     xtype: 'suppressionsvente',
     id: 'suppressionsventeID',
-    title: 'Suppressions de vente',
+    title: 'Produits rétirés et ventes abandonnées',
     frame: true,
     closable: false,
     layout: 'fit',

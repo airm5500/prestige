@@ -133,6 +133,30 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                         margin: '0 10 0 0', emptyText: 'Filtrer un produit (CIP ou libellé)...',
                         enableKeyEvents: true
                     },
+                    /* Filtre par groupe de tiers payants : meme source que la liste des bons par
+                     * organisme. Valeur vide = tous les groupes, l'ecran s'ouvre donc comme avant. */
+                    {
+                        xtype: 'combobox', itemId: 'groupeTiersPayant', width: 220,
+                        margin: '0 10 0 0', editable: false, queryMode: 'local',
+                        emptyText: 'Tous les groupes...',
+                        valueField: 'lg_GROUPE_TIERSPAYANT_ID', displayField: 'str_LIBELLE',
+                        store: new Ext.data.Store({
+                            fields: ['lg_GROUPE_TIERSPAYANT_ID', 'str_LIBELLE'],
+                            autoLoad: true,
+                            proxy: {
+                                type: 'ajax',
+                                url: '../api/v1/facturation/groupetierspayant',
+                                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+                            },
+                            listeners: {
+                                load: function (magasin, lignes) {
+                                    // « Tous les groupes » en tete : le retirer revient a ne pas filtrer
+                                    magasin.insert(0, [{lg_GROUPE_TIERSPAYANT_ID: '',
+                                                        str_LIBELLE: 'Tous les groupes'}]);
+                                }
+                            }
+                        })
+                    },
                     /* Tri des DEUX grilles, toujours du plus grand au plus petit. « Marge » est en tete :
                      * c'etait le seul tri jusqu'ici, l'ecran s'ouvre donc comme avant. */
                     {
@@ -243,7 +267,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
             dtEnd: valeur('#dtEnd', function (c) { return c.getSubmitValue(); }),
             queryTiersPayant: valeur('#rechercheTiersPayant', function (c) { return c.getValue(); }).trim(),
             queryProduit: valeur('#rechercheProduit', function (c) { return c.getValue(); }).trim(),
-            tri: valeur('#tri', function (c) { return c.getValue(); })
+            tri: valeur('#tri', function (c) { return c.getValue(); }),
+            groupeId: valeur('#groupeTiersPayant', function (c) { return c.getValue(); })
         };
     },
 
@@ -256,7 +281,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
     chargerTiersPayants: function () {
         var p = this.parametres();
         this.storeTiersPayants.load({
-            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant, tri: p.tri}
+            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant, tri: p.tri,
+                     groupeId: p.groupeId}
         });
     },
 
@@ -267,7 +293,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                 ? 'Par produit — ' + selection[0].get('tiersPayant')
                 : 'Par produit — tous tiers payants');
         me.storeProduits.load({
-            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp, query: p.queryProduit, tri: p.tri}
+            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp, query: p.queryProduit,
+                     tri: p.tri, groupeId: p.groupeId}
         });
     }
 });

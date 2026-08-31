@@ -40,22 +40,23 @@ public class AnalyseTiersPayantRessource {
     @GET
     @Path("tiers-payants")
     public Response parTiersPayant(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
-            @QueryParam("query") String recherche, @QueryParam("tri") String tri) {
+            @QueryParam("query") String recherche, @QueryParam("tri") String tri,
+            @QueryParam("groupeId") String groupeId) {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return reponse(analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri));
+        return reponse(analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri, groupeId));
     }
 
     @GET
     @Path("produits")
     public Response parProduit(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("tri") String tri) {
+            @QueryParam("tri") String tri, @QueryParam("groupeId") String groupeId) {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return reponse(analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri));
+        return reponse(analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId));
     }
 
     /**
@@ -67,14 +68,15 @@ public class AnalyseTiersPayantRessource {
     @Produces("text/csv")
     public Response csv(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri) {
+            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri,
+            @QueryParam("groupeId") String groupeId) {
         if (utilisateur() == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         boolean parProduit = "PRODUIT".equalsIgnoreCase(niveau);
         List<AnalyseTiersPayantDTO> lignes = parProduit
-                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri)
-                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri);
+                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId)
+                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri, groupeId);
         String contenu = csv(lignes, parProduit);
         return Response.ok(contenu)
                 .header("Content-Disposition",
@@ -93,15 +95,16 @@ public class AnalyseTiersPayantRessource {
     @Path("print")
     public Response imprimer(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri) {
+            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri,
+            @QueryParam("groupeId") String groupeId) {
         TUser user = utilisateur();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         boolean parProduit = "PRODUIT".equalsIgnoreCase(niveau);
         List<AnalyseTiersPayantDTO> lignes = parProduit
-                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri)
-                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri);
+                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId)
+                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri, groupeId);
 
         Map<String, Object> parametres = reportUtil.officineData(user);
         // Mise en forme des nombres : 1.234,56, la convention deja utilisee par les ecrans
@@ -169,8 +172,9 @@ public class AnalyseTiersPayantRessource {
         if (StringUtils.isBlank(tiersPayantId)) {
             return "tous";
         }
-        // On ne cherche qu'un libelle dans la liste : l'ordre n'a aucune importance ici.
-        for (AnalyseTiersPayantDTO ligne : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, null, null)) {
+        // On ne cherche qu'un libelle dans la liste : ni l'ordre ni le filtre de groupe n'ont
+        // d'importance ici, le tiers payant est deja designe par son identifiant.
+        for (AnalyseTiersPayantDTO ligne : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, null, null, null)) {
             if (tiersPayantId.equals(ligne.getTiersPayantId())) {
                 return ligne.getTiersPayant();
             }

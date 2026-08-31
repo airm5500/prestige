@@ -79,7 +79,7 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
         };
 
         var ongletRegistre = {
-            title: 'Registre des ventes ratées',
+            title: 'Registre des produits ratés',
             itemId: 'ongletRegistre',
             layout: 'fit',
             dockedItems: [{

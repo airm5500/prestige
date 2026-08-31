@@ -536,6 +536,13 @@ Ext.define('testextjs.view.reglement.Differe', {
             ]
 
         });
+        /* « Liste des différés » passe devant « Liste des règlements » : c'est l'onglet
+         * consulté en premier au comptoir. L'ordre est inversé ici, sur le tableau des
+         * items, plutôt qu'en deplacant les deux definitions - longues de plusieurs
+         * centaines de lignes - ce qui ne changerait rien d'autre que le risque. */
+        if (Ext.isArray(me.items) && me.items.length === 2) {
+            me.items.reverse();
+        }
         me.callParent(arguments);
     }
 });

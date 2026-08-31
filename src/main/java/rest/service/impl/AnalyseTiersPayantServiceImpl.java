@@ -55,6 +55,15 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
             + " AND p.b_IS_CANCEL = 0" + " AND p.int_PRICE > 0" + " AND p.lg_TYPE_VENTE_ID <> '5'"
             + " AND u.lg_EMPLACEMENT_ID = ?3";
 
+    /*
+     * Filtre par groupe de tiers payants. Valeur vide = tous les groupes, la requete rend alors exactement ce qu'elle
+     * rendait avant l'ajout du filtre. Le numero du parametre differe selon la requete : les positions sont deja prises
+     * jusqu'a 5 pour l'analyse par tiers payant, jusqu'a 6 pour l'analyse par produit (Hibernate exige une numerotation
+     * sequentielle, sans trou).
+     */
+    private static final String FILTRE_GROUPE = " AND (?6 = '' OR tp.lg_GROUPE_ID = ?6)";
+    private static final String FILTRE_GROUPE_7 = " AND (?7 = '' OR tp.lg_GROUPE_ID = ?7)";
+
     /** Chiffre d'affaires hors taxes net de remise, et marge : formule de l'analyse 20/80. */
     private static final String AGREGATS = " SUM(pd.int_QUANTITY) AS quantite," + " SUM(pd.int_PRICE) AS ca_ttc,"
             + " SUM(pd.int_PRICE - pd.int_PRICE_REMISE - pd.montantTva) AS ca_ht,"
@@ -90,18 +99,20 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
     private SessionHelperService sessionHelperService;
 
     @Override
-    public List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche, String tri) {
+    public List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche, String tri,
+            String groupeId) {
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
         try {
             String sql = "SELECT tp.lg_TIERS_PAYANT_ID, tp.str_NAME,"
                     + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nb_ventes," + AGREGATS + VENTES_TIERS_PAYANT
-                    + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME"
-                    + ordreDeTri(tri);
+                    + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + FILTRE_GROUPE
+                    + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME" + ordreDeTri(tri);
             Query query = em.createNativeQuery(sql);
             parametresCommuns(query, periode);
             query.setParameter(4, StringUtils.trimToEmpty(recherche));
             query.setParameter(5, motif);
+            query.setParameter(6, StringUtils.trimToEmpty(groupeId));
 
             List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
             for (Object[] row : (List<Object[]>) query.getResultList()) {
@@ -122,20 +133,21 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
 
     @Override
     public List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId, String recherche,
-            String tri) {
+            String tri, String groupeId) {
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
         String tp = StringUtils.trimToEmpty(tiersPayantId);
         try {
             String sql = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION," + AGREGATS + VENTES_TIERS_PAYANT
                     + " AND (?4 = '' OR c.lg_TIERS_PAYANT_ID = ?4)"
-                    + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)"
+                    + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)" + FILTRE_GROUPE_7
                     + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri);
             Query query = em.createNativeQuery(sql);
             parametresCommuns(query, periode);
             query.setParameter(4, tp);
             query.setParameter(5, StringUtils.trimToEmpty(recherche));
             query.setParameter(6, motif);
+            query.setParameter(7, StringUtils.trimToEmpty(groupeId));
 
             List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
             for (Object[] row : (List<Object[]>) query.getResultList()) {

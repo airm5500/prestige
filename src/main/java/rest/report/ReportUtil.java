@@ -495,7 +495,29 @@ public class ReportUtil {
     }
 
     public String buildReport(Map<String, Object> parameters, String reportName, List<?> datas) {
-        String fileName = getFileNames(reportName);
+        return buildReport(parameters, reportName, datas, reportName);
+    }
+
+    /**
+     * Meme edition, mais le fichier produit porte un nom choisi, different de celui du modele.
+     *
+     * <p>
+     * Le modele .jrxml est un fichier installe sur site : le renommer obligerait a intervenir sur chaque poste. Quand
+     * seul le nom du document remis a l'utilisateur doit changer, c'est ce parametre qui sert.
+     *
+     * @param parameters
+     *            parametres de l'etat
+     * @param reportName
+     *            nom du modele .jrxml, inchange
+     * @param datas
+     *            lignes de l'etat
+     * @param nomFichier
+     *            prefixe du fichier PDF produit (la date et l'heure y sont ajoutees)
+     *
+     * @return chemin du PDF, relatif au contexte
+     */
+    public String buildReport(Map<String, Object> parameters, String reportName, List<?> datas, String nomFichier) {
+        String fileName = getFileNames(nomFichier);
         try {
             JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);

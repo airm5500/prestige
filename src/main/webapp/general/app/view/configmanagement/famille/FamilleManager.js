@@ -360,6 +360,35 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         return reserve;
                     }
                 }, {
+                    /* Stock total = rayon + reserve. L'information n'existait que dans
+                     * l'info-bulle des colonnes Stock et RES : elle a sa colonne, pour etre
+                     * lisible d'un coup d'oeil et exportable comme les autres. Elle n'est pas
+                     * triable ni filtrable : la valeur est calculee a l'affichage et n'existe
+                     * pas telle quelle en base. */
+                    header: 'Stock total',
+                    dataIndex: 'int_NUMBER_AVAILABLE',
+                    itemId: 'stockTotal',
+                    align: 'center',
+                    flex: 0.5,
+                    sortable: false,
+                    renderer: function (v, m, r) {
+                        var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
+                        if (isNaN(rayon)) { rayon = 0; }
+                        var reserve = r.data.bool_RESERVE ? parseInt(r.data.int_STOCK_RESERVE, 10) : 0;
+                        if (isNaN(reserve)) { reserve = 0; }
+                        var total = rayon + reserve;
+                        if (total < 0) {
+                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
+                        } else if (total === 0) {
+                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
+                        } else {
+                            m.style = 'color:#14213d; font-weight:bold;font-size: 18px;';
+                        }
+                        m.tdAttr = 'data-qtip="<span style=\'white-space:nowrap;\'>Rayon ' + rayon
+                                + ' + Réserve ' + reserve + '</span>" data-qwidth="160"';
+                        return total;
+                    }
+                }, {
                     header: 'Seuil',
                     dataIndex: 'int_STOCK_REAPROVISONEMENT',
                     align: 'center',

@@ -35,6 +35,12 @@ import util.Constant;
 @Consumes("application/json")
 public class VenteSuppressionRessource {
 
+    /**
+     * Nom du PDF remis a l'utilisateur. Il dit ce que l'edition contient - les articles retires d'une vente et les
+     * ventes abandonnees - la ou « rp_suppressions_vente » reprenait le nom technique du modele.
+     */
+    private static final String NOM_FICHIER_EDITION = "rp_articles_supprimes_vente_abandonnees";
+
     @EJB
     private VenteSuppressionService venteSuppressionService;
     @EJB
@@ -143,7 +149,10 @@ public class VenteSuppressionRessource {
                     new JSONObject().put("success", false).put("message", "Aucune donnee a imprimer").toString())
                     .build();
         }
-        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_suppressions_vente", data);
+        // Le modele .jrxml garde son nom (fichier installe sur site) ; seul le document remis a
+        // l'utilisateur est renomme, pour dire ce qu'il contient reellement.
+        String url = servletRequest.getContextPath()
+                + reportUtil.buildReport(params, "rp_suppressions_vente", data, NOM_FICHIER_EDITION);
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
     }
 

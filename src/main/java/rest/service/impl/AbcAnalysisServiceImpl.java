@@ -636,12 +636,24 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
         enrichWithConso(rows, EXPORT_MONTHS);
 
-        // « Stock T. » = stock TOTAL (rayon + reserve) — remplace l'ancien stock rayon (lot 3)
-        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock T.", "Seuil", "Q.réa", "M", "M-1",
-                "M-2", "M-3", "CA", "Marge", "Part %", "Cumul %" };
+        /*
+         * Le detail du stock est donne quand la place le permet : « St. » (rayon), « Rés. » (reserve) et « Stock T. »
+         * (total). L'etat est en paysage A4 ; les deux colonnes ajoutees sont prises sur le libelle et sur la famille,
+         * les seules assez larges pour ceder quelques points sans que leur texte se replie. Si l'officine n'a aucune
+         * reserve suivie, les deux colonnes de detail ne servent a rien : elles sont alors omises et l'etat garde
+         * exactement la presentation d'avant, avec le seul stock total.
+         */
+        boolean detailStock = rows.stream().anyMatch(d -> d.getStockReserve() != 0);
+        String[] headers = detailStock
+                ? new String[] { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "St.", "Rés.", "Stock T.", "Seuil",
+                        "Q.réa", "M", "M-1", "M-2", "M-3", "CA", "Marge", "Part %", "Cumul %" }
+                : new String[] { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock T.", "Seuil", "Q.réa", "M", "M-1",
+                        "M-2", "M-3", "CA", "Marge", "Part %", "Cumul %" };
         // Libelle large (nom sur 1 ligne) ; CA/Marge/Stock/Seuil/Part/Cumul reduits
         // pour loger Qte reappro + conso M..M-3.
-        float[] widths = { 5f, 18f, 3f, 9f, 8f, 4f, 4f, 4.5f, 4f, 4f, 4f, 4f, 6.5f, 5.5f, 4.5f, 4.5f };
+        float[] widths = detailStock
+                ? new float[] { 5f, 15f, 3f, 8f, 8f, 3.5f, 3.5f, 4f, 4f, 4.5f, 4f, 4f, 4f, 4f, 6.5f, 5.5f, 4.5f, 4.5f }
+                : new float[] { 5f, 18f, 3f, 9f, 8f, 4f, 4f, 4.5f, 4f, 4f, 4f, 4f, 6.5f, 5.5f, 4.5f, 4.5f };
 
         Document document = new Document(PageSize.A4.rotate(), 18, 18, 18, 18);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -679,6 +691,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 table.addCell(cl);
                 table.addCell(new PdfPCell(new Phrase(nz(d.getFamille()), cellFont)));
                 table.addCell(new PdfPCell(new Phrase(nz(d.getRayon()), cellFont)));
+                if (detailStock) {
+                    table.addCell(rightCell(String.valueOf(d.getStockDisponible()), cellFont));
+                    table.addCell(rightCell(String.valueOf(d.getStockReserve()), cellFont));
+                }
                 table.addCell(rightCell(String.valueOf(d.getStockTotal()), cellFont));
                 table.addCell(rightCell(String.valueOf(d.getSeuilMini()), cellFont));
                 table.addCell(rightCell(String.valueOf(d.getQuantiteReappro()), cellFont));
