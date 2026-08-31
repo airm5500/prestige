@@ -78,7 +78,11 @@ public class DetailsRessource {
             data.put(new JSONObject().put("cipPP", l.getCipPP()).put("nomPP", l.getNomPP())
                     .put("stockPP", l.getStockPP()).put("cipPD", l.getCipPD()).put("nomPD", l.getNomPD())
                     .put("contenance", l.getContenance()).put("stockPD", l.getStockPD())
-                    .put("detailDesactive", l.isDetailDesactive()));
+                    .put("detailDesactive", l.isDetailDesactive())
+                    // Identifiants internes : ils servent de cle au cochage, qui doit survivre au
+                    // changement de page. Le CIP ne suffirait pas, il peut manquer.
+                    .put("familleIdPP", StringUtils.defaultString(l.getFamilleIdPP()))
+                    .put("familleIdPD", StringUtils.defaultString(l.getFamilleIdPD())));
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", lignes.size()).put("data", data).toString())
@@ -194,8 +198,14 @@ public class DetailsRessource {
     }
 
     /**
-     * Cree un inventaire avec les produits de la liste filtree : les principaux ET leurs details - leurs stocks bougent
+     * Cree un inventaire avec les produits de la liste : les principaux ET leurs details - leurs stocks bougent
      * ensemble, en inventorier un seul n'aurait pas de sens.
+     *
+     * <p>
+     * Deux usages. Sans {@code lignes}, l'inventaire porte sur TOUTE la liste filtree, y compris les pages non
+     * affichees. Avec {@code lignes} - les produits principaux coches a l'ecran, page apres page - il ne porte que sur
+     * ceux-la. Les identifiants recus sont confrontes a la liste filtree : l'ecran ne peut pas faire inventorier un
+     * produit qui n'en fait pas partie.
      */
     @POST
     @Path("produits/inventaire")
@@ -207,8 +217,27 @@ public class DetailsRessource {
         JSONObject in = new JSONObject(StringUtils.defaultIfBlank(body, "{}"));
         List<ProduitDetailleDTO> lignes = detailsProduitService.produitsDetailles(in.optString("rech"),
                 in.optInt("contenance", 0));
+        Set<String> retenus = new LinkedHashSet<>();
+        JSONArray choisies = in.optJSONArray("lignes");
+        if (choisies != null) {
+            for (int i = 0; i < choisies.length(); i++) {
+                String id = StringUtils.trimToEmpty(choisies.optString(i));
+                if (!id.isEmpty()) {
+                    retenus.add(id);
+                }
+            }
+            if (retenus.isEmpty()) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false).put("msg", "Aucun produit coché.").toString())
+                        .build();
+            }
+        }
         Set<String> ids = new LinkedHashSet<>();
         for (ProduitDetailleDTO l : lignes) {
+            // Le cochage porte sur la LIGNE, donc sur le produit principal ; son detail suit toujours.
+            if (!retenus.isEmpty() && !retenus.contains(StringUtils.defaultString(l.getFamilleIdPP()))) {
+                continue;
+            }
             if (StringUtils.isNotBlank(l.getFamilleIdPP())) {
                 ids.add(l.getFamilleIdPP());
             }

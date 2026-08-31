@@ -38,6 +38,14 @@ Ext.define('testextjs.controller.DetailsCtr', {
             'detailsmanager #btnListeInventaire': {
                 click: this.onCreerInventaire
             },
+            'detailsmanager #btnListeDecocher': {
+                click: this.onToutDecocher
+            },
+            /* Cochage : on tient la memoire nous-memes, la pagination vide le magasin. */
+            'detailsmanager #grilleProduits': {
+                select: this.onCocher,
+                deselect: this.onDecocher
+            },
             /* Entree dans un filtre lance la recherche, sans viser le bouton. */
             'detailsmanager #rech': {
                 specialkey: this.onToucheEntree
@@ -56,6 +64,13 @@ Ext.define('testextjs.controller.DetailsCtr', {
     },
 
     onEcranAffiche: function (ecran) {
+        var me = this;
+        /* Chaque chargement du magasin - recherche ou simple changement de page - remet en place
+         * le cochage memorise. Passer par l'evenement du magasin couvre la barre de pagination,
+         * que l'ecran ne pilote pas lui-meme. */
+        ecran.storeProduits.on('load', function () {
+            me.reappliquerCoches(ecran);
+        });
         this.chargerListe(ecran);
         this.chargerHistorique(ecran);
         // Curseur directement dans la recherche, pret pour la saisie
@@ -79,11 +94,85 @@ Ext.define('testextjs.controller.DetailsCtr', {
         }
     },
 
-    chargerListe: function (ecran) {
+    chargerListe: function (ecran, garderCoches) {
+        var me = this;
         var p = ecran.parametresListe();
         var store = ecran.storeProduits;
+        /* Changer de filtre change la liste : garder un cochage fait sur d'autres criteres
+         * conduirait a inventorier des produits que l'usager ne voit plus. Le changement de
+         * page, lui, garde le cochage - c'est tout l'objet de la memoire. */
+        if (!garderCoches) {
+            ecran.cochesProduits = {};
+        }
         store.getProxy().extraParams = p;
         store.loadPage(1);
+    },
+
+    /* Ecran d'une grille ou d'un modele de selection, quel que soit le chemin d'appel. */
+    ecranDeSelection: function (selection) {
+        var vue = selection.view || (selection.views && selection.views[0]);
+        return vue ? vue.up('detailsmanager') : null;
+    },
+
+    /* Recoche, apres un chargement, les lignes retenues sur les pages precedentes. */
+    reappliquerCoches: function (ecran) {
+        var grille = ecran.down('#grilleProduits');
+        if (!grille) {
+            return;
+        }
+        var selection = grille.getSelectionModel();
+        var aCocher = [];
+        ecran.storeProduits.each(function (r) {
+            if (ecran.cochesProduits[r.get('familleIdPP')]) {
+                aCocher.push(r);
+            }
+        });
+        /* Les evenements sont suspendus : cette recoche est un rétablissement d'affichage, pas
+         * un geste de l'usager - la relayer modifierait la memoire qu'elle est en train de lire. */
+        selection.suspendEvents();
+        selection.deselectAll(true);
+        if (aCocher.length) {
+            selection.select(aCocher, false, true);
+        }
+        selection.resumeEvents();
+        this.majCompteurCoches(ecran);
+    },
+
+    majCompteurCoches: function (ecran) {
+        var nombre = Ext.Object.getKeys(ecran.cochesProduits).length;
+        var texte = ecran.down('#compteurCoches');
+        var bouton = ecran.down('#btnListeDecocher');
+        if (texte) {
+            texte.setText(nombre ? '<span style="color:#b36b00;font-weight:bold;">' + nombre
+                    + ' produit(s) coché(s)</span>' : '');
+        }
+        if (bouton) {
+            bouton.setVisible(nombre > 0);
+        }
+    },
+
+    onCocher: function (selection, record) {
+        var ecran = this.ecranDeSelection(selection);
+        if (!ecran) {
+            return;
+        }
+        ecran.cochesProduits[record.get('familleIdPP')] = true;
+        this.majCompteurCoches(ecran);
+    },
+
+    onDecocher: function (selection, record) {
+        var ecran = this.ecranDeSelection(selection);
+        if (!ecran) {
+            return;
+        }
+        delete ecran.cochesProduits[record.get('familleIdPP')];
+        this.majCompteurCoches(ecran);
+    },
+
+    onToutDecocher: function (bouton) {
+        var ecran = this.ecran(bouton);
+        ecran.cochesProduits = {};
+        this.reappliquerCoches(ecran);
     },
 
     chargerHistorique: function (ecran) {
@@ -173,25 +262,39 @@ Ext.define('testextjs.controller.DetailsCtr', {
                 + Ext.Object.toQueryString(this.ecran(bouton).parametresHistorique()));
     },
 
+    /*
+     * Inventaire : sur les produits COCHES s'il y en a - le cochage vaut sur toutes les pages -
+     * sinon sur toute la liste filtree, comme avant. La question posee nomme le cas, pour qu'on
+     * ne cree pas un inventaire de 400 lignes en croyant n'en cocher que trois.
+     */
     onCreerInventaire: function (bouton) {
         var me = this, ecran = me.ecran(bouton);
         var p = ecran.parametresListe();
         var horodatage = Ext.Date.format(new Date(), 'dmYHis');
-        Ext.Msg.confirm('Inventaire',
-                'Créer un inventaire avec les produits de la liste filtrée (principaux et détails)&nbsp;?',
+        var coches = Ext.Object.getKeys(ecran.cochesProduits);
+        var question = coches.length
+                ? 'Créer un inventaire avec les <b>' + coches.length + ' produit(s) coché(s)</b>'
+                        + ' (principaux et détails)&nbsp;?'
+                : 'Aucun produit coché : créer un inventaire avec <b>toute la liste filtrée</b>'
+                        + ' (principaux et détails)&nbsp;?';
+        Ext.Msg.confirm('Inventaire', question,
                 function (choix) {
                     if (choix !== 'yes') {
                         return;
+                    }
+                    var corps = {
+                        rech: p.rech, contenance: p.contenance,
+                        name: 'INVENTAIRE PRODUITS DETAILLES ' + horodatage
+                    };
+                    if (coches.length) {
+                        corps.lignes = coches;
                     }
                     var progress = Ext.MessageBox.wait('Création de l\'inventaire . . .', 'Veuillez patienter');
                     Ext.Ajax.request({
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         url: '../api/v1/details/produits/inventaire',
-                        params: Ext.JSON.encode({
-                            rech: p.rech, contenance: p.contenance,
-                            name: 'INVENTAIRE PRODUITS DETAILLES ' + horodatage
-                        }),
+                        params: Ext.JSON.encode(corps),
                         success: function (response) {
                             progress.hide();
                             var r = Ext.JSON.decode(response.responseText, true) || {};

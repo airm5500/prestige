@@ -95,7 +95,7 @@ Ext.define('testextjs.view.produits.DetailsManager', {
 
         // ---------- Onglet 2 : liste des produits detailles ----------
         var storeProduits = new Ext.data.Store({
-            fields: ['cipPP', 'nomPP', 'cipPD', 'nomPD',
+            fields: ['cipPP', 'nomPP', 'cipPD', 'nomPD', 'familleIdPP', 'familleIdPD',
                 {name: 'stockPP', type: 'int'}, {name: 'contenance', type: 'int'}, {name: 'stockPD', type: 'int'},
                 {name: 'detailDesactive', type: 'boolean'}],
             pageSize: 50,
@@ -107,6 +107,15 @@ Ext.define('testextjs.view.produits.DetailsManager', {
             }
         });
         me.storeProduits = storeProduits;
+
+        /*
+         * Memoire du cochage. La grille est paginee : a chaque page le magasin est vide et
+         * recharge, et le modele de selection d'ExtJS perd ce qui n'est plus present. On tient
+         * donc nous-memes la liste des lignes cochees, par identifiant de produit principal, et
+         * on la reapplique apres chaque chargement. Sans cela, cocher trois produits page 1 puis
+         * passer page 2 les perdrait sans le dire.
+         */
+        me.cochesProduits = {};
 
         var ongletListe = {
             title: 'Liste des Produits détaillés',
@@ -126,13 +135,24 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                 {itemId: 'btnListeImprimer', tooltip: 'Imprimer la liste filtrée', iconCls: 'printable', text: 'PDF'},
                 {itemId: 'btnListeExcel', tooltip: 'Exporter la liste filtrée', iconCls: 'export_excel_icon',
                     text: 'Excel'},
-                {itemId: 'btnListeInventaire', tooltip: 'Créer un inventaire avec les produits de la liste filtrée',
-                    iconCls: 'icon-grid', text: 'Créer inventaire'}
+                {itemId: 'btnListeInventaire', tooltip: 'Créer un inventaire : les produits cochés, ou toute la'
+                            + ' liste filtrée si rien n\'est coché',
+                    iconCls: 'icon-grid', text: 'Créer inventaire'},
+                /* Compteur du cochage : sans lui, une selection faite sur des pages precedentes
+                 * n'est visible nulle part au moment de creer l'inventaire. */
+                {xtype: 'tbtext', itemId: 'compteurCoches', text: ''},
+                {itemId: 'btnListeDecocher', tooltip: 'Décocher tous les produits', iconCls: 'vp-icone-vider',
+                    text: 'Tout décocher', hidden: true}
             ],
             items: [{
                     xtype: 'grid',
                     itemId: 'grilleProduits',
                     store: storeProduits,
+                    /* Cochage a la ligne : « checkOnly » evite qu'un simple clic dans la ligne
+                     * remplace toute la selection - on ne coche et decoche qu'avec la case. */
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {
+                        mode: 'MULTI', checkOnly: true, showHeaderCheckbox: true
+                    }),
                     columns: [
                         /* « Identifiant PP / PD » ne parlait qu'au developpeur : ce sont des codes CIP,
                          * l'un de la boite (CH), l'autre du detail (DET). Quantites centrees. */
