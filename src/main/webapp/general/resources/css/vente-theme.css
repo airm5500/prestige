@@ -964,6 +964,35 @@ body.x-body,
     color: var(--vp-selection-texte, #1a1a1a) !important;
 }
 
+/* --------------------------------------------------------------------------
+ * Ligne a la fois SELECTIONNEE et SURVOLEE : c'est le survol qui se voit, sur
+ * la cellule ET sur son interieur.
+ *
+ * Sans cette regle on lisait un melange : des blocs violets cernes d'orange.
+ * Deux couches sont en jeu - la cellule (.x-grid-cell) et son interieur
+ * (.x-grid-cell-inner, qui porte le texte et laisse voir la cellule sur ses
+ * marges). La regle de survol ne peint que la CELLULE, et son selecteur porte
+ * « :hover », qui compte comme une classe : elle est donc plus specifique que
+ * celle de la selection et gagnait sur la cellule. La selection, elle, peint
+ * AUSSI l'interieur, que le survol ne couvrait pas : d'ou l'orange autour et
+ * le violet au milieu.
+ *
+ * Le survol couvre desormais les deux couches, et cette regle est placee
+ * APRES la selection pour l'emporter a specificite egale. Meme choix que dans
+ * le menu de navigation : sur la ligne qu'on vient de choisir et que l'on
+ * survole, c'est le survol qui doit se voir.
+ * -------------------------------------------------------------------------- */
+.x-grid-row-over > .x-grid-cell,
+.x-grid-row-over > .x-grid-cell > .x-grid-cell-inner,
+.x-grid-item-over > .x-grid-cell,
+.x-grid-item-over > .x-grid-cell > .x-grid-cell-inner,
+.x-grid-data-row:hover > .x-grid-cell,
+.x-grid-data-row:hover > .x-grid-cell > .x-grid-cell-inner {
+    background-color: var(--vp-survol-fond, #ffcc80) !important;
+    background-image: none !important;
+    color: var(--vp-survol-texte-grille, inherit) !important;
+}
+
 /* La navigation garde sa propre couleur de selection : ses regles
    (navigation.css) gagnent en specificite pour le fond, et la couleur du
    libelle est posee sur .x-tree-node-text, donc rien a neutraliser ici. */
