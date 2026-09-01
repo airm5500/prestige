@@ -500,7 +500,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                                     Ext.getCmp('int_QUANTITE').focus();
                                     Ext.getCmp('int_QUANTITE').selectText(0, 1);
                                 });
-                            Me_Window = Oview;
+                            /* « Me_Window = Oview » etait un rattrapage : la globale de l'ecran
+                               de commande se perdait pendant la creation, on la remettait ici.
+                               Mais « Oview » est elle-meme une globale, posee par plus de cent
+                               cinquante fichiers : ouvrir une sous-fenetre depuis cette creation
+                               la faisait pointer ailleurs, et le rattrapage installait alors la
+                               MAUVAISE vue - d'ou « onAddNewItem is not a function » et
+                               l'impossibilite d'ajouter le moindre produit ensuite.
+                               L'ecran de commande ne lit plus cette globale : il se retrouve par
+                               son type. Le rattrapage n'a plus lieu d'etre, et le retirer supprime
+                               la seule ligne qui pouvait la fausser. */
                         }
                     }
                 }

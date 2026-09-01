@@ -1,6 +1,29 @@
 /* global Ext */
 
 var Me_Window;
+
+/*
+ * L'ecran de saisie de commande, retrouve sans passer par la variable globale.
+ *
+ * « Me_Window » est partagee par trois ecrans, et la fenetre de creation d'un produit la
+ * reaffecte a la fin (« Me_Window = Oview ») - or « Oview » est elle-meme une globale, posee
+ * par plus de cent cinquante fichiers. Ouvrir une sous-fenetre depuis la creation d'un produit
+ * suffisait donc a faire pointer « Me_Window » ailleurs, et le premier geste suivant echouait
+ * sur « Me_Window.onAddNewItem is not a function », plus aucun produit ne pouvant etre ajoute.
+ *
+ * On remonte desormais a l'ecran par le composant qui declenche l'evenement quand on l'a sous
+ * la main, sinon par son type - il n'y en a qu'un d'ouvert a la fois. La globale ne sert plus
+ * que de dernier repli.
+ */
+function ecranCommande(composant) {
+    if (composant && composant.up) {
+        var parent = composant.up('ordermanagerlist');
+        if (parent) {
+            return parent;
+        }
+    }
+    return Ext.ComponentQuery.query('ordermanagerlist')[0] || Me_Window;
+}
 var Omode;
 var ref;
 var ref_final;
@@ -63,7 +86,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         famille_id_search = "";
 
         LaborexWorkFlow = Ext.create('testextjs.controller.LaborexWorkFlow', {});
-        ref = Me_Window.getNameintern();
+        // Dans initComponent, l'ecran n'est pas encore rendu : « this » est la seule reference
+        // sure, aucune recherche par type ne le trouverait encore.
+        ref = this.getNameintern();
         if (ref === "0") {
             str_STATUT = this.getOdatasource();
         }
@@ -225,7 +250,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         select: function (cmp) {
 
                                             if (titre === 'Modifier les informations de la commande') {
-                                                Me_Window.onchangeGrossiste();
+                                                ecranCommande(this).onchangeGrossiste();
                                             } else {
                                                 Ext.getCmp('str_NAME').focus(true, 100, function () {
                                                     Ext.getCmp('str_NAME').selectText(0, 1);
@@ -299,7 +324,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
                                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
                                             if (value === "0" || value === "Cliquez ici pour créer un nouvel article") {
-                                                Me_Window.onbtnaddArticle();
+                                                ecranCommande().onbtnaddArticle();
                                             } else {
                                                 Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
                                                     Ext.getCmp('int_QUANTITE').selectText(0, 1);
@@ -341,7 +366,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
                                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
                                             if (value === "0" || value === "Cliquez ici pour créer un nouvel article") {
-                                                Me_Window.onbtnaddArticle();
+                                                ecranCommande().onbtnaddArticle();
                                             } else {
                                                 Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
                                                     Ext.getCmp('int_QUANTITE').selectText(0, 1);
@@ -384,7 +409,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                                 if (Ext.getCmp('str_NAME').getValue() !== "") {
 
                                                     if (Ext.getCmp('int_QUANTITE').getValue() > 0) {
-                                                        Me_Window.onAddNewItem();
+                                                        ecranCommande(field).onAddNewItem();
 
                                                     } else {
                                                         Ext.MessageBox.alert('Error Message', 'La quantité doit être supérieure à 0 ');
@@ -678,8 +703,10 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     sortable: false,
                                     menuDisabled: true,
                                     items: [{
-                                            icon: 'resources/images/icons/fam/page_white_edit.png',
-                                            tooltip: 'Mettre a jour le code EAN de cet article',
+                                            /* Un crayon sur une feuille ne disait pas « code-barres » :
+                                             * pictogramme dedie (vente-theme.css). */
+                                            iconCls: 'vp-icone-ean',
+                                            tooltip: 'Ajouter ou modifier le code EAN de cet article',
                                             scope: this,
                                             handler: this.onMajCodeEanClick
                                         }]
@@ -707,7 +734,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         'render': function (cmp) {
                                             cmp.getEl().on('keypress', function (e) {
                                                 if (e.getKey() === e.ENTER) {
-                                                    Me_Window.onRechClick();
+                                                    ecranCommande().onRechClick();
                                                 }
                                             });
                                         }
@@ -732,7 +759,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             str_TYPE_TRANSACTION = value;
 
 
-                                            Me_Window.onRechClick();
+                                            ecranCommande().onRechClick();
                                         }
                                     }
                                 }
@@ -755,12 +782,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         myProxy.params = {
                                             query: '',
                                             filtre: 'ALL',
-                                            orderId: Me_Window.getNameintern()
+                                            orderId: ecranCommande().getNameintern()
 
                                         };
                                         myProxy.setExtraParam('query', val.getValue());
                                         myProxy.setExtraParam('filtre', filtre.getValue());
-                                        myProxy.setExtraParam('orderId', Me_Window.getNameintern());
+                                        myProxy.setExtraParam('orderId', ecranCommande().getNameintern());
                                     }
 
                                 }
@@ -882,7 +909,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         Ext.getCmp('str_NAME').selectText(0, 1);
                     });
 
-                    Me_Window.getCommandeAmount(Me_Window.getNameintern());
+                    ecranCommande().getCommandeAmount(ecranCommande().getNameintern());
                 },
                 failure: function (response) {
                     testextjs.app.getController('App').StopWaitingProcess();
@@ -893,7 +920,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         });
     },
     loadStore: function () {
-        Me_Window.onRechClick();
+        ecranCommande().onRechClick();
     },
 
     onbtndetail: function () {
@@ -914,7 +941,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             method: 'GET',
             timeout: 2400000,
             params: {
-                orderId: Me_Window.getNameintern(),
+                orderId: ecranCommande().getNameintern(),
                 grossisteId: Ext.getCmp('lgGROSSISTEID').getValue()
             },
             success: function (response) {
@@ -1334,10 +1361,19 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         win.close();
                         Ext.Msg.alert('Code EAN', reponse.message || 'Code EAN mis a jour.');
                     } else {
-                        // Le code appartient a un autre article : on garde la fenetre ouverte et on
-                        // represente la saisie, prete a etre corrigee.
-                        Ext.Msg.alert('Code EAN', reponse.message || 'La mise a jour a echoue.');
-                        champ.focus(true, 50);
+                        /* Le code appartient a un autre article : on garde la fenetre ouverte et on
+                         * represente la saisie, ENTIEREMENT SELECTIONNEE. Le focus seul obligeait a
+                         * effacer le code a la main avant d'en scanner un autre ; selectionne, il est
+                         * remplace d'un coup par la douchette ou par la frappe.
+                         * La selection est posee APRES la fermeture du message : tant qu'il est
+                         * affiche, il retient le focus et la selection serait perdue. */
+                        Ext.Msg.alert('Code EAN', reponse.message || 'La mise a jour a echoue.',
+                                function () {
+                                    champ.focus(true, 50);
+                                    Ext.defer(function () {
+                                        champ.selectText();
+                                    }, 80);
+                                });
                     }
                 },
                 failure: function (response) {
@@ -1380,6 +1416,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                                 success: function (response) {
                                                     let lu = Ext.JSON.decode(response.responseText, true) || {};
                                                     if (!lu.success || !lu.codeEan) {
+                                                        /* Aucun code sur l'article : le champ reste vide, mais
+                                                         * le curseur doit s'y trouver quand meme - on scanne
+                                                         * juste apres avoir clique l'icone. Le focus pose au
+                                                         * rendu peut avoir ete perdu entre-temps, cette reponse
+                                                         * arrivant apres l'ouverture de la fenetre. */
+                                                        champ.focus(true, 50);
                                                         return;
                                                     }
                                                     champ.setValue(lu.codeEan);
@@ -1387,6 +1429,11 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                                     Ext.defer(function () {
                                                         champ.selectText();
                                                     }, 80);
+                                                },
+                                                failure: function () {
+                                                    // Le code n'a pas pu etre relu : le champ reste
+                                                    // saisissable, curseur dedans.
+                                                    champ.focus(true, 50);
                                                 }
                                             });
                                         },
@@ -1449,7 +1496,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 Ext.getCmp('str_NAME').focus(true, 100, function () {
                                     Ext.getCmp('str_NAME').selectText(0, 1);
                                 });
-                                Me_Window.getCommandeAmount(Me_Window.getNameintern());
+                                ecranCommande().getCommandeAmount(ecranCommande().getNameintern());
 
                             },
                             failure: function (response) {

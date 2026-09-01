@@ -1019,3 +1019,29 @@ body.x-body,
     color: #c0392b;
     font-weight: bold;
 }
+
+/* --------------------------------------------------------------------------
+ * Icone « code EAN ».
+ *
+ * La colonne portait « page_white_edit.png », un crayon sur une feuille : elle
+ * dit « modifier quelque chose », pas « code-barres ». Comme pour l'icone
+ * « vider », le theme n'a aucune image de code-barres et en ajouter une
+ * obligerait a livrer un fichier de plus : le pictogramme est dessine en
+ * caractere, dans la place que la colonne reserve deja a son icone.
+ *
+ * U+2016 (double barre verticale) et U+007C se lisent comme les barres d'un
+ * code-barres ; l'espacement resserre les rapproche.
+ * -------------------------------------------------------------------------- */
+.vp-icone-ean {
+    background-image: none !important;
+}
+.vp-icone-ean:before {
+    content: '\2016\2016';
+    display: block;
+    font-size: 15px;
+    line-height: 16px;
+    letter-spacing: -1px;
+    text-align: center;
+    color: #1f4e79;
+    font-weight: bold;
+}
