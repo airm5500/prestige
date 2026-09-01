@@ -33,7 +33,6 @@ var int_montant_vente;
 var int_montant_achat;
 var str_STATUT;
 var storerepartiteur;
-var comboDefaultvalue;
 var store_details_order;
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
@@ -113,7 +112,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             }
         });
         let store = Ext.create('testextjs.store.Search');
-        comboDefaultvalue = this.getOdatasource().lg_GROSSISTE_ID;
         let store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
             data: [
@@ -868,7 +866,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         }
 
         if (this.estModification()) {
-            Ext.getCmp('lgGROSSISTEID').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
+            this.poserRepartiteurDeLaCommande(this.getOdatasource());
             int_montant_achat = Ext.util.Format.number(this.getOdatasource().PRIX_ACHAT_TOTAL, '0,000.');
             int_montant_vente = Ext.util.Format.number(this.getOdatasource().PRIX_VENTE_TOTAL, '0,000.');
             Ext.getCmp('int_VENTE').setValue(int_montant_vente + '  CFA');
@@ -941,6 +939,37 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
      */
     estModification: function () {
         return this.getNameintern() !== "0";
+    },
+
+    /*
+     * Repartiteur de la commande rappele a l'ouverture, en modification.
+     *
+     * L'ecran posait ici le LIBELLE du repartiteur dans une liste dont la valeur est un identifiant.
+     * Tant que l'utilisateur ne rouvrait pas la liste, tout ce que l'ecran envoyait ensuite comme
+     * « grossisteId » etait donc ce libelle : la creation d'un produit depuis la commande recevait un
+     * libelle et ne pouvait pas preselectionner le repartiteur.
+     *
+     * On pose desormais l'identifiant, apres avoir mis la ligne correspondante dans le magasin - sans
+     * elle la liste afficherait l'identifiant brut au lieu du libelle, le magasin n'etant charge qu'au
+     * premier deroulement. A defaut d'identifiant on repose le libelle, exactement comme avant : une
+     * base qui ne le renverrait pas se comporte comme aujourd'hui plutot que de perdre l'affichage.
+     */
+    poserRepartiteurDeLaCommande: function (source) {
+        var combo = Ext.getCmp('lgGROSSISTEID');
+        if (!combo || !source) {
+            return;
+        }
+        var libelle = source.str_GROSSISTE_LIBELLE;
+        var identifiant = source.lg_GROSSISTE_ID;
+        if (!identifiant) {
+            combo.setValue(libelle);
+            return;
+        }
+        var magasin = combo.getStore();
+        if (magasin && magasin.findExact('lg_GROSSISTE_ID', identifiant) === -1) {
+            magasin.add({lg_GROSSISTE_ID: identifiant, str_LIBELLE: libelle || identifiant});
+        }
+        combo.setValue(identifiant);
     },
 
     loadStore: function () {

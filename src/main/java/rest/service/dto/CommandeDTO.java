@@ -31,6 +31,14 @@ public class CommandeDTO {
     private String details = " ";
     private StatutTraitement statutTraitement;
 
+    /*
+     * Faute d'annotation, ce champ sortait sous le nom « lgGROSSISTEID », alors que le modele de l'ecran
+     * (app/model/Order.js) declare « lg_GROSSISTE_ID » comme tous les autres champs de cette reponse. L'identifiant du
+     * repartiteur n'arrivait donc jamais a l'ecran de saisie de commande, qui se rabattait sur le LIBELLE - et
+     * renvoyait ensuite ce libelle la ou le serveur attend un identifiant. L'ancien nom n'etait lu nulle part, ni en
+     * JavaScript ni dans les JSP.
+     */
+    @JSONPropertyName("lg_GROSSISTE_ID")
     public String getLgGROSSISTEID() {
         return lgGROSSISTEID;
     }
