@@ -139,9 +139,14 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                         xtype: 'combobox', itemId: 'groupeTiersPayant', width: 220,
                         margin: '0 10 0 0', editable: false, queryMode: 'local',
                         emptyText: 'Tous les groupes...',
-                        valueField: 'lg_GROUPE_TIERSPAYANT_ID', displayField: 'str_LIBELLE',
+                        /* Le service rend « id » et « libelle » - ce sont les noms que lisent
+                           deja les autres ecrans qui l'utilisent (factures provisoires, vente
+                           tiers payant). La liste etait declaree avec d'autres noms de champs :
+                           chaque groupe arrivait donc vide et seule la ligne « Tous les groupes »,
+                           ajoutee ici, restait visible. */
+                        valueField: 'id', displayField: 'libelle',
                         store: new Ext.data.Store({
-                            fields: ['lg_GROUPE_TIERSPAYANT_ID', 'str_LIBELLE'],
+                            fields: ['id', 'libelle'],
                             autoLoad: true,
                             proxy: {
                                 type: 'ajax',
@@ -151,8 +156,7 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                             listeners: {
                                 load: function (magasin, lignes) {
                                     // « Tous les groupes » en tete : le retirer revient a ne pas filtrer
-                                    magasin.insert(0, [{lg_GROUPE_TIERSPAYANT_ID: '',
-                                                        str_LIBELLE: 'Tous les groupes'}]);
+                                    magasin.insert(0, [{id: '', libelle: 'Tous les groupes'}]);
                                 }
                             }
                         })

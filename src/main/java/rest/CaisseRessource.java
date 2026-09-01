@@ -368,13 +368,27 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Types demandes par l'ecran, ou les trois natures du journal de caisse quand il n'en demande aucun.
+     *
+     * <p>
+     * L'ecran envoyait lui-meme la liste des trois identifiants, tiree de sa liste deroulante. Tant que celle-ci
+     * n'etait pas chargee, il n'envoyait rien et le journal montrait TOUTES les natures - acomptes, avoirs, reglements
+     * differes compris. Le filtre par defaut est desormais pose ici : il ne depend plus de l'ordre d'arrivee des
+     * requetes de l'ecran. Un type explicitement choisi reste prioritaire.
+     */
+    private String typesDuJournal(String typeMvtId) {
+        return typeMvtId == null || typeMvtId.trim().isEmpty() ? caisseService.typesDuJournalCaisse() : typeMvtId;
+    }
+
     @GET
     @Path("mvts-others")
     public Response fetchMvtcaisses(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "user") String lgUSERID, @QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "userId") String userId, @QueryParam(value = "checked") boolean checked,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeMvtId") String typeMvtId) {
-        JSONObject json = caisseService.getAllMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId, limit, start);
+        JSONObject json = caisseService.getAllMvtCaisses(dtStart, dtEnd, checked, userId, typesDuJournal(typeMvtId),
+                limit, start);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -386,8 +400,10 @@ public class CaisseRessource {
             @QueryParam(value = "checked") boolean checked, @QueryParam(value = "dtEnd") String dtEnd,
             @QueryParam(value = "typeMvtId") String typeMvtId) {
         JSONObject json = new JSONObject();
-        MvtCaisseSummaryDTO caisseSummary = caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId, typeMvtId,
-                checked);
+        // Meme filtre par defaut que la liste : sans cela les totaux porteraient sur des natures
+        // que la grille n'affiche pas, et ne correspondraient plus a ce qui est sous les yeux.
+        MvtCaisseSummaryDTO caisseSummary = caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId,
+                typesDuJournal(typeMvtId), checked);
         json.put("data", new JSONObject(caisseSummary));
         return Response.ok().entity(json.toString()).build();
     }

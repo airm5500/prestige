@@ -131,6 +131,15 @@ public interface CaisseService {
     JSONObject getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, String typeMvtId,
             int limit, int start);
 
+    /**
+     * Identifiants des trois natures d'operation que le journal de caisse montre - entrees, sorties et reglements tiers
+     * payant - separes par des virgules.
+     *
+     * <p>
+     * Sert de filtre par defaut quand l'ecran n'en demande aucun. Voir {@link rest.TypesJournalCaisse}.
+     */
+    String typesDuJournalCaisse();
+
     String ouvrirCaisse(TUser user, CoffreCaisseDTO coffreCaisse) throws CaisseUsingExeception;
 
     /** Vrai si l'utilisateur detient le privilege 'Autorisation Point mobile money caisse'. */

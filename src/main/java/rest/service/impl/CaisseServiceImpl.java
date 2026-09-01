@@ -1988,6 +1988,29 @@ public class CaisseServiceImpl implements CaisseService {
                 countMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId));
     }
 
+    @Override
+    public String typesDuJournalCaisse() {
+        try {
+            List<dal.TTypeMvtCaisse> types = getEntityManager()
+                    .createQuery("SELECT t FROM TTypeMvtCaisse t", dal.TTypeMvtCaisse.class).getResultList();
+            StringBuilder retenus = new StringBuilder();
+            for (dal.TTypeMvtCaisse type : types) {
+                if (rest.TypesJournalCaisse.estTypeDuJournal(type.getStrNAME())) {
+                    if (retenus.length() > 0) {
+                        retenus.append(',');
+                    }
+                    retenus.append(type.getLgTYPEMVTCAISSEID());
+                }
+            }
+            return retenus.toString();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "typesDuJournalCaisse", e);
+            // Rien de retenu : on rend une chaine vide, donc le comportement d'avant - tous les
+            // types. Mieux vaut une liste trop large qu'un journal vide.
+            return "";
+        }
+    }
+
     private List<Tuple> fetchAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId,
             String typeMvtId, int limit, int start, boolean all) {
         String sql = replaceTypeMvtPlaceholder(replaceUserIdPlaceholder(MVT_QUERY, userId), typeMvtId);

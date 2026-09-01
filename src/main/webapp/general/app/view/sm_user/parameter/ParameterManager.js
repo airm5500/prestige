@@ -8,6 +8,26 @@ var url_rest_toggle_parametre = '../api/v1/app-params/toggle';
 var url_rest_data_parametre_types = '../api/v1/app-params/types';
 
 var Me;
+
+/*
+ * L'ecran depuis un composant de sa barre d'outils.
+ *
+ * « Me » est une variable GLOBALE, partagee par plus de deux cents ecrans : chacun l'ecrase en
+ * s'ouvrant. Un gestionnaire pose au rendu ou a la frappe s'execute plus tard, quand « Me » peut
+ * deja designer un autre ecran - d'ou « Me.onRechClick is not a function ». On remonte donc a la
+ * grille par le composant qui declenche l'evenement, ce qui ne depend d'aucune globale.
+ */
+function ecranDuComposant(composant) {
+    return composant && composant.up ? composant.up('parametermanager') : null;
+}
+
+function relancerRecherche(composant) {
+    var ecran = ecranDuComposant(composant);
+    if (ecran) {
+        ecran.onRechClick();
+    }
+}
+
 Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'parametermanager',
@@ -177,8 +197,8 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                         }
                     }),
                     listeners: {
-                        change: function() {
-                            Me.onRechClick();
+                        change: function(champ) {
+                            relancerRecherche(champ);
                         }
                     }
                 }, {
@@ -193,7 +213,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                         'render': function(cmp) {
                             cmp.getEl().on('keypress', function(e) {
                                 if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
+                                    relancerRecherche(cmp);
                                 }
                             });
                         },
@@ -206,7 +226,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                                 var valeur = (cmp.getValue() || '').trim();
                                 // Champ vide : on recharge la liste complete (annulation du filtre).
                                 if (valeur.length >= 2 || valeur.length === 0) {
-                                    Me.onRechClick();
+                                    relancerRecherche(cmp);
                                 }
                             }
                         }
@@ -215,16 +235,19 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     text: 'Réinitialiser',
                     tooltip: 'Effacer la recherche et le filtre de type',
                     scope: this,
-                    handler: function() {
+                    handler: function(bouton) {
+                        var ecran = ecranDuComposant(bouton);
                         var champ = Ext.getCmp('rechecher');
                         if (champ) {
                             champ.setValue('');
                         }
-                        var combo = Me.down('#comboTypeParam');
+                        var combo = ecran ? ecran.down('#comboTypeParam') : null;
                         if (combo) {
                             combo.setValue(null);
                         }
-                        Me.onRechClick();
+                        if (ecran) {
+                            ecran.onRechClick();
+                        }
                     }
                 }, {
                     text: 'rechercher',
@@ -362,7 +385,8 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
     onRechClick: function () {
         // extraParam persistant : la recherche ET le filtre de type sont conserves quand on change de page
         var val = Ext.getCmp('rechecher');
-        var combo = Me ? Me.down('#comboTypeParam') : null;
+        // « this » est l'ecran : la methode est appelee sur lui, jamais sur la globale.
+        var combo = this.down ? this.down('#comboTypeParam') : null;
         var store = this.getStore();
         store.getProxy().setExtraParam('search_value', val ? val.getValue() : '');
         store.getProxy().setExtraParam('type_filtre', (combo && combo.getValue()) ? combo.getValue() : '');
