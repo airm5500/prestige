@@ -93,7 +93,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             str_STATUT = this.getOdatasource();
         }
         ref_final = ref;
-        titre = this.getTitre();
+        /* « titre » etait pose sans « var » : une globale, ecrite par une quinzaine d'ecrans.
+         * On la garde locale ici, l'ecran n'a aucune raison de la partager. */
+        let titre = this.getTitre();
         this.prixAchat = this.getOdatasource()?.PRIX_ACHAT_TOTAL;
         this.title = titre;
         let produitStore = new Ext.data.Store({
@@ -249,8 +251,10 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         },
                                         select: function (cmp) {
 
-                                            if (titre === 'Modifier les informations de la commande') {
-                                                ecranCommande(this).onchangeGrossiste();
+                                            /* Ce listener se declenche longtemps apres l'ouverture :
+                                             * c'est l'ecran lui-meme qu'on interroge, pas une globale. */
+                                            if (ecranCommande(cmp).estModification()) {
+                                                ecranCommande(cmp).onchangeGrossiste();
                                             } else {
                                                 Ext.getCmp('str_NAME').focus(true, 100, function () {
                                                     Ext.getCmp('str_NAME').selectText(0, 1);
@@ -863,7 +867,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             Ext.getCmp('btn_save').show();
         }
 
-        if (titre === "Modifier les informations de la commande") {
+        if (this.estModification()) {
             Ext.getCmp('lgGROSSISTEID').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
             int_montant_achat = Ext.util.Format.number(this.getOdatasource().PRIX_ACHAT_TOTAL, '0,000.');
             int_montant_vente = Ext.util.Format.number(this.getOdatasource().PRIX_VENTE_TOTAL, '0,000.');
@@ -919,6 +923,26 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             });
         });
     },
+    /*
+     * L'ecran sert a DEUX choses : creer une commande, ou modifier une commande existante. Le mode
+     * se lisait jusqu'ici en comparant le titre de la fenetre a la chaine « Modifier les informations
+     * de la commande » - et ce titre etait range dans une globale partagee par une quinzaine
+     * d'ecrans. Ouvrir un autre ecran entre-temps suffisait donc a fausser le test : on choisissait
+     * la mauvaise branche sans le moindre message.
+     *
+     * On se fonde desormais sur ce qui distingue vraiment les deux ouvertures. OrderManager passe
+     * l'identifiant de la commande en modification (« onManageDetailsClick ») et la chaine « 0 » en
+     * creation (« onAddClick ») ; c'est deja ce que lit le debut de initComponent. Renommer le menu
+     * ou traduire le titre ne casse plus rien.
+     *
+     * A noter : la configuration « mode » n'est pas utilisable ici. Le chargeur generique
+     * onLoadNewComponentWithDataSource ne transmet que nameintern, titre et odatasource - « mode »
+     * resterait vide et l'ecran croirait etre en creation.
+     */
+    estModification: function () {
+        return this.getNameintern() !== "0";
+    },
+
     loadStore: function () {
         ecranCommande().onRechClick();
     },
