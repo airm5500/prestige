@@ -63,7 +63,20 @@ Ext.define('testextjs.view.vente.user.ClientGrid', {
                         type: 'hbox'
                     },
                     items: [
-
+                        /* Nombre de clients trouves, juste avant « Annuler » : la barre est en
+                         * pack:'end', les deux elements sont donc colles a droite dans cet ordre.
+                         * Demande de recette : savoir d'un coup d'oeil si la recherche a ramene
+                         * une poignee de clients ou toute une page a parcourir. */
+                        {
+                            xtype: 'tbtext',
+                            itemId: 'nbClientsTrouves',
+                            text: '',
+                            style: 'font-weight:700;color:#1f4e79;'
+                        },
+                        {
+                            xtype: 'tbspacer',
+                            width: 12
+                        },
                         {
                             xtype: 'button',
                             itemId: 'btnCancelClient',
@@ -188,6 +201,34 @@ Ext.define('testextjs.view.vente.user.ClientGrid', {
 
         });
         me.callParent(arguments);
+
+        /* Le magasin est fourni par l'ecran de vente et lui survit : il est recharge a chaque
+         * nouvelle recherche faite DEPUIS cette fenetre. On suit « datachanged », qui couvre le
+         * chargement comme le vidage, et on ecoute par mon() pour que l'ecoute parte avec la
+         * fenetre - sans quoi une fenetre detruite continuerait a repondre au magasin. */
+        if (clientStore) {
+            me.mon(clientStore, 'datachanged', me.majNombreClientsTrouves, me);
+        }
+        me.on('afterrender', me.majNombreClientsTrouves, me, {single: true});
+    },
+
+    /** Ecrit le nombre de clients de la liste dans la barre du bas. */
+    majNombreClientsTrouves: function () {
+        var me = this;
+        var afficheur = me.down('#nbClientsTrouves');
+        if (!afficheur) {
+            return;
+        }
+        var grille = me.down('gridpanel');
+        var magasin = grille ? grille.getStore() : null;
+        var nombre = magasin ? magasin.getCount() : 0;
+        if (nombre === 0) {
+            afficheur.setText('Aucun client trouvé');
+        } else if (nombre === 1) {
+            afficheur.setText('1 client trouvé');
+        } else {
+            afficheur.setText(nombre + ' clients trouvés');
+        }
     }
 });
 
