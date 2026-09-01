@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import commonTasks.dto.VenteRateeDTO;
-import net.sf.jasperreports.engine.JRPrintText;
 import net.sf.jasperreports.engine.JasperPrint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -105,8 +104,8 @@ class RegistreVentesRateesEtatTest {
     @DisplayName("Motif, commentaire et etat sont imprimes en entier")
     void contenuImprimeEnEntier() throws Exception {
         List<String> lus = new ArrayList<>();
-        for (JRPrintText t : GeometrieEtat.textes(imprimer())) {
-            lus.add(t.getFullText());
+        for (GeometrieEtat.Bloc t : GeometrieEtat.textes(imprimer())) {
+            lus.add(t.texte);
         }
         assertTrue(lus.contains(MOTIF_LONG), "le motif long doit figurer en entier");
         assertTrue(lus.contains(COMMENTAIRE_LONG), "le commentaire long doit figurer en entier");

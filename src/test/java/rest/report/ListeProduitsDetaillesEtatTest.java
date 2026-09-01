@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import commonTasks.dto.ProduitDetailleDTO;
-import net.sf.jasperreports.engine.JRPrintText;
 import net.sf.jasperreports.engine.JasperPrint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -100,8 +99,8 @@ class ListeProduitsDetaillesEtatTest {
     @DisplayName("Les libelles longs sont imprimes en entier")
     void libellesEnEntier() throws Exception {
         List<String> lus = new ArrayList<>();
-        for (JRPrintText t : GeometrieEtat.textes(imprimer())) {
-            lus.add(t.getFullText());
+        for (GeometrieEtat.Bloc t : GeometrieEtat.textes(imprimer())) {
+            lus.add(t.texte);
         }
         assertTrue(lus.contains("AMOXICILLINE 1G GELULES SECABLES BOITE DE 12 UNITES POUR ADULTES"),
                 "le libelle CH long doit figurer en entier");

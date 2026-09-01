@@ -26,10 +26,15 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
  * l'officine. On remplit donc le VRAI modele avec des donnees representatives et on mesure la page produite.
  *
  * <p>
- * La mesure cle est {@link JRPrintText#getTextHeight()} : la hauteur dont le texte a REELLEMENT besoin. Des qu'elle
- * depasse la hauteur de la case, le texte est passe a la ligne - il deborde s'il y a la place en dessous, il est
- * purement TRONQUE sinon. Les deux se rencontrent en pratique, et ni l'un ni l'autre ne fait echouer l'edition : elle
- * sort, simplement illisible.
+ * Deux mesures servent ici. La hauteur de texte ({@link JRPrintText#getTextHeight()}) est celle dont le texte a
+ * REELLEMENT besoin : des qu'elle depasse la hauteur de la case, le texte est passe a la ligne - il deborde s'il y a la
+ * place en dessous, il est purement TRONQUE sinon. Et les positions, qui disent si un trait traverse un texte ou si
+ * deux colonnes se recouvrent.
+ *
+ * <p>
+ * Attention aux CADRES : les elements qu'ils contiennent - les en-tetes de colonnes, la ligne TOTAL - portent des
+ * coordonnees RELATIVES au cadre. Il faut y ajouter la position du cadre, sans quoi un en-tete et un total paraissent
+ * tous deux poses en haut de page, et se recouvrir.
  */
 final class GeometrieEtat {
 
@@ -40,6 +45,32 @@ final class GeometrieEtat {
     static final float TOLERANCE = 1.5f;
 
     private GeometrieEtat() {
+    }
+
+    /** Un element imprime, ramene a des coordonnees ABSOLUES dans la page. */
+    static final class Bloc {
+        final String texte;
+        final int x;
+        final int y;
+        final int largeur;
+        final int hauteur;
+        final float hauteurTexte;
+        final boolean estTrait;
+
+        Bloc(String texte, int x, int y, int largeur, int hauteur, float hauteurTexte, boolean estTrait) {
+            this.texte = texte;
+            this.x = x;
+            this.y = y;
+            this.largeur = largeur;
+            this.hauteur = hauteur;
+            this.hauteurTexte = hauteurTexte;
+            this.estTrait = estTrait;
+        }
+
+        @Override
+        public String toString() {
+            return "« " + texte.replace('\n', '/') + " »";
+        }
     }
 
     /** Remplit un modele embarque (reports/&lt;nom&gt;.jrxml) avec les parametres d'entete usuels. */
@@ -57,26 +88,39 @@ final class GeometrieEtat {
         }
     }
 
-    /**
-     * Les en-tetes de colonnes sont a l'INTERIEUR d'un cadre : sans descendre dedans, on ne les mesure pas - et c'est
-     * justement la que se logent les debordements de titres.
-     */
-    private static void collecter(List<JRPrintElement> elements, List<JRPrintText> textes, List<JRPrintLine> traits) {
+    /** Aplatit les elements d'une page en ajoutant, a chaque descente dans un cadre, la position de ce cadre. */
+    private static void collecter(List<JRPrintElement> elements, int decalageX, int decalageY, List<Bloc> blocs) {
         for (JRPrintElement e : elements) {
+            int x = decalageX + e.getX();
+            int y = decalageY + e.getY();
             if (e instanceof JRPrintFrame) {
-                collecter(((JRPrintFrame) e).getElements(), textes, traits);
-            } else if (e instanceof JRPrintText && !((JRPrintText) e).getFullText().trim().isEmpty()) {
-                textes.add((JRPrintText) e);
+                collecter(((JRPrintFrame) e).getElements(), x, y, blocs);
+            } else if (e instanceof JRPrintText) {
+                JRPrintText t = (JRPrintText) e;
+                if (!t.getFullText().trim().isEmpty()) {
+                    blocs.add(new Bloc(t.getFullText(), x, y, t.getWidth(), t.getHeight(), t.getTextHeight(), false));
+                }
             } else if (e instanceof JRPrintLine) {
-                traits.add((JRPrintLine) e);
+                blocs.add(new Bloc("", x, y, e.getWidth(), e.getHeight(), 0f, true));
             }
         }
     }
 
-    static List<JRPrintText> textes(JasperPrint impression) {
-        List<JRPrintText> textes = new ArrayList<>();
+    private static List<Bloc> blocsDeLaPage(JRPrintPage page) {
+        List<Bloc> blocs = new ArrayList<>();
+        collecter(page.getElements(), 0, 0, blocs);
+        return blocs;
+    }
+
+    /** Tous les textes de l'edition, toutes pages confondues. */
+    static List<Bloc> textes(JasperPrint impression) {
+        List<Bloc> textes = new ArrayList<>();
         for (JRPrintPage page : impression.getPages()) {
-            collecter(page.getElements(), textes, new ArrayList<>());
+            for (Bloc bloc : blocsDeLaPage(page)) {
+                if (!bloc.estTrait) {
+                    textes.add(bloc);
+                }
+            }
         }
         return textes;
     }
@@ -84,11 +128,11 @@ final class GeometrieEtat {
     /** Textes dont le contenu ne tient pas dans la case : passage a la ligne, debordement ou troncature. */
     static String debordements(JasperPrint impression) {
         StringBuilder fautes = new StringBuilder();
-        for (JRPrintText t : textes(impression)) {
-            if (t.getTextHeight() > t.getHeight() + TOLERANCE) {
-                fautes.append("\n  « ").append(t.getFullText().replace('\n', '/')).append(" » demande ")
-                        .append(String.format("%.1f", t.getTextHeight())).append(" points de hauteur dans une case de ")
-                        .append(t.getHeight()).append(" (largeur ").append(t.getWidth()).append(")");
+        for (Bloc t : textes(impression)) {
+            if (t.hauteurTexte > t.hauteur + TOLERANCE) {
+                fautes.append("\n  ").append(t).append(" demande ").append(String.format("%.1f", t.hauteurTexte))
+                        .append(" points de hauteur dans une case de ").append(t.hauteur).append(" (largeur ")
+                        .append(t.largeur).append(")");
             }
         }
         return fautes.toString();
@@ -97,16 +141,16 @@ final class GeometrieEtat {
     /** En-tetes de colonnes qui ne tiennent pas sur une seule ligne. */
     static String enTetesSurPlusieursLignes(JasperPrint impression, List<String> attendus) {
         float uneLigne = Float.MAX_VALUE;
-        for (JRPrintText t : textes(impression)) {
-            if (attendus.contains(t.getFullText())) {
-                uneLigne = Math.min(uneLigne, t.getTextHeight());
+        for (Bloc t : textes(impression)) {
+            if (attendus.contains(t.texte)) {
+                uneLigne = Math.min(uneLigne, t.hauteurTexte);
             }
         }
         StringBuilder fautes = new StringBuilder();
-        for (JRPrintText t : textes(impression)) {
-            if (attendus.contains(t.getFullText()) && t.getTextHeight() > uneLigne + TOLERANCE) {
-                fautes.append("\n  l'en-tete « ").append(t.getFullText()).append(" » passe sur plusieurs lignes dans ")
-                        .append(t.getWidth()).append(" points de large");
+        for (Bloc t : textes(impression)) {
+            if (attendus.contains(t.texte) && t.hauteurTexte > uneLigne + TOLERANCE) {
+                fautes.append("\n  l'en-tete ").append(t).append(" passe sur plusieurs lignes dans ").append(t.largeur)
+                        .append(" points de large");
             }
         }
         return fautes.toString();
@@ -115,8 +159,8 @@ final class GeometrieEtat {
     /** Nombre d'en-tetes attendus reellement imprimes : un intitule mal orthographie ne serait pas mesure. */
     static int enTetesVus(JasperPrint impression, List<String> attendus) {
         int vus = 0;
-        for (JRPrintText t : textes(impression)) {
-            if (attendus.contains(t.getFullText())) {
+        for (Bloc t : textes(impression)) {
+            if (attendus.contains(t.texte)) {
                 vus++;
             }
         }
@@ -127,17 +171,19 @@ final class GeometrieEtat {
     static String traitsQuiCoupent(JasperPrint impression) {
         StringBuilder fautes = new StringBuilder();
         for (JRPrintPage page : impression.getPages()) {
-            List<JRPrintText> textes = new ArrayList<>();
-            List<JRPrintLine> traits = new ArrayList<>();
-            collecter(page.getElements(), textes, traits);
-            for (JRPrintLine trait : traits) {
-                for (JRPrintText texte : textes) {
-                    boolean traverse = trait.getY() > texte.getY() && trait.getY() < texte.getY() + texte.getHeight()
-                            && trait.getX() < texte.getX() + texte.getWidth()
-                            && trait.getX() + trait.getWidth() > texte.getX();
+            List<Bloc> blocs = blocsDeLaPage(page);
+            for (Bloc trait : blocs) {
+                if (!trait.estTrait) {
+                    continue;
+                }
+                for (Bloc texte : blocs) {
+                    if (texte.estTrait) {
+                        continue;
+                    }
+                    boolean traverse = trait.y > texte.y && trait.y < texte.y + texte.hauteur
+                            && trait.x < texte.x + texte.largeur && trait.x + trait.largeur > texte.x;
                     if (traverse) {
-                        fautes.append("\n  le trait a y=").append(trait.getY()).append(" coupe « ")
-                                .append(texte.getFullText().replace('\n', '/')).append(" »");
+                        fautes.append("\n  le trait a y=").append(trait.y).append(" coupe ").append(texte);
                     }
                 }
             }
@@ -145,18 +191,30 @@ final class GeometrieEtat {
         return fautes.toString();
     }
 
-    /** Textes qui se recouvrent : deux colonnes voisines qui empietent l'une sur l'autre. */
+    /**
+     * Textes qui se recouvrent : deux colonnes voisines qui empietent l'une sur l'autre.
+     *
+     * <p>
+     * La comparaison se fait PAGE PAR PAGE. Les coordonnees repartent de zero a chaque page : confronter un element de
+     * la page 1 a un element de la page 2 signalerait un chevauchement qui n'existe pas.
+     */
     static String chevauchements(JasperPrint impression) {
-        List<JRPrintText> tous = textes(impression);
         StringBuilder fautes = new StringBuilder();
-        for (int i = 0; i < tous.size(); i++) {
-            for (int j = i + 1; j < tous.size(); j++) {
-                JRPrintText a = tous.get(i), b = tous.get(j);
-                boolean seRecouvrent = a.getX() < b.getX() + b.getWidth() && b.getX() < a.getX() + a.getWidth()
-                        && a.getY() < b.getY() + b.getHeight() && b.getY() < a.getY() + a.getHeight();
-                if (seRecouvrent) {
-                    fautes.append("\n  « ").append(a.getFullText().replace('\n', '/')).append(" » recouvre « ")
-                            .append(b.getFullText().replace('\n', '/')).append(" »");
+        for (JRPrintPage page : impression.getPages()) {
+            List<Bloc> tous = new ArrayList<>();
+            for (Bloc bloc : blocsDeLaPage(page)) {
+                if (!bloc.estTrait) {
+                    tous.add(bloc);
+                }
+            }
+            for (int i = 0; i < tous.size(); i++) {
+                for (int j = i + 1; j < tous.size(); j++) {
+                    Bloc a = tous.get(i), b = tous.get(j);
+                    boolean seRecouvrent = a.x < b.x + b.largeur && b.x < a.x + a.largeur && a.y < b.y + b.hauteur
+                            && b.y < a.y + a.hauteur;
+                    if (seRecouvrent) {
+                        fautes.append("\n  ").append(a).append(" recouvre ").append(b);
+                    }
                 }
             }
         }
