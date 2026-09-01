@@ -81,32 +81,32 @@
                     <text><![CDATA[Code CIP CH]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="92" y="0" width="238" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="92" y="0" width="214" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                    <text><![CDATA[Produit Principal]]></text>
+                    <text><![CDATA[Libellé CH]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="332" y="0" width="46" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="308" y="0" width="52" height="20" forecolor="#FFFFFF"/>
                     <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Stock CH]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="382" y="0" width="52" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="364" y="0" width="64" height="20" forecolor="#FFFFFF"/>
                     <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Contenance]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="440" y="0" width="88" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="432" y="0" width="92" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                    <text><![CDATA[Code CIP DET]]></text>
+                    <text><![CDATA[Code CIP Détail]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="530" y="0" width="220" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="528" y="0" width="196" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                    <text><![CDATA[Produit Détail]]></text>
+                    <text><![CDATA[Libellé Détail]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="754" y="0" width="46" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="728" y="0" width="72" height="20" forecolor="#FFFFFF"/>
                     <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Stock Détail]]></text>
                 </staticText>
@@ -117,40 +117,40 @@
     <detail>
         <band height="16" splitType="Stretch">
             <line>
-                <reportElement x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+                <reportElement positionType="Float" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
             </line>
             <textField isBlankWhenNull="true">
-                <reportElement x="2" y="1" width="88" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="88" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{cipPP}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="92" y="1" width="238" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="92" y="1" width="214" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{nomPP}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="332" y="1" width="46" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="308" y="1" width="52" height="14"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{stockPP}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="382" y="1" width="52" height="14" forecolor="#1C7C1C"/>
+                <reportElement stretchType="RelativeToTallestObject" x="364" y="1" width="64" height="14" forecolor="#1C7C1C"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{contenance}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="440" y="1" width="88" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="432" y="1" width="92" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{cipPD}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement style="celluleDetail" x="530" y="1" width="220" height="14"/>
+                <reportElement style="celluleDetail" stretchType="RelativeToTallestObject" x="528" y="1" width="196" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[Boolean.TRUE.equals($F{detailDesactive}) ? "Détail désactivé" : $F{nomPD}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement x="754" y="1" width="46" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="728" y="1" width="72" height="14"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{stockPD}]]></textFieldExpression>
             </textField>

@@ -36,8 +36,12 @@ import util.Constant;
 @Consumes("application/json")
 public class DetailsRessource {
 
-    private static final String[] ENTETES_LISTE = { "Identifiant PP", "Produit Principal", "Stock CH", "Contenance",
-            "Identifiant PD", "Produit Détail", "Stock Détail" };
+    /*
+     * Memes intitules que l'ecran et que le PDF : « CH » pour la boite, « Détail » pour l'unite. « Identifiant PP » et
+     * « Identifiant PD » ne parlaient qu'au developpeur, et l'export etait reste en arriere du reste.
+     */
+    static final String[] ENTETES_LISTE = { "Code CIP CH", "Libellé CH", "Stock CH", "Contenance", "Code CIP Détail",
+            "Libellé Détail", "Stock Détail" };
     private static final String[] ENTETES_HISTORIQUE = { "Date", "Code CH", "Nom CH", "Qté Det", "Code Det", "Nom Det",
             "Stock avant", "Stock après", "Utilisateur" };
 
@@ -254,6 +258,49 @@ public class DetailsRessource {
         int count = inventaireService.create(ids, nom);
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("count", count).put("name", nom).toString()).build();
+    }
+
+    /**
+     * Inventaire monte depuis l'HISTORIQUE des deconditionnements, sur la periode et la recherche affichees.
+     *
+     * <p>
+     * Chaque mouvement porte deux produits : la boite entamee et le detail alimente. L'inventaire retient les DEUX -
+     * compter l'un sans l'autre n'aurait pas de sens, puisque c'est justement entre eux que la quantite s'est deplacee.
+     * Un meme produit revenant sur plusieurs mouvements de la periode n'est retenu qu'une fois.
+     *
+     * <p>
+     * Les filtres sont rejoues ici plutot que de recevoir une liste d'identifiants : l'inventaire porte alors sur TOUT
+     * l'historique filtre, pages non affichees comprises.
+     */
+    @POST
+    @Path("historique/inventaire")
+    public Response inventaireHistorique(String body) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(StringUtils.defaultIfBlank(body, "{}"));
+        List<DeconditionnementHistoDTO> mouvements = detailsProduitService.historique(in.optString("dtStart"),
+                in.optString("dtEnd"), in.optString("recherche"));
+        Set<String> ids = new LinkedHashSet<>();
+        for (DeconditionnementHistoDTO m : mouvements) {
+            if (StringUtils.isNotBlank(m.getFamilleIdCh())) {
+                ids.add(m.getFamilleIdCh());
+            }
+            if (StringUtils.isNotBlank(m.getFamilleIdDet())) {
+                ids.add(m.getFamilleIdDet());
+            }
+        }
+        if (ids.isEmpty()) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("msg", "Aucun déconditionnement sur la période : rien à inventorier.").toString())
+                    .build();
+        }
+        String nom = in.optString("name", "INVENTAIRE DECONDITIONNEMENTS");
+        int count = inventaireService.create(ids, nom);
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).put("name", nom)
+                .put("mouvements", mouvements.size()).toString()).build();
     }
 
     private Response reponseEdition(String url) {

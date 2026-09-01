@@ -38,6 +38,9 @@ Ext.define('testextjs.controller.DetailsCtr', {
             'detailsmanager #btnListeInventaire': {
                 click: this.onCreerInventaire
             },
+            'detailsmanager #btnHistoInventaire': {
+                click: this.onCreerInventaireHistorique
+            },
             'detailsmanager #btnListeDecocher': {
                 click: this.onToutDecocher
             },
@@ -260,6 +263,60 @@ Ext.define('testextjs.controller.DetailsCtr', {
     onExcelHistorique: function (bouton) {
         window.open('../api/v1/details/historique/excel?'
                 + Ext.Object.toQueryString(this.ecran(bouton).parametresHistorique()));
+    },
+
+    /*
+     * Inventaire depuis l'HISTORIQUE : les produits deconditionnes de la periode affichee, boite ET
+     * detail. Le serveur rejoue les memes filtres, l'inventaire porte donc sur tout l'historique
+     * filtre et non sur la seule page a l'ecran. La question posee rappelle la periode, pour qu'on
+     * ne cree pas un inventaire de tout l'historique en croyant ne prendre que la journee.
+     */
+    onCreerInventaireHistorique: function (bouton) {
+        var me = this, ecran = me.ecran(bouton);
+        var p = ecran.parametresHistorique();
+        var horodatage = Ext.Date.format(new Date(), 'dmYHis');
+        /* Dates lisibles : les champs de l'ecran s'affichent en jour/mois/annee, la question doit
+         * les rappeler sous la meme forme - « 2026-09-01 » est le format d'envoi, pas celui qu'on lit. */
+        var jjmmaa = function (champ) {
+            var v = ecran.down(champ).getValue();
+            return v ? Ext.Date.format(v, 'd/m/Y') : null;
+        };
+        var debut = jjmmaa('#histoDebut'), fin = jjmmaa('#histoFin');
+        var periode = (debut || fin)
+                ? 'du ' + (debut || '(origine)') + ' au ' + (fin || "aujourd'hui")
+                : '<b>tout l\'historique</b>';
+        var nbAffiches = ecran.storeHistorique.getTotalCount();
+        Ext.Msg.confirm('Inventaire',
+                'Créer un inventaire avec les produits déconditionnés ' + periode
+                + '&nbsp;?<br><br>Il portera sur le produit chapeau <b>et</b> son détail,'
+                + ' pour les ' + nbAffiches + ' mouvement(s) trouvé(s).',
+                function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Création de l\'inventaire . . .', 'Veuillez patienter');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/details/historique/inventaire',
+                        params: Ext.JSON.encode({
+                            dtStart: p.dtStart, dtEnd: p.dtEnd, recherche: p.recherche,
+                            name: 'INVENTAIRE DECONDITIONNEMENTS ' + horodatage
+                        }),
+                        success: function (response) {
+                            progress.hide();
+                            var r = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.Msg.alert('Message', r.success
+                                    ? 'Inventaire « ' + r.name + ' » créé : ' + r.count + ' produit(s),'
+                                            + ' issus de ' + r.mouvements + ' déconditionnement(s).'
+                                    : (r.msg || 'La création a échoué.'));
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.Msg.alert('Message', 'La création a échoué.');
+                        }
+                    });
+                });
     },
 
     /*

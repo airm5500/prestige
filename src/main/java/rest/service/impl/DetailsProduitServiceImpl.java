@@ -94,8 +94,10 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
                 + " fp.int_CIP AS code_ch, fp.str_NAME AS nom_ch, h.qteMvt AS qte_det,"
                 + " fd.int_CIP AS code_det, fd.str_NAME AS nom_det, h.qteDebut AS stock_avant,"
                 + " h.qteFinale AS stock_apres, hd.qteDebut AS stock_avant_det, hd.qteFinale AS stock_apres_det,"
-                + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS operateur"
-                + " FROM hmvtproduit h" + " INNER JOIN t_famille fp ON fp.lg_FAMILLE_ID = h.lg_FAMILLE_ID"
+                + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS operateur,"
+                // Identifiants ajoutes EN FIN de selection : les rangs des colonnes deja lues ne bougent pas.
+                + " fp.lg_FAMILLE_ID AS id_ch, fd.lg_FAMILLE_ID AS id_det" + " FROM hmvtproduit h"
+                + " INNER JOIN t_famille fp ON fp.lg_FAMILLE_ID = h.lg_FAMILLE_ID"
                 + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID AND fd.bool_DECONDITIONNE = 1"
                 /*
                  * Un deconditionnement ecrit DEUX mouvements au meme instant : le negatif sur la boite (type 06, celui
@@ -146,6 +148,8 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
             dto.setStockAvantDet(nombre(r[8]));
             dto.setStockApresDet(nombre(r[9]));
             dto.setUtilisateur(texte(r[10]));
+            dto.setFamilleIdCh(texte(r[11]));
+            dto.setFamilleIdDet(texte(r[12]));
             lignes.add(dto);
         }
         return lignes;

@@ -26,6 +26,12 @@ public class DeconditionnementHistoDTO implements Serializable {
     private long stockAvantDet;
     private long stockApresDet;
     private String utilisateur;
+    /*
+     * Identifiants internes des deux produits du mouvement. Ils ne s'affichent nulle part ; ils servent a monter un
+     * inventaire depuis l'historique, qui doit porter la boite ET son detail.
+     */
+    private String familleIdCh;
+    private String familleIdDet;
 
     public String getDate() {
         return date;
@@ -113,5 +119,21 @@ public class DeconditionnementHistoDTO implements Serializable {
 
     public void setUtilisateur(String utilisateur) {
         this.utilisateur = utilisateur;
+    }
+
+    public String getFamilleIdCh() {
+        return familleIdCh;
+    }
+
+    public void setFamilleIdCh(String familleIdCh) {
+        this.familleIdCh = familleIdCh;
+    }
+
+    public String getFamilleIdDet() {
+        return familleIdDet;
+    }
+
+    public void setFamilleIdDet(String familleIdDet) {
+        this.familleIdDet = familleIdDet;
     }
 }

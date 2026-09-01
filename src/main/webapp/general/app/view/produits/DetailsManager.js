@@ -57,7 +57,13 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                 '->',
                 {itemId: 'btnHistoImprimer', tooltip: 'Imprimer la liste affichée', iconCls: 'printable', text: 'PDF'},
                 {itemId: 'btnHistoExcel', tooltip: 'Exporter la liste affichée', iconCls: 'export_excel_icon',
-                    text: 'Excel'}
+                    text: 'Excel'},
+                /* Inventaire des produits qui ont bouge sur la periode : la boite ET son detail.
+                 * C'est entre eux que la quantite s'est deplacee, compter l'un sans l'autre ne
+                 * dirait rien. */
+                {itemId: 'btnHistoInventaire', tooltip: 'Créer un inventaire avec les produits déconditionnés'
+                            + ' de la période affichée (chapeau et détail)',
+                    iconCls: 'icon-grid', text: 'Créer inventaire'}
             ],
             items: [{
                     xtype: 'grid',
@@ -157,14 +163,14 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                         /* « Identifiant PP / PD » ne parlait qu'au developpeur : ce sont des codes CIP,
                          * l'un de la boite (CH), l'autre du detail (DET). Quantites centrees. */
                         {header: 'Code CIP CH', dataIndex: 'cipPP', width: 120},
-                        {header: 'Produit Principal', dataIndex: 'nomPP', flex: 2},
+                        {header: 'Libellé CH', dataIndex: 'nomPP', flex: 2},
                         {header: 'Stock CH', dataIndex: 'stockPP', width: 80, align: 'center', renderer: entier},
                         {header: 'Contenance', dataIndex: 'contenance', width: 95, align: 'center',
                             renderer: function (v) {
                                 return '<span style="color:#1c7c1c;font-weight:bold;">' + entier(v) + '</span>';
                             }},
-                        {header: 'Code CIP DET', dataIndex: 'cipPD', width: 120},
-                        {header: 'Produit Détail', dataIndex: 'nomPD', flex: 2,
+                        {header: 'Code CIP Détail', dataIndex: 'cipPD', width: 120},
+                        {header: 'Libellé Détail', dataIndex: 'nomPD', flex: 2,
                             renderer: function (v, meta, record) {
                                 // zone vide : distinguer le detail jamais cree du detail desactive
                                 if (!v && record.get('detailDesactive')) {
