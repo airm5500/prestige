@@ -57,6 +57,19 @@ Ext.define('testextjs.view.Dashboard.TierspAsDepot', {
             }
         });
        
+        /* Les deux filtres se combinent : chacun a son propre magasin pour que le choix de l'un
+         * n'efface pas celui de l'autre. « Tous » = valeur vide, donc aucune restriction. */
+        function magasinOuiNon() {
+            return new Ext.data.Store({
+                fields: ['valeur', 'libelle'],
+                data: [
+                    {valeur: '', libelle: 'Tous'},
+                    {valeur: 'oui', libelle: 'Oui'},
+                    {valeur: 'non', libelle: 'Non'}
+                ]
+            });
+        }
+
         var me = this;
         Ext.applyIf(me, {
             items: [
@@ -160,6 +173,32 @@ Ext.define('testextjs.view.Dashboard.TierspAsDepot', {
                                     itemId: 'rechercherCarnet',
                                     scope: this,
                                     iconCls: 'searchicon'
+                                }, '-', {
+                                    xtype: 'combobox',
+                                    itemId: 'filtreDepot',
+                                    fieldLabel: 'Géré comme dépôt',
+                                    labelWidth: 115,
+                                    width: 220,
+                                    store: magasinOuiNon(),
+                                    valueField: 'valeur',
+                                    displayField: 'libelle',
+                                    value: '',
+                                    editable: false,
+                                    queryMode: 'local',
+                                    forceSelection: true
+                                }, '-', {
+                                    xtype: 'combobox',
+                                    itemId: 'filtreExclu',
+                                    fieldLabel: 'Exclu du CA',
+                                    labelWidth: 80,
+                                    width: 185,
+                                    store: magasinOuiNon(),
+                                    valueField: 'valeur',
+                                    displayField: 'libelle',
+                                    value: '',
+                                    editable: false,
+                                    queryMode: 'local',
+                                    forceSelection: true
                                 }]
                         },
                         {

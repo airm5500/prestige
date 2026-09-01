@@ -164,6 +164,11 @@ public class TiersPayantServiceImpl implements TiersPayantService {
                     (tTiersPayant.getLgVILLEID() != null ? tTiersPayant.getLgVILLEID().getStrName() : ""));
             json.put("lg_TYPE_TIERS_PAYANT_ID", (tTiersPayant.getLgTYPETIERSPAYANTID() != null
                     ? tTiersPayant.getLgTYPETIERSPAYANTID().getStrLIBELLETYPETIERSPAYANT() : ""));
+            // La colonne « Type » de la liste affiche le LIBELLE, et le champ ci-dessus le transporte
+            // depuis toujours : la grille en depend, on n'y touche pas. Le VERITABLE identifiant part
+            // a cote, pour la fiche qui doit retrouver le type a l'ouverture en modification.
+            json.put("lg_TYPE_TIERS_PAYANT_ID_REEL", (tTiersPayant.getLgTYPETIERSPAYANTID() != null
+                    ? tTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID() : ""));
             json.put("lg_TYPE_CONTRAT_ID", (tTiersPayant.getLgTYPECONTRATID() != null
                     ? tTiersPayant.getLgTYPECONTRATID().getStrLIBELLETYPECONTRAT() : ""));
             json.put("lg_RISQUE_ID",

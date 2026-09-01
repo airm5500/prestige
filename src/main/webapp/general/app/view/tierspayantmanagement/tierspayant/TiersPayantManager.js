@@ -5,7 +5,13 @@ var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement
 // REST dedie a cet ecran (memes methodes metier et memes messages que la JSP ci-dessus)
 var url_rest_tierspayant = '../api/v1/tierspayant/gestion/';
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
+/* url_services_data_typetierspayant est une variable GLOBALE, declaree a l'identique dans six
+ * vues : la derniere chargee impose sa valeur a toutes les autres. On ne la modifie donc pas ici,
+ * et le tri par type de CET ecran passe par la constante locale ci-dessous. */
 var url_services_data_typetierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
+// Types de tiers payant : service REST. La reponse garde la forme lue par l'ecran (total +
+// results, memes noms de colonnes), la liste deroulante se comporte donc exactement comme avant.
+var url_rest_typetierspayant_liste = '../api/v1/tierspayant/types';
 var url_services_data_typecontrat = '../webservices/configmanagement/typecontrat/ws_data.jsp';
 var url_services_data_regimecaisse = '../webservices/configmanagement/regimecaisse/ws_data.jsp';
 var url_services_data_risque = '../webservices/configmanagement/risque/ws_data.jsp';
@@ -76,7 +82,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_typetierspayant,
+                url: url_rest_typetierspayant_liste,
                 reader: {
                     type: 'json',
                     root: 'results',

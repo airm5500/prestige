@@ -82,12 +82,18 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
 
     @Override
     public List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean exclude) {
+        return all(start, size, query, all, exclude, null);
+    }
+
+    @Override
+    public List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot,
+            Boolean exclu) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<TTiersPayant> cq = cb.createQuery(TTiersPayant.class);
             Root<TTiersPayant> root = cq.from(TTiersPayant.class);
             cq.select(root).orderBy(cb.asc(root.get(TTiersPayant_.strNAME)));
-            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, exclude);
+            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TTiersPayant> q = getEntityManager().createQuery(cq);
             if (!all) {
@@ -101,8 +107,12 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
         }
     }
 
+    /**
+     * Les deux filtres de l'ecran se combinent : chacun ajoute sa condition, et un filtre laisse a null (« Tous ») n'en
+     * ajoute aucune. Le comportement d'origine - aucun filtre, ou le seul filtre depot - est donc rendu a l'identique.
+     */
     private List<Predicate> depotPredicatCountAll(CriteriaBuilder cb, Root<TTiersPayant> root, String query,
-            Boolean exclude) {
+            Boolean depot, Boolean exclu) {
         List<Predicate> predicates = new ArrayList<>();
         if (!StringUtils.isEmpty(query)) {
             predicates.add(cb.or(cb.like(root.get(TTiersPayant_.strNAME), query + "%"),
@@ -110,8 +120,8 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
                     cb.like(root.get(TTiersPayant_.strFULLNAME), query + "%")));
         }
         predicates.add(cb.equal(root.get(TTiersPayant_.strSTATUT), "enable"));
-        if (exclude != null) {
-            if (exclude) {
+        if (depot != null) {
+            if (depot) {
 
                 predicates.add(cb.isTrue(root.get(TTiersPayant_.isDepot)));
             } else {
@@ -119,24 +129,38 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
             }
 
         }
+        if (exclu != null) {
+            // toBeExclude peut etre NULL sur les fiches anciennes : « non exclu » doit les retenir.
+            if (exclu) {
+                predicates.add(cb.isTrue(root.get(TTiersPayant_.toBeExclude)));
+            } else {
+                predicates.add(cb.or(cb.isFalse(root.get(TTiersPayant_.toBeExclude)),
+                        cb.isNull(root.get(TTiersPayant_.toBeExclude))));
+            }
+        }
         return predicates;
     }
 
     @Override
     public JSONObject all(int start, int size, String query, Boolean exclude) {
-        long count = countAll(query, exclude);
-        List<TiersPayantExclusDTO> data = all(start, size, query, false, exclude);
+        return all(start, size, query, exclude, null);
+    }
+
+    @Override
+    public JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu) {
+        long count = countAll(query, depot, exclu);
+        List<TiersPayantExclusDTO> data = all(start, size, query, false, depot, exclu);
         return new JSONObject().put("total", count).put("data", data);
 
     }
 
-    private long countAll(String query, Boolean exclude) {
+    private long countAll(String query, Boolean depot, Boolean exclu) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<Long> cq = cb.createQuery(Long.class);
             Root<TTiersPayant> root = cq.from(TTiersPayant.class);
             cq.select(cb.count(root));
-            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, exclude);
+            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<Long> q = getEntityManager().createQuery(cq);
             return q.getSingleResult();

@@ -22,7 +22,11 @@ function typeEstCarnet(combo) {
         var libelle = (enregistrement.get('str_LIBELLE_TYPE_TIERS_PAYANT') || '').toLowerCase();
         return libelle.indexOf('carnet') !== -1;
     }
-    return valeur === '2';
+    // Aucun enregistrement sous la main : le magasin des types ne se remplit qu'a l'ouverture de la
+    // liste deroulante, et la fiche peut s'ouvrir sans qu'on y ait touche. On se rabat alors sur ce
+    // que vaut le champ lui-meme - le mot « carnet » quand c'est le libelle qui a ete pose, ou
+    // l'identifiant de reference a defaut.
+    return (valeur + '').toLowerCase().indexOf('carnet') !== -1 || valeur === '2';
 }
 
 function majAffichageCarnetDepot() {
@@ -854,7 +858,30 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('str_CODE_DOC_COMPTOIRE').setValue(this.getOdatasource().str_CODE_DOC_COMPTOIRE);
             Ext.getCmp('bool_ENABLED').setValue(this.getOdatasource().bool_ENABLED);
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
-            Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').setValue(this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID);
+            /* Type du tiers payant : la liste transporte le LIBELLE (« Carnet ») dans le champ
+             * identifiant, et le veritable identifiant a cote. On pose l'identifiant quand il est
+             * la, apres avoir mis la ligne correspondante dans le magasin : sans elle la liste
+             * deroulante afficherait l'identifiant brut au lieu du libelle. A defaut d'identifiant
+             * on repose le libelle, exactement comme avant. */
+            (function (source) {
+                var combo = Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD');
+                if (!combo) {
+                    return;
+                }
+                var identifiant = source.lg_TYPE_TIERS_PAYANT_ID_REEL;
+                if (!identifiant) {
+                    combo.setValue(source.lg_TYPE_TIERS_PAYANT_ID);
+                    return;
+                }
+                var magasin = combo.getStore();
+                if (magasin && magasin.findExact('lg_TYPE_TIERS_PAYANT_ID', identifiant) === -1) {
+                    magasin.add({
+                        lg_TYPE_TIERS_PAYANT_ID: identifiant,
+                        str_LIBELLE_TYPE_TIERS_PAYANT: source.lg_TYPE_TIERS_PAYANT_ID || identifiant
+                    });
+                }
+                combo.setValue(identifiant);
+            })(this.getOdatasource());
             // L'interrupteur du carnet depot se presente dans l'etat enregistre. Le magasin des
             // types se remplit en differe : on repasse a son chargement pour que la case soit
             // visible ou non selon le type reellement charge.

@@ -152,6 +152,12 @@ Ext.define('testextjs.model.TiersPayant', {
             type: 'string'
         },
         {
+            // Le champ ci-dessus transporte le LIBELLE du type (la colonne « Type » de la liste
+            // l'affiche tel quel). Le veritable identifiant arrive ici, pour la fiche.
+            name: 'lg_TYPE_TIERS_PAYANT_ID_REEL',
+            type: 'string'
+        },
+        {
             name: 'lg_TYPE_CONTRAT_ID',
             type: 'string'
         },

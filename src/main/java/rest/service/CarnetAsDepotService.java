@@ -33,6 +33,18 @@ public interface CarnetAsDepotService {
 
     JSONObject all(int start, int size, String query, Boolean exclude);
 
+    /**
+     * Meme liste, avec les deux filtres de l'ecran des depots carnet, qui se combinent.
+     *
+     * @param depot
+     *            VRAI = gere comme depot, FAUX = non gere, null = sans filtre
+     * @param exclu
+     *            VRAI = exclu du chiffre d'affaires, FAUX = non exclu, null = sans filtre
+     */
+    JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu);
+
+    List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu);
+
     JSONObject fetchVenteByTiersPayant(String tiersPayantId, String dtStart, String dtEnd, int start, int size);
 
     List<VenteTiersPayantsDTO> fetchVente(String tiersPayantId, LocalDate dtStart, LocalDate dtEnd, int start, int size,
