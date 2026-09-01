@@ -516,10 +516,11 @@ public class FacturationServiceImpl implements FacturationService {
      * Factures PROVISOIRES d'une periode, pour la purge : les memes filtres que l'ecran, plus les bornes de date.
      *
      * <p>
-     * La periode retenue est celle que l'ecran affiche dans sa colonne « Periode », c'est-a-dire la periode FACTUREE
-     * (debut et fin de facture) - et non la date de creation, qui vaut le jour de la generation pour toutes. Une
-     * facture est purgee quand sa periode facturee tient entierement dans les bornes demandees : purger « du 1er
-     * janvier au 30 juin » ne doit pas emporter une facture qui deborde sur juillet.
+     * Les bornes portent sur la DATE DE GENERATION (dtCREATED), le jour ou la facture provisoire a ete produite - et
+     * non sur la periode facturee. C'est le critere que l'application applique deja d'elle-meme : le travail de nuit de
+     * {@code JobCalendar} efface chaque provisoire dont la date de creation est anterieure au jour courant, si bien
+     * qu'une provisoire ne survit pas au lendemain de sa generation. La purge manuelle et la purge automatique
+     * regardent donc la meme chose, et purger « du 1er au 30 juin » emporte ce qui a ete genere dans ces jours-la.
      *
      * <p>
      * Cette methode ne supprime rien : elle sert d'abord a annoncer le nombre exact a l'usager, puis a fournir la liste
@@ -535,9 +536,10 @@ public class FacturationServiceImpl implements FacturationService {
             Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
             cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)));
             List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup, true);
-            predicates.add(cb.greaterThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtDEBUTFACTURE)),
+            // Meme critere que la purge automatique de JobCalendar : la date de GENERATION.
+            predicates.add(cb.greaterThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtCREATED)),
                     java.sql.Date.valueOf(dtStart)));
-            predicates.add(cb.lessThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtFINFACTURE)),
+            predicates.add(cb.lessThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtCREATED)),
                     java.sql.Date.valueOf(dtEnd)));
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             return getEntityManager().createQuery(cq).getResultStream().map(FactureDTO::new)

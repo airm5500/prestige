@@ -735,13 +735,17 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
             items: [{
                     xtype: 'form', itemId: 'formPurge', border: false,
                     items: [{
+                            /* Les dates portent sur le jour de GENERATION, pas sur la periode facturee :
+                             * c'est le critere que l'application applique deja seule chaque nuit. Le dire
+                             * ici evite de croire qu'on purge « les factures de juin » alors qu'on purge
+                             * « ce qui a ete genere en juin ». */
                             xtype: 'component',
                             html: '<div style="margin-bottom:10px;color:#333;">La purge porte sur les factures'
-                                    + ' <b>provisoires</b> dont la période facturée — celle de la colonne'
-                                    + ' « Période » — tient entièrement dans les dates ci-dessous, et sur les'
+                                    + ' <b>provisoires générées</b> entre les deux dates ci-dessous, et sur les'
                                     + ' filtres actuellement posés (organisme, groupe).<br>'
-                                    + '<span style="color:#666;">Une facture devenue définitive n\'est jamais'
-                                    + ' supprimée.</span></div>'
+                                    + '<span style="color:#666;">Il s\'agit du jour où la facture provisoire a'
+                                    + ' été produite, et non de la période facturée. Une facture devenue'
+                                    + ' définitive n\'est jamais supprimée.</span></div>'
                         }, {
                             xtype: 'datefield', name: 'debut', itemId: 'purgeDebut', anchor: '100%',
                             fieldLabel: 'Du', format: 'd/m/Y', allowBlank: false

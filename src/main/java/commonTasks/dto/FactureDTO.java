@@ -224,7 +224,14 @@ public class FactureDTO implements Serializable {
     public FactureDTO(TFacture facture) {
         this.lgFACTUREID = facture.getLgFACTUREID();
         TTiersPayant payant = facture.getTiersPayant();
-        this.strLIBELLETYPETIERSPAYANT = facture.getLgTYPEFACTUREID().getStrLIBELLE();
+        /*
+         * Type de facture absent : le cas ne se rencontre pas sur des donnees produites par l'application, mais l'appel
+         * direct faisait tomber la CONSTRUCTION de la ligne. Les services qui batissent une liste rattrapent
+         * l'exception et rendent une liste vide : l'ecran affichait alors « aucune facture », sans rien qui permette de
+         * comprendre.
+         */
+        this.strLIBELLETYPETIERSPAYANT = facture.getLgTYPEFACTUREID() == null ? ""
+                : facture.getLgTYPEFACTUREID().getStrLIBELLE();
         this.strCODECOMPTABLE = facture.getStrCODECOMPTABLE();
         this.dtDATEFACTURE = df.format(facture.getDtDATEFACTURE());
         this.dtDEBUTFACTURE = df.format(facture.getDtDEBUTFACTURE());
