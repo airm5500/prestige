@@ -197,6 +197,11 @@ public final class Constant {
     public static final String P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT = "P_BTN_MODIFIER_PLAFOND_TIERS_PAYANT";
     /** Mise a jour d'un meme reglage sur plusieurs tiers payants a la fois : droit a part. */
     public static final String P_BTN_MAJ_SELECTIVE_TIERS_PAYANT = "P_BTN_MAJ_SELECTIVE_TIERS_PAYANT";
+    /**
+     * Suppression d'une ligne du registre des ventes ratees. Effacer une demande la retire de la statistique du jour
+     * comme de l'analyse de la periode : le geste est soumis a autorisation.
+     */
+    public static final String P_BTN_SUPPRIMER_VENTE_RATEE = "P_BTN_SUPPRIMER_VENTE_RATEE";
     // Privileges des boutons de la fiche article (gestion du stock)
     public static final String P_BTN_RECALCULER_SEUILS = "P_BTN_RECALCULER_SEUILS";
     public static final String P_BTN_MAJ_SEUIL = "P_BTN_MAJ_SEUIL";

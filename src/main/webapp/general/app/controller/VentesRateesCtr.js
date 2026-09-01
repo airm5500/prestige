@@ -18,7 +18,8 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 tabchange: this.onChangementOnglet
             },
             'ventesrateesmanager #grilleRegistre': {
-                itemdblclick: this.onDoubleClicRegistre
+                itemdblclick: this.onDoubleClicRegistre,
+                supprimerdemande: this.onSupprimerDepuisRegistre
             },
             'ventesrateesmanager #btnRechercher': {
                 click: this.onRechercher
@@ -97,6 +98,16 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
         });
     },
 
+    /** Croix de suppression d'une ligne du registre : meme confirmation que dans la modale du panier. */
+    onSupprimerDepuisRegistre: function (vue, record) {
+        var me = this;
+        var ecran = vue.up('ventesrateesmanager');
+        me.supprimerAvecConfirmation(record, function () {
+            me.chargerRegistre(ecran);
+            prestigeVentesRateesBadge();
+        });
+    },
+
     onToucheEntree: function (champ, e) {
         if (e.getKey() === e.ENTER) {
             this.chargerRegistre(this.ecran(champ));
@@ -104,8 +115,14 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
     },
 
     chargerRegistre: function (ecran) {
+        var me = this;
         var store = ecran.storeRegistre;
+        var grille = ecran.down('#grilleRegistre');
         store.getProxy().extraParams = ecran.parametresRegistre();
+        // Le droit de supprimer voyage avec la liste : la croix apparait apres le chargement.
+        store.on('load', function () {
+            me.majDroitSuppression(store, grille);
+        }, null, {single: true});
         store.loadPage(1);
     },
 
@@ -366,6 +383,91 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
     },
 
     /**
+     * Colonne « croix » de suppression, posee sur chaque ligne des grilles du registre.
+     *
+     * <p>
+     * Elle reste CACHEE tant que le service n'a pas dit que l'utilisateur a le droit de supprimer :
+     * voir majDroitSuppression. Cacher la croix ne protege rien a soi seul - le service refuse aussi
+     * la suppression - mais evite de proposer un geste qui sera refuse.
+     */
+    colonneSupprimer: function (apres) {
+        var me = this;
+        return {
+            xtype: 'actioncolumn',
+            itemId: 'colonneSupprimer',
+            header: '',
+            width: 32,
+            align: 'center',
+            sortable: false,
+            menuDisabled: true,
+            hidden: true,
+            items: [{
+                    icon: 'resources/images/icons/fam/delete.png',
+                    tooltip: 'Supprimer cette demande du registre',
+                    handler: function (vue, ligne) {
+                        me.supprimerAvecConfirmation(vue.getStore().getAt(ligne), apres);
+                    }
+                }]
+        };
+    },
+
+    /**
+     * Montre ou cache la croix selon le droit renvoye AVEC la liste (cle « peutSupprimer »).
+     *
+     * <p>
+     * Le droit est lu dans la reponse brute du service plutot que devine cote ecran : c'est le
+     * serveur qui tranche, l'ecran ne fait que suivre ce qu'il annonce.
+     */
+    majDroitSuppression: function (store, grille) {
+        var lecteur = store.getProxy() ? store.getProxy().getReader() : null;
+        var brut = lecteur ? lecteur.rawData : null;
+        var colonne = grille && grille.down ? grille.down('#colonneSupprimer') : null;
+        if (colonne) {
+            colonne.setVisible(!!(brut && brut.peutSupprimer));
+        }
+    },
+
+    /**
+     * Suppression d'une demande : confirmation, puis appel du service.
+     *
+     * <p>
+     * La reponse est LUE avant de rafraichir : le service repond 200 avec success=false quand le
+     * droit manque, et se contenter du code HTTP laisserait croire que la ligne a ete supprimee.
+     */
+    supprimerAvecConfirmation: function (record, apres) {
+        if (!record) {
+            return;
+        }
+        var libelle = record.get('designation') || 'cette demande';
+        Ext.Msg.confirm('Suppression',
+                'Retirer « ' + Ext.String.htmlEncode(libelle) + ' » du registre des ventes ratées ?'
+                + '<br><br>La demande ne comptera plus ni dans le compteur du jour ni dans l\'analyse'
+                + ' de la période.',
+                function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'DELETE',
+                        url: '../api/v1/ventes-ratees/' + record.get('id'),
+                        success: function (reponse) {
+                            var r = Ext.JSON.decode(reponse.responseText, true) || {};
+                            if (!r.success) {
+                                Ext.Msg.alert('Message', r.msg || 'La suppression a échoué.');
+                                return;
+                            }
+                            if (apres) {
+                                apres();
+                            }
+                        },
+                        failure: function () {
+                            Ext.Msg.alert('Message', 'La suppression a échoué.');
+                        }
+                    });
+                });
+    },
+
+    /**
      * Fenetre de saisie d'une demande (creation ou modification). Le produit se cherche par CIP ou par
      * nom ; un texte qui ne correspond a aucun produit est conserve en saisie libre, avec le CIP libre
      * eventuel. Client, telephone, motif et commentaire appartiennent a la ligne.
@@ -419,9 +521,17 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             champClient.setValue(record.get('nomClient'));
             champTelephone.setValue(record.get('telephone'));
             if (record.get('motifId')) {
-                storeMotifs.on('load', function () {
+                // Le magasin des motifs se remplit en differe. On pose la valeur des qu'il est la,
+                // et tout de suite s'il l'etait deja : attendre un chargement qui a eu lieu
+                // laisserait la liste deroulante vide.
+                var poserMotif = function () {
                     comboMotif.setValue(record.get('motifId'));
-                }, null, {single: true});
+                };
+                if (storeMotifs.getCount()) {
+                    poserMotif();
+                } else {
+                    storeMotifs.on('load', poserMotif, null, {single: true});
+                }
             }
             champCommentaire.setValue(record.get('commentaire'));
         }
@@ -636,7 +746,10 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
         }
 
         var storeJour = new Ext.data.Store({
-            fields: ['id', 'cip', 'designation', 'nomClient', 'telephone', 'motif', 'commentaire', 'date',
+            /* « motif » porte le LIBELLE, affiche dans la colonne ; « motifId » porte l'identifiant,
+             * dont la fenetre de modification a besoin pour representer la liste deroulante. Il
+             * manquait ici : le motif deja saisi ne revenait pas au double-clic depuis le panier. */
+            fields: ['id', 'cip', 'designation', 'nomClient', 'telephone', 'motifId', 'motif', 'commentaire', 'date',
                 'utilisateur', 'etat', {name: 'quantite', type: 'int'}, {name: 'commande', type: 'boolean'},
                 {name: 'connu', type: 'boolean'}],
             proxy: {
@@ -662,6 +775,10 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
             storeSynthese.load();
             prestigeVentesRateesBadge();
         };
+        // Le droit de supprimer voyage avec la liste : la croix apparait apres le chargement.
+        storeJour.on('load', function () {
+            me.majDroitSuppression(storeJour, grilleJour);
+        });
 
         var etatRenderer = function (v, meta, r) {
             return '<span style="color:' + (r.get('commande') ? '#1e8449' : '#c0392b') + ';font-weight:bold;">'
@@ -687,7 +804,8 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 {header: 'Qté', dataIndex: 'quantite', width: 46, align: 'right'},
                 {header: 'Client', dataIndex: 'nomClient', flex: 1},
                 {header: 'Motif', dataIndex: 'motif', flex: 1},
-                {header: 'État', dataIndex: 'etat', width: 135, renderer: etatRenderer}
+                {header: 'État', dataIndex: 'etat', width: 135, renderer: etatRenderer},
+                me.colonneSupprimer(recharger)
             ],
             viewConfig: {
                 // Lignes un peu plus hautes : date, heure et etat restent lisibles
@@ -714,25 +832,14 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                         }
                         me.commanderAvecConfirmation(s[0].get('id'), recharger);
                     }},
+                // Meme chemin que la croix de la ligne : meme confirmation, meme lecture de la reponse.
                 {text: 'Supprimer', iconCls: 'icon-clear-group', handler: function () {
                         var s = grilleJour.getSelectionModel().getSelection();
                         if (!s.length) {
                             Ext.Msg.alert('Message', 'Sélectionnez d\'abord une demande.');
                             return;
                         }
-                        Ext.Msg.confirm('Suppression', 'Retirer cette demande du registre ?', function (choix) {
-                            if (choix !== 'yes') {
-                                return;
-                            }
-                            Ext.Ajax.request({
-                                method: 'DELETE',
-                                url: '../api/v1/ventes-ratees/' + s[0].get('id'),
-                                success: recharger,
-                                failure: function () {
-                                    Ext.Msg.alert('Message', 'La suppression a échoué.');
-                                }
-                            });
-                        });
+                        me.supprimerAvecConfirmation(s[0], recharger);
                     }},
                 '->',
                 {text: 'Ouvrir le menu Ventes ratées', handler: function () {

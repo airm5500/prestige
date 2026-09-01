@@ -66,6 +66,21 @@ public class VentesRateesRessource {
                 .build();
     }
 
+    /**
+     * Droit de supprimer une ligne du registre.
+     *
+     * <p>
+     * Il sert a deux choses : l'ecran s'en sert pour montrer ou non la croix sur les lignes, et le service s'en sert
+     * pour accepter ou refuser la suppression. Cacher un bouton n'est pas un droit - la verification qui compte est
+     * celle-ci, cote serveur.
+     */
+    private boolean peutSupprimer() {
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) servletRequest.getSession()
+                .getAttribute(Constant.USER_LIST_PRIVILEGE);
+        return util.DateConverter.hasAuthorityByName(privileges, Constant.P_BTN_SUPPRIMER_VENTE_RATEE);
+    }
+
     private Response echec(Exception e) {
         LOG.log(Level.WARNING, "ventes ratees", e);
         return Response.ok()
@@ -112,8 +127,12 @@ public class VentesRateesRessource {
             return deconnecte();
         }
         List<VenteRateeDTO> lignes = ventesRateesService.lignesDuJour();
-        return Response.ok().entity(new JSONObject().put("success", true).put("total", lignes.size())
-                .put("data", enJson(lignes)).put("groupes", groupes(lignes)).toString()).build();
+        // « peutSupprimer » voyage avec la liste : l'ecran montre la croix des lignes en consequence.
+        return Response.ok()
+                .entity(new JSONObject().put("success", true).put("total", lignes.size())
+                        .put("peutSupprimer", peutSupprimer()).put("data", enJson(lignes))
+                        .put("groupes", groupes(lignes)).toString())
+                .build();
     }
 
     @POST
@@ -152,6 +171,14 @@ public class VentesRateesRessource {
         TUser user = utilisateur();
         if (user == null) {
             return deconnecte();
+        }
+        if (!peutSupprimer()) {
+            // L'ecran cache deja la croix sans le droit ; on refuse quand meme ici, car un appel
+            // direct au service ne passe pas par l'ecran.
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("msg", "Vous n'avez pas l'autorisation de supprimer une vente ratée.").toString())
+                    .build();
         }
         try {
             ventesRateesService.supprimer(id, user);
@@ -251,9 +278,9 @@ public class VentesRateesRessource {
         for (int i = Math.min(start, lignes.size()); i < fin; i++) {
             data.put(enJson(lignes.get(i)));
         }
-        return Response.ok()
-                .entity(new JSONObject().put("success", true).put("total", lignes.size()).put("data", data).toString())
-                .build();
+        // Meme droit que la modale du panier : le registre montre la croix aux memes conditions.
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", lignes.size())
+                .put("peutSupprimer", peutSupprimer()).put("data", data).toString()).build();
     }
 
     @GET

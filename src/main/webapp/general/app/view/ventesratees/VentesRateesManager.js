@@ -138,7 +138,33 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
                         {header: 'Motif', dataIndex: 'motif', flex: 1},
                         {header: 'Commentaire', dataIndex: 'commentaire', flex: 1},
                         {header: 'Utilisateur', dataIndex: 'utilisateur', width: 110},
-                        {header: 'État', dataIndex: 'etat', width: 105, renderer: etatRenderer}
+                        {header: 'État', dataIndex: 'etat', width: 105, renderer: etatRenderer},
+                        {
+                            /* Croix de suppression, une par ligne. Elle reste CACHEE tant que le
+                             * service n'a pas annonce que l'utilisateur en a le droit : c'est le
+                             * controleur qui la montre au chargement de la liste. */
+                            xtype: 'actioncolumn',
+                            itemId: 'colonneSupprimer',
+                            header: '',
+                            width: 32,
+                            align: 'center',
+                            sortable: false,
+                            menuDisabled: true,
+                            hidden: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/delete.png',
+                                    tooltip: 'Supprimer cette demande du registre',
+                                    handler: function (vue, ligne) {
+                                        /* « this » designe la COLONNE : un evenement emis dessus
+                                         * n'atteindrait pas le controleur, qui ecoute la grille.
+                                         * On remonte donc a la grille depuis la vue. */
+                                        var grille = vue.up('grid');
+                                        if (grille) {
+                                            grille.fireEvent('supprimerdemande', vue, vue.getStore().getAt(ligne));
+                                        }
+                                    }
+                                }]
+                        }
                     ],
                     bbar: {
                         xtype: 'pagingtoolbar',
