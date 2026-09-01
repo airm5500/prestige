@@ -39,10 +39,17 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 final class GeometrieEtat {
 
     /**
-     * Marge de tolerance en points. JasperReports arrondit la hauteur de bande a l'entier alors que la hauteur de texte
-     * est fractionnaire : un ecart d'un point n'est pas un defaut de mise en page.
+     * Marge de tolerance en points. JasperReports pose les cases sur des entiers alors que la hauteur de texte est
+     * fractionnaire : l'ecart tient toujours sous 1 point, et il depend des polices installees sur la machine.
+     *
+     * <p>
+     * Un VRAI defaut coute tout autre chose : une ligne entiere. Mesure sur ces editions, en corps 8, une ligne fait
+     * 9,3 points ; un intitule qui passe sur deux lignes saute donc de 9,31 a 18,63, et un libelle qui deborde d'une
+     * case de 14 points reclame 18,63, soit 4,6 points de trop. Entre le bruit d'arrondi (au plus 1) et le plus petit
+     * defaut reel (4,6), 2,5 tranche franchement : assez haut pour ne pas dependre des polices, assez bas pour ne rien
+     * laisser passer.
      */
-    static final float TOLERANCE = 1.5f;
+    static final float TOLERANCE = 2.5f;
 
     private GeometrieEtat() {
     }
