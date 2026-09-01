@@ -192,6 +192,39 @@ final class GeometrieEtat {
     }
 
     /**
+     * Degagement entre un trait de separation et le bas du texte qu'il vient clore.
+     *
+     * <p>
+     * Ne pas couper le texte ne suffit pas : un trait pose EXACTEMENT sur le bas du texte tient a un arrondi pres. La
+     * hauteur d'une ligne depend des polices installees sur la machine, si bien qu'une mise en page juste au point de
+     * bascule passe ici et coupe le texte ailleurs. On exige donc une marge franche.
+     *
+     * @return le plus petit ecart constate, ou {@link Integer#MAX_VALUE} si aucun trait ne clot de texte
+     */
+    static int degagementMinimal(JasperPrint impression) {
+        int minimum = Integer.MAX_VALUE;
+        for (JRPrintPage page : impression.getPages()) {
+            List<Bloc> blocs = blocsDeLaPage(page);
+            for (Bloc trait : blocs) {
+                if (!trait.estTrait) {
+                    continue;
+                }
+                for (Bloc texte : blocs) {
+                    if (texte.estTrait || trait.x >= texte.x + texte.largeur || trait.x + trait.largeur <= texte.x) {
+                        continue;
+                    }
+                    int bas = texte.y + texte.hauteur;
+                    // Seuls comptent les textes que CE trait vient clore : ceux qui finissent juste au-dessus.
+                    if (bas <= trait.y && trait.y - bas <= 4) {
+                        minimum = Math.min(minimum, trait.y - bas);
+                    }
+                }
+            }
+        }
+        return minimum;
+    }
+
+    /**
      * Textes qui se recouvrent : deux colonnes voisines qui empietent l'une sur l'autre.
      *
      * <p>

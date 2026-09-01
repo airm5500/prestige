@@ -155,9 +155,9 @@
     </columnHeader>
 
     <detail>
-        <band height="16" splitType="Stretch">
+        <band height="17" splitType="Stretch">
             <line>
-                <reportElement positionType="Float" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="16" width="802" height="1" forecolor="#D9D9D9"/>
             </line>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
                 <reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="180" height="14"/>

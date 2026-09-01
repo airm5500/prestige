@@ -120,4 +120,14 @@ class RegistreVentesRateesEtatTest {
                 "REGISTRE DES VENTES RATEES", "aucune demande");
         assertFalse(impression.getPages().isEmpty(), "l'entete doit s'imprimer meme sans ligne");
     }
+
+    @Test
+    @DisplayName("Registre : le trait garde une marge franche sous le texte, pas seulement zero")
+    void traitNeCoupePasLeTexteDegagement() throws Exception {
+        int degagement = GeometrieEtat.degagementMinimal(imprimer());
+        assertTrue(degagement >= 1,
+                "Le trait de separation se pose a " + degagement
+                        + " point(s) du bas du texte. A zero, la mise en page ne tient qu'a un arrondi de mesure de"
+                        + " police : elle passe sur une machine et coupe le texte sur une autre.");
+    }
 }

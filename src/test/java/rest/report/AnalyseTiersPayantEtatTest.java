@@ -162,4 +162,24 @@ class AnalyseTiersPayantEtatTest {
             assertFalse(impression.getPages().isEmpty(), "l'entete de " + nom + " doit s'imprimer meme sans ligne");
         }
     }
+
+    @Test
+    @DisplayName("Organismes : le trait garde une marge franche sous le texte, pas seulement zero")
+    void organismesTraitNeCoupePasDegagement() throws Exception {
+        int degagement = GeometrieEtat.degagementMinimal(organismes());
+        assertTrue(degagement >= 1,
+                "Le trait de separation se pose a " + degagement
+                        + " point(s) du bas du texte. A zero, la mise en page ne tient qu'a un arrondi de mesure de"
+                        + " police : elle passe sur une machine et coupe le texte sur une autre.");
+    }
+
+    @Test
+    @DisplayName("Par produit : le trait garde une marge franche sous le texte, pas seulement zero")
+    void produitsTraitNeCoupePasDegagement() throws Exception {
+        int degagement = GeometrieEtat.degagementMinimal(produits());
+        assertTrue(degagement >= 1,
+                "Le trait de separation se pose a " + degagement
+                        + " point(s) du bas du texte. A zero, la mise en page ne tient qu'a un arrondi de mesure de"
+                        + " police : elle passe sur une machine et coupe le texte sur une autre.");
+    }
 }
