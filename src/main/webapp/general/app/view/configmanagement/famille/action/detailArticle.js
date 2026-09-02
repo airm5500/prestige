@@ -289,7 +289,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'peremption_proche_detail',
                                     id: 'peremption_proche_detail',
                                     hidden: true,
-                                    width: 250,
+                                    width: 430,
                                     margin: '0 20 0 0'
                                 },
                                 {
@@ -1182,8 +1182,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         }
         return valeur + ' <span style="color:#c0392b;">(non vendu depuis ' + jours + ' jour' + (jours > 1 ? 's' : '') + ')</span>';
     },
-    /** Date de peremption la plus proche en rouge clignotant dans le bandeau ; cachee si absente. */
-    afficherPeremptionProche: function (valeur) {
+    /**
+     * « Péremption proche : 30/09/2026 (Lot AB1234 × 12) » dans le bandeau : la date en rouge clignotant, le
+     * numero de lot en bleu, la quantite en stock de ce lot en vert. Cachee si aucune date.
+     */
+    afficherPeremptionProche: function (valeur, lot, quantite) {
         var cmp = Ext.getCmp('peremption_proche_detail');
         if (!cmp) {
             return;
@@ -1195,10 +1198,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         if (!Ext.get('css-peremption-clignote')) {
             Ext.util.CSS.createStyleSheet(
                     '@keyframes peremptionClignote { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }'
-                    + ' .peremption-clignote { color:#d40000;font-weight:bold;font-size:16px;'
+                    + ' .peremption-clignote { color:#d40000;font-weight:bold;'
                     + 'animation: peremptionClignote 1s step-end infinite; }', 'css-peremption-clignote');
         }
-        cmp.setValue('<span class="peremption-clignote">Péremption : ' + Ext.String.htmlEncode(valeur) + '</span>');
+        var html = '<span style="font-weight:bold;font-size:15px;color:#2b2b2b;">Péremption proche : '
+                + '<span class="peremption-clignote">' + Ext.String.htmlEncode(valeur) + '</span>';
+        if (lot || quantite) {
+            html += ' (<span style="color:#1a3fc4;">Lot ' + Ext.String.htmlEncode(String(lot || '?')) + '</span>'
+                    + ' × <span style="color:#1e7e34;">' + Ext.String.htmlEncode(String(quantite || '?')) + '</span>)';
+        }
+        cmp.setValue(html + '</span>');
         cmp.show();
     },
     updateCmp: function (rec) {
@@ -1230,7 +1239,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('dt_LAST_ENTREE').setValue(rec.dt_LAST_ENTREE);
         Ext.getCmp('dt_DATE_LIVRAISON').setValue(rec.dt_DATE_LIVRAISON);
         Ext.getCmp('dt_LAST_VENTE').setValue(this.texteDerniereVente(rec.dt_LAST_VENTE));
-        this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE);
+        this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE, rec.lot_PEREMPTION_PROCHE, rec.qte_PEREMPTION_PROCHE);
         Ext.getCmp('str_CODE_TVA').setValue(rec.lg_CODE_TVA_ID);
         Ext.getCmp('int_T').setValue(rec.int_T);
         Ext.getCmp('int_TAUX_MARQUE').setValue(rec.int_TAUX_MARQUE);
