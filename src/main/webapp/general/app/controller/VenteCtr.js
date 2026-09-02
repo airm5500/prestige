@@ -3021,7 +3021,9 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         const typeRegle = me.getSafeComboValue('getVnotypeReglement', '1');
-        btn.setVisible(typeVente === '1' && typeRegle === '1' && !me.extraModeReglementId);
+        // ... et jamais quand la vente porte deja un client (vente a credit ouverte en
+        // modification, client deja associe) : il n'y a plus rien a associer.
+        btn.setVisible(typeVente === '1' && typeRegle === '1' && !me.extraModeReglementId && !me.client);
     },
     updateClientStandard: function (record) {
         const me = this;
@@ -3629,6 +3631,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.client = new testextjs.model.caisse.ClientLambda(record.client);
                         me.updateClientLambdInfos();
                         me.showAndHideInfosStandardClient(true);
+                        // Vente rappelee avec son client : le bouton « associer un client » n'a plus d'objet
+                        me.refreshBtnClientComptant();
                     }
                     me.refresh();
 
