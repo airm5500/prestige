@@ -398,6 +398,7 @@ Ext.application({
         'testextjs.view.stockmanagement.etatstock.action.add',
         'testextjs.view.stockmanagement.evolutionstock.EvolutionStock',
         'testextjs.view.vente.SuppressionsVente',
+        'testextjs.view.vente.VentesModifieesManager',
         'testextjs.view.produits.GestionSurstock',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',

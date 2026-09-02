@@ -170,6 +170,8 @@ public class SalesServiceImpl implements SalesService {
     @EJB
     private rest.service.VenteSuppressionService venteSuppressionService;
     @EJB
+    private rest.service.VenteModifieeService venteModifieeService;
+    @EJB
     private SupportEventService supportEventService;
 
     private final java.util.function.Predicate<Optional<TParameters>> test = e -> {
@@ -2040,6 +2042,8 @@ public class SalesServiceImpl implements SalesService {
                 // l'annulation automatique de la vente originale est attribuée à l'utilisateur
                 // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
+                // Point 6 : mouchard des ventes modifiées, écart produit par produit
+                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
             }
             tp.setChecked(Boolean.TRUE);
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
@@ -2297,6 +2301,8 @@ public class SalesServiceImpl implements SalesService {
                 // l'annulation automatique de la vente originale est attribuée à l'utilisateur
                 // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
+                // Point 6 : mouchard des ventes modifiées, écart produit par produit
+                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
             }
             String old = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
             if (!old.equals(clotureVenteParams.getTypeVenteId())) {
@@ -3908,6 +3914,8 @@ public class SalesServiceImpl implements SalesService {
         donneesMap.put(NotificationUtils.MONTANT.getId(), NumberUtils.formatIntToString(tp.getIntPRICE()));
         createNotification("", TypeNotification.MODIFICATION_VENTE, salesParams.getUserId(), donneesMap,
                 tp.getLgPREENREGISTREMENTID());
+        // Point 6 : mouchard des ventes modifiées (informations client / tiers payant)
+        venteModifieeService.enregistrerModificationInfos(salesParams.getUserId(), tp, venteModification);
         return tp;
     }
 
@@ -4744,6 +4752,8 @@ public class SalesServiceImpl implements SalesService {
             LocalDate toDay = LocalDate.parse(param.getDate());
             LocalDateTime venteDateNew = LocalDateTime.of(toDay, LocalTime.parse(param.getHeure()));
             Date venteDate = DateCommonUtils.convertLocalDateTimeToDate(venteDateNew);
+            // Point 6 : mouchard des ventes modifiées (date de vente)
+            venteModifieeService.enregistrerModificationDate(ooTUser, p, initiale, venteDate);
             p.setDtCREATED(venteDate);
             p.setDtUPDATED(venteDate);
             p.setLgUSERID(ooTUser);
