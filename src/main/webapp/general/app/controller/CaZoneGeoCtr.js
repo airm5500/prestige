@@ -117,6 +117,16 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         return Ext.util.Format.number(v || 0, '0,000');
     },
 
+    /** Evolution en petit sous le montant : « +12,5 % » vert, « -3,0 % » rouge, « - » quand la tranche precedente est a zero. */
+    formatEvolutionPetite: function (v) {
+        if (v === null || v === undefined || v === '') {
+            return '<div style="font-size:10px;color:#999;">-</div>';
+        }
+        const couleur = v > 0 ? '#1e7e34' : (v < 0 ? '#c0392b' : '#333');
+        return '<div style="font-size:10px;color:' + couleur + ';">' + (v > 0 ? '+' : '')
+                + Ext.util.Format.number(v, '0.0') + ' %</div>';
+    },
+
     formatEvolution: function (v) {
         if (v === null || v === undefined || v === '') {
             return '<span style="color:#999;">-</span>';
@@ -144,18 +154,23 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                     return '<b>TOTAL</b>';
                 } : undefined});
         }
-        (json.tranches || []).forEach(function (t) {
+        (json.tranches || []).forEach(function (t, indice) {
             champs.push({name: 't_' + t.cle, type: 'number'});
+            champs.push({name: 'e_' + t.cle, type: 'auto'});
             colonnes.push({
                 text: t.libelle,
                 dataIndex: 't_' + t.cle,
                 align: 'right',
                 // Largeur selon le libelle : « 09/2026 » tient en 95 px, « S36 (31/08-06/09) » en 130 px.
-                width: Math.max(95, 16 + 7 * t.libelle.length),
-                renderer: me.formatMontant,
+                width: Math.max(105, 16 + 7 * t.libelle.length),
+                // Montant, et dessous l'evolution par rapport a la tranche precedente (de tel mois a tel mois)
+                renderer: function (v, meta, rec) {
+                    return me.formatMontant(v) + (indice > 0 ? me.formatEvolutionPetite(rec.get('e_' + t.cle)) : '');
+                },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
-                    return '<b>' + me.formatMontant(v) + '</b>';
+                    return '<b>' + me.formatMontant(v) + '</b>'
+                            + (indice > 0 ? me.formatEvolutionPetite((json.evolutionsTranches || {})[t.cle]) : '');
                 }
             });
         });
@@ -173,7 +188,7 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             }
         });
         colonnes.push({
-            text: 'Évolution',
+            text: 'Évolution<br/><span style="font-weight:normal;font-size:10px;">1re → dernière tranche</span>',
             dataIndex: 'evolution',
             align: 'right',
             width: 95,

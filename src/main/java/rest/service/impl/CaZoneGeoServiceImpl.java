@@ -65,7 +65,9 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                     .append(" INNER JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID")
                     .append(" LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID")
                     .append(" LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID")
-                    .append(" WHERE DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND u.lg_EMPLACEMENT_ID = ?3")
+                    // Borne haute exclusive au lendemain : un intervalle sur la colonne elle-meme, que l'index
+                    // sur dt_UPDATED sait servir. DATE(p.dt_UPDATED) BETWEEN ... obligeait a lire toutes les ventes.
+                    .append(" WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 AND u.lg_EMPLACEMENT_ID = ?3")
                     .append(" AND p.str_STATUT = ?4 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
                     .append(" AND p.lg_TYPE_VENTE_ID <> ?5");
             boolean filtreZone = estRenseigne(filtres.getZoneId());
@@ -77,9 +79,11 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(filtreZone ? 7 : 6);
             }
             sql.append(" GROUP BY f.lg_ZONE_GEO_ID, z.str_LIBELLEE, f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, tranche");
-            Query requete = em.createNativeQuery(sql.toString()).setParameter(1, java.sql.Date.valueOf(debut))
-                    .setParameter(2, java.sql.Date.valueOf(fin)).setParameter(3, emplacementId)
-                    .setParameter(4, DateConverter.STATUT_IS_CLOSED).setParameter(5, DateConverter.DEPOT_EXTENSION);
+            Query requete = em.createNativeQuery(sql.toString())
+                    .setParameter(1, java.sql.Timestamp.valueOf(debut.atStartOfDay()))
+                    .setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()))
+                    .setParameter(3, emplacementId).setParameter(4, DateConverter.STATUT_IS_CLOSED)
+                    .setParameter(5, DateConverter.DEPOT_EXTENSION);
             int position = 6;
             if (filtreZone) {
                 requete.setParameter(position++, filtres.getZoneId());
@@ -136,9 +140,14 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 JSONObject o = new JSONObject().put("zoneId", l.zoneId).put("zone", l.zone)
                         .put("familleId", l.familleId).put("famille", l.famille).put("libelle", l.libelle())
                         .put("total", l.total);
+                String clePrecedente = null;
                 for (Tranche t : tranches) {
                     o.put("t_" + t.getCle(), l.montants.getOrDefault(t.getCle(), 0L));
                     o.put("q_" + t.getCle(), l.quantites.getOrDefault(t.getCle(), 0L));
+                    // Evolution de tranche en tranche (de tel mois a tel mois) : par rapport a la tranche precedente
+                    o.put("e_" + t.getCle(), clePrecedente == null ? JSONObject.NULL : evolution(
+                            l.montants.getOrDefault(clePrecedente, 0L), l.montants.getOrDefault(t.getCle(), 0L)));
+                    clePrecedente = t.getCle();
                 }
                 o.put("evolution",
                         evolution(l.montants.getOrDefault(premiereCle, 0L), l.montants.getOrDefault(derniereCle, 0L)));
@@ -152,9 +161,18 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             }
             JSONObject totaux = new JSONObject();
             totauxTranches.forEach(totaux::put);
+            JSONObject evolutionsTranches = new JSONObject();
+            String precedente = null;
+            for (Tranche t : tranches) {
+                evolutionsTranches.put(t.getCle(),
+                        precedente == null ? JSONObject.NULL : evolution(totauxTranches.getOrDefault(precedente, 0L),
+                                totauxTranches.getOrDefault(t.getCle(), 0L)));
+                precedente = t.getCle();
+            }
             json.put("success", true).put("data", data).put("total", data.length()).put("tranches", tranchesJson)
                     .put("granularite", granularite.name()).put("totauxTranches", totaux)
-                    .put("totalGeneral", totalGeneral).put("debut", debut.toString()).put("fin", fin.toString())
+                    .put("evolutionsTranches", evolutionsTranches).put("totalGeneral", totalGeneral)
+                    .put("debut", debut.toString()).put("fin", fin.toString())
                     .put("evolutionGenerale", evolution(totauxTranches.getOrDefault(premiereCle, 0L),
                             totauxTranches.getOrDefault(derniereCle, 0L)));
         } catch (Exception e) {

@@ -212,12 +212,14 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'tierspayantmanager', 'clientmanager', 'analysetierspayant',
     // analyses
     'abcmanager', 'vingtquatrevingt', 'margeproducts', 'feuilledematch',
-    'evaluationventemoyenne',
+    'evaluationventemoyenne', 'cazonegeomanager',
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
     'suppressionsvente', 'delayed',
     // service client
-    'ventesrateesmanager',
+    'ventesrateesmanager', 'modelemessagemanager',
+    // gestion des fichiers
+    'ventesmodifieesmanager',
     // etats et tableaux de bord
     'etatscontrolemanager', 'etatannuel', 'achatgrossistemensuel',
     'tableauPhama', 'tableauPhamaCarnet', 'statistiqueTVA',

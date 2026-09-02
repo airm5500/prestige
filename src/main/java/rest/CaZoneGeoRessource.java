@@ -16,6 +16,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import rest.service.CaZoneGeoService;
 import rest.service.CaZoneGeoService.Filtres;
 import rest.service.CaZoneGeoService.Regroupement;
@@ -34,6 +36,8 @@ import util.PeriodesCa;
 @Produces("application/json")
 @Consumes("application/json")
 public class CaZoneGeoRessource {
+
+    private static final Logger LOG = Logger.getLogger(CaZoneGeoRessource.class.getName());
 
     @EJB
     private CaZoneGeoService caZoneGeoService;
@@ -85,9 +89,13 @@ public class CaZoneGeoRessource {
         }
         for (int i = 0; i < tranches.length(); i++) {
             entetes.add(tranches.getJSONObject(i).getString("libelle"));
+            if (i > 0) {
+                // Evolution de tranche en tranche, par rapport a la colonne precedente
+                entetes.add("Évol. % " + tranches.getJSONObject(i).getString("libelle"));
+            }
         }
         entetes.add("Total");
-        entetes.add("Évolution %");
+        entetes.add("Évolution % (1re → dernière)");
 
         List<JSONObject> lignes = new ArrayList<>();
         for (int i = 0; i < data.length(); i++) {
@@ -102,6 +110,11 @@ public class CaZoneGeoRessource {
             totauxLigne.put("t_" + cle, totauxTranches == null ? 0 : totauxTranches.optLong(cle));
         }
         totauxLigne.put("evolution", json.opt("evolutionGenerale"));
+        JSONObject evolutionsTranches = json.optJSONObject("evolutionsTranches");
+        for (int i = 0; i < tranches.length(); i++) {
+            String cle = tranches.getJSONObject(i).getString("cle");
+            totauxLigne.put("e_" + cle, evolutionsTranches == null ? JSONObject.NULL : evolutionsTranches.opt(cle));
+        }
         lignes.add(totauxLigne);
 
         String titre = "CHIFFRE D'AFFAIRES PAR "
@@ -118,8 +131,16 @@ public class CaZoneGeoRessource {
                         row.createCell(col++).setCellValue(o.optString("famille"));
                     }
                     for (int i = 0; i < tranches.length(); i++) {
-                        row.createCell(col++)
-                                .setCellValue(o.optLong("t_" + tranches.getJSONObject(i).getString("cle")));
+                        String cle = tranches.getJSONObject(i).getString("cle");
+                        row.createCell(col++).setCellValue(o.optLong("t_" + cle));
+                        if (i > 0) {
+                            Object e = o.opt("e_" + cle);
+                            if (e instanceof Number) {
+                                row.createCell(col++).setCellValue(((Number) e).doubleValue());
+                            } else {
+                                row.createCell(col++).setCellValue("");
+                            }
+                        }
                     }
                     row.createCell(col++).setCellValue(o.optLong("total"));
                     Object evolution = o.opt("evolution");
@@ -145,6 +166,23 @@ public class CaZoneGeoRessource {
     public Response pdf(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
             @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement) {
+        long depart = System.currentTimeMillis();
+        try {
+            Response r = construirePdf(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement);
+            LOG.log(Level.INFO, "Edition CA zone geo en {0} ms", System.currentTimeMillis() - depart);
+            return r;
+        } catch (Throwable t) {
+            // Une erreur de rendu (police, graphique, memoire) doit revenir a l'ecran en message, jamais
+            // laisser l'utilisateur devant un sablier.
+            LOG.log(Level.SEVERE, "Edition CA zone geo", t);
+            return Response.ok().entity(ResultFactory.getFailResult(
+                    "L'édition a échoué : " + (t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage())))
+                    .build();
+        }
+    }
+
+    private Response construirePdf(String typePeriode, String dtStart, String dtEnd, String zoneId, String familleId,
+            String regroupement) {
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
