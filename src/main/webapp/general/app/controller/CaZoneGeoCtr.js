@@ -41,6 +41,9 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             'cazonegeomanager #btnExcel': {
                 click: this.exporterExcel
             },
+            'cazonegeomanager #btnPdf': {
+                click: this.imprimerPdf
+            },
             'cazonegeomanager #zone': {
                 select: this.rechercher
             },
@@ -274,5 +277,32 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
 
     exporterExcel: function () {
         window.open('../api/v1/ca-zone-geo/excel?' + Ext.Object.toQueryString(this.parametres()));
+    },
+
+    // Meme methode que les autres editions : le serveur produit le PDF et renvoie son URL, ouverte
+    // dans un nouvel onglet.
+    imprimerPdf: function () {
+        const me = this;
+        const ecran = me.getEcran();
+        ecran.setLoading('Édition en cours...');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ca-zone-geo/pdf',
+            params: me.parametres(),
+            timeout: 600000,
+            callback: function (opts, success, response) {
+                ecran.setLoading(false);
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (success && json.success && json.msg) {
+                    window.open('..' + json.msg, '_blank');
+                } else {
+                    Ext.Msg.alert('Message', json.msg || 'L\'édition a échoué');
+                }
+            }
+        });
     }
 });

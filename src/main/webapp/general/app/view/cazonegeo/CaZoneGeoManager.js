@@ -136,6 +136,11 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                             itemId: 'btnRechercher',
                             iconCls: 'searchicon'
                         }, {
+                            text: 'Imprimer',
+                            itemId: 'btnPdf',
+                            iconCls: 'printable',
+                            tooltip: 'Éditer le tableau et la courbe en PDF'
+                        }, {
                             text: 'Excel',
                             itemId: 'btnExcel',
                             iconCls: 'export_excel_icon',
