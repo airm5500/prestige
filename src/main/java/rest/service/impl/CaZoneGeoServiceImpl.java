@@ -55,20 +55,24 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             LocalDate fin = tranches.get(tranches.size() - 1).getFin();
             String emplacementId = utilisateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
-            StringBuilder sql = new StringBuilder("SELECT f.lg_ZONE_GEO_ID, z.str_LIBELLEE, f.lg_FAMILLEARTICLE_ID,")
-                    .append(" fa.str_LIBELLE, ").append(granularite.expressionSql("p.dt_UPDATED"))
-                    .append(" AS tranche,")
+            // STRAIGHT_JOIN + FORCE INDEX : sur une base d'officine (1,2 million de ventes), l'optimiseur partait
+            // de la table des utilisateurs et relisait TOUTES les ventes de chacun (78 000 par utilisateur) pour ne
+            // garder que la periode : 8 secondes. On lui impose de partir des ventes de la periode, par l'index
+            // (str_STATUT, dt_UPDATED) pose par la migration V6.2.9, puis de joindre lignes, utilisateur, produit.
+            StringBuilder sql = new StringBuilder("SELECT STRAIGHT_JOIN f.lg_ZONE_GEO_ID, z.str_LIBELLEE,")
+                    .append(" f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, ")
+                    .append(granularite.expressionSql("p.dt_UPDATED")).append(" AS tranche,")
                     .append(" SUM(d.int_PRICE - IFNULL(d.int_PRICE_REMISE, 0)) AS ca, SUM(d.int_QUANTITY) AS qte")
-                    .append(" FROM t_preenregistrement_detail d")
-                    .append(" INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID")
+                    .append(" FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)")
+                    .append(" INNER JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID")
                     .append(" INNER JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID")
                     .append(" INNER JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID")
                     .append(" LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID")
                     .append(" LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID")
                     // Borne haute exclusive au lendemain : un intervalle sur la colonne elle-meme, que l'index
                     // sur dt_UPDATED sait servir. DATE(p.dt_UPDATED) BETWEEN ... obligeait a lire toutes les ventes.
-                    .append(" WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 AND u.lg_EMPLACEMENT_ID = ?3")
-                    .append(" AND p.str_STATUT = ?4 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
+                    .append(" WHERE p.str_STATUT = ?4 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2")
+                    .append(" AND u.lg_EMPLACEMENT_ID = ?3 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
                     .append(" AND p.lg_TYPE_VENTE_ID <> ?5");
             boolean filtreZone = estRenseigne(filtres.getZoneId());
             boolean filtreFamille = estRenseigne(filtres.getFamilleId());
