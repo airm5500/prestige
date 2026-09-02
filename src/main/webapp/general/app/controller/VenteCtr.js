@@ -3314,9 +3314,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 params: Ext.JSON.encode(params),
                 success: function (response, options) {
                     progress.hide();
-                    e.record.commit();
                     let result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
+                        e.record.commit();
                         me.current = result.data;
 
                         me.getTotalField().setValue(me.getCurrent().intPRICE);
@@ -3329,6 +3329,24 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refresh();
                         me.autoComputeNetAfterChange();
 
+                    } else {
+                        // Refus metier du serveur (ex. produit detail au-dela du stock vendable : plus aucune
+                        // boite a deconditionner) : sans ce traitement, la grille gardait la valeur saisie alors
+                        // que la base la refusait, laissant l'ecran incoherent et la vente se validant sur
+                        // l'ancienne quantite. On retablit la valeur precedente et on affiche le message du serveur.
+                        if (e.originalValue !== undefined && e.originalValue !== null) {
+                            e.record.set(e.field, e.originalValue);
+                        }
+                        e.record.commit();
+                        me.refresh();
+                        me.autoComputeNetAfterChange();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg || 'Modification refusée.',
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+                        });
                     }
                 },
                 failure: function (response, options) {
