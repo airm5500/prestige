@@ -80,9 +80,150 @@
  *      defilent, dans leur propre ascenseur ;
  *   3. masque l'entete de l'ecran : une fois les deux barres collees l'une a l'autre, le
  *      titre etait ecrit deux fois de suite.
+ *
+ * =====================================================================================
+ * 4) MOTEUR DE MISE EN PAGE BLOQUE : L'AFFICHAGE "SE PERD"
+ *
+ * Symptome constate : de temps en temps, un ecran (le menu principal par exemple) n'occupe
+ * plus toute la largeur : le panneau central garde son ancienne taille et une bande vide
+ * apparait a droite (ou en bas). Plus aucun redimensionnement n'est pris en compte, et
+ * l'ouverture du menu suivant peut echouer, jusqu'au rechargement de la page (F5).
+ *
+ * Cause, reproduite sur le banc : ExtJS 4.2 execute toutes les mises en page dans un
+ * "contexte" unique (Ext.AbstractComponent.flushLayouts). Il note ce contexte comme etant
+ * en cours, lance le calcul, et ne le libere qu'a la toute fin du calcul. Si une exception
+ * survient AU MILIEU du calcul (un rendu de grille qui plante, une donnee inattendue dans
+ * un ecran...), la fin n'est jamais atteinte : le contexte reste marque "en cours" pour
+ * toujours. Des lors, chaque demande de mise en page (redimensionnement de la fenetre,
+ * ouverture d'un menu, ajustement d'un ecran colle) est simplement mise en attente
+ * derriere un calcul qui ne se terminera jamais. L'ecran fige a sa derniere taille connue.
+ *
+ * Correctif : PrestigeAffichage surveille flushLayouts. Si le calcul leve une exception
+ * alors que le contexte est encore marque "en cours" :
+ *   1. le contexte est libere, le moteur redevient utilisable immediatement ;
+ *   2. l'incident est journalise (console + fil d'Ariane du support) avec sa pile d'appels,
+ *      pour retrouver l'ecran fautif ;
+ *   3. une mise en page complete est relancee juste apres, pour que l'ecran reprenne la
+ *      bonne taille sans attendre ; au plus trois relances en cinq secondes, afin qu'une
+ *      erreur qui se repete a chaque calcul ne tourne pas en boucle ;
+ *   4. l'exception est ensuite relancee telle quelle : rien n'est masque.
  */
 /* global Ext */
 window.PrestigeAffichage = window.PrestigeAffichage || {};
+
+(function () {
+    'use strict';
+
+    var Composant = Ext.AbstractComponent,
+        flushOriginal = Composant && Composant.flushLayouts,
+        incidents = [],
+        relances = [],
+        MAX_INCIDENTS = 20,
+        MAX_RELANCES = 3,
+        FENETRE_RELANCES = 5000;
+
+    if (!flushOriginal || flushOriginal.correctifBlocage) {
+        return;
+    }
+
+    function journaliser(erreur) {
+        var message = 'LAYOUT: exception pendant la mise en page : '
+                + (erreur && erreur.message ? erreur.message : String(erreur));
+        incidents.push({
+            date: new Date(),
+            message: message,
+            pile: erreur && erreur.stack ? String(erreur.stack) : ''
+        });
+        if (incidents.length > MAX_INCIDENTS) {
+            incidents.shift();
+        }
+        try {
+            if (window.console && console.error) {
+                console.error('[Prestige] ' + message + ' - moteur de mise en page libere', erreur);
+            }
+        } catch (e) {
+        }
+        try {
+            if (window.__prestigeSupport && window.__prestigeSupport.push) {
+                window.__prestigeSupport.push(message);
+            }
+        } catch (e) {
+        }
+    }
+
+    function relancePossible() {
+        var maintenant = new Date().getTime();
+        relances = Ext.Array.filter(relances, function (t) {
+            return maintenant - t < FENETRE_RELANCES;
+        });
+        if (relances.length >= MAX_RELANCES) {
+            return false;
+        }
+        relances.push(maintenant);
+        return true;
+    }
+
+    function relancerMiseEnPage() {
+        Ext.Function.defer(function () {
+            var vues = Ext.ComponentQuery.query('viewport'), i;
+            try {
+                for (i = 0; i < vues.length; i++) {
+                    if (vues[i].rendered && !vues[i].isDestroyed) {
+                        vues[i].updateLayout();
+                    }
+                }
+            } catch (e) {
+                // deja journalise par flushLayouts ; on ne relance pas indefiniment
+            }
+        }, 30);
+    }
+
+    /**
+     * Detache les layouts d'un calcul interrompu, comme le fait ExtJS lui-meme quand un
+     * calcul echoue proprement (Ext.layout.Context.handleFailure) : un layout qui garde
+     * une reference au contexte mort serait pris pour "deja commence" au calcul suivant,
+     * son initialisation serait sautee et ce calcul planterait a son tour.
+     */
+    function detacher(contexte) {
+        var layouts = contexte && contexte.layouts, cle, layout;
+        if (!layouts) {
+            return;
+        }
+        for (cle in layouts) {
+            if (layouts.hasOwnProperty(cle)) {
+                layout = layouts[cle];
+                if (layout) {
+                    layout.running = false;
+                    layout.ownerContext = null;
+                }
+            }
+        }
+    }
+
+    Composant.flushLayouts = function () {
+        // le contexte en attente est celui que flushLayouts va executer
+        var contexte = this.pendingLayouts;
+        try {
+            return flushOriginal.apply(this, arguments);
+        } catch (erreur) {
+            if (contexte) {
+                if (this.runningLayoutContext === contexte) {
+                    this.runningLayoutContext = null;
+                }
+                detacher(contexte);
+                journaliser(erreur);
+                if (relancePossible()) {
+                    relancerMiseEnPage();
+                }
+            }
+            throw erreur;
+        }
+    };
+    Composant.flushLayouts.correctifBlocage = true;
+
+    /** Derniers incidents de mise en page (pour le diagnostic depuis la console). */
+    window.PrestigeAffichage.incidentsMiseEnPage = incidents;
+})();
 
 /*
  * Editions PDF longues : l'onglet doit etre ouvert DANS le clic de l'utilisateur. Ouvert plus
