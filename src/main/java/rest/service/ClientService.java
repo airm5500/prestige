@@ -93,4 +93,9 @@ public interface ClientService {
     JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete, boolean btnDesactiver,
             int start, int limit);
 
+    /** Consentement SMS / WhatsApp de la fiche client (point 2) : {success, consentSms: true|false|null}. */
+    org.json.JSONObject lireConsentement(String clientId);
+
+    /** Enregistre le consentement (null = non renseigne). */
+    org.json.JSONObject enregistrerConsentement(String clientId, Boolean consent);
 }

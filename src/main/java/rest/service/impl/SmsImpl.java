@@ -246,8 +246,11 @@ public class SmsImpl implements SmsService {
                     continue;
                 }
                 total++;
+                // Derniere normalisation avant le fournisseur (point 2) : un numero saisi avec espaces, « + » ou
+                // indicatif est ramene au format local a 10 chiffres ; un numero non reconnu part tel quel.
+                String numero = util.TelephoneCi.localOuSaisie(tc.getStrADRESSE());
                 // customData = id du destinataire : corrélation exacte des accusés de réception.
-                SmsSendResult result = provider.send(tc.getStrADRESSE(), message, toClient.getId());
+                SmsSendResult result = provider.send(numero, message, toClient.getId());
                 applyResultToClient(toClient, result, provider.getCode());
                 LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2}, fournisseur={3}, {4}",
                         new Object[] { notification.getId(), toClient.getId(), tc.getStrADRESSE(), provider.getCode(),

@@ -294,6 +294,16 @@ console.log('---------------------------------- add client ');
 //                            allowBlank: false,
                                     id: 'str_ADRESSE',
                                     flex: 1
+                                },
+                                {
+                                    /* Point 2 : consentement aux SMS / WhatsApp (enregistre par l'API apres la sauvegarde) */
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'SMS / WhatsApp',
+                                    boxLabel: 'accepte d\'être contacté',
+                                    id: 'consent_SMS',
+                                    inputValue: 'true',
+                                    uncheckedValue: 'false',
+                                    flex: 1
                                 }
 
                             ]
@@ -652,6 +662,18 @@ console.log('---------------------------------- add client ');
             str_SEXE = this.getOdatasource().str_SEXE;
             //  Ext.getCmp('str_SEXE').setValue(this.getOdatasource().str_SEXE);
             Ext.getCmp('str_ADRESSE').setValue(this.getOdatasource().str_ADRESSE);
+            // Point 2 : consentement lu par l'API (la source JSP ne le porte pas)
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/client/' + ref + '/consentement',
+                success: function (response) {
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    var cb = Ext.getCmp('consent_SMS');
+                    if (cb && r.success) {
+                        cb.setValue(r.consentSms === true);
+                    }
+                }
+            });
             Ext.getCmp('str_CODE_POSTAL').setValue(this.getOdatasource().str_CODE_POSTAL);
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
             //  Ext.getCmp('lg_MEDECIN_ID').setValue(this.getOdatasource().lg_MEDECIN_ID);
@@ -844,6 +866,14 @@ console.log('---------------------------------- add client ');
                             Ext.MessageBox.alert('Error Message', object.errors);
                             return;
                         } else {
+                            // Point 2 : consentement SMS / WhatsApp enregistre par l'API
+                            var cbConsent = Ext.getCmp('consent_SMS');
+                            if (cbConsent) {
+                                Ext.Ajax.request({
+                                    method: 'POST',
+                                    url: '../api/v1/client/' + ref + '/consentement?valeur=' + (cbConsent.getValue() ? 'true' : 'false')
+                                });
+                            }
                             Ext.MessageBox.alert('Confirmation', object.errors);
                             if (type === "clientmanager") {
                                 Ext.MessageBox.alert('Confirmation', object.errors);

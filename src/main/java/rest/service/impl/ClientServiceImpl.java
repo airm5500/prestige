@@ -113,6 +113,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setDtUPDATED(new Date());
             tc.setDtCREATED(tc.getDtUPDATED());
             tc.setEmail(clientLambda.getEmail());
+            tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
             tc.setStrCODEINTERNE(DateConverter.getShortId(6));
             getEmg().persist(tc);
             createCompteClient(tc);
@@ -145,6 +146,7 @@ public class ClientServiceImpl implements ClientService {
             tc.setDtCREATED(tc.getDtUPDATED());
             tc.setStrCODEINTERNE(DateConverter.getShortId(6));
             tc.setEmail(clientLambda.getEmail());
+            tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
             this.getEmg().persist(tc);
             createCompteClient(tc);
             return tc;
@@ -1320,6 +1322,9 @@ public class ClientServiceImpl implements ClientService {
         tc.setStrFIRSTNAME(client.getStrFIRSTNAME().toUpperCase());
         tc.setDtUPDATED(new Date());
         tc.setStrADRESSE(client.getStrADRESSE());
+        if (client.consentSmsValeur() != null) {
+            tc.setBoolCONSENTSMS(client.consentSmsValeur());
+        }
         getEmg().merge(tc);
         payant.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
         getEmg().merge(payant);
@@ -1851,6 +1856,33 @@ public class ClientServiceImpl implements ClientService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "listClients", e);
             return json.put("total", 0).put("total_differe", 0).put("results", results);
+        }
+    }
+
+    @Override
+    public JSONObject lireConsentement(String clientId) {
+        TClient tc = getEmg().find(TClient.class, clientId);
+        if (tc == null) {
+            return new JSONObject().put("success", false).put("msg", "Client introuvable");
+        }
+        return new JSONObject().put("success", true).put("consentSms",
+                tc.getBoolCONSENTSMS() == null ? JSONObject.NULL : tc.getBoolCONSENTSMS());
+    }
+
+    @Override
+    public JSONObject enregistrerConsentement(String clientId, Boolean consent) {
+        try {
+            TClient tc = getEmg().find(TClient.class, clientId);
+            if (tc == null) {
+                return new JSONObject().put("success", false).put("msg", "Client introuvable");
+            }
+            tc.setBoolCONSENTSMS(consent);
+            tc.setDtUPDATED(new Date());
+            getEmg().merge(tc);
+            return new JSONObject().put("success", true).put("consentSms", consent == null ? JSONObject.NULL : consent);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "consentement client", e);
+            return new JSONObject().put("success", false).put("msg", "L'enregistrement du consentement a échoué");
         }
     }
 }

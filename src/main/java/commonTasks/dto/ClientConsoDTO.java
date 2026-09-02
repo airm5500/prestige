@@ -88,4 +88,25 @@ public class ClientConsoDTO implements Serializable {
     public void setHabitude(String habitude) {
         this.habitude = habitude;
     }
+
+    /** Telephone tel qu'enregistre sur la fiche (str_ADRESSE), pour les campagnes SMS / WhatsApp (point 2). */
+    private String telephone;
+    /** Consentement SMS / WhatsApp : null = non renseigne, true = accepte, false = refuse. */
+    private Boolean consentSms;
+
+    public String getTelephone() {
+        return telephone;
+    }
+
+    public void setTelephone(String telephone) {
+        this.telephone = telephone;
+    }
+
+    public Boolean getConsentSms() {
+        return consentSms;
+    }
+
+    public void setConsentSms(Boolean consentSms) {
+        this.consentSms = consentSms;
+    }
 }

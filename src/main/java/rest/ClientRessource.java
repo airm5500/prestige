@@ -78,6 +78,21 @@ public class ClientRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Criteres du suivi de consommation (point 2) lus sur la requete : les anciens parametres plus medicament /
+     * familleId, nbAchatsOp + nbAchats, montantOp + montant, frequenceOp + frequence.
+     */
+    private rest.service.dto.ConsoFiltres filtresConso(String dtStart, String dtEnd, String query, String habitude,
+            String typeClient, String sortBy) {
+        HttpServletRequest r = servletRequest;
+        return new rest.service.dto.ConsoFiltres().dtStart(dtStart).dtEnd(dtEnd).query(query).habitude(habitude)
+                .typeClient(typeClient).sortBy(sortBy).medicament(r.getParameter("medicament"))
+                .familleId(r.getParameter("familleId"))
+                .nbAchats(r.getParameter("nbAchatsOp"), r.getParameter("nbAchats"))
+                .montant(r.getParameter("montantOp"), r.getParameter("montant"))
+                .frequence(r.getParameter("frequenceOp"), r.getParameter("frequence"));
+    }
+
     @GET
     @Path("consommation/globale")
     public Response consommationGlobale(@QueryParam(value = "dtStart") String dtStart,
@@ -90,8 +105,8 @@ public class ClientRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = clientConsommationService.fetchClients(dtStart, dtEnd, query, habitude, typeClient, sortBy,
-                start, limit);
+        JSONObject json = clientConsommationService
+                .fetchClients(filtresConso(dtStart, dtEnd, query, habitude, typeClient, sortBy), start, limit);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -107,7 +122,8 @@ public class ClientRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = clientConsommationService.exportClientsCsv(dtStart, dtEnd, query, habitude, typeClient, sortBy);
+        byte[] data = clientConsommationService
+                .exportClientsCsv(filtresConso(dtStart, dtEnd, query, habitude, typeClient, sortBy));
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"suivi_conso_clients.csv\"")
                 .build();
     }
@@ -124,7 +140,8 @@ public class ClientRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = clientConsommationService.exportClientsExcel(dtStart, dtEnd, query, habitude, typeClient, sortBy);
+        byte[] data = clientConsommationService
+                .exportClientsExcel(filtresConso(dtStart, dtEnd, query, habitude, typeClient, sortBy));
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"suivi_conso_clients.xls\"")
                 .build();
     }
@@ -140,9 +157,36 @@ public class ClientRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        String file = clientConsommationService.printClients(tu, dtStart, dtEnd, query, habitude, typeClient, sortBy);
+        String file = clientConsommationService.printClients(tu,
+                filtresConso(dtStart, dtEnd, query, habitude, typeClient, sortBy));
         return Response.status(Response.Status.FOUND)
                 .location(java.net.URI.create(servletRequest.getContextPath() + file)).build();
+    }
+
+    /** Consentement SMS / WhatsApp de la fiche client (point 2) : lecture. */
+    @GET
+    @Path("{clientId}/consentement")
+    public Response lireConsentement(@PathParam("clientId") String clientId) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(clientService.lireConsentement(clientId).toString()).build();
+    }
+
+    /** Consentement SMS / WhatsApp de la fiche client (point 2) : enregistrement (valeur = true / false). */
+    @POST
+    @Path("{clientId}/consentement")
+    @Consumes(javax.ws.rs.core.MediaType.WILDCARD)
+    public Response enregistrerConsentement(@PathParam("clientId") String clientId,
+            @QueryParam("valeur") String valeur) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Boolean consent = valeur == null || valeur.isBlank() ? null
+                : ("true".equalsIgnoreCase(valeur.trim()) || "1".equals(valeur.trim()));
+        return Response.ok().entity(clientService.enregistrerConsentement(clientId, consent).toString()).build();
     }
 
     /** Export Excel de la consommation par medicament d'un client (memes filtres que la grille). */

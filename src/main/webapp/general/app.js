@@ -818,6 +818,7 @@ Ext.application({
         'StatistiqProviderCtr',
         'StatistiqRayonsCtr',
         'CaZoneGeoCtr',
+        'ModeleMessageCtr',
         'ArticleInvendusCtr',
         'SurStockCtr',
         'ComparaisonCtr',

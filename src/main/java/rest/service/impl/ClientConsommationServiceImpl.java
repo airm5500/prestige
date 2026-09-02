@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -26,6 +27,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.report.ReportUtil;
 import rest.service.ClientConsommationService;
+import rest.service.dto.ConsoFiltres;
 import rest.service.utils.CsvExportService;
 import rest.service.utils.ReportExcelExportService;
 
@@ -53,16 +55,20 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
 
     private static final String COUNT_QUERY = "SELECT COUNT(DISTINCT d.lg_FAMILLE_ID)" + BASE_FROM;
 
-    private static final String CLIENTS_QUERY = "SELECT c.lg_CLIENT_ID AS clientId,"
+    /**
+     * Colonnes communes de la recherche par client. Avec un medicament filtre, la requete joint les lignes de vente du
+     * medicament : le nombre d'achats compte les tickets qui le contiennent, le montant est celui de ses lignes.
+     */
+    private static final String CLIENTS_SELECT = "SELECT c.lg_CLIENT_ID AS clientId,"
             + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,''))) AS client,"
             + " TRIM(CONCAT_WS(' / ', NULLIF(TRIM(COALESCE(c.str_ADRESSE,'')),''), NULLIF(TRIM(COALESCE(c.email,'')),''))) AS contact,"
-            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbAchats, COALESCE(SUM(p.int_PRICE),0) AS montant,"
+            + " c.str_ADRESSE AS telephone, c.bool_CONSENT_SMS AS consent,"
+            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbAchats, COALESCE(SUM({montant}),0) AS montant,"
             + " MAX(DATE(p.dt_UPDATED)) AS dernierAchat, MIN(DATE(p.dt_UPDATED)) AS premierAchat"
-            + " FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID"
-            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+            + " FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID";
+    private static final String CLIENTS_WHERE = " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
             + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2"
-            + " AND CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?3"
-            + " {typeClient} GROUP BY c.lg_CLIENT_ID {orderBy}";
+            + " AND CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?3";
 
     /** valeur speciale du filtre type de client : clients sans compte tiers payant */
     private static final String TYPE_CLIENT_STANDARD = "STANDARD";
@@ -197,17 +203,62 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
      */
     private List<ClientConsoDTO> clients(String dtStart, String dtEnd, String query, String habitude, String typeClient,
             String sortBy) {
+        return clients(new ConsoFiltres().dtStart(dtStart).dtEnd(dtEnd).query(query).habitude(habitude)
+                .typeClient(typeClient).sortBy(sortBy));
+    }
+
+    /**
+     * Recherche multicriteres (point 2). Les criteres nombre d'achats et montant sont appliques en SQL (HAVING), la
+     * frequence et l'habitude en Java apres calcul ; tout est applique avant la pagination et les editions.
+     */
+    private List<ClientConsoDTO> clients(ConsoFiltres f) {
         List<ClientConsoDTO> rows = new ArrayList<>();
         try {
-            LocalDate fin = parseOr(dtEnd, LocalDate.now());
-            LocalDate debut = parseOr(dtStart, fin.minusMonths(12));
-            String search = StringUtils.isEmpty(query) ? "%%" : "%" + query + "%";
-
-            String sql = CLIENTS_QUERY.replace("{typeClient}", typeClientClause(typeClient)).replace("{orderBy}",
-                    orderByClause(sortBy));
-            Query q = em.createNativeQuery(sql, Tuple.class).setParameter(1, Date.valueOf(debut))
-                    .setParameter(2, Date.valueOf(finExclusive(fin))).setParameter(3, search);
+            LocalDate fin = parseOr(f.getDtEnd(), LocalDate.now());
+            LocalDate debut = parseOr(f.getDtStart(), fin.minusMonths(12));
+            String search = StringUtils.isEmpty(f.getQuery()) ? "%%" : "%" + f.getQuery() + "%";
+            List<Object> params = new ArrayList<>(
+                    Arrays.asList(Date.valueOf(debut), Date.valueOf(finExclusive(fin)), search));
+            boolean avecMedicament = f.avecMedicament();
+            StringBuilder sql = new StringBuilder(
+                    CLIENTS_SELECT.replace("{montant}", avecMedicament ? "d.int_PRICE" : "p.int_PRICE"));
+            if (avecMedicament) {
+                sql.append(
+                        " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID")
+                        .append(" JOIN t_famille fa ON fa.lg_FAMILLE_ID = d.lg_FAMILLE_ID");
+            }
+            sql.append(CLIENTS_WHERE);
+            if (avecMedicament) {
+                if (StringUtils.isNotBlank(f.getFamilleId())) {
+                    params.add(f.getFamilleId().trim());
+                    sql.append(" AND fa.lg_FAMILLE_ID = ?").append(params.size());
+                } else {
+                    params.add("%" + f.getMedicament().trim() + "%");
+                    sql.append(" AND (fa.str_NAME LIKE ?").append(params.size()).append(" OR fa.int_CIP LIKE ?")
+                            .append(params.size()).append(")");
+                }
+            }
+            sql.append(typeClientClause(f.getTypeClient())).append(" GROUP BY c.lg_CLIENT_ID");
+            List<String> having = new ArrayList<>();
+            if (ConsoFiltres.actif(f.getNbAchatsOp(), f.getNbAchats())) {
+                params.add(f.getNbAchats());
+                having.add("nbAchats " + f.getNbAchatsOp() + " ?" + params.size());
+            }
+            if (ConsoFiltres.actif(f.getMontantOp(), f.getMontant())) {
+                params.add(f.getMontant());
+                having.add("montant " + f.getMontantOp() + " ?" + params.size());
+            }
+            if (!having.isEmpty()) {
+                sql.append(" HAVING ").append(String.join(" AND ", having));
+            }
+            sql.append(orderByClause(f.getSortBy()));
+            Query q = em.createNativeQuery(sql.toString(), Tuple.class);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(i + 1, params.get(i));
+            }
+            @SuppressWarnings("unchecked")
             List<Tuple> tuples = q.getResultList();
+            boolean filtreFrequence = ConsoFiltres.actif(f.getFrequenceOp(), f.getFrequence());
             for (Tuple t : tuples) {
                 long nbAchats = ((Number) t.get("nbAchats")).longValue();
                 LocalDate dernierAchat = ((Date) t.get("dernierAchat")).toLocalDate();
@@ -216,10 +267,15 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
                 if (nbAchats > 1) {
                     frequenceJours = ChronoUnit.DAYS.between(premierAchat, dernierAchat) / (nbAchats - 1);
                 }
+                if (filtreFrequence && !frequenceRetenue(nbAchats, frequenceJours, f)) {
+                    continue;
+                }
                 ClientConsoDTO dto = new ClientConsoDTO();
                 dto.setClientId(t.get("clientId", String.class));
                 dto.setClient(t.get("client", String.class));
                 dto.setContact(t.get("contact", String.class));
+                dto.setTelephone(t.get("telephone", String.class));
+                dto.setConsentSms(consent(t.get("consent")));
                 dto.setNbAchats(nbAchats);
                 dto.setMontant(((Number) t.get("montant")).longValue());
                 dto.setDernierAchat(dernierAchat.format(FR));
@@ -228,14 +284,154 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
                 dto.setHabitude(habitude(nbAchats, frequenceJours, dernierAchat));
                 rows.add(dto);
             }
-            if (StringUtils.isNotEmpty(habitude)) {
-                String filtre = habitude;
+            if (StringUtils.isNotEmpty(f.getHabitude())) {
+                String filtre = f.getHabitude();
                 rows = rows.stream().filter(r -> filtre.equalsIgnoreCase(r.getHabitude())).collect(Collectors.toList());
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
         return rows;
+    }
+
+    /**
+     * Critere de frequence : une frequence n'existe qu'a partir de deux achats ; « = » tolere plus ou moins
+     * {@link ConsoFiltres#TOLERANCE_FREQUENCE_JOURS} jours.
+     */
+    static boolean frequenceRetenue(long nbAchats, long frequenceJours, ConsoFiltres f) {
+        if (nbAchats < 2) {
+            return false;
+        }
+        if ("=".equals(f.getFrequenceOp())) {
+            return Math.abs(frequenceJours - f.getFrequence()) <= ConsoFiltres.TOLERANCE_FREQUENCE_JOURS;
+        }
+        return ConsoFiltres.compare(frequenceJours, f.getFrequenceOp(), f.getFrequence());
+    }
+
+    private static Boolean consent(Object valeur) {
+        if (valeur == null) {
+            return null;
+        }
+        if (valeur instanceof Boolean) {
+            return (Boolean) valeur;
+        }
+        if (valeur instanceof Number) {
+            return ((Number) valeur).intValue() != 0;
+        }
+        return "1".equals(valeur.toString()) || "true".equalsIgnoreCase(valeur.toString());
+    }
+
+    @Override
+    public JSONObject fetchClients(ConsoFiltres filtres, int start, int limit) {
+        JSONObject json = new JSONObject();
+        try {
+            List<ClientConsoDTO> rows = clients(filtres);
+            int total = rows.size();
+            if (limit > 0) {
+                int from = Math.min(start, total);
+                int to = Math.min(start + limit, total);
+                rows = rows.subList(from, to);
+            }
+            return json.put("total", total).put("data", new JSONArray(rows));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return json.put("total", 0).put("data", new JSONArray());
+        }
+    }
+
+    @Override
+    public byte[] exportClientsCsv(ConsoFiltres f) throws IOException {
+        List<ClientConsoDTO> rows = clients(f);
+        byte[] raw = csvExportService.createCsvReport(
+                "Suivi de consommation clients " + periode(f.getDtStart(), f.getDtEnd()) + criteresTexte(f),
+                clientsHeaders(), rows,
+                dto -> new String[] { dto.getClient(), StringUtils.defaultString(dto.getContact()),
+                        String.valueOf(dto.getNbAchats()), String.valueOf(dto.getMontant()), dto.getDernierAchat(),
+                        frequenceLabel(dto.getNbAchats(), dto.getFrequenceJours()), dto.getHabitude() });
+        return csvExportService.addUtf8Bom(raw);
+    }
+
+    @Override
+    public byte[] exportClientsExcel(ConsoFiltres f) throws IOException {
+        List<ClientConsoDTO> rows = clients(f);
+        return reportExcelExportService.createExcelReport(
+                "Suivi de consommation clients " + periode(f.getDtStart(), f.getDtEnd()) + criteresTexte(f),
+                clientsHeaders(), rows, (row, dto) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(dto.getClient());
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(dto.getContact()));
+                    row.createCell(col++).setCellValue(dto.getNbAchats());
+                    row.createCell(col++).setCellValue(dto.getMontant());
+                    row.createCell(col++).setCellValue(dto.getDernierAchat());
+                    row.createCell(col++).setCellValue(frequenceLabel(dto.getNbAchats(), dto.getFrequenceJours()));
+                    row.createCell(col++).setCellValue(dto.getHabitude());
+                });
+    }
+
+    @Override
+    public String printClients(TUser user, ConsoFiltres f) {
+        List<ClientConsoDTO> rows = clients(f);
+        Map<String, Object> parameters = reportUtil.officineData(user);
+        String titre = "SUIVI DE CONSOMMATION CLIENTS - PERIODE " + periode(f.getDtStart(), f.getDtEnd()).toUpperCase();
+        if (StringUtils.isNotEmpty(f.getHabitude())) {
+            titre += " - " + f.getHabitude().toUpperCase();
+        }
+        titre += criteresTexte(f).toUpperCase();
+        parameters.put("P_H_CLT_INFOS", titre);
+        return reportUtil.buildReport(parameters, "rp_conso_clients", rows);
+    }
+
+    @Override
+    public List<ClientConsoDTO> population(ConsoFiltres f) {
+        return clients(f);
+    }
+
+    @Override
+    public List<ClientConsoDTO> clientsParIds(java.util.Collection<String> ids) {
+        List<ClientConsoDTO> rows = new ArrayList<>();
+        if (ids == null || ids.isEmpty()) {
+            return rows;
+        }
+        java.util.LinkedHashSet<String> uniques = new java.util.LinkedHashSet<>();
+        for (String id : ids) {
+            if (StringUtils.isNotBlank(id)) {
+                uniques.add(id.trim());
+            }
+        }
+        for (String id : uniques) {
+            TClient c = em.find(TClient.class, id);
+            if (c == null) {
+                continue;
+            }
+            ClientConsoDTO dto = new ClientConsoDTO();
+            dto.setClientId(c.getLgCLIENTID());
+            dto.setClient((StringUtils.defaultString(c.getStrFIRSTNAME()) + " "
+                    + StringUtils.defaultString(c.getStrLASTNAME())).trim());
+            dto.setTelephone(c.getStrADRESSE());
+            dto.setContact(c.getStrADRESSE());
+            dto.setConsentSms(c.getBoolCONSENTSMS());
+            rows.add(dto);
+        }
+        return rows;
+    }
+
+    /** Rappel des criteres du point 2 dans les titres des editions. */
+    private static String criteresTexte(ConsoFiltres f) {
+        StringBuilder sb = new StringBuilder();
+        if (f.avecMedicament()) {
+            sb.append(" - Médicament : ")
+                    .append(StringUtils.isNotBlank(f.getMedicament()) ? f.getMedicament().trim() : f.getFamilleId());
+        }
+        if (ConsoFiltres.actif(f.getFrequenceOp(), f.getFrequence())) {
+            sb.append(" - Fréquence ").append(f.getFrequenceOp()).append(' ').append(f.getFrequence()).append(" j");
+        }
+        if (ConsoFiltres.actif(f.getNbAchatsOp(), f.getNbAchats())) {
+            sb.append(" - Achats ").append(f.getNbAchatsOp()).append(' ').append(f.getNbAchats());
+        }
+        if (ConsoFiltres.actif(f.getMontantOp(), f.getMontant())) {
+            sb.append(" - Montant ").append(f.getMontantOp()).append(' ').append(f.getMontant());
+        }
+        return sb.toString();
     }
 
     @Override

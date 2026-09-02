@@ -85,6 +85,12 @@ public class TClient implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 40)
     private String strSTATUT;
+    /**
+     * Consentement a etre contacte par SMS / WhatsApp (point 2) : null = jamais renseigne, true = accepte, false =
+     * refuse (exclu des campagnes).
+     */
+    @Column(name = "bool_CONSENT_SMS")
+    private Boolean boolCONSENTSMS;
     @JoinColumn(name = "lg_VILLE_ID", referencedColumnName = "lg_VILLE_ID")
     @ManyToOne
     private TVille lgVILLEID;
@@ -112,6 +118,14 @@ public class TClient implements Serializable {
     private TRemise remise;
 
     public TClient() {
+    }
+
+    public Boolean getBoolCONSENTSMS() {
+        return boolCONSENTSMS;
+    }
+
+    public void setBoolCONSENTSMS(Boolean boolCONSENTSMS) {
+        this.boolCONSENTSMS = boolCONSENTSMS;
     }
 
     public TCompany getLgCOMPANYID() {

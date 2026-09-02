@@ -7,12 +7,20 @@
  * bimensuel, ponctuel, dormant), avec filtres (periode, client, type de
  * client, habitude, tri), exports CSV/Excel et impressions (liste globale
  * et fiche par client).
+ *
+ * Point 2 : recherche multicritere (medicament, frequence de renouvellement,
+ * nombre d'achats, montant cumule, combines en ET), cases a cocher pour
+ * choisir des destinataires, bouton « SMS / WhatsApp » qui ouvre la fenetre
+ * de campagne (modele, controle des numeros, envoi). Quand un medicament est
+ * filtre, les cumuls et la frequence portent sur ce medicament.
  */
 Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
     extend: 'Ext.panel.Panel',
     xtype: 'suiviconsoclients',
     requires: [
-        'testextjs.view.configmanagement.client.action.consommationClient'
+        'testextjs.view.configmanagement.client.action.consommationClient',
+        'testextjs.view.configmanagement.client.action.CampagneClient',
+        'testextjs.model.Search'
     ],
 
     frame: true,
@@ -48,6 +56,19 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
             ]
         });
 
+        /* operateurs autorises pour les criteres numeriques (liste blanche cote serveur aussi) */
+        var storeOperateurs = Ext.create('Ext.data.Store', {
+            fields: ['value', 'libelle'],
+            data: [
+                {value: '', libelle: '(aucun)'},
+                {value: '=', libelle: '='},
+                {value: '>=', libelle: '>='},
+                {value: '<=', libelle: '<='},
+                {value: '>', libelle: '>'},
+                {value: '<', libelle: '<'}
+            ]
+        });
+
         /* types de tiers payant (assurance, carnet...) + choix 'Clients standards' */
         var storeTypeClient = Ext.create('Ext.data.Store', {
             fields: ['lg_TYPE_TIERS_PAYANT_ID', 'str_LIBELLE_TYPE_TIERS_PAYANT'],
@@ -71,11 +92,25 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
             }
         });
 
+        /* recherche de medicament par nom ou CIP (meme service que la saisie de commande) */
+        var storeMedicament = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.Search',
+            pageSize: 20,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/produit-search/produits',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
         var store = Ext.create('Ext.data.Store', {
             fields: [
                 {name: 'clientId', type: 'string'},
                 {name: 'client', type: 'string'},
                 {name: 'contact', type: 'string'},
+                {name: 'telephone', type: 'string'},
+                {name: 'consentSms', type: 'auto'},
                 {name: 'nbAchats', type: 'number'},
                 {name: 'montant', type: 'number'},
                 {name: 'dernierAchat', type: 'string'},
@@ -96,6 +131,39 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
             }
         });
         me.consoStore = store;
+
+        var critereNumerique = function (itemId, libelle, largeurLabel, infobulle) {
+            return [{
+                    xtype: 'combobox',
+                    itemId: itemId + 'Op',
+                    fieldLabel: libelle,
+                    labelWidth: largeurLabel,
+                    width: largeurLabel + 78,
+                    store: storeOperateurs,
+                    valueField: 'value',
+                    displayField: 'libelle',
+                    queryMode: 'local',
+                    editable: false,
+                    value: '',
+                    tooltip: infobulle
+                }, {
+                    xtype: 'numberfield',
+                    itemId: itemId,
+                    width: 90,
+                    minValue: 0,
+                    allowDecimals: false,
+                    hideTrigger: true,
+                    emptyText: 'valeur',
+                    enableKeyEvents: true,
+                    listeners: {
+                        specialkey: function (field, e) {
+                            if (e.getKey() === e.ENTER) {
+                                me.doSearch();
+                            }
+                        }
+                    }
+                }];
+        };
 
         Ext.applyIf(me, {
             dockedItems: [
@@ -213,6 +281,78 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                             }
                         }
                     ]
+                },
+                {
+                    /* Point 2 : criteres de consommation, combines en ET avec ceux du dessus */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    itemId: 'barreCriteres',
+                    items: [
+                        {
+                            xtype: 'combobox',
+                            itemId: 'medicament',
+                            fieldLabel: 'Médicament',
+                            labelWidth: 75,
+                            flex: 2,
+                            store: storeMedicament,
+                            valueField: 'lg_FAMILLE_ID',
+                            displayField: 'str_DESCRIPTION',
+                            queryMode: 'remote',
+                            queryParam: 'query',
+                            pageSize: 20,
+                            minChars: 3,
+                            forceSelection: false,
+                            typeAhead: false,
+                            emptyText: 'Nom ou code CIP (contient)',
+                            listConfig: {
+                                getInnerTpl: function () {
+                                    return '<span style="color:#1e7e34;">{CIP}</span> - {str_DESCRIPTION}';
+                                }
+                            },
+                            listeners: {
+                                select: function (cmp, records) {
+                                    me.medicamentChoisi = records && records[0] ? {
+                                        familleId: records[0].get('lg_FAMILLE_ID'),
+                                        libelle: records[0].get('str_DESCRIPTION')
+                                    } : null;
+                                    me.doSearch();
+                                },
+                                change: function (cmp, valeur) {
+                                    if (me.medicamentChoisi && valeur !== me.medicamentChoisi.familleId) {
+                                        me.medicamentChoisi = null;
+                                    }
+                                },
+                                specialkey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        me.doSearch();
+                                    }
+                                }
+                            }
+                        }, '-'
+                    ].concat(critereNumerique('frequence', 'Fréquence (j)', 78,
+                            'Fréquence moyenne de renouvellement du médicament filtré ; « = » tolère ± 3 jours'))
+                            .concat(['-'])
+                            .concat(critereNumerique('nbAchats', 'Achats', 45, 'Nombre de tickets distincts'))
+                            .concat(['-'])
+                            .concat(critereNumerique('montant', 'Montant', 52, 'Montant cumulé sur la période'))
+                            .concat(['-', {
+                                    text: 'Effacer',
+                                    tooltip: 'Effacer les critères de consommation',
+                                    itemId: 'btnEffacerCriteres',
+                                    iconCls: 'cancelicon',
+                                    handler: function () {
+                                        me.effacerCriteres();
+                                        me.doSearch();
+                                    }
+                                }, '->', {
+                                    text: 'SMS / WhatsApp',
+                                    tooltip: 'Contacter les clients cochés, ou tout le résultat si aucun n\'est coché',
+                                    itemId: 'btnCampagne',
+                                    iconCls: 'addicon',
+                                    handler: function () {
+                                        me.ouvrirCampagne();
+                                    }
+                                }])
                 }
             ],
             items: [
@@ -222,6 +362,12 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                     store: store,
                     /* survol de ligne bien visible (vente-theme.css) */
                     cls: 'vp-grille-survol',
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {
+                        checkOnly: true,
+                        injectCheckbox: 'first',
+                        mode: 'MULTI',
+                        pruneRemoved: false
+                    }),
                     viewConfig: {
                         forceFit: true,
                         emptyText: '<h1 style="margin:10px 10px 10px 30%;">Pas de donn&eacute;es</h1>'
@@ -236,9 +382,26 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                             dataIndex: 'client',
                             flex: 1.8
                         }, {
-                            header: 'Contact',
-                            dataIndex: 'contact',
-                            flex: 1.2
+                            header: 'Téléphone',
+                            dataIndex: 'telephone',
+                            flex: 0.9
+                        }, {
+                            header: 'Consent.',
+                            dataIndex: 'consentSms',
+                            align: 'center',
+                            flex: 0.5,
+                            renderer: function (v, metaData) {
+                                if (v === true || v === 'true') {
+                                    metaData.tdAttr = 'data-qtip="Le client accepte les SMS / WhatsApp"';
+                                    return '<span style="color:#1e7e34;font-weight:bold;">Oui</span>';
+                                }
+                                if (v === false || v === 'false') {
+                                    metaData.tdAttr = 'data-qtip="Le client a refusé : exclu des campagnes"';
+                                    return '<span style="color:#c0392b;font-weight:bold;">Non</span>';
+                                }
+                                metaData.tdAttr = 'data-qtip="Consentement non renseigné sur la fiche"';
+                                return '<span style="color:#999;">-</span>';
+                            }
                         }, {
                             xtype: 'numbercolumn',
                             header: 'Nb achats',
@@ -358,7 +521,12 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                         store: store,
                         pageSize: 20,
                         dock: 'bottom',
-                        displayInfo: true
+                        displayInfo: true,
+                        items: ['-', {
+                                xtype: 'tbtext',
+                                itemId: 'selectionTexte',
+                                text: ''
+                            }]
                     }
                 }
             ]
@@ -367,27 +535,96 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
 
         store.on('beforeload', function (s) {
             var proxy = s.getProxy();
-            proxy.setExtraParam('dtStart', me.down('#dtStart').getSubmitValue());
-            proxy.setExtraParam('dtEnd', me.down('#dtEnd').getSubmitValue());
-            proxy.setExtraParam('query', me.down('#query').getValue());
-            proxy.setExtraParam('habitude', me.down('#habitude').getValue() || '');
-            proxy.setExtraParam('typeClient', me.down('#typeClient').getValue() || '');
-            proxy.setExtraParam('sortBy', me.down('#sortBy').getValue() || 'montant');
+            var f = me.filtres();
+            Ext.Object.each(f, function (cle, valeur) {
+                proxy.setExtraParam(cle, valeur);
+            });
+        });
+        me.down('#consoGrid').getSelectionModel().on('selectionchange', function (sm, selection) {
+            var texte = me.down('#selectionTexte');
+            if (texte) {
+                texte.setText(selection.length ? '<b>' + selection.length + '</b> client(s) coché(s)' : '');
+            }
         });
         me.on('afterrender', function () {
             store.load();
         }, me, {single: true, delay: 1});
     },
-    buildParams: function () {
+
+    /** Medicament filtre : produit choisi dans la liste (identifiant exact) ou texte libre (contient). */
+    medicamentParams: function () {
         var me = this;
-        return 'dtStart=' + me.down('#dtStart').getSubmitValue()
-                + '&dtEnd=' + me.down('#dtEnd').getSubmitValue()
-                + '&query=' + encodeURIComponent(me.down('#query').getValue() || '')
-                + '&habitude=' + encodeURIComponent(me.down('#habitude').getValue() || '')
-                + '&typeClient=' + encodeURIComponent(me.down('#typeClient').getValue() || '')
-                + '&sortBy=' + encodeURIComponent(me.down('#sortBy').getValue() || 'montant');
+        var combo = me.down('#medicament');
+        var brut = combo.getRawValue ? (combo.getRawValue() || '') : '';
+        if (me.medicamentChoisi && combo.getValue() === me.medicamentChoisi.familleId) {
+            return {familleId: me.medicamentChoisi.familleId, medicament: '', libelle: me.medicamentChoisi.libelle};
+        }
+        return {familleId: '', medicament: Ext.String.trim(brut), libelle: Ext.String.trim(brut)};
     },
+
+    /** Tous les criteres, tels qu'envoyes au serveur (grille, exports, PDF, campagne). */
+    filtres: function () {
+        var me = this;
+        var med = me.medicamentParams();
+        var num = function (itemId) {
+            var v = me.down('#' + itemId).getValue();
+            return (v === null || v === undefined || v === '') ? '' : String(v);
+        };
+        return {
+            dtStart: me.down('#dtStart').getSubmitValue(),
+            dtEnd: me.down('#dtEnd').getSubmitValue(),
+            query: me.down('#query').getValue() || '',
+            habitude: me.down('#habitude').getValue() || '',
+            typeClient: me.down('#typeClient').getValue() || '',
+            sortBy: me.down('#sortBy').getValue() || 'montant',
+            medicament: med.medicament,
+            familleId: med.familleId,
+            frequenceOp: me.down('#frequenceOp').getValue() || '',
+            frequence: num('frequence'),
+            nbAchatsOp: me.down('#nbAchatsOp').getValue() || '',
+            nbAchats: num('nbAchats'),
+            montantOp: me.down('#montantOp').getValue() || '',
+            montant: num('montant')
+        };
+    },
+
+    buildParams: function () {
+        return Ext.Object.toQueryString(this.filtres());
+    },
+
+    effacerCriteres: function () {
+        var me = this;
+        me.medicamentChoisi = null;
+        me.down('#medicament').clearValue();
+        Ext.Array.each(['frequenceOp', 'nbAchatsOp', 'montantOp'], function (id) {
+            me.down('#' + id).setValue('');
+        });
+        Ext.Array.each(['frequence', 'nbAchats', 'montant'], function (id) {
+            me.down('#' + id).setValue(null);
+        });
+    },
+
     doSearch: function () {
+        this.down('#consoGrid').getSelectionModel().deselectAll();
         this.consoStore.loadPage(1);
+    },
+
+    /** Fenetre SMS / WhatsApp : clients coches, sinon tout le resultat multicritere courant. */
+    ouvrirCampagne: function () {
+        var me = this;
+        var selection = me.down('#consoGrid').getSelectionModel().getSelection();
+        var total = me.consoStore.getTotalCount();
+        if (!selection.length && !total) {
+            Ext.Msg.alert('Message', 'Aucun client dans le résultat : rien à contacter.');
+            return;
+        }
+        Ext.create('testextjs.view.configmanagement.client.action.CampagneClient', {
+            filtres: me.filtres(),
+            clientIds: Ext.Array.map(selection, function (r) {
+                return r.get('clientId');
+            }),
+            nbResultat: total,
+            medicamentLibelle: me.medicamentParams().libelle
+        }).show();
     }
 });

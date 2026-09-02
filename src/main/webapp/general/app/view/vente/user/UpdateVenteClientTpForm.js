@@ -739,6 +739,15 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                             regex: /[0-9.]/,
                                             allowBlank: true,
                                             enableKeyEvents: true
+                                        }, {
+                                            /* Point 2 : consentement aux SMS / WhatsApp */
+                                            xtype: 'checkbox',
+                                            name: 'consentSms',
+                                            fieldLabel: 'SMS / WhatsApp',
+                                            boxLabel: 'le client accepte d\'être contacté',
+                                            inputValue: 'true',
+                                            uncheckedValue: 'false',
+                                            checked: client.consentSms === 'true' || client.consentSms === true
                                         }
                                         , {
                                             fieldLabel: 'E-mail',

@@ -31,6 +31,22 @@ public interface ClientConsommationService {
     /** Export Excel de la consommation par medicament d'un client (memes filtres que la grille). */
     byte[] exportConsommationExcel(String clientId, String dtStart, String dtEnd, String query) throws IOException;
 
+    // ---------------------------------------------------------------- point 2 : recherche multicritere
+
+    JSONObject fetchClients(rest.service.dto.ConsoFiltres filtres, int start, int limit);
+
+    byte[] exportClientsCsv(rest.service.dto.ConsoFiltres filtres) throws IOException;
+
+    byte[] exportClientsExcel(rest.service.dto.ConsoFiltres filtres) throws IOException;
+
+    String printClients(TUser user, rest.service.dto.ConsoFiltres filtres);
+
+    /** Population complete du resultat multicritere (memes lignes que la grille, toutes pages confondues). */
+    java.util.List<commonTasks.dto.ClientConsoDTO> population(rest.service.dto.ConsoFiltres filtres);
+
+    /** Clients par identifiants (dedoublonnes), avec telephone et consentement relus en base. */
+    java.util.List<commonTasks.dto.ClientConsoDTO> clientsParIds(java.util.Collection<String> ids);
+
     /**
      * Inventaire des produits de la consommation affichee, nomme « INVENTAIRE PRODUITS CONSO CLIENTS &lt;horodatage&gt;
      * ».

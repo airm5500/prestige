@@ -34,6 +34,25 @@ public class ClientDTO implements Serializable {
     private String strNUMEROSECURITESOCIAL = "";
     private String strSEXE;
     private String strADRESSE;
+    /** Consentement SMS / WhatsApp (point 2) : "true", "false" ou vide. */
+    private String consentSms;
+
+    public String getConsentSms() {
+        return consentSms;
+    }
+
+    public void setConsentSms(String consentSms) {
+        this.consentSms = consentSms;
+    }
+
+    public Boolean consentSmsValeur() {
+        if (consentSms == null || consentSms.trim().isEmpty()) {
+            return null;
+        }
+        return "true".equalsIgnoreCase(consentSms.trim()) || "1".equals(consentSms.trim())
+                || "on".equalsIgnoreCase(consentSms.trim());
+    }
+
     private String fullName;
     private String lgTYPECLIENTID;
     private List<TiersPayantParams> tiersPayants = new ArrayList<>();
@@ -241,6 +260,7 @@ public class ClientDTO implements Serializable {
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.email = client.getEmail();
         this.libelleTypeClient = libelleTypeClient(client);
+        this.consentSms = client.getBoolCONSENTSMS() == null ? "" : String.valueOf(client.getBoolCONSENTSMS());
     }
 
     public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants, List<AyantDroitDTO> ayantDroits) {

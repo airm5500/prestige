@@ -84,6 +84,17 @@ Ext.define('testextjs.view.vente.user.ClientLambda',
                             value: '6',
                             allowBlank: false
                         },
+                        {
+                            /* Point 2 : consentement aux SMS / WhatsApp, enregistre sur la fiche */
+                            xtype: 'checkbox',
+                            name: 'consentSms',
+                            itemId: 'consentSms',
+                            fieldLabel: 'SMS / WhatsApp',
+                            boxLabel: 'le client accepte d\'être contacté',
+                            inputValue: 'true',
+                            uncheckedValue: 'false',
+                            checked: true
+                        },
 
                         {
                             xtype: "radiogroup",

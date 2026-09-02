@@ -17,6 +17,25 @@ import java.util.Objects;
 public class ClientLambdaDTO implements Serializable {
 
     private String lgCLIENTID, strFIRSTNAME, strLASTNAME, strADRESSE, lgTYPECLIENTID, strSEXE, email;
+    /** Consentement SMS / WhatsApp de la fiche (point 2) : "true", "false" ou vide (non renseigne). */
+    private String consentSms;
+
+    public String getConsentSms() {
+        return consentSms;
+    }
+
+    public void setConsentSms(String consentSms) {
+        this.consentSms = consentSms;
+    }
+
+    /** Valeur a enregistrer : null si la case n'a pas ete presentee. */
+    public Boolean consentSmsValeur() {
+        if (consentSms == null || consentSms.trim().isEmpty()) {
+            return null;
+        }
+        return "true".equalsIgnoreCase(consentSms.trim()) || "1".equals(consentSms.trim())
+                || "on".equalsIgnoreCase(consentSms.trim());
+    }
 
     public String getLgCLIENTID() {
         return lgCLIENTID;
@@ -122,6 +141,7 @@ public class ClientLambdaDTO implements Serializable {
 
         this.strSEXE = c.getStrSEXE();
         this.email = c.getEmail();
+        this.consentSms = c.getBoolCONSENTSMS() == null ? "" : String.valueOf(c.getBoolCONSENTSMS());
     }
 
     public ClientLambdaDTO() {
