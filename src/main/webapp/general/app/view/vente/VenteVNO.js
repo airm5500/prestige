@@ -689,7 +689,32 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             flex: 2,
                                                             displayMsg: 'nombre(s) de produit(s): {2}',
                                                             pageSize: 10,
-                                                            store: venteDetails
+                                                            store: venteDetails,
+                                                            /* Date et heure de creation de la vente en cours, juste
+                                                             * apres le bouton d'actualisation. Vide tant qu'aucune
+                                                             * vente n'est ouverte ; remise a jour a chaque
+                                                             * rechargement de la liste des articles - c'est le
+                                                             * moment ou la vente courante vient de changer (premier
+                                                             * article, rappel d'une vente, remise a zero). */
+                                                            listeners: {
+                                                                afterrender: function (barre) {
+                                                                    var rafraichir = barre.down('#refresh');
+                                                                    var position = rafraichir ? barre.items.indexOf(rafraichir) + 1 : barre.items.getCount();
+                                                                    var texte = barre.insert(position, {
+                                                                        xtype: 'tbtext', itemId: 'dateCreationVente', text: '',
+                                                                        style: 'color:#1f4e79;font-weight:600;margin-left:6px;'
+                                                                    });
+                                                                    var majDate = function () {
+                                                                        var ctrl = testextjs.app.getController('VenteCtr');
+                                                                        // « current » est la propriete que le controleur affecte directement a chaque changement de vente.
+                                                                        var vente = ctrl ? (ctrl.current || (ctrl.getCurrent ? ctrl.getCurrent() : null)) : null;
+                                                                        var quand = vente && vente.dateHeureCreation;
+                                                                        texte.setText(quand ? 'Créée le ' + quand.replace(' ', ' à ') : '');
+                                                                    };
+                                                                    barre.mon(barre.getStore(), 'load', majDate);
+                                                                    majDate();
+                                                                }
+                                                            }
 
                                                         }]
                                                 }

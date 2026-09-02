@@ -1065,6 +1065,7 @@ public class SalesServiceImpl implements SalesService {
             data.put("strREF", preenregistrement.getStrREF());
             data.put("intPRICE", preenregistrement.getIntPRICE());
             data.put("intPRICEREMISE", preenregistrement.getIntPRICEREMISE());
+            data.put("dateHeureCreation", DateCommonUtils.formatDateHeureCreation(preenregistrement.getDtCREATED()));
             json.put("success", true).put("msg", "Opération effectuée avec success").put("data", data);
             afficheurProduit(dp.getLgFAMILLEID().getStrNAME(), dp.getIntQUANTITY(), dp.getIntPRICEUNITAIR(),
                     dp.getIntPRICE());
@@ -1118,6 +1119,8 @@ public class SalesServiceImpl implements SalesService {
             data.put("lgPREENREGISTREMENTID", op.getLgPREENREGISTREMENTID());
             data.put("strREF", op.getStrREF());
             data.put("intPRICE", op.getIntPRICE());
+            // Date et heure de creation : rappelees en bas de l'ecran de vente, sous la liste des articles.
+            data.put("dateHeureCreation", DateCommonUtils.formatDateHeureCreation(op.getDtCREATED()));
             json.put("success", true).put("msg", "Opération effectuée avec success").put("data", data);
             afficheurProduit(dt.getLgFAMILLEID().getStrNAME(), dt.getIntQUANTITY(), dt.getIntPRICEUNITAIR(),
                     dt.getIntPRICE());
@@ -1282,6 +1285,7 @@ public class SalesServiceImpl implements SalesService {
             data.put("strREF", tp.getStrREF());
             data.put("intPRICE", tp.getIntPRICE());
             data.put("intPRICEREMISE", tp.getIntPRICEREMISE());
+            data.put("dateHeureCreation", DateCommonUtils.formatDateHeureCreation(tp.getDtCREATED()));
             json.put("success", true).put("msg", "Opération effectuée avec success").put("data", data);
 
             return json.put("success", true).put("msg", "Opération effectuée avec success");

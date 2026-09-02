@@ -45,6 +45,12 @@ public class VenteDTO implements Serializable {
     private Integer montantPaye = 0;// arrondi de la caisse
     private String dtUPDATED;
     private String heure;
+    /**
+     * Date et heure de CREATION de la vente (« 02/09/2026 14:35 »), rappelees en bas de l'ecran de vente. Champ a part
+     * : « dtCREATED » existe deja mais plusieurs constructeurs le remplissent avec la date de mise a jour, et des
+     * ecrans en dependent.
+     */
+    private String dateHeureCreation;
     private String dtCLOTUREAVOIR;
     private String userValidateur;
     private String strSTATUT;
@@ -420,6 +426,14 @@ public class VenteDTO implements Serializable {
         this.heure = heure;
     }
 
+    public String getDateHeureCreation() {
+        return dateHeureCreation;
+    }
+
+    public void setDateHeureCreation(String dateHeureCreation) {
+        this.dateHeureCreation = dateHeureCreation;
+    }
+
     public String getDtCLOTUREAVOIR() {
         return dtCLOTUREAVOIR;
     }
@@ -544,6 +558,8 @@ public class VenteDTO implements Serializable {
     public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit,
             ClientDTO client, List<TPreenregistrementDetail> tpds) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
+        // Rechargement d'une vente sur l'ecran de vente : date et heure de creation rappelees en bas.
+        this.dateHeureCreation = util.DateCommonUtils.formatDateHeureCreation(tp.getDtCREATED());
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
         this.intPRICE = tp.getIntPRICE();
@@ -1000,6 +1016,8 @@ public class VenteDTO implements Serializable {
     public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit,
             ClientDTO client) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
+        // Rechargement d'une vente sur l'ecran de vente : date et heure de creation rappelees en bas.
+        this.dateHeureCreation = util.DateCommonUtils.formatDateHeureCreation(tp.getDtCREATED());
         this.typeReglementAttente = tp.getStrTYPEREGLEMENTATTENTE();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();

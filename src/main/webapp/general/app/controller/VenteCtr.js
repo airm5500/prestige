@@ -3578,7 +3578,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const reglements = record.reglements;
                     me.current = {
                         'intPRICE': record.intPRICE,
-                        'lgPREENREGISTREMENTID': record.lgPREENREGISTREMENTID
+                        'lgPREENREGISTREMENTID': record.lgPREENREGISTREMENTID,
+                        // rappelee en bas de l'ecran, sous la liste des articles
+                        'dateHeureCreation': record.dateHeureCreation
                     };
                     me.netAmountToPay = null;
                     me.ayantDroit = ayantDroit;

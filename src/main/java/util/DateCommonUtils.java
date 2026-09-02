@@ -81,6 +81,17 @@ public final class DateCommonUtils {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_DD_MM_YYYY_HH_MM_SS));
     }
 
+    /**
+     * Date et heure de creation d'une vente, telles qu'on les rappelle en bas de l'ecran de vente : « 02/09/2026 14:35
+     * ». Chaine vide si la date manque, pour que l'ecran n'affiche rien plutot que « null ».
+     */
+    public static String formatDateHeureCreation(Date date) {
+        if (date == null) {
+            return "";
+        }
+        return new SimpleDateFormat("dd/MM/yyyy HH:mm").format(date);
+    }
+
     public static String formatLocalDateTime(@NotNull LocalDateTime dateToFormat, DateTimeFormatter dtf) {
         Objects.requireNonNull(dateToFormat);
         if (Objects.isNull(dtf)) {
