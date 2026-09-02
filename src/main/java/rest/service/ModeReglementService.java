@@ -22,4 +22,10 @@ public interface ModeReglementService {
 
     /** Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. */
     JSONObject setClientDefaut(String modeReglementId, String clientId);
+
+    /**
+     * Cree un mode de reglement (type + mode, meme identifiant) et le classe mobile money ou standard. Reponse
+     * {success, msg, id}.
+     */
+    JSONObject creer(String nom, boolean mobileMoney);
 }

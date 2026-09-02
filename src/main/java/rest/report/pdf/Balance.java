@@ -84,6 +84,15 @@ public class Balance {
     @EJB
     private BalanceService balanceService;
 
+    /**
+     * Somme des mouvements des modes mobile money sans colonne propre (modes crees par l'officine) : ils rejoignent la
+     * colonne « mobile » de la balance.
+     */
+    private static long sommeAutresMobiles(Map<String, List<VisualisationCaisseDTO>> parMode) {
+        return parMode.entrySet().stream().filter(e -> util.MobileMoney.estAutreOperateur(e.getKey()))
+                .flatMap(e -> e.getValue().stream()).mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+    }
+
     public String generatepdf(Params parasm, boolean exludeSome, boolean showAllAmount) {
         TUser tu = parasm.getOperateur();
         TOfficine oTOfficine = reportUtil.findOfficine();
@@ -250,6 +259,7 @@ public class Balance {
                 list = typeRe.get(DateConverter.MODE_DJAMO);
                 P_SORTIECAISSE_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                P_SORTIECAISSE_MOBILE += sommeAutresMobiles(typeRe);
                 break;
 
             case DateConverter.MVT_ENTREE_CAISSE:
@@ -282,6 +292,7 @@ public class Balance {
                 list = typeRe.get(DateConverter.MODE_DJAMO);
                 P_ENTREECAISSE_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                P_ENTREECAISSE_MOBILE += sommeAutresMobiles(typeRe);
                 break;
             case DateConverter.MVT_REGLE_TP:
                 P_REGLEMENT_LABEL = val.get(0).getTypeMouvement();
@@ -313,6 +324,7 @@ public class Balance {
                 list = typeRe.get(DateConverter.MODE_DJAMO);
                 P_REGLEMENT_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                P_REGLEMENT_MOBILE += sommeAutresMobiles(typeRe);
                 break;
             case DateConverter.MVT_REGLE_DIFF:
                 P_DIFFERE_LABEL = val.get(0).getTypeMouvement();

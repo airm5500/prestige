@@ -73,4 +73,42 @@ public class TicketZDTO {
     private long montantEntreeWave;
     private long montantEntreeDjamo;
 
+    /**
+     * Modes mobile money sans colonne propre (modes crees par l'officine) : un cumul par type, dans l'ordre de
+     * rencontre, avec le libelle du type pour l'impression.
+     */
+    private java.util.Map<String, AutreMobile> autresMobiles;
+
+    public java.util.Map<String, AutreMobile> getAutresMobiles() {
+        if (autresMobiles == null) {
+            autresMobiles = new java.util.LinkedHashMap<>();
+        }
+        return autresMobiles;
+    }
+
+    /** Le cumul du type donne, cree a la premiere rencontre. */
+    public AutreMobile autreMobile(String typeReglementId, String libelle) {
+        return getAutresMobiles().computeIfAbsent(typeReglementId, k -> new AutreMobile(libelle));
+    }
+
+    @Getter
+    @Setter
+    public static class AutreMobile {
+
+        private final String libelle;
+        private long vente;
+        private long reglement;
+        private long entree;
+        private long sortie;
+
+        public AutreMobile(String libelle) {
+            this.libelle = libelle == null ? "" : libelle;
+        }
+
+        /** Vente + sortie + entree, comme les operateurs a colonne propre dans le pied du ticket Z. */
+        public long total() {
+            return vente + sortie + entree;
+        }
+    }
+
 }

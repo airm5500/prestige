@@ -45,9 +45,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1880,6 +1882,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ticket.setDiffere(montant + ticket.getDiffere());
                 break;
             default:
+                if (util.MobileMoney.est(typeReglement)) {
+                    TicketZDTO.AutreMobile autre = ticket.autreMobile(typeReglement, b.getTypeReglement().getStrNAME());
+                    autre.setVente(autre.getVente() + montant);
+                }
                 break;
             }
         }
@@ -1949,6 +1955,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ticket.setDiffere(b.getMontantRestant() + ticket.getDiffere());
                 break;
             default:
+                // Mode mobile money cree par l'officine : meme traitement que les operateurs historiques.
+                if (util.MobileMoney.est(b.getReglement().getLgTYPEREGLEMENTID())
+                        && !applyVenteReglementDetails(ticket, b)) {
+                    TicketZDTO.AutreMobile autre = ticket.autreMobile(b.getReglement().getLgTYPEREGLEMENTID(),
+                            b.getReglement().getStrNAME());
+                    autre.setVente(autre.getVente() + b.getMontantRegle());
+                }
                 break;
             }
         }
@@ -2056,6 +2069,15 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 }
                 break;
             default:
+                if (util.MobileMoney.est(b.getReglement().getLgTYPEREGLEMENTID())) {
+                    TicketZDTO.AutreMobile autre = ticket.autreMobile(b.getReglement().getLgTYPEREGLEMENTID(),
+                            b.getReglement().getStrNAME());
+                    if (mvtIsReglement(mvtCaisse)) {
+                        autre.setReglement(autre.getReglement() + b.getMontant());
+                    } else {
+                        autre.setEntree(autre.getEntree() + b.getMontant());
+                    }
+                }
                 break;
 
             }
@@ -2101,6 +2123,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ticket.setMontantSortieDjamo(b.getMontant() + ticket.getMontantSortieDjamo());
                 break;
             default:
+                if (util.MobileMoney.est(b.getReglement().getLgTYPEREGLEMENTID())) {
+                    TicketZDTO.AutreMobile autre = ticket.autreMobile(b.getReglement().getLgTYPEREGLEMENTID(),
+                            b.getReglement().getStrNAME());
+                    autre.setSortie(autre.getSortie() + b.getMontant());
+                }
                 break;
             }
         }
@@ -2223,6 +2250,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (v.getMontantMoov() != 0) {
                 lstData.add("MOOV (vno/vo):;" + NumberUtils.formatLongToString(v.getMontantMoov()) + BREAK_LINE);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getVente() != 0) {
+                    lstData.add(autre.getLibelle() + " (vno/vo):;" + NumberUtils.formatLongToString(autre.getVente())
+                            + BREAK_LINE);
+                }
+            }
             if (totalEspUser != 0) {
                 lstData.add("Total espèce: ;" + NumberUtils.formatLongToString(totalEspUser) + BREAK_LINE2);
             }
@@ -2263,6 +2296,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 lstData.add("Total Entrée MOOV : ;" + NumberUtils.formatLongToString(v.getMontantEntreeMoov())
                         + BREAK_LINE2);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getEntree() != 0) {
+                    lstData.add("Total Entrée " + autre.getLibelle() + " : ;"
+                            + NumberUtils.formatLongToString(autre.getEntree()) + BREAK_LINE2);
+                }
+            }
             if (v.getTotalEntreeCB() != 0) {
                 lstData.add("Total Entrée CB : ;" + NumberUtils.formatLongToString(v.getTotalEntreeCB()) + BREAK_LINE2);
             }
@@ -2293,6 +2332,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (v.getMontantReglementMoov() != 0) {
                 lstData.add("Total.Regl.MOOV: ;" + NumberUtils.formatLongToString(v.getMontantReglementMoov())
                         + BREAK_LINE2);
+            }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getReglement() != 0) {
+                    lstData.add("Total.Regl." + autre.getLibelle() + ": ;"
+                            + NumberUtils.formatLongToString(autre.getReglement()) + BREAK_LINE2);
+                }
             }
             if (v.getTotalReglementCB() != 0) {
                 lstData.add("Total Regl CB: ;" + NumberUtils.formatLongToString(v.getTotalReglementCB()) + BREAK_LINE2);
@@ -2329,6 +2374,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 lstData.add("Total.Sortie.MOOV: ;" + NumberUtils.formatLongToString(v.getMontantSortieMoov())
                         + BREAK_LINE2);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getSortie() != 0) {
+                    lstData.add("Total.Sortie." + autre.getLibelle() + ": ;"
+                            + NumberUtils.formatLongToString(autre.getSortie()) + BREAK_LINE2);
+                }
+            }
             if (v.getTotalSortieVirement() != 0) {
                 lstData.add("Total Sortie Vir: ;" + NumberUtils.formatLongToString(v.getTotalSortieVirement())
                         + BREAK_LINE2);
@@ -2354,6 +2405,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         long montantMoov = 0;
         long montantWave = 0;
         long montantDjamo = 0;
+        Map<String, Long> totauxAutresMobiles = totauxAutresMobiles(tickets);
         for (TicketZDTO v : tickets) {
             totalEsp += (v.getTotalEsp() + v.getTotalEntreeEsp() + v.getTotalReglementEsp() + v.getTotalSortieEsp());
 
@@ -2398,6 +2450,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             lstData.add("TOTAL MOOV: ; " + NumberUtils.formatLongToString(montantMoov) + BREAK_LINE_FOOTER);
         }
+        totauxAutresMobiles.forEach((libelle, montant) -> lstData
+                .add("TOTAL " + libelle + ": ; " + NumberUtils.formatLongToString(montant) + BREAK_LINE_FOOTER));
         if (totalCredit != 0) {
 
             lstData.add("TOTAL (VNO/VO): ;" + NumberUtils.formatLongToString(totalCredit) + BREAK_LINE_FOOTER);
@@ -2418,6 +2472,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             lstData.add("TOTAL DIFFERE: ; " + NumberUtils.formatLongToString(differe) + BREAK_LINE_FOOTER);
         }
         return lstData;
+    }
+
+    /**
+     * Totaux globaux (vente + sortie + entree) des modes mobile money sans colonne propre, par libelle, tous vendeurs
+     * confondus ; seuls les libelles a montant non nul sont gardes.
+     */
+    private Map<String, Long> totauxAutresMobiles(Set<TicketZDTO> tickets) {
+        Map<String, Long> totaux = new LinkedHashMap<>();
+        for (TicketZDTO v : tickets) {
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                totaux.merge(autre.getLibelle(), autre.total(), Long::sum);
+            }
+        }
+        totaux.values().removeIf(montant -> montant == 0);
+        return totaux;
     }
 
     private int breakingTicketZParam() {
@@ -2568,6 +2637,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         long montantMoov = 0;
         long montantWave = 0;
         long montantDjamo = 0;
+        Map<String, Long> totauxAutresMobiles = totauxAutresMobiles(tickets);
         List<ModePaymentAmount> totauxGl = new ArrayList<>();
         for (TicketZDTO v : tickets) {
             TicketRecap ticketRecap = new TicketRecap();
@@ -2646,6 +2716,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         NumberUtils.formatLongToString(v.getMontantMoov()));
                 modePaymentAmounts.add(modePaymentAmount);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getVente() != 0) {
+                    modePaymentAmounts.add(new ModePaymentAmount(autre.getLibelle() + " (vno/vo)",
+                            NumberUtils.formatLongToString(autre.getVente())));
+                }
+            }
             if (v.getDiffere() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Différé",
                         NumberUtils.formatLongToString(v.getDiffere()));
@@ -2704,6 +2780,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         NumberUtils.formatLongToString(v.getMontantEntreeMoov()));
                 totaux.add(modePaymentAmount);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getEntree() != 0) {
+                    totaux.add(new ModePaymentAmount("Total Entrée " + autre.getLibelle(),
+                            NumberUtils.formatLongToString(autre.getEntree())));
+                }
+            }
             if (v.getTotalEntreeCB() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total Entrée CB",
                         NumberUtils.formatLongToString(v.getTotalEntreeCB()));
@@ -2743,6 +2825,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total.Regl.MOOV",
                         NumberUtils.formatLongToString(v.getMontantReglementMoov()));
                 totaux.add(modePaymentAmount);
+            }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getReglement() != 0) {
+                    totaux.add(new ModePaymentAmount("Total.Regl." + autre.getLibelle(),
+                            NumberUtils.formatLongToString(autre.getReglement())));
+                }
             }
             if (v.getTotalReglementCB() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total Regl CB",
@@ -2790,6 +2878,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         NumberUtils.formatLongToString(v.getMontantSortieMoov()));
                 totaux.add(modePaymentAmount);
             }
+            for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
+                if (autre.getSortie() != 0) {
+                    totaux.add(new ModePaymentAmount("Total.Sortie." + autre.getLibelle(),
+                            NumberUtils.formatLongToString(autre.getSortie())));
+                }
+            }
             if (v.getTotalSortieVirement() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total Sortie Vir",
                         NumberUtils.formatLongToString(v.getTotalSortieVirement()));
@@ -2834,6 +2928,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     NumberUtils.formatLongToString(montantMoov));
             totauxGl.add(modePaymentAmount);
         }
+        totauxAutresMobiles.forEach((libelle, montant) -> totauxGl
+                .add(new ModePaymentAmount("TOTAL " + libelle, NumberUtils.formatLongToString(montant))));
 
         if (totalCheque != 0) {
             ModePaymentAmount modePaymentAmount = new ModePaymentAmount("TOTAL CH",

@@ -42,6 +42,17 @@ public class TypeReglementRessource {
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
+    /**
+     * Identifiants des types mobile money : l'ecran de vente s'en sert pour reconnaitre un mode mobile (client par
+     * defaut, fractionnement mobile + mobile). Pas de cache : un mode cree doit etre reconnu tout de suite.
+     */
+    @GET
+    @Path("mobile-money")
+    public Response mobileMoney() throws JSONException {
+        List<String> data = typeReglementService.identifiantsMobileMoney();
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
     @GET
     @Path("list")
     public Response findAll() throws JSONException {

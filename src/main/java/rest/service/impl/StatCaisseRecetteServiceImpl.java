@@ -268,6 +268,10 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                     break;
 
                 default:
+                    // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
+                    if (util.MobileMoney.est(name)) {
+                        caisseRecette.setMontantMobile(caisseRecette.getMontantMobile() + montant);
+                    }
                     break;
                 }
             }

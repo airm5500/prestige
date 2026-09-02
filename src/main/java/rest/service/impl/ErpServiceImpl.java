@@ -194,6 +194,10 @@ public class ErpServiceImpl implements ErpService {
                         caComptant.setTotMobile(caComptant.getTotMobile() + e.getTotEsp());
                         break;
                     default:
+                        // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
+                        if (util.MobileMoney.est(e.getMode())) {
+                            caComptant.setTotMobile(caComptant.getTotMobile() + e.getTotEsp());
+                        }
                         break;
                     }
                 });
@@ -268,6 +272,10 @@ public class ErpServiceImpl implements ErpService {
                     caComptant.setTotMobile(caComptant.getTotMobile() + montantPaye);
                     break;
                 default:
+                    // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
+                    if (util.MobileMoney.est(typeReglement)) {
+                        caComptant.setTotMobile(caComptant.getTotMobile() + montantPaye);
+                    }
                     break;
                 }
             }

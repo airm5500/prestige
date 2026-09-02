@@ -1272,6 +1272,8 @@ public class BalanceServiceImpl implements BalanceService {
         long montantMtn = 0;
         long montantWave = 0;
         long montantDjamo = 0;
+        // Modes mobile money crees par l'officine (sans colonne propre) : comptes dans le total mobile.
+        long montantAutresMobile = 0;
 
         long totalModeReglement = 0;
 
@@ -1339,6 +1341,9 @@ public class BalanceServiceImpl implements BalanceService {
 
                 break;
             default:
+                if (util.MobileMoney.est(reglementReport.getTypeReglement())) {
+                    montantAutresMobile += amount;
+                }
                 break;
 
             }
@@ -1375,7 +1380,7 @@ public class BalanceServiceImpl implements BalanceService {
         balance.setMontantOrange(montantOrange);
         balance.setMontantMtn(montantMtn);
         balance.setMontantMobilePayment(balance.getMontantOrange() + balance.getMontantMoov() + balance.getMontantMtn()
-                + balance.getMontantWave() + balance.getMontantDjamo());
+                + balance.getMontantWave() + balance.getMontantDjamo() + montantAutresMobile);
         balance.setTotalModeReglement(totalModeReglement);
         return balance;
     }

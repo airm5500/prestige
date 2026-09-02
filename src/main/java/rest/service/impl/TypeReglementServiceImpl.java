@@ -64,4 +64,9 @@ public class TypeReglementServiceImpl implements TypeReglementService {
         return findAll().stream().filter(e -> !toExclude.contains(e.getId())).collect(Collectors.toList());
     }
 
+    @Override
+    public List<String> identifiantsMobileMoney() {
+        return util.MobileMoney.identifiants().stream().sorted().collect(Collectors.toList());
+    }
+
 }

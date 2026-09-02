@@ -331,6 +331,10 @@ public class ListCaisseServiceImpl implements ListCaisseService {
                     break;
 
                 default:
+                    // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
+                    if (util.MobileMoney.est(reglement.getTypeReglementId())) {
+                        o.setMobile(o.getMobile() + montant);
+                    }
                     break;
                 }
             }

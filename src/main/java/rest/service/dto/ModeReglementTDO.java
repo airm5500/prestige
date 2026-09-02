@@ -43,6 +43,17 @@ public class ModeReglementTDO {
         this.qrCode = qrCode;
     }
 
+    /** Vrai si le type du mode est du mobile money (voir util.MobileMoney). */
+    private boolean mobileMoney;
+
+    public boolean isMobileMoney() {
+        return mobileMoney;
+    }
+
+    public void setMobileMoney(boolean mobileMoney) {
+        this.mobileMoney = mobileMoney;
+    }
+
     /** Client standard par defaut du mode (mobile money) — lot 3. */
     private String clientDefautId;
     private String clientDefautNom;

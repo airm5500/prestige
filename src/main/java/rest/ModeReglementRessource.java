@@ -51,6 +51,16 @@ public class ModeReglementRessource {
         return Response.ok(modeReglementService.clientsMobileMoney().toString()).build();
     }
 
+    /** Cree un mode de reglement : corps JSON {name, mobileMoney}. 201 si cree, 400 sinon (msg). */
+    @javax.ws.rs.POST
+    public Response creer(String corps) {
+        org.json.JSONObject entree = new org.json.JSONObject(corps == null || corps.isBlank() ? "{}" : corps);
+        org.json.JSONObject resultat = modeReglementService.creer(entree.optString("name", ""),
+                entree.optBoolean("mobileMoney", false));
+        return Response.status(resultat.optBoolean("success") ? Response.Status.CREATED : Response.Status.BAD_REQUEST)
+                .entity(resultat.toString()).build();
+    }
+
     /** Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. */
     @javax.ws.rs.POST
     @Path("/client-defaut/{modeId}")

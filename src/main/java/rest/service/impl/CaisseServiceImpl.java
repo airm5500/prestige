@@ -219,6 +219,24 @@ public class CaisseServiceImpl implements CaisseService {
             LongAdder montantFondCaisse = new LongAdder();
             LongAdder montantMobileMoney = new LongAdder();
 
+            // Un mouvement mobile money (operateur historique ou mode cree par l'officine) va dans le
+            // meme cumul « Paiement.Mobile ».
+            java.util.function.Consumer<VisualisationCaisseDTO> mobileMoney = b -> {
+                montantMobileMoney.add(b.getMontant());
+                if (b.getTypeMvt().equals(DateConverter.MVT_REGLE_VO)
+                        || b.getTypeMvt().equals(DateConverter.MVT_REGLE_VNO)) {
+                    montantCredit.add(b.getMontantCredit());
+                    if (b.getMontant() < 0) {
+                        montantAnnulation.add(b.getMontant());
+                    }
+                } else {
+                    if (b.getMontant() < 0) {
+                        montantSortie.add(b.getMontant());
+                    } else {
+                        montantEntree.add(b.getMontant());
+                    }
+                }
+            };
             map.forEach((k, v) -> {
                 switch (k) {
                 case DateConverter.MODE_ESP:
@@ -307,25 +325,12 @@ public class CaisseServiceImpl implements CaisseService {
                 case DateConverter.TYPE_REGLEMENT_ORANGE:
                 case DateConverter.MODE_WAVE:
                 case DateConverter.MODE_DJAMO:
-                    v.forEach(b -> {
-                        montantMobileMoney.add(b.getMontant());
-                        if (b.getTypeMvt().equals(DateConverter.MVT_REGLE_VO)
-                                || b.getTypeMvt().equals(DateConverter.MVT_REGLE_VNO)) {
-                            montantCredit.add(b.getMontantCredit());
-                            if (b.getMontant() < 0) {
-                                montantAnnulation.add(b.getMontant());
-                            }
-                        } else {
-                            if (b.getMontant() < 0) {
-                                montantSortie.add(b.getMontant());
-                            } else {
-                                montantEntree.add(b.getMontant());
-                            }
-                        }
-
-                    });
+                    v.forEach(mobileMoney);
                     break;
                 default:
+                    if (util.MobileMoney.est(k)) {
+                        v.forEach(mobileMoney);
+                    }
                     break;
                 }
             });
@@ -2228,9 +2233,17 @@ public class CaisseServiceImpl implements CaisseService {
     public JSONObject pointMobileMoney(TUser user) {
         JSONObject json = new JSONObject();
         try {
-            // Modes concernes : tous les mobiles money + la carte bancaire.
-            List<String> typeIds = Arrays.asList(Constant.TYPE_REGLEMENT_ORANGE, Constant.MODE_MTN, Constant.MODE_MOOV,
-                    Constant.MODE_WAVE, Constant.MODE_DJAMO, Constant.MODE_CB);
+            // Modes concernes : tous les mobiles money (operateurs historiques + types classes MOBILE_MONEY en
+            // base, donc les modes crees par l'officine) + la carte bancaire. Ordre stable : historiques d'abord.
+            List<String> typeIds = new ArrayList<>(Arrays.asList(Constant.TYPE_REGLEMENT_ORANGE, Constant.MODE_MTN,
+                    Constant.MODE_MOOV, Constant.MODE_WAVE, Constant.MODE_DJAMO));
+            util.MobileMoney.identifiants().stream().filter(id -> !typeIds.contains(id)).sorted().forEach(typeIds::add);
+            typeIds.add(Constant.MODE_CB);
+            // Parametres positionnels ?2, ?3... (le ?1 est le caissier), un par type.
+            StringBuilder marqueurs = new StringBuilder();
+            for (int i = 0; i < typeIds.size(); i++) {
+                marqueurs.append(i == 0 ? "" : ", ").append("?").append(i + 2);
+            }
             Map<String, Object[]> aggregats = new HashMap<>();
             // Montant NET du jour : la vente annulee et sa contre-ecriture se compensent.
             //
@@ -2245,7 +2258,7 @@ public class CaisseServiceImpl implements CaisseService {
             // +1 si son net est positif, -1 s'il est negatif (contre-ecriture), 0 s'il se solde a
             // zero. Le regroupement par vente evite de compter deux fois une vente reglee par
             // plusieurs lignes du meme mode.
-            List<Object[]> rows = getEntityManager()
+            Query requete = getEntityManager()
                     .createNativeQuery("SELECT x.typeReglement, SUM(x.montant) AS montant, SUM(x.signe) AS nbVentes"
                             + " FROM (SELECT tr.lg_TYPE_REGLEMENT_ID AS typeReglement,"
                             + " SUM(vr.montant_attentu) AS montant, SIGN(SUM(vr.montant_attentu)) AS signe"
@@ -2253,13 +2266,13 @@ public class CaisseServiceImpl implements CaisseService {
                             + " INNER JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
                             + " INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
                             + " WHERE DATE(vr.mvtDate) = CURDATE() AND p.lg_USER_CAISSIER_ID = ?1"
-                            + " AND p.str_STATUT = 'is_Closed'"
-                            + " AND tr.lg_TYPE_REGLEMENT_ID IN (?2, ?3, ?4, ?5, ?6, ?7)"
+                            + " AND p.str_STATUT = 'is_Closed'" + " AND tr.lg_TYPE_REGLEMENT_ID IN (" + marqueurs + ")"
                             + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, vr.vente_id) x" + " GROUP BY x.typeReglement")
-                    .setParameter(1, user.getLgUSERID()).setParameter(2, Constant.TYPE_REGLEMENT_ORANGE)
-                    .setParameter(3, Constant.MODE_MTN).setParameter(4, Constant.MODE_MOOV)
-                    .setParameter(5, Constant.MODE_WAVE).setParameter(6, Constant.MODE_DJAMO)
-                    .setParameter(7, Constant.MODE_CB).getResultList();
+                    .setParameter(1, user.getLgUSERID());
+            for (int i = 0; i < typeIds.size(); i++) {
+                requete.setParameter(i + 2, typeIds.get(i));
+            }
+            List<Object[]> rows = requete.getResultList();
             for (Object[] r : rows) {
                 aggregats.put(String.valueOf(r[0]), r);
             }

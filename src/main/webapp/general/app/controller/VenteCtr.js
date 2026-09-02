@@ -76,7 +76,33 @@ Ext.define('testextjs.controller.VenteCtr', {
     maxChangeAllowed: 9500, // monnaie à rendre max avant alerte (anti scan)
 
     // === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
+    // Liste de repli (opérateurs historiques) ; complétée au démarrage par le
+    // serveur (point 7 : modes mobile money créés par l'officine).
     mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
+
+    chargerModesMobileMoney: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/type-reglements/mobile-money',
+            success: function (response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (json.success && Ext.isArray(json.data)) {
+                    const ids = me.mobileModeIds.slice();
+                    json.data.forEach(function (id) {
+                        if (ids.indexOf(String(id)) === -1) {
+                            ids.push(String(id));
+                        }
+                    });
+                    me.mobileModeIds = ids;
+                }
+            }
+        });
+    },
     models: [
         'testextjs.model.caisse.Nature',
         'testextjs.model.caisse.Reglement',
@@ -553,6 +579,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.refreshGridFill();
         }, 150);
         Ext.on('resize', me._onWinResizeFill);
+        me.chargerModesMobileMoney();
         this.control(
                 {
 

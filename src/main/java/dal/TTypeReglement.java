@@ -49,6 +49,9 @@ public class TTypeReglement implements Serializable {
     private String strDESCRIPTION;
     @Column(name = "str_FLAG", length = 1)
     private String strFLAG;
+    /** MOBILE_MONEY ou STANDARD : la regle unique de reconnaissance du mobile money (voir util.MobileMoney). */
+    @Column(name = "str_CATEGORIE", length = 20)
+    private String strCATEGORIE;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
     @Column(name = "dt_CREATED")
@@ -91,6 +94,14 @@ public class TTypeReglement implements Serializable {
 
     public void setStrDESCRIPTION(String strDESCRIPTION) {
         this.strDESCRIPTION = strDESCRIPTION;
+    }
+
+    public String getStrCATEGORIE() {
+        return strCATEGORIE;
+    }
+
+    public void setStrCATEGORIE(String strCATEGORIE) {
+        this.strCATEGORIE = strCATEGORIE;
     }
 
     public String getStrFLAG() {

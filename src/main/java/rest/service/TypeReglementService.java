@@ -17,4 +17,7 @@ public interface TypeReglementService {
     List<ComboDTO> findAllWithoutEspece();
 
     List<ComboDTO> findAllExclude(Set<String> toExclude);
+
+    /** Identifiants des types de reglement mobile money (historiques + categorie MOBILE_MONEY en base), tries. */
+    List<String> identifiantsMobileMoney();
 }

@@ -20,6 +20,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                         {name: 'name', type: 'string'},
                         {name: 'qrCode', type: 'auto'},
                         {name: 'typeReglementId', type: 'string'},
+                        {name: 'mobileMoney', type: 'boolean'},
                         {name: 'clientDefautId', type: 'string'},
                         {name: 'clientDefautNom', type: 'string'}
                     ],
@@ -49,6 +50,17 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
 
                 {text: 'ID', dataIndex: 'id', hidden: true},
                 {text: 'Nom', dataIndex: 'name', flex: 0.5},
+                {
+                    /* Point 7 : categorie du type (mobile money ou standard) */
+                    text: 'Catégorie',
+                    dataIndex: 'mobileMoney',
+                    width: 120,
+                    renderer: function (value) {
+                        return value
+                                ? '<span style="color:#1e7e34;font-weight:bold;">Mobile money</span>'
+                                : 'Standard';
+                    }
+                },
                 {
                     /* Lot 3 : client standard propose en selection rapide a la vente
                      * quand ce mode mobile money est choisi. */
