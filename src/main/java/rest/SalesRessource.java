@@ -322,6 +322,22 @@ public class SalesRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Stock vendable d'un produit (rayon + boites deconditionnables) pour le controle de saisie de la caisse, avant
+     * l'appel de modification de ligne. La barriere serveur de validation reste en place quoi qu'il arrive.
+     */
+    @GET
+    @Path("stock-vendable/{produitId}")
+    public Response stockVendableProduit(@PathParam("produitId") String produitId) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject jsono = salesService.stockVendableProduit(produitId);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
     @GET
     @Path("search")
     public Response searchProduct(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,

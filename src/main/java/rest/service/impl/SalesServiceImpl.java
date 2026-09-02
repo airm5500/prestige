@@ -1162,6 +1162,35 @@ public class SalesServiceImpl implements SalesService {
         return qty > stockVendable(familleStock, emplacement);
     }
 
+    /**
+     * Stock vendable d'un produit pour le controle de saisie cote caisse (avant l'appel de modification). Renvoie le
+     * stock vendable (rayon + boites du parent deconditionnables), et si le produit est deconditionnable. Sur un
+     * produit non deconditionnable, deconditionnable = false : le front laisse alors le comportement habituel.
+     */
+    @Override
+    public JSONObject stockVendableProduit(String produitId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TEmplacement emplacement = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+            TFamille famille = this.getEm().find(TFamille.class, produitId);
+            if (famille == null) {
+                return json.put("success", false).put("msg", "Produit introuvable");
+            }
+            boolean deconditionnable = famille.getBoolDECONDITIONNE() != null && famille.getBoolDECONDITIONNE() == 1;
+            TFamilleStock familleStock = this.findStock(produitId, emplacement);
+            int vendable = familleStock == null ? 0 : stockVendable(familleStock, emplacement);
+            json.put("success", true);
+            json.put("produitId", produitId);
+            json.put("deconditionnable", deconditionnable);
+            json.put("stockVendable", vendable);
+            json.put("libelle", libelleProduit(famille));
+            return json;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "stockVendableProduit", e);
+            return json.put("success", false);
+        }
+    }
+
     private static String libelleProduit(TFamille famille) {
         return (famille.getIntCIP() == null ? "" : famille.getIntCIP() + " ") + famille.getStrNAME();
     }

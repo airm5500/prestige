@@ -3187,6 +3187,47 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         this.queryClientLambda();
     },
+    /**
+     * Pre-controle du stock vendable avant une modification de quantite en grille. Interroge le serveur
+     * (v1/vente/stock-vendable/{produitId}) : si le produit est deconditionnable et que la quantite demandee
+     * depasse le stock vendable, affiche le message et retablit la quantite precedente SANS appeler l'update.
+     * Dans tous les autres cas (produit non detail, quantite couverte, ou echec du controle), poursuit via
+     * onOk() : le flux existant et la barriere serveur restent inchanges.
+     */
+    controlerVendableAvantModif: function (produitId, qte, e, onOk) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/stock-vendable/' + produitId,
+            success: function (response) {
+                let r = null;
+                try { r = Ext.JSON.decode(response.responseText, true); } catch (ex) { r = null; }
+                if (r && r.success === true && r.deconditionnable === true && qte > parseInt(r.stockVendable)) {
+                    if (e && e.originalValue !== undefined && e.originalValue !== null) {
+                        e.record.set(e.field, e.originalValue);
+                    }
+                    e.record.commit();
+                    me.refresh();
+                    me.autoComputeNetAfterChange();
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Stock insuffisant pour ' + (r.libelle || 'ce produit')
+                                + ' : plus aucune boîte à déconditionner. Veuillez réduire la quantité.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+                    });
+                    return;
+                }
+                onOk();
+            },
+            failure: function () {
+                // controle indisponible : ne pas bloquer, laisser le flux normal (la validation serveur protege)
+                onOk();
+            }
+        });
+    },
     updateventeOngrid: function (editor, e, url, params) {
         const me = this;
         let record = e.record;
@@ -3377,7 +3418,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "qteServie": qteServie,
                 "produitId": record.get('lgFAMILLEID')
             };
-            me.updateventeOngrid(editor, e, url, params);
+            // Pre-controle du stock vendable AVANT l'appel de modification : pour un produit detail, une
+            // quantite au-dela du stock vendable (rayon + boites deconditionnables) est bloquee des la saisie,
+            // sans aller-retour d'update. Le controle interroge le serveur (source unique de la regle) ; en cas
+            // d'echec de ce pre-controle (reseau, produit non deconditionnable), on retombe sur le flux normal
+            // et la barriere serveur de validation reste en place. Zero regression : rien n'est retire.
+            me.controlerVendableAvantModif(record.get('lgFAMILLEID'), parseInt(record.get('intQUANTITY')), e,
+                    function () { me.updateventeOngrid(editor, e, url, params); });
         } else if (e.field === 'intQUANTITYSERVED') {
             if (parseInt(record.get('intQUANTITYSERVED')) > parseInt(record.get('intQUANTITY'))) {
                 editor.cancelEdit();
