@@ -839,6 +839,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } catch (Exception e) {
                 LOG.log(Level.SEVERE, null, e);
             }
+            // Vue details de la fiche article : date de peremption la plus proche (lot en stock, sinon fiche)
+            json.put("dt_PEREMPTION_PROCHE", datePeremptionProche(t));
 
             try {
 
@@ -955,6 +957,24 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
         }
         return date;
+    }
+
+    /**
+     * Date de peremption la plus proche d'un produit : le lot en stock qui perime le premier (perime compris, c'est
+     * justement ce qu'il faut voir), sinon la date de peremption portee par la fiche. Vide s'il n'y en a aucune.
+     */
+    public String datePeremptionProche(TFamille t) {
+        try {
+            List<java.util.Date> lots = em.createQuery(
+                    "SELECT l.dtPEREMPTION FROM TLot l WHERE l.lgFAMILLEID.lgFAMILLEID = ?1"
+                            + " AND l.dtPEREMPTION IS NOT NULL AND l.currentStock > 0 ORDER BY l.dtPEREMPTION ASC",
+                    java.util.Date.class).setParameter(1, t.getLgFAMILLEID()).setMaxResults(1).getResultList();
+            java.util.Date d = lots.isEmpty() ? t.getDtPEREMPTION() : lots.get(0);
+            return d == null ? "" : new java.text.SimpleDateFormat("dd/MM/yyyy").format(d);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "datePeremptionProche", e);
+            return "";
+        }
     }
 
     public String dateDerniereVente(String lgFAMILLEID, TUser user) {

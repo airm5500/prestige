@@ -283,6 +283,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     flex: 1
                                 },
                                 {
+                                    // Date de peremption la plus proche (lot en stock, sinon date de la fiche) :
+                                    // rouge clignotant pour qu'elle saute aux yeux. Cachee quand il n'y en a pas.
+                                    hideLabel: true,
+                                    name: 'peremption_proche_detail',
+                                    id: 'peremption_proche_detail',
+                                    hidden: true,
+                                    width: 250,
+                                    margin: '0 20 0 0'
+                                },
+                                {
                                     fieldLabel: 'EAN 13',
                                     labelWidth: 55,
                                     labelStyle: 'color:#7a7a7a;font-size:13px',
@@ -348,16 +358,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             id: 'lg_FAMILLEARTICLE_ID'
                                         },
                                         {
-                                            fieldLabel: 'Code.Acte',
-                                            name: 'lg_CODE_ACTE_ID',
-                                            id: 'lg_CODE_ACTE_ID'
-                                        },
-                                        {
-                                            fieldLabel: 'Code etiquette',
-                                            name: 'lg_TYPEETIQUETTE_ID',
-                                            id: 'lg_TYPEETIQUETTE_ID'
-                                        },
-                                        {
                                             fieldLabel: 'Code.Gestion',
                                             name: 'lg_CODE_GESTION_ID',
                                             id: 'lg_CODE_GESTION_ID'
@@ -413,11 +413,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             hidden: true
                                         },
                                         {
-                                            fieldLabel: 'Prix.Reference',
-                                            name: 'int_PRICE_TIPS',
-                                            id: 'int_PRICE_TIPS'
-                                        },
-                                        {
                                             fieldLabel: 'Taux.Marque',
                                             name: 'int_TAUX_MARQUE',
                                             id: 'int_TAUX_MARQUE'
@@ -432,11 +427,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             name: 'str_CODE_TVA',
                                             id: 'str_CODE_TVA',
                                             fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
-                                        },
-                                        {
-                                            fieldLabel: 'Code.Taux.Remb',
-                                            name: 'str_CODE_TAUX_REMBOURSEMENT',
-                                            id: 'str_CODE_TAUX_REMBOURSEMENT'
                                         }
                                     ]
                                 },
@@ -1171,6 +1161,46 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         });
     },
 
+    /**
+     * Date de derniere vente accompagnee d'une lecture immediate : « 01/08/2025 14:20 (non vendu depuis 32
+     * jours) » en rouge, « vendu aujourd'hui » en vert, « jamais vendu » en rouge.
+     */
+    texteDerniereVente: function (valeur) {
+        if (!valeur) {
+            return '<span style="color:#c0392b;">Jamais vendu</span>';
+        }
+        var m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(String(valeur));
+        if (!m) {
+            return valeur;
+        }
+        var d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+        var aujourdhui = new Date();
+        aujourdhui.setHours(0, 0, 0, 0);
+        var jours = Math.round((aujourdhui - d) / 86400000);
+        if (jours <= 0) {
+            return valeur + ' <span style="color:#1e7e34;">(vendu aujourd\'hui)</span>';
+        }
+        return valeur + ' <span style="color:#c0392b;">(non vendu depuis ' + jours + ' jour' + (jours > 1 ? 's' : '') + ')</span>';
+    },
+    /** Date de peremption la plus proche en rouge clignotant dans le bandeau ; cachee si absente. */
+    afficherPeremptionProche: function (valeur) {
+        var cmp = Ext.getCmp('peremption_proche_detail');
+        if (!cmp) {
+            return;
+        }
+        if (!valeur) {
+            cmp.hide();
+            return;
+        }
+        if (!Ext.get('css-peremption-clignote')) {
+            Ext.util.CSS.createStyleSheet(
+                    '@keyframes peremptionClignote { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }'
+                    + ' .peremption-clignote { color:#d40000;font-weight:bold;font-size:16px;'
+                    + 'animation: peremptionClignote 1s step-end infinite; }', 'css-peremption-clignote');
+        }
+        cmp.setValue('<span class="peremption-clignote">Péremption : ' + Ext.String.htmlEncode(valeur) + '</span>');
+        cmp.show();
+    },
     updateCmp: function (rec) {
         // Separateur de millier (espace) pour les montants affiches.
         const formatMillier = function (v) {
@@ -1196,19 +1226,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(rec.int_STOCK_REAPROVISONEMENT);
         Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(rec.int_QTE_REAPPROVISIONNEMENT);
         Ext.getCmp('str_CODE_REMISE').setValue(rec.str_CODE_REMISE);
-        Ext.getCmp('lg_TYPEETIQUETTE_ID').setValue(rec.lg_TYPEETIQUETTE_ID);
         Ext.getCmp('dt_LAST_INVENTAIRE').setValue(rec.dt_LAST_INVENTAIRE);
         Ext.getCmp('dt_LAST_ENTREE').setValue(rec.dt_LAST_ENTREE);
         Ext.getCmp('dt_DATE_LIVRAISON').setValue(rec.dt_DATE_LIVRAISON);
-        Ext.getCmp('dt_LAST_VENTE').setValue(rec.dt_LAST_VENTE);
+        Ext.getCmp('dt_LAST_VENTE').setValue(this.texteDerniereVente(rec.dt_LAST_VENTE));
+        this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE);
         Ext.getCmp('str_CODE_TVA').setValue(rec.lg_CODE_TVA_ID);
         Ext.getCmp('int_T').setValue(rec.int_T);
-        Ext.getCmp('str_CODE_TAUX_REMBOURSEMENT').setValue(rec.str_CODE_TAUX_REMBOURSEMENT);
-        Ext.getCmp('lg_CODE_ACTE_ID').setValue(rec.lg_CODE_ACTE_ID);
         Ext.getCmp('int_TAUX_MARQUE').setValue(rec.int_TAUX_MARQUE);
         Ext.getCmp('int_PAF').setValue(formatMillier(rec.int_PAF));
         Ext.getCmp('int_PAT').setValue(rec.int_PAT);
-        Ext.getCmp('int_PRICE_TIPS').setValue(rec.int_PRICE_TIPS);
         Ext.getCmp('int_PRICE').setValue(formatMillier(rec.int_PRICE));
         Ext.getCmp('str_CODE_GEO_ARTICLE').setValue(rec.str_CODE_GEO_ARTICLE);
         Ext.getCmp('int_Q1_SEUIL_REAPPRO').setValue(rec.int_Q1_SEUIL_REAPPRO);

@@ -617,6 +617,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             if (ds.P_UPDATE_CODETABLEAU === false) g('int_T').disable();
             if (ds.P_UPDATE_CODEREMISE === false) g('str_CODE_REMISE').disable();
             if (ds.P_UPDATE_CIP === false) { g('int_CIP').disable(); g('btnGenererCip').disable(); }
+            // Le generateur de code CIP ne sert qu'a la creation : en modification le bouton n'apparait pas.
+            if (Omode === 'update') { var btnCip = g('btnGenererCip'); if (btnCip) { btnCip.hide(); } }
             if (ds.P_UPDATE_DESIGNATION === false) g('str_DESCRIPTION').disable();
 
             ref = ds.lg_FAMILLE_ID;
@@ -1101,8 +1103,18 @@ Ext.Ajax.request({
         const newPaf = Math.round(this.basePaf / qteDetail);
         const newPrice = Math.round(this.basePrice / qteDetail);
 
+        // Le recalcul des prix relance une mise en page du formulaire, qui remettait son
+        // defilement a zero : la fenetre « sautait » a chaque chiffre saisi dans la quantite,
+        // alors que le champ avait ete amene en bas de l'ecran par le focus. On conserve le
+        // defilement tel qu'il etait avant le recalcul.
+        var formulaire = field.up('form'), corps = formulaire && formulaire.body ? formulaire.body.dom : null;
+        var defilement = corps ? corps.scrollTop : null;
         pafField.setValue(newPaf);
         priceField.setValue(newPrice);
+        if (corps && defilement !== null) {
+            corps.scrollTop = defilement;
+            Ext.defer(function () { corps.scrollTop = defilement; }, 30);
+        }
     },
 
     onCreateDetailProduit: function (internal_url, lgFamilleId, strCodeRemise, intTauxMarque, intPriceTips, intPrice, boolDeconditionne, mode, view, type, win) {
