@@ -553,7 +553,7 @@ Ext.define('testextjs.controller.DepotCtr', {
                                                         var produit = result.data;
                                                         var qtyDetail = produit.intNUMBERDETAIL, nbreBoite = produit.intNUMBERAVAILABLE;
                                                         var stockParent = (nbreBoite * qtyDetail) + stock;
-                                                        if (qte < stockParent) {
+                                                        if (qte <= stockParent) {
                                                             me.addVenteDepot(me.buildSaleParams(record, qte), url, field, produitCmp);
                                                         } else {
 
@@ -817,7 +817,7 @@ Ext.define('testextjs.controller.DepotCtr', {
                                     var produit = result.data;
                                     var qtyDetail = produit.intNUMBERDETAIL, nbreBoite = produit.intNUMBERAVAILABLE;
                                     var stockParent = (nbreBoite * qtyDetail) + stock;
-                                    if (qte < stockParent) {
+                                    if (qte <= stockParent) {
                                         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                         Ext.Ajax.request({
                                             method: 'POST',

@@ -1098,7 +1098,7 @@ public class SalesServiceImpl implements SalesService {
 
     private boolean forcerStock(int qty, String familleId, TEmplacement em) {
         TFamilleStock familleStock = this.findStock(familleId, em);
-        if (qty > familleStock.getIntNUMBERAVAILABLE()) {
+        if (qty > stockVendable(familleStock, em)) {
             Optional<TParameters> o = findParamettre("FORCER_STOCK_VENTE");
             if (o.isEmpty()) {
                 return true;
@@ -1109,6 +1109,35 @@ public class SalesServiceImpl implements SalesService {
             return true;
         }
 
+    }
+
+    /**
+     * Stock reellement vendable d'un produit. Pour un produit detail, les boites du parent encore deconditionnables
+     * s'ajoutent au stock detail : sans elles, la saisie refusait la vente ("Impossible de forcer le stock") des que
+     * FORCER_STOCK_VENTE valait 0, et le deconditionnement automatique de la validation (updateVenteStock) devenait
+     * inatteignable.
+     */
+    private int stockVendable(TFamilleStock familleStock, TEmplacement em) {
+        int stockDetail = familleStock.getIntNUMBERAVAILABLE();
+        try {
+            TFamille famille = familleStock.getLgFAMILLEID();
+            if (famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1
+                    || StringUtils.isEmpty(famille.getLgFAMILLEPARENTID())) {
+                return stockDetail;
+            }
+            TFamille parent = this.getEm().find(TFamille.class, famille.getLgFAMILLEPARENTID());
+            if (parent == null || parent.getIntNUMBERDETAIL() == null || parent.getIntNUMBERDETAIL() <= 0) {
+                return stockDetail;
+            }
+            TFamilleStock stockParent = this.findStock(parent.getLgFAMILLEID(), em);
+            if (stockParent == null) {
+                return stockDetail;
+            }
+            return stockDetail + (stockParent.getIntNUMBERAVAILABLE() * parent.getIntNUMBERDETAIL());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stockVendable", e);
+            return stockDetail;
+        }
     }
 
     @Override

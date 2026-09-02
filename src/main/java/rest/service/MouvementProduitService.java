@@ -70,9 +70,6 @@ public interface MouvementProduitService {
 
     void updatefamillenbvente(TFamille famille, Integer qty, boolean updatable);
 
-    void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg,
-            TEmplacement depot) throws Exception;
-
     void updateStockDepot(TUser ooTUser, TPreenregistrement op, TEmplacement emplacement, EntityManager emg)
             throws Exception;
 

@@ -219,9 +219,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             }
 
             updatefamillenbvente(tFamille, it.getIntQUANTITY(), isDepot);
+            // qteFinale lue sur le stock courant (mis a jour par le deconditionnement eventuel), pas sur
+            // initStock fige avant le decon : sinon la ligne VENTE historisait un stock final faux.
             mouvementProduitService.saveMvtProduit(it.getIntPRICEUNITAIR(), it, typemvtproduit, tFamille, tu,
-                    emplacement, it.getIntQUANTITY(), initStock, initStock - it.getIntQUANTITY(), it.getValeurTva(),
-                    tp.getChecked(), it.getIntUG());
+                    emplacement, it.getIntQUANTITY(), initStock,
+                    familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY(), it.getValeurTva(), tp.getChecked(),
+                    it.getIntUG());
             updateStock(familleStock, tp, it);
             this.getEmg().merge(familleStock);
             this.getEmg().merge(it);
@@ -489,7 +492,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ofamilleStockParent.setIntNUMBER(ofamilleStockParent.getIntNUMBERAVAILABLE());
             ofamilleStockParent.setDtUPDATED(new Date());
 
-            familleStockChild.setIntNUMBERAVAILABLE(familleStockChild.getIntNUMBERAVAILABLE() + qteDecon - qteVendue);
+            // Le deconditionnement n'ajoute que les details sortis des boites : la vente elle-meme est
+            // deduite une seule fois par updateStock() dans updateVenteStockDepot (elle etait deduite deux
+            // fois, ce qui faussait le stock detail de la quantite vendue a chaque vente depot avec decon).
+            familleStockChild.setIntNUMBERAVAILABLE(familleStockChild.getIntNUMBERAVAILABLE() + qteDecon);
             familleStockChild.setIntNUMBER(familleStockChild.getIntNUMBERAVAILABLE());
             familleStockChild.setDtUPDATED(new Date());
             this.getEmg().merge(ofamilleStockParent);
@@ -499,7 +505,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
             mouvementProduitService.saveMvtProduit(child.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_POSITIF,
                     tFamilleChild, tu, ofamilleStockParent.getLgEMPLACEMENTID(), qteDecon, stockInitDetail,
-                    stockInitDetail + qteDecon - qteVendue, 0);
+                    stockInitDetail + qteDecon, 0);
             mouvementProduitService.saveMvtProduit(parent.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_NEGATIF,
                     tFamilleParent, tu, ofamilleStockParent.getLgEMPLACEMENTID(), numberToDecondition, stockInit,
                     stockInit - numberToDecondition, 0);
@@ -507,8 +513,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                     + tFamilleParent.getIntPRICE() + " stock initial " + stockInit + " quantité déconditionnée "
                     + numberToDecondition + " stock finale " + (stockInit - numberToDecondition)
                     + " stock détail initial  " + stockInitDetail + " stock détail final = "
-                    + (stockInitDetail + (numberToDecondition * qtyDetail) - qteVendue) + " . Opérateur : "
-                    + tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
+                    + (stockInitDetail + qteDecon) + " . Opérateur : " + tu.getStrFIRSTNAME() + " "
+                    + tu.getStrLASTNAME();
             logService.updateItem(tu, tFamilleParent.getIntCIP(), desc, TypeLog.DECONDITIONNEMENT, tFamilleParent);
 
             /*
@@ -529,7 +535,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             detail.put(NotificationUtils.ITEM_QTY.getId(), (numberToDecondition * qtyDetail));
             detail.put(NotificationUtils.ITEM_QTY_INIT.getId(), stockInitDetail);
             detail.put(NotificationUtils.ITEM_QTY_FINALE.getId(), stockInitDetail + (numberToDecondition * qtyDetail));
-            jsonItemUg.put(NotificationUtils.ITEMS.getId(), new JSONArray(detail));
+            // new JSONArray(JSONObject) leve JSONException (constructeur reserve aux collections/tableaux) :
+            // l'exception faisait echouer TOUTE cloture de vente depot necessitant un deconditionnement.
+            jsonItemUg.put(NotificationUtils.ITEMS.getId(), new JSONArray().put(detail));
             items.put(jsonItemUg);
 
             Map<String, Object> donnee = new HashMap<>();

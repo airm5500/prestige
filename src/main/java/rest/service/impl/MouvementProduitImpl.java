@@ -683,64 +683,8 @@ public class MouvementProduitImpl implements MouvementProduitService {
         }
     }
 
-    private TFamille findProduitById(String id, EntityManager emg) {
-
-        try {
-            return emg.find(TFamille.class, id);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public boolean checkIsVentePossible(TFamilleStock OTFamilleStock, int qte) {
         return OTFamilleStock.getIntNUMBERAVAILABLE() >= qte;
-    }
-
-    private TDeconditionnement createDecondtionne(TFamille OTFamille, int int_NUMBER, TUser tUser, EntityManager emg) {
-
-        TDeconditionnement OTDeconditionnement = new TDeconditionnement();
-        OTDeconditionnement.setLgDECONDITIONNEMENTID(UUID.randomUUID().toString());
-        OTDeconditionnement.setLgFAMILLEID(OTFamille);
-        OTDeconditionnement.setLgUSERID(tUser);
-        OTDeconditionnement.setIntNUMBER(int_NUMBER);
-        OTDeconditionnement.setDtCREATED(new Date());
-        OTDeconditionnement.setStrSTATUT(commonparameter.statut_enable);
-        emg.persist(OTDeconditionnement);
-        return OTDeconditionnement;
-    }
-
-    private TFamilleStock deconditionner(TUser tu, TEmplacement te, TFamille OTFamilleChild, TFamille OTFamilleParent,
-            TFamilleStock OTFamilleStockParent, TFamilleStock OTFamilleStockChild, Integer qteVendue,
-            EntityManager emg) {
-        Integer qtyDetail = OTFamilleParent.getIntNUMBERDETAIL();
-        // stockInitDetail ne doit jamais etre mute : il est historise tel quel dans h_mvt_produit
-        final Integer stockInitDetail = OTFamilleStockChild.getIntNUMBERAVAILABLE();
-        Integer stockInit = OTFamilleStockParent.getIntNUMBERAVAILABLE();
-        Integer stockVirtuel = stockInitDetail + (stockInit * qtyDetail);
-        int compare = stockVirtuel.compareTo(qteVendue);
-        if (compare >= 0) {
-            Integer numberToDecondition = util.DeconditionnementCalcul.boitesNecessaires(stockInitDetail, qteVendue,
-                    qtyDetail);
-            int qteDecon = numberToDecondition * qtyDetail;
-            OTFamilleStockParent
-                    .setIntNUMBERAVAILABLE(OTFamilleStockParent.getIntNUMBERAVAILABLE() - numberToDecondition);
-            OTFamilleStockParent.setIntNUMBER(OTFamilleStockParent.getIntNUMBERAVAILABLE());
-            OTFamilleStockParent.setDtUPDATED(new Date());
-            OTFamilleStockChild.setIntNUMBERAVAILABLE(OTFamilleStockChild.getIntNUMBERAVAILABLE() + qteDecon);
-            OTFamilleStockChild.setIntNUMBER(OTFamilleStockChild.getIntNUMBERAVAILABLE());
-            OTFamilleStockChild.setDtUPDATED(new Date());
-            emg.merge(OTFamilleStockParent);
-            emg.merge(OTFamilleStockChild);
-            TDeconditionnement parent = createDecondtionne(OTFamilleParent, numberToDecondition, tu, emg);
-            TDeconditionnement child = createDecondtionne(OTFamilleChild, qteDecon, tu, emg);
-            saveMvtProduit(child.getLgDECONDITIONNEMENTID(), DateConverter.DECONDTIONNEMENT_POSITIF, OTFamilleChild, tu,
-                    OTFamilleStockParent.getLgEMPLACEMENTID(), qteDecon, stockInitDetail, stockInitDetail + qteDecon,
-                    0);
-            saveMvtProduit(parent.getLgDECONDITIONNEMENTID(), DateConverter.DECONDTIONNEMENT_NEGATIF, OTFamilleParent,
-                    tu, OTFamilleStockParent.getLgEMPLACEMENTID(), numberToDecondition, stockInit,
-                    stockInit - numberToDecondition, 0);
-        }
-        return OTFamilleStockChild;
     }
 
     private List<TPreenregistrementDetail> getTPreenregistrementDetail(TPreenregistrement tp, EntityManager emg) {
@@ -816,53 +760,6 @@ public class MouvementProduitImpl implements MouvementProduitService {
         }
         saveMvtProduit(familleStock.getLgFAMILLESTOCKID(), getTypemvtproduitByID(DateConverter.ENTREE_EN_STOCK),
                 tFamille, ooTUser, tmplacement, qty, initStock, qteFinale, emg, 0, true);
-    }
-
-    @Override
-    public void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg,
-            TEmplacement depot) throws Exception {
-        TUser tu = tp.getLgUSERID();
-        final TEmplacement emplacement = tu.getLgEMPLACEMENTID();
-        final String emplacementId = emplacement.getLgEMPLACEMENTID();
-        final boolean isDepot = !("1".equals(emplacementId));
-        final Typemvtproduit typemvtproduit = getTypemvtproduitByID(DateConverter.TMVTP_VENTE_DEPOT_EXTENSION);
-        list.stream().forEach(it -> {
-            it.setStrSTATUT(Constant.STATUT_IS_CLOSED);
-            TFamille tFamille = it.getLgFAMILLEID();
-            TCodeTva tva = tFamille.getLgCODETVAID();
-            Integer valeurTva = 0;
-            if (tva != null) {
-                valeurTva = tva.getIntVALUE();
-            }
-            TFamilleStock familleStock = findStock(tFamille.getLgFAMILLEID(), emplacement);
-            Integer qtyDebut = familleStock.getIntNUMBERAVAILABLE();
-            if (tFamille.getBoolDECONDITIONNE() == 1) {
-                if (!checkIsVentePossible(familleStock, it.getIntQUANTITY())) {
-                    TFamille oTFamilleParent = findProduitById(tFamille.getLgFAMILLEPARENTID(), emg);
-                    TFamilleStock stockParent = findByProduitId(oTFamilleParent.getLgFAMILLEID(),
-                            emplacement.getLgEMPLACEMENTID());
-                    familleStock = deconditionner(tu, emplacement, tFamille, oTFamilleParent, stockParent, familleStock,
-                            it.getIntQUANTITY(), emg);
-                    saveMvtProduit(it.getLgPREENREGISTREMENTDETAILID(), typemvtproduit, tFamille, tu, emplacement,
-                            it.getIntQUANTITY(), qtyDebut, (familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY()),
-                            emg, valeurTva, false);
-                } else {
-                    familleStock.setIntNUMBERAVAILABLE(familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY());
-                    emg.merge(familleStock);
-                    saveMvtProduit(it.getLgPREENREGISTREMENTDETAILID(), typemvtproduit, tFamille, tu, emplacement,
-                            it.getIntQUANTITY(), qtyDebut, (qtyDebut - it.getIntQUANTITY()), emg, valeurTva, false);
-                }
-            } else {
-                familleStock.setIntNUMBERAVAILABLE(familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY());
-                emg.merge(familleStock);
-                saveMvtProduit(it.getLgPREENREGISTREMENTDETAILID(), typemvtproduit, tFamille, tu, emplacement,
-                        it.getIntQUANTITY(), qtyDebut, (qtyDebut - it.getIntQUANTITY()), emg, valeurTva, false);
-            }
-            updatefamillenbvente(tFamille, it.getIntQUANTITY(), isDepot);
-            emg.merge(it);
-            updateStockDepot(tu, tFamille, it.getIntQUANTITYSERVED(), depot, emg);
-            suggestionService.makeSuggestionAuto(familleStock, tFamille);
-        });
     }
 
     @Override
