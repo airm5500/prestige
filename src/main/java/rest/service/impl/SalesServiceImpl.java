@@ -1133,11 +1133,50 @@ public class SalesServiceImpl implements SalesService {
             if (stockParent == null) {
                 return stockDetail;
             }
-            return stockDetail + (stockParent.getIntNUMBERAVAILABLE() * parent.getIntNUMBERDETAIL());
+            return util.DeconditionnementCalcul.stockVendable(stockDetail, stockParent.getIntNUMBERAVAILABLE(),
+                    parent.getIntNUMBERDETAIL());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "stockVendable", e);
             return stockDetail;
         }
+    }
+
+    /**
+     * Controle a passer AVANT toute ecriture de cloture : chaque produit detail de la vente doit encore etre couvert
+     * par le stock vendable (rayon plus boites du parent deconditionnables). Entre l'ajout au panier et la validation,
+     * le stock a pu changer (autre caisse, vente de la boite, deconditionnement) ; sans ce controle la validation
+     * passait quand meme et laissait le stock detail negatif, cas de gestion non gere. Retourne le libelle du premier
+     * produit qui ne peut plus etre servi, vide si la vente peut etre validee.
+     */
+    private Optional<String> produitDetailInvendable(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+        for (TPreenregistrementDetail it : items) {
+            TFamille famille = it.getLgFAMILLEID();
+            if (famille == null || famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1) {
+                continue;
+            }
+            TFamilleStock familleStock = this.findStock(famille.getLgFAMILLEID(), emplacement);
+            if (familleStock == null) {
+                continue;
+            }
+            if (it.getIntQUANTITY() > stockVendable(familleStock, emplacement)) {
+                return Optional
+                        .of((famille.getIntCIP() == null ? "" : famille.getIntCIP() + " ") + famille.getStrNAME());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private boolean refuserVenteDetailInvendable(JSONObject json, TPreenregistrement tp,
+            List<TPreenregistrementDetail> items) throws JSONException {
+        Optional<String> produit = produitDetailInvendable(items, tp.getLgUSERID().getLgEMPLACEMENTID());
+        if (produit.isPresent()) {
+            json.put("success", false);
+            json.put("msg", "Impossible de valider la vente : stock insuffisant pour " + produit.get()
+                    + " et plus aucune boîte à déconditionner. Veuillez modifier la vente.");
+            json.put("codeError", 0);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -2100,6 +2139,9 @@ public class SalesServiceImpl implements SalesService {
                 json.put("codeError", 0);
                 return json;
             }
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
             int montant = tp.getIntPRICE();
             if (diffAmount(montant, lstTPreenregistrementDetail)) {
                 json.put("success", false);
@@ -2365,6 +2407,9 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false);
                 json.put("msg", "Vous devez ajouter des lignes à la vente avant de la finaliser");
                 json.put("codeError", 0);
+                return json;
+            }
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
                 return json;
             }
 
@@ -3186,6 +3231,9 @@ public class SalesServiceImpl implements SalesService {
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
             Optional<TTypeMvtCaisse> typeMvtCaisse = getOne(KEY_PARAM_MVT_VENTE_ORDONNANCE);
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
             boolean isAvoir = checkAvoir(lstTPreenregistrementDetail);
             String statut = statutDiff(clotureVenteParams.getTypeRegleId());
             TUser vendeur = userFromId(clotureVenteParams.getUserVendeurId());
@@ -3292,6 +3340,9 @@ public class SalesServiceImpl implements SalesService {
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
             Optional<TTypeMvtCaisse> typeMvtCaisse = getOne(KEY_PARAM_MVT_VENTE_NON_ORDONNANCEE);
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
 
             int montant = tp.getIntPRICE();
             if (diffAmount(montant, lstTPreenregistrementDetail)) {

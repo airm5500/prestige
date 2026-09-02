@@ -51,6 +51,24 @@ public class DeconditionnementCalculTest {
     }
 
     @Test
+    public void stockVendableAdditionneRayonEtBoites() {
+        // cas rapporte : 10 details en rayon, plus aucune boite -> on peut vendre 10, pas 11
+        assertEquals(10, DeconditionnementCalcul.stockVendable(10, 0, 100));
+        // 4 en rayon + 1 boite de 100
+        assertEquals(104, DeconditionnementCalcul.stockVendable(4, 1, 100));
+        // rien en rayon, 2 boites de 10
+        assertEquals(20, DeconditionnementCalcul.stockVendable(0, 2, 10));
+    }
+
+    @Test
+    public void stockVendableNeutraliseLesValeursInvalides() {
+        // nombre de details par boite invalide ou stock de boites negatif : seules les unites en rayon comptent
+        assertEquals(7, DeconditionnementCalcul.stockVendable(7, 5, 0));
+        assertEquals(7, DeconditionnementCalcul.stockVendable(7, 5, -1));
+        assertEquals(7, DeconditionnementCalcul.stockVendable(7, -3, 100));
+    }
+
+    @Test
     public void nombreDeDetailsParBoiteInvalide() {
         // l'ancienne boucle while ne terminait jamais dans ce cas ; le garde-fou stockVirtuel l'evitait en amont,
         // la fonction doit rester sure meme appelee directement

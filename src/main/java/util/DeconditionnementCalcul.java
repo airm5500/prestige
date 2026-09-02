@@ -21,4 +21,16 @@ public final class DeconditionnementCalcul {
         int manque = qteVendue - stockDetail;
         return (manque + qtyDetail - 1) / qtyDetail;
     }
+
+    /**
+     * Stock reellement vendable d'un produit detail : le stock detail en rayon plus les details encore contenus dans
+     * les boites du parent. Un nombre de details par boite invalide neutralise les boites plutot que de fausser le
+     * calcul.
+     */
+    public static int stockVendable(int stockDetail, int stockBoites, int qtyDetail) {
+        if (qtyDetail <= 0 || stockBoites <= 0) {
+            return stockDetail;
+        }
+        return stockDetail + (stockBoites * qtyDetail);
+    }
 }
