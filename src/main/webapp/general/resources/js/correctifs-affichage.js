@@ -353,7 +353,20 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     }
 
     panneau.on('afterrender', function () {
+        var conteneur = panneau.ownerCt;
         Ext.Function.defer(ajusterPuisVerifier, 1);
+        // L'ecran suit aussi le panneau central lui-meme, pas seulement la fenetre du
+        // navigateur : quand le panneau central change de taille sans que la fenetre ait
+        // bouge (mise en page relancee apres un blocage du moteur, cf. section 4), l'ecran
+        // colle reprenait sinon son ancienne taille jusqu'au prochain redimensionnement.
+        // Sans boucle possible : la taille du panneau central est fixee par la fenetre,
+        // redimensionner l'ecran qu'il contient ne le fait pas changer de taille.
+        if (conteneur && conteneur.on) {
+            conteneur.on('resize', ajusterPuisVerifier);
+            panneau.on('destroy', function () {
+                conteneur.un('resize', ajusterPuisVerifier);
+            });
+        }
     });
     Ext.EventManager.onWindowResize(ajusterPuisVerifier);
     panneau.on('destroy', function () {
