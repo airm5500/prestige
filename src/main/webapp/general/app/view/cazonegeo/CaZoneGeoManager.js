@@ -17,7 +17,7 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
     height: 620,
     minHeight: 620,
     tabPosition: 'top',
-    title: 'Chiffre d\'affaires par zone géographique',
+    title: 'Analyse CA par emplacement / famille',
 
     initComponent: function () {
         const me = this;

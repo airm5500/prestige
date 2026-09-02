@@ -84,6 +84,50 @@
 /* global Ext */
 window.PrestigeAffichage = window.PrestigeAffichage || {};
 
+/*
+ * Editions PDF longues : l'onglet doit etre ouvert DANS le clic de l'utilisateur. Ouvert plus
+ * tard, a l'arrivee de la reponse du serveur, le navigateur le prend pour une fenetre
+ * surgissante et le bloque (Firefox, Chrome) des que l'edition dure plus d'une seconde.
+ *   var onglet = PrestigeEditions.ouvrirOnglet();   // au clic : onglet vide « Édition en cours... »
+ *   PrestigeEditions.afficher(onglet, url);          // a la reponse : le PDF s'y charge
+ *   PrestigeEditions.fermer(onglet);                 // en cas d'echec
+ * Si le navigateur refuse malgre tout l'onglet (null), on retombe sur window.open a la reponse.
+ */
+window.PrestigeEditions = {
+    ouvrirOnglet: function () {
+        var onglet = null;
+        try {
+            onglet = window.open('', '_blank');
+            if (onglet && onglet.document) {
+                onglet.document.write('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Édition en cours</title>'
+                        + '<style>body{font-family:Segoe UI,Arial,sans-serif;background:#f3f5f8;color:#1b2a3a;display:flex;'
+                        + 'align-items:center;justify-content:center;height:100vh;margin:0}div{text-align:center}'
+                        + 'b{font-size:20px}p{color:#65758a}</style></head><body><div><b>Édition en cours...</b>'
+                        + '<p>Le document s\'affichera ici dès qu\'il sera prêt.</p></div></body></html>');
+                onglet.document.close();
+            }
+        } catch (e) {
+            onglet = null;
+        }
+        return onglet;
+    },
+    afficher: function (onglet, url) {
+        if (onglet && !onglet.closed) {
+            onglet.location.href = url;
+        } else {
+            window.open(url, '_blank');
+        }
+    },
+    fermer: function (onglet) {
+        try {
+            if (onglet && !onglet.closed) {
+                onglet.close();
+            }
+        } catch (e) {
+        }
+    }
+};
+
 /**
  * Colle un ecran plein page a la barre de titre du panneau central.
  *

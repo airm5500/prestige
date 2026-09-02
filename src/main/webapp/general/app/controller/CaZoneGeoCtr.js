@@ -298,23 +298,25 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
     // dans un nouvel onglet.
     imprimerPdf: function () {
         const me = this;
-        const ecran = me.getEcran();
-        ecran.setLoading('Édition en cours...');
+        // L'onglet est ouvert DANS le clic : ouvert plus tard, a l'arrivee de la reponse, le
+        // navigateur le prend pour une fenetre surgissante et le bloque des que l'edition dure.
+        // Il affiche « Édition en cours... » puis recoit le PDF ; il se ferme si l'edition echoue.
+        const onglet = window.PrestigeEditions.ouvrirOnglet();
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ca-zone-geo/pdf',
             params: me.parametres(),
             timeout: 600000,
             callback: function (opts, success, response) {
-                ecran.setLoading(false);
                 let json = {};
                 try {
                     json = Ext.decode(response.responseText);
                 } catch (e) {
                 }
                 if (success && json.success && json.msg) {
-                    window.open('..' + json.msg, '_blank');
+                    window.PrestigeEditions.afficher(onglet, '..' + json.msg);
                 } else {
+                    window.PrestigeEditions.fermer(onglet);
                     Ext.Msg.alert('Message', json.msg || 'L\'édition a échoué');
                 }
             }
