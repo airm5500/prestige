@@ -1413,11 +1413,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     
                     listeners: {
                         close: function() {
-                            Me_Workflow.fmField('rechecher').focus(true, 100, function() {
-                            });
+                            Me_Workflow.focusRecherche();
                         },
                         afterSave: function() {
-                            Me_Workflow.fmField('rechecher').focus(true, 100);
+                            Me_Workflow.focusRecherche();
                         }
                     }
                 });
@@ -1425,7 +1424,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             },
             failure: function(response, options) {
                 // En cas d'erreur, redonner quand même le focus
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
                 Ext.Msg.alert("Erreur", "Impossible de charger les données du produit");
             }
         });
@@ -1440,11 +1439,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             
             listeners: {
                 close: function() {
-                    Me_Workflow.fmField('rechecher').focus(true, 100);
+                    Me_Workflow.focusRecherche();
                 },
                 
                 afterSave: function() {
-                    Me_Workflow.fmField('rechecher').focus(true, 100);
+                    Me_Workflow.focusRecherche();
                 }
             }
         });
@@ -1482,14 +1481,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     if (rec.get('bool_DECONDITIONNE') == "1") {
         Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionne', function() {
             // Donner le focus après fermeture de l'alerte
-            Me_Workflow.fmField('rechecher').focus(true, 100);
+            Me_Workflow.focusRecherche();
         });
         
     } else {
         if (rec.get('bool_DECONDITIONNE_EXIST') == "1") {
             Ext.MessageBox.alert('Alerte Message', 'La version deconditionne existe deja', function() {
                 // Donner le focus après fermeture de l'alerte
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
             });
             
         } else {
@@ -1512,17 +1511,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         // Ajouter des listeners pour le focus
                         listeners: {
                             close: function() {
-                                Me_Workflow.fmField('rechecher').focus(true, 100);
+                                Me_Workflow.focusRecherche();
                             },
                             
                             // Si votre composant a un événement après création
                             afterSave: function() {
-                                Me_Workflow.fmField('rechecher').focus(true, 100);
+                                Me_Workflow.focusRecherche();
                                 grid.getStore().reload();
                             },
                             
                             created: function() {
-                                Me_Workflow.fmField('rechecher').focus(true, 100);
+                                Me_Workflow.focusRecherche();
                                 grid.getStore().reload();
                             }
                         }
@@ -1532,7 +1531,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 failure: function(response, options) {
                     // En cas d'erreur Ajax, donner le focus
                     Ext.MessageBox.alert('Erreur', 'Erreur lors du chargement des données', function() {
-                        Me_Workflow.fmField('rechecher').focus(true, 100);
+                        Me_Workflow.focusRecherche();
                     });
                 }
             });
@@ -1545,19 +1544,19 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     if (rec.get('bool_DECONDITIONNE') == "1") {
         Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionné. Il ne peut pas etre deconditionné');
         // Donner le focus après l'alerte
-        Me_Workflow.fmField('rechecher').focus(true, 100);
+        Me_Workflow.focusRecherche();
         
     } else {
         if (rec.get('bool_DECONDITIONNE_EXIST') == "0") {
             Ext.MessageBox.alert('Alerte Message', 'Aucun détail existant pour ce produit');
             // Donner le focus après l'alerte
-            Me_Workflow.fmField('rechecher').focus(true, 100);
+            Me_Workflow.focusRecherche();
             
         } else {
             if (rec.get('int_NUMBER_AVAILABLE') <= 0) {
                 Ext.MessageBox.alert('Alerte Message', 'Stock insuffisant');
                 // Donner le focus après l'alerte
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
                 
             } else {
                 // Créer la fenêtre de déconditionnement
@@ -1571,17 +1570,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     // Ajouter des listeners pour gérer le focus
                     listeners: {
                         close: function() {
-                            Me_Workflow.fmField('rechecher').focus(true, 100);
+                            Me_Workflow.focusRecherche();
                         },
                         
                         // Si votre composant a un événement après déconditionnement
                         afterDecondition: function() {
-                            Me_Workflow.fmField('rechecher').focus(true, 100);
+                            Me_Workflow.focusRecherche();
                             grid.getStore().reload();
                         },
                         
                         saved: function() {
-                            Me_Workflow.fmField('rechecher').focus(true, 100);
+                            Me_Workflow.focusRecherche();
                             grid.getStore().reload();
                         }
                     }
@@ -1593,6 +1592,27 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 },
     // Recherche SCOPED d'un champ filtre dans la grille (immunise contre les id
     // globaux dupliques des fenetres detail). Renvoie un champ neutre si absent.
+    /**
+     * Redonne le focus au champ de recherche SANS selectionner son contenu : le curseur est place a
+     * la fin de la saisie. Auparavant focus(true, ...) selectionnait tout le texte au retour dans le
+     * champ (fin de recherche, fermeture d'une fenetre, enregistrement...) et la frappe suivante
+     * effacait ce qui etait deja tape. Comme a la vente, on peut continuer a saisir et la recherche
+     * s'actualise.
+     */
+    focusRecherche: function () {
+        var champ = Me_Workflow.fmField('rechecher');
+        if (!champ) {
+            return;
+        }
+        champ.focus(false, 100, function () {
+            try {
+                var dom = champ.inputEl.dom, fin = (dom.value || '').length;
+                dom.setSelectionRange(fin, fin);
+            } catch (e) {
+            }
+        });
+    },
+
     fmField: function (itemId) {
         const c = Me_Workflow ? Me_Workflow.down('#' + itemId) : null;
         return c || FM_NULL_FIELD;
@@ -1617,8 +1637,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             }
         });
 
-        Me_Workflow.fmField('rechecher').focus(true, 100, function () {
-        });
+        Me_Workflow.focusRecherche();
     },
 
     // Construit le nom de l'inventaire a partir des filtres actifs (concatenation) + HHmmss.
@@ -1919,9 +1938,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 var result = Ext.JSON.decode(response.responseText, true);
                                 if (result.success) {
                                     grid.getStore().reload();
-                                    Me_Workflow.fmField('rechecher').focus(true, 100, function () {
-//                                                      Me_Workflow.fmField('rechecher').selectText(0, 1);
-                                    });
+                                    Me_Workflow.focusRecherche();
                                 } else {
                                     Ext.MessageBox.show({
                                         title: 'Message d\'erreur',
@@ -2180,7 +2197,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }],
             listeners: {
                 close: function () {
-                    Me_Workflow.fmField('rechecher').focus(true, 100);
+                    Me_Workflow.focusRecherche();
                 }
             }
         });
@@ -2202,7 +2219,7 @@ addPeremptiondate: function (grid, rowIndex) {
             buttons: Ext.MessageBox.OK,
             icon: Ext.MessageBox.WARNING,
             fn: function () {
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
             }
         });
         return;
@@ -2226,10 +2243,10 @@ addPeremptiondate: function (grid, rowIndex) {
         // Ajouter listener pour le bouton X
         listeners: {
             close: function() {
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
             },
             destroy: function() {
-                Me_Workflow.fmField('rechecher').focus(true, 100);
+                Me_Workflow.focusRecherche();
             }
             
         },
@@ -2375,13 +2392,13 @@ addPeremptiondate: function (grid, rowIndex) {
                                     progress.hide();
                                     win.close();
                                     grid.getStore().reload();
-                                    Me_Workflow.fmField('rechecher').focus(true, 100);
+                                    Me_Workflow.focusRecherche();
                                 },
                                 failure: function (response) {
                                     progress.hide();
                                     Ext.MessageBox.alert('Error Message', response.responseText);
                                     // Donner le focus au champ recherche même en cas d'erreur
-                                    Me_Workflow.fmField('rechecher').focus(true, 100);
+                                    Me_Workflow.focusRecherche();
                                 }
                             });
                         }
