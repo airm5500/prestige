@@ -599,34 +599,53 @@ public class ProduitServiceImpl implements ProduitService {
 
     }
 
-    private MvtProduitDTO findInitialQty(LocalDate dtStart, String produitId) {
+    private Integer findInitialQty(LocalDate dtStart, String produitId) {
+        HMvtProduit ligne = ligneBorneJournee(lignesBorneJournee(dtStart, produitId, false));
+        return ligne == null ? null : ligne.getQteDebut();
+    }
+
+    private Integer findFinalQty(LocalDate dtStart, String produitId) {
+        HMvtProduit ligne = ligneBorneJournee(lignesBorneJournee(dtStart, produitId, true));
+        return ligne == null ? null : ligne.getQteFinale();
+    }
+
+    private List<HMvtProduit> lignesBorneJournee(LocalDate jour, String produitId, boolean fin) {
         try {
-            TypedQuery<MvtProduitDTO> q = getEntityManager().createQuery(
-                    "SELECT new commonTasks.dto.MvtProduitDTO(o.qteDebut) FROM HMvtProduit o WHERE o.mvtDate=?1 AND o.famille.lgFAMILLEID=?2 ORDER BY o.createdAt ASC ",
-                    MvtProduitDTO.class);
-            q.setParameter(1, dtStart);
+            TypedQuery<HMvtProduit> q = getEntityManager().createQuery(
+                    "SELECT o FROM HMvtProduit o WHERE o.mvtDate=?1 AND o.famille.lgFAMILLEID=?2 ORDER BY o.createdAt "
+                            + (fin ? "DESC" : "ASC"),
+                    HMvtProduit.class);
+            q.setParameter(1, jour);
             q.setParameter(2, produitId);
-            q.setMaxResults(1);
-            return q.getSingleResult();
+            q.setMaxResults(10);
+            return q.getResultList();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "findInitialQty", e);
-            return null;
+            LOG.log(Level.SEVERE, "lignesBorneJournee", e);
+            return Collections.emptyList();
         }
     }
 
-    private MvtProduitDTO findFinalQty(LocalDate dtStart, String produitId) {
-        try {
-            TypedQuery<MvtProduitDTO> q = getEntityManager().createQuery(
-                    "SELECT new commonTasks.dto.MvtProduitDTO(o.qteFinale) FROM HMvtProduit o WHERE o.mvtDate=?1 AND o.famille.lgFAMILLEID=?2 ORDER BY o.createdAt DESC ",
-                    MvtProduitDTO.class);
-            q.setParameter(1, dtStart);
-            q.setParameter(2, produitId);
-            q.setMaxResults(1);
-            return q.getSingleResult();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "findFinalQty", e);
+    /**
+     * Choisit la ligne qui represente la borne (ouverture ou cloture) de la journee parmi les lignes deja triees par
+     * createdAt. createdAt est stocke a la seconde pres : le deconditionnement automatique et la vente qui le declenche
+     * partagent le meme horodatage et l'ordre entre eux etait indetermine, la fiche des mouvements pouvant alors
+     * afficher le stock de la ligne deconditionnement au lieu de celui de la vente. A egalite d'horodatage, la vente
+     * (ou tout autre mouvement) prime sur le deconditionnement entrant, qui precede toujours la vente qu'il alimente.
+     */
+    static HMvtProduit ligneBorneJournee(List<HMvtProduit> lignesTriees) {
+        if (lignesTriees == null || lignesTriees.isEmpty()) {
             return null;
         }
+        HMvtProduit premiere = lignesTriees.get(0);
+        for (HMvtProduit ligne : lignesTriees) {
+            if (!premiere.getCreatedAt().equals(ligne.getCreatedAt())) {
+                break;
+            }
+            if (!DateConverter.DECONDTIONNEMENT_POSITIF.equals(ligne.getTypemvtproduit().getId())) {
+                return ligne;
+            }
+        }
+        return premiere;
     }
 
     @Override
@@ -647,11 +666,11 @@ public class ProduitServiceImpl implements ProduitService {
                 mvt.setDateOperation(k);
                 values.sort(comparatorByDateTime);
 
-                MvtProduitDTO init = findInitialQty(k, values.get(0).getFamille().getLgFAMILLEID());
-                mvt.setStockInit(init.getStockInit());
+                Integer init = findInitialQty(k, values.get(0).getFamille().getLgFAMILLEID());
+                mvt.setStockInit(init != null ? init : values.get(0).getQteDebut());
 
-                MvtProduitDTO stockFinal = findFinalQty(k, values.get(0).getFamille().getLgFAMILLEID());
-                mvt.setStockFinal(stockFinal.getStockInit());
+                Integer stockFinal = findFinalQty(k, values.get(0).getFamille().getLgFAMILLEID());
+                mvt.setStockFinal(stockFinal != null ? stockFinal : values.get(values.size() - 1).getQteFinale());
                 Map<String, List<HMvtProduit>> map = values.stream()
                         .collect(Collectors.groupingBy(p -> p.getTypemvtproduit().getId()));
                 map.forEach((e, val) -> {

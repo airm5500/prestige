@@ -473,35 +473,33 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
     private void deconditionner(TUser tu, TFamille tFamilleChild, TFamille tFamilleParent,
             TFamilleStock ofamilleStockParent, TFamilleStock familleStockChild, Integer qteVendue) {
-        Integer numberToDecondition = 0;
         Integer qtyDetail = tFamilleParent.getIntNUMBERDETAIL();
-        Integer stockInitDetail = familleStockChild.getIntNUMBERAVAILABLE();
+        // stockInitDetail ne doit jamais etre mute : il est historise tel quel dans h_mvt_produit
+        final Integer stockInitDetail = familleStockChild.getIntNUMBERAVAILABLE();
 
         Integer stockInit = ofamilleStockParent.getIntNUMBERAVAILABLE();
         Integer stockVirtuel = stockInitDetail + (stockInit * qtyDetail);
         int compare = stockVirtuel.compareTo(qteVendue);
         if (compare >= 0) {
-            while (stockInitDetail < qteVendue) {
-                numberToDecondition++;
-                stockInitDetail += qtyDetail;
-            }
+            Integer numberToDecondition = util.DeconditionnementCalcul.boitesNecessaires(stockInitDetail, qteVendue,
+                    qtyDetail);
+            int qteDecon = numberToDecondition * qtyDetail;
             ofamilleStockParent
                     .setIntNUMBERAVAILABLE(ofamilleStockParent.getIntNUMBERAVAILABLE() - numberToDecondition);
             ofamilleStockParent.setIntNUMBER(ofamilleStockParent.getIntNUMBERAVAILABLE());
             ofamilleStockParent.setDtUPDATED(new Date());
 
-            familleStockChild.setIntNUMBERAVAILABLE(
-                    familleStockChild.getIntNUMBERAVAILABLE() + (numberToDecondition * qtyDetail) - qteVendue);
+            familleStockChild.setIntNUMBERAVAILABLE(familleStockChild.getIntNUMBERAVAILABLE() + qteDecon - qteVendue);
             familleStockChild.setIntNUMBER(familleStockChild.getIntNUMBERAVAILABLE());
             familleStockChild.setDtUPDATED(new Date());
             this.getEmg().merge(ofamilleStockParent);
             this.getEmg().merge(familleStockChild);
             TDeconditionnement parent = createDecondtionne(tFamilleParent, numberToDecondition, tu);
-            TDeconditionnement child = createDecondtionne(tFamilleChild, (numberToDecondition * qtyDetail), tu);
+            TDeconditionnement child = createDecondtionne(tFamilleChild, qteDecon, tu);
 
             mouvementProduitService.saveMvtProduit(child.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_POSITIF,
-                    tFamilleChild, tu, ofamilleStockParent.getLgEMPLACEMENTID(), (numberToDecondition * qtyDetail),
-                    stockInitDetail, stockInitDetail + (numberToDecondition * qtyDetail) - qteVendue, 0);
+                    tFamilleChild, tu, ofamilleStockParent.getLgEMPLACEMENTID(), qteDecon, stockInitDetail,
+                    stockInitDetail + qteDecon - qteVendue, 0);
             mouvementProduitService.saveMvtProduit(parent.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_NEGATIF,
                     tFamilleParent, tu, ofamilleStockParent.getLgEMPLACEMENTID(), numberToDecondition, stockInit,
                     stockInit - numberToDecondition, 0);
@@ -1641,35 +1639,33 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
     private void deconditionner(TUser tu, TFamilleStock ofamilleStockParent, TFamilleStock familleStockChild,
             Integer qteVendue) {
-        Integer numberToDecondition = 0;
         TFamille tFamilleParent = ofamilleStockParent.getLgFAMILLEID();
         TFamille tFamilleChild = familleStockChild.getLgFAMILLEID();
         Integer qtyDetail = tFamilleParent.getIntNUMBERDETAIL();
-        Integer stockInitDetail = familleStockChild.getIntNUMBERAVAILABLE();
+        // stockInitDetail ne doit jamais etre mute : il est historise tel quel dans h_mvt_produit
+        final Integer stockInitDetail = familleStockChild.getIntNUMBERAVAILABLE();
         Integer stockInit = ofamilleStockParent.getIntNUMBERAVAILABLE();
         Integer stockVirtuel = stockInitDetail + (stockInit * qtyDetail);
         int compare = stockVirtuel.compareTo(qteVendue);
         if (compare >= 0) {
-            while (stockInitDetail < qteVendue) {
-                numberToDecondition++;
-                stockInitDetail += qtyDetail;
-            }
+            Integer numberToDecondition = util.DeconditionnementCalcul.boitesNecessaires(stockInitDetail, qteVendue,
+                    qtyDetail);
+            int qteDecon = numberToDecondition * qtyDetail;
             ofamilleStockParent
                     .setIntNUMBERAVAILABLE(ofamilleStockParent.getIntNUMBERAVAILABLE() - numberToDecondition);
             ofamilleStockParent.setIntNUMBER(ofamilleStockParent.getIntNUMBERAVAILABLE());
             ofamilleStockParent.setDtUPDATED(new Date());
 
-            familleStockChild.setIntNUMBERAVAILABLE(
-                    familleStockChild.getIntNUMBERAVAILABLE() + (numberToDecondition * qtyDetail));
+            familleStockChild.setIntNUMBERAVAILABLE(familleStockChild.getIntNUMBERAVAILABLE() + qteDecon);
             familleStockChild.setIntNUMBER(familleStockChild.getIntNUMBERAVAILABLE());
             familleStockChild.setDtUPDATED(new Date());
             getEmg().merge(ofamilleStockParent);
             TDeconditionnement parent = createDecondtionne(tFamilleParent, numberToDecondition, tu);
-            TDeconditionnement child = createDecondtionne(tFamilleChild, (numberToDecondition * qtyDetail), tu);
+            TDeconditionnement child = createDecondtionne(tFamilleChild, qteDecon, tu);
 
             mouvementProduitService.saveMvtProduit(child.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_POSITIF,
-                    tFamilleChild, tu, ofamilleStockParent.getLgEMPLACEMENTID(), (numberToDecondition * qtyDetail),
-                    stockInitDetail, stockInitDetail + (numberToDecondition * qtyDetail), 0);
+                    tFamilleChild, tu, ofamilleStockParent.getLgEMPLACEMENTID(), qteDecon, stockInitDetail,
+                    stockInitDetail + qteDecon, 0);
             mouvementProduitService.saveMvtProduit(parent.getLgDECONDITIONNEMENTID(), DECONDTIONNEMENT_NEGATIF,
                     tFamilleParent, tu, ofamilleStockParent.getLgEMPLACEMENTID(), numberToDecondition, stockInit,
                     stockInit - numberToDecondition, 0);
