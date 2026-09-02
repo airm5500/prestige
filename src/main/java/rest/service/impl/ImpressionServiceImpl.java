@@ -439,7 +439,9 @@ public class ImpressionServiceImpl implements Printable {
                 start + (scaleTexte * i));
         graphics.drawString(this.getOfficine().getStrPHONE() + "   |    " + this.getOfficine().getStrADRESSSEPOSTALE(),
                 0, start + (scaleTexte * ++i));
-        if (!this.getOfficine().getStrENTETE().equals("") && this.getOfficine().getStrENTETE() != null) {
+        // Ticket de prevente : minimaliste, sans la ligne d'en-tete de l'officine (« NOS REMERCIEMENTS... »)
+        boolean prevente = Constant.TICKET_PREVENTE.equals(this.getTypeTicket());
+        if (!prevente && !this.getOfficine().getStrENTETE().equals("") && this.getOfficine().getStrENTETE() != null) {
             if (result) {
                 i++;
             }
@@ -599,20 +601,26 @@ public class ImpressionServiceImpl implements Printable {
         int cw = scaleImage * codeBarWidth;
         int ch = scaleImage * codeBarHeight;
 
-        graphics.drawString(SIMPLE_DATE_FORMAT.format(this.getOperation()), 125, start + (scaleTexte * 1)); // imprimante
-        // matricielle
+        boolean prevente = Constant.TICKET_PREVENTE.equals(this.getTypeTicket());
+        if (prevente) {
+            // Ticket de prevente : la date vient juste sous le texte, a gauche, sans ligne vide
+            graphics.drawString(SIMPLE_DATE_FORMAT.format(this.getOperation()), 0, start + scaleTexte);
+        } else {
+            graphics.drawString(SIMPLE_DATE_FORMAT.format(this.getOperation()), 125, start + (scaleTexte * 1)); // imprimante
+            // matricielle
+        }
 
         if (this.isShowCodeBar()) {
             Image imgCodeBar = new ImageIcon(this.getCodeBar()).getImage();
-            if (Constant.TICKET_PREVENTE.equals(this.getTypeTicket())) {
+            if (prevente) {
                 /*
                  * QR code de la prevente : carre, sinon il ne se lit pas. Meme largeur que le code-barres des tickets
                  * de caisse, centre sur le ticket. Dessine quel que soit le reglage de debut d'impression : c'est lui
                  * qui rappelle la vente a la caisse.
                  */
                 int cote = scaleImage * 60;
-                // sous la ligne de date du pied (posee a start + scaleTexte), pas par-dessus
-                int haut = start + scaleTexte + 10;
+                // juste sous la ligne de date (posee a start + scaleTexte), pas par-dessus
+                int haut = start + scaleTexte + 6;
                 graphics.drawImage(imgCodeBar, 55, haut, cote, cote, null);
                 limit = haut + cote;
             } else if (intBegin == 0) {
@@ -628,7 +636,8 @@ public class ImpressionServiceImpl implements Printable {
             graphics.drawString(datas.get(i), 0, start + (scaleTexte * i));
         }
 
-        limit = start + (scaleTexte * (datas.size() + 1));
+        // Ticket de prevente : pas de ligne vide entre les informations et les montants
+        limit = start + (scaleTexte * (datas.size() + (Constant.TICKET_PREVENTE.equals(this.getTypeTicket()) ? 0 : 1)));
     }
 
     public void buildSubTotal(Graphics2D graphics, int scaleTexte, int start, List<String> datas) {

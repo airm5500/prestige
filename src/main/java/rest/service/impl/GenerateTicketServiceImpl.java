@@ -195,7 +195,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -300,10 +300,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     p.getIntCUSTPART() == null ? 0 : p.getIntCUSTPART(), organismes);
 
             TEmplacement te = p.getLgUSERID().getLgEMPLACEMENTID();
+            // Une seule interrogation du spouleur d'impression : chaque recherche de l'imprimante par defaut
+            // coute une a deux secondes sous Windows, et ce chemin la faisait trois fois.
+            PrintService imprimante = findPrintService();
             ImpressionServiceImpl imp = new ImpressionServiceImpl();
-            imp.setOTImprimante(findImprimanteByName());
+            imp.setOTImprimante(findImprimanteByName(imprimante));
             imp.setOfficine(findOfficine());
-            imp.setService(findPrintService());
+            imp.setService(imprimante);
             imp.setTitle(ticket.titre());
             imp.setTypeTicket(Constant.TICKET_PREVENTE);
             imp.setShowCodeBar(true);
@@ -345,7 +348,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -728,7 +731,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -863,7 +866,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -1195,7 +1198,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -1299,7 +1302,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -1425,7 +1428,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
             PrintService printService = findPrintService();
-            TImprimante imprimante = findImprimanteByName();
+            TImprimante imprimante = findImprimanteByName(printService);
             TOfficine officine = findOfficine();
             if (voirNumTicket) {
                 title = oTPreenregistrement.getStrREF();
@@ -1551,11 +1554,16 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     public TImprimante findImprimanteByName() {
+        return findImprimanteByName(findPrintService());
+    }
+
+    /** Meme recherche, avec le service d'impression deja trouve (evite une seconde interrogation du spouleur). */
+    public TImprimante findImprimanteByName(PrintService printService) {
 
         try {
 
             Query qry = getEntityManager().createQuery("SELECT t FROM TImprimante t WHERE t.strNAME = ?1 ")
-                    .setParameter(1, findPrintService().getName());
+                    .setParameter(1, printService.getName());
             qry.setMaxResults(1);
             return (TImprimante) qry.getSingleResult();
 

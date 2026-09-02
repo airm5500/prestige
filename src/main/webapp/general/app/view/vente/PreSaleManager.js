@@ -159,7 +159,9 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                                     tooltip: 'Modifier',
                                     menuDisabled: true,
                                      getClass: function (value, metadata, record) {
-                                        if (record.get('strSTATUT') === 'pending') {
+                                        // Une prevente est enregistree en « is_Process » (nature prevente) ;
+                                        // le bouton n'attendait que « pending » et ne sortait jamais.
+                                        if (record.get('strSTATUT') === 'pending' || record.get('strSTATUT') === 'is_Process') {
 
                                             return 'x-display-hide';
                                         } else {
