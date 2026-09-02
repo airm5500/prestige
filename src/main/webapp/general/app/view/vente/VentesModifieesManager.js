@@ -159,6 +159,12 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
                             scope: me,
                             handler: me.deselectAll
                         }, {
+                            text: 'Imprimer',
+                            itemId: 'btnImprimer',
+                            iconCls: 'printable',
+                            scope: me,
+                            handler: me.doPrint
+                        }, {
                             text: 'Exporter (Excel)',
                             itemId: 'btnExcel',
                             scope: me,
@@ -343,6 +349,35 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
         me.selectedRows = {};
         me.selModel_.deselectAll();
         me.updateCounter();
+    },
+    // Edition PDF (modele ventes_modifiees.jrxml) : memes filtres que la grille, ouverte dans un nouvel onglet
+    doPrint: function () {
+        var me = this, filters = me.getFilters();
+        var userCombo = me.down('#userCombo');
+        if (filters.userId) {
+            filters.userLibelle = userCombo.getRawValue() || '';
+        }
+        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/ventes-modifiees/pdf',
+            method: 'GET',
+            params: filters,
+            timeout: 600000,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                if (r && r.success && r.url) {
+                    window.open(r.url);
+                } else {
+                    Ext.MessageBox.alert('Impression',
+                            (r && r.message) ? r.message : "La génération du PDF n'a pas abouti.");
+                }
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Impression', 'La génération du PDF a échoué.');
+            }
+        });
     },
     onExportExcel: function () {
         var me = this, filters = me.getFilters();

@@ -42,6 +42,10 @@ public class VenteModifieeRessource {
     private InventaireService inventaireService;
     @EJB
     private ReportExcelExportService reportExcelExportService;
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(VenteModifieeRessource.class.getName());
     @Inject
     private HttpServletRequest servletRequest;
 
@@ -141,6 +145,75 @@ public class VenteModifieeRessource {
                 });
         return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"ventes_modifiees.xls\"")
                 .build();
+    }
+
+    /**
+     * Edition PDF (modele ventes_modifiees.jrxml embarque) : memes filtres que la grille, une bande par modification et
+     * une ligne par produit modifie.
+     */
+    @GET
+    @Path("pdf")
+    public Response pdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "query") String query,
+            @QueryParam(value = "type") String type, @QueryParam(value = "userLibelle") String userLibelle)
+            throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        try {
+            List<VenteModifieeDTO> data = venteModifieeService.fetchAll(dtStart, dtEnd, userId, query, type);
+            if (data.isEmpty()) {
+                return Response.ok().entity(
+                        new JSONObject().put("success", false).put("message", "Aucune donnée à imprimer").toString())
+                        .build();
+            }
+            List<rest.service.dto.VenteModifieePdfLigne> lignes = new ArrayList<>();
+            for (VenteModifieeDTO m : data) {
+                if (m.getLignes().isEmpty()) {
+                    lignes.add(rest.service.dto.VenteModifieePdfLigne.entete(m));
+                } else {
+                    for (VenteModifieeDTO.Ligne l : m.getLignes()) {
+                        lignes.add(
+                                rest.service.dto.VenteModifieePdfLigne.avecProduit(m, l, libelleAction(l.getAction())));
+                    }
+                }
+            }
+            java.util.Map<String, Object> params = reportUtil.officineData(tu);
+            params.put("P_H_CLT_INFOS", "MOUCHARD DES VENTES MODIFIÉES");
+            StringBuilder periode = new StringBuilder();
+            if (StringUtils.isNotEmpty(dtStart) && StringUtils.isNotEmpty(dtEnd)) {
+                periode.append("Période du ").append(formatDate(dtStart)).append(" au ").append(formatDate(dtEnd));
+            }
+            if (StringUtils.isNotEmpty(userLibelle)) {
+                periode.append(periode.length() > 0 ? " - " : "").append("Opérateur : ").append(userLibelle);
+            }
+            if (StringUtils.isNotEmpty(type)) {
+                periode.append(periode.length() > 0 ? " - " : "")
+                        .append(rest.service.impl.VenteModifieeServiceImpl.libelleType(type));
+            }
+            if (StringUtils.isNotEmpty(query)) {
+                periode.append(periode.length() > 0 ? " - " : "").append("Recherche : ").append(query);
+            }
+            periode.append(periode.length() > 0 ? " - " : "").append(data.size()).append(" modification(s)");
+            params.put("P_PERIODE", periode.toString());
+            String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "ventes_modifiees", lignes);
+            return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
+        } catch (Throwable t) {
+            LOG.log(java.util.logging.Level.SEVERE, "pdf ventes modifiees", t);
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "L'édition a échoué : " + t.getMessage()).toString()).build();
+        }
+    }
+
+    private static String formatDate(String d) {
+        try {
+            return java.time.LocalDate.parse(d).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (Exception e) {
+            return d;
+        }
     }
 
     private static int valeur(Integer i) {
