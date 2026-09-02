@@ -41,6 +41,14 @@ public class VisualisationCaisseDTO implements Serializable {
         return operateurId;
     }
 
+    /**
+     * Part mobile money du mouvement (0 sinon), pour les etats Jasper : le sous-etat de la liste de caisse s'appuie
+     * dessus au lieu de coder les operateurs en dur, et reconnait donc les modes crees par l'officine.
+     */
+    public Integer getMontantMobile() {
+        return util.MobileMoney.est(modeRegle) && montant != null ? montant : 0;
+    }
+
     public void setOperateurId(String operateurId) {
         this.operateurId = operateurId;
     }
