@@ -962,7 +962,7 @@ Ext.Ajax.request({
                                 // Rester sur la page courante : reload() conserve currentPage
                                 // (contrairement a onRechClick qui force loadPage(1)).
                                 Me_Workflow.getStore().reload();
-                                Ext.getCmp('rechecher').focus(false, 100);
+                                Ext.getCmp('rechecher').focus(true, 100);
                             } else if (type == 'commande') {
                                 Ext.getCmp('lgFAMILLEID').setValue(str_DESCRIPTION);
                                 Ext.getCmp('lgFAMILLEID').getStore().reload();
@@ -1167,7 +1167,7 @@ Ext.Ajax.request({
                             // Rester sur la page courante : reload() conserve currentPage
                             // (contrairement a onRechClick qui force loadPage(1)).
                             Me_Workflow.getStore().reload();
-                            Ext.getCmp('rechecher').focus(false, 100);
+                            Ext.getCmp('rechecher').focus(true, 100);
                         } else if (type == 'commande') {
                             Ext.getCmp('lgFAMILLEID').setValue(strDescription);
                             Ext.getCmp('lgFAMILLEID').getStore().reload();
