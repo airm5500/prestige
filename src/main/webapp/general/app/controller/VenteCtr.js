@@ -5493,6 +5493,44 @@ Ext.define('testextjs.controller.VenteCtr', {
         };
         return cmp;
     },
+    /*
+     * Ticket synthetique de la prevente : montants selon le type de vente et QR code qui rappelle la vente
+     * a la caisse, sans les produits. Propose a l'enregistrement, et disponible en reimpression depuis
+     * la liste des preventes (meme route). L'ecran a deja ete remis a zero quand la question se pose :
+     * l'identifiant est donc capture avant.
+     */
+    proposerTicketPrevente: function (venteId) {
+        if (!venteId) {
+            return;
+        }
+        Ext.MessageBox.confirm('Ticket de prévente', 'Voulez-vous imprimer le ticket de la prévente ?', function (choix) {
+            if (choix !== 'yes') {
+                return;
+            }
+            const attente = Ext.MessageBox.wait('Impression du ticket . . .', 'Veuillez patienter');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/ticket/prevente/' + venteId,
+                success: function (response) {
+                    attente.hide();
+                    const lu = Ext.JSON.decode(response.responseText, true);
+                    if (!lu || !lu.success) {
+                        Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                            msg: (lu && lu.msg) || 'L\'impression n\'a pas abouti.',
+                            buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                    }
+                },
+                failure: function (response) {
+                    attente.hide();
+                    Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                        msg: 'Le serveur n\'a pas répondu (' + response.status + ').',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                }
+            });
+        });
+    },
+
     closePrevente: function () {
         const me = this;
         let venteId = me.getCurrent().lgPREENREGISTREMENTID;
@@ -5509,6 +5547,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.resetAll();
                     me.getVnoproduitCombo().focus(false, 100, function () {
                     });
+                    me.proposerTicketPrevente(venteId);
                 } else {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',

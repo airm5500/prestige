@@ -263,6 +263,66 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     @Override
+    public JSONObject imprimerTicketPrevente(String venteId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement p = getEntityManager().find(TPreenregistrement.class, venteId);
+            if (p == null) {
+                return json.put("success", false).put("msg", "Prévente introuvable.");
+            }
+            // QR code : l'identifiant de la vente, que le champ de recherche de prevente de l'ecran de vente rappelle
+            // directement. Ecrit dans le meme repertoire que les codes-barres des tickets.
+            java.io.File qr = util.QrCodeImage.ecrire(TicketPrevente.contenuQrCode(p.getLgPREENREGISTREMENTID()),
+                    new java.io.File(jdom.barecode_file + "qr-" + p.getLgPREENREGISTREMENTID() + ".png"));
+
+            String typeVente = p.getLgTYPEVENTEID() != null ? p.getLgTYPEVENTEID().getLgTYPEVENTEID()
+                    : Constant.VENTE_COMPTANT_ID;
+            String vendeur = "";
+            if (p.getLgUSERVENDEURID() != null) {
+                vendeur = DataStringManager.subStringData(p.getLgUSERVENDEURID().getStrFIRSTNAME(), 0, 1) + "."
+                        + p.getLgUSERVENDEURID().getStrLASTNAME();
+            }
+            List<TicketPrevente.Organisme> organismes = new ArrayList<>();
+            for (TPreenregistrementCompteClientTiersPayent t : listeVenteTiersPayantsByIdVente(
+                    p.getLgPREENREGISTREMENTID())) {
+                String nom = t.getLgCOMPTECLIENTTIERSPAYANTID() != null
+                        && t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID() != null
+                                ? t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : "";
+                organismes.add(new TicketPrevente.Organisme(nom, t.getIntPERCENT(),
+                        t.getIntPRICE() == null ? 0 : t.getIntPRICE()));
+            }
+            TicketPrevente ticket = new TicketPrevente(typeVente, p.getStrREF(),
+                    util.DateCommonUtils.formatDateHeureCreation(p.getDtCREATED()), vendeur,
+                    p.getIntPRICE() == null ? 0 : p.getIntPRICE(),
+                    p.getIntPRICEREMISE() == null ? 0 : p.getIntPRICEREMISE(),
+                    p.getIntCUSTPART() == null ? 0 : p.getIntCUSTPART(), organismes);
+
+            TEmplacement te = p.getLgUSERID().getLgEMPLACEMENTID();
+            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            imp.setOTImprimante(findImprimanteByName());
+            imp.setOfficine(findOfficine());
+            imp.setService(findPrintService());
+            imp.setTitle(ticket.titre());
+            imp.setTypeTicket(Constant.TICKET_PREVENTE);
+            imp.setShowCodeBar(true);
+            imp.setEmplacement(te);
+            imp.setOperation(p.getDtCREATED() != null ? p.getDtCREATED() : new Date());
+            imp.setIntBegin(0);
+            imp.buildTicket(ticket.lignes(), ticket.enTete(), Collections.emptyList(), Collections.emptyList(),
+                    Collections.emptyList(), qr.getAbsolutePath());
+            imp.printTicketVente(1);
+            json.put("success", true);
+        } catch (PrinterException | IllegalStateException e) {
+            LOG.log(Level.SEVERE, "ticket prevente", e);
+            json.put("success", false).put("msg", "Impression n'a pas aboutie : " + e.getMessage());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "ticket prevente", e);
+            json.put("success", false).put("msg", "Impression n'a pas aboutie");
+        }
+        return json;
+    }
+
+    @Override
     public JSONObject lunchPrinterForTicketVo(String id) throws JSONException {
         JSONObject json = new JSONObject();
         int counter = 40;

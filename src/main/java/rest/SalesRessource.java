@@ -78,6 +78,24 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Ticket synthetique d'une prevente (montants et QR code, sans les produits). Appele a l'enregistrement de la
+     * prevente si l'utilisateur le demande, et depuis la liste des preventes pour reimprimer.
+     */
+    @POST
+    @Path("ticket/prevente/{id}")
+    public Response ticketPrevente(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        JSONObject json = generateTicketService.imprimerTicketPrevente(id);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @POST
     @Path("ticket/vo")
     public Response getTicketVo(ClotureVenteParams clotureVenteParams) throws JSONException {

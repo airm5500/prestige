@@ -2523,12 +2523,16 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     }
 
     @Override
+    public List<VenteDTO> listePreVentes(SalesStatsParams params) {
+        return getPreventeTuples(params).stream().map(this::buldFromTuple).collect(Collectors.toList());
+    }
+
+    @Override
     public JSONObject getPreVentes(SalesStatsParams params) throws JSONException {
         JSONObject json = new JSONObject();
         try {
 
-            List<VenteDTO> data = getPreventeTuples(params).stream().map(this::buldFromTuple)
-                    .collect(Collectors.toList());
+            List<VenteDTO> data = listePreVentes(params);
 
             json.put("total", data.size());
             json.put("data", new JSONArray(data));

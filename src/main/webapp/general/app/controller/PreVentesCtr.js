@@ -63,10 +63,48 @@ Ext.define('testextjs.controller.PreVentesCtr', {
             },
             "preenregistrementmanager gridpanel actioncolumn": {
                 toEdit: this.edit,
-                toRemove: this.remove
+                toRemove: this.remove,
+                toPrint: this.imprimerTicket
 
+            },
+            'preenregistrementmanager #excelBtn': {
+                click: this.exporterExcel
             }
         });
+    },
+
+    /* Reimpression du ticket synthetique de la prevente : meme route que l'impression a l'enregistrement. */
+    imprimerTicket: function (view, rowIndex, colIndex, item, e, rec, row) {
+        const attente = Ext.MessageBox.wait('Impression du ticket . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/ticket/prevente/' + rec.get('lgPREENREGISTREMENTID'),
+            success: function (response) {
+                attente.hide();
+                const lu = Ext.JSON.decode(response.responseText, true);
+                if (!lu || !lu.success) {
+                    Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                        msg: (lu && lu.msg) || 'L\'impression n\'a pas abouti.',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                }
+            },
+            failure: function (response) {
+                attente.hide();
+                Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                    msg: 'Le serveur n\'a pas répondu (' + response.status + ').',
+                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+            }
+        });
+    },
+
+    /* Export Excel de la liste filtree entiere : memes criteres que la recherche (statut, texte). */
+    exporterExcel: function () {
+        const me = this;
+        const statut = me.getStatut().getValue() || 'ALL';
+        const query = me.getQueryField().getValue() || '';
+        window.location = '../api/v1/ventestats/preventes/excel?statut=' + encodeURIComponent(statut)
+                + '&query=' + encodeURIComponent(query);
     },
     edit: function (view, rowIndex, colIndex, item, e, rec, row) {
         const me = this;

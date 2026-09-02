@@ -542,6 +542,24 @@ public class ImpressionServiceImpl implements Printable {
             break;
         }
 
+        case Constant.TICKET_PREVENTE: {
+            /*
+             * Ticket synthetique d'une prevente : « libelle;valeur;gras », sans colonne produit. Le libelle a gauche,
+             * la valeur a partir du milieu, en gras quand la ligne l'indique (net a payer, parts).
+             */
+            Font normal = new Font("Arial Narrow", Font.PLAIN, 10 + fontSize);
+            Font gras = new Font("Arial Narrow", Font.BOLD, 10 + fontSize);
+            for (int i = 0; i < curDatas.size(); i++) {
+                String[] parts = curDatas.get(i).split(";", -1);
+                graphics.setFont(parts.length > 2 && "1".equals(parts[2]) ? gras : normal);
+                graphics.drawString(parts[0], 0, start + (scaleTexte * (i + 1)));
+                if (parts.length > 1) {
+                    graphics.drawString(parts[1], 90 + columnThree, start + (scaleTexte * (i + 1)));
+                }
+            }
+            break;
+        }
+
         default:
             for (int i = 0; i < curDatas.size(); i++) {
                 String[] parts = curDatas.get(i).split(";");
@@ -586,7 +604,18 @@ public class ImpressionServiceImpl implements Printable {
 
         if (this.isShowCodeBar()) {
             Image imgCodeBar = new ImageIcon(this.getCodeBar()).getImage();
-            if (intBegin == 0) {
+            if (Constant.TICKET_PREVENTE.equals(this.getTypeTicket())) {
+                /*
+                 * QR code de la prevente : carre, sinon il ne se lit pas. Meme largeur que le code-barres des tickets
+                 * de caisse, centre sur le ticket. Dessine quel que soit le reglage de debut d'impression : c'est lui
+                 * qui rappelle la vente a la caisse.
+                 */
+                int cote = scaleImage * 60;
+                // sous la ligne de date du pied (posee a start + scaleTexte), pas par-dessus
+                int haut = start + scaleTexte + 10;
+                graphics.drawImage(imgCodeBar, 55, haut, cote, cote, null);
+                limit = haut + cote;
+            } else if (intBegin == 0) {
                 graphics.drawImage(imgCodeBar, -5, start + 5, cw, ch, null);
             }
 

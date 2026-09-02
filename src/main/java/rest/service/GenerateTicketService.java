@@ -39,6 +39,12 @@ public interface GenerateTicketService {
 
     JSONObject lunchPrinterForTicketVo(String p) throws JSONException;
 
+    /**
+     * Ticket synthetique d'une prevente : reference, date, heure, vendeur, montants selon le type de vente et QR code
+     * encodant l'identifiant. Sans les produits. Sert a l'impression a l'enregistrement et a la reimpression.
+     */
+    JSONObject imprimerTicketPrevente(String venteId) throws JSONException;
+
     JSONObject ticketReglementDiffere(String idDossier) throws JSONException;
 
     List<TPreenregistrementDetail> listeVenteByIdVente(String id);

@@ -196,6 +196,38 @@ public class SalesStatsRessource {
     }
 
     // Nombre de produits distincts (controle avant confirmation de creation d'inventaire)
+    /**
+     * Export Excel de la liste des preventes : la liste filtree ENTIERE (recherche, statut, type), pas seulement la
+     * page affichee. Memes colonnes que l'ecran, plus le type de vente et le statut.
+     */
+    @GET
+    @Path("preventes/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response preventesExcel(@QueryParam(value = "query") String query,
+            @QueryParam(value = "typeVenteId") String typeVenteId,
+            @DefaultValue(value = "ALL") @QueryParam(value = "statut") String statut) throws Exception {
+        SalesStatsParams body = buildPreventesParams(query, typeVenteId, statut);
+        List<commonTasks.dto.VenteDTO> preventes = salesService.listePreVentes(body);
+        if (preventes.isEmpty()) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Aucune prévente à exporter").toString())
+                    .build();
+        }
+        String[] headers = { "Reference", "Montant", "Date", "Heure", "Vendeur", "Type de vente", "Statut" };
+        byte[] data = excelExportService.createExcelReport("LISTE DES PREVENTES", headers, preventes, (row, v) -> {
+            row.createCell(0).setCellValue(nonNul(v.getStrREF()));
+            row.createCell(1).setCellValue(v.getIntPRICE() == null ? 0 : v.getIntPRICE());
+            row.createCell(2).setCellValue(nonNul(v.getDtUPDATED()));
+            row.createCell(3).setCellValue(nonNul(v.getHeure()));
+            row.createCell(4).setCellValue(nonNul(v.getUserFullName()));
+            row.createCell(5).setCellValue(nonNul(v.getStrTYPEVENTE()));
+            row.createCell(6).setCellValue("pending".equals(v.getStrSTATUT()) ? "Non clôturée" : "Clôturée");
+        });
+        String filename = "preventes_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss"))
+                + ".xls";
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + filename + "\"").build();
+    }
+
     @GET
     @Path("preventes/produits/count")
     public Response preventesProduitsCount(@QueryParam(value = "query") String query,

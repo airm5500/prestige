@@ -132,6 +132,8 @@ public final class Constant {
     public static final String TYPE_REGLEMENT_ESPECE = "1";
     public static final String TICKET_Z = "TICKET_Z";
     public static final String TICKET_VENTE = "VENTE";
+    /** Ticket synthetique d'une prevente : montants et QR code, sans les produits. */
+    public static final String TICKET_PREVENTE = "TICKET_PREVENTE";
     public static final String CHARGED = "charged";
     public static final String TYPE_VENTE_VNO = "1";
     public static final String KEY_CHECK_UG = "KEY_CHECK_UG";

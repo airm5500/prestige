@@ -54,6 +54,9 @@ public interface SalesStatsService {
 
     JSONObject reloadVenteById(String venteId) throws JSONException;
 
+    /** Liste des preventes selon les criteres de la liste (recherche, statut, type) : meme population que l'ecran. */
+    java.util.List<commonTasks.dto.VenteDTO> listePreVentes(SalesStatsParams params);
+
     JSONObject setModeReglementAttente(String venteId, String typeReglementId) throws JSONException;
 
     /**
