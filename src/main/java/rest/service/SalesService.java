@@ -33,6 +33,8 @@ public interface SalesService {
 
     JSONObject updateTPreenregistrementDetail(SalesParams params);
 
+    JSONObject controleDetailVente(String venteId) throws JSONException;
+
     TPreenregistrement removePreenregistrementDetail(String itemId);
 
     JSONObject updateayantdroit(SalesParams params);

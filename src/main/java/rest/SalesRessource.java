@@ -306,6 +306,22 @@ public class SalesRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Re-controle du panier a son ouverture : produits detail dont la quantite n'est plus couverte par le stock
+     * vendable (rayon + boites du parent). Permet de prevenir le caissier des la reprise de la vente.
+     */
+    @GET
+    @Path("controle-detail/{venteId}")
+    public Response controleDetailVente(@PathParam("venteId") String venteId) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject jsono = salesService.controleDetailVente(venteId);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
     @GET
     @Path("search")
     public Response searchProduct(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,

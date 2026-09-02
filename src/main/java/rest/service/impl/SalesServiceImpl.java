@@ -1019,6 +1019,10 @@ public class SalesServiceImpl implements SalesService {
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
+            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
+                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                return json;
+            }
             Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
             TPreenregistrement preenregistrement = pair.getKey();
             TPreenregistrementDetail dp = pair.getRight();
@@ -1142,28 +1146,82 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
-     * Controle a passer AVANT toute ecriture de cloture : chaque produit detail de la vente doit encore etre couvert
-     * par le stock vendable (rayon plus boites du parent deconditionnables). Entre l'ajout au panier et la validation,
-     * le stock a pu changer (autre caisse, vente de la boite, deconditionnement) ; sans ce controle la validation
-     * passait quand meme et laissait le stock detail negatif, cas de gestion non gere. Retourne le libelle du premier
-     * produit qui ne peut plus etre servi, vide si la vente peut etre validee.
+     * Vrai si la quantite demandee pour un produit detail depasse le stock vendable (rayon plus boites du parent
+     * deconditionnables). Le stock detail negatif n'est pas un cas gere : ce depassement est refuse a la saisie, a la
+     * modification de ligne et a la validation, meme quand le forcage de stock est autorise pour les autres produits.
+     * Les produits non detail ne sont jamais concernes.
      */
-    private Optional<String> produitDetailInvendable(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+    private boolean detailAuDelaDuVendable(TFamille famille, int qty, TEmplacement emplacement) {
+        if (famille == null || famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1) {
+            return false;
+        }
+        TFamilleStock familleStock = this.findStock(famille.getLgFAMILLEID(), emplacement);
+        if (familleStock == null) {
+            return false;
+        }
+        return qty > stockVendable(familleStock, emplacement);
+    }
+
+    private static String libelleProduit(TFamille famille) {
+        return (famille.getIntCIP() == null ? "" : famille.getIntCIP() + " ") + famille.getStrNAME();
+    }
+
+    /**
+     * Garde de saisie et de modification de ligne : refuse une quantite de produit detail au-dela du stock vendable,
+     * avant meme la validation. Renseigne json et retourne vrai en cas de refus.
+     */
+    private boolean refuserQuantiteDetailInvendable(JSONObject json, String produitId, int qty,
+            TEmplacement emplacement) throws JSONException {
+        TFamille famille = this.getEm().find(TFamille.class, produitId);
+        if (!detailAuDelaDuVendable(famille, qty, emplacement)) {
+            return false;
+        }
+        json.put("success", false);
+        json.put("msg", "Stock insuffisant pour " + libelleProduit(famille)
+                + " : plus aucune boîte à déconditionner. Veuillez réduire la quantité.");
+        return true;
+    }
+
+    /**
+     * Produits detail de la vente dont la quantite n'est plus couverte par le stock vendable. Utilise par les clotures
+     * (refus avant toute ecriture) et par le re-controle a l'ouverture du panier : entre l'ajout au panier et la
+     * validation, le stock a pu changer (autre caisse, vente de la boite, deconditionnement).
+     */
+    private List<String> produitsDetailInvendables(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+        List<String> produits = new ArrayList<>();
         for (TPreenregistrementDetail it : items) {
             TFamille famille = it.getLgFAMILLEID();
-            if (famille == null || famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1) {
-                continue;
-            }
-            TFamilleStock familleStock = this.findStock(famille.getLgFAMILLEID(), emplacement);
-            if (familleStock == null) {
-                continue;
-            }
-            if (it.getIntQUANTITY() > stockVendable(familleStock, emplacement)) {
-                return Optional
-                        .of((famille.getIntCIP() == null ? "" : famille.getIntCIP() + " ") + famille.getStrNAME());
+            if (detailAuDelaDuVendable(famille, it.getIntQUANTITY(), emplacement)) {
+                produits.add(libelleProduit(famille));
             }
         }
-        return Optional.empty();
+        return produits;
+    }
+
+    private Optional<String> produitDetailInvendable(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+        return produitsDetailInvendables(items, emplacement).stream().findFirst();
+    }
+
+    /**
+     * Re-controle du panier a son ouverture : liste les produits detail qui ne sont plus couverts par le stock
+     * vendable, pour prevenir le caissier des la reprise de la vente plutot qu'au moment de l'encaissement.
+     */
+    @Override
+    public JSONObject controleDetailVente(String venteId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, venteId);
+            if (tp == null) {
+                return json.put("success", false).put("msg", "Vente introuvable").put("produits", new JSONArray());
+            }
+            List<String> produits = produitsDetailInvendables(getItems(tp), tp.getLgUSERID().getLgEMPLACEMENTID());
+            json.put("success", true);
+            json.put("produits", new JSONArray(produits));
+            return json;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "controleDetailVente", e);
+            return json.put("success", false).put("produits", new JSONArray());
+        }
     }
 
     private boolean refuserVenteDetailInvendable(JSONObject json, TPreenregistrement tp,
@@ -1188,6 +1246,10 @@ public class SalesServiceImpl implements SalesService {
             if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
+            }
+            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
+                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                return json;
             }
 
             Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
@@ -1328,6 +1390,10 @@ public class SalesServiceImpl implements SalesService {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
                 }
+                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), qty,
+                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                    return json;
+                }
                 int oldPrice = tpd.getIntPRICE();
                 int montantTva = tpd.getMontantTva();
                 tpd.setIntFREEPACKNUMBER(0);
@@ -1353,6 +1419,10 @@ public class SalesServiceImpl implements SalesService {
                 if (!forcerStock(params.getQte(), params.getProduitId(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
+                }
+                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), params.getQte(),
+                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                    return json;
                 }
                 TPreenregistrementDetail dp = addPreenregistrementItem(tp, famille, params.getQte(),
                         params.getQteServie(), params.getQteUg(), params.getItemPu());
@@ -1397,6 +1467,10 @@ public class SalesServiceImpl implements SalesService {
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
             if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
+            }
+            if (refuserQuantiteDetailInvendable(json, famille.getLgFAMILLEID(), params.getQte(),
+                    tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                return json;
             }
             if (detail.getIntPRICEUNITAIR().compareTo(params.getItemPu()) != 0) {
                 Optional<TParameters> p = findParamettre("KEY_CHECK_PRICE_UPDATE_AUTH");

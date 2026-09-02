@@ -3643,6 +3643,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refreshBtnClientComptant();
                     }
                     me.refresh();
+                    me.controlerDetailPanier(record.lgPREENREGISTREMENTID);
 
 
                 }
@@ -3650,6 +3651,32 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
 
+    },
+    /**
+     * Re-contrôle du panier à son ouverture : entre la mise en attente et la reprise, le stock a pu
+     * changer (autre caisse, vente de la boîte). Prévient tout de suite si un produit détail n'est
+     * plus couvert par le stock vendable (rayon + boîtes à déconditionner), plutôt que d'attendre le
+     * refus à l'encaissement.
+     */
+    controlerDetailPanier: function (venteId) {
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/controle-detail/' + venteId,
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success && result.produits && result.produits.length > 0) {
+                    Ext.MessageBox.show({
+                        title: 'Stock insuffisant',
+                        width: 550,
+                        msg: 'Stock insuffisant pour :<br/><b>' + result.produits.join('</b><br/><b>')
+                                + '</b><br/>Plus aucune boîte à déconditionner : veuillez modifier les quantités avant de valider la vente.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.WARNING
+                    });
+                }
+            }
+        });
     },
     loadExistantSale: function (venteId) {
         const me = this, contenu = me.getContenu();
