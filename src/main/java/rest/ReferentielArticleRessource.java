@@ -10,6 +10,7 @@ import dal.TUser;
 import dal.TZoneGeographique;
 import dal.dataManager;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
@@ -72,6 +73,61 @@ public class ReferentielArticleRessource {
         int from = Math.max(0, start);
         int to = (limit > 0) ? Math.min(total, from + limit) : total;
         return new int[] { from, to };
+    }
+
+    /** Cle du parametre qui fixe le prefixe des codes CIP internes. */
+    static final String PARAM_PREFIXE_CIP = "KEY_PREFIXE_CIP_INTERNE";
+
+    /**
+     * Code CIP interne libre, pour le bouton « + » des fiches de creation d'article.
+     *
+     * <p>
+     * Un code est pris s'il figure comme CIP d'un article, ou comme code article chez un grossiste - c'est sur ces deux
+     * tables que la creation d'article controle deja l'unicite. On regarde TOUS les statuts : le CIP d'un article
+     * desactive ne doit pas etre redistribue, il reste attache a son historique.
+     */
+    @GET
+    @Path("code-cip")
+    public Response codeCip() {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            /*
+             * Lecture en SQL natif et non par find() : le cache partage d'entites garderait la premiere valeur lue
+             * jusqu'au redemarrage du serveur, et un prefixe change en base ne serait pas applique.
+             */
+            @SuppressWarnings("unchecked")
+            List<Object> valeurs = odm.getEm()
+                    .createNativeQuery(
+                            "SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?1 AND str_STATUT = 'enable'")
+                    .setParameter(1, PARAM_PREFIXE_CIP).getResultList();
+            String prefixe = valeurs.isEmpty() || valeurs.get(0) == null ? null : valeurs.get(0).toString();
+            CodeCipGenerateur generateur = new CodeCipGenerateur(prefixe, new Random(), code -> {
+                Number n = (Number) odm.getEm()
+                        .createNativeQuery("SELECT (SELECT COUNT(*) FROM t_famille WHERE int_CIP = ?1)"
+                                + " + (SELECT COUNT(*) FROM t_famille_grossiste WHERE str_CODE_ARTICLE = ?1)")
+                        .setParameter(1, code).getSingleResult();
+                return n.longValue() > 0;
+            });
+            String code = generateur.generer();
+            return Response.ok().entity(new JSONObject().put("success", true).put("codeCip", code)
+                    .put("prefixe", generateur.getPrefixe()).toString()).build();
+        } catch (IllegalStateException plageEpuisee) {
+            LOG.log(Level.WARNING, "code-cip : {0}", plageEpuisee.getMessage());
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", plageEpuisee.getMessage()).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "code-cip", e);
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "La generation du code a echoue, reessayez.").toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 
     /** Types d'etiquette actifs (MEME methode metier que typeetiquette/ws_data.jsp). */

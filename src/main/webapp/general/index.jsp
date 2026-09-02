@@ -79,6 +79,8 @@
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger
              apres ext-all.js. -->
         <script src="resources/js/correctifs-affichage.js"></script>
+        <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
+        <script src="resources/js/code-cip.js"></script>
 
         <script src="bootstrap.js"></script>
 

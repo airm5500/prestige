@@ -161,27 +161,42 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                         anchor: '100%'
                     },
                     items: [
+                        /* Le champ CIP et, a sa droite, le bouton « + » qui genere un code interne
+                         * inexistant dans le systeme (meme service que la fiche article complete). */
                         {
+                            xtype: 'fieldcontainer',
                             fieldLabel: 'Code CIP',
-                            xtype: 'textfield',
-                            maskRe: /[0-9.]/, width: 400,
-                            // AJOUT : Écouteur pour la touche "Entrée"
-                            listeners: {
-                                specialkey: function (field, e) {
-                                    if (e.getKey() === e.ENTER) {
-                                        Ext.getCmp('str_DESCRIPTION').focus(true, 10);
+                            layout: 'hbox',
+                            items: [
+                                {
+                                    xtype: 'textfield',
+                                    maskRe: /[0-9.]/, width: 340,
+                                    // AJOUT : Écouteur pour la touche "Entrée"
+                                    listeners: {
+                                        specialkey: function (field, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                Ext.getCmp('str_DESCRIPTION').focus(true, 10);
+                                            }
+                                        }
+                                    },
+                                    /*autoCreate: {
+                                     tag: 'input',
+                                     maxlength: '7'
+                                     },*/
+                                    emptyText: 'Code CIP',
+                                    name: 'int_CIP',
+                                    id: 'int_CIP',
+                                    allowBlank: false
+
+                                },
+                                {
+                                    xtype: 'button', itemId: 'btnGenererCip', text: '+', width: 28, margin: '0 0 0 4',
+                                    tooltip: 'Générer un code CIP interne inexistant dans le système',
+                                    handler: function (btn) {
+                                        window.PrestigeCodeCip.generer(btn, Ext.getCmp('int_CIP'), Ext.getCmp('str_DESCRIPTION'));
                                     }
                                 }
-                            },
-                            /*autoCreate: {
-                             tag: 'input',
-                             maxlength: '7'
-                             },*/
-                            emptyText: 'Code CIP',
-                            name: 'int_CIP',
-                            id: 'int_CIP',
-                            allowBlank: false
-
+                            ]
                         },
                        
                         {

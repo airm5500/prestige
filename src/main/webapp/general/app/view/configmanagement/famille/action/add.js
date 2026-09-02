@@ -216,6 +216,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             margin: '0 0 5 0',
                             items: [
                                 { fieldLabel: 'Cip', xtype: 'textfield', maskRe: /[0-9.]/, width: 400, autoCreate: { tag: 'input', maxlength: '7' }, emptyText: 'CIP', name: 'int_CIP', itemId: 'int_CIP', allowBlank: false },
+                                /* Generateur de code CIP interne : quand on ne sait pas quel code
+                                 * mettre, un clic remplit le champ d'un code de sept chiffres
+                                 * qu'aucun article ne porte. Voir PrestigeCodeCip. */
+                                { xtype: 'button', itemId: 'btnGenererCip', text: '+', width: 28, margin: '0 8 0 2',
+                                  tooltip: 'Générer un code CIP interne inexistant dans le système',
+                                  handler: function (btn) { window.PrestigeCodeCip.generer(btn, btn.up('container').down('#int_CIP'), btn.up('form').down('#str_DESCRIPTION')); } },
                                 { fieldLabel: 'Designation', width: 400, emptyText: 'DESIGNATION', name: 'str_DESCRIPTION', itemId: 'str_DESCRIPTION', allowBlank: false },
                                 { fieldLabel: 'Prix.Achat.Tarif', xtype: 'textfield', maskRe: /[0-9.]/, width: 350, emptyText: 'PRIX ACHAT TARIF', name: 'int_PAT', itemId: 'int_PAT', selectOnFocus: true, hidden: true },
                                 { fieldLabel: 'Prix Achat', xtype: 'textfield', maskRe: /[0-9.]/, width: 350, selectOnFocus: true, emptyText: 'PRIX ACHAT', name: 'int_PAF', itemId: 'int_PAF', fieldStyle: 'color:blue;font-weight:bold;font-size:1.3em', allowBlank: false }
@@ -610,7 +616,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             if (ds.P_UPDATE_PRIXVENTE === false) g('int_PRICE').disable();
             if (ds.P_UPDATE_CODETABLEAU === false) g('int_T').disable();
             if (ds.P_UPDATE_CODEREMISE === false) g('str_CODE_REMISE').disable();
-            if (ds.P_UPDATE_CIP === false) g('int_CIP').disable();
+            if (ds.P_UPDATE_CIP === false) { g('int_CIP').disable(); g('btnGenererCip').disable(); }
             if (ds.P_UPDATE_DESIGNATION === false) g('str_DESCRIPTION').disable();
 
             ref = ds.lg_FAMILLE_ID;
