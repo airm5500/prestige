@@ -17,7 +17,7 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
     height: 620,
     minHeight: 620,
     tabPosition: 'top',
-    title: 'Analyse CA par emplacement / famille',
+    title: 'Analyse du CA par emplacement et famille',
 
     initComponent: function () {
         const me = this;
