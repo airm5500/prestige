@@ -285,6 +285,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         + p.getLgUSERVENDEURID().getStrLASTNAME();
             }
             List<TicketPrevente.Organisme> organismes = new ArrayList<>();
+            String matricule = "";
             for (TPreenregistrementCompteClientTiersPayent t : listeVenteTiersPayantsByIdVente(
                     p.getLgPREENREGISTREMENTID())) {
                 String nom = t.getLgCOMPTECLIENTTIERSPAYANTID() != null
@@ -292,12 +293,27 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                                 ? t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : "";
                 organismes.add(new TicketPrevente.Organisme(nom, t.getIntPERCENT(),
                         t.getIntPRICE() == null ? 0 : t.getIntPRICE()));
+                // Matricule : le numero du compte tiers payant (premier organisme)
+                if (matricule.isEmpty() && t.getLgCOMPTECLIENTTIERSPAYANTID() != null
+                        && t.getLgCOMPTECLIENTTIERSPAYANTID().getStrNUMEROSECURITESOCIAL() != null) {
+                    matricule = t.getLgCOMPTECLIENTTIERSPAYANTID().getStrNUMEROSECURITESOCIAL();
+                }
+            }
+            // Beneficiaire : l'ayant droit de la vente, sinon le client lui-meme
+            String beneficiaire = "";
+            if (p.getAyantDroit() != null) {
+                beneficiaire = org.apache.commons.lang3.StringUtils.defaultString(p.getAyantDroit().getStrFIRSTNAME())
+                        + " " + org.apache.commons.lang3.StringUtils.defaultString(p.getAyantDroit().getStrLASTNAME());
+            } else if (p.getClient() != null) {
+                beneficiaire = org.apache.commons.lang3.StringUtils.defaultString(p.getClient().getStrFIRSTNAME()) + " "
+                        + org.apache.commons.lang3.StringUtils.defaultString(p.getClient().getStrLASTNAME());
             }
             TicketPrevente ticket = new TicketPrevente(typeVente, p.getStrREF(),
                     util.DateCommonUtils.formatDateHeureCreation(p.getDtCREATED()), vendeur,
                     p.getIntPRICE() == null ? 0 : p.getIntPRICE(),
                     p.getIntPRICEREMISE() == null ? 0 : p.getIntPRICEREMISE(),
-                    p.getIntCUSTPART() == null ? 0 : p.getIntCUSTPART(), organismes);
+                    p.getIntCUSTPART() == null ? 0 : p.getIntCUSTPART(), organismes).avecBeneficiaire(beneficiaire,
+                            matricule);
 
             TEmplacement te = p.getLgUSERID().getLgEMPLACEMENTID();
             // Une seule interrogation du spouleur d'impression : chaque recherche de l'imprimante par defaut

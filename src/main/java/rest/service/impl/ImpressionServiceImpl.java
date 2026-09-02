@@ -367,10 +367,14 @@ public class ImpressionServiceImpl implements Printable {
 
     }
 
+    /** Largeur imprimable de la page en cours (points), pour centrer le QR code du ticket de prevente. */
+    private double largeurImprimable = 0;
+
     @Override
     public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
         if (pageIndex == 0) {
             Graphics2D g2d = (Graphics2D) graphics;
+            largeurImprimable = pageFormat.getImageableWidth();
             g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
             int scaleImage = 2; // coefficient de proportion des images
             int scaleTexte = 12; // hauteur d'une ligne de texte
@@ -437,20 +441,30 @@ public class ImpressionServiceImpl implements Printable {
          */
         graphics.drawString(this.getOfficine().getStrFIRSTNAME() + " " + this.getOfficine().getStrLASTNAME(), 0,
                 start + (scaleTexte * i));
-        graphics.drawString(this.getOfficine().getStrPHONE() + "   |    " + this.getOfficine().getStrADRESSSEPOSTALE(),
-                0, start + (scaleTexte * ++i));
-        // Ticket de prevente : minimaliste, sans la ligne d'en-tete de l'officine (« NOS REMERCIEMENTS... »)
+        // Ticket de prevente : minimaliste. Ni telephone ni adresse, ni ligne d'en-tete de l'officine
+        // (« NOS REMERCIEMENTS... »), ni logo ; le titre en gras, bien visible.
         boolean prevente = Constant.TICKET_PREVENTE.equals(this.getTypeTicket());
+        if (!prevente) {
+            graphics.drawString(
+                    this.getOfficine().getStrPHONE() + "   |    " + this.getOfficine().getStrADRESSSEPOSTALE(), 0,
+                    start + (scaleTexte * ++i));
+        }
         if (!prevente && !this.getOfficine().getStrENTETE().equals("") && this.getOfficine().getStrENTETE() != null) {
             if (result) {
                 i++;
             }
             graphics.drawString(this.getOfficine().getStrENTETE(), 0, start + (scaleTexte * ++i));
         }
-        graphics.drawString(this.getTitle(), 0, start + (scaleTexte * ++i));
+        if (prevente) {
+            graphics.setFont(new Font("Arial Narrow", Font.BOLD, 12 + fontSize));
+            graphics.drawString(this.getTitle(), 0, start + (scaleTexte * ++i) + 2);
+            graphics.setFont(font);
+        } else {
+            graphics.drawString(this.getTitle(), 0, start + (scaleTexte * ++i));
+        }
         limit = start + (scaleTexte * ++i);
 
-        if (intBegin == 0) {
+        if (intBegin == 0 && !prevente) {
             graphics.drawImage(logo, 155, 85, lw, lh, null); // A decommenter pour les imprimantes thermique
         }
     }
@@ -602,10 +616,8 @@ public class ImpressionServiceImpl implements Printable {
         int ch = scaleImage * codeBarHeight;
 
         boolean prevente = Constant.TICKET_PREVENTE.equals(this.getTypeTicket());
-        if (prevente) {
-            // Ticket de prevente : la date vient juste sous le texte, a gauche, sans ligne vide
-            graphics.drawString(SIMPLE_DATE_FORMAT.format(this.getOperation()), 0, start + scaleTexte);
-        } else {
+        if (!prevente) {
+            // Ticket de prevente : pas de date sous les montants (elle est deja dans l'en-tete)
             graphics.drawString(SIMPLE_DATE_FORMAT.format(this.getOperation()), 125, start + (scaleTexte * 1)); // imprimante
             // matricielle
         }
@@ -619,9 +631,10 @@ public class ImpressionServiceImpl implements Printable {
                  * qui rappelle la vente a la caisse.
                  */
                 int cote = scaleImage * 60;
-                // juste sous la ligne de date (posee a start + scaleTexte), pas par-dessus
-                int haut = start + scaleTexte + 6;
-                graphics.drawImage(imgCodeBar, 55, haut, cote, cote, null);
+                // juste sous les montants, centre sur la largeur imprimable du papier
+                int haut = start + 6;
+                int gauche = Math.max(0, (int) ((largeurImprimable > 0 ? largeurImprimable : 230) - cote) / 2);
+                graphics.drawImage(imgCodeBar, gauche, haut, cote, cote, null);
                 limit = haut + cote;
             } else if (intBegin == 0) {
                 graphics.drawImage(imgCodeBar, -5, start + 5, cw, ch, null);

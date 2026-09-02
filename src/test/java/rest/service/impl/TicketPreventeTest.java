@@ -79,9 +79,22 @@ class TicketPreventeTest {
     @DisplayName("Titre et en-tete : reference, date et heure, vendeur ; le vendeur absent n'ajoute pas de ligne")
     void titreEtEnTete() {
         TicketPrevente t = new TicketPrevente("1", "260902_00004", "02/09/2026 00:57", "A.KOUADIO", 100, 0, 0, null);
-        assertEquals("PREVENTE N° 260902_00004", t.titre());
+        assertEquals("TICKET PREVENTE N° 260902_00004", t.titre());
         assertEquals(Arrays.asList("Date:: 02/09/2026 00:57", "Vendeur:: A.KOUADIO"), t.enTete());
         assertEquals(Arrays.asList("Date:: d"), new TicketPrevente("1", "R", "d", "", 100, 0, 0, null).enTete());
+    }
+
+    @Test
+    @DisplayName("Vente a credit : beneficiaire et matricule dans l'en-tete ; ignores en vente au comptant")
+    void beneficiaireEtMatricule() {
+        TicketPrevente credit = new TicketPrevente("2", "R", "d", "v", 100, 0, 20, null).avecBeneficiaire("KONAN AYA",
+                "MAT-4521");
+        assertEquals(Arrays.asList("Date:: d", "Vendeur:: v", "Bénéficiaire:: KONAN AYA", "Matricule:: MAT-4521"),
+                credit.enTete());
+        TicketPrevente comptant = new TicketPrevente("1", "R", "d", "v", 100, 0, 0, null).avecBeneficiaire("X", "Y");
+        assertEquals(Arrays.asList("Date:: d", "Vendeur:: v"), comptant.enTete());
+        assertEquals(Arrays.asList("Date:: d", "Vendeur:: v"),
+                new TicketPrevente("2", "R", "d", "v", 100, 0, 20, null).avecBeneficiaire("", null).enTete());
     }
 
     @Test

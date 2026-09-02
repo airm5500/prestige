@@ -44,6 +44,9 @@ public final class TicketPrevente {
     private final int remise;
     private final int partClient;
     private final List<Organisme> organismes;
+    /** Vente a credit (assurance, carnet) : le beneficiaire (ayant droit, sinon le client) et son matricule. */
+    private String beneficiaire = "";
+    private String matricule = "";
 
     /**
      * @param typeVenteId
@@ -80,17 +83,31 @@ public final class TicketPrevente {
         return Constant.VENTE_ASSURANCE_ID.equals(typeVenteId) || Constant.VENTE_AVEC_CARNET.equals(typeVenteId);
     }
 
-    /** Titre du ticket, sous l'en-tete de l'officine. */
-    public String titre() {
-        return "PREVENTE N° " + reference;
+    public TicketPrevente avecBeneficiaire(String beneficiaire, String matricule) {
+        this.beneficiaire = beneficiaire == null ? "" : beneficiaire.trim();
+        this.matricule = matricule == null ? "" : matricule.trim();
+        return this;
     }
 
-    /** Lignes d'en-tete : date et heure de creation, vendeur. */
+    /** Titre du ticket, sous l'en-tete de l'officine : en gras, bien visible. */
+    public String titre() {
+        return "TICKET PREVENTE N° " + reference;
+    }
+
+    /** Lignes d'en-tete : date et heure de creation, vendeur, puis beneficiaire et matricule d'une vente a credit. */
     public List<String> enTete() {
         List<String> lignes = new ArrayList<>();
         lignes.add("Date:: " + dateHeure);
         if (!vendeur.isEmpty()) {
             lignes.add("Vendeur:: " + vendeur);
+        }
+        if (estTiersPayant()) {
+            if (!beneficiaire.isEmpty()) {
+                lignes.add("Bénéficiaire:: " + beneficiaire);
+            }
+            if (!matricule.isEmpty()) {
+                lignes.add("Matricule:: " + matricule);
+            }
         }
         return lignes;
     }
