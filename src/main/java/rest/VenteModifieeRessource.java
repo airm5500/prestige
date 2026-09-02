@@ -113,9 +113,9 @@ public class VenteModifieeRessource {
                 }
             }
         }
-        String[] entetes = { "Date", "Heure", "Action", "Référence vente", "Opérateur", "Montant avant",
+        String[] entetes = { "Date", "Heure", "Action", "Référence vente", "Date vente", "Opérateur", "Montant avant",
                 "Montant après", "CIP", "Produit", "Changement", "Qté avant", "Qté après", "PU avant", "PU après",
-                "Montant ligne avant", "Montant ligne après", "Détail" };
+                "Montant ligne avant", "Montant ligne après", "Élément", "Valeur avant", "Valeur après", "Détail" };
         byte[] bytes = reportExcelExportService.createLandscapeExcelReport("Ventes modifiées", entetes, lignes,
                 (Row row, Object[] o) -> {
                     VenteModifieeDTO m = (VenteModifieeDTO) o[0];
@@ -125,10 +125,16 @@ public class VenteModifieeRessource {
                     row.createCell(col++).setCellValue(StringUtils.defaultString(m.getHeure()));
                     row.createCell(col++).setCellValue(StringUtils.defaultString(m.getTypeLibelle()));
                     row.createCell(col++).setCellValue(StringUtils.defaultString(m.getVenteRef()));
+                    row.createCell(col++).setCellValue(StringUtils.defaultString(m.getVenteDate()));
                     row.createCell(col++).setCellValue(StringUtils.defaultString(m.getUserName()));
                     row.createCell(col++).setCellValue(valeur(m.getMontantAvant()));
                     row.createCell(col++).setCellValue(valeur(m.getMontantApres()));
-                    if (l != null) {
+                    if (l != null && "INFO".equals(l.getAction())) {
+                        col += 9;
+                        row.createCell(col++).setCellValue(StringUtils.defaultString(l.getProduitLibelle()));
+                        row.createCell(col++).setCellValue(StringUtils.defaultString(l.getValeurAvant()));
+                        row.createCell(col++).setCellValue(StringUtils.defaultString(l.getValeurApres()));
+                    } else if (l != null) {
                         row.createCell(col++).setCellValue(StringUtils.defaultString(l.getProduitCip()));
                         row.createCell(col++).setCellValue(StringUtils.defaultString(l.getProduitLibelle()));
                         row.createCell(col++).setCellValue(libelleAction(l.getAction()));
@@ -138,8 +144,9 @@ public class VenteModifieeRessource {
                         row.createCell(col++).setCellValue(valeur(l.getPuApres()));
                         row.createCell(col++).setCellValue(valeur(l.getMontantAvant()));
                         row.createCell(col++).setCellValue(valeur(l.getMontantApres()));
+                        col += 3;
                     } else {
-                        col += 9;
+                        col += 12;
                     }
                     row.createCell(col).setCellValue(StringUtils.defaultString(m.getDescription()));
                 });
@@ -230,6 +237,8 @@ public class VenteModifieeRessource {
             return "Quantité modifiée";
         case "PRIX":
             return "Prix modifié";
+        case "INFO":
+            return "Information";
         default:
             return action;
         }

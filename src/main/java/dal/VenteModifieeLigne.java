@@ -25,6 +25,8 @@ public class VenteModifieeLigne implements Serializable {
     public static final String ACTION_RETRAIT = "RETRAIT";
     public static final String ACTION_QUANTITE = "QUANTITE";
     public static final String ACTION_PRIX = "PRIX";
+    /** Ligne du recapitulatif d'une modification d'informations ou de date : element, valeur avant, valeur apres. */
+    public static final String ACTION_INFO = "INFO";
 
     @Id
     @Basic(optional = false)
@@ -54,6 +56,10 @@ public class VenteModifieeLigne implements Serializable {
     private Integer montantAvant = 0;
     @Column(name = "montant_apres", nullable = false)
     private Integer montantApres = 0;
+    @Column(name = "valeur_avant", length = 255)
+    private String valeurAvant;
+    @Column(name = "valeur_apres", length = 255)
+    private String valeurApres;
 
     public String getId() {
         return id;
@@ -149,5 +155,21 @@ public class VenteModifieeLigne implements Serializable {
 
     public void setMontantApres(Integer montantApres) {
         this.montantApres = montantApres;
+    }
+
+    public String getValeurAvant() {
+        return valeurAvant;
+    }
+
+    public void setValeurAvant(String valeurAvant) {
+        this.valeurAvant = valeurAvant;
+    }
+
+    public String getValeurApres() {
+        return valeurApres;
+    }
+
+    public void setValeurApres(String valeurApres) {
+        this.valeurApres = valeurApres;
     }
 }

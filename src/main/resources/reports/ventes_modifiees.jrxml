@@ -24,6 +24,7 @@
     <field name="id" class="java.lang.String"/>
     <field name="action" class="java.lang.String"/>
     <field name="venteRef" class="java.lang.String"/>
+    <field name="venteDate" class="java.lang.String"/>
     <field name="date" class="java.lang.String"/>
     <field name="heure" class="java.lang.String"/>
     <field name="operateur" class="java.lang.String"/>
@@ -39,6 +40,9 @@
     <field name="puApres" class="java.lang.Long"/>
     <field name="ligneAvant" class="java.lang.Long"/>
     <field name="ligneApres" class="java.lang.Long"/>
+    <field name="typeLigne" class="java.lang.String"/>
+    <field name="valeurAvant" class="java.lang.String"/>
+    <field name="valeurApres" class="java.lang.String"/>
 
     <variable name="NB_MODIFS" class="java.lang.Integer" incrementType="Group" incrementGroup="modification" calculation="Count">
         <variableExpression><![CDATA[$F{id}]]></variableExpression>
@@ -56,22 +60,22 @@
                         <textFieldExpression><![CDATA[$F{action}]]></textFieldExpression>
                     </textField>
                     <textField isBlankWhenNull="true">
-                        <reportElement x="154" y="0" width="110" height="16"/>
+                        <reportElement x="154" y="0" width="200" height="16"/>
                         <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
-                        <textFieldExpression><![CDATA["Vente " + $F{venteRef}]]></textFieldExpression>
+                        <textFieldExpression><![CDATA["Vente " + $F{venteRef} + " du " + $F{venteDate}]]></textFieldExpression>
                     </textField>
                     <textField isBlankWhenNull="true">
-                        <reportElement x="266" y="0" width="110" height="16"/>
+                        <reportElement x="356" y="0" width="130" height="16"/>
                         <textElement verticalAlignment="Middle"><font size="8"/></textElement>
-                        <textFieldExpression><![CDATA[$F{date} + " " + $F{heure}]]></textFieldExpression>
+                        <textFieldExpression><![CDATA["Modifiée le " + $F{date} + " " + $F{heure}]]></textFieldExpression>
                     </textField>
                     <textField isBlankWhenNull="true">
-                        <reportElement x="378" y="0" width="180" height="16"/>
+                        <reportElement x="488" y="0" width="140" height="16"/>
                         <textElement verticalAlignment="Middle"><font size="8"/></textElement>
                         <textFieldExpression><![CDATA["Opérateur : " + $F{operateur}]]></textFieldExpression>
                     </textField>
                     <textField pattern="#,##0" isBlankWhenNull="true">
-                        <reportElement x="560" y="0" width="240" height="16"/>
+                        <reportElement x="630" y="0" width="170" height="16"/>
                         <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                         <textFieldExpression><![CDATA["Montant : " + new java.text.DecimalFormat("#,##0").format($F{montantAvant}) + "  ->  " + new java.text.DecimalFormat("#,##0").format($F{montantApres})]]></textFieldExpression>
                     </textField>
@@ -178,8 +182,8 @@
 
     <detail>
         <band height="15" splitType="Stretch">
-            <!-- Une modification sans produit (informations client, date) ne produit pas de ligne de détail -->
-            <printWhenExpression><![CDATA[$F{changement} != null && $F{changement}.length() > 0]]></printWhenExpression>
+            <!-- Une modification sans produit ne produit pas de ligne de détail ; les lignes INFO ont leur bande -->
+            <printWhenExpression><![CDATA["PRODUIT".equals($F{typeLigne})]]></printWhenExpression>
             <line>
                 <reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#D9D9D9"/>
             </line>
@@ -227,6 +231,28 @@
                 <reportElement x="732" y="1" width="68" height="12"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{ligneApres}]]></textFieldExpression>
+            </textField>
+        </band>
+        <!-- Récapitulatif d'une modification d'informations ou de date : élément, avant, après -->
+        <band height="15" splitType="Stretch">
+            <printWhenExpression><![CDATA["INFO".equals($F{typeLigne})]]></printWhenExpression>
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#D9D9D9"/>
+            </line>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="2" y="1" width="160" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{changement}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="164" y="1" width="300" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Avant : " + $F{valeurAvant}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="468" y="1" width="332" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Après : " + $F{valeurApres}]]></textFieldExpression>
             </textField>
         </band>
     </detail>

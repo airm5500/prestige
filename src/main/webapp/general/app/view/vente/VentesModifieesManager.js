@@ -28,7 +28,7 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
         var today = new Date();
 
         me.modifStore = new Ext.data.Store({
-            fields: ['id', 'typeModification', 'typeLibelle', 'venteId', 'venteOrigineId', 'venteRef',
+            fields: ['id', 'typeModification', 'typeLibelle', 'venteId', 'venteOrigineId', 'venteRef', 'venteDate',
                 'userName', 'date', 'heure', 'montantAvant', 'montantApres', 'description', 'lignes'],
             pageSize: 20,
             autoLoad: false,
@@ -194,15 +194,16 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
                             getAdditionalData: function (data) {
                                 return {
                                     rowBody: me.rendreDetail(data),
-                                    rowBodyColspan: 9
+                                    rowBodyColspan: 10
                                 };
                             }
                         }],
                     columns: [
                         {header: 'Action', dataIndex: 'typeLibelle', width: 190},
-                        {header: 'Référence vente', dataIndex: 'venteRef', width: 140},
-                        {header: 'Date', dataIndex: 'date', width: 90},
-                        {header: 'Heure', dataIndex: 'heure', width: 75},
+                        {header: 'Référence vente', dataIndex: 'venteRef', width: 120},
+                        {header: 'Date de la vente', dataIndex: 'venteDate', width: 120},
+                        {header: 'Modifiée le', dataIndex: 'date', width: 90},
+                        {header: 'Heure', dataIndex: 'heure', width: 70},
                         {header: 'Opérateur', dataIndex: 'userName', width: 140},
                         {
                             header: 'Montant avant', dataIndex: 'montantAvant', width: 100, align: 'right',
@@ -239,11 +240,26 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
                 return a || '';
         }
     },
-    // Tableau HTML du detail produit d'une modification (vide si aucun produit)
+    // Tableau HTML du detail d'une modification : produits, ou recapitulatif element / avant / apres
+    // (informations client, date de vente). Vide si aucune ligne.
     rendreDetail: function (data) {
         var me = this, lignes = data.lignes || [], html, i, l, couleur, fmt = Ext.util.Format.number;
         if (!lignes.length) {
             return '';
+        }
+        if (lignes[0].action === 'INFO') {
+            html = '<table class="ventes-modifiees-detail" style="margin:2px 0 4px 30px;border-collapse:collapse;font-size:12px;">'
+                    + '<tr style="background:#eef2f7;font-weight:bold;">'
+                    + '<td style="padding:2px 8px;border:1px solid #ccd;">Élément</td>'
+                    + '<td style="padding:2px 8px;border:1px solid #ccd;">Avant</td>'
+                    + '<td style="padding:2px 8px;border:1px solid #ccd;">Après</td></tr>';
+            for (i = 0; i < lignes.length; i++) {
+                l = lignes[i];
+                html += '<tr><td style="padding:2px 8px;border:1px solid #ccd;font-weight:bold;">' + Ext.String.htmlEncode(l.produitLibelle || '') + '</td>'
+                        + '<td style="padding:2px 8px;border:1px solid #ccd;color:#c0392b;">' + Ext.String.htmlEncode(l.valeurAvant || '') + '</td>'
+                        + '<td style="padding:2px 8px;border:1px solid #ccd;color:#1a7f37;">' + Ext.String.htmlEncode(l.valeurApres || '') + '</td></tr>';
+            }
+            return html + '</table>';
         }
         html = '<table class="ventes-modifiees-detail" style="margin:2px 0 4px 30px;border-collapse:collapse;font-size:12px;">'
                 + '<tr style="background:#eef2f7;font-weight:bold;">'
@@ -357,24 +373,25 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
         if (filters.userId) {
             filters.userLibelle = userCombo.getRawValue() || '';
         }
-        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        // Onglet ouvert au clic (voir PrestigeEditions) : pas de blocage de fenetre surgissante
+        var onglet = window.PrestigeEditions.ouvrirOnglet();
         Ext.Ajax.request({
             url: '../api/v1/ventes-modifiees/pdf',
             method: 'GET',
             params: filters,
             timeout: 600000,
             success: function (resp) {
-                progress.hide();
                 var r = Ext.JSON.decode(resp.responseText, true);
                 if (r && r.success && r.url) {
-                    window.open(r.url);
+                    window.PrestigeEditions.afficher(onglet, r.url);
                 } else {
+                    window.PrestigeEditions.fermer(onglet);
                     Ext.MessageBox.alert('Impression',
                             (r && r.message) ? r.message : "La génération du PDF n'a pas abouti.");
                 }
             },
             failure: function () {
-                progress.hide();
+                window.PrestigeEditions.fermer(onglet);
                 Ext.MessageBox.alert('Impression', 'La génération du PDF a échoué.');
             }
         });

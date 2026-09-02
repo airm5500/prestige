@@ -74,6 +74,7 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
             VenteModifiee m = entete(VenteModifiee.TYPE_PRODUITS, user, copie);
             m.setVenteOrigineId(origine.getLgPREENREGISTREMENTID());
             m.setVenteRef(reference(origine));
+            m.setVenteDate(dateVente(origine));
             m.setMontantAvant(montant(origine));
             m.setMontantApres(montant(copie));
             for (Ecart e : ecarts) {
@@ -108,6 +109,10 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
             m.setMontantAvant(montant(vente));
             m.setMontantApres(montant(vente));
             m.setDescription(descriptionInfos(modification));
+            // Tableau recapitulatif element / avant / apres, comme le detail produit
+            for (String[] ligne : lignesInfos(modification)) {
+                m.ajouterLigne(ligneInfo(ligne[0], ligne[1], ligne[2]));
+            }
             em.persist(m);
         } catch (Exception e) {
             LOG.log(Level.WARNING, "enregistrerModificationInfos", e);
@@ -124,7 +129,8 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
             VenteModifiee m = entete(VenteModifiee.TYPE_DATE, user, vente);
             m.setMontantAvant(montant(vente));
             m.setMontantApres(montant(vente));
-            m.setDescription("Date de vente : " + formatDate(avant) + " → " + formatDate(apres));
+            m.setDescription("Ancienne date : " + formatDate(avant) + " ; Nouvelle date : " + formatDate(apres));
+            m.ajouterLigne(ligneInfo("Date de vente", formatDate(avant), formatDate(apres)));
             em.persist(m);
         } catch (Exception e) {
             LOG.log(Level.WARNING, "enregistrerModificationDate", e);
@@ -136,12 +142,54 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
         m.setTypeModification(type);
         m.setVenteId(vente.getLgPREENREGISTREMENTID());
         m.setVenteRef(reference(vente));
+        m.setVenteDate(dateVente(vente));
         if (user != null) {
             m.setUserId(user.getLgUSERID());
             m.setUserName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
         }
         m.setMvtDate(LocalDateTime.now());
         return m;
+    }
+
+    private static LocalDateTime dateVente(TPreenregistrement vente) {
+        Date d = vente.getDtCREATED() != null ? vente.getDtCREATED() : vente.getDtUPDATED();
+        return d == null ? null : DateCommonUtils.convertDateToLocalDateTime(d);
+    }
+
+    private static VenteModifieeLigne ligneInfo(String element, String avant, String apres) {
+        VenteModifieeLigne l = new VenteModifieeLigne();
+        l.setAction(VenteModifieeLigne.ACTION_INFO);
+        l.setProduitLibelle(element);
+        l.setValeurAvant(StringUtils.abbreviate(StringUtils.defaultIfEmpty(avant, "-"), 255));
+        l.setValeurApres(StringUtils.abbreviate(StringUtils.defaultIfEmpty(apres, "-"), 255));
+        return l;
+    }
+
+    /** Lignes element / avant / apres d'une modification d'informations (memes regles que le texte). */
+    static List<String[]> lignesInfos(VenteModification v) {
+        List<String[]> lignes = new ArrayList<>();
+        if (v == null) {
+            return lignes;
+        }
+        ajouterLigne(lignes, "Client", v.getOldClient(), v.getFinalClient());
+        ajouterLigne(lignes, "N° bon", v.getOldBon(), v.getFinalBon());
+        ajouterLigne(lignes, "Part client", v.getOldMontantClient(), v.getNouveauMontantClient());
+        ajouterLigne(lignes, "Ayant droit", v.getOldAyantDroit(), v.getFinalAyantDroit());
+        String tpAvant = libelles(v.getOldTiersPayant());
+        String tpApres = libelles(v.getFinalTiersPayant());
+        if (!StringUtils.equals(tpAvant, tpApres)) {
+            lignes.add(new String[] { "Tiers payant", tpAvant, tpApres });
+        }
+        return lignes;
+    }
+
+    private static void ajouterLigne(List<String[]> lignes, String element, String avant, String apres) {
+        String a = sansId(avant);
+        String b = sansId(apres);
+        if ((StringUtils.isEmpty(a) && StringUtils.isEmpty(b)) || StringUtils.equals(a, b)) {
+            return;
+        }
+        lignes.add(new String[] { element, a, b });
     }
 
     private static String reference(TPreenregistrement vente) {
@@ -323,6 +371,7 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
         dto.setVenteId(m.getVenteId());
         dto.setVenteOrigineId(m.getVenteOrigineId());
         dto.setVenteRef(m.getVenteRef());
+        dto.setVenteDate(m.getVenteDate() == null ? "" : m.getVenteDate().format(DATE_HEURE_FORMAT));
         dto.setUserName(m.getUserName());
         dto.setMontantAvant(m.getMontantAvant());
         dto.setMontantApres(m.getMontantApres());
@@ -343,6 +392,8 @@ public class VenteModifieeServiceImpl implements VenteModifieeService {
             dl.setPuApres(l.getPuApres());
             dl.setMontantAvant(l.getMontantAvant());
             dl.setMontantApres(l.getMontantApres());
+            dl.setValeurAvant(l.getValeurAvant());
+            dl.setValeurApres(l.getValeurApres());
             dto.getLignes().add(dl);
         }
         return dto;

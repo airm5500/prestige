@@ -20,6 +20,24 @@ public class VenteModifieeDTO {
         private Integer puApres;
         private Integer montantAvant;
         private Integer montantApres;
+        private String valeurAvant;
+        private String valeurApres;
+
+        public String getValeurAvant() {
+            return valeurAvant;
+        }
+
+        public void setValeurAvant(String valeurAvant) {
+            this.valeurAvant = valeurAvant;
+        }
+
+        public String getValeurApres() {
+            return valeurApres;
+        }
+
+        public void setValeurApres(String valeurApres) {
+            this.valeurApres = valeurApres;
+        }
 
         public String getProduitId() {
             return produitId;
@@ -108,6 +126,8 @@ public class VenteModifieeDTO {
     private String venteId;
     private String venteOrigineId;
     private String venteRef;
+    /** Date de creation de la vente d'origine, jj/mm/aaaa hh:mm */
+    private String venteDate;
     private String userName;
     private String date;
     private String heure;
@@ -162,6 +182,14 @@ public class VenteModifieeDTO {
 
     public void setVenteRef(String venteRef) {
         this.venteRef = venteRef;
+    }
+
+    public String getVenteDate() {
+        return venteDate;
+    }
+
+    public void setVenteDate(String venteDate) {
+        this.venteDate = venteDate;
     }
 
     public String getUserName() {

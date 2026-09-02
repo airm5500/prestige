@@ -10,6 +10,7 @@ public class VenteModifieePdfLigne {
     private String id;
     private String action;
     private String venteRef;
+    private String venteDate;
     private String date;
     private String heure;
     private String operateur;
@@ -25,12 +26,17 @@ public class VenteModifieePdfLigne {
     private Long puApres;
     private Long ligneAvant;
     private Long ligneApres;
+    /** PRODUIT ou INFO (ligne du recapitulatif element / avant / apres) */
+    private String typeLigne;
+    private String valeurAvant;
+    private String valeurApres;
 
     public static VenteModifieePdfLigne entete(VenteModifieeDTO m) {
         VenteModifieePdfLigne l = new VenteModifieePdfLigne();
         l.id = m.getId();
         l.action = m.getTypeLibelle();
         l.venteRef = m.getVenteRef();
+        l.venteDate = m.getVenteDate();
         l.date = m.getDate();
         l.heure = m.getHeure();
         l.operateur = m.getUserName();
@@ -43,6 +49,14 @@ public class VenteModifieePdfLigne {
 
     public static VenteModifieePdfLigne avecProduit(VenteModifieeDTO m, VenteModifieeDTO.Ligne p, String changement) {
         VenteModifieePdfLigne l = entete(m);
+        if ("INFO".equals(p.getAction())) {
+            l.typeLigne = "INFO";
+            l.changement = p.getProduitLibelle();
+            l.valeurAvant = p.getValeurAvant() == null ? "" : p.getValeurAvant().replace("→", "->");
+            l.valeurApres = p.getValeurApres() == null ? "" : p.getValeurApres().replace("→", "->");
+            return l;
+        }
+        l.typeLigne = "PRODUIT";
         l.changement = changement;
         l.cip = p.getProduitCip();
         l.produit = p.getProduitLibelle();
@@ -129,5 +143,21 @@ public class VenteModifieePdfLigne {
 
     public Long getLigneApres() {
         return ligneApres;
+    }
+
+    public String getVenteDate() {
+        return venteDate;
+    }
+
+    public String getTypeLigne() {
+        return typeLigne;
+    }
+
+    public String getValeurAvant() {
+        return valeurAvant;
+    }
+
+    public String getValeurApres() {
+        return valeurApres;
     }
 }

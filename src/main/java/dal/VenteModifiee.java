@@ -44,6 +44,9 @@ public class VenteModifiee implements Serializable {
     private String venteOrigineId;
     @Column(name = "vente_ref", length = 70)
     private String venteRef;
+    /** Date de creation de la vente d'origine (celle que l'on modifie). */
+    @Column(name = "vente_date")
+    private LocalDateTime venteDate;
     @Column(name = "user_id", length = 50)
     private String userId;
     @Column(name = "user_name", length = 150)
@@ -103,6 +106,14 @@ public class VenteModifiee implements Serializable {
 
     public void setVenteRef(String venteRef) {
         this.venteRef = venteRef;
+    }
+
+    public LocalDateTime getVenteDate() {
+        return venteDate;
+    }
+
+    public void setVenteDate(LocalDateTime venteDate) {
+        this.venteDate = venteDate;
     }
 
     public String getUserId() {
