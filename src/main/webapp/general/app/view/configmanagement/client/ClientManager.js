@@ -83,6 +83,22 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     root: 'results',
                     totalProperty: 'total'
                 }
+            },
+            listeners: {
+                // Le filtre « Type client » ne proposait que les types tiers payant (assurance, carnet) :
+                // on y ajoute le client standard (type client 6) pour pouvoir filtrer dessus, et
+                // « Tous » pour lever le filtre. La liste est rechargee a chaque ouverture (queryMode
+                // remote) : les deux entrees sont reposees apres chaque chargement.
+                load: function (store) {
+                    var deja = {};
+                    store.each(function (r) { deja[r.get('lg_TYPE_TIERS_PAYANT_ID')] = true; });
+                    if (!deja['6']) {
+                        store.add({lg_TYPE_TIERS_PAYANT_ID: '6', str_LIBELLE_TYPE_TIERS_PAYANT: 'Client standard'});
+                    }
+                    if (!deja['']) {
+                        store.insert(0, {lg_TYPE_TIERS_PAYANT_ID: '', str_LIBELLE_TYPE_TIERS_PAYANT: 'Tous les types'});
+                    }
+                }
             }
 
         });
