@@ -3194,6 +3194,18 @@ Ext.define('testextjs.controller.VenteCtr', {
      * Dans tous les autres cas (produit non detail, quantite couverte, ou echec du controle), poursuit via
      * onOk() : le flux existant et la barriere serveur restent inchanges.
      */
+    /**
+     * Rend la main dans le champ quantite de la zone recherche produit, valeur preselectionnee (meme
+     * geste que les autres refus de stock de la caisse : focus(true, ...) selectionne le contenu pour
+     * une ressaisie immediate).
+     */
+    redonnerFocusQuantite: function () {
+        const me = this;
+        const champ = me.getVnoqtyField && me.getVnoqtyField();
+        if (champ && champ.focus) {
+            champ.focus(true, 100);
+        }
+    },
     controlerVendableAvantModif: function (produitId, qte, e, onOk) {
         const me = this;
         Ext.Ajax.request({
@@ -3216,7 +3228,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                         msg: 'Stock insuffisant pour ' + (r.libelle || 'ce produit')
                                 + ' : plus aucune boîte à déconditionner. Veuillez réduire la quantité.',
                         buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
+                        icon: Ext.MessageBox.ERROR,
+                        // apres OK : rendre la main dans le champ quantite (zone recherche produit) avec la
+                        // valeur preselectionnee, pour que la caissiere ressaisisse directement
+                        fn: function (buttonId) {
+                            if (buttonId === 'ok') {
+                                me.redonnerFocusQuantite();
+                            }
+                        }
                     });
                     return;
                 }
@@ -3386,7 +3405,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                             width: 550,
                             msg: result.msg || 'Modification refusée.',
                             buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
+                            icon: Ext.MessageBox.ERROR,
+                            fn: function (buttonId) {
+                                if (buttonId === 'ok') {
+                                    me.redonnerFocusQuantite();
+                                }
+                            }
                         });
                     }
                 },
