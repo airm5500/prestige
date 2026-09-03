@@ -60,6 +60,12 @@ public class ApplicationEvent extends AbstractEntity {
     private String urlOuEcran;
     @Column(name = "payload_json", length = 4000)
     private String payloadJson;
+    /**
+     * Debut du detail technique (pile d'appels), conserve en base : le fichier log complet vit sur le disque du serveur
+     * et devient illisible des que le compte qui fait tourner Payara change, ou apres une purge.
+     */
+    @Column(name = "stack_extrait", length = 4000)
+    private String stackExtrait;
     @Column(name = "log_ref", length = 500)
     private String logRef;
     @Column(name = "ticket_id", length = 50)
@@ -143,6 +149,14 @@ public class ApplicationEvent extends AbstractEntity {
 
     public void setPayloadJson(String payloadJson) {
         this.payloadJson = payloadJson;
+    }
+
+    public String getStackExtrait() {
+        return stackExtrait;
+    }
+
+    public void setStackExtrait(String stackExtrait) {
+        this.stackExtrait = stackExtrait;
     }
 
     public String getLogRef() {

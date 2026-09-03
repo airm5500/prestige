@@ -93,18 +93,19 @@ public class SupportEventRessource {
                 "TOUS".equalsIgnoreCase(niveau) ? "" : niveau);
         java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         String[] entetes = { "Première apparition", "Dernière", "Occ.", "Niveau", "Module", "Type", "Message",
-                "Écran / URL", "Utilisateur", "Fil d'Ariane", "Détail (début)" };
+                "Écran / URL", "Utilisateur", "Fil d'Ariane / Contexte", "Détail (début)" };
         List<String[]> lignes = new java.util.ArrayList<>();
         int detailsLus = 0;
         for (ApplicationEvent e : data) {
             String detail = "";
             boolean erreur = "ERROR".equalsIgnoreCase(e.getNiveau()) || "FATAL".equalsIgnoreCase(e.getNiveau());
-            // le detail vient d'un fichier : borne a 150 lectures pour garder l'export rapide
-            if (erreur && StringUtils.isNotBlank(e.getLogRef()) && detailsLus < 150) {
+            // le detail vient d'un fichier : borne a 150 lectures pour garder l'export rapide. Quand le fichier a
+            // disparu, la lecture rend l'extrait conserve en base, et l'export garde donc de quoi analyser.
+            if (erreur && detailsLus < 150) {
                 detailsLus++;
                 detail = StringUtils.abbreviate(
                         StringUtils.defaultString(supportEventService.readLogContent(e.getId())).replace("\r", ""),
-                        800);
+                        4000);
             }
             lignes.add(new String[] { e.getCreatedAt() != null ? e.getCreatedAt().format(format) : "",
                     e.getLastSeenAt() != null ? e.getLastSeenAt().format(format) : "",
@@ -112,7 +113,9 @@ public class SupportEventRessource {
                     StringUtils.defaultString(e.getModule()), StringUtils.defaultString(e.getType()),
                     StringUtils.defaultString(e.getMessageCourt()), StringUtils.defaultString(e.getUrlOuEcran()),
                     StringUtils.defaultString(e.getUtilisateur()),
-                    StringUtils.abbreviate(StringUtils.defaultString(e.getPayloadJson()), 400), detail });
+                    // fil d'Ariane (ecrans) ou explication + contexte metier (serveur) : en entier, c'est
+                    // souvent lui qui dit ce que faisait la caissiere juste avant
+                    StringUtils.abbreviate(StringUtils.defaultString(e.getPayloadJson()), 4000), detail });
         }
         byte[] bytes = reportExcelExportService.createSimpleExcelReport("Journal du support", entetes, lignes);
         return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"journal_support_"

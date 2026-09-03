@@ -71,13 +71,27 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
                 racine.getClass().getSimpleName() + " : " + StringUtils.defaultString(racine.getMessage()), 500));
         // Explication "terre a terre" en francais : affichee dans le detail de l'evenement (bloc Contexte).
         String explication = util.ErreurExplication.expliquer(racine);
-        dto.setPayloadJson(StringUtils.abbreviate("Explication : " + explication, 4000));
+        // Contexte metier : de quelle vente parle-t-on, dans quel etat, tenue par qui. Sans lui, l'evenement ne
+        // nomme qu'un identifiant technique et l'analyse a distance oblige a interroger la base.
+        String contexte = contexteMetier(uri);
+        dto.setPayloadJson(StringUtils
+                .abbreviate("Explication : " + explication + (contexte == null ? "" : "\n\n" + contexte), 4000));
         dto.setUrlOuEcran(StringUtils
                 .abbreviate((request != null ? request.getMethod() + " " : "") + StringUtils.defaultString(uri), 255));
         StringWriter stack = new StringWriter();
         exception.printStackTrace(new PrintWriter(stack));
         dto.setStack(StringUtils.abbreviate("EXPLICATION : " + explication + "\n\n" + stack, 20000));
         return dto;
+    }
+
+    /** Contexte metier, best-effort : une erreur de plus ici ne doit pas empecher l'enregistrement de l'evenement. */
+    private String contexteMetier(String uri) {
+        try {
+            return supportEventService.contexteMetier(uri);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "contexteMetier", e);
+            return null;
+        }
     }
 
     private String moduleFromUri(String uri) {
