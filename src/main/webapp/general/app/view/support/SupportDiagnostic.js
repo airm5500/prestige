@@ -100,6 +100,14 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                         },
                         {
                             xtype: 'button',
+                            itemId: 'btnExcel',
+                            text: 'Excel',
+                            iconCls: 'icon-excel',
+                            tooltip: 'Export minimaliste du journal (niveau filtré, 500 derniers événements, '
+                                    + 'détail des erreurs inclus) pour analyse à distance'
+                        },
+                        {
+                            xtype: 'button',
                             itemId: 'btnPurger',
                             text: 'Purger...',
                             iconCls: 'icon-delete'

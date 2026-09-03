@@ -41,6 +41,8 @@ public class SupportEventRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private SupportEventService supportEventService;
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
 
     @GET
     public Response findAll(@DefaultValue("0") @QueryParam("start") int start,
@@ -65,6 +67,57 @@ public class SupportEventRessource {
                                 + StringUtils.trimToEmpty(user.getStrLASTNAME()) + " (" + user.getStrLOGIN() + ")",
                         servletRequest));
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
+    }
+
+    /**
+     * Export Excel minimaliste du journal : l'essentiel de chaque evenement sur une ligne (dates, niveau, module,
+     * message, ecran, occurrences, utilisateur, fil d'Ariane) et, pour les erreurs, le debut du detail (pile d'appels)
+     * pour que le fichier suffise a une analyse a distance sans acces au serveur.
+     *
+     * @param niveau
+     *            filtre de niveau (vide = tous)
+     * @param limit
+     *            nombre maximal d'evenements (defaut 500, plafond 2000), les plus recents d'abord
+     */
+    @GET
+    @Path("export/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@QueryParam("niveau") String niveau,
+            @DefaultValue("500") @QueryParam("limit") int limit) throws java.io.IOException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        int plafond = Math.max(1, Math.min(limit, 2000));
+        List<ApplicationEvent> data = supportEventService.findAll(0, plafond,
+                "TOUS".equalsIgnoreCase(niveau) ? "" : niveau);
+        java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        String[] entetes = { "Première apparition", "Dernière", "Occ.", "Niveau", "Module", "Type", "Message",
+                "Écran / URL", "Utilisateur", "Fil d'Ariane", "Détail (début)" };
+        List<String[]> lignes = new java.util.ArrayList<>();
+        int detailsLus = 0;
+        for (ApplicationEvent e : data) {
+            String detail = "";
+            boolean erreur = "ERROR".equalsIgnoreCase(e.getNiveau()) || "FATAL".equalsIgnoreCase(e.getNiveau());
+            // le detail vient d'un fichier : borne a 150 lectures pour garder l'export rapide
+            if (erreur && StringUtils.isNotBlank(e.getLogRef()) && detailsLus < 150) {
+                detailsLus++;
+                detail = StringUtils.abbreviate(
+                        StringUtils.defaultString(supportEventService.readLogContent(e.getId())).replace("\r", ""),
+                        800);
+            }
+            lignes.add(new String[] { e.getCreatedAt() != null ? e.getCreatedAt().format(format) : "",
+                    e.getLastSeenAt() != null ? e.getLastSeenAt().format(format) : "",
+                    String.valueOf(e.getOccurrences()), StringUtils.defaultString(e.getNiveau()),
+                    StringUtils.defaultString(e.getModule()), StringUtils.defaultString(e.getType()),
+                    StringUtils.defaultString(e.getMessageCourt()), StringUtils.defaultString(e.getUrlOuEcran()),
+                    StringUtils.defaultString(e.getUtilisateur()),
+                    StringUtils.abbreviate(StringUtils.defaultString(e.getPayloadJson()), 400), detail });
+        }
+        byte[] bytes = reportExcelExportService.createSimpleExcelReport("Journal du support", entetes, lignes);
+        return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"journal_support_"
+                + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + ".xls\"")
+                .build();
     }
 
     @GET

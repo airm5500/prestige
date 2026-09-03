@@ -28,6 +28,9 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             'supportdiagnostic button#btnPurger': {
                 click: this.onPurger
             },
+            'supportdiagnostic button#btnExcel': {
+                click: this.onExcel
+            },
             'supportdiagnostic button#btnPreflight': {
                 click: this.onPreflight
             },
@@ -50,6 +53,13 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
 
     doRefresh: function () {
         this.getDiagnosticGrid().getStore().reload();
+    },
+
+    /* Export Excel minimaliste du journal, avec le niveau filtre a l'ecran (500 derniers evenements). */
+    onExcel: function () {
+        const niveau = this.getComboNiveau() ? this.getComboNiveau().getValue() : 'TOUS';
+        window.open('../api/v1/support/events/export/excel?limit=500&niveau='
+                + encodeURIComponent(niveau === 'TOUS' || !niveau ? '' : niveau));
     },
 
     onNiveauChange: function (combo, newValue) {
