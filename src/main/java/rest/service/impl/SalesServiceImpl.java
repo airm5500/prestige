@@ -87,7 +87,9 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.annotation.Resource;
 import javax.ejb.EJB;
+import javax.ejb.SessionContext;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
@@ -136,6 +138,16 @@ public class SalesServiceImpl implements SalesService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    /*
+     * Cloture atomique. Les methodes de cloture modifient la vente (statut « terminee », reference, numero de ticket,
+     * reglement) AVANT de creer le mouvement de caisse et de mettre a jour le stock. Si une exception survient entre
+     * les deux, elle est interceptee pour repondre proprement a l'ecran... mais la transaction du conteneur etait quand
+     * meme validee : la vente restait « terminee » sans mouvement de caisse, sans ticket possible (NullPointerException
+     * a chaque impression) et sans sortie de stock. Marquer la transaction pour annulation (setRollbackOnly) remet tout
+     * en l'etat : la vente reste en cours et peut etre validee a nouveau.
+     */
+    @Resource
+    private SessionContext sessionContext;
     @EJB
     private LogService logService;
     @EJB
@@ -2174,7 +2186,7 @@ public class SalesServiceImpl implements SalesService {
             json.put("success", true).put("copy", tp.getCopy()).put("msg", "Opération effectuée avec success")
                     .put("ref", tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
-
+            annulerClotureIncomplete();
             LOG.log(Level.SEVERE, String.format("Erreur a la closture de la vente %s,%s,%s date :: %s",
                     tp.getLgPREENREGISTREMENTID(), tp.getStrREF(), tp.getLgUSERID().getLgUSERID(), LocalDateTime.now()),
                     e);
@@ -2416,6 +2428,7 @@ public class SalesServiceImpl implements SalesService {
             json.put("success", true).put("msg", "Opération effectuée avec success").put("copy", tp.getCopy())
                     .put("ref", tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
+            annulerClotureIncomplete();
             LOG.info(String.format("***************   Erreur a la closture de la vente %s,:: %s ***************",
                     clotureVenteParams, LocalDateTime.now()));
             LOG.log(Level.SEVERE,
@@ -3170,10 +3183,25 @@ public class SalesServiceImpl implements SalesService {
             json.put("success", true).put("msg", "Opération effectuée avec success").put("ref",
                     tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
+            annulerClotureIncomplete();
             LOG.log(Level.SEVERE, null, e);
             json.put("success", false).put("msg", "Erreur: Echec de validation de la vente");
         }
         return json;
+    }
+
+    /**
+     * Cloture interrompue par une exception : la transaction est marquee pour annulation, la vente reste en cours (cf.
+     * commentaire du champ sessionContext).
+     */
+    private void annulerClotureIncomplete() {
+        try {
+            if (sessionContext != null) {
+                sessionContext.setRollbackOnly();
+            }
+        } catch (IllegalStateException e) {
+            LOG.log(Level.WARNING, "Impossible de marquer la cloture pour annulation", e);
+        }
     }
 
     private void updateUgData(MontantAPaye data, TPreenregistrement p) {
@@ -3260,6 +3288,7 @@ public class SalesServiceImpl implements SalesService {
             json.put("success", true).put("msg", "Opération effectuée avec success").put("ref",
                     tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
+            annulerClotureIncomplete();
             LOG.log(Level.SEVERE, null, e);
 
             try {
