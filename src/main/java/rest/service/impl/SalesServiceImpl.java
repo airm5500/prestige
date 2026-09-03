@@ -2022,6 +2022,10 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
 
+            String montantsInvalides = controleMontantsCloture(clotureVenteParams);
+            if (montantsInvalides != null) {
+                return json.put("success", false).put("msg", montantsInvalides).put("codeError", 0);
+            }
             boolean isDiff = false;
             final String venteId = clotureVenteParams.getVenteId();
             /*
@@ -2287,6 +2291,10 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false);
                 json.put("msg", "Désolé votre caisse est fermée. Veuillez l'ouvrir avant de proceder à validation");
                 return json;
+            }
+            String montantsInvalides = controleMontantsCloture(clotureVenteParams);
+            if (montantsInvalides != null) {
+                return json.put("success", false).put("msg", montantsInvalides).put("codeError", 0);
             }
             final String venteId = clotureVenteParams.getVenteId();
             /*
@@ -3194,6 +3202,27 @@ public class SalesServiceImpl implements SalesService {
      * Cloture interrompue par une exception : la transaction est marquee pour annulation, la vente reste en cours (cf.
      * commentaire du champ sessionContext).
      */
+    /**
+     * Montants de la charge de cloture, controles AVANT toute modification de la vente.
+     *
+     * Constate en officine sur une vente especes + mobile money : quand le champ du montant mobile etait vide a la
+     * validation, l'ecran envoyait « null » pour le montant recu et le montant paye ; le serveur plantait APRES le
+     * passage de la vente en terminee (NullPointerException sur ces montants) et AVANT le mouvement de caisse. Le refus
+     * est desormais immediat, avec un message qui dit quoi corriger.
+     *
+     * @return message d'erreur, ou {@code null} si les montants sont exploitables
+     */
+    static String controleMontantsCloture(ClotureVenteParams p) {
+        if (p == null || p.getMontantRecu() == null || p.getMontantPaye() == null) {
+            return "Montant reçu ou montant payé absent : vérifiez le montant en espèces et le montant du mode "
+                    + "mobile, puis validez à nouveau";
+        }
+        if (p.getMontantRecu() < 0 || p.getMontantPaye() < 0) {
+            return "Montant reçu ou montant payé négatif : vérifiez les montants saisis, puis validez à nouveau";
+        }
+        return null;
+    }
+
     private void annulerClotureIncomplete() {
         try {
             if (sessionContext != null) {
@@ -3223,6 +3252,10 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false);
                 json.put("msg", "Désolé votre caisse est fermée. Veuillez l'ouvrir avant de proceder à validation");
                 return json;
+            }
+            String montantsInvalides = controleMontantsCloture(clotureVenteParams);
+            if (montantsInvalides != null) {
+                return json.put("success", false).put("msg", montantsInvalides).put("codeError", 0);
             }
             TPreenregistrement tp = emg.find(TPreenregistrement.class, clotureVenteParams.getVenteId());
             tp.setChecked(Boolean.TRUE);

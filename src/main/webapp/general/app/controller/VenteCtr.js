@@ -2023,10 +2023,18 @@ Ext.define('testextjs.controller.VenteCtr', {
             let montantExtra = 0;
             const montantExtraCmp = me.getMontantExtra();
             if (!montantExtraCmp?.hidden) {
-                montantExtra = parseInt(montantExtraCmp.getValue());
-
+                // Champ du second mode affiché mais VIDE (effacé par la caissière avant de
+                // ressaisir, ou vidé par un recalcul) : parseInt('') vaut NaN, le montant reçu
+                // devenait NaN, envoyé « null » au serveur, qui plantait APRES le passage de la
+                // vente en terminée : vente terminée sans mouvement de caisse, ticket impossible.
+                // On refuse ici, avec le curseur sur le champ à compléter.
+                if (me.montantExtraVide(montantExtraCmp)) {
+                    me.showMontantExtraRequisMessage();
+                    return false;
+                }
+                montantExtra = parseInt(montantExtraCmp.getValue(), 10) || 0;
             }
-            montantRecu += montantExtra;
+            montantRecu = (parseInt(montantRecu, 10) || 0) + montantExtra;
             if (typeRegleId === '1' && parseInt(montantRecu) < parseInt(netTopay)) {
                 if (me.getExtraModeReglementId()) {
                     // un second mode est déjà choisi : le total saisi ne couvre pas le net
@@ -6045,9 +6053,15 @@ Ext.define('testextjs.controller.VenteCtr', {
             let montantExtra = 0;
             const montantExtraCmp = me.getMontantExtra();
             if (!montantExtraCmp?.hidden) {
-                montantExtra = parseInt(montantExtraCmp.getValue());
+                // Même garde que la clôture comptant : champ du second mode vide -> refus
+                // explicite plutôt qu'un montant NaN envoyé « null » au serveur.
+                if (me.montantExtraVide(montantExtraCmp)) {
+                    me.showMontantExtraRequisMessage();
+                    return false;
+                }
+                montantExtra = parseInt(montantExtraCmp.getValue(), 10) || 0;
             }
-            montantRecu += montantExtra;
+            montantRecu = (parseInt(montantRecu, 10) || 0) + montantExtra;
 
             let medecinId = me.getMedecinId();
             if (typeRegleId === '1' && parseInt(montantRecu) < parseInt(netTopay)) {
@@ -7005,6 +7019,28 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
     },
+
+    /* Champ du second mode de règlement (mobile money) affiché mais sans montant valide. */
+    montantExtraVide: function (champ) {
+        const valeur = champ.getValue();
+        return valeur === null || valeur === undefined || valeur === '' || isNaN(parseInt(valeur, 10));
+    },
+
+    showMontantExtraRequisMessage: function () {
+        const me = this;
+        Ext.MessageBox.show({
+            title: 'Message d\'erreur',
+            width: 550,
+            msg: 'Saisissez le montant du second mode de règlement (mobile money) avant de valider la vente.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.ERROR,
+            fn: function (buttonId) {
+                if (buttonId === 'ok') {
+                    me.getMontantExtra().focus(true, 50);
+                }
+            }
+        });
+    },
     handleExtraModePayment: function (netTopay) {
         const me = this;
         // Le fractionnement suppose des espèces réellement reçues : à 0, on ne
@@ -7137,7 +7173,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.extraModeManualAmount = false;
                 me.updateExtraModeLockIndicator(false);
             }
-            const montantExtraValue = netTopay - montantRecu;
+            // montant reçu effacé (champ vide) : complément calculé sur 0, jamais sur NaN
+            const montantExtraValue = netTopay - (parseInt(montantRecu, 10) || 0);
             const montantExtra = me.getMontantExtra();
             me._extraAutoSetting = true;
             if (montantExtraValue <= 0) {

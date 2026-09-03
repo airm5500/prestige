@@ -633,7 +633,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             query.setMaxResults(1);
             query.setParameter(1, pkey);
             return query.getSingleResult();
+        } catch (javax.persistence.NoResultException e) {
+            return null;
         } catch (Exception e) {
+            // Autre echec (chargement de l'entite, base injoignable...) : il etait avale sans trace, on ne pouvait
+            // pas distinguer « aucun mouvement » de « mouvement illisible ». On le journalise, et on rend null
+            // comme avant pour ne pas changer le comportement.
+            LOG.log(Level.WARNING, "Lecture du mouvement de caisse " + pkey + " impossible", e);
             return null;
         }
     }
