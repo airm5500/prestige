@@ -101,8 +101,10 @@
  * Correctif : PrestigeAffichage surveille flushLayouts. Si le calcul leve une exception
  * alors que le contexte est encore marque "en cours" :
  *   1. le contexte est libere, le moteur redevient utilisable immediatement ;
- *   2. l'incident est journalise (console + fil d'Ariane du support) avec sa pile d'appels,
- *      pour retrouver l'ecran fautif ;
+ *   2. l'incident est journalise avec sa pile d'appels, pour retrouver l'ecran fautif :
+ *      console du navigateur, fil d'Ariane, et journal du Centre de Support (ecrans
+ *      Diagnostic et Historique, message "Mise en page bloquee puis retablie : ...",
+ *      colonne ecran = xtype et titre de l'ecran affiche) ;
  *   3. une mise en page complete est relancee juste apres, pour que l'ecran reprenne la
  *      bonne taille sans attendre ; au plus trois relances en cinq secondes, afin qu'une
  *      erreur qui se repete a chaque calcul ne tourne pas en boucle ;
@@ -148,6 +150,37 @@ window.PrestigeAffichage = window.PrestigeAffichage || {};
                 window.__prestigeSupport.push(message);
             }
         } catch (e) {
+        }
+        // Journal du Centre de Support (ecran Diagnostic / Historique) : l'incident y apparait
+        // avec l'ecran affiche, la pile d'appels et le fil d'Ariane, comme une erreur JS.
+        try {
+            if (window.__prestigeSupport && window.__prestigeSupport.signaler) {
+                window.__prestigeSupport.signaler({
+                    type: 'JS',
+                    niveau: 'ERROR',
+                    module: 'FRONTEND',
+                    messageCourt: ('Mise en page bloquée puis rétablie : '
+                            + (erreur && erreur.message ? erreur.message : String(erreur))).substring(0, 500),
+                    urlOuEcran: ecranCourant().substring(0, 255),
+                    stack: erreur && erreur.stack ? String(erreur.stack).substring(0, 8000) : null
+                });
+            }
+        } catch (e) {
+        }
+    }
+
+    /** Ecran affiche dans le panneau central au moment de l'incident : "xtype (titre)". */
+    function ecranCourant() {
+        try {
+            var panneau = Ext.getCmp('content-panel'),
+                ecran = panneau && panneau.items && panneau.items.getAt(0),
+                titre = panneau && panneau.title ? String(panneau.title).replace(/&nbsp;/g, '').trim() : '';
+            if (!ecran) {
+                return titre || String(window.location.pathname || '');
+            }
+            return ecran.getXType() + (titre ? ' (' + titre + ')' : '');
+        } catch (e) {
+            return String(window.location.pathname || '');
         }
     }
 
