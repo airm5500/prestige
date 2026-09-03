@@ -1015,6 +1015,9 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false).put("msg", "Veuillez ajouter au moins un tiers-payant à la vente");
                 return json;
             }
+            if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
+                return json;
+            }
             if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
@@ -1227,6 +1230,21 @@ public class SalesServiceImpl implements SalesService {
         return produits;
     }
 
+    /**
+     * Validation d'entree de la quantite vendue : une ligne de vente doit porter au moins 1 unite. Une quantite nulle
+     * ou negative (envoyee directement a l'API, hors des controles du champ numerique de la caisse) creait une ligne
+     * aberrante (prix negatif) et, a la validation, faisait remonter le stock. Renseigne json et retourne vrai en cas
+     * de refus.
+     */
+    private boolean refuserQuantiteNonPositive(JSONObject json, int qte) throws JSONException {
+        if (qte >= 1) {
+            return false;
+        }
+        json.put("success", false);
+        json.put("msg", "La quantité doit être au moins égale à 1.");
+        return true;
+    }
+
     private Optional<String> produitDetailInvendable(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
         return produitsDetailInvendables(items, emplacement).stream().findFirst();
     }
@@ -1272,6 +1290,9 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
+                return json;
+            }
             if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
@@ -1405,6 +1426,9 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, params.getQte())) {
+                return json;
+            }
             TPreenregistrement tp = emg.find(TPreenregistrement.class, params.getVenteId());
             Optional<TPreenregistrementDetail> detailOp = findItemByProduitAndVente(params.getVenteId(),
                     params.getProduitId());
@@ -1487,6 +1511,9 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, params.getQte())) {
+                return json;
+            }
             TPreenregistrementDetail detail = emg.find(TPreenregistrementDetail.class, params.getItemId());
             int intQUANTITYSERVEDOLD = detail.getIntQUANTITYSERVED();
             int oldPrice = detail.getIntPRICE();
