@@ -189,7 +189,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
             String idVente = id;
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(idVente));
+            MvtTransaction mvtTransaction = findByPkey(idVente);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
 
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
@@ -359,7 +362,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
             String oldId = id;
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(oldId));
+            MvtTransaction mvtTransaction = findByPkey(oldId);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
@@ -585,22 +591,23 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private rest.service.SupportEventService supportEventService;
 
     /**
-     * Mouvement de caisse de la vente ou, s'il manque, mouvement de substitution reconstruit depuis la vente.
+     * Ticket REFUSE pour une vente terminee sans mouvement de caisse.
      *
-     * Une vente terminee sans mouvement de caisse (cloture interrompue entre le passage en « terminee » et la creation
-     * du mouvement) faisait echouer l'impression et la reimpression du ticket (NullPointerException). Le ticket est
-     * desormais imprime a partir des donnees de la vente, et l'incident est signale au Centre de Support : la caisse de
-     * ce jour est a verifier.
+     * Une telle vente est le reste d'une cloture interrompue entre le passage en « terminee » et la creation du
+     * mouvement (cas constate en officine) : rien n'est passe en caisse, les lignes de reglement et la sortie de stock
+     * n'existent pas. Imprimer un ticket reconstitue tromperait le client et la caisse ; on refuse avec un message
+     * explicite, et l'incident est signale au Centre de Support pour regularisation. Avant ce garde-fou, l'impression
+     * echouait par NullPointerException sans aucune explication.
      */
-    private MvtTransaction mouvementOuSubstitut(TPreenregistrement vente, MvtTransaction mouvement) {
-        if (mouvement != null || vente == null) {
-            return mouvement;
-        }
-        LOG.log(Level.WARNING,
-                "Vente {0} ({1}) terminee sans mouvement de caisse : ticket imprime a partir des donnees de la vente",
+    private JSONObject refusVenteSansMouvement(TPreenregistrement vente) throws JSONException {
+        LOG.log(Level.WARNING, "Vente {0} ({1}) terminee sans mouvement de caisse : ticket refuse",
                 new Object[] { vente.getLgPREENREGISTREMENTID(), vente.getStrREF() });
         signalerVenteSansMouvement(vente);
-        return MouvementCaisseSubstitution.depuisVente(vente);
+        return new JSONObject().put("success", false).put("venteIncomplete", true).put("msg",
+                "Ticket refusé : la vente N° " + StringUtils.defaultString(vente.getStrREF())
+                        + " est incomplète (clôture interrompue : aucun encaissement en caisse, aucune ligne de "
+                        + "règlement, aucune sortie de stock). L'incident est signalé au Centre de Support ; "
+                        + "la vente doit être régularisée avant toute impression.");
     }
 
     private void signalerVenteSansMouvement(TPreenregistrement vente) {
@@ -613,8 +620,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             dto.setType("APPLICATION");
             dto.setNiveau("ERROR");
             dto.setModule("VENTE");
-            dto.setMessageCourt("Vente terminée sans mouvement de caisse : ticket imprimé à partir des données de la "
-                    + "vente (clôture incomplète, caisse du jour à vérifier)");
+            dto.setMessageCourt("Vente terminée sans mouvement de caisse : ticket refusé (clôture incomplète, "
+                    + "aucun encaissement, vente à régulariser)");
             dto.setUrlOuEcran("Vente " + StringUtils.defaultString(vente.getStrREF()) + " du " + date);
             dto.setPayloadJson(new JSONObject().put("venteId", vente.getLgPREENREGISTREMENTID())
                     .put("reference", StringUtils.defaultString(vente.getStrREF())).put("date", date)
@@ -790,7 +797,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class,
                     clotureVenteParams.getVenteId());
             String idPrevente = oTPreenregistrement.getLgPREENREGISTREMENTID();
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(idPrevente));
+            MvtTransaction mvtTransaction = findByPkey(idPrevente);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
             boolean isNotCash = mvtTransaction.getReglement() != null
                     && !mvtTransaction.getReglement().getLgTYPEREGLEMENTID().equals(Constant.TYPE_REGLEMENT_ESPECE);
 
@@ -928,7 +938,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     clotureVenteParams.getVenteId());
             String id0 = clotureVenteParams.getVenteId();
             boolean printUniqueTicket = printUniqueTicket();
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(id0));
+            MvtTransaction mvtTransaction = findByPkey(id0);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
@@ -1260,8 +1273,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
         try {
 
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement,
-                    findByPkey(oTPreenregistrement.getLgPREENREGISTREMENTID()));
+            MvtTransaction mvtTransaction = findByPkey(oTPreenregistrement.getLgPREENREGISTREMENTID());
+            if (mvtTransaction == null) {
+                refusVenteSansMouvement(oTPreenregistrement);
+                return;
+            }
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
@@ -1365,7 +1381,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
             String id0 = id;
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(id0));
+            MvtTransaction mvtTransaction = findByPkey(id0);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();
@@ -1491,7 +1510,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class,
                     clotureVenteParams.getVenteId());
             String idVente = clotureVenteParams.getVenteId();
-            MvtTransaction mvtTransaction = mouvementOuSubstitut(oTPreenregistrement, findByPkey(idVente));
+            MvtTransaction mvtTransaction = findByPkey(idVente);
+            if (mvtTransaction == null) {
+                return refusVenteSansMouvement(oTPreenregistrement);
+            }
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
             boolean voirNumTicket = voirNumeroTicket();

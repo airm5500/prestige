@@ -3875,7 +3875,18 @@ Ext.define('testextjs.controller.VenteCtr', {
             url: url,
             params: Ext.JSON.encode(params),
             success: function (response, options) {
-
+                // Ticket refusé par le serveur (vente incomplète) : le dire, au lieu de laisser la
+                // caissière attendre un ticket qui ne sortira pas.
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success === false && result.venteIncomplete && result.msg) {
+                    Ext.MessageBox.show({
+                        title: 'Vente incomplète',
+                        width: 560,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+                    });
+                }
                 me.getVnoproduitCombo()
                         .focus(true, 100);
             },

@@ -290,6 +290,19 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             url: url,
             success: function (response, options) {
                 progress.hide();
+                // Ticket refusé par le serveur (vente incomplète : clôture interrompue, aucun
+                // encaissement) : la caissière doit le savoir, au lieu d'attendre un ticket qui ne
+                // sortira pas.
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success === false && result.msg) {
+                    Ext.MessageBox.show({
+                        title: result.venteIncomplete ? 'Vente incomplète' : 'Impression du ticket',
+                        width: 560,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+                    });
+                }
             },
             failure: function (response, options) {
                 progress.hide();
