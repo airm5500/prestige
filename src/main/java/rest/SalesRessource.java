@@ -347,16 +347,34 @@ public class SalesRessource {
     @POST
     @Path("remove/vno/item/{id}")
     public Response removeItemVente(@PathParam("id") String itemId) throws JSONException {
-
+        Response refus = refusRetraitLigne(itemId);
+        if (refus != null) {
+            return refus;
+        }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpayVno(tp);
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Retrait d'un produit refuse : la vente n'est plus en cours (cloturee entre-temps par une autre caisse) ou la
+     * ligne n'existe plus. Le motif remonte a l'ecran au lieu d'une erreur 500 laissee par la contrainte de base.
+     */
+    private Response refusRetraitLigne(String itemId) {
+        String motif = salesService.controleRetraitLigne(itemId);
+        if (motif == null) {
+            return null;
+        }
+        return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+    }
+
     @POST
     @Path("remove/depot/item/{id}")
     public Response removeItemVentedepot(@PathParam("id") String itemId) throws JSONException {
-
+        Response refus = refusRetraitLigne(itemId);
+        if (refus != null) {
+            return refus;
+        }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpaydepotAgree(tp);
         return Response.ok().entity(json.toString()).build();

@@ -35,6 +35,11 @@ public interface SalesService {
 
     TPreenregistrement removePreenregistrementDetail(String itemId);
 
+    /**
+     * Motif de refus du retrait d'un produit (vente deja cloturee, ligne disparue), null si le retrait est possible.
+     */
+    String controleRetraitLigne(String itemId);
+
     JSONObject updateayantdroit(SalesParams params);
 
     JSONObject updateclient(SalesParams params) throws JSONException;

@@ -1408,9 +1408,47 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Motif de refus du retrait d'un produit, null quand le retrait est possible.
+     *
+     * Une vente cloturee a deja donne ses mouvements de stock, qui pointent sur ses lignes : la ligne ne peut plus etre
+     * supprimee (contrainte hmvtproduit) et, surtout, elle ne DOIT pas l'etre, sinon la caisse et le stock ne
+     * correspondraient plus a la vente. Le cas se produit quand l'ecran d'une caisse reste sur une vente qu'une autre
+     * caisse vient de cloturer : la caissiere voyait alors une erreur 500.
+     */
+    @Override
+    public String controleRetraitLigne(String itemId) {
+        TPreenregistrementDetail tpd = this.getEm().find(TPreenregistrementDetail.class, itemId);
+        if (tpd == null) {
+            return "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.";
+        }
+        TPreenregistrement tp = tpd.getLgPREENREGISTREMENTID();
+        if (tp == null) {
+            return "Ce produit n'est plus rattaché à une vente : actualisez l'écran avant de continuer.";
+        }
+        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+            return null;
+        }
+        return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
+    }
+
+    /** Message de refus : la vente n'est plus en cours, le retrait passe par les ventes terminees. */
+    static String messageVenteNonModifiable(String reference, Date cloturee) {
+        String quand = DateCommonUtils.formatDateHeureCreation(cloturee);
+        return "Cette vente" + (StringUtils.isBlank(reference) ? "" : " (N° " + reference + ")") + " a été clôturée"
+                + (quand.isEmpty() ? "" : " le " + quand)
+                + " : elle ne peut plus être modifiée ici. Pour retirer un produit, passez par"
+                + " « Ventes terminées » puis « Modifier ».";
+    }
+
     @Override
     public TPreenregistrement removePreenregistrementDetail(String itemId) {
         EntityManager emg = this.getEm();
+        // Meme regle appliquee au plus pres de la suppression : une vente cloturee entre l'affichage de l'ecran et
+        // le clic ne doit pas perdre une ligne.
+        if (controleRetraitLigne(itemId) != null) {
+            return null;
+        }
         try {
             TPreenregistrementDetail tpd = emg.find(TPreenregistrementDetail.class, itemId);
             TPreenregistrement tp = tpd.getLgPREENREGISTREMENTID();
