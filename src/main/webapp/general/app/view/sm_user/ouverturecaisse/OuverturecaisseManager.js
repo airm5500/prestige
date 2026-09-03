@@ -108,7 +108,15 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                     success: function (response)
                     {
                         testextjs.app.getController('App').StopWaitingProcess();
-                        const object = Ext.JSON.decode(response.responseText, false);
+                        const object = Ext.JSON.decode(response.responseText, true) || {};
+                        /* Refus du serveur (caisse deja ouverte, fond deja attribue) : le motif est affiche
+                         * tel quel, et l'etat de l'ecran est relu pour montrer la caisse deja ouverte. */
+                        if (object.success === false) {
+                            Ext.MessageBox.alert('Ouverture de caisse',
+                                    object.msg || 'L\'ouverture de caisse a été refusée');
+                            Me.LoadData();
+                            return;
+                        }
                         Me.onbtnprint(object.mvtId);
                         // La caisse vient d'etre ouverte : on relit l'etat pour que le bouton
                         // "Ouvrir caisse" disparaisse et laisse place a la date d'ouverture.
@@ -118,9 +126,11 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                     },
                     failure: function (response)
                     {
-
-                        Ext.MessageBox.alert('Error Message', response);
-
+                        // « response » est l'objet de la requete : l'afficher tel quel ne donnait rien de lisible.
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        Ext.MessageBox.alert('Ouverture de caisse',
+                                'Le serveur n\'a pas répondu (erreur ' + (response ? response.status : '?')
+                                + '). Réessayez, puis signalez-le si cela persiste.');
                     }
                 });
 

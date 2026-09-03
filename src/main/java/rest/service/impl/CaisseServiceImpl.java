@@ -876,16 +876,44 @@ public class CaisseServiceImpl implements CaisseService {
 
     @Override
     public boolean checkCaisse(TUser ooTUser) {
+        return resumeCaisseEnCours(ooTUser) != null;
+    }
+
+    /**
+     * Resume de caisse encore en cours d'utilisation pour cet utilisateur, null s'il n'y en a pas. La date qu'il porte
+     * sert a dire a la caissiere depuis quand sa caisse est ouverte.
+     */
+    private TResumeCaisse resumeCaisseEnCours(TUser ooTUser) {
         try {
             TypedQuery<TResumeCaisse> q = this.em.createQuery(
                     "SELECT t FROM TResumeCaisse t WHERE t.lgUSERID.lgUSERID = ?1  AND t.strSTATUT = ?2 ",
                     TResumeCaisse.class);
             q.setParameter(1, ooTUser.getLgUSERID()).setParameter(2, Constant.STATUT_IS_USING).setMaxResults(1);
-            return (q.getSingleResult() != null);
+            return q.getSingleResult();
         } catch (Exception e) {
-            // LOG.log(Level.SEVERE, null, e);
-            return false;
+            // aucun resume en cours : c'est le cas courant, pas une anomalie
+            return null;
         }
+    }
+
+    /** « depuis le 02/09/2026 07:53 », ou rien du tout quand la date manque, pour ne pas ecrire « depuis le null ». */
+    static String depuisLe(Date date) {
+        String quand = DateCommonUtils.formatDateHeureCreation(date);
+        return quand.isEmpty() ? "" : " depuis le " + quand;
+    }
+
+    /** Refus d'ouverture : une caisse est deja ouverte pour cet utilisateur. */
+    static String messageCaisseDejaOuverte(Date ouvertureLe) {
+        return "Votre caisse est déjà ouverte" + depuisLe(ouvertureLe)
+                + " : fermez-la (ticket Z) avant d'en ouvrir une nouvelle.";
+    }
+
+    /** Refus d'ouverture : un fond de caisse attend deja d'etre valide. */
+    static String messageFondDejaAttribue(Double montant, Date attribueLe) {
+        String quand = DateCommonUtils.formatDateHeureCreation(attribueLe);
+        return "Un fond de caisse" + (montant == null ? "" : " de " + NumberUtils.formatIntToString(montant.intValue()))
+                + " vous a déjà été attribué" + (quand.isEmpty() ? "" : " le " + quand)
+                + " : validez-le ou faites-le annuler avant d'en demander un autre.";
     }
 
     private TCoffreCaisse getStatutCoffre(String userId) {
@@ -2095,11 +2123,15 @@ public class CaisseServiceImpl implements CaisseService {
 
     private String attribuerFondDeCaisse(CoffreCaisseDTO coffreCaisseDto, TUser user) throws CaisseUsingExeception {
 
-        if (checkCaisse(user)) {
-            throw new CaisseUsingExeception("La caisse de cet utilisateur est en cours d'utilisation");
+        // Refus explicites : la caissiere doit lire ce qui bloque et ce qu'elle a a faire, pas une erreur technique.
+        TResumeCaisse resumeEnCours = resumeCaisseEnCours(user);
+        if (resumeEnCours != null) {
+            throw new CaisseUsingExeception(messageCaisseDejaOuverte(resumeEnCours.getDtCREATED()));
         }
-        if (getStatutCoffre(user.getLgUSERID()) != null) {
-            throw new CaisseUsingExeception("Cet utilisateur a déjà reçu un fond de caisse");
+        TCoffreCaisse coffreEnAttente = getStatutCoffre(user.getLgUSERID());
+        if (coffreEnAttente != null) {
+            throw new CaisseUsingExeception(
+                    messageFondDejaAttribue(coffreEnAttente.getIntAMOUNT(), coffreEnAttente.getDtCREATED()));
         }
         String description = "Ouverture de la caisse de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
                 + " d'un montant de " + coffreCaisseDto.getAmount();
