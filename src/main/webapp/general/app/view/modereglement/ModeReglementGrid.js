@@ -159,6 +159,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                                                 }
                                                 Ext.Ajax.request({
                                                     method: 'POST',
+                                                    headers: {'Content-Type': 'application/json'},
                                                     url: '../api/v1/modereglement/client-defaut/' + rec.get('id')
                                                             + '?clientId=' + encodeURIComponent(clientId),
                                                     success: function () {
@@ -174,6 +175,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                                             handler: function () {
                                                 Ext.Ajax.request({
                                                     method: 'POST',
+                                                    headers: {'Content-Type': 'application/json'},
                                                     url: '../api/v1/modereglement/client-defaut/' + rec.get('id')
                                                             + '?clientId=',
                                                     success: function () {

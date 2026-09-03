@@ -555,6 +555,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         const libelle = rec ? rec.get('str_LIBELLE') : '';
                         Ext.Ajax.request({
                             method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
                             url: '../api/v1/suggestion/create-manuelle?grossisteId=' + encodeURIComponent(grossisteId),
                             success: function (response) {
                                 const result = Ext.JSON.decode(response.responseText, true);

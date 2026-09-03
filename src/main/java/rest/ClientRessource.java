@@ -177,7 +177,6 @@ public class ClientRessource {
     /** Consentement SMS / WhatsApp de la fiche client (point 2) : enregistrement (valeur = true / false). */
     @POST
     @Path("{clientId}/consentement")
-    @Consumes(javax.ws.rs.core.MediaType.WILDCARD)
     public Response enregistrerConsentement(@PathParam("clientId") String clientId,
             @QueryParam("valeur") String valeur) {
         HttpSession hs = servletRequest.getSession();
@@ -209,7 +208,6 @@ public class ClientRessource {
     /** Inventaire des produits de la consommation affichee (INVENTAIRE PRODUITS CONSO CLIENTS + horodatage). */
     @POST
     @Path("consommation/inventaire")
-    @Consumes(javax.ws.rs.core.MediaType.WILDCARD)
     public Response consommationInventaire(@QueryParam(value = "clientId") String clientId,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
             @QueryParam(value = "query") String query) {

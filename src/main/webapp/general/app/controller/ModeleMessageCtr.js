@@ -55,6 +55,7 @@ Ext.define('testextjs.controller.ModeleMessageCtr', {
         }
         Ext.Ajax.request({
             method: 'POST',
+            headers: {'Content-Type': 'application/json'},
             url: '../api/v1/modeles-messages/' + rec.get('id') + '/toggle',
             callback: function () {
                 me.getGrille().getStore().reload();

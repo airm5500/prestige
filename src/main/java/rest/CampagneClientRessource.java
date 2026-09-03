@@ -23,6 +23,7 @@ import util.Constant;
  */
 @Path("v1/notifications/clients")
 @Produces("application/json")
+@Consumes("application/json")
 public class CampagneClientRessource {
 
     @EJB
@@ -33,7 +34,6 @@ public class CampagneClientRessource {
     /** Controle prealable obligatoire des numeros de la population visee. */
     @POST
     @Path("validate-phones")
-    @Consumes(MediaType.WILDCARD)
     public Response controlerNumeros(String corps) {
         if (utilisateur() == null) {
             return deconnecte();
@@ -62,7 +62,6 @@ public class CampagneClientRessource {
      */
     @POST
     @Path("send-sms")
-    @Consumes(MediaType.WILDCARD)
     public Response envoyerSms(String corps) {
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
@@ -92,7 +91,6 @@ public class CampagneClientRessource {
     /** Liens WhatsApp assistes (un par contact conforme), message prerempli. */
     @POST
     @Path("whatsapp-liens")
-    @Consumes(MediaType.WILDCARD)
     public Response liensWhatsapp(String corps) {
         if (utilisateur() == null) {
             return deconnecte();

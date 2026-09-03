@@ -21,7 +21,7 @@ import util.Constant;
 /** Modeles de messages SMS / WhatsApp (point 2). */
 @Path("v1/modeles-messages")
 @Produces("application/json")
-@Consumes(MediaType.WILDCARD)
+@Consumes("application/json")
 public class ModeleMessageRessource {
 
     @EJB

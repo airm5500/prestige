@@ -248,7 +248,6 @@ public class SuggestionRessource {
     /** Creation d'une suggestion VIDE de type manuelle (lot 3). */
     @POST
     @Path("create-manuelle")
-    @Consumes(MediaType.WILDCARD)
     public Response createManuelle(@QueryParam(value = "grossisteId") String grossisteId) {
         return Response.ok().entity(this.suggestionService.createSuggestionManuelle(grossisteId).toString()).build();
     }

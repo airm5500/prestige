@@ -9,8 +9,11 @@ import javax.ejb.EJB;
 import javax.servlet.annotation.MultipartConfig;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import rest.service.ModeReglementService;
@@ -52,7 +55,7 @@ public class ModeReglementRessource {
     }
 
     /** Cree un mode de reglement : corps JSON {name, mobileMoney}. 201 si cree, 400 sinon (msg). */
-    @javax.ws.rs.POST
+    @POST
     public Response creer(String corps) {
         org.json.JSONObject entree = new org.json.JSONObject(corps == null || corps.isBlank() ? "{}" : corps);
         org.json.JSONObject resultat = modeReglementService.creer(entree.optString("name", ""),
@@ -61,12 +64,13 @@ public class ModeReglementRessource {
                 .entity(resultat.toString()).build();
     }
 
-    /** Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. */
-    @javax.ws.rs.POST
+    /**
+     * Associe (ou retire si clientId vide) le client standard par defaut d'un mode de reglement. Parametres en URL,
+     * sans corps : l'ecran envoie l'en-tete JSON comme pour toutes les ressources.
+     */
+    @POST
     @Path("/client-defaut/{modeId}")
-    @Consumes(MediaType.WILDCARD)
-    public Response setClientDefaut(@javax.ws.rs.PathParam("modeId") String modeId,
-            @javax.ws.rs.QueryParam("clientId") String clientId) {
+    public Response setClientDefaut(@PathParam("modeId") String modeId, @QueryParam("clientId") String clientId) {
         return Response.ok(modeReglementService.setClientDefaut(modeId, clientId).toString()).build();
     }
 }

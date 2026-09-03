@@ -295,6 +295,7 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                     testextjs.app.getController('App').ShowWaitingProcess();
                     Ext.Ajax.request({
                         method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
                         url: '../api/v1/client/consommation/inventaire?' + me.buildParams(),
                         timeout: 600000,
                         success: function (response) {

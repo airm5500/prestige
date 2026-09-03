@@ -871,6 +871,7 @@ console.log('---------------------------------- add client ');
                             if (cbConsent) {
                                 Ext.Ajax.request({
                                     method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
                                     url: '../api/v1/client/' + ref + '/consentement?valeur=' + (cbConsent.getValue() ? 'true' : 'false')
                                 });
                             }
