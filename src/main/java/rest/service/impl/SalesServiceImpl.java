@@ -567,6 +567,13 @@ public class SalesServiceImpl implements SalesService {
                 return json;
 
             }
+            String motifStock = controleAnnulationVente(tp);
+            if (motifStock != null) {
+                json.put("success", false);
+                json.put("venteSansSortieStock", true);
+                json.put("msg", motifStock);
+                return json;
+            }
 
             Optional<TRecettes> oprectte = findRecette(tp.getLgPREENREGISTREMENTID());
             List<TPreenregistrementDetail> preenregistrementDetails = getItems(tp);
@@ -1499,6 +1506,102 @@ public class SalesServiceImpl implements SalesService {
             return "La quantité doit être supérieure à zéro.";
         }
         return null;
+    }
+
+    /**
+     * Nombre de produits d'une vente cloturee qui ne sont jamais sortis du stock.
+     *
+     * MvtProduitServiceImpl.updateVenteStock fait DEUX choses dans la meme boucle : il ecrit le mouvement dans
+     * hmvtproduit ET passe la ligne a « is_Closed ». Une ligne restee a « is_Process » sous une vente « is_Closed »
+     * signifie donc, de facon certaine, que le stock n'a jamais ete diminue pour ce produit.
+     *
+     * La regle ne regarde que les ventes cloturees : sur une vente en cours, « is_Process » est l'etat normal.
+     */
+    static int lignesSansSortieDeStock(String statutVente, List<String> statutsDesLignes) {
+        if (!Constant.STATUT_IS_CLOSED.equals(statutVente) || statutsDesLignes == null) {
+            return 0;
+        }
+        return (int) statutsDesLignes.stream().filter(Constant.STATUT_IS_PROGRESS::equals).count();
+    }
+
+    /**
+     * Message de refus de l'annulation : les produits de cette vente ne sont jamais sortis du stock.
+     *
+     * On informe, sans orienter : l'annulation est impossible, il n'y a pas de geste de remplacement a proposer a la
+     * caissiere. Le detail chiffre permet de retrouver la vente et de comprendre le refus.
+     */
+    static String messageAnnulationSansSortieStock(String reference, Date cloturee, int sansSortie, int total) {
+        String quand = DateCommonUtils.formatDateHeureCreation(cloturee);
+        String produits;
+        if (sansSortie >= total) {
+            produits = total <= 1 ? "son produit n'est jamais sorti du stock"
+                    : "aucun de ses " + total + " produits n'est jamais sorti du stock";
+        } else {
+            produits = sansSortie == 1 ? "1 de ses " + total + " produits n'est jamais sorti du stock"
+                    : sansSortie + " de ses " + total + " produits ne sont jamais sortis du stock";
+        }
+        String vente = StringUtils.isBlank(reference) ? "cette vente" : "la vente N° " + reference;
+        if (!quand.isEmpty()) {
+            vente = vente + ", clôturée le " + quand + ",";
+        }
+        return "Annulation refusée : " + vente + " n'a pas diminué le stock — " + produits
+                + ". L'annuler remettrait en stock des produits qui n'en sont jamais sortis, et le stock affiché"
+                + " passerait au-dessus du stock réel. L'incident est signalé au Centre de Support.";
+    }
+
+    /** Statuts des lignes d'une vente, en une requete : la regle ci-dessus n'a besoin que de ceux-la. */
+    private List<String> statutsDesLignes(String venteId) {
+        try {
+            return this.getEm()
+                    .createQuery("SELECT d.strSTATUT FROM TPreenregistrementDetail d"
+                            + " WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1", String.class)
+                    .setParameter(1, venteId).getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Lecture des statuts des lignes de la vente " + venteId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Motif de refus de l'annulation, null quand l'annulation peut se faire.
+     *
+     * Constate en officine : des ventes cloturees portent des lignes restees « is_Process », donc jamais destockees —
+     * soit parce que la cloture s'est interrompue avant la sortie de stock, soit parce que la vente a ete modifiee
+     * apres coup. annulerVente recredite le stock ligne par ligne sans verifier que la sortie a eu lieu : sur une telle
+     * vente, l'annulation cree un ecart au lieu d'en corriger un.
+     */
+    private String controleAnnulationVente(TPreenregistrement tp) {
+        List<String> statuts = statutsDesLignes(tp.getLgPREENREGISTREMENTID());
+        int sansSortie = lignesSansSortieDeStock(tp.getStrSTATUT(), statuts);
+        if (sansSortie == 0) {
+            return null;
+        }
+        signalerAnnulationSansSortieStock(tp, sansSortie, statuts.size());
+        return messageAnnulationSansSortieStock(tp.getStrREF(), tp.getDtUPDATED(), sansSortie, statuts.size());
+    }
+
+    private void signalerAnnulationSansSortieStock(TPreenregistrement tp, int sansSortie, int total) {
+        try {
+            String date = DateCommonUtils.formatDateHeureCreation(tp.getDtUPDATED());
+            TUser caissier = tp.getLgUSERCAISSIERID() != null ? tp.getLgUSERCAISSIERID() : tp.getLgUSERID();
+            String login = caissier != null ? caissier.getStrLOGIN() : "?";
+            rest.service.dto.SupportEventDTO dto = new rest.service.dto.SupportEventDTO();
+            dto.setType("APPLICATION");
+            dto.setNiveau(dal.ApplicationEvent.NIVEAU_WARN);
+            dto.setModule("VENTE");
+            dto.setMessageCourt("Annulation refusée : vente clôturée dont les produits ne sont jamais sortis du stock");
+            dto.setUrlOuEcran("Vente " + StringUtils.defaultString(tp.getStrREF()) + " du " + date);
+            dto.setStack("La sortie de stock n'a pas eu lieu pour " + sansSortie + " ligne(s) sur " + total
+                    + " : les recréditer augmenterait le stock de produits jamais sortis."
+                    + " Seul un comptage physique peut trancher l'état réel de ces articles.");
+            dto.setPayloadJson(new JSONObject().put("venteId", tp.getLgPREENREGISTREMENTID())
+                    .put("reference", StringUtils.defaultString(tp.getStrREF())).put("date", date)
+                    .put("montant", tp.getIntPRICE()).put("lignesSansSortie", sansSortie).put("lignesTotal", total)
+                    .put("caissier", login).toString());
+            supportEventService.record(dto, login);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Signalement au support d'une annulation refusee", e);
+        }
     }
 
     /** Message de refus : la vente n'est plus en cours, le retrait passe par les ventes terminees. */

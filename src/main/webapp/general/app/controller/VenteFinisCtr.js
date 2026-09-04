@@ -337,7 +337,16 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                                     me.doSearch();
                                 } else {
                                     progress.hide();
-                                    Ext.MessageBox.alert('Error Message', object.msg);
+                                    // Le refus d'annulation porte un motif detaille (vente dont les produits ne
+                                    // sont jamais sortis du stock) : la boite etroite le coupait.
+                                    Ext.MessageBox.show({
+                                        title: object.venteSansSortieStock ? 'Annulation impossible'
+                                                : 'Annulation de la vente',
+                                        width: 560,
+                                        msg: object.msg,
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.ERROR
+                                    });
                                 }
 
                             },
