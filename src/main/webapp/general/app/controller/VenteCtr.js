@@ -6358,6 +6358,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                                     });
                                 }
                             } else {
+                                /* Calcul refusé (vente disparue ou clôturée entre-temps) : le motif est affiché,
+                                 * sinon la caissière voyait le bouton sans effet. */
+                                if (result && result.msg) {
+                                    Ext.MessageBox.show({
+                                        title: 'Net à payer',
+                                        width: 550,
+                                        msg: result.msg,
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.WARNING
+                                    });
+                                }
                                 me.getMontantRecu().focus(true, 50);
 
                             }
@@ -6365,7 +6376,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         },
                         failure: function (response, options) {
                             progress.hide();
-                            Ext.Msg.alert("Message", 'Un problème s\'est produit avec le server ' + response.status);
+                            Ext.Msg.alert('Net à payer',
+                                    'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
                         }
 
                     });

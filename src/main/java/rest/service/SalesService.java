@@ -40,6 +40,21 @@ public interface SalesService {
      */
     String controleRetraitLigne(String itemId);
 
+    /**
+     * Motif de refus quand la vente visee n'est plus modifiable (identifiant absent, vente disparue ou deja cloturee),
+     * null quand le traitement peut se poursuivre.
+     */
+    String controleVenteModifiable(String venteId);
+
+    /** Motif de refus de l'ajout d'un produit a une vente (vente, produit, quantite), null si l'ajout est possible. */
+    String controleAjoutProduit(SalesParams params);
+
+    /**
+     * Motif de refus du calcul du net a payer d'une vente tiers payant (vente non modifiable, client detache, aucun
+     * tiers payant retenu), null quand le calcul peut se faire.
+     */
+    String controleCalculNetAssurance(SalesParams params);
+
     JSONObject updateayantdroit(SalesParams params);
 
     JSONObject updateclient(SalesParams params) throws JSONException;

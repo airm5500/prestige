@@ -1432,6 +1432,75 @@ public class SalesServiceImpl implements SalesService {
         return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
     }
 
+    /**
+     * Motif de refus quand la vente visee n'est plus modifiable, null si le traitement peut se poursuivre.
+     *
+     * Constate en officine : l'ecran envoie l'identifiant d'une vente disparue ou deja cloturee (type de vente change,
+     * vente reprise ailleurs, ecran reste ouvert). Le serveur allait alors chercher la vente avec un identifiant absent
+     * ou inconnu et tombait en erreur 500, sans rien dire a la caissiere.
+     */
+    @Override
+    public String controleVenteModifiable(String venteId) {
+        if (StringUtils.isBlank(venteId)) {
+            return "La vente n'est plus identifiée à l'écran : actualisez l'écran de vente avant de continuer.";
+        }
+        TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, venteId);
+        if (tp == null) {
+            return "Cette vente n'existe plus : actualisez l'écran de vente avant de continuer.";
+        }
+        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+            return null;
+        }
+        return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
+    }
+
+    /**
+     * Motif de refus du calcul du net a payer d'une vente tiers payant, null quand le calcul peut se faire.
+     *
+     * Constate en officine : le client venait d'etre detache de la vente et l'ecran redemandait le net assurance ; le
+     * calcul cherchait la remise du client absent et tombait en erreur 500.
+     */
+    @Override
+    public String controleCalculNetAssurance(SalesParams params) {
+        if (params == null) {
+            return "Aucune donnée n'a été reçue pour ce calcul : actualisez l'écran de vente.";
+        }
+        String motif = controleVenteModifiable(params.getVenteId());
+        if (motif != null) {
+            return motif;
+        }
+        TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, params.getVenteId());
+        if (tp.getClient() == null) {
+            return "Cette vente n'a plus de client : rattachez le client avant de demander le net à payer.";
+        }
+        if (params.getTierspayants() == null || params.getTierspayants().isEmpty()) {
+            return "Aucun tiers payant n'est retenu sur cette vente : ajoutez-le avant de demander le net à payer.";
+        }
+        return null;
+    }
+
+    /** Motif de refus de l'ajout d'un produit a une vente en cours, null quand l'ajout peut se faire. */
+    @Override
+    public String controleAjoutProduit(SalesParams params) {
+        if (params == null) {
+            return "Aucune donnée n'a été reçue pour cet ajout : actualisez l'écran de vente.";
+        }
+        String motif = controleVenteModifiable(params.getVenteId());
+        if (motif != null) {
+            return motif;
+        }
+        if (StringUtils.isBlank(params.getProduitId())) {
+            return "Aucun produit n'a été retenu : choisissez le produit dans la liste avant de valider la quantité.";
+        }
+        if (this.getEm().find(TFamille.class, params.getProduitId()) == null) {
+            return "Ce produit n'existe plus dans le fichier des articles : actualisez l'écran de vente.";
+        }
+        if (params.getQte() <= 0) {
+            return "La quantité doit être supérieure à zéro.";
+        }
+        return null;
+    }
+
     /** Message de refus : la vente n'est plus en cours, le retrait passe par les ventes terminees. */
     static String messageVenteNonModifiable(String reference, Date cloturee) {
         String quand = DateCommonUtils.formatDateHeureCreation(cloturee);

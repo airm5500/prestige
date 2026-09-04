@@ -216,7 +216,12 @@ public class SalesRessource {
     @POST
     @Path("net/assurance")
     public Response netPayerAssurance(SalesParams params) throws JSONException {
-
+        // Meme garde que pour l'ajout : vente disparue ou cloturee, client detache, aucun tiers payant : le calcul
+        // du net tombait en erreur 500 sans rien dire a la caissiere.
+        String motif = salesService.controleCalculNetAssurance(params);
+        if (motif != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+        }
         JSONObject json = salesService.computeVONet(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -340,6 +345,12 @@ public class SalesRessource {
     @POST
     @Path("add/item")
     public Response addItemVente(SalesParams params) {
+        // Vente disparue ou deja cloturee, produit absent : le motif remonte a l'ecran au lieu d'une erreur 500
+        // levee au fond du traitement (l'identifiant manquant partait chercher une vente inexistante).
+        String motif = salesService.controleAjoutProduit(params);
+        if (motif != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+        }
         JSONObject json = salesService.addPreenregistrementItem(params);
         return Response.ok().entity(json.toString()).build();
     }
