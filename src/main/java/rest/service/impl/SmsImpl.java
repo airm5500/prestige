@@ -61,6 +61,33 @@ public class SmsImpl implements SmsService {
     private SmsFournisseurService smsFournisseurService;
     @EJB
     private rest.service.SupportEventService supportEventService;
+    @EJB
+    private SmsCoupeCircuit coupeCircuit;
+
+    /**
+     * Rend compte d'un refus de l'operateur et suspend les envois quand il s'agit d'un defaut de configuration : le
+     * meme appel, repete, donnerait le meme refus. La consigne n'est ecrite qu'au moment de la coupure.
+     */
+    private void signalerRefus(SmsSendResult result, String fournisseur, String messageCourt, String detail) {
+        if (coupeCircuit.enregistrerRefus(result.getErrorCode())) {
+            reportSupport("ERROR", SmsCoupeCircuit.messageCourt(fournisseur, result.getErrorCode()),
+                    SmsCoupeCircuit.consigne(result.getErrorCode(), result.getErrorMessage(), SmsCoupeCircuit.SEUIL)
+                            + "\n\nDernier envoi concerne : " + detail,
+                    null);
+            return;
+        }
+        reportSupport(niveauPourEnvoi(result), messageCourt, detail, null);
+    }
+
+    /** Vrai si les envois sont suspendus ; trace la raison sans repasser par le journal du support. */
+    private boolean envoisSuspendus() {
+        if (!coupeCircuit.suspendu()) {
+            return false;
+        }
+        LOG.log(Level.WARNING, "Envoi SMS ignore : envois suspendus jusqu''a {0} (configuration refusee, code {1})",
+                new Object[] { coupeCircuit.reprisePrevue(), coupeCircuit.dernierCode() });
+        return true;
+    }
 
     /**
      * Remonte une anomalie SMS au Centre de Support (journal des événements, dédupliqué par signature, ticket
@@ -234,6 +261,9 @@ public class SmsImpl implements SmsService {
                     "Verifiez l'ecran Fournisseurs SMS (fournisseur en vigueur actif et configure).", null);
             throw new RuntimeException("Aucun fournisseur SMS en vigueur n'est pris en charge");
         }
+        if (envoisSuspendus()) {
+            return;
+        }
 
         try {
             String message = notification.getMessage();
@@ -257,6 +287,7 @@ public class SmsImpl implements SmsService {
                                 result.toLog() });
                 if (result.isAccepted()) {
                     sent++;
+                    coupeCircuit.enregistrerSucces();
                     if (StringUtils.isBlank(result.getMessageId()) && provider.supportsMessageStatus()) {
                         reportSupport("WARN",
                                 "Id de message absent de la reponse d'envoi " + provider.getCode()
@@ -266,11 +297,14 @@ public class SmsImpl implements SmsService {
                                 null);
                     }
                 } else {
-                    reportSupport(niveauPourEnvoi(result),
+                    signalerRefus(result, provider.getCode(),
                             "Envoi SMS refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
                             "Notification " + notification.getId() + ", destinataire " + toClient.getId() + ", numero "
-                                    + tc.getStrADRESSE() + ". Erreur : " + result.getErrorMessage(),
-                            null);
+                                    + tc.getStrADRESSE() + ". Erreur : " + result.getErrorMessage());
+                    if (envoisSuspendus()) {
+                        // Inutile de derouler la liste des destinataires : chacun recevrait le meme refus.
+                        break;
+                    }
                 }
             }
             notification.setNumberAttempt(notification.getNumberAttempt() + 1);
@@ -616,13 +650,18 @@ public class SmsImpl implements SmsService {
                 LOG.log(Level.WARNING, "Envoi SMS ignore : aucun fournisseur SMS en vigueur pris en charge");
                 return;
             }
+            if (envoisSuspendus()) {
+                return;
+            }
             SmsSendResult result = provider.send(sp.mobile, message, null);
             LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
                     new Object[] { sp.mobile, provider.getCode(), result.toLog() });
-            if (!result.isAccepted()) {
-                reportSupport(niveauPourEnvoi(result),
+            if (result.isAccepted()) {
+                coupeCircuit.enregistrerSucces();
+            } else {
+                signalerRefus(result, provider.getCode(),
                         "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
-                        "Erreur : " + result.getErrorMessage(), null);
+                        "Numero d'administration " + sp.mobile + ". Erreur : " + result.getErrorMessage());
             }
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
