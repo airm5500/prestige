@@ -87,6 +87,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -2664,52 +2665,65 @@ public class GroupeTierspayantController implements Serializable {
         return array;
     }
 
+    /**
+     * Quantites vendues d'un article, par annee et par mois, pour le graphique de la fiche article.
+     *
+     * <p>
+     * STRAIGHT_JOIN, et les lignes de vente en premiere table : le SGBD attaquait par les ventes, dont le statut «
+     * cloturee » ne trie a peu pres rien - 42 466 sur 42 578 au banc - et en parcourait des dizaines de milliers pour
+     * ne retenir que celles portant l'article. Partir de l'article, qui est le critere selectif, ramene la lecture aux
+     * seules lignes qui le concernent. Meme requete, meme resultat : seul l'ordre de parcours change.
+     * </p>
+     */
+    private static final String VENTES_PAR_ANNEE_MOIS_SQL = "SELECT STRAIGHT_JOIN YEAR(p.dt_UPDATED) AS annee,"
+            + " MONTHNAME(p.dt_UPDATED) AS mois, SUM(d.int_QUANTITY) AS quantite" + " FROM t_preenregistrement_detail d"
+            + " INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+            + " WHERE d.lg_FAMILLE_ID = ?1 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+            + " AND p.lg_TYPE_VENTE_ID <> '5' AND d.int_QUANTITY > 0 AND p.str_STATUT = 'is_Closed'"
+            + " GROUP BY YEAR(p.dt_UPDATED), MONTHNAME(p.dt_UPDATED)" + " ORDER BY YEAR(p.dt_UPDATED) ASC";
+
+    /**
+     * Quantites vendues d'un article, par annee et par mois.
+     *
+     * <p>
+     * Le graphique de la fiche article se charge des son ouverture. Ce releve ouvrait pour l'occasion sa PROPRE
+     * connexion au SGBD, par DriverManager et non par le pool du serveur : poignee de main et authentification
+     * completes a chaque fiche consultee, connexion invisible du moniteur de pool, comptee dans le max_connections du
+     * SGBD, et jamais refermee lorsque la requete echouait. Le releve passe desormais par le gestionnaire d'entites,
+     * donc par le pool, avec la meme requete et le meme resultat.
+     * </p>
+     *
+     * <p>
+     * Cette connexion separee lisait par ailleurs son propre fichier de configuration : une valeur absente ou erronee
+     * la rendait impossible, et l'ecran affichait alors un graphique vide sans le moindre message - la trace partait
+     * dans la sortie standard. Le pool, lui, est deja configure et deja surveille.
+     * </p>
+     */
     public JSONArray getListeTSnapshotFamillesell(String lg_FAMILLE_ID) {
         JSONArray tree = new JSONArray();
-        List<EntityData> test = new ArrayList<>();
+        EntityManager em = getEntityManager();
         try {
-            jconnexion con = new jconnexion();
-            con.initConnexion();
-            String query = "SELECT YEAR(`t_preenregistrement`.`dt_UPDATED`),MONTHNAME(`t_preenregistrement`.`dt_UPDATED`), SUM(`t_preenregistrement_detail`.`int_QUANTITY`) FROM\n"
-                    + "  `t_preenregistrement`\n"
-                    + "  INNER JOIN `t_preenregistrement_detail` ON (`t_preenregistrement`.`lg_PREENREGISTREMENT_ID` = `t_preenregistrement_detail`.`lg_PREENREGISTREMENT_ID`)\n"
-                    + "WHERE\n" + "  `t_preenregistrement_detail`.`lg_FAMILLE_ID`=? AND\n"
-                    + "   `t_preenregistrement`.`b_IS_CANCEL`=0 AND  `t_preenregistrement`.`int_PRICE` >0\n"
-                    + "   AND  `t_preenregistrement`.`lg_TYPE_VENTE_ID` <> '5' AND\n"
-                    + "   `t_preenregistrement_detail`.`int_QUANTITY` >0 AND   `t_preenregistrement`.`str_STATUT`='is_Closed'\n"
-                    + "   GROUP BY YEAR(`t_preenregistrement`.`dt_UPDATED`),MONTHNAME(`t_preenregistrement`.`dt_UPDATED`) ORDER BY \n"
-                    + "   YEAR(`t_preenregistrement`.`dt_UPDATED`) ASC";
-            Connection _con = con.getConnection();
-            PreparedStatement ps = _con.prepareStatement(query);
-            ps.setString(1, lg_FAMILLE_ID);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                EntityData data = new EntityData();
-                data.setStr_value1(rs.getInt(1) + "");
-                data.setStr_value2(rs.getObject(2) + "");
-                data.setStr_value3(rs.getObject(3) + "");
-                test.add(data);
+            List<?> lignes = em.createNativeQuery(VENTES_PAR_ANNEE_MOIS_SQL).setParameter(1, lg_FAMILLE_ID)
+                    .getResultList();
+            // LinkedHashMap : les annees sortent dans l'ordre rendu par le SGBD, celui de l'ORDER BY.
+            Map<String, List<Object[]>> parAnnee = new LinkedHashMap<>();
+            for (Object ligne : lignes) {
+                Object[] colonnes = (Object[]) ligne;
+                parAnnee.computeIfAbsent(String.valueOf(colonnes[0]), cle -> new ArrayList<>()).add(colonnes);
             }
-            if (ps != null) {
-                rs.close();
-                ps.close();
-                _con.close();
-            }
-            Map<String, List<EntityData>> m = test.stream().collect(Collectors.groupingBy(s -> s.getStr_value1()));
-
-            for (Map.Entry<String, List<EntityData>> entry : m.entrySet()) {
-                String t = entry.getKey();
-                List<EntityData> value = entry.getValue();
+            for (Map.Entry<String, List<Object[]>> entry : parAnnee.entrySet()) {
                 JSONObject json = new JSONObject();
-                json.put("int_YEAR", Integer.valueOf(t));
-                for (EntityData entityData : value) {
-                    json.put(entityData.getStr_value2(), entityData.getStr_value3());
+                json.put("int_YEAR", Integer.valueOf(entry.getKey()));
+                for (Object[] colonnes : entry.getValue()) {
+                    json.put(String.valueOf(colonnes[1]), String.valueOf(colonnes[2]));
                 }
                 tree.put(json);
             }
-
         } catch (Exception e) {
-            e.printStackTrace();
+            Logger.getLogger(GroupeTierspayantController.class.getName()).log(Level.SEVERE,
+                    "getListeTSnapshotFamillesell " + lg_FAMILLE_ID, e);
+        } finally {
+            em.close();
         }
         return tree;
     }
