@@ -29,6 +29,11 @@ public class StockDailyScheduler {
         // nuit-la). Si elle a deja ete relevee, on ne la reecrit pas : un redemarrage a 15 h remplacerait le stock a
         // la cloture de la veille par un stock de milieu de journee.
         dailyStockService.processAsync(LocalDate.now(), true);
+        // La valorisation n'etait relancee que par le declenchement de 00:05. Dans une officine qui eteint le serveur
+        // la nuit, cette heure n'arrive jamais : stock_daily_value restait vide et le Centre de Support signalait
+        // « valorisation quotidienne en retard » sans que rien ne puisse jamais la rattraper. Le traitement n'ecrit
+        // que les journees manquantes (les quatre dernieres), il est donc sans effet quand la nuit s'est bien passee.
+        dailyStockService.updateStockDailyValueOnStartup();
     }
 
     @Schedule(hour = "0", minute = "5", second = "0", persistent = false)
