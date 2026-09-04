@@ -105,6 +105,7 @@ public class SupportPreflight {
         controles.add(verifierNotification(parametre("SUPPORT_NOTIFY_ENABLED"), parametre("SUPPORT_EMAIL")));
         controles.add(verifierJournalServeur(parametre("SUPPORT_SERVER_LOG_PATH")));
         controles.add(verifierPrivilegeProcess());
+        controles.add(evaluerMemoireMax(Runtime.getRuntime().maxMemory(), parametre("SUPPORT_HEAP_MIN_MO")));
         controles.add(evaluerAccesDepannage(parametre("ACCES_DEPANNAGE_ACTIF")));
 
         boolean anomalie = aAnomalie(controles);
@@ -408,6 +409,43 @@ public class SupportPreflight {
             }
         }
         return false;
+    }
+
+    /** Libelle du controle de la memoire maximale allouee a la JVM. */
+    static final String LIBELLE_MEMOIRE_MAX = "Memoire maximale de la JVM (-Xmx)";
+
+    /** Memoire minimale attendue, en Mo, quand SUPPORT_HEAP_MIN_MO n'est pas renseigne. */
+    static final long HEAP_MIN_MO_DEFAUT = 1536L;
+
+    /**
+     * Signale une JVM demarree avec trop peu de memoire.
+     *
+     * Le defaut d'installation de Payara (512 Mo) suffit a demarrer et a passer une matinee : la panne n'apparait qu'en
+     * fin de journee, quand l'edition d'un etat ou une statistique sur l'annee demande d'un coup ce qui manque. Le
+     * serveur se met alors a passer son temps a recuperer de la memoire, les ecrans deviennent lents, puis
+     * l'OutOfMemoryError l'arrete - a l'heure ou la caisse en a le plus besoin. Rien dans l'application ne peut
+     * corriger cela : c'est un reglage du serveur, que ce controle rend visible AVANT la panne plutot qu'apres.
+     *
+     * @param maxMemoryOctets
+     *            valeur rendue par {@code Runtime.maxMemory()}
+     * @param seuilParam
+     *            SUPPORT_HEAP_MIN_MO, en Mo ; valeur par defaut appliquee si absent ou illisible
+     */
+    static Controle evaluerMemoireMax(long maxMemoryOctets, String seuilParam) {
+        long minMo = entierOuDefaut(seuilParam, HEAP_MIN_MO_DEFAUT);
+        if (maxMemoryOctets <= 0) {
+            return Controle.ok("MEMOIRE_MAX", LIBELLE_MEMOIRE_MAX, "valeur non communiquee par la JVM");
+        }
+        long maxMo = maxMemoryOctets / (1024L * 1024L);
+        if (maxMo >= minMo) {
+            return Controle.ok("MEMOIRE_MAX", LIBELLE_MEMOIRE_MAX, maxMo + " Mo (minimum attendu " + minMo + " Mo)");
+        }
+        return Controle.anomalie("MEMOIRE_MAX", LIBELLE_MEMOIRE_MAX, maxMo
+                + " Mo seulement, sous le minimum attendu de " + minMo
+                + " Mo. Les editions et les statistiques de fin de journee peuvent epuiser la memoire"
+                + " et arreter le serveur. Corriger sur le serveur d'application, puis redemarrer : retirer l'ancienne"
+                + " valeur (asadmin list-jvm-options | findstr Xmx, puis asadmin delete-jvm-options -Xmx<ancienne>)"
+                + " et poser asadmin create-jvm-options -Xmx2048m.");
     }
 
     /** Libelle du controle de l'acces de depannage. */
