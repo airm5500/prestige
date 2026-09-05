@@ -1029,7 +1029,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     /**
      * Deux courbes sur la meme periode : les sorties (consommation) et les achats
-     * (quantites commandees), avec la quantite au sommet de chaque mois. Le trace
+     * (quantites recues), avec la quantite au sommet de chaque mois. Le trace
      * garde ses proportions : il est dessine a la taille reelle du bandeau plutot
      * qu'etire pour remplir la largeur.
      */

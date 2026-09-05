@@ -188,10 +188,11 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             o.put("consoTotal", totalConso);
 
             // --- achats du produit sur la meme periode ---
-            // Quantites commandees, regroupees par mois de livraison, pour comparer d'un
-            // coup d'oeil ce qui sort et ce qui rentre.
+            // Quantites REELLEMENT RECUES, regroupees par mois de livraison : c'est ce qui
+            // est entre en stock, donc la seule grandeur comparable aux sorties. Une
+            // quantite commandee mais non livree ne constitue pas un achat.
             Query qa = em.createNativeQuery("SELECT YEAR(bl.dt_DATE_LIVRAISON), MONTH(bl.dt_DATE_LIVRAISON), "
-                    + "SUM(bld.int_QTE_CMDE) FROM t_bon_livraison_detail bld "
+                    + "SUM(bld.int_QTE_RECUE) FROM t_bon_livraison_detail bld "
                     + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
                     + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.dt_DATE_LIVRAISON >= ?2 GROUP BY 1, 2");
             qa.setParameter(1, produitId);
