@@ -1,0 +1,465 @@
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.*;
+import java.util.*;
+
+/**
+ * Ajoute au cahier de recette existant les feuilles des fonctionnalites livrees sur la
+ * fiche article : liste, apercu, fiche detail, lots, parametrage des actions, connexion
+ * et montee en charge. Le format (colonnes, styles, synthese) est celui des feuilles
+ * deja presentes, pour que le document reste homogene.
+ */
+public class GenCahierNouveau {
+
+    static Workbook wb;
+    static CellStyle titre, sousTitre, entete, section, cell, cellC, saisie, synthLabel;
+
+    public static void main(String[] args) throws Exception {
+        String fichier = args.length > 0 ? args[0] : "Cahier_de_recette_complet.xlsx";
+        try (InputStream in = new FileInputStream(fichier)) { wb = new XSSFWorkbook(in); }
+        // Regeneration : on repart d'un document sans les feuilles produites ici.
+        for (String nom : new String[]{"Fiche article - Liste", "Fiche article - Apercu",
+                "Fiche article - Detail", "Lots et parametrage", "Connexion et charge"}) {
+            int i = wb.getSheetIndex(nom);
+            if (i >= 0) { wb.removeSheetAt(i); }
+        }
+        styles();
+        feuilleListe();
+        feuilleApercu();
+        feuilleDetail();
+        feuilleLotsParametrage();
+        feuilleConnexionCharge();
+        try (FileOutputStream fos = new FileOutputStream(fichier)) { wb.write(fos); }
+        wb.close();
+        System.out.println("Feuilles ajoutees dans : " + fichier);
+    }
+
+    // ------------------------------------------------------------------ FEUILLE : LISTE
+    static void feuilleListe() {
+        Sheet sh = wb.createSheet("Fiche article - Liste");
+        int[] r = {0};
+        largeurs(sh);
+        titreLigne(sh, r, "CAHIER DE RECETTE - FICHE ARTICLE : LA LISTE");
+        sousLigne(sh, r, "Ecran Gestion des Articles (famillemanager). Colonnes remaniees, actions de ligne regroupees, "
+                + "barres d'outils reorganisees. A remplir : colonnes Resultat obtenu, Statut (OK/KO/N/A/Non teste) et "
+                + "Testeur/Date. Pre-requis general : WAR deploye, se connecter avec un compte de l'officine (emplacement 1).");
+        entetes(sh, r);
+        String[][] d = {
+            {"S", "A - COLONNES DE LA GRILLE"},
+            {"1.0","Colonnes","Colonne Etat abregee","Un article en suggestion de reappro","Rechercher l'article et observer la 1re colonne",
+             "Colonne intitulee Etat ; pastille de couleur suivie du libelle abrege (Sugg. / Cmde / Entree). Le libelle complet apparait en info-bulle au survol"},
+            {"2.0","Colonnes","Article sans mouvement","Un article ni commande ni en entree","Observer la colonne Etat de cet article",
+             "Cellule vide : aucune pastille, aucun libelle"},
+            {"3.0","Colonnes","Colonne Stock unifiee","Un article avec du stock en rayon et en reserve","Observer la colonne Stock (RAY + RES)",
+             "Le TOTAL (rayon + reserve) en gros caracteres, suivi des pastilles RAY et RES portant le detail. Les anciennes colonnes RES et Stock total ont disparu"},
+            {"4.0","Colonnes","Article sans reserve","Un article dont la reserve est nulle ou non geree","Observer sa cellule Stock",
+             "Le total et la seule pastille RAY ; aucune pastille RES"},
+            {"5.0","Colonnes","Info-bulle du stock","Un article avec reserve","Survoler la cellule Stock",
+             "Info-bulle indiquant Rayon X + Reserve Y = Z, coherente avec les pastilles"},
+            {"6.0","Colonnes","Stock a zero et negatif","Un article a 0 et un article en negatif","Comparer les deux lignes",
+             "Total a 0 en bleu sur fond vert tres clair ; total negatif en rouge sur fond rose tres clair. Teintes discretes, pas d'aplat vif"},
+            {"7.0","Colonnes","Tri de la colonne Stock","Resultat de recherche affiche","Cliquer sur l'entete Stock (RAY + RES), puis survoler l'entete",
+             "Le tri s'effectue ; l'info-bulle d'entete precise que le tri porte sur le stock rayon, seul champ trie par le serveur"},
+            {"8.0","Colonnes","Emplacement sur une seule ligne","Un article dont l'emplacement a un libelle long","Observer la colonne Emplacement",
+             "Libelle sur une seule ligne, tronque par des points de suspension si necessaire, valeur complete en info-bulle. Toutes les lignes de la grille ont la meme hauteur"},
+            {"9.0","Colonnes","Lisibilite generale","Resultat de recherche affiche","Parcourir la grille",
+             "CIP et designation en gras marque, autres informations en gras normal ; entetes en petites capitales ; chiffres alignes en colonne"},
+            {"S", "B - ACTIONS DE LIGNE"},
+            {"10.0","Actions","Nombre d'icones par defaut","Parametrage jamais modifie","Compter les boutons a droite d'une ligne",
+             "4 icones (Prix de reference, Creer le detail, Suivi, Modifier) puis le bouton « ... ». Plus les onze icones d'origine"},
+            {"11.0","Actions","Icones colorees et identifiables","Resultat affiche","Survoler chacune des 4 icones",
+             "Chaque icone a un fond teinte distinct et une info-bulle nommant l'action. Toutes portent un dessin visible (aucun carre vide)"},
+            {"12.0","Actions","Ouverture du menu","Une ligne affichee","Cliquer sur le bouton « ... »",
+             "Menu deroulant listant les actions restantes : Detail sur l'article, Voir les lots / peremptions, Modifier la date de peremption, Deconditionner, Gerer grossiste, Desactiver"},
+            {"13.0","Actions","Conditions d'affichage conservees","Un article deja deconditionne","Ouvrir son menu « ... »",
+             "Deconditionner et Gerer grossiste absents pour cet article, comme avant la refonte"},
+            {"14.0","Actions","Article d'un depot","Compte rattache a un depot (emplacement <> 1)","Ouvrir le menu d'un article",
+             "Creer le detail, Gerer grossiste et Desactiver absents, conformement aux regles d'origine"},
+            {"15.0","Actions","Privilege de modification","Compte SANS le privilege P_BT_UPDATE","Observer les icones d'une ligne",
+             "L'icone Modifier n'apparait pas ; les autres actions restent accessibles"},
+            {"16.0","Actions","Chaque action fait bien son travail","Un article de test","Declencher successivement les 4 icones puis chaque entree du menu",
+             "Chaque action ouvre le meme ecran qu'avant la refonte (prix de reference, creation de detail, suivi, modification, detail, lots, date de peremption, deconditionnement, grossiste, desactivation)"},
+            {"S", "C - BARRES D'OUTILS ET FILTRES"},
+            {"17.0","Filtres","Separation actions / filtres","Ecran ouvert","Observer les deux barres du haut",
+             "1re barre : uniquement des actions (Creer un article, Importation, Recalculer seuils, MAJ SEUIL, MAJ SELECTIVE, filtre rayon, Creer inventaire, Imprimer). 2e barre : uniquement des filtres"},
+            {"18.0","Filtres","Emplacement du filtre rayon","Ecran ouvert","Reperer le filtre rayon",
+             "Il se trouve dans la 1re barre, entre MAJ SELECTIVE et Creer inventaire"},
+            {"19.0","Filtres","Filtres tous visibles","Ecran en 1366 px de large ou plus","Parcourir la 2e barre",
+             "Filtre article, DCI, Recherche, Filtre TVA, Operateur stock, Qte.Stock et le bouton Reinitialiser sont tous visibles, sans debordement"},
+            {"20.0","Filtres","Bouton Reinitialiser","Plusieurs filtres renseignes","Cliquer sur Reinitialiser",
+             "Le bouton porte le libelle Reinitialiser ; tous les filtres sont vides, la liste revient a la 1re page et le curseur retourne dans le champ de recherche"},
+            {"21.0","Filtres","Filtre par quantite de stock","Articles de stocks varies","Choisir un operateur et saisir une quantite, puis rechercher",
+             "Seuls les articles satisfaisant le critere sont listes"},
+            {"22.0","Filtres","Filtre TVA","Articles de TVA differentes","Selectionner une TVA",
+             "La liste se limite aux articles de cette TVA"},
+            {"23.0","Filtres","Recherche par DCI","Un DCI portant plusieurs articles","Saisir au moins 2 caracteres et choisir un DCI",
+             "La liste se limite aux articles de ce DCI"},
+            {"S", "D - DISPOSITION MEMORISEE"},
+            {"24.0","Affichage","Disposition par poste","Premiere ouverture apres mise a jour","Ouvrir l'ecran",
+             "La grille s'affiche avec les colonnes par defaut de la nouvelle version. La disposition memorisee de l'ancienne grille n'est pas reprise (identifiant d'etat change)"},
+            {"25.0","Affichage","Memorisation des largeurs","Ecran ouvert","Redimensionner une colonne, fermer puis rouvrir l'ecran",
+             "La largeur reglee est conservee"}
+        };
+        remplir(sh, r, d);
+        synthese(sh, r, 5);
+    }
+
+    // ------------------------------------------------------------------ FEUILLE : APERCU
+    static void feuilleApercu() {
+        Sheet sh = wb.createSheet("Fiche article - Apercu");
+        int[] r = {0};
+        largeurs(sh);
+        titreLigne(sh, r, "CAHIER DE RECETTE - FICHE ARTICLE : L'APERCU DE L'ARTICLE");
+        sousLigne(sh, r, "Bandeau qui s'ouvre au double-clic sur une ligne : consommation et achats des 13 derniers mois, "
+                + "reperes de gestion, peremption la plus proche. Pre-requis : un article ayant des ventes, des entrees "
+                + "(bons de livraison) et des lots avec dates de peremption.");
+        entetes(sh, r);
+        String[][] d = {
+            {"S", "A - OUVERTURE ET FERMETURE"},
+            {"1.0","Ouverture","Le simple clic ne declenche rien","Resultat de recherche affiche","Cliquer une fois sur une ligne",
+             "La ligne est selectionnee ; AUCUN bandeau n'apparait et aucun appel serveur n'est declenche"},
+            {"2.0","Ouverture","Le double-clic ouvre l'apercu","Une ligne affichee","Double-cliquer sur la ligne",
+             "Le bandeau s'affiche au-dessus de la grille, renseigne pour cet article (nom et CIP rappeles en haut a gauche)"},
+            {"3.0","Ouverture","Le double-clic referme","Apercu ouvert sur un article","Double-cliquer a nouveau sur la MEME ligne",
+             "Le bandeau se referme ; la grille recupere la place"},
+            {"4.0","Ouverture","Changement d'article","Apercu ouvert sur un article","Double-cliquer sur une AUTRE ligne",
+             "Le bandeau reste ouvert et se met a jour avec le nouvel article"},
+            {"5.0","Ouverture","Nouvelle recherche","Apercu ouvert","Lancer une nouvelle recherche",
+             "Le bandeau se referme : il ne peut pas rester sur un article absent de la liste"},
+            {"6.0","Ouverture","Retour du curseur","Apercu ouvert ou referme","Observer le curseur apres l'ouverture puis apres la fermeture",
+             "Le curseur revient a chaque fois dans le champ de recherche, texte preselectionne, pret pour la saisie suivante"},
+            {"S", "B - COURBES DE CONSOMMATION ET D'ACHATS"},
+            {"7.0","Courbe","Periode couverte","Article avec un historique d'au moins un an","Lire les libelles de mois sous la courbe",
+             "13 mois : les douze precedents plus le mois en cours, ce dernier en gras. Un debut d'annee garde donc une annee complete de recul"},
+            {"8.0","Courbe","Quantites lisibles","Apercu ouvert","Observer les valeurs au-dessus et en dessous des points",
+             "La quantite est inscrite au sommet de chaque mois. Un mois sans mouvement n'est pas etiquete"},
+            {"9.0","Courbe","Deux courbes distinctes","Article ayant des ventes et des receptions","Observer le trace",
+             "Deux courbes : sorties et achats, de couleurs differentes, avec une legende rappelant la couleur et le total de chacune"},
+            {"10.0","Courbe","Nature des achats","Une commande partiellement livree (ex. 25 commandes, 20 recues)","Comparer le mois concerne a la commande",
+             "La courbe des achats montre la quantite RECUE (20), non la quantite commandee : seule l'entree en stock est comparable aux sorties"},
+            {"11.0","Courbe","Aucun chevauchement des valeurs","Un mois ou sorties et achats sont proches ou egaux","Observer ce mois",
+             "La valeur la plus haute est ecrite au-dessus de son point, l'autre en dessous du sien ; les deux restent lisibles meme quand les points se superposent"},
+            {"12.0","Courbe","Valeur posee sur une courbe","Un mois ou les courbes se croisent","Observer les chiffres a cet endroit",
+             "Chaque chiffre garde un lisere blanc qui le detache du trait ; il reste lisible"},
+            {"13.0","Courbe","Article sans historique","Un article jamais vendu ni recu","Ouvrir son apercu",
+             "Le bandeau s'affiche sans erreur ; la courbe est plate a zero et les totaux sont a 0"},
+            {"14.0","Courbe","Proportions du trace","Apercu ouvert","Observer la courbe",
+             "Le dessin n'est pas etire en largeur ; il garde des proportions comparables a celles de la fiche detail"},
+            {"S", "C - REPERES DE GESTION"},
+            {"15.0","Reperes","Derniere vente","Article vendu il y a quelques jours","Lire la ligne Derniere vente",
+             "Date et heure, suivies en rouge du nombre de jours sans vente (ex. non vendu depuis 3 jours)"},
+            {"16.0","Reperes","Vente du jour","Article vendu aujourd'hui","Lire la ligne Derniere vente",
+             "Mention vendu aujourd'hui, en vert"},
+            {"17.0","Reperes","Article jamais vendu","Article sans aucune vente","Lire la ligne Derniere vente",
+             "Mention jamais vendu, en rouge"},
+            {"18.0","Reperes","Derniere entree","Article recu recemment","Lire la ligne Derniere entree",
+             "Date et heure de la livraison, quantite recue et nom du grossiste"},
+            {"19.0","Reperes","Article jamais recu","Article sans bon de livraison","Lire la ligne Derniere entree",
+             "Mention aucune entree enregistree ; aucune erreur"},
+            {"20.0","Reperes","Classe et TVA","Article classe ABC et assujetti","Observer les puces sous les reperes",
+             "Une puce Classe (lettre seule) et une puce TVA. Le libelle de TVA n'est pas double (pas de TVA TVA 0)"},
+            {"21.0","Reperes","Contenance","Article deconditionnable dont la contenance est renseignee","Observer les puces",
+             "Une puce Contenance avec la valeur"},
+            {"22.0","Reperes","Contenance sans objet","Article NON deconditionnable, ou contenance vide","Observer les puces",
+             "Aucune puce Contenance : l'information n'a pas de sens ici"},
+            {"S", "D - PEREMPTION"},
+            {"23.0","Peremption","Une seule date affichee","Article ayant plusieurs lots dates","Observer la section peremption",
+             "Seule la peremption la PLUS PROCHE est listee ; le nombre de lots restants est rappele (ex. + 2 autres lots)"},
+            {"24.0","Peremption","Echeance signalee","Un lot expirant dans moins de 3 mois","Observer la ligne",
+             "Date, numero de lot, quantite et delai restant (ex. dans 10 j), signales en orange"},
+            {"25.0","Peremption","Lot deja perime","Un lot dont la date est passee","Observer la ligne",
+             "Mention perime, en rouge"},
+            {"26.0","Peremption","Article sans lot","Article sans lot date","Ouvrir son apercu",
+             "Aucune section peremption ; le reste du bandeau s'affiche normalement"},
+            {"S", "E - ADAPTATION A L'ECRAN"},
+            {"27.0","Affichage","Ecran large (24 pouces et plus)","Apercu ouvert","Observer la disposition",
+             "Courbe a gauche, reperes et peremption a droite, sur la meme hauteur"},
+            {"28.0","Affichage","Ecran etroit (portable 15 pouces)","Apercu ouvert, fenetre reduite","Reduire la largeur de la fenetre",
+             "Le panneau lateral passe SOUS la courbe au lieu de la comprimer ; tout reste lisible, sans defilement horizontal"}
+        };
+        remplir(sh, r, d);
+        synthese(sh, r, 5);
+    }
+
+    // ------------------------------------------------------------------ FEUILLE : DETAIL
+    static void feuilleDetail() {
+        Sheet sh = wb.createSheet("Fiche article - Detail");
+        int[] r = {0};
+        largeurs(sh);
+        titreLigne(sh, r, "CAHIER DE RECETTE - FICHE ARTICLE : LA FENETRE DETAIL");
+        sousLigne(sh, r, "Fenetre Detail sur l'article. Verifier d'abord que RIEN n'a ete perdu, puis les ajouts : "
+                + "courbes de ventes par annee et comparaison. Pre-requis : un article de l'officine ayant des ventes "
+                + "sur plusieurs annees.");
+        entetes(sh, r);
+        String[][] d = {
+            {"S", "A - RIEN NE DOIT AVOIR ETE PERDU"},
+            {"1.0","Existant","Sections presentes","Fenetre ouverte","Parcourir la fenetre de haut en bas",
+             "Infos generales, Consommations (sorties), Commandes recues et Ventes realisees sont toutes presentes"},
+            {"2.0","Existant","Champs des infos generales","Fenetre ouverte","Verifier les blocs Classement, Prix & taxes, Reappro & dates",
+             "Tous les champs d'origine sont la : emplacement, famille, code gestion, code geo, code tableau, quantite detail/article, EAN 13, classe ABC, prix de vente, PAF, PAT, taux de marque, code remise, code TVA, seuil et qte de reappro, Semois Q1 et Q2, dernier BL, derniere vente, derniere entree, dernier inventaire"},
+            {"3.0","Existant","Peremption proche clignotante","Article dont un lot perime dans moins de 6 mois","Observer le bandeau du haut",
+             "Peremption proche : date en rouge CLIGNOTANT, numero de lot en bleu et quantite en vert. Comportement identique a l'existant"},
+            {"4.0","Existant","Non vendu depuis","Article non vendu depuis plusieurs jours","Lire la date de derniere vente",
+             "La date est suivie du nombre de jours sans vente"},
+            {"5.0","Existant","Consommations : recherche par periode","Section Consommations","Saisir une date de debut et de fin puis rechercher",
+             "La grille se limite aux sorties de la periode"},
+            {"6.0","Existant","Consommations : impression","Section Consommations","Cliquer sur Imprimer",
+             "Le PDF s'ouvre avec les memes filtres que l'ecran"},
+            {"7.0","Existant","Commandes recues","Article ayant des receptions","Filtrer par periode, par fournisseur, puis imprimer",
+             "La grille et le PDF suivent les filtres ; la quantite livree inferieure a la quantite commandee reste signalee"},
+            {"S", "B - COURBES DES VENTES REALISEES"},
+            {"8.0","Ventes","Tableau conserve","Section Ventes realisees","Observer la section a l'ouverture",
+             "Le tableau annuel (annee x 12 mois + total) reste la vue par defaut ; aucune courbe n'est affichee tant qu'on ne la demande pas"},
+            {"9.0","Ventes","Un bouton par annee","Article vendu sur plusieurs annees","Observer les boutons au-dessus du tableau",
+             "Un bouton par annee presente (jusqu'a 3), chacun portant un lisere de sa couleur, plus un bouton de comparaison et un bouton Masquer"},
+            {"10.0","Ventes","Courbe d'une annee","Boutons affiches","Cliquer sur une annee",
+             "La courbe de cette annee seule s'affiche, avec la quantite inscrite sur CHAQUE mois et le total en legende"},
+            {"11.0","Ventes","Comparaison des annees","Boutons affiches","Cliquer sur Comparer les 3 dernieres annees",
+             "Les courbes des annees se superposent, chacune de sa couleur ; la quantite est inscrite sur les PICS pour rester lisible ; la legende donne le total par annee"},
+            {"12.0","Ventes","Masquer la courbe","Une courbe affichee","Cliquer sur Masquer",
+             "La courbe disparait ; le tableau annuel reste seul"},
+            {"13.0","Ventes","Article sans historique","Article jamais vendu","Ouvrir sa fiche detail",
+             "Aucun bouton de courbe ; le tableau est vide ; aucune erreur"},
+            {"S", "C - SUPPRESSION DU DOUBLON"},
+            {"14.0","Consommations","Courbe des sorties retiree","Fenetre ouverte","Observer la section Consommations (sorties)",
+             "Plus de courbe d'evolution dans cette section : elle faisait doublon avec celle du bandeau de la liste. La grille des sorties est inchangee"},
+            {"S", "D - CONFORT D'UTILISATION"},
+            {"15.0","Affichage","Aucun defilement horizontal","Ecran de 1366 px ou plus","Parcourir toute la fenetre",
+             "Aucune barre de defilement horizontale ; tout le contenu tient dans la largeur"},
+            {"16.0","Navigation","Retour du curseur","Fenetre ouverte","Fermer la fenetre par le bouton Fermer, puis par la croix",
+             "Dans les deux cas le curseur revient dans le champ de recherche de la liste, y compris apres une simple consultation"},
+            {"17.0","Navigation","Retour apres le suivi","Liste affichee","Lancer Suivi de cet article puis annuler ou fermer la fenetre de periode",
+             "Le curseur revient dans le champ de recherche"}
+        };
+        remplir(sh, r, d);
+        synthese(sh, r, 5);
+    }
+
+    // ------------------------------------------------------------------ FEUILLE : LOTS ET PARAMETRAGE
+    static void feuilleLotsParametrage() {
+        Sheet sh = wb.createSheet("Lots et parametrage");
+        int[] r = {0};
+        largeurs(sh);
+        titreLigne(sh, r, "CAHIER DE RECETTE - LOTS ET PARAMETRAGE DES ACTIONS");
+        sousLigne(sh, r, "Suppression de lot depuis l'ecran des lots / peremptions, et configuration des actions de ligne "
+                + "de la fiche article (parametres d'officine FICHE_ARTICLE_NB_ICONES et FICHE_ARTICLE_ORDRE_ACTIONS). "
+                + "Pre-requis : un article avec plusieurs lots ; un compte porteur du privilege P_SM_PARAMETER_MANAGER "
+                + "et un compte sans ce privilege.");
+        entetes(sh, r);
+        String[][] d = {
+            {"S", "A - SUPPRESSION D'UN LOT"},
+            {"1.0","Lots","Colonne de suppression","Article ayant des lots","Ouvrir Voir les lots / peremptions",
+             "La grille comporte une colonne Supprimer, en plus de la colonne Modifier"},
+            {"2.0","Lots","Question de confirmation","Lots listes","Cliquer sur l'icone de suppression d'une ligne",
+             "Une fenetre demande : Etes-vous sur de vouloir supprimer le lot <numero> dont la peremption est le <date> ? avec les boutons Oui et Non"},
+            {"3.0","Lots","Message entierement lisible","Fenetre de confirmation ouverte","Lire la question en entier",
+             "Le numero de lot ET la date de peremption sont visibles en entier : aucun texte coupe ni tronque"},
+            {"4.0","Lots","Renoncer","Fenetre de confirmation ouverte","Repondre Non",
+             "Le lot n'est PAS supprime ; la liste est inchangee"},
+            {"5.0","Lots","Confirmer","Fenetre de confirmation ouverte","Repondre Oui",
+             "Le lot disparait de la liste, qui se recharge ; il ne reste plus qu'un lot de moins"},
+            {"6.0","Lots","Le stock n'est pas touche","Stock de l'article note avant l'operation","Supprimer un lot puis relire le stock de l'article",
+             "Le stock du produit est INCHANGE : retirer un lot saisi par erreur ne modifie pas le stock physique, qui se corrige par inventaire"},
+            {"7.0","Lots","Lot deja supprime","Deux postes sur le meme article","Supprimer le meme lot depuis le second poste",
+             "Message explicite indiquant que le lot est introuvable ; aucune erreur technique affichee"},
+            {"S", "B - ACCES AU PARAMETRAGE DES ACTIONS"},
+            {"8.0","Droits","Bouton reserve","Compte SANS le privilege P_SM_PARAMETER_MANAGER","Ouvrir la fiche article et parcourir la barre d'actions",
+             "Le bouton de configuration des actions n'apparait pas"},
+            {"9.0","Droits","Bouton visible pour l'administrateur","Compte AVEC le privilege","Ouvrir la fiche article",
+             "Le bouton de configuration apparait en fin de barre d'actions"},
+            {"10.0","Droits","Ecriture protegee cote serveur","Compte sans le privilege","Tenter d'appeler directement le service d'enregistrement",
+             "Le serveur refuse et renvoie un message explicite : masquer le bouton ne suffit pas, le droit est re-controle a l'ecriture"},
+            {"S", "C - CONFIGURATION DES ACTIONS"},
+            {"11.0","Parametrage","Etat initial","Parametrage jamais modifie","Ouvrir la fenetre de configuration",
+             "Deux listes : a gauche 4 actions en icone (Prix de reference, Creer le detail, Suivi, Modifier), a droite les 6 autres"},
+            {"12.0","Parametrage","Deplacement entre les listes","Fenetre ouverte","Faire glisser une action de droite a gauche",
+             "L'action change de liste ; la liste de gauche en compte une de plus"},
+            {"13.0","Parametrage","Changement d'ordre","Fenetre ouverte","Faire glisser une action de haut en bas dans la liste de gauche",
+             "L'ordre est modifie et conserve a l'ecran"},
+            {"14.0","Parametrage","Prise en compte immediate","Modification faite","Valider",
+             "La fenetre se ferme et les icones de la grille se reorganisent SUR PLACE, dans l'ordre choisi, sans rouvrir l'ecran"},
+            {"15.0","Parametrage","Six icones","Configuration a 6 actions a gauche","Compter les boutons d'une ligne",
+             "6 icones puis le bouton « ... », qui contient les 4 actions restantes"},
+            {"16.0","Parametrage","Toutes les actions en icone","Toutes les actions deplacees a gauche","Valider puis observer une ligne",
+             "10 icones et AUCUN bouton « ... » : le menu disparait puisqu'il n'a plus rien a presenter"},
+            {"17.0","Parametrage","Aucune icone","Toutes les actions deplacees a droite","Valider puis observer une ligne",
+             "Seul le bouton « ... » subsiste et donne acces a toutes les actions"},
+            {"18.0","Parametrage","Annulation","Fenetre ouverte et modifiee","Cliquer sur Annuler",
+             "Aucune modification n'est enregistree ; la grille reste telle quelle"},
+            {"19.0","Parametrage","Portee officine","Configuration modifiee et validee","Se connecter depuis un AUTRE poste et ouvrir la fiche article",
+             "Le meme reglage s'applique : il vaut pour toute l'officine"},
+            {"20.0","Parametrage","Persistance","Configuration validee","Consulter t_parameters",
+             "FICHE_ARTICLE_NB_ICONES et FICHE_ARTICLE_ORDRE_ACTIONS portent les valeurs choisies"},
+            {"21.0","Parametrage","Retour a l'etat d'origine","Configuration modifiee","Remettre 4 actions a gauche dans l'ordre initial et valider",
+             "L'ecran retrouve exactement l'affichage de depart"},
+            {"22.0","Parametrage","Robustesse du parametrage","Base de TEST uniquement","Mettre une valeur erronee dans FICHE_ARTICLE_ORDRE_ACTIONS puis rouvrir l'ecran",
+             "L'ecran reste utilisable : les actions inconnues sont ignorees et les actions manquantes reviennent en fin de liste, aucune action n'est perdue"}
+        };
+        remplir(sh, r, d);
+        synthese(sh, r, 5);
+    }
+
+    // ------------------------------------------------------------------ FEUILLE : CONNEXION ET CHARGE
+    static void feuilleConnexionCharge() {
+        Sheet sh = wb.createSheet("Connexion et charge");
+        int[] r = {0};
+        largeurs(sh);
+        titreLigne(sh, r, "CAHIER DE RECETTE - CONNEXION SIMULTANEE ET MONTEE EN CHARGE");
+        sousLigne(sh, r, "Correction de l'interblocage a l'ouverture de session et tenue en charge de la fiche article. "
+                + "Les bancs se trouvent dans src/test/e2e (charge-connexions.js et charge-fiche-article.js) et "
+                + "s'executent avec Node, sans dependance. A jouer sur un environnement de TEST representatif.");
+        entetes(sh, r);
+        String[][] d = {
+            {"S", "A - CONNEXIONS SIMULTANEES (correction de l'interblocage)"},
+            {"1.0","Connexion","Connexion simple","Compte valide","Se connecter normalement",
+             "La session s'ouvre ; date de derniere connexion et compteur mis a jour, ligne de journal ecrite"},
+            {"2.0","Connexion","Identifiants errones","Aucun","Se connecter avec un mot de passe faux",
+             "Refus normal, sans erreur technique ni trace SEVERE dans le journal"},
+            {"3.0","Connexion","Plusieurs postes, MEME compte","Le meme identifiant utilise sur plusieurs postes","Ouvrir une session sur 5 a 8 postes au meme instant",
+             "TOUTES les sessions s'ouvrent. Aucune erreur, aucun ecran de connexion en echec"},
+            {"4.0","Connexion","Banc automatise","Node disponible sur le poste de test","node charge-connexions.js 20 5",
+             "100/100 reussites, 0 echec. Avant correction, environ un tiers des connexions echouaient"},
+            {"5.0","Connexion","Journal serveur","Banc precedent execute","Rechercher Deadlock found dans le journal du serveur",
+             "Aucune occurrence posterieure au deploiement"},
+            {"6.0","Connexion","Comptes distincts","Plusieurs comptes differents","Ouvrir des sessions simultanees sur des comptes differents",
+             "Toutes les sessions s'ouvrent, sans attente perceptible"},
+            {"S", "B - MONTEE EN CHARGE DE LA FICHE ARTICLE"},
+            {"7.0","Charge","10 utilisateurs","Serveur de test representatif","node charge-fiche-article.js 10 20",
+             "0 erreur ; recherche et apercu repondent en dessous de la demi-seconde au 95e centile"},
+            {"8.0","Charge","25 utilisateurs","Idem","node charge-fiche-article.js 25 20",
+             "0 erreur ; les temps augmentent de facon reguliere, sans a-coup"},
+            {"9.0","Charge","50 utilisateurs","Idem","node charge-fiche-article.js 50 20",
+             "0 erreur ; le debit plafonne (serveur sature) et les temps croissent proportionnellement, sans rupture ni echec"},
+            {"10.0","Charge","Cout de l'apercu","Bancs precedents executes","Comparer les temps de l'apercu et de la recherche",
+             "L'apercu repond au moins aussi vite que la recherche : il ne pese pas sur l'ecran. Il n'est de toute facon appele qu'au double-clic"},
+            {"11.0","Charge","Comportement des caisses","Banc de charge en cours","Saisir une vente pendant que le banc tourne",
+             "La caisse reste utilisable ; aucun blocage ni message d'erreur"},
+            {"12.0","Charge","Reference du poste de mesure","Banc execute","Noter le materiel, la taille du catalogue et les chiffres obtenus",
+             "Les valeurs sont consignees : elles servent de reference pour comparer les prochaines versions. Les chiffres d'un poste de test ne se transposent pas tels quels en production"}
+        };
+        remplir(sh, r, d);
+        synthese(sh, r, 5);
+    }
+
+    // ------------------------------------------------------------------ OUTILS DE MISE EN FORME
+    static void largeurs(Sheet sh) {
+        sh.setColumnWidth(0, 1400);
+        sh.setColumnWidth(1, 3200);
+        sh.setColumnWidth(2, 8200);
+        sh.setColumnWidth(3, 7200);
+        sh.setColumnWidth(4, 11000);
+        sh.setColumnWidth(5, 12500);
+        sh.setColumnWidth(6, 8500);
+        sh.setColumnWidth(7, 3200);
+        sh.setColumnWidth(8, 5200);
+    }
+
+    static void titreLigne(Sheet sh, int[] r, String t) {
+        Row row = sh.createRow(r[0]); row.setHeightInPoints(26);
+        Cell c = row.createCell(0); c.setCellValue(t); c.setCellStyle(titre);
+        sh.addMergedRegion(new CellRangeAddress(r[0], r[0], 0, 8)); r[0]++;
+    }
+
+    static void sousLigne(Sheet sh, int[] r, String t) {
+        Row row = sh.createRow(r[0]); row.setHeightInPoints(54);
+        Cell c = row.createCell(0); c.setCellValue(t); c.setCellStyle(sousTitre);
+        sh.addMergedRegion(new CellRangeAddress(r[0], r[0], 0, 8)); r[0]++;
+        r[0]++;
+    }
+
+    static void entetes(Sheet sh, int[] r) {
+        Row row = sh.createRow(r[0]); row.setHeightInPoints(28);
+        String[] h = {"N", "Section", "Objet du controle", "Pre-requis", "Mode operatoire", "Resultat attendu",
+                "Resultat obtenu", "Statut", "Testeur / Date"};
+        for (int i = 0; i < h.length; i++) { Cell c = row.createCell(i); c.setCellValue(h[i]); c.setCellStyle(entete); }
+        r[0]++;
+        sh.createFreezePane(0, r[0]);
+    }
+
+    static void remplir(Sheet sh, int[] r, String[][] d) {
+        for (String[] ligne : d) {
+            if (ligne[0].equals("S")) {
+                Row row = sh.createRow(r[0]); row.setHeightInPoints(18);
+                Cell c = row.createCell(0); c.setCellValue(ligne[1]); c.setCellStyle(section);
+                for (int i = 1; i <= 8; i++) { row.createCell(i).setCellStyle(section); }
+                sh.addMergedRegion(new CellRangeAddress(r[0], r[0], 0, 8)); r[0]++;
+            } else {
+                Row row = sh.createRow(r[0]);
+                int maxLen = 0;
+                for (int i = 2; i < ligne.length; i++) { maxLen = Math.max(maxLen, ligne[i].length()); }
+                row.setHeightInPoints(Math.max(30, (float) (Math.ceil(maxLen / 40.0) * 13)));
+                Cell c0 = row.createCell(0); c0.setCellValue(ligne[0]); c0.setCellStyle(cellC);
+                for (int i = 1; i <= 5; i++) {
+                    Cell c = row.createCell(i);
+                    c.setCellValue(i < ligne.length ? ligne[i] : "");
+                    c.setCellStyle(cell);
+                }
+                for (int i = 6; i <= 8; i++) { row.createCell(i).setCellStyle(saisie); }
+                r[0]++;
+            }
+        }
+    }
+
+    static void synthese(Sheet sh, int[] r, int premiereLigne) {
+        r[0]++;
+        String plage = "$A$" + premiereLigne + ":$A$" + (r[0] - 1);
+        String plageStatut = "$H$" + premiereLigne + ":$H$" + (r[0] - 1);
+        ligneSynth(sh, r, "SYNTHESE", null);
+        ligneSynth(sh, r, "Controles au total", "COUNTA(" + plage + ")-COUNTIF(" + plage + ",\"\")");
+        ligneSynth(sh, r, "Conformes (OK)", "COUNTIF(" + plageStatut + ",\"OK\")");
+        ligneSynth(sh, r, "Non conformes (KO)", "COUNTIF(" + plageStatut + ",\"KO\")");
+        ligneSynth(sh, r, "Sans objet (N/A)", "COUNTIF(" + plageStatut + ",\"N/A\")");
+        r[0]++;
+        Row row = sh.createRow(r[0]); row.setHeightInPoints(22);
+        Cell c = row.createCell(0);
+        c.setCellValue("Decision de recette :   [ ] Acceptee     [ ] Acceptee avec reserves     [ ] Refusee"
+                + "        Responsable : __________________     Date : ____/____/______");
+        c.setCellStyle(sousTitre);
+        sh.addMergedRegion(new CellRangeAddress(r[0], r[0], 0, 8)); r[0]++;
+    }
+
+    static void ligneSynth(Sheet sh, int[] r, String label, String formule) {
+        Row row = sh.createRow(r[0]);
+        Cell c0 = row.createCell(0); c0.setCellValue(label); c0.setCellStyle(synthLabel);
+        sh.addMergedRegion(new CellRangeAddress(r[0], r[0], 0, 4));
+        for (int i = 1; i <= 4; i++) { row.createCell(i).setCellStyle(synthLabel); }
+        Cell c5 = row.createCell(5);
+        if (formule != null) { c5.setCellFormula(formule); }
+        c5.setCellStyle(synthLabel);
+        for (int i = 6; i <= 8; i++) { row.createCell(i).setCellStyle(synthLabel); }
+        r[0]++;
+    }
+
+    static void styles() {
+        Font fT = wb.createFont(); fT.setBold(true); fT.setFontHeightInPoints((short) 14);
+        titre = wb.createCellStyle(); titre.setFont(fT); titre.setAlignment(HorizontalAlignment.CENTER);
+        titre.setVerticalAlignment(VerticalAlignment.CENTER);
+        Font fS = wb.createFont(); fS.setItalic(true); fS.setFontHeightInPoints((short) 9);
+        sousTitre = wb.createCellStyle(); sousTitre.setFont(fS); sousTitre.setWrapText(true);
+        sousTitre.setVerticalAlignment(VerticalAlignment.CENTER);
+        Font fE = wb.createFont(); fE.setBold(true); fE.setColor(IndexedColors.WHITE.getIndex());
+        entete = wb.createCellStyle(); entete.setFont(fE); entete.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        entete.setFillPattern(FillPatternType.SOLID_FOREGROUND); entete.setAlignment(HorizontalAlignment.CENTER);
+        entete.setVerticalAlignment(VerticalAlignment.CENTER); entete.setWrapText(true); bord(entete);
+        Font fSec = wb.createFont(); fSec.setBold(true); fSec.setColor(IndexedColors.WHITE.getIndex());
+        section = wb.createCellStyle(); section.setFont(fSec);
+        section.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        section.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        section.setVerticalAlignment(VerticalAlignment.CENTER); bord(section);
+        cell = wb.createCellStyle(); cell.setWrapText(true); cell.setVerticalAlignment(VerticalAlignment.TOP); bord(cell);
+        cellC = wb.createCellStyle(); cellC.setAlignment(HorizontalAlignment.CENTER);
+        cellC.setVerticalAlignment(VerticalAlignment.TOP); bord(cellC);
+        saisie = wb.createCellStyle(); saisie.setFillForegroundColor(IndexedColors.LEMON_CHIFFON.getIndex());
+        saisie.setFillPattern(FillPatternType.SOLID_FOREGROUND); saisie.setWrapText(true);
+        saisie.setVerticalAlignment(VerticalAlignment.TOP); bord(saisie);
+        Font fSl = wb.createFont(); fSl.setBold(true);
+        synthLabel = wb.createCellStyle(); synthLabel.setFont(fSl); bord(synthLabel);
+        synthLabel.setVerticalAlignment(VerticalAlignment.CENTER);
+    }
+
+    static void bord(CellStyle s) {
+        s.setBorderBottom(BorderStyle.THIN); s.setBorderTop(BorderStyle.THIN);
+        s.setBorderLeft(BorderStyle.THIN); s.setBorderRight(BorderStyle.THIN);
+    }
+}
