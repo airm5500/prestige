@@ -403,3 +403,48 @@ La requête des statistiques exige en outre, sur les ventes de test :
 |---|---|
 | `ui-fiche-article-refonte.js` | Grille (colonnes, menu « ... », filtres) et fiche détail (courbes, sections conservées) — 30 contrôles |
 | `smoke-ecrans.js` | Ouverture des principaux écrans sans erreur JavaScript — 7 contrôles |
+
+
+---
+
+## Tests de montée en charge
+
+`charge-fiche-article.js` simule N utilisateurs simultanés, chacun avec sa **propre
+session applicative** (comme autant de postes), qui enchaînent le parcours réel de
+la fiche article : recherche d'articles puis aperçu d'un article. Aucune dépendance :
+le script n'utilise que le module `http` de Node.
+
+```sh
+cd src/test/e2e
+node charge-fiche-article.js 25 30      # 25 utilisateurs pendant 30 secondes
+LOGIN=XXX PASSWORD=yyy node charge-fiche-article.js 50 20
+```
+
+Il affiche, par endpoint, le nombre d'appels, la médiane, le p95 et le maximum, puis
+le débit global et les erreurs.
+
+### Relevé sur l'environnement de test
+
+| Utilisateurs | Recherche (méd. / p95) | Aperçu (méd. / p95) | Débit | Erreurs |
+|---|---|---|---|---|
+| 10 | 92 ms / 138 ms | 40 ms / 73 ms | 141 req/s | 0 |
+| 25 | 188 ms / 253 ms | 134 ms / 191 ms | 143 req/s | 0 |
+| 50 | 295 ms / 463 ms | 243 ms / 413 ms | 148 req/s | 0 |
+
+Lecture : le **débit plafonne vers 145 requêtes/seconde** et les temps de réponse
+croissent proportionnellement au nombre d'utilisateurs — comportement d'une file
+d'attente devant un serveur saturé, sans aucune erreur ni dégradation brutale.
+
+> Ces chiffres valent pour ce conteneur de test et un catalogue réduit
+> (~300 articles cherchables). Sur le matériel de production et un catalogue complet,
+> seuls les ordres de grandeur et la forme de la courbe sont transposables, pas les
+> valeurs absolues.
+
+### Contention sur la connexion
+
+Ouvrir **plusieurs sessions simultanées sur le même compte** provoque des
+`MySQLTransactionRollbackException: Deadlock found` dans `AccountResource.auth` :
+la connexion met à jour la même ligne de `t_user` (date de dernière connexion,
+compteur, indicateur connecté) et écrit une ligne de log. Le banc échelonne donc
+les connexions de 120 ms pour mesurer les écrans et non cette contention. Des
+comptes distincts, cas normal en officine, ne sont pas concernés.
