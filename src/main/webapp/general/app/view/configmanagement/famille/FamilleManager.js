@@ -95,7 +95,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             },
             listeners: {
                 load: function () {
-                    Me_Workflow.majKpi();
+                    // Nouvelle liste : l'apercu de la ligne precedente n'a plus de sens.
+                    var ap = Ext.getCmp('apercu_fiche_article');
+                    if (ap) {
+                        ap.hide();
+                    }
                 },
                 beforeload: function (store, operation) {
                     const proxy = store.getProxy();
@@ -323,10 +327,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                         m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
                                 + ' = ' + total + '" data-qwidth="180"';
-                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;">RAY '
+                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;">RAY '
                                 + rayon + '</span>';
                         if (reserve !== 0) {
-                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;">RES '
+                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;">RES '
                                     + reserve + '</span>';
                         }
                         return '<span style="white-space:nowrap;">'
@@ -546,7 +550,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
                marquee, pas la seule cellule cliquee (retour d'officine). */
             selModel: {
-                selType: 'rowmodel'
+                selType: 'rowmodel',
+                listeners: {
+                    select: function (sm, record) {
+                        Me_Workflow.majApercu(record.get('lg_FAMILLE_ID'));
+                    }
+                }
             },
             dockedItems: [
                 {
@@ -615,6 +624,29 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler: this.onMajSelective
                         },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'lg_ZONE_GEO_ID',
+                            id: 'lg_ZONE_GEO_ID',
+                            store: rayons,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            minChars: 0,
+                            pageSize: 9999,
+                            width: 260,
+                            emptyText: 'Sélectionner un rayon...',
+                            forceSelection: true,
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        '-',
+                        '-',
                         {
                             text: 'Importer des articles',
                             tooltip: 'Importer stock',
@@ -786,28 +818,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'searchicon',
                             handler: this.onRechClick
                         },
-                        '-',
-                        {
-                            xtype: 'combobox',
-                            name: 'lg_ZONE_GEO_ID',
-                            id: 'lg_ZONE_GEO_ID',
-                            store: rayons,
-                            valueField: 'id',
-                            displayField: 'libelle',
-                            typeAhead: false,
-                            queryMode: 'remote',
-                            minChars: 0,
-                            pageSize: 9999,
-                            width: 260,
-                            emptyText: 'Sélectionner un rayon...',
-                            forceSelection: true,
-                            listeners: {
-                                select: function () {
-                                    Me_Workflow.onRechClick();
-                                }
-                            }
-                        },
-                        '-',
                         {
                             xtype: 'combobox',
                             name: 'lg_CODE_TVA_ID_FILTRE',
@@ -886,13 +896,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ]
                 },
                 {
-                    // Indicateurs du resultat courant. Calcules par le serveur sur TOUT le
-                    // resultat filtre : la grille ne contient que la page affichee.
+                    // Apercu de l'article selectionne : consommation des 13 derniers mois,
+                    // reperes de gestion et peremptions proches. Rempli au clic sur une ligne.
                     xtype: 'component',
                     dock: 'top',
-                    id: 'kpi_fiche_article',
+                    id: 'apercu_fiche_article',
                     hidden: true,
-                    cls: 'vp-kpi-barre',
+                    cls: 'vp-apercu-barre',
                     html: ''
                 }
             ],
@@ -952,55 +962,154 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     },
     /**
-     * Barre d'indicateurs : nombre d'articles, articles en rupture, articles sous le
-     * seuil et valeur du stock au prix d'achat, pour les criteres courants. Le calcul
-     * est fait par le serveur sur l'ensemble du resultat ; en cas d'echec la barre est
-     * simplement masquee, la liste reste utilisable.
+     * Apercu de l'article selectionne, au-dessus de la liste : courbe de consommation
+     * des 13 derniers mois (les douze precedents plus le mois en cours, pour qu'un
+     * debut d'annee garde une annee complete de recul), reperes de gestion et
+     * peremptions proches. Un echec masque simplement le bandeau.
      */
-    majKpi: function () {
-        var barre = Ext.getCmp('kpi_fiche_article');
-        if (!barre) {
+    majApercu: function (produitId) {
+        var barre = Ext.getCmp('apercu_fiche_article');
+        if (!barre || !produitId) {
             return;
         }
-        var champ = function (id) {
-            var c = Me_Workflow.fmField(id);
-            return c ? (c.getValue() || '') : '';
-        };
         Ext.Ajax.request({
-            url: '../api/v1/produit-search/fiche-kpi',
+            url: '../api/v1/produit-search/apercu/' + encodeURIComponent(produitId),
             method: 'GET',
-            params: {
-                search_value: champ('rechecher'),
-                str_TYPE_TRANSACTION: champ('str_TYPE_TRANSACTION'),
-                lg_DCI_ID: champ('lg_DCI_PRINCIPAL_ID'),
-                lg_ZONE_GEO_ID: champ('lg_ZONE_GEO_ID'),
-                stock_operator: champ('stock_operator'),
-                stock_value: champ('stock_value'),
-                lg_CODE_TVA_ID: champ('lg_CODE_TVA_ID_FILTRE')
-            },
             success: function (reponse) {
                 var o = Ext.JSON.decode(reponse.responseText, true) || {};
                 if (o.success === false) {
                     barre.hide();
                     return;
                 }
-                var carte = function (libelle, valeur, ton, complement) {
-                    return '<div class="vp-kpi ' + ton + '"><span class="vp-kpi-lib">' + libelle + '</span>'
-                            + '<span class="vp-kpi-val">' + valeur + '</span>'
-                            + '<span class="vp-kpi-sub">' + complement + '</span></div>';
-                };
-                barre.update('<div class="vp-kpi-lot">'
-                        + carte('Articles', amountformat(o.articles), 'neutre', 'dans le résultat courant')
-                        + carte('En rupture', amountformat(o.ruptures), 'rupture', 'stock total ≤ 0')
-                        + carte('Stock bas', amountformat(o.bas), 'bas', 'sous le seuil de réappro')
-                        + carte('Valeur du stock', amountformat(o.valeur), 'valeur', 'au prix d\'achat')
-                        + '</div>');
+                barre.update(Me_Workflow.htmlApercu(o));
                 barre.show();
             },
             failure: function () {
                 barre.hide();
             }
         });
+    },
+
+    /** Courbe de consommation : un point par mois, la quantite au sommet de chaque pic. */
+    courbeApercu: function (conso) {
+        var L = 720, H = 132, mg = 26, md = 14, mh = 20, mb = 20;
+        var iw = L - mg - md, ih = H - mh - mb, i, max = 0;
+        for (i = 0; i < conso.length; i++) {
+            if (conso[i].qte > max) {
+                max = conso[i].qte;
+            }
+        }
+        max = max * 1.35 || 1;
+        var n = conso.length;
+        var px = function (k) {
+            return mg + (n <= 1 ? iw / 2 : iw * k / (n - 1));
+        };
+        var py = function (v) {
+            return mh + ih - (v / max) * ih;
+        };
+        var ligne = '', aire = '', pts = '';
+        for (i = 0; i < n; i++) {
+            ligne += (i ? 'L' : 'M') + px(i) + ' ' + py(conso[i].qte);
+        }
+        aire = ligne + 'L' + px(n - 1) + ' ' + (mh + ih) + 'L' + px(0) + ' ' + (mh + ih) + 'Z';
+        for (i = 0; i < n; i++) {
+            var x = px(i), y = py(conso[i].qte);
+            pts += '<circle cx="' + x + '" cy="' + y + '" r="2.8" fill="#ffffff" stroke="#0d6a74" stroke-width="2"/>';
+            pts += '<text x="' + x + '" y="' + (y - 7) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0d6a74">'
+                    + conso[i].qte + '</text>';
+            // Le mois en cours (dernier point) est signale, les autres sont plus discrets.
+            pts += '<text x="' + x + '" y="' + (H - 5) + '" text-anchor="middle" font-size="9.5" fill="'
+                    + (i === n - 1 ? '#0d6a74' : '#8296a0') + '" font-weight="' + (i === n - 1 ? '700' : '400') + '">'
+                    + conso[i].libelle + '</text>';
+        }
+        return '<svg viewBox="0 0 ' + L + ' ' + H + '" width="100%" preserveAspectRatio="none" style="height:' + H + 'px">'
+                + '<line x1="' + mg + '" y1="' + (mh + ih) + '" x2="' + (L - md) + '" y2="' + (mh + ih)
+                + '" stroke="#dbe2e6" stroke-width="1"/>'
+                + '<path d="' + aire + '" fill="#0d6a74" fill-opacity="0.10"/>'
+                + '<path d="' + ligne + '" fill="none" stroke="#0d6a74" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>'
+                + pts + '</svg>';
+    },
+
+    htmlApercu: function (o) {
+        var esc = function (v) {
+            return Ext.String.htmlEncode(String(v == null ? '' : v));
+        };
+        var conso = o.conso || [];
+
+        // --- reperes de gestion ---
+        var ligne = function (libelle, valeur) {
+            return '<div class="vp-ap-ligne"><span class="l">' + libelle + '</span><span class="v">' + valeur + '</span></div>';
+        };
+        var reperes = '';
+        if (o.derniereVente) {
+            var j = o.joursSansVente;
+            var mention = '';
+            if (j === 0) {
+                mention = '<em class="ok">(vendu aujourd\'hui)</em>';
+            } else if (j > 0) {
+                mention = '<em class="alerte">(non vendu depuis ' + j + ' jour' + (j > 1 ? 's' : '') + ')</em>';
+            }
+            reperes += ligne('Derni\u00e8re vente', esc(o.derniereVente) + (mention ? ' ' + mention : ''));
+        } else {
+            reperes += ligne('Derni\u00e8re vente', '<em class="alerte">jamais vendu</em>');
+        }
+        if (o.derniereEntree) {
+            var det = [];
+            if (o.qteEntree) {
+                det.push(esc(o.qteEntree) + ' u.');
+            }
+            if (o.grossiste) {
+                det.push(esc(o.grossiste));
+            }
+            reperes += ligne('Derni\u00e8re entr\u00e9e',
+                    esc(o.derniereEntree) + (det.length ? ' <em>' + det.join(' \u00b7 ') + '</em>' : ''));
+        } else {
+            reperes += ligne('Derni\u00e8re entr\u00e9e', '<em>aucune entr\u00e9e enregistr\u00e9e</em>');
+        }
+
+        var puces = '';
+        if (o.classe) {
+            puces += '<span class="vp-ap-puce">Classe ' + esc(o.classe) + '</span>';
+        }
+        if (o.tva) {
+            // Le libelle de TVA porte souvent deja la mention ("TVA 0") : ne pas la doubler.
+            var tva = String(o.tva);
+            puces += '<span class="vp-ap-puce">' + (/tva/i.test(tva) ? esc(tva) : 'TVA ' + esc(tva)) + '</span>';
+        }
+        // Contenance : seulement si l'article est deconditionnable et qu'elle est renseignee.
+        if (o.contenance) {
+            puces += '<span class="vp-ap-puce contenance">Contenance ' + esc(o.contenance) + '</span>';
+        }
+        if (puces) {
+            reperes += '<div class="vp-ap-puces">' + puces + '</div>';
+        }
+
+        // --- peremptions proches ---
+        var lots = o.lots || [];
+        var blocLots = '';
+        if (lots.length) {
+            var items = '';
+            for (var i = 0; i < lots.length && i < 4; i++) {
+                var l = lots[i];
+                var ton = l.jours < 0 ? 'perime' : (l.jours <= 90 ? 'proche' : 'valide');
+                var reste = l.jours < 0 ? 'p\u00e9rim\u00e9' : ('dans ' + l.jours + ' j');
+                items += '<li class="' + ton + '"><span class="d">' + esc(l.peremption) + '</span>'
+                        + '<span class="q">Lot ' + esc(l.lot) + ' \u00d7 ' + esc(l.qte) + '</span>'
+                        + '<span class="r">' + reste + '</span></li>';
+            }
+            blocLots = '<div class="vp-ap-lots"><div class="vp-ap-soustitre">P\u00e9remptions proches</div>'
+                    + '<ul>' + items + '</ul></div>';
+        }
+
+        return '<div class="vp-apercu">'
+                + '<div class="vp-ap-conso">'
+                + '<div class="vp-ap-tete"><span class="vp-ap-nom">' + esc(o.nom) + '</span>'
+                + '<span class="vp-ap-cip">' + esc(o.cip) + '</span>'
+                + '<span class="vp-ap-tot">Consommation 13 mois : <b>' + amountformat(o.consoTotal || 0) + '</b></span></div>'
+                + this.courbeApercu(conso)
+                + '</div>'
+                + '<div class="vp-ap-cote">' + reperes + blocLots + '</div>'
+                + '</div>';
     },
 
     loadStore: function () {

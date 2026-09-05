@@ -1070,67 +1070,131 @@ body.x-body,
 /* =====================================================================
    Fiche article : allegement de la grille et barre d'indicateurs.
 
-   Tout est porte par .vp-fiche-article (grille) et .vp-kpi-barre, poses
+   Tout est porte par .vp-fiche-article (grille) et .vp-apercu-barre, poses
    uniquement sur cet ecran : aucune autre grille de l'application n'est
    touchee.
    ===================================================================== */
 
-/* --- Barre d'indicateurs --- */
-.vp-kpi-barre {
-    padding: 10px 8px 4px 8px;
+/* --- Bandeau d'apercu de l'article selectionne --- */
+.vp-apercu-barre {
+    padding: 10px 10px 6px 10px;
     background: #f6f8f9;
     border-bottom: 1px solid #dbe2e6;
 }
-.vp-kpi-lot {
+.vp-apercu {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
 }
-.vp-kpi {
-    flex: 1 1 180px;
-    min-width: 160px;
-    max-width: 300px;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 9px 12px 9px 15px;
+/* La courbe prend la place disponible, le panneau lateral garde une largeur lisible
+   et passe dessous quand l'ecran est trop etroit. */
+.vp-ap-conso {
+    flex: 1 1 520px;
+    min-width: 340px;
     background: #ffffff;
     border: 1px solid #dbe2e6;
     border-radius: 8px;
+    padding: 8px 10px 2px 10px;
 }
-/* Le lisere de gauche porte le sens : neutre, alerte, attention, valeur. */
-.vp-kpi::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    border-radius: 8px 0 0 8px;
-    background: #8fa6b3;
+.vp-ap-tete {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
 }
-.vp-kpi.rupture::before { background: #c0392b; }
-.vp-kpi.bas::before     { background: #c26a00; }
-.vp-kpi.valeur::before  { background: #0d6a74; }
-.vp-kpi-lib {
-    font-size: 10.5px;
+.vp-ap-nom {
+    font-weight: 800;
+    font-size: 13px;
+    color: #14303a;
+}
+.vp-ap-cip {
+    font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: .6px;
-    text-transform: uppercase;
+    color: #6b8089;
+    background: #eef2f4;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+.vp-ap-tot {
+    margin-left: auto;
+    font-size: 11.5px;
     color: #6b8089;
 }
-.vp-kpi-val {
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.1;
-    color: #14303a;
-    font-variant-numeric: tabular-nums;
+.vp-ap-tot b { color: #0d6a74; font-size: 13px; }
+
+.vp-ap-cote {
+    flex: 0 1 330px;
+    min-width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
-.vp-kpi.rupture .vp-kpi-val { color: #c0392b; }
-.vp-kpi.bas     .vp-kpi-val { color: #c26a00; }
-.vp-kpi.valeur  .vp-kpi-val { color: #0d6a74; }
-.vp-kpi-sub {
+.vp-ap-ligne {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: baseline;
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+}
+.vp-ap-ligne .l { color: #6b8089; font-weight: 700; white-space: nowrap; }
+.vp-ap-ligne .v { color: #14303a; font-weight: 700; text-align: right; }
+.vp-ap-ligne em { font-style: normal; font-weight: 600; color: #6b8089; }
+.vp-ap-ligne em.alerte { color: #c0392b; }
+.vp-ap-ligne em.ok { color: #1c7c1c; }
+
+.vp-ap-puces { display: flex; gap: 6px; flex-wrap: wrap; }
+.vp-ap-puce {
     font-size: 11px;
-    color: #8296a0;
+    font-weight: 700;
+    color: #1a5f9e;
+    background: #eaf1fa;
+    border: 1px solid #cfe0f1;
+    border-radius: 999px;
+    padding: 2px 9px;
+}
+.vp-ap-puce.contenance { color: #8a4c00; background: #fdf1e0; border-color: #f0d8b5; }
+
+.vp-ap-lots {
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+    padding: 6px 10px 8px 10px;
+}
+.vp-ap-soustitre {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: #6b8089;
+    margin-bottom: 3px;
+}
+.vp-ap-lots ul { list-style: none; margin: 0; padding: 0; }
+.vp-ap-lots li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11.5px;
+    padding: 2px 0 2px 8px;
+    border-left: 3px solid #c9d3d9;
+}
+.vp-ap-lots li.proche { border-left-color: #c26a00; }
+.vp-ap-lots li.perime { border-left-color: #c0392b; }
+.vp-ap-lots li .d { font-weight: 800; color: #14303a; }
+.vp-ap-lots li .q { color: #6b8089; }
+.vp-ap-lots li .r { margin-left: auto; font-weight: 700; color: #6b8089; }
+.vp-ap-lots li.proche .r { color: #c26a00; }
+.vp-ap-lots li.perime .r { color: #c0392b; }
+
+/* Ecran etroit : le panneau lateral passe sous la courbe plutot que de la comprimer. */
+@media (max-width: 1180px) {
+    .vp-apercu { flex-wrap: wrap; }
+    .vp-ap-cote { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; }
+    .vp-ap-cote > * { flex: 1 1 240px; }
 }
 
 /* --- Grille allegee --- */
@@ -1146,14 +1210,15 @@ body.x-body,
 .vp-fiche-article .x-grid-cell-inner {
     padding: 7px 8px;
     font-size: 12.5px;
-    font-weight: 400;
+    font-weight: 600;
 }
 .vp-fiche-article .x-grid-item-alt .x-grid-cell:not([style*="background-color"]) {
     background-color: #fafbfc;
 }
+/* Identite de l'article : un cran plus marque que le reste des colonnes. */
 .vp-fiche-article .x-grid-cell-int_CIP .x-grid-cell-inner,
 .vp-fiche-article .x-grid-cell-str_DESCRIPTION .x-grid-cell-inner {
-    font-weight: 600;
+    font-weight: 800;
     color: #14303a;
 }
 /* Chiffres alignes en colonne : prix, seuils, quantites. */

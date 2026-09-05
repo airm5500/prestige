@@ -116,64 +116,148 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     /**
-     * Indicateurs de la fiche article, calcules sur TOUT le resultat filtre.
+     * Apercu d'un article pour le bandeau de la fiche article : consommation mensuelle sur 13 mois (les douze
+     * precedents plus le mois en cours, pour qu'un debut d'annee garde une annee complete de recul), lots dont la
+     * peremption approche, et les reperes de gestion (derniere vente, derniere entree avec sa quantite et son
+     * grossiste, classe, TVA, contenance).
      *
-     * La grille ne charge que la page courante : compter sur son store donnerait des chiffres faux. On agrege donc en
-     * base, avec exactement les memes jointures et les memes filtres que la liste. Le stock total vaut le stock rayon
-     * plus, quand l'article gere une reserve, le stock de reserve (t_type_stock_famille, type 2). La sous-requete
-     * distincte evite qu'un article lie a plusieurs grossistes soit compte plusieurs fois.
+     * Tout est ramene en un seul appel : le bandeau se rafraichit a chaque clic de ligne, un aller-retour par
+     * information serait trop couteux.
      */
     @Override
-    public JSONObject kpiFiche(TUser user, String search, String diciId, String type, String zoneGeoId,
-            String stockOperator, String stockValue, String tvaId) {
-        JSONObject kpi = new JSONObject();
+    public JSONObject apercuProduit(TUser user, String produitId) {
+        JSONObject o = new JSONObject();
         try {
-            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            String motif = rest.RechercheArticle.motif(search, modeRechercheFicheArticle());
-
-            StringBuilder interne = new StringBuilder();
-            interne.append("SELECT DISTINCT t.lg_FAMILLE_ID AS id, ");
-            interne.append("(fs.int_NUMBER_AVAILABLE + IFNULL(res.int_NUMBER, 0)) AS total, ");
-            // Le seuil affiche dans la colonne "Seuil" de la grille est int_SEUIL_MIN
-            // (voir buildProduitDataLite), et non int_STOCK_REAPROVISONEMENT : l'indicateur
-            // doit compter sur la meme valeur, sinon il contredit ce que l'utilisateur lit.
-            interne.append("IFNULL(t.int_SEUIL_MIN, 0) AS seuil, ");
-            interne.append("IFNULL(t.int_PAF, 0) AS paf ");
-            interne.append("FROM t_famille t ");
-            interne.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
-            interne.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
-            interne.append("LEFT JOIN t_type_stock_famille res ON res.lg_FAMILLE_ID = t.lg_FAMILLE_ID ");
-            interne.append("AND res.lg_TYPE_STOCK_ID = '2' AND res.lg_EMPLACEMENT_ID = :emplacementId ");
-            interne.append("AND t.bool_RESERVE = 1 ");
-            if (StringUtils.isNotEmpty(diciId)) {
-                interne.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
+            TFamille t = em.find(TFamille.class, produitId);
+            if (t == null) {
+                return new JSONObject().put("success", false);
             }
-            interne.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
-            applyFilters(interne, motif, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, true);
+            o.put("cip", t.getIntCIP() != null ? t.getIntCIP() : "");
+            o.put("nom", t.getStrNAME() != null ? t.getStrNAME() : "");
+            o.put("classe", abcLettre(t.getLgCLASSEABCID()));
+            o.put("tva", t.getLgCODETVAID() != null && t.getLgCODETVAID().getStrNAME() != null
+                    ? t.getLgCODETVAID().getStrNAME() : "");
+            boolean decond = (t.getBoolDECONDITIONNE() != null && t.getBoolDECONDITIONNE() == 1)
+                    || (t.getBoolDECONDITIONNEEXIST() != null && t.getBoolDECONDITIONNEEXIST() == 1);
+            o.put("deconditionnable", decond);
+            // Contenance : n'a de sens que pour un article deconditionnable et renseigne.
+            if (decond && t.getIntNUMBERDETAIL() != null && t.getIntNUMBERDETAIL() > 0) {
+                o.put("contenance", t.getIntNUMBERDETAIL().intValue());
+            }
 
-            String sql = "SELECT COUNT(*) AS articles, " + "SUM(CASE WHEN x.total <= 0 THEN 1 ELSE 0 END) AS ruptures, "
-                    + "SUM(CASE WHEN x.total > 0 AND x.total <= x.seuil THEN 1 ELSE 0 END) AS bas, "
-                    + "SUM(x.total * x.paf) AS valeur FROM (" + interne + ") x";
+            // --- consommation des 13 derniers mois ---
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            cal.set(java.util.Calendar.MINUTE, 0);
+            cal.set(java.util.Calendar.SECOND, 0);
+            cal.add(java.util.Calendar.MONTH, -12);
+            java.util.Date depuis = cal.getTime();
 
-            Query q = em.createNativeQuery(sql);
-            setFilterParameters(q, empl, motif, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
-            Object[] r = (Object[]) q.getSingleResult();
-            kpi.put("articles", r[0] != null ? ((Number) r[0]).longValue() : 0L);
-            kpi.put("ruptures", r[1] != null ? ((Number) r[1]).longValue() : 0L);
-            kpi.put("bas", r[2] != null ? ((Number) r[2]).longValue() : 0L);
-            kpi.put("valeur", r[3] != null ? ((Number) r[3]).longValue() : 0L);
-            kpi.put("success", true);
+            Query qc = em.createNativeQuery("SELECT YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED), SUM(d.int_QUANTITY) "
+                    + "FROM t_preenregistrement p "
+                    + "INNER JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "
+                    + "WHERE d.lg_FAMILLE_ID = ?1 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 "
+                    + "AND p.lg_TYPE_VENTE_ID <> '5' AND d.int_QUANTITY > 0 AND p.str_STATUT = 'is_Closed' "
+                    + "AND p.dt_UPDATED >= ?2 GROUP BY 1, 2");
+            qc.setParameter(1, produitId);
+            qc.setParameter(2, depuis);
+            java.util.Map<String, Long> parMois = new java.util.HashMap<>();
+            for (Object obj : qc.getResultList()) {
+                Object[] r = (Object[]) obj;
+                parMois.put(((Number) r[0]).intValue() + "-" + ((Number) r[1]).intValue(),
+                        r[2] != null ? ((Number) r[2]).longValue() : 0L);
+            }
+            String[] moisCourts = { "Jan", "F\u00e9v", "Mar", "Avr", "Mai", "Juin", "Juil", "Ao\u00fbt", "Sep", "Oct",
+                    "Nov", "D\u00e9c" };
+            JSONArray conso = new JSONArray();
+            java.util.Calendar c2 = java.util.Calendar.getInstance();
+            c2.setTime(depuis);
+            long totalConso = 0L;
+            for (int i = 0; i < 13; i++) {
+                int an = c2.get(java.util.Calendar.YEAR);
+                int mo = c2.get(java.util.Calendar.MONTH) + 1;
+                Long v = parMois.get(an + "-" + mo);
+                long q = v != null ? v : 0L;
+                totalConso += q;
+                conso.put(new JSONObject().put("libelle", moisCourts[mo - 1] + " " + String.valueOf(an).substring(2))
+                        .put("qte", q));
+                c2.add(java.util.Calendar.MONTH, 1);
+            }
+            o.put("conso", conso);
+            o.put("consoTotal", totalConso);
+
+            // --- derniere vente ---
+            Query qv = em.createNativeQuery("SELECT MAX(p.dt_UPDATED) FROM t_preenregistrement p "
+                    + "INNER JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "
+                    + "WHERE d.lg_FAMILLE_ID = ?1 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 "
+                    + "AND p.lg_TYPE_VENTE_ID <> '5' AND d.int_QUANTITY > 0 AND p.str_STATUT = 'is_Closed'");
+            qv.setParameter(1, produitId);
+            Object dv = qv.getSingleResult();
+            if (dv != null) {
+                java.util.Date d = (java.util.Date) dv;
+                o.put("derniereVente", new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(d));
+                // Une date posterieure a aujourd'hui (donnee incoherente) est signalee par
+                // une valeur negative : l'ecran affiche alors la date sans mention trompeuse.
+                o.put("joursSansVente", (System.currentTimeMillis() - d.getTime()) / 86400000L);
+            }
+
+            // --- derniere entree : date, quantite recue, grossiste ---
+            Query qe = em.createNativeQuery("SELECT bl.dt_DATE_LIVRAISON, bld.int_QTE_RECUE, g.str_LIBELLE "
+                    + "FROM t_bon_livraison_detail bld "
+                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
+                    + "LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bld.lg_GROSSISTE_ID "
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.dt_DATE_LIVRAISON IS NOT NULL "
+                    + "ORDER BY bl.dt_DATE_LIVRAISON DESC");
+            qe.setParameter(1, produitId);
+            qe.setMaxResults(1);
+            List<Object[]> entrees = qe.getResultList();
+            if (!entrees.isEmpty()) {
+                Object[] e = entrees.get(0);
+                if (e[0] != null) {
+                    o.put("derniereEntree",
+                            new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format((java.util.Date) e[0]));
+                }
+                o.put("qteEntree", e[1] != null ? ((Number) e[1]).intValue() : 0);
+                o.put("grossiste", e[2] != null ? e[2].toString() : "");
+            }
+
+            // --- lots dont la peremption approche ---
+            Query ql = em.createNativeQuery("SELECT l.int_NUM_LOT, "
+                    + "IFNULL(l.current_stock, l.int_NUMBER) AS qte, l.dt_PEREMPTION FROM t_lot l "
+                    + "WHERE l.lg_FAMILLE_ID = ?1 AND l.dt_PEREMPTION IS NOT NULL "
+                    + "AND IFNULL(l.current_stock, l.int_NUMBER) > 0 ORDER BY l.dt_PEREMPTION ASC");
+            ql.setParameter(1, produitId);
+            ql.setMaxResults(6);
+            JSONArray lots = new JSONArray();
+            java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy");
+            for (Object obj : ql.getResultList()) {
+                Object[] r = (Object[]) obj;
+                java.util.Date dp = (java.util.Date) r[2];
+                long j = (dp.getTime() - System.currentTimeMillis()) / 86400000L;
+                lots.put(new JSONObject().put("lot", r[0] != null ? r[0].toString() : "")
+                        .put("qte", r[1] != null ? ((Number) r[1]).intValue() : 0).put("peremption", jour.format(dp))
+                        .put("jours", j));
+            }
+            o.put("lots", lots);
+            o.put("success", true);
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "kpiFiche", e);
-            // Un echec des indicateurs ne doit pas empecher la liste de s'afficher :
-            // l'ecran masque simplement la barre.
-            kpi = new JSONObject();
+            LOG.log(Level.SEVERE, "apercuProduit", e);
             try {
-                kpi.put("success", false);
+                o = new JSONObject().put("success", false);
             } catch (Exception ignore) {
             }
         }
-        return kpi;
+        return o;
+    }
+
+    /** "ABC_CLASSE_C" -> "C" ; vide si l'article n'est pas classe. */
+    private String abcLettre(String id) {
+        if (id == null || id.isEmpty()) {
+            return "";
+        }
+        String[] parts = id.split("_");
+        return parts[parts.length - 1];
     }
 
     @Override

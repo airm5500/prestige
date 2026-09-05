@@ -22,12 +22,10 @@ public interface SearchProduitServcie {
     JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId);
 
     /**
-     * Indicateurs de la fiche article calcules sur TOUT le resultat filtre, et non sur la page affichee : nombre
-     * d'articles, articles en rupture (stock total <= 0), articles sous le seuil de reapprovisionnement et valeur du
-     * stock au prix d'achat. Les criteres sont exactement ceux de la liste.
+     * Apercu d'un article pour le bandeau de la fiche article : consommation des 13 derniers mois, lots proches de la
+     * peremption et reperes de gestion.
      */
-    org.json.JSONObject kpiFiche(TUser user, String search, String diciId, String type, String zoneGeoId,
-            String stockOperator, String stockValue, String tvaId);
+    JSONObject apercuProduit(TUser user, String produitId);
 
     List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
             String stockOperator, String stockValue, String tvaId, boolean onlyReserve);

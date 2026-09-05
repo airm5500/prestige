@@ -84,23 +84,28 @@ function ok(name, cond, detail) {
     if (!lignes) { console.log('ARRET : aucune ligne, la suite depend de la grille'); await browser.close(); process.exit(1); }
     await page.waitForTimeout(1200);
 
-    // ---------- barre d'indicateurs ----------
-    await page.waitForTimeout(2500);
-    const kpi = await page.evaluate(() => {
-        const b = Ext.getCmp('kpi_fiche_article');
-        if (!b) { return { present: false }; }
-        const h = b.el ? b.el.dom.innerHTML : '';
-        const libelles = (h.match(/vp-kpi-lib">([^<]*)</g) || []).map(x => x.replace(/.*">/, '').replace('<', ''));
-        const valeurs = (h.match(/vp-kpi-val">([^<]*)</g) || []).map(x => x.replace(/.*">/, '').replace('<', ''));
-        return { present: true, visible: b.isVisible(), libelles: libelles, valeurs: valeurs,
-                 totalStore: Ext.ComponentQuery.query('famillemanager')[0].getStore().getTotalCount() };
+    // ---------- apercu de l'article selectionne ----------
+    await page.evaluate(() => Ext.ComponentQuery.query('famillemanager')[0].getSelectionModel().select(0));
+    await page.waitForTimeout(3500);
+    const ap = await page.evaluate(() => {
+        const a = Ext.getCmp('apercu_fiche_article');
+        if (!a) { return { present: false }; }
+        const h = a.el ? a.el.dom.innerHTML : '';
+        return {
+            present: true, visible: a.isVisible(),
+            points: (h.match(/<circle/g) || []).length,
+            lots: (h.match(/vp-ap-lots li/g) || []).length || (h.indexOf('PÉREMPTIONS PROCHES') >= 0 ? 1 : 0),
+            aLots: h.indexOf('remptions proches') >= 0 || h.indexOf('REMPTIONS PROCHES') >= 0,
+            aVente: h.indexOf('re vente') >= 0,
+            aEntree: h.indexOf('re entr') >= 0,
+            puces: (h.match(/vp-ap-puce/g) || []).length
+        };
     });
-    ok('barre d indicateurs affichee', kpi.present && kpi.visible, JSON.stringify(kpi));
-    ok('4 indicateurs (Articles, En rupture, Stock bas, Valeur du stock)',
-        kpi.libelles && kpi.libelles.length === 4, (kpi.libelles || []).join(' | '));
-    ok('indicateur "Articles" egal au total du resultat (pas a la page)',
-        kpi.valeurs && parseInt(String(kpi.valeurs[0]).replace(/\D/g, ''), 10) === kpi.totalStore,
-        'kpi=' + (kpi.valeurs || [])[0] + ' store=' + kpi.totalStore);
+    ok('apercu affiche au clic sur une ligne', ap.present && ap.visible, JSON.stringify(ap));
+    ok('courbe de consommation sur 13 mois (12 derniers + mois en cours)', ap.points === 13, 'points=' + ap.points);
+    ok('reperes : derniere vente et derniere entree', ap.aVente && ap.aEntree, JSON.stringify(ap));
+    ok('puces classe / TVA / contenance', ap.puces >= 1, 'puces=' + ap.puces);
+    ok('section peremptions proches', ap.aLots, JSON.stringify(ap));
 
     // ---------- rendu de la cellule stock ----------
     const rendu = await page.evaluate(() => {
@@ -205,6 +210,17 @@ function ok(name, cond, detail) {
         return !Ext.getCmp('courbe_ventes_detail').isVisible();
     });
     ok('bouton Masquer : retour au tableau seul', masque);
+
+    const deborde = await page.evaluate(() => {
+        const res = [];
+        document.querySelectorAll('.x-window *').forEach(el => {
+            if (el.scrollWidth > el.clientWidth + 2) {
+                res.push((el.className || '').toString().slice(0, 50));
+            }
+        });
+        return res;
+    });
+    ok('fiche detail : aucun defilement horizontal', deborde.length === 0, deborde.join(' | '));
 
     ok('aucune erreur JavaScript pendant le parcours', erreursJs.length === 0, erreursJs.join(' || '));
 
