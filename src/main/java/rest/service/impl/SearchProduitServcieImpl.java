@@ -187,6 +187,36 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             o.put("conso", conso);
             o.put("consoTotal", totalConso);
 
+            // --- achats du produit sur la meme periode ---
+            // Quantites commandees, regroupees par mois de livraison, pour comparer d'un
+            // coup d'oeil ce qui sort et ce qui rentre.
+            Query qa = em.createNativeQuery("SELECT YEAR(bl.dt_DATE_LIVRAISON), MONTH(bl.dt_DATE_LIVRAISON), "
+                    + "SUM(bld.int_QTE_CMDE) FROM t_bon_livraison_detail bld "
+                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.dt_DATE_LIVRAISON >= ?2 GROUP BY 1, 2");
+            qa.setParameter(1, produitId);
+            qa.setParameter(2, depuis);
+            java.util.Map<String, Long> achatsParMois = new java.util.HashMap<>();
+            for (Object obj : qa.getResultList()) {
+                Object[] r = (Object[]) obj;
+                achatsParMois.put(((Number) r[0]).intValue() + "-" + ((Number) r[1]).intValue(),
+                        r[2] != null ? ((Number) r[2]).longValue() : 0L);
+            }
+            JSONArray achats = new JSONArray();
+            java.util.Calendar c3 = java.util.Calendar.getInstance();
+            c3.setTime(depuis);
+            long totalAchats = 0L;
+            for (int i = 0; i < 13; i++) {
+                Long v = achatsParMois
+                        .get(c3.get(java.util.Calendar.YEAR) + "-" + (c3.get(java.util.Calendar.MONTH) + 1));
+                long q = v != null ? v : 0L;
+                totalAchats += q;
+                achats.put(q);
+                c3.add(java.util.Calendar.MONTH, 1);
+            }
+            o.put("achats", achats);
+            o.put("achatsTotal", totalAchats);
+
             // --- derniere vente ---
             Query qv = em.createNativeQuery("SELECT MAX(p.dt_UPDATED) FROM t_preenregistrement p "
                     + "INNER JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "

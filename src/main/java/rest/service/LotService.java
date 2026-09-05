@@ -23,4 +23,9 @@ public interface LotService {
     void pickLot(String produitId, int quantitVendue);
 
     void addLot(AddLot addLot);
+
+    /**
+     * Supprime un lot. Renvoie success=false avec un message si le lot est introuvable.
+     */
+    JSONObject supprimerLot(String lotId);
 }

@@ -318,4 +318,35 @@ public class LotServiceImpl implements LotService {
         lot.setCurrentStock(addLot.getQuantity());
         em.persist(lot);
     }
+
+    /**
+     * Suppression d'un lot depuis l'ecran des lots / peremptions de la fiche article.
+     *
+     * Seule la ligne de t_lot est retiree : le stock du produit, tenu par t_famille_stock, n'est pas touche. Retirer un
+     * lot saisi par erreur ne doit pas modifier le stock physique, qui se corrige par un inventaire.
+     */
+    @Override
+    public JSONObject supprimerLot(String lotId) {
+        JSONObject r = new JSONObject();
+        try {
+            if (lotId == null || lotId.trim().isEmpty()) {
+                return r.put("success", false).put("message", "Identifiant de lot manquant.");
+            }
+            dal.TLot lot = em.find(dal.TLot.class, lotId);
+            if (lot == null) {
+                return r.put("success", false).put("message", "Lot introuvable : il a peut-etre deja ete supprime.");
+            }
+            em.remove(lot);
+            em.flush();
+            return r.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "supprimerLot", e);
+            try {
+                return new JSONObject().put("success", false).put("message",
+                        "La suppression a echoue. Veuillez consulter les logs du serveur.");
+            } catch (Exception ignore) {
+                return r;
+            }
+        }
+    }
 }

@@ -1116,12 +1116,37 @@ body.x-body,
     border-radius: 4px;
     padding: 1px 6px;
 }
-.vp-ap-tot {
+/* Legende des deux courbes : sorties et achats, avec leur total sur la periode. */
+.vp-ap-legende {
     margin-left: auto;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+.vp-ap-leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 11.5px;
     color: #6b8089;
 }
-.vp-ap-tot b { color: #0d6a74; font-size: 13px; }
+.vp-ap-leg i {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+}
+.vp-ap-leg.conso i  { background: #0d6a74; }
+.vp-ap-leg.achats i { background: #b25a00; }
+.vp-ap-leg.conso b  { color: #0d6a74; font-size: 13px; }
+.vp-ap-leg.achats b { color: #b25a00; font-size: 13px; }
+.vp-ap-suite {
+    float: right;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #8296a0;
+}
 
 .vp-ap-cote {
     flex: 0 1 330px;

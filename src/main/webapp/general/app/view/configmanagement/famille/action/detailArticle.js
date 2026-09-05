@@ -128,38 +128,6 @@ function courbeSvgDetail(series, etiquettes, libellesX) {
     return svg + '</svg>';
 }
 
-// Courbe des sorties sur les 12 derniers mois glissants (section CONSOMMATIONS).
-function majCourbeConsoDetail() {
-    var cmp = Ext.getCmp('courbe_conso_detail');
-    if (!cmp) {
-        return;
-    }
-    var lignes = lignesStatVenteDetail(storeStatVenteDetail);
-    if (!lignes.length) {
-        cmp.update('');
-        return;
-    }
-    var parAnnee = {};
-    for (var i = 0; i < lignes.length; i++) {
-        parAnnee[lignes[i].annee] = lignes[i].mois;
-    }
-    var maintenant = new Date(), valeurs = [], libelles = [], total = 0;
-    for (var k = 0; k < 12; k++) {
-        var decalage = maintenant.getMonth() - 11 + k;
-        var annee = maintenant.getFullYear() + Math.floor(decalage / 12);
-        var mois = ((decalage % 12) + 12) % 12;
-        var v = parAnnee[annee] ? (parAnnee[annee][mois] || 0) : 0;
-        valeurs.push(v);
-        total += v;
-        libelles.push(MOIS_COURTS_DETAIL[mois] + ' ' + String(annee).slice(2));
-    }
-    cmp.update('<div style="padding:4px 6px 0;">'
-            + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">'
-            + '<span style="font-weight:bold;color:#0d6a74;">\u00c9volution des sorties (12 derniers mois)</span>'
-            + '<span style="color:#7a7a7a;font-size:12px;">Total : ' + total + ' u.</span></div>'
-            + courbeSvgDetail([{valeurs: valeurs, couleur: '#0d6a74'}], 'tous', libelles) + '</div>');
-}
-
 // Courbe des ventes : une annee seule, ou comparaison des 3 dernieres, a la demande.
 function afficherCourbeVentesDetail(indices, titre) {
     var cmp = Ext.getCmp('courbe_ventes_detail');
@@ -319,7 +287,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             'int_QTEDETAIL', 'int_NUMBER_AVAILABLE', 'dt_DATE_LIVRAISON',
             'int_STOCK_REAPROVISONEMENT', 'int_QTE_REAPPROVISIONNEMENT',
             'gridpanelDetailID', 'datedebutDetail', 'datefinDetail',
-            'courbe_conso_detail', 'ventes_boutons_detail', 'courbe_ventes_detail'
+            'ventes_boutons_detail', 'courbe_ventes_detail'
         ];
         sharedIds.forEach(function (cid) {
             var existing = Ext.getCmp(cid);
@@ -755,14 +723,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                         anchor: '100%'
                     },
                     items: [
-                        {
-                            // Courbe d'evolution des sorties sur 12 mois glissants, au-dessus
-                            // du detail ligne a ligne. Remplie au chargement des ventes mensuelles.
-                            xtype: 'component',
-                            id: 'courbe_conso_detail',
-                            margin: '0 0 8 0',
-                            html: ''
-                        },
                         {
                             columnWidth: 0.65,
                             xtype: 'gridpanel',
@@ -1298,7 +1258,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             });
             // Memes donnees pour les deux courbes : aucun appel serveur en plus.
             storeStatVenteDetail = st;
-            majCourbeConsoDetail();
             construireBoutonsVentesDetail();
         });
 
@@ -1327,10 +1286,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 }],
             listeners: {// controle sur le button fermé en haut de fenetre
                 beforeclose: function () {
-                    if (Omode != "detail") {
-                        Ext.getCmp('rechecher').focus();
+                    // Le curseur revient toujours dans le champ produit, y compris apres
+                    // une simple consultation : sinon la saisie suivante est perdue.
+                    var champ = Ext.getCmp('rechecher');
+                    if (champ && champ.focus) {
+                        champ.focus(true, 100);
                     }
-
                 },
                 destroy: function () {
                     winDetailArticleOuverte = null;
@@ -1343,7 +1304,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         win.on('afterrender', function () {
             if (store_statVente.getCount()) {
                 storeStatVenteDetail = store_statVente;
-                majCourbeConsoDetail();
                 construireBoutonsVentesDetail();
             }
         }, this, {single: true, delay: 1});

@@ -66,8 +66,10 @@ function ok(name, cond, detail) {
     const barreFiltres = (filtres[1] || []).join(',');
     ok('filtre stock (operateur + quantite) dans la barre des filtres',
         barreFiltres.indexOf('#stock_operator') >= 0 && barreFiltres.indexOf('#stock_value') >= 0, barreFiltres);
+    ok('filtre rayon deplace dans la barre des actions',
+        (filtres[0] || []).join(',').indexOf('#lg_ZONE_GEO_ID') >= 0, (filtres[0] || []).join(','));
     ok('filtre TVA toujours present', barreFiltres.indexOf('#lg_CODE_TVA_ID_FILTRE') >= 0);
-    ok('"Effacer tous les filtres" dans la barre des filtres', barreFiltres.indexOf('Effacer tous les filtres') >= 0);
+    ok('bouton "Reinitialiser" present', barreFiltres.indexOf('Réinitialiser') >= 0, barreFiltres);
     ok('barre 1 ne contient plus les filtres (actions seules)',
         (filtres[0] || []).join(',').indexOf('#stock_operator') < 0);
 
@@ -84,8 +86,20 @@ function ok(name, cond, detail) {
     if (!lignes) { console.log('ARRET : aucune ligne, la suite depend de la grille'); await browser.close(); process.exit(1); }
     await page.waitForTimeout(1200);
 
-    // ---------- apercu de l'article selectionne ----------
+    // ---------- apercu : simple clic vs double clic ----------
     await page.evaluate(() => Ext.ComponentQuery.query('famillemanager')[0].getSelectionModel().select(0));
+    await page.waitForTimeout(1200);
+    const apresClic = await page.evaluate(() => {
+        const a = Ext.getCmp('apercu_fiche_article');
+        return a ? a.isVisible() : 'absent';
+    });
+    ok('simple clic : selectionne sans ouvrir l apercu', apresClic === false, 'visible=' + apresClic);
+
+    const dbl = () => page.evaluate(() => {
+        const g = Ext.ComponentQuery.query('famillemanager')[0];
+        g.getView().fireEvent('itemdblclick', g.getView(), g.getStore().getAt(0));
+    });
+    await dbl();
     await page.waitForTimeout(3500);
     const ap = await page.evaluate(() => {
         const a = Ext.getCmp('apercu_fiche_article');
@@ -94,18 +108,28 @@ function ok(name, cond, detail) {
         return {
             present: true, visible: a.isVisible(),
             points: (h.match(/<circle/g) || []).length,
-            lots: (h.match(/vp-ap-lots li/g) || []).length || (h.indexOf('PÉREMPTIONS PROCHES') >= 0 ? 1 : 0),
-            aLots: h.indexOf('remptions proches') >= 0 || h.indexOf('REMPTIONS PROCHES') >= 0,
+            courbes: (h.match(/stroke-width="2\.2"/g) || []).length,
+            legendes: (h.match(/vp-ap-leg /g) || []).length,
+            lignesLot: (h.match(/<li /g) || []).length,
             aVente: h.indexOf('re vente') >= 0,
             aEntree: h.indexOf('re entr') >= 0,
-            puces: (h.match(/vp-ap-puce/g) || []).length
+            puces: (h.match(/vp-ap-puce/g) || []).length,
+            focus: document.activeElement ? document.activeElement.id : ''
         };
     });
-    ok('apercu affiche au clic sur une ligne', ap.present && ap.visible, JSON.stringify(ap));
-    ok('courbe de consommation sur 13 mois (12 derniers + mois en cours)', ap.points === 13, 'points=' + ap.points);
+    ok('double clic : ouvre l apercu', ap.present && ap.visible, JSON.stringify(ap));
+    ok('deux courbes (sorties + achats) sur 13 mois', ap.courbes === 2 && ap.points === 26,
+        'courbes=' + ap.courbes + ' points=' + ap.points);
+    ok('legende des deux couleurs', ap.legendes === 2, 'legendes=' + ap.legendes);
+    ok('une seule peremption affichee', ap.lignesLot === 1, 'lignes=' + ap.lignesLot);
     ok('reperes : derniere vente et derniere entree', ap.aVente && ap.aEntree, JSON.stringify(ap));
     ok('puces classe / TVA / contenance', ap.puces >= 1, 'puces=' + ap.puces);
-    ok('section peremptions proches', ap.aLots, JSON.stringify(ap));
+    ok('focus rendu au champ produit', /rechecher/.test(ap.focus), 'focus=' + ap.focus);
+
+    await dbl();
+    await page.waitForTimeout(1200);
+    const apresSecond = await page.evaluate(() => Ext.getCmp('apercu_fiche_article').isVisible());
+    ok('double clic sur la meme ligne : referme l apercu', apresSecond === false, 'visible=' + apresSecond);
 
     // ---------- rendu de la cellule stock ----------
     const rendu = await page.evaluate(() => {
@@ -144,7 +168,7 @@ function ok(name, cond, detail) {
         g.onDetailClick(g.getView(), 0);
         return g.getStore().getAt(0).get('int_CIP');
     });
-    const ficheOk = await page.waitForFunction(() => Ext.getCmp('courbe_conso_detail') != null, null, { timeout: 25000 })
+    const ficheOk = await page.waitForFunction(() => Ext.getCmp('gridpanelDetailID') != null, null, { timeout: 25000 })
         .then(() => true).catch(() => false);
     ok('fiche detail ouverte (article ' + cip + ')', ficheOk);
     await page.waitForTimeout(4000);
@@ -167,14 +191,9 @@ function ok(name, cond, detail) {
     ok('champs existants conserves (peremption proche, contenance, EAN13, code remise, Q1)',
         sections.peremption && sections.qtedetail && sections.ean13 && sections.remise && sections.q1, JSON.stringify(sections));
 
-    // courbe des sorties
-    const conso = await page.evaluate(() => {
-        const c = Ext.getCmp('courbe_conso_detail');
-        const h = c && c.el ? c.el.dom.innerHTML : '';
-        return { svg: h.indexOf('<svg') >= 0, pts: (h.match(/<circle/g) || []).length, titre: h.indexOf('sorties') >= 0 };
-    });
-    ok('courbe des sorties tracee (SVG)', conso.svg, 'points=' + conso.pts);
-    ok('courbe des sorties : 12 mois', conso.pts === 12, 'points=' + conso.pts);
+    // la courbe des sorties a ete retiree du detail : elle fait doublon avec le bandeau
+    const plusDeDoublon = await page.evaluate(() => Ext.getCmp('courbe_conso_detail') == null);
+    ok('courbe des sorties retiree du detail (doublon avec le bandeau)', plusDeDoublon);
 
     // boutons de courbe des ventes
     const btns = await page.evaluate(() => {

@@ -99,6 +99,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     var ap = Ext.getCmp('apercu_fiche_article');
                     if (ap) {
                         ap.hide();
+                        ap.produitAffiche = null;
                     }
                 },
                 beforeload: function (store, operation) {
@@ -550,10 +551,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
                marquee, pas la seule cellule cliquee (retour d'officine). */
             selModel: {
-                selType: 'rowmodel',
+                selType: 'rowmodel'
+            },
+            viewConfig: {
                 listeners: {
-                    select: function (sm, record) {
-                        Me_Workflow.majApercu(record.get('lg_FAMILLE_ID'));
+                    // Un clic selectionne seulement ; le double-clic ouvre ou referme
+                    // l'apercu, pour ne pas interroger le serveur a chaque deplacement
+                    // dans la liste.
+                    itemdblclick: function (view, record) {
+                        Me_Workflow.basculerApercu(record.get('lg_FAMILLE_ID'));
                     }
                 }
             },
@@ -877,7 +883,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         '-',
                         '-',
                         {
-                            text: 'Effacer tous les filtres',
+                            text: 'Réinitialiser',
                             tooltip: 'Vider tous les filtres et revenir a la 1ere page',
                             icon: 'resources/images/icons/fam/delete.png',
                             style: 'background-color:#add8e6; border-color:#add8e6;',
@@ -891,6 +897,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 Me_Workflow.fmField('stock_value').setValue('');
                                 Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
                                 Me_Workflow.onRechClick();
+                                Me_Workflow.focusRecherche();
                             }
                         }
                     ]
@@ -967,6 +974,32 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
      * debut d'annee garde une annee complete de recul), reperes de gestion et
      * peremptions proches. Un echec masque simplement le bandeau.
      */
+    /**
+     * Double-clic : ouvre l'apercu, ou le referme s'il montre deja cet article.
+     * Le focus revient au champ de recherche pour enchainer une autre saisie.
+     */
+    basculerApercu: function (produitId) {
+        var barre = Ext.getCmp('apercu_fiche_article');
+        if (!barre) {
+            return;
+        }
+        if (barre.isVisible() && barre.produitAffiche === produitId) {
+            barre.hide();
+            barre.produitAffiche = null;
+            Me_Workflow.focusRecherche();
+            return;
+        }
+        Me_Workflow.majApercu(produitId);
+    },
+
+    /** Retour au champ de recherche, texte preselectionne pour enchainer. */
+    focusRecherche: function () {
+        var champ = Me_Workflow.fmField('rechecher');
+        if (champ && champ.focus) {
+            champ.focus(true, 100);
+        }
+    },
+
     majApercu: function (produitId) {
         var barre = Ext.getCmp('apercu_fiche_article');
         if (!barre || !produitId) {
@@ -983,6 +1016,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }
                 barre.update(Me_Workflow.htmlApercu(o));
                 barre.show();
+                barre.produitAffiche = produitId;
+                // Le curseur doit rester dans le champ produit : la lecture de l'apercu
+                // ne doit pas obliger a recliquer pour saisir l'article suivant.
+                Me_Workflow.focusRecherche();
             },
             failure: function () {
                 barre.hide();
@@ -990,44 +1027,85 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
     },
 
-    /** Courbe de consommation : un point par mois, la quantite au sommet de chaque pic. */
-    courbeApercu: function (conso) {
-        var L = 720, H = 132, mg = 26, md = 14, mh = 20, mb = 20;
+    /**
+     * Deux courbes sur la meme periode : les sorties (consommation) et les achats
+     * (quantites commandees), avec la quantite au sommet de chaque mois. Le trace
+     * garde ses proportions : il est dessine a la taille reelle du bandeau plutot
+     * qu'etire pour remplir la largeur.
+     */
+    courbeApercu: function (conso, achats) {
+        var L = 1000, H = 180, mg = 30, md = 16, mh = 24, mb = 34;
         var iw = L - mg - md, ih = H - mh - mb, i, max = 0;
-        for (i = 0; i < conso.length; i++) {
-            if (conso[i].qte > max) {
-                max = conso[i].qte;
-            }
+        var n = conso.length;
+        for (i = 0; i < n; i++) {
+            if (conso[i].qte > max) { max = conso[i].qte; }
+            if (achats && achats[i] > max) { max = achats[i]; }
         }
         max = max * 1.35 || 1;
-        var n = conso.length;
         var px = function (k) {
             return mg + (n <= 1 ? iw / 2 : iw * k / (n - 1));
         };
         var py = function (v) {
             return mh + ih - (v / max) * ih;
         };
-        var ligne = '', aire = '', pts = '';
+        // Traces d'abord, etiquettes ensuite : pour chaque mois, la valeur la plus
+        // haute est etiquetee au-dessus de son point et l'autre en dessous, afin que
+        // les deux series ne se recouvrent jamais. Un mois sans mouvement n'est pas
+        // etiquete : aligner des zeros encombre le trace sans rien apprendre.
+        var trace = function (valeurs, couleur, aire) {
+            var d = '', svg = '';
+            for (var k = 0; k < valeurs.length; k++) {
+                d += (k ? 'L' : 'M') + px(k) + ' ' + py(valeurs[k]);
+            }
+            if (aire) {
+                svg += '<path d="' + d + 'L' + px(n - 1) + ' ' + (mh + ih) + 'L' + px(0) + ' ' + (mh + ih)
+                        + 'Z" fill="' + couleur + '" fill-opacity="0.10"/>';
+            }
+            svg += '<path d="' + d + '" fill="none" stroke="' + couleur
+                    + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+            for (var k2 = 0; k2 < valeurs.length; k2++) {
+                svg += '<circle cx="' + px(k2) + '" cy="' + py(valeurs[k2]) + '" r="2.8" fill="#ffffff" stroke="'
+                        + couleur + '" stroke-width="2"/>';
+            }
+            return svg;
+        };
+        var etiquette = function (k, valeur, couleur, dessous) {
+            if (!valeur) {
+                return '';
+            }
+            return '<text x="' + px(k) + '" y="' + (dessous ? py(valeur) + 14 : py(valeur) - 8)
+                    + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="' + couleur + '">'
+                    + valeur + '</text>';
+        };
+
+        var qteConso = [];
         for (i = 0; i < n; i++) {
-            ligne += (i ? 'L' : 'M') + px(i) + ' ' + py(conso[i].qte);
+            qteConso.push(conso[i].qte);
         }
-        aire = ligne + 'L' + px(n - 1) + ' ' + (mh + ih) + 'L' + px(0) + ' ' + (mh + ih) + 'Z';
+        var mois = '';
         for (i = 0; i < n; i++) {
-            var x = px(i), y = py(conso[i].qte);
-            pts += '<circle cx="' + x + '" cy="' + y + '" r="2.8" fill="#ffffff" stroke="#0d6a74" stroke-width="2"/>';
-            pts += '<text x="' + x + '" y="' + (y - 7) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0d6a74">'
-                    + conso[i].qte + '</text>';
-            // Le mois en cours (dernier point) est signale, les autres sont plus discrets.
-            pts += '<text x="' + x + '" y="' + (H - 5) + '" text-anchor="middle" font-size="9.5" fill="'
+            mois += '<text x="' + px(i) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="'
                     + (i === n - 1 ? '#0d6a74' : '#8296a0') + '" font-weight="' + (i === n - 1 ? '700' : '400') + '">'
                     + conso[i].libelle + '</text>';
         }
-        return '<svg viewBox="0 0 ' + L + ' ' + H + '" width="100%" preserveAspectRatio="none" style="height:' + H + 'px">'
+        // viewBox sans preserveAspectRatio="none" : le dessin garde ses proportions
+        // au lieu d'etre etire horizontalement.
+        var aAchats = achats && achats.length;
+        var libelles = '';
+        for (i = 0; i < n; i++) {
+            var va = aAchats ? achats[i] : 0;
+            var vc = qteConso[i];
+            libelles += etiquette(i, vc, '#0d6a74', aAchats && va > vc);
+            if (aAchats) {
+                libelles += etiquette(i, va, '#b25a00', va <= vc);
+            }
+        }
+        return '<svg viewBox="0 0 ' + L + ' ' + H + '" width="100%" style="max-width:' + L + 'px;display:block">'
                 + '<line x1="' + mg + '" y1="' + (mh + ih) + '" x2="' + (L - md) + '" y2="' + (mh + ih)
                 + '" stroke="#dbe2e6" stroke-width="1"/>'
-                + '<path d="' + aire + '" fill="#0d6a74" fill-opacity="0.10"/>'
-                + '<path d="' + ligne + '" fill="none" stroke="#0d6a74" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>'
-                + pts + '</svg>';
+                + (aAchats ? trace(achats, '#b25a00', false) : '')
+                + trace(qteConso, '#0d6a74', true)
+                + libelles + mois + '</svg>';
     },
 
     htmlApercu: function (o) {
@@ -1088,25 +1166,30 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         var lots = o.lots || [];
         var blocLots = '';
         if (lots.length) {
-            var items = '';
-            for (var i = 0; i < lots.length && i < 4; i++) {
-                var l = lots[i];
-                var ton = l.jours < 0 ? 'perime' : (l.jours <= 90 ? 'proche' : 'valide');
-                var reste = l.jours < 0 ? 'p\u00e9rim\u00e9' : ('dans ' + l.jours + ' j');
-                items += '<li class="' + ton + '"><span class="d">' + esc(l.peremption) + '</span>'
-                        + '<span class="q">Lot ' + esc(l.lot) + ' \u00d7 ' + esc(l.qte) + '</span>'
-                        + '<span class="r">' + reste + '</span></li>';
-            }
-            blocLots = '<div class="vp-ap-lots"><div class="vp-ap-soustitre">P\u00e9remptions proches</div>'
-                    + '<ul>' + items + '</ul></div>';
+            // Seule la peremption la plus proche : la liste complete allongeait le
+            // bandeau au detriment de la courbe, et reste consultable dans le detail.
+            var l = lots[0];
+            var ton = l.jours < 0 ? 'perime' : (l.jours <= 90 ? 'proche' : 'valide');
+            var reste = l.jours < 0 ? 'p\u00e9rim\u00e9' : ('dans ' + l.jours + ' j');
+            var suite = lots.length > 1
+                    ? '<span class="vp-ap-suite">+ ' + (lots.length - 1) + ' autre'
+                        + (lots.length > 2 ? 's' : '') + ' lot' + (lots.length > 2 ? 's' : '') + '</span>'
+                    : '';
+            blocLots = '<div class="vp-ap-lots"><div class="vp-ap-soustitre">P\u00e9remption la plus proche' + suite + '</div>'
+                    + '<ul><li class="' + ton + '"><span class="d">' + esc(l.peremption) + '</span>'
+                    + '<span class="q">Lot ' + esc(l.lot) + ' \u00d7 ' + esc(l.qte) + '</span>'
+                    + '<span class="r">' + reste + '</span></li></ul></div>';
         }
 
         return '<div class="vp-apercu">'
                 + '<div class="vp-ap-conso">'
                 + '<div class="vp-ap-tete"><span class="vp-ap-nom">' + esc(o.nom) + '</span>'
                 + '<span class="vp-ap-cip">' + esc(o.cip) + '</span>'
-                + '<span class="vp-ap-tot">Consommation 13 mois : <b>' + amountformat(o.consoTotal || 0) + '</b></span></div>'
-                + this.courbeApercu(conso)
+                + '<span class="vp-ap-legende">'
+                + '<span class="vp-ap-leg conso"><i></i>Sorties <b>' + amountformat(o.consoTotal || 0) + '</b></span>'
+                + '<span class="vp-ap-leg achats"><i></i>Achats <b>' + amountformat(o.achatsTotal || 0) + '</b></span>'
+                + '</span></div>'
+                + this.courbeApercu(conso, o.achats || [])
                 + '</div>'
                 + '<div class="vp-ap-cote">' + reperes + blocLots + '</div>'
                 + '</div>';
@@ -1941,7 +2024,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                     ]
                 }
-            ]
+            ],
+            listeners: {
+                // Fermeture ou annulation de la periode de suivi : le curseur revient
+                // dans le champ produit, pret pour la recherche suivante.
+                close: function () {
+                    Me_Workflow.focusRecherche();
+                }
+            }
 
         });
         win.show();
@@ -2081,6 +2171,69 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 failure: function (response) {
                     progress.hide();
                     Ext.MessageBox.alert('Erreur', response.responseText || 'Impossible de charger les lots du produit.');
+                }
+            });
+        };
+
+        // Suppression d'un lot, sur confirmation. La fenetre est dimensionnee pour que
+        // la question tienne en entier : un numero de lot et une date de peremption
+        // tronques ne permettraient pas de confirmer en connaissance de cause.
+        const supprimerLot = function (record) {
+            if (!record) {
+                return;
+            }
+            const lotId = record.get('lgLOTID');
+            const numLot = record.get('numLot') || '?';
+            const peremption = record.get('datePerement') || 'sans date';
+            if (!lotId) {
+                Ext.MessageBox.alert('Suppression impossible',
+                        'Identifiant du lot introuvable : ce lot ne peut pas être supprimé.');
+                return;
+            }
+            Ext.MessageBox.show({
+                title: 'Supprimer le lot',
+                msg: 'Êtes-vous sûr de vouloir supprimer le lot <b>' + Ext.String.htmlEncode(String(numLot))
+                        + '</b><br>dont la péremption est le <b>' + Ext.String.htmlEncode(String(peremption))
+                        + '</b> ?',
+                width: 460,
+                minWidth: 460,
+                buttons: Ext.MessageBox.YESNO,
+                buttonText: {yes: 'Oui', no: 'Non'},
+                icon: Ext.MessageBox.QUESTION,
+                fn: function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    const attente = Ext.MessageBox.wait('Suppression en cours . . .', 'Veuillez patienter');
+                    Ext.Ajax.request({
+                        method: 'DELETE',
+                        url: '../api/v1/lot/' + encodeURIComponent(lotId),
+                        success: function (reponse) {
+                            attente.hide();
+                            const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                            if (r.success) {
+                                loadPerimes(false);
+                            } else {
+                                Ext.MessageBox.show({
+                                    title: 'Suppression impossible',
+                                    msg: r.message || 'La suppression a échoué.',
+                                    width: 460,
+                                    buttons: Ext.MessageBox.OK,
+                                    icon: Ext.MessageBox.ERROR
+                                });
+                            }
+                        },
+                        failure: function (reponse) {
+                            attente.hide();
+                            Ext.MessageBox.show({
+                                title: 'Erreur',
+                                msg: 'La suppression a échoué. Code HTTP : ' + reponse.status,
+                                width: 460,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+                            });
+                        }
+                    });
                 }
             });
         };
@@ -2225,6 +2378,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     tooltip: 'Modifier le lot / la date de péremption',
                                     handler: function (grid, rowIndex) {
                                         openEditLot(grid.getStore().getAt(rowIndex));
+                                    }
+                                }]
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            text: 'Supprimer',
+                            width: 75,
+                            align: 'center',
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/delete.png',
+                                    tooltip: 'Supprimer ce lot',
+                                    handler: function (grid, rowIndex) {
+                                        supprimerLot(grid.getStore().getAt(rowIndex));
                                     }
                                 }]
                         }
