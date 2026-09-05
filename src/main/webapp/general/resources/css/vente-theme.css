@@ -1058,9 +1058,11 @@ body.x-body,
     padding: 1px;
     box-sizing: content-box;
 }
-.x-action-col-icon.fa-action-prix   { background: #dde7fd; }  /* prix de reference */
-.x-action-col-icon.fa-action-detail { background: #d7ecea; }  /* creer le detail   */
-.x-action-col-icon.fa-action-suivi  { background: #d9f0e2; }  /* suivi de l'article*/
-.x-action-col-icon.fa-action-edit   { background: #fbecd7; }  /* modifier          */
-.x-action-col-icon.fa-action-plus   { background: #eceff1; }  /* autres actions    */
+/* background-color et NON le raccourci background : « suivi » porte son dessin
+   par iconCls (donc par background-image), que le raccourci effacerait. */
+.x-action-col-icon.fa-action-prix   { background-color: #dde7fd; }  /* prix de reference */
+.x-action-col-icon.fa-action-detail { background-color: #d7ecea; }  /* creer le detail   */
+.x-action-col-icon.fa-action-suivi  { background-color: #d9f0e2; }  /* suivi de l'article*/
+.x-action-col-icon.fa-action-edit   { background-color: #fbecd7; }  /* modifier          */
+.x-action-col-icon.fa-action-plus   { background-color: #eceff1; }  /* autres actions    */
 .x-action-col-icon.fa-action:hover  { outline: 1px solid #8fa6b3; }

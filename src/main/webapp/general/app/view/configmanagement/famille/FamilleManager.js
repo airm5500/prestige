@@ -522,7 +522,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
-                            iconCls: 'suivimvt',
+                            // '.suivimvt' n'est defini que dans KitchenSink-all.css, qui n'est
+                            // pas chargee par l'application : l'icone restait sans dessin.
+                            // On pointe directement l'image.
+                            icon: 'build/KitchenSink/ext-theme-neptune/resources/images/dd/suivmt.png',
                             tooltip: 'Suivi de cet Article',
                             scope: this,
                             getClass: function () {
@@ -1328,7 +1331,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }
             }, {
                 text: 'Modifier la date de péremption',
-                iconCls: 'calendar',
+                icon: 'resources/images/icons/fam/calendar.png',
                 handler: function () {
                     me.addPeremptiondate(view, rowIndex);
                 }
