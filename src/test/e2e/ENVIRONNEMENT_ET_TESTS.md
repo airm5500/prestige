@@ -340,3 +340,66 @@ SQL
 
 Automatiser les étapes 1-3 dans un hook `SessionStart` (`.claude/hooks/`) évite de
 les refaire à la main à chaque session.
+
+
+---
+
+## Pièges d'environnement rencontrés sur la fiche article
+
+Deux points bloquent les tests de l'écran **Gestion des Articles** sur une base
+restaurée, sans qu'il s'agisse d'une régression applicative.
+
+### La recherche ne remonte aucune ligne
+
+La requête de la fiche article fait un **`INNER JOIN t_famille_grossiste`** :
+un article sans lien grossiste est invisible dans la recherche, même s'il a du
+stock. Sur un dump partiel, la table peut être remplie pour d'autres articles
+que ceux de l'emplacement testé, et la recherche renvoie alors `total: 0`.
+
+```sql
+-- combien d'articles sont réellement recherchables pour l'emplacement 1 ?
+SELECT COUNT(DISTINCT t.lg_FAMILLE_ID)
+FROM t_famille t
+INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID
+INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID
+WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = '1';
+```
+
+Si le compte est à 0, créer les liens manquants (base de TEST uniquement).
+
+### La section « Ventes réalisées » reste vide
+
+`getListeTSnapshotFamillesell` n'utilise **pas** le pool JDBC de Payara mais la
+connexion héritée `jconnexion` / `JdbConnexion`, qui construit son URL à partir
+du fichier de configuration jdom. Avec une configuration minimale remplie de
+valeurs `test`, la connexion échoue (`CommunicationsException`) et le service
+renvoie une liste vide, sans erreur visible côté écran.
+
+Les balises XML à renseigner dans `/opt/CONF/LABOREX/CONF/config_laborex_v1.xml`
+sont `host`, `name`, `user`, `password`, `port` (et non les noms de champs Java
+`ars_database_*`) :
+
+```xml
+<host>localhost:3306</host>
+<name>capitale</name>
+<user>prestige</user>
+<password>prestige</password>
+<port>3306</port>
+<database_type>mysql</database_type>
+```
+
+Le compte doit pouvoir se connecter **en TCP** : `root` est en authentification
+par socket Unix et échoue ici. Reprendre l'utilisateur du pool Payara
+(`asadmin get "resources.jdbc-connection-pool.laborex_pool.property.*"`).
+Redémarrer le domaine après modification : la configuration est lue au démarrage.
+
+La requête des statistiques exige en outre, sur les ventes de test :
+`b_IS_CANCEL = 0`, `int_PRICE > 0`, `lg_TYPE_VENTE_ID <> '5'`,
+`int_QUANTITY > 0` et `str_STATUT = 'is_Closed'`.
+
+### Tests de la refonte
+
+| Script | Couverture |
+|---|---|
+| `ui-fiche-article-refonte.js` | Grille (colonnes, menu « ... », filtres) et fiche détail (courbes, sections conservées) — 30 contrôles |
+| `smoke-ecrans.js` | Ouverture des principaux écrans sans erreur JavaScript — 7 contrôles |
