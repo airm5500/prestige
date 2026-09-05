@@ -42,6 +42,210 @@ function totalVenteAnneeDetail(rec) {
     return t;
 }
 
+// ---------------------------------------------------------------------------
+// Courbes d'evolution (SVG inline, aucune librairie graphique ajoutee). Les
+// quantites mensuelles proviennent du meme store que le tableau des ventes
+// realisees : aucun appel serveur supplementaire.
+// ---------------------------------------------------------------------------
+var COULEURS_ANNEES_DETAIL = ['#9aa4ad', '#1a5f9e', '#6a3fa0'];
+var MOIS_COURTS_DETAIL = ['Jan', 'F\u00e9v', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Ao\u00fbt', 'Sep', 'Oct', 'Nov', 'D\u00e9c'];
+
+// Lignes du store stat-vente ramenees a {annee, mois[12]}, triees par annee croissante.
+function lignesStatVenteDetail(store) {
+    var lignes = [];
+    if (!store) {
+        return lignes;
+    }
+    store.each(function (r) {
+        var mois = [];
+        for (var i = 0; i < moisVenteDetail.length; i++) {
+            mois.push(parseInt(r.get(moisVenteDetail[i]), 10) || 0);
+        }
+        lignes.push({annee: parseInt(r.get('int_YEAR'), 10) || 0, mois: mois});
+    });
+    lignes.sort(function (a, b) {
+        return a.annee - b.annee;
+    });
+    return lignes;
+}
+
+/**
+ * Trace une ou plusieurs courbes. series = [{valeurs:[12], couleur, libelle}].
+ * etiquettes : 'tous' = quantite sur chaque mois (lecture d'une seule annee),
+ * 'pics' = quantite sur le maximum de chaque courbe (comparaison lisible).
+ */
+function courbeSvgDetail(series, etiquettes, libellesX) {
+    var L = 900, H = 250, mg = 38, md = 16, mh = 26, mb = 30;
+    var iw = L - mg - md, ih = H - mh - mb, i, k, max = 0;
+    for (i = 0; i < series.length; i++) {
+        for (k = 0; k < series[i].valeurs.length; k++) {
+            if (series[i].valeurs[k] > max) {
+                max = series[i].valeurs[k];
+            }
+        }
+    }
+    max = max * 1.2 || 1;
+    var n = libellesX.length;
+    var px = function (j) {
+        return mg + (n <= 1 ? iw / 2 : iw * j / (n - 1));
+    };
+    var py = function (v) {
+        return mh + ih - (v / max) * ih;
+    };
+    var svg = '<svg viewBox="0 0 ' + L + ' ' + H + '" width="100%" style="max-width:' + L
+            + 'px;font-family:Arial,Helvetica,sans-serif">';
+    for (i = 0; i <= 3; i++) {
+        var gy = mh + ih * i / 3;
+        svg += '<line x1="' + mg + '" y1="' + gy + '" x2="' + (L - md) + '" y2="' + gy
+                + '" stroke="#e0e6ea" stroke-width="1"/>';
+    }
+    for (i = 0; i < n; i++) {
+        svg += '<text x="' + px(i) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="11" fill="#7a7a7a">'
+                + libellesX[i] + '</text>';
+    }
+    for (i = 0; i < series.length; i++) {
+        var s = series[i], d = '';
+        for (k = 0; k < s.valeurs.length; k++) {
+            d += (k ? 'L' : 'M') + px(k) + ' ' + py(s.valeurs[k]);
+        }
+        if (series.length === 1) {
+            svg += '<path d="' + d + 'L' + px(n - 1) + ' ' + (mh + ih) + 'L' + px(0) + ' ' + (mh + ih)
+                    + 'Z" fill="' + s.couleur + '" fill-opacity="0.12"/>';
+        }
+        svg += '<path d="' + d + '" fill="none" stroke="' + s.couleur
+                + '" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+        var pic = Math.max.apply(null, s.valeurs);
+        for (k = 0; k < s.valeurs.length; k++) {
+            svg += '<circle cx="' + px(k) + '" cy="' + py(s.valeurs[k]) + '" r="3" fill="#ffffff" stroke="'
+                    + s.couleur + '" stroke-width="2"/>';
+            if (etiquettes === 'tous' || s.valeurs[k] === pic) {
+                svg += '<text x="' + px(k) + '" y="' + (py(s.valeurs[k]) - 9)
+                        + '" text-anchor="middle" font-size="11" font-weight="bold" fill="' + s.couleur + '">'
+                        + s.valeurs[k] + '</text>';
+            }
+        }
+    }
+    return svg + '</svg>';
+}
+
+// Courbe des sorties sur les 12 derniers mois glissants (section CONSOMMATIONS).
+function majCourbeConsoDetail() {
+    var cmp = Ext.getCmp('courbe_conso_detail');
+    if (!cmp) {
+        return;
+    }
+    var lignes = lignesStatVenteDetail(storeStatVenteDetail);
+    if (!lignes.length) {
+        cmp.update('');
+        return;
+    }
+    var parAnnee = {};
+    for (var i = 0; i < lignes.length; i++) {
+        parAnnee[lignes[i].annee] = lignes[i].mois;
+    }
+    var maintenant = new Date(), valeurs = [], libelles = [], total = 0;
+    for (var k = 0; k < 12; k++) {
+        var decalage = maintenant.getMonth() - 11 + k;
+        var annee = maintenant.getFullYear() + Math.floor(decalage / 12);
+        var mois = ((decalage % 12) + 12) % 12;
+        var v = parAnnee[annee] ? (parAnnee[annee][mois] || 0) : 0;
+        valeurs.push(v);
+        total += v;
+        libelles.push(MOIS_COURTS_DETAIL[mois] + ' ' + String(annee).slice(2));
+    }
+    cmp.update('<div style="padding:4px 6px 0;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">'
+            + '<span style="font-weight:bold;color:#0d6a74;">\u00c9volution des sorties (12 derniers mois)</span>'
+            + '<span style="color:#7a7a7a;font-size:12px;">Total : ' + total + ' u.</span></div>'
+            + courbeSvgDetail([{valeurs: valeurs, couleur: '#0d6a74'}], 'tous', libelles) + '</div>');
+}
+
+// Courbe des ventes : une annee seule, ou comparaison des 3 dernieres, a la demande.
+function afficherCourbeVentesDetail(indices, titre) {
+    var cmp = Ext.getCmp('courbe_ventes_detail');
+    if (!cmp) {
+        return;
+    }
+    var recentes = lignesStatVenteDetail(storeStatVenteDetail).slice(-3);
+    var series = [];
+    for (var i = 0; i < indices.length; i++) {
+        var l = recentes[indices[i]];
+        if (l) {
+            series.push({valeurs: l.mois, couleur: COULEURS_ANNEES_DETAIL[indices[i]], libelle: l.annee});
+        }
+    }
+    if (!series.length) {
+        return;
+    }
+    var legende = '';
+    for (i = 0; i < series.length; i++) {
+        var t = 0;
+        for (var k = 0; k < series[i].valeurs.length; k++) {
+            t += series[i].valeurs[k];
+        }
+        legende += '<span style="margin-left:14px;color:' + series[i].couleur + ';font-weight:bold;">&#9644;&nbsp;'
+                + series[i].libelle + ' \u2014 ' + t + ' u.</span>';
+    }
+    cmp.update('<div style="padding:4px 6px 0;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">'
+            + '<span style="font-weight:bold;color:#6a3fa0;">' + titre + '</span>'
+            + '<span style="font-size:12px;">' + legende + '</span></div>'
+            + courbeSvgDetail(series, indices.length === 1 ? 'tous' : 'pics', MOIS_COURTS_DETAIL) + '</div>');
+    cmp.show();
+}
+
+function masquerCourbeVentesDetail() {
+    var cmp = Ext.getCmp('courbe_ventes_detail');
+    if (cmp) {
+        cmp.hide();
+    }
+}
+
+// Un bouton par annee presente + un bouton de comparaison : la courbe ne
+// s'affiche qu'a la demande, le tableau annuel reste la vue par defaut.
+function construireBoutonsVentesDetail() {
+    var cont = Ext.getCmp('ventes_boutons_detail');
+    if (!cont) {
+        return;
+    }
+    cont.removeAll();
+    masquerCourbeVentesDetail();
+    var recentes = lignesStatVenteDetail(storeStatVenteDetail).slice(-3);
+    if (!recentes.length) {
+        return;
+    }
+    recentes.forEach(function (l, i) {
+        cont.add({
+            xtype: 'button',
+            text: String(l.annee),
+            tooltip: 'Courbe des ventes ' + l.annee,
+            style: 'border-left:4px solid ' + COULEURS_ANNEES_DETAIL[i] + ';',
+            handler: function () {
+                afficherCourbeVentesDetail([i], '\u00c9volution des ventes ' + l.annee);
+            }
+        });
+    });
+    if (recentes.length > 1) {
+        cont.add({
+            xtype: 'button',
+            text: 'Comparer les ' + recentes.length + ' derni\u00e8res ann\u00e9es',
+            handler: function () {
+                var idx = [];
+                for (var i = 0; i < recentes.length; i++) {
+                    idx.push(i);
+                }
+                afficherCourbeVentesDetail(idx, 'Comparaison des ' + recentes.length + ' derni\u00e8res ann\u00e9es');
+            }
+        });
+    }
+    cont.add({
+        xtype: 'button',
+        text: 'Masquer',
+        tooltip: 'Masquer la courbe et revenir au tableau seul',
+        handler: masquerCourbeVentesDetail
+    });
+}
+
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -73,6 +277,8 @@ var lgGROSSISTEORDERID = '';
 // Fenetre de detail actuellement ouverte (partagee avec detailArticleOther :
 // une seule fenetre de detail a la fois, les champs utilisent des ids globaux).
 var winDetailArticleOuverte = null;
+// Store des ventes mensuelles, partage avec les fonctions de courbe ci-dessus.
+var storeStatVenteDetail = null;
 
 Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     extend: 'Ext.window.Window',
@@ -112,7 +318,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             'str_CODE_REMISE', 'str_CODE_TAUX_REMBOURSEMENT', 'int_T', 'str_CODE_TVA',
             'int_QTEDETAIL', 'int_NUMBER_AVAILABLE', 'dt_DATE_LIVRAISON',
             'int_STOCK_REAPROVISONEMENT', 'int_QTE_REAPPROVISIONNEMENT',
-            'gridpanelDetailID', 'datedebutDetail', 'datefinDetail'
+            'gridpanelDetailID', 'datedebutDetail', 'datefinDetail',
+            'courbe_conso_detail', 'ventes_boutons_detail', 'courbe_ventes_detail'
         ];
         sharedIds.forEach(function (cid) {
             var existing = Ext.getCmp(cid);
@@ -549,6 +756,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     },
                     items: [
                         {
+                            // Courbe d'evolution des sorties sur 12 mois glissants, au-dessus
+                            // du detail ligne a ligne. Remplie au chargement des ventes mensuelles.
+                            xtype: 'component',
+                            id: 'courbe_conso_detail',
+                            margin: '0 0 8 0',
+                            html: ''
+                        },
+                        {
                             columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelDetailID',
@@ -898,7 +1113,35 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     defaults: {
                         anchor: '100%'
                     },
-                    items: [{
+                    items: [
+                        {
+                            // Le tableau annuel reste la vue par defaut : la courbe s'affiche
+                            // a la demande, une annee a la fois ou en comparaison.
+                            xtype: 'container',
+                            layout: {type: 'hbox', align: 'middle'},
+                            margin: '0 0 6 0',
+                            items: [
+                                {
+                                    xtype: 'component',
+                                    margin: '0 8 0 0',
+                                    html: '<span style="color:#6a3fa0;font-weight:bold;">Afficher la courbe :</span>'
+                                },
+                                {
+                                    xtype: 'container',
+                                    id: 'ventes_boutons_detail',
+                                    layout: {type: 'hbox'},
+                                    defaults: {margin: '0 6 0 0'}
+                                }
+                            ]
+                        },
+                        {
+                            xtype: 'component',
+                            id: 'courbe_ventes_detail',
+                            hidden: true,
+                            margin: '0 0 8 0',
+                            html: ''
+                        },
+                        {
                             columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelStatVenteID',
@@ -1053,6 +1296,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     }
                 }
             });
+            // Memes donnees pour les deux courbes : aucun appel serveur en plus.
+            storeStatVenteDetail = st;
+            majCourbeConsoDetail();
+            construireBoutonsVentesDetail();
         });
 
         if (Omode == "decondition" || (this.getOdatasource().bool_DECONDITIONNE == 0 && this.getOdatasource().bool_DECONDITIONNE_EXIST == 1)) {
@@ -1091,6 +1338,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             }
         });
         winDetailArticleOuverte = win;
+        // Les ventes mensuelles peuvent arriver AVANT que la fenetre soit rendue :
+        // dans ce cas 'datachanged' est deja passe, on trace les courbes ici.
+        win.on('afterrender', function () {
+            if (store_statVente.getCount()) {
+                storeStatVenteDetail = store_statVente;
+                majCourbeConsoDetail();
+                construireBoutonsVentesDetail();
+            }
+        }, this, {single: true, delay: 1});
         if (Omode === "update" || Omode === "decondition" || Omode === "detail") {
             // Masque de chargement : la fiche s'affiche des l'ouverture et se
             // remplit a l'arrivee de la reponse, sans etat "vide" trompeur.
