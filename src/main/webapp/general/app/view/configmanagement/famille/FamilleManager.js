@@ -1073,9 +1073,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             if (!valeur) {
                 return '';
             }
+            // Lisere blanc derriere le chiffre : la valeur reste lisible meme lorsqu'elle
+            // se pose sur le trait de l'autre courbe, la ou les deux series se croisent.
             return '<text x="' + px(k) + '" y="' + (dessous ? py(valeur) + 14 : py(valeur) - 8)
-                    + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="' + couleur + '">'
-                    + valeur + '</text>';
+                    + '" text-anchor="middle" font-size="10.5" font-weight="700"'
+                    + ' stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" paint-order="stroke"'
+                    + ' fill="' + couleur + '">' + valeur + '</text>';
         };
 
         var qteConso = [];
