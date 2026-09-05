@@ -1045,3 +1045,22 @@ body.x-body,
     color: #1f4e79;
     font-weight: bold;
 }
+
+/* ---------------------------------------------------------------------
+   Fiche article (Gestion des Articles) : actions de ligne.
+
+   Quatre actions frequentes restent en icones, teintees par nature pour
+   etre reperables du coin de l'oeil ; les autres sont regroupees dans le
+   menu « ... » en fin de ligne.
+   --------------------------------------------------------------------- */
+.x-action-col-icon.fa-action {
+    border-radius: 6px;
+    padding: 1px;
+    box-sizing: content-box;
+}
+.x-action-col-icon.fa-action-prix   { background: #dde7fd; }  /* prix de reference */
+.x-action-col-icon.fa-action-detail { background: #d7ecea; }  /* creer le detail   */
+.x-action-col-icon.fa-action-suivi  { background: #d9f0e2; }  /* suivi de l'article*/
+.x-action-col-icon.fa-action-edit   { background: #fbecd7; }  /* modifier          */
+.x-action-col-icon.fa-action-plus   { background: #eceff1; }  /* autres actions    */
+.x-action-col-icon.fa-action:hover  { outline: 1px solid #8fa6b3; }

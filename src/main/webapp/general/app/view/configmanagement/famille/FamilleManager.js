@@ -37,6 +37,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
+        'Ext.menu.Menu',
         'Ext.data.*',
         'Ext.util.*',
         'Ext.form.*',
@@ -192,8 +193,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             /* Memorisation des colonnes par poste (voir app.js) : colonnes affichees ou
                masquees, largeurs et ordre sont conserves dans le navigateur. */
             stateful: true,
-            stateId: 'grille-fiche-article',
-            columns: window.PrestigeEtatColonnes.identifier('article', [
+            stateId: 'grille-fiche-article-v2',
+            columns: window.PrestigeEtatColonnes.identifier('article-v2', [
                 {
                     header: 'lg_FAMILLE_ID',
                     dataIndex: 'lg_FAMILLE_ID',
@@ -202,27 +203,39 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 },
                 {
 
-                    header: 'Etat.cmde',
+                    // Pastille de couleur + libelle abrege (Sugg. / Cmde / Entree) : la
+                    // couleur seule, sans texte, n'indiquait pas de quoi il s'agissait.
+                    // Le libelle complet reste en info-bulle.
+                    header: 'État',
                     dataIndex: 'produitState',
                     renderer: function (v, m, r) {
                         const produitState = r.data.produitState;
                         const enSuggestion = produitState?.enSuggestion;
                         const enCommande = produitState?.enCommande;
                         const entree = produitState?.entree;
+                        let couleur, abrege, complet;
                         if (enSuggestion && enSuggestion > 0) {
-                            m.style = 'background-color:#73C774;';
-                            return 1;
+                            couleur = '#2e9e4f';
+                            abrege = 'Sugg.';
+                            complet = 'Suggestion de réapprovisionnement';
                         } else if (enCommande && enCommande > 0) {
-                            m.style = 'background-color:#5fa2dd;';
-                            return 2;
+                            couleur = '#1a5f9e';
+                            abrege = 'Cmde';
+                            complet = 'En commande';
                         } else if (entree && entree > 0) {
-                            m.style = 'background-color:#ffc107;';
-                            return 3;
+                            couleur = '#b25a00';
+                            abrege = 'Entrée';
+                            complet = 'Entrée en cours';
+                        } else {
+                            return '';
                         }
-                        return null;
-
+                        m.tdAttr = 'data-qtip="' + complet + '"';
+                        return '<span style="display:inline-block;white-space:nowrap;font-size:11px;color:#2b2b2b;">'
+                                + '<i style="width:9px;height:9px;border-radius:50%;background:' + couleur
+                                + ';display:inline-block;vertical-align:middle;margin-right:5px;"></i>'
+                                + abrege + '</span>';
                     },
-                    width: 35
+                    width: 82
                 },
 
                 {
@@ -296,101 +309,41 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     }
                 },
                 {
-                    header: 'Stock',
+                    // Stock unifie : le total bien lisible, avec le detail rayon / reserve
+                    // juste a cote. Remplace les trois colonnes Stock, RES et Stock total,
+                    // qui portaient la meme information et obligeaient a survoler pour la lire.
+                    // Le tri porte sur le stock rayon (seul champ trie par le serveur).
+                    header: 'Stock (RAY + RES)',
                     dataIndex: 'int_NUMBER_AVAILABLE',
+                    itemId: 'stockUnifie',
                     align: 'center',
-                    flex: 0.5,
-                    renderer: function (v, m, r) {
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-
-                        if (stock < 0) {
-                            // Valeurs négatives : texte en rouge, fond rosé
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
-                        } else if (stock == 0) {
-                            // Valeur zéro : texte en noir, fond verdâtre
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            // Valeurs positives : texte en bleu
-                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
-                        }
-                        var rayonQte = parseInt(stock, 10);
-                        if (isNaN(rayonQte)) { rayonQte = 0; }
-                        var reserveQte = parseInt(r.data.int_STOCK_RESERVE, 10);
-                        if (isNaN(reserveQte)) { reserveQte = 0; }
-                        var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
-                        return v;
-                    }
-                }, {
-                    header: 'RES',
-                    dataIndex: 'int_STOCK_RESERVE',
-                    align: 'center',
-                    flex: 0.5,
-                    hidden: false,
-                    renderer: function (v, m, r) {
-                        if (!r.data.bool_RESERVE) {
-                            return '';
-                        }
-                        const reserve = v != null ? v : 0;
-/*
-                        // Appliquer la même mise en forme que Stock
-                        if (reserve < 0) {
-                            // Valeurs négatives : texte en rouge, fond rosé
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
-                        } else if (reserve == 0) {
-                            // Valeur zéro : texte en bleu, fond verdâtre
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            // Valeurs positives : texte en vert
-                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
-                        }*/
-                        
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;background-color:#B0F2B6;font-weight:bold;font-size: 18px;';
-                        } else if (stock > 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;font-weight:bold;font-size: 18px;';
-                        } else if (stock < 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
-                        }
-
-                        var rayonQte = parseInt(stock, 10);
-                        if (isNaN(rayonQte)) { rayonQte = 0; }
-                        var reserveQte = parseInt(reserve, 10);
-                        if (isNaN(reserveQte)) { reserveQte = 0; }
-                        var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
-
-                        return reserve;
-                    }
-                }, {
-                    /* Stock total = rayon + reserve. L'information n'existait que dans
-                     * l'info-bulle des colonnes Stock et RES : elle a sa colonne, pour etre
-                     * lisible d'un coup d'oeil et exportable comme les autres. Elle n'est pas
-                     * triable ni filtrable : la valeur est calculee a l'affichage et n'existe
-                     * pas telle quelle en base. */
-                    header: 'Stock total',
-                    dataIndex: 'int_NUMBER_AVAILABLE',
-                    itemId: 'stockTotal',
-                    align: 'center',
-                    flex: 0.5,
-                    sortable: false,
+                    flex: 0.95,
+                    tooltip: 'Total = rayon + réserve. Le tri porte sur le stock rayon.',
                     renderer: function (v, m, r) {
                         var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
                         if (isNaN(rayon)) { rayon = 0; }
                         var reserve = r.data.bool_RESERVE ? parseInt(r.data.int_STOCK_RESERVE, 10) : 0;
                         if (isNaN(reserve)) { reserve = 0; }
                         var total = rayon + reserve;
+                        var couleur = '#1c7c1c';
                         if (total < 0) {
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
+                            couleur = '#c0392b';
+                            m.style = 'background-color:#F5BCA9;';
                         } else if (total === 0) {
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            m.style = 'color:#14213d; font-weight:bold;font-size: 18px;';
+                            couleur = '#1a3fc4';
+                            m.style = 'background-color:#B0F2B6;';
                         }
-                        m.tdAttr = 'data-qtip="<span style=\'white-space:nowrap;\'>Rayon ' + rayon
-                                + ' + Réserve ' + reserve + '</span>" data-qwidth="160"';
-                        return total;
+                        m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
+                                + ' = ' + total + '" data-qwidth="180"';
+                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;">RAY '
+                                + rayon + '</span>';
+                        if (reserve !== 0) {
+                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;">RES '
+                                    + reserve + '</span>';
+                        }
+                        return '<span style="white-space:nowrap;">'
+                                + '<b style="font-size:17px;color:' + couleur + ';vertical-align:middle;">' + total + '</b>'
+                                + '<span style="font-size:10px;margin-left:7px;vertical-align:middle;">' + puces + '</span></span>';
                     }
                 }, {
                     header: 'Seuil',
@@ -437,12 +390,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         const stock = r.data.int_NUMBER_AVAILABLE;
+                        // Une seule ligne par article : un libelle d'emplacement long etait
+                        // renvoye a la ligne et cassait la hauteur reguliere des lignes.
+                        let fond = '';
                         if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
+                            fond = 'background-color:#B0F2B6;';
                         } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
+                            fond = 'background-color:#F5BCA9;';
+                        }
+                        m.style = fond + 'font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                        if (v) {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(String(v)) + '"';
                         }
                         return v;
                     }
@@ -519,50 +477,66 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     }
                 },
                 {
+                    // Quatre actions frequentes gardees en icones (prix de reference, creer
+                    // detail, suivi, modifier). Les sept autres passent dans le menu "..."
+                    // en fin de ligne : onze icones minuscules par ligne etaient illisibles
+                    // et mangeaient la largeur utile de la grille.
                     xtype: 'actioncolumn',
-                    width: 30,
+                    width: 28,
                     sortable: false,
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/duplicate_3671686.png',
                             tooltip: 'Gérer les prix de référence',
                             scope: this,
-                            handler: function (grid, rowIndex, colIndex) {
+                            getClass: function () {
+                                return 'fa-action fa-action-prix';
+                            },
+                            handler: function (grid, rowIndex) {
                                 new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
-                                
                             }
-
                         }]
                 },
                 {
                     xtype: 'actioncolumn',
-                    width: 30,
+                    width: 28,
                     sortable: false,
                     menuDisabled: true,
                     items: [{
-                            iconCls: 'calendar',
-                            tooltip: 'Modifier la date de péremption',
+                            icon: 'resources/images/icons/fam/connect.png',
+                            tooltip: 'Créer detail',
                             scope: this,
-                            handler: this.addPeremptiondate
-
+                            handler: this.onCreateDeconditionClick,
+                            getClass: function (value, metadata, record) {
+                                if (record.get('bool_DECONDITIONNE_EXIST') == "0"
+                                        && record.get('lg_EMPLACEMENT_ID') == "1") {
+                                    return 'x-display-hide fa-action fa-action-detail';
+                                }
+                                return 'x-hide-display';
+                            }
                         }]
                 },
                 {
                     xtype: 'actioncolumn',
-                    width: 30,
+                    width: 28,
                     sortable: false,
                     menuDisabled: true,
                     items: [{
-                            icon: 'resources/images/icons/fam/recherche.png',
-                            tooltip: 'Voir les lots / péremptions',
+                            iconCls: 'suivimvt',
+                            tooltip: 'Suivi de cet Article',
                             scope: this,
-                            handler: this.onViewPerimesClick
+                            getClass: function () {
+                                return 'fa-action fa-action-suivi';
+                            },
+                            handler: function (grid, rowIndex) {
+                                const rec = grid.getStore().getAt(rowIndex);
+                                Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
+                            }
                         }]
                 },
-
                 {
                     xtype: 'actioncolumn',
-                    width: 30,
+                    width: 28,
                     sortable: false,
                     menuDisabled: true,
                     items: [{
@@ -572,154 +546,25 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             handler: this.onEditClick,
                             getClass: function (value, metadata, record) {
                                 if (record.get('P_BT_UPDATE')) {
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
+                                    return 'x-display-hide fa-action fa-action-edit';
                                 }
+                                return 'x-hide-display';
                             }
                         }]
                 },
                 {
                     xtype: 'actioncolumn',
-                    width: 30,
+                    width: 32,
                     sortable: false,
                     menuDisabled: true,
                     items: [{
-                            icon: 'resources/images/icons/fam/grossiste.png',
-                            tooltip: 'Gerer Grossiste',
+                            icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNGE1YjY2Ij48Y2lyY2xlIGN4PSI1IiBjeT0iMTIiIHI9IjIiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PGNpcmNsZSBjeD0iMTkiIGN5PSIxMiIgcj0iMiIvPjwvc3ZnPg==',
+                            tooltip: 'Autres actions',
                             scope: this,
-                            handler: this.onAddGrossisteClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE') == "0") {  //read your condition from the record
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-                                    //  return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    hidden: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/delete.png',
-                            tooltip: 'Supprimer',
-                            scope: this,
-
-                            getClass: function (value, metadata, record) {
-                                if (record.get('BTNDELETE')) {
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-
-                                } else {
-
-                                    return 'x-hide-display';
-                                }
+                            getClass: function () {
+                                return 'fa-action fa-action-plus';
                             },
-                            handler: this.onRemoveClick
-                        }]
-                }, {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/connect.png',
-                            tooltip: 'Créer detail',
-                            scope: this,
-                            handler: this.onCreateDeconditionClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE_EXIST') == "0") {  //read your condition from the record
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-                                    // return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                }, {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/cut.png',
-                            tooltip: 'Deconditionner l\'article',
-                            scope: this,
-                            handler: this.onDeconditionClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE') == "0") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/application_view_list.png',
-                            tooltip: 'Detail sur l\'article',
-                            scope: this,
-                            handler: this.onDetailClick
-                        }]
-                },
-                //onDesableClick
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/disable.png',
-                            tooltip: 'Désactiver l\'article',
-                            scope: this,
-                            handler: this.onDesableClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('lg_EMPLACEMENT_ID') === "1" && record.get('ACTION_DESACTIVE_PRODUIT')) {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            iconCls: 'suivimvt',
-                            tooltip: 'Suivi de cet Article',
-                            scope: this,
-                            handler:
-                                    function (grid, rowIndex) {
-                                        const rec = grid.getStore().getAt(rowIndex);
-                                        Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
-
-                                    }
-
+                            handler: this.onAutresActions
                         }]
                 }
 
@@ -798,44 +643,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler: this.onMajSelective
                         },
-                        '-',
-                        {
-                            xtype: 'combobox',
-                            name: 'stock_operator',
-                            id: 'stock_operator',
-                            store: store_stock_operator,
-                            valueField: 'operator',
-                            displayField: 'str_desc',
-                            typeAhead: true,
-                            queryMode: 'local',
-                            width: 150,
-                            emptyText: 'Operateur stock...',
-                            listeners: {
-                                select: function () {
-                                    // Au choix d'un operateur : envoyer le focus sur la quantite.
-                                    const qte = Me_Workflow.fmField('stock_value');
-                                    if (qte) {
-                                        qte.focus(true, 100);
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            xtype: 'textfield',
-                            id: 'stock_value',
-                            name: 'stock_value',
-                            width: 90,
-                            emptyText: 'Qte.Stock',
-                            enableKeyEvents: true,
-                            listeners: {
-                                specialKey: function (field, e) {
-                                    if (e.getKey() === e.ENTER) {
-                                        Me_Workflow.onRechClick();
-                                    }
-                                }
-                            }
-                        },
-                        '-',
                         {
                             text: 'Importer des articles',
                             tooltip: 'Importer stock',
@@ -899,24 +706,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'addicon',
                             scope: this,
                             handler: this.onCreateInventaireClick
-                        },
-                        '-',
-                        {
-                            text: 'Effacer tous les filtres',
-                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
-                            icon: 'resources/images/icons/fam/delete.png',
-                            style: 'background-color:#add8e6; border-color:#add8e6;',
-                            scope: this,
-                            handler: function () {
-                                Me_Workflow.fmField('rechecher').setValue('');
-                                Me_Workflow.fmField('str_TYPE_TRANSACTION').clearValue();
-                                Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').clearValue();
-                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
-                                Me_Workflow.fmField('stock_operator').clearValue();
-                                Me_Workflow.fmField('stock_value').setValue('');
-                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
-                                Me_Workflow.onRechClick();
-                            }
                         },
                         '-',
                         {
@@ -1064,6 +853,62 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 select: function () {
                                     Me_Workflow.onRechClick();
                                 }
+                            }
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'stock_operator',
+                            id: 'stock_operator',
+                            store: store_stock_operator,
+                            valueField: 'operator',
+                            displayField: 'str_desc',
+                            typeAhead: true,
+                            queryMode: 'local',
+                            width: 150,
+                            emptyText: 'Operateur stock...',
+                            listeners: {
+                                select: function () {
+                                    // Au choix d'un operateur : envoyer le focus sur la quantite.
+                                    const qte = Me_Workflow.fmField('stock_value');
+                                    if (qte) {
+                                        qte.focus(true, 100);
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'textfield',
+                            id: 'stock_value',
+                            name: 'stock_value',
+                            width: 90,
+                            emptyText: 'Qte.Stock',
+                            enableKeyEvents: true,
+                            listeners: {
+                                specialKey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        Me_Workflow.onRechClick();
+                                    }
+                                }
+                            }
+                        },
+                        '-',
+                        '-',
+                        {
+                            text: 'Effacer tous les filtres',
+                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
+                            icon: 'resources/images/icons/fam/delete.png',
+                            style: 'background-color:#add8e6; border-color:#add8e6;',
+                            scope: this,
+                            handler: function () {
+                                Me_Workflow.fmField('rechecher').setValue('');
+                                Me_Workflow.fmField('str_TYPE_TRANSACTION').clearValue();
+                                Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').clearValue();
+                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.fmField('stock_operator').clearValue();
+                                Me_Workflow.fmField('stock_value').setValue('');
+                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
+                                Me_Workflow.onRechClick();
                             }
                         }
                     ]
@@ -1457,6 +1302,76 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     }
     
 },
+    /**
+     * Menu « ... » de la ligne : les actions qui ne sont pas dans les quatre icones
+     * frequentes. Chaque entree appelle le meme handler que l'ancienne colonne
+     * d'action, et les conditions d'affichage sont reprises a l'identique
+     * (emplacement, article deconditionne, privilege de desactivation).
+     */
+    onAutresActions: function (view, rowIndex, colIndex, item, e) {
+        const me = this;
+        const rec = view.getStore().getAt(rowIndex);
+        if (!rec) {
+            return;
+        }
+        const entrees = [{
+                text: 'Détail sur l\'article',
+                icon: 'resources/images/icons/fam/application_view_list.png',
+                handler: function () {
+                    me.onDetailClick(view, rowIndex);
+                }
+            }, {
+                text: 'Voir les lots / péremptions',
+                icon: 'resources/images/icons/fam/recherche.png',
+                handler: function () {
+                    me.onViewPerimesClick(view, rowIndex);
+                }
+            }, {
+                text: 'Modifier la date de péremption',
+                iconCls: 'calendar',
+                handler: function () {
+                    me.addPeremptiondate(view, rowIndex);
+                }
+            }];
+        if (rec.get('bool_DECONDITIONNE') == "0") {
+            entrees.push({
+                text: 'Déconditionner l\'article',
+                icon: 'resources/images/icons/fam/cut.png',
+                handler: function () {
+                    me.onDeconditionClick(view, rowIndex);
+                }
+            });
+            if (rec.get('lg_EMPLACEMENT_ID') == "1") {
+                entrees.push({
+                    text: 'Gérer grossiste',
+                    icon: 'resources/images/icons/fam/grossiste.png',
+                    handler: function () {
+                        me.onAddGrossisteClick(view, rowIndex);
+                    }
+                });
+            }
+        }
+        if (rec.get('lg_EMPLACEMENT_ID') === "1" && rec.get('ACTION_DESACTIVE_PRODUIT')) {
+            entrees.push('-');
+            entrees.push({
+                text: 'Désactiver l\'article',
+                icon: 'resources/images/icons/fam/disable.png',
+                handler: function () {
+                    me.onDesableClick(view, rowIndex);
+                }
+            });
+        }
+        Ext.create('Ext.menu.Menu', {
+            items: entrees,
+            listeners: {
+                hide: function (menu) {
+                    Ext.defer(function () {
+                        menu.destroy();
+                    }, 20);
+                }
+            }
+        }).showAt(e.getXY());
+    },
     onDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
         Ext.Ajax.request({
