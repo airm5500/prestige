@@ -24,6 +24,19 @@ var FM_NULL_FIELD = {
 
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
+// Teinte de ligne selon l'etat du stock rayon : un fond vert tres clair a zero,
+// rose tres clair en negatif. Remplace le gras applique a chaque cellule, qui
+// rendait la grille uniformement lourde et masquait la hierarchie.
+function teinteSelonStock(stock, meta) {
+    var n = parseInt(stock, 10);
+    if (isNaN(n)) { n = 0; }
+    if (n === 0) {
+        meta.style = 'background-color:#e9f8ec;';
+    } else if (n < 0) {
+        meta.style = 'background-color:#fdeceb;';
+    }
+}
+
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
@@ -81,6 +94,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }
             },
             listeners: {
+                load: function () {
+                    Me_Workflow.majKpi();
+                },
                 beforeload: function (store, operation) {
                     const proxy = store.getProxy();
 
@@ -188,7 +204,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
             store: store,
             /* vp-grille-survol : survol de ligne bien visible (vente-theme.css) */
-            cls: 'my-grid-header vp-grille-survol',
+            cls: 'my-grid-header vp-grille-survol vp-fiche-article',
             id: 'GridArticleID',
             /* Memorisation des colonnes par poste (voir app.js) : colonnes affichees ou
                masquees, largeurs et ordre sont conserves dans le navigateur. */
@@ -243,14 +259,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'int_CIP',
                     flex: 0.6,
                     renderer: function (v, m, r) {
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 },
@@ -260,14 +269,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 2,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 },
@@ -278,14 +280,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return amountformat(v);
                     }
                 },
@@ -297,14 +292,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return amountformat(v);
                     }
                 },
@@ -328,10 +316,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         var couleur = '#1c7c1c';
                         if (total < 0) {
                             couleur = '#c0392b';
-                            m.style = 'background-color:#F5BCA9;';
+                            m.style = 'background-color:#fdeceb;';
                         } else if (total === 0) {
                             couleur = '#1a3fc4';
-                            m.style = 'background-color:#B0F2B6;';
+                            m.style = 'background-color:#e9f8ec;';
                         }
                         m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
                                 + ' = ' + total + '" data-qwidth="180"';
@@ -353,14 +341,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 }, {
@@ -371,14 +352,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 }, {
@@ -392,13 +366,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         const stock = r.data.int_NUMBER_AVAILABLE;
                         // Une seule ligne par article : un libelle d'emplacement long etait
                         // renvoye a la ligne et cassait la hauteur reguliere des lignes.
-                        let fond = '';
-                        if (stock == 0) {
-                            fond = 'background-color:#B0F2B6;';
-                        } else if (stock < 0) {
-                            fond = 'background-color:#F5BCA9;';
-                        }
-                        m.style = fond + 'font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                        teinteSelonStock(stock, m);
+                        m.style = (m.style || '') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
                         if (v) {
                             m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(String(v)) + '"';
                         }
@@ -915,6 +884,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             }
                         }
                     ]
+                },
+                {
+                    // Indicateurs du resultat courant. Calcules par le serveur sur TOUT le
+                    // resultat filtre : la grille ne contient que la page affichee.
+                    xtype: 'component',
+                    dock: 'top',
+                    id: 'kpi_fiche_article',
+                    hidden: true,
+                    cls: 'vp-kpi-barre',
+                    html: ''
                 }
             ],
             bbar: {
@@ -972,6 +951,58 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         // disponible pour demander explicitement la liste complete.
 
     },
+    /**
+     * Barre d'indicateurs : nombre d'articles, articles en rupture, articles sous le
+     * seuil et valeur du stock au prix d'achat, pour les criteres courants. Le calcul
+     * est fait par le serveur sur l'ensemble du resultat ; en cas d'echec la barre est
+     * simplement masquee, la liste reste utilisable.
+     */
+    majKpi: function () {
+        var barre = Ext.getCmp('kpi_fiche_article');
+        if (!barre) {
+            return;
+        }
+        var champ = function (id) {
+            var c = Me_Workflow.fmField(id);
+            return c ? (c.getValue() || '') : '';
+        };
+        Ext.Ajax.request({
+            url: '../api/v1/produit-search/fiche-kpi',
+            method: 'GET',
+            params: {
+                search_value: champ('rechecher'),
+                str_TYPE_TRANSACTION: champ('str_TYPE_TRANSACTION'),
+                lg_DCI_ID: champ('lg_DCI_PRINCIPAL_ID'),
+                lg_ZONE_GEO_ID: champ('lg_ZONE_GEO_ID'),
+                stock_operator: champ('stock_operator'),
+                stock_value: champ('stock_value'),
+                lg_CODE_TVA_ID: champ('lg_CODE_TVA_ID_FILTRE')
+            },
+            success: function (reponse) {
+                var o = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (o.success === false) {
+                    barre.hide();
+                    return;
+                }
+                var carte = function (libelle, valeur, ton, complement) {
+                    return '<div class="vp-kpi ' + ton + '"><span class="vp-kpi-lib">' + libelle + '</span>'
+                            + '<span class="vp-kpi-val">' + valeur + '</span>'
+                            + '<span class="vp-kpi-sub">' + complement + '</span></div>';
+                };
+                barre.update('<div class="vp-kpi-lot">'
+                        + carte('Articles', amountformat(o.articles), 'neutre', 'dans le résultat courant')
+                        + carte('En rupture', amountformat(o.ruptures), 'rupture', 'stock total ≤ 0')
+                        + carte('Stock bas', amountformat(o.bas), 'bas', 'sous le seuil de réappro')
+                        + carte('Valeur du stock', amountformat(o.valeur), 'valeur', 'au prix d\'achat')
+                        + '</div>');
+                barre.show();
+            },
+            failure: function () {
+                barre.hide();
+            }
+        });
+    },
+
     loadStore: function () {
         const grid = this;
         const store = grid.getStore();

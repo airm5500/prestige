@@ -84,6 +84,24 @@ function ok(name, cond, detail) {
     if (!lignes) { console.log('ARRET : aucune ligne, la suite depend de la grille'); await browser.close(); process.exit(1); }
     await page.waitForTimeout(1200);
 
+    // ---------- barre d'indicateurs ----------
+    await page.waitForTimeout(2500);
+    const kpi = await page.evaluate(() => {
+        const b = Ext.getCmp('kpi_fiche_article');
+        if (!b) { return { present: false }; }
+        const h = b.el ? b.el.dom.innerHTML : '';
+        const libelles = (h.match(/vp-kpi-lib">([^<]*)</g) || []).map(x => x.replace(/.*">/, '').replace('<', ''));
+        const valeurs = (h.match(/vp-kpi-val">([^<]*)</g) || []).map(x => x.replace(/.*">/, '').replace('<', ''));
+        return { present: true, visible: b.isVisible(), libelles: libelles, valeurs: valeurs,
+                 totalStore: Ext.ComponentQuery.query('famillemanager')[0].getStore().getTotalCount() };
+    });
+    ok('barre d indicateurs affichee', kpi.present && kpi.visible, JSON.stringify(kpi));
+    ok('4 indicateurs (Articles, En rupture, Stock bas, Valeur du stock)',
+        kpi.libelles && kpi.libelles.length === 4, (kpi.libelles || []).join(' | '));
+    ok('indicateur "Articles" egal au total du resultat (pas a la page)',
+        kpi.valeurs && parseInt(String(kpi.valeurs[0]).replace(/\D/g, ''), 10) === kpi.totalStore,
+        'kpi=' + (kpi.valeurs || [])[0] + ' store=' + kpi.totalStore);
+
     // ---------- rendu de la cellule stock ----------
     const rendu = await page.evaluate(() => {
         const g = Ext.ComponentQuery.query('famillemanager')[0];

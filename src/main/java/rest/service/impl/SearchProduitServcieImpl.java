@@ -115,6 +115,67 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         return data;
     }
 
+    /**
+     * Indicateurs de la fiche article, calcules sur TOUT le resultat filtre.
+     *
+     * La grille ne charge que la page courante : compter sur son store donnerait des chiffres faux. On agrege donc en
+     * base, avec exactement les memes jointures et les memes filtres que la liste. Le stock total vaut le stock rayon
+     * plus, quand l'article gere une reserve, le stock de reserve (t_type_stock_famille, type 2). La sous-requete
+     * distincte evite qu'un article lie a plusieurs grossistes soit compte plusieurs fois.
+     */
+    @Override
+    public JSONObject kpiFiche(TUser user, String search, String diciId, String type, String zoneGeoId,
+            String stockOperator, String stockValue, String tvaId) {
+        JSONObject kpi = new JSONObject();
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            String motif = rest.RechercheArticle.motif(search, modeRechercheFicheArticle());
+
+            StringBuilder interne = new StringBuilder();
+            interne.append("SELECT DISTINCT t.lg_FAMILLE_ID AS id, ");
+            interne.append("(fs.int_NUMBER_AVAILABLE + IFNULL(res.int_NUMBER, 0)) AS total, ");
+            // Le seuil affiche dans la colonne "Seuil" de la grille est int_SEUIL_MIN
+            // (voir buildProduitDataLite), et non int_STOCK_REAPROVISONEMENT : l'indicateur
+            // doit compter sur la meme valeur, sinon il contredit ce que l'utilisateur lit.
+            interne.append("IFNULL(t.int_SEUIL_MIN, 0) AS seuil, ");
+            interne.append("IFNULL(t.int_PAF, 0) AS paf ");
+            interne.append("FROM t_famille t ");
+            interne.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
+            interne.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
+            interne.append("LEFT JOIN t_type_stock_famille res ON res.lg_FAMILLE_ID = t.lg_FAMILLE_ID ");
+            interne.append("AND res.lg_TYPE_STOCK_ID = '2' AND res.lg_EMPLACEMENT_ID = :emplacementId ");
+            interne.append("AND t.bool_RESERVE = 1 ");
+            if (StringUtils.isNotEmpty(diciId)) {
+                interne.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
+            }
+            interne.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
+            applyFilters(interne, motif, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, true);
+
+            String sql = "SELECT COUNT(*) AS articles, " + "SUM(CASE WHEN x.total <= 0 THEN 1 ELSE 0 END) AS ruptures, "
+                    + "SUM(CASE WHEN x.total > 0 AND x.total <= x.seuil THEN 1 ELSE 0 END) AS bas, "
+                    + "SUM(x.total * x.paf) AS valeur FROM (" + interne + ") x";
+
+            Query q = em.createNativeQuery(sql);
+            setFilterParameters(q, empl, motif, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
+            Object[] r = (Object[]) q.getSingleResult();
+            kpi.put("articles", r[0] != null ? ((Number) r[0]).longValue() : 0L);
+            kpi.put("ruptures", r[1] != null ? ((Number) r[1]).longValue() : 0L);
+            kpi.put("bas", r[2] != null ? ((Number) r[2]).longValue() : 0L);
+            kpi.put("valeur", r[3] != null ? ((Number) r[3]).longValue() : 0L);
+            kpi.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "kpiFiche", e);
+            // Un echec des indicateurs ne doit pas empecher la liste de s'afficher :
+            // l'ecran masque simplement la barre.
+            kpi = new JSONObject();
+            try {
+                kpi.put("success", false);
+            } catch (Exception ignore) {
+            }
+        }
+        return kpi;
+    }
+
     @Override
     public List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
             String stockOperator, String stockValue, String tvaId, boolean onlyReserve) {

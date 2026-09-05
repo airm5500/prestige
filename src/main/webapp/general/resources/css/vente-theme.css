@@ -1066,3 +1066,100 @@ body.x-body,
 .x-action-col-icon.fa-action-edit   { background-color: #fbecd7; }  /* modifier          */
 .x-action-col-icon.fa-action-plus   { background-color: #eceff1; }  /* autres actions    */
 .x-action-col-icon.fa-action:hover  { outline: 1px solid #8fa6b3; }
+
+/* =====================================================================
+   Fiche article : allegement de la grille et barre d'indicateurs.
+
+   Tout est porte par .vp-fiche-article (grille) et .vp-kpi-barre, poses
+   uniquement sur cet ecran : aucune autre grille de l'application n'est
+   touchee.
+   ===================================================================== */
+
+/* --- Barre d'indicateurs --- */
+.vp-kpi-barre {
+    padding: 10px 8px 4px 8px;
+    background: #f6f8f9;
+    border-bottom: 1px solid #dbe2e6;
+}
+.vp-kpi-lot {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.vp-kpi {
+    flex: 1 1 180px;
+    min-width: 160px;
+    max-width: 300px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 9px 12px 9px 15px;
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+}
+/* Le lisere de gauche porte le sens : neutre, alerte, attention, valeur. */
+.vp-kpi::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 8px 0 0 8px;
+    background: #8fa6b3;
+}
+.vp-kpi.rupture::before { background: #c0392b; }
+.vp-kpi.bas::before     { background: #c26a00; }
+.vp-kpi.valeur::before  { background: #0d6a74; }
+.vp-kpi-lib {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #6b8089;
+}
+.vp-kpi-val {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: #14303a;
+    font-variant-numeric: tabular-nums;
+}
+.vp-kpi.rupture .vp-kpi-val { color: #c0392b; }
+.vp-kpi.bas     .vp-kpi-val { color: #c26a00; }
+.vp-kpi.valeur  .vp-kpi-val { color: #0d6a74; }
+.vp-kpi-sub {
+    font-size: 11px;
+    color: #8296a0;
+}
+
+/* --- Grille allegee --- */
+/* En-tetes : petites capitales discretes au lieu d'un bandeau lourd. */
+.vp-fiche-article .x-column-header-inner .x-column-header-text {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+}
+/* Lignes plus aerees et lisibles ; le gras est reserve a l'identite de
+   l'article (CIP et designation), pas applique a toutes les cellules. */
+.vp-fiche-article .x-grid-cell-inner {
+    padding: 7px 8px;
+    font-size: 12.5px;
+    font-weight: 400;
+}
+.vp-fiche-article .x-grid-item-alt .x-grid-cell:not([style*="background-color"]) {
+    background-color: #fafbfc;
+}
+.vp-fiche-article .x-grid-cell-int_CIP .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-str_DESCRIPTION .x-grid-cell-inner {
+    font-weight: 600;
+    color: #14303a;
+}
+/* Chiffres alignes en colonne : prix, seuils, quantites. */
+.vp-fiche-article .x-grid-cell-int_PRICE .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_PAF .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_STOCK_REAPROVISONEMENT .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_QTE_REAPPROVISIONNEMENT .x-grid-cell-inner {
+    font-variant-numeric: tabular-nums;
+}
