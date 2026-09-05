@@ -440,11 +440,53 @@ d'attente devant un serveur saturé, sans aucune erreur ni dégradation brutale.
 > seuls les ordres de grandeur et la forme de la courbe sont transposables, pas les
 > valeurs absolues.
 
-### Contention sur la connexion
+### Connexions simultanées sur un même compte
 
-Ouvrir **plusieurs sessions simultanées sur le même compte** provoque des
-`MySQLTransactionRollbackException: Deadlock found` dans `AccountResource.auth` :
-la connexion met à jour la même ligne de `t_user` (date de dernière connexion,
-compteur, indicateur connecté) et écrit une ligne de log. Le banc échelonne donc
-les connexions de 120 ms pour mesurer les écrans et non cette contention. Des
-comptes distincts, cas normal en officine, ne sont pas concernés.
+`charge-connexions.js` ouvre N sessions au même instant sur le **même identifiant**,
+en plusieurs vagues, et compte les échecs :
+
+```sh
+node charge-connexions.js 20 5     # 20 connexions simultanées, 5 vagues
+```
+
+Ce banc a mis au jour un interblocage MySQL dans `AccountResource.auth`, corrigé
+depuis (voir « Interblocage à la connexion » ci-dessous) :
+
+| | 8 connexions × 6 vagues | 20 connexions × 5 vagues |
+|---|---|---|
+| Avant correctif | 33/48 réussies (**15 échecs HTTP 500**) | — |
+| Après correctif | **48/48** | **100/100** |
+
+Le banc de la fiche article échelonne malgré tout ses connexions de 120 ms : il doit
+mesurer les écrans, pas la sérialisation normale des ouvertures de session.
+
+
+---
+
+## Interblocage à la connexion (corrigé)
+
+**Symptôme.** Plusieurs postes ouvrant une session sur le même compte au même instant :
+environ un utilisateur sur trois recevait une erreur HTTP 500, avec dans le journal
+`MySQLTransactionRollbackException: Deadlock found when trying to get lock`
+levée depuis `rest.AccountResource.auth`.
+
+**Cause.** La connexion fait deux écritures dans la même transaction :
+
+1. une **mise à jour** de la ligne de `t_user` (date de dernière connexion, compteur
+   de connexions, indicateur connecté) — verrou **exclusif** sur cette ligne ;
+2. une **insertion** dans `t_event_log`, qui référence l'utilisateur par clé
+   étrangère — InnoDB prend alors un verrou **partagé** sur cette même ligne pour
+   vérifier que le parent existe.
+
+Hibernate exécute ses insertions **avant** ses mises à jour. Deux connexions
+simultanées sur le même compte prenaient donc chacune le verrou partagé, puis
+demandaient chacune le verrou exclusif que l'autre empêchait de prendre : attente
+mutuelle, et MySQL annule l'une des deux transactions.
+
+**Correctif.** Un `flush()` explicite après la mise à jour de l'utilisateur, avant
+l'écriture du journal. Toutes les connexions prennent ainsi le verrou exclusif
+**en premier**, donc dans le même ordre : elles s'attendent brièvement au lieu de
+s'interbloquer. Une seule ligne, aucun changement de comportement fonctionnel.
+
+**Vérification.** `charge-connexions.js` : 100 % de réussite jusqu'à 20 connexions
+simultanées, et plus aucun `Deadlock found` dans le journal serveur.
