@@ -42,9 +42,16 @@ function ok(name, cond, detail) {
     await page.waitForTimeout(1500);
 
     // ---------- colonnes ----------
+    // Les colonnes d'action sont ajoutees a la reponse du parametrage : on l'attend.
+    await page.waitForFunction(() => {
+        const g = Ext.ComponentQuery.query('famillemanager')[0];
+        return g && g.headerCt.items.items.filter(c => c.xtype === 'actioncolumn').length > 0;
+    }, null, { timeout: 20000 }).catch(() => {});
     const cols = await page.evaluate(() => {
         const g = Ext.ComponentQuery.query('famillemanager')[0];
-        return g.columns.map(c => ({ txt: (c.text || '').replace(/<[^>]*>/g, ''), hidden: !!c.hidden, xtype: c.xtype, di: c.dataIndex }));
+        // headerCt et non g.columns : les colonnes d'action sont ajoutees dynamiquement
+        // depuis le parametrage, elles ne figurent pas dans la configuration d'origine.
+        return g.headerCt.items.items.map(c => ({ txt: (c.text || '').replace(/<[^>]*>/g, ''), hidden: !!c.hidden, xtype: c.xtype, di: c.dataIndex }));
     });
     const entetes = cols.map(c => c.txt);
     ok('colonne "Etat" presente (Etat.cmde renomme)', entetes.some(t => t === 'État'), entetes.join(' | '));

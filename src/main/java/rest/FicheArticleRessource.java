@@ -428,6 +428,53 @@ public class FicheArticleRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Configuration des actions de ligne de la fiche article : ordre complet des actions et nombre d'entre elles
+     * presentees en icone, le reste passant dans le menu "...".
+     *
+     * Le reglage vaut pour toute l'officine : il est range dans t_parameters, comme les autres options d'affichage. La
+     * reponse indique aussi si l'utilisateur courant a le droit de le modifier, pour que l'ecran n'affiche le bouton de
+     * configuration qu'aux personnes concernees ; l'ecriture est de toute facon re-controlee ci-dessous.
+     */
+    @GET
+    @Path("actions-config")
+    public Response actionsConfig() throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser user = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).toString()).build();
+        }
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        JSONObject json = ficheArticleService.actionsConfig();
+        json.put("modifiable", hasPrivilege(privileges, Constant.P_SM_PARAMETER_MANAGER));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Enregistrement de la configuration ci-dessus. Reserve au privilege de parametrage. */
+    @POST
+    @Path("actions-config")
+    public Response enregistrerActionsConfig(String body) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser user = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        if (!hasPrivilege(privileges, Constant.P_SM_PARAMETER_MANAGER)) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Vous n'avez pas le droit de modifier ce parametrage.").toString()).build();
+        }
+        JSONObject in = new JSONObject(body == null ? "{}" : body);
+        return Response.ok()
+                .entity(ficheArticleService
+                        .enregistrerActionsConfig(in.optString("ordre", ""), in.optInt("nbIcones", -1)).toString())
+                .build();
+    }
+
     private static boolean hasPrivilege(List<dal.TPrivilege> privileges, String name) {
         return privileges != null && util.DateConverter.hasAuthorityByName(privileges, name);
     }

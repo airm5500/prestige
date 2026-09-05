@@ -42,6 +42,119 @@ function amountformat(val) {
 }
 
 
+// ---------------------------------------------------------------------------
+// Catalogue des actions de ligne de la fiche article.
+//
+// L'ordre d'affichage et le nombre d'actions presentees en icone viennent du
+// parametrage de l'officine (t_parameters). Les suivantes sont regroupees dans
+// le menu « ... » en fin de ligne ; si toutes sont en icone, ce menu disparait.
+// Les conditions d'affichage sont celles des colonnes d'origine, a l'identique.
+// ---------------------------------------------------------------------------
+var FA_ICONE_MENU = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNGE1YjY2Ij48Y2lyY2xlIGN4PSI1IiBjeT0iMTIiIHI9IjIiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PGNpcmNsZSBjeD0iMTkiIGN5PSIxMiIgcj0iMiIvPjwvc3ZnPg==';
+
+var FA_ACTIONS = {
+    PRIX: {
+        texte: 'Prix de référence',
+        icon: 'resources/images/duplicate_3671686.png',
+        classe: 'fa-action-prix',
+        lancer: function (grid, rowIndex) {
+            new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
+        }
+    },
+    CREER_DETAIL: {
+        texte: 'Créer le détail',
+        icon: 'resources/images/icons/fam/connect.png',
+        classe: 'fa-action-detail',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE_EXIST') == "0" && rec.get('lg_EMPLACEMENT_ID') == "1";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onCreateDeconditionClick(grid, rowIndex);
+        }
+    },
+    SUIVI: {
+        texte: 'Suivi de cet article',
+        icon: 'build/KitchenSink/ext-theme-neptune/resources/images/dd/suivmt.png',
+        classe: 'fa-action-suivi',
+        lancer: function (grid, rowIndex) {
+            var rec = grid.getStore().getAt(rowIndex);
+            Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
+        }
+    },
+    MODIFIER: {
+        texte: 'Modifier',
+        icon: 'resources/images/icons/fam/page_white_edit.png',
+        classe: 'fa-action-edit',
+        visible: function (rec) {
+            return !!rec.get('P_BT_UPDATE');
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onEditClick(grid, rowIndex);
+        }
+    },
+    DETAIL: {
+        texte: 'Détail sur l\'article',
+        icon: 'resources/images/icons/fam/application_view_list.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDetailClick(grid, rowIndex);
+        }
+    },
+    LOTS: {
+        texte: 'Voir les lots / péremptions',
+        icon: 'resources/images/icons/fam/recherche.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onViewPerimesClick(grid, rowIndex);
+        }
+    },
+    DATE_PEREMPTION: {
+        texte: 'Modifier la date de péremption',
+        icon: 'resources/images/icons/fam/calendar.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.addPeremptiondate(grid, rowIndex);
+        }
+    },
+    DECONDITIONNER: {
+        texte: 'Déconditionner l\'article',
+        icon: 'resources/images/icons/fam/cut.png',
+        classe: 'fa-action-plus',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE') == "0";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDeconditionClick(grid, rowIndex);
+        }
+    },
+    GROSSISTE: {
+        texte: 'Gérer grossiste',
+        icon: 'resources/images/icons/fam/grossiste.png',
+        classe: 'fa-action-plus',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE') == "0" && rec.get('lg_EMPLACEMENT_ID') == "1";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onAddGrossisteClick(grid, rowIndex);
+        }
+    },
+    DESACTIVER: {
+        texte: 'Désactiver l\'article',
+        icon: 'resources/images/icons/fam/disable.png',
+        classe: 'fa-action-plus',
+        danger: true,
+        visible: function (rec) {
+            return rec.get('lg_EMPLACEMENT_ID') === "1" && rec.get('ACTION_DESACTIVE_PRODUIT');
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDesableClick(grid, rowIndex);
+        }
+    }
+};
+var FA_ORDRE_DEFAUT = ['PRIX', 'CREER_DETAIL', 'SUIVI', 'MODIFIER', 'DETAIL', 'LOTS',
+    'DATE_PEREMPTION', 'DECONDITIONNER', 'GROSSISTE', 'DESACTIVER'];
+var FA_NB_ICONES_DEFAUT = 4;
+
 Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'famillemanager',
@@ -63,6 +176,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'testextjs.view.configmanagement.famille.action.comptabilite',
         'testextjs.view.configmanagement.famille.action.autreinfos',
         'Ext.ux.ProgressBarPager',
+        'Ext.grid.plugin.DragDrop',
         'testextjs.view.stockmanagement.suivistockvente.action.detailStock',
         'testextjs.view.produits.PrixReference'
 
@@ -449,104 +563,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             });
                         }
                     }
-                },
-                {
-                    // Quatre actions frequentes gardees en icones (prix de reference, creer
-                    // detail, suivi, modifier). Les sept autres passent dans le menu "..."
-                    // en fin de ligne : onze icones minuscules par ligne etaient illisibles
-                    // et mangeaient la largeur utile de la grille.
-                    xtype: 'actioncolumn',
-                    width: 28,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/duplicate_3671686.png',
-                            tooltip: 'Gérer les prix de référence',
-                            scope: this,
-                            getClass: function () {
-                                return 'fa-action fa-action-prix';
-                            },
-                            handler: function (grid, rowIndex) {
-                                new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 28,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/connect.png',
-                            tooltip: 'Créer detail',
-                            scope: this,
-                            handler: this.onCreateDeconditionClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE_EXIST') == "0"
-                                        && record.get('lg_EMPLACEMENT_ID') == "1") {
-                                    return 'x-display-hide fa-action fa-action-detail';
-                                }
-                                return 'x-hide-display';
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 28,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            // '.suivimvt' n'est defini que dans KitchenSink-all.css, qui n'est
-                            // pas chargee par l'application : l'icone restait sans dessin.
-                            // On pointe directement l'image.
-                            icon: 'build/KitchenSink/ext-theme-neptune/resources/images/dd/suivmt.png',
-                            tooltip: 'Suivi de cet Article',
-                            scope: this,
-                            getClass: function () {
-                                return 'fa-action fa-action-suivi';
-                            },
-                            handler: function (grid, rowIndex) {
-                                const rec = grid.getStore().getAt(rowIndex);
-                                Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 28,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/page_white_edit.png',
-                            tooltip: 'Modifier',
-                            scope: this,
-                            handler: this.onEditClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('P_BT_UPDATE')) {
-                                    return 'x-display-hide fa-action fa-action-edit';
-                                }
-                                return 'x-hide-display';
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 32,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNGE1YjY2Ij48Y2lyY2xlIGN4PSI1IiBjeT0iMTIiIHI9IjIiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PGNpcmNsZSBjeD0iMTkiIGN5PSIxMiIgcj0iMiIvPjwvc3ZnPg==',
-                            tooltip: 'Autres actions',
-                            scope: this,
-                            getClass: function () {
-                                return 'fa-action fa-action-plus';
-                            },
-                            handler: this.onAutresActions
-                        }]
                 }
-
-
-
             ]),
             /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
                marquee, pas la seule cellule cliquee (retour d'officine). */
@@ -724,6 +741,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'printable',
                             scope: this,
                             handler: this.onPdfClick
+                        },
+                        {
+                            // Reserve au privilege de parametrage : affiche apres reponse du
+                            // serveur (voir chargerConfigActions).
+                            id: 'btn_config_actions',
+                            tooltip: 'Configurer les actions affichées sur chaque ligne',
+                            iconCls: 'configuration',
+                            hidden: true,
+                            scope: this,
+                            handler: this.onConfigurerActions
                         }
                     ]
                 },
@@ -950,6 +977,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         Ext.getCmp('btn_import_menu').show();
                     }
                     Me_Workflow.chargerPrivilegesBoutons();
+                    Me_Workflow.chargerConfigActions();
                 }
             }
         });
@@ -1254,6 +1282,200 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
     },
 
+    /**
+     * Configuration des actions de ligne (officine). Les colonnes ne sont ajoutees
+     * qu'a la reponse : en cas d'echec, on retombe sur l'ordre livre par defaut pour
+     * que l'ecran reste utilisable.
+     */
+    chargerConfigActions: function () {
+        var grille = this;
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/actions-config',
+            method: 'GET',
+            success: function (reponse) {
+                var o = Ext.JSON.decode(reponse.responseText, true) || {};
+                grille.configActions = {
+                    ordre: o.ordre || FA_ORDRE_DEFAUT.join(','),
+                    nbIcones: (o.nbIcones === undefined || o.nbIcones === null) ? FA_NB_ICONES_DEFAUT : o.nbIcones
+                };
+                grille.construireColonnesActions(grille.configActions);
+                var bouton = Ext.getCmp('btn_config_actions');
+                if (bouton && o.modifiable) {
+                    bouton.show();
+                }
+            },
+            failure: function () {
+                grille.configActions = {ordre: FA_ORDRE_DEFAUT.join(','), nbIcones: FA_NB_ICONES_DEFAUT};
+                grille.construireColonnesActions(grille.configActions);
+            }
+        });
+    },
+
+    /**
+     * Fenetre de configuration des actions de ligne, reservee au privilege de
+     * parametrage. Deux listes : a gauche les actions affichees en icone, dans
+     * l'ordre voulu ; a droite celles regroupees dans le menu « ... ». On deplace
+     * les actions d'une liste a l'autre et on les reordonne par glisser-deposer.
+     * A la validation, l'ordre complet et le nombre d'icones sont enregistres dans
+     * t_parameters et l'ecran est reconstruit sans rechargement.
+     */
+    onConfigurerActions: function () {
+        var grille = this;
+        var config = grille.configActions || {ordre: FA_ORDRE_DEFAUT.join(','), nbIcones: FA_NB_ICONES_DEFAUT};
+        var ordre = String(config.ordre).split(',');
+        var retenus = [];
+        Ext.Array.each(ordre, function (c) {
+            c = Ext.String.trim(c);
+            if (FA_ACTIONS[c] && retenus.indexOf(c) < 0) {
+                retenus.push(c);
+            }
+        });
+        Ext.Array.each(FA_ORDRE_DEFAUT, function (c) {
+            if (retenus.indexOf(c) < 0) {
+                retenus.push(c);
+            }
+        });
+        var nb = Math.min(config.nbIcones, retenus.length);
+
+        var enLigne = function (code) {
+            return {code: code, libelle: FA_ACTIONS[code].texte, icone: FA_ACTIONS[code].icon};
+        };
+        var champs = ['code', 'libelle', 'icone'];
+        var storeIcones = Ext.create('Ext.data.Store', {fields: champs,
+            data: Ext.Array.map(retenus.slice(0, nb), enLigne)});
+        var storeMenu = Ext.create('Ext.data.Store', {fields: champs,
+            data: Ext.Array.map(retenus.slice(nb), enLigne)});
+
+        var colonnes = [{
+                dataIndex: 'icone',
+                width: 34,
+                sortable: false,
+                menuDisabled: true,
+                renderer: function (v) {
+                    return v ? '<img src="' + v + '" width="16" height="16" style="vertical-align:middle">' : '';
+                }
+            }, {
+                text: 'Action',
+                dataIndex: 'libelle',
+                flex: 1,
+                sortable: false,
+                menuDisabled: true
+            }];
+
+        var liste = function (titre, store, vide) {
+            return {
+                xtype: 'gridpanel',
+                title: titre,
+                flex: 1,
+                store: store,
+                columns: colonnes,
+                hideHeaders: false,
+                viewConfig: {
+                    plugins: {ptype: 'gridviewdragdrop', dragGroup: 'faActions', dropGroup: 'faActions'},
+                    emptyText: '<div style="padding:12px;color:#8296a0;">' + vide + '</div>',
+                    deferEmptyText: false
+                }
+            };
+        };
+
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: 'Actions affichées sur la fiche article',
+            modal: true,
+            width: 720,
+            height: 430,
+            layout: 'fit',
+            items: [{
+                    xtype: 'container',
+                    layout: {type: 'vbox', align: 'stretch'},
+                    padding: 10,
+                    items: [{
+                            xtype: 'component',
+                            margin: '0 0 8 0',
+                            html: '<div style="color:#3e5761;font-size:12px;">'
+                                    + 'Faites glisser les actions d\'une liste à l\'autre, et de haut en bas pour '
+                                    + 'choisir leur ordre. Les actions de gauche apparaissent en icône sur chaque '
+                                    + 'ligne ; les autres restent accessibles par le bouton « … ». '
+                                    + 'Ce réglage vaut pour toute l\'officine.</div>'
+                        }, {
+                            xtype: 'container',
+                            flex: 1,
+                            layout: {type: 'hbox', align: 'stretch'},
+                            defaults: {margin: '0 5 0 5'},
+                            items: [liste('Affichées en icône', storeIcones, 'Aucune icône : toutes les actions seront dans le menu « … »'),
+                                liste('Dans le menu « … »', storeMenu, 'Aucune : toutes les actions seront en icône, le menu « … » disparaîtra')]
+                        }]
+                }],
+            buttons: [{
+                    text: 'Valider',
+                    handler: function () {
+                        var codes = [];
+                        storeIcones.each(function (r) {
+                            codes.push(r.get('code'));
+                        });
+                        var nbIcones = codes.length;
+                        storeMenu.each(function (r) {
+                            codes.push(r.get('code'));
+                        });
+                        var attente = Ext.MessageBox.wait('Enregistrement . . .', 'Veuillez patienter');
+                        Ext.Ajax.request({
+                            url: '../api/v1/fichearticle/actions-config',
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            jsonData: {ordre: codes.join(','), nbIcones: nbIcones},
+                            success: function (reponse) {
+                                attente.hide();
+                                var r = Ext.JSON.decode(reponse.responseText, true) || {};
+                                if (!r.success) {
+                                    Ext.MessageBox.show({title: 'Enregistrement impossible',
+                                        msg: r.message || 'Le réglage n\'a pas pu être enregistré.',
+                                        width: 460, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                                    return;
+                                }
+                                fenetre.close();
+                                // Les colonnes d'action sont refaites sur place : pas besoin
+                                // de rouvrir l'ecran pour voir le nouveau reglage.
+                                grille.configActions = {ordre: r.ordre, nbIcones: r.nbIcones};
+                                grille.retirerColonnesActions();
+                                grille.construireColonnesActions(grille.configActions);
+                                Me_Workflow.focusRecherche();
+                            },
+                            failure: function (reponse) {
+                                attente.hide();
+                                Ext.MessageBox.show({title: 'Erreur',
+                                    msg: 'L\'enregistrement a échoué. Code HTTP : ' + reponse.status,
+                                    width: 460, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                            }
+                        });
+                    }
+                }, {
+                    text: 'Annuler',
+                    handler: function () {
+                        fenetre.close();
+                    }
+                }],
+            listeners: {
+                close: function () {
+                    Me_Workflow.focusRecherche();
+                }
+            }
+        });
+        fenetre.show();
+    },
+
+    /** Retire les colonnes d'action avant de les reconstruire. */
+    retirerColonnesActions: function () {
+        var grille = this;
+        var aRetirer = [];
+        Ext.Array.each(grille.headerCt.items.items, function (col) {
+            if (col.xtype === 'actioncolumn') {
+                aRetirer.push(col);
+            }
+        });
+        Ext.Array.each(aRetirer, function (col) {
+            grille.headerCt.remove(col);
+        });
+    },
+
     onMajSeuil: function () {
         new testextjs.view.configmanagement.famille.action.maj_seuil({
             parentview: this,
@@ -1532,63 +1754,111 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     
 },
     /**
-     * Menu « ... » de la ligne : les actions qui ne sont pas dans les quatre icones
-     * frequentes. Chaque entree appelle le meme handler que l'ancienne colonne
-     * d'action, et les conditions d'affichage sont reprises a l'identique
-     * (emplacement, article deconditionne, privilege de desactivation).
+     * Construit les colonnes d'action a partir du parametrage de l'officine : les
+     * premieres actions de l'ordre configure deviennent des icones, les suivantes
+     * sont regroupees dans le menu « ... ». Ce menu n'est pas cree lorsque toutes
+     * les actions sont deja en icone.
+     *
+     * Les colonnes sont ajoutees ici, une fois la configuration recue, et non a la
+     * construction de la grille : l'ecran s'ouvre vide, il n'y a donc rien a
+     * redessiner et l'ordre demande est respecte du premier affichage.
+     */
+    construireColonnesActions: function (config) {
+        var grille = this;
+        var ordre = (config && config.ordre) ? String(config.ordre).split(',') : FA_ORDRE_DEFAUT.slice();
+        var retenus = [];
+        Ext.Array.each(ordre, function (code) {
+            code = Ext.String.trim(code);
+            if (FA_ACTIONS[code] && retenus.indexOf(code) < 0) {
+                retenus.push(code);
+            }
+        });
+        // Une action absente du parametrage reste accessible : elle rejoint la fin de
+        // la liste plutot que de disparaitre de l'ecran.
+        Ext.Array.each(FA_ORDRE_DEFAUT, function (code) {
+            if (retenus.indexOf(code) < 0) {
+                retenus.push(code);
+            }
+        });
+        var nb = (config && config.nbIcones >= 0) ? config.nbIcones : FA_NB_ICONES_DEFAUT;
+        if (nb > retenus.length) {
+            nb = retenus.length;
+        }
+        grille.actionsMenu = retenus.slice(nb);
+
+        var colonnes = [];
+        Ext.Array.each(retenus.slice(0, nb), function (code) {
+            var action = FA_ACTIONS[code];
+            colonnes.push({
+                xtype: 'actioncolumn',
+                width: 28,
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                items: [{
+                        icon: action.icon,
+                        tooltip: action.texte,
+                        handler: action.lancer,
+                        getClass: function (value, metadata, record) {
+                            if (action.visible && !action.visible(record)) {
+                                return 'x-hide-display';
+                            }
+                            return 'x-display-hide fa-action ' + action.classe;
+                        }
+                    }]
+            });
+        });
+        if (grille.actionsMenu.length) {
+            colonnes.push({
+                xtype: 'actioncolumn',
+                width: 32,
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                items: [{
+                        icon: FA_ICONE_MENU,
+                        tooltip: 'Autres actions',
+                        scope: grille,
+                        getClass: function () {
+                            return 'fa-action fa-action-plus';
+                        },
+                        handler: grille.onAutresActions
+                    }]
+            });
+        }
+        grille.headerCt.add(colonnes);
+    },
+
+    /**
+     * Menu « ... » : les actions qui ne sont pas en icone, dans l'ordre configure.
+     * Chaque entree appelle le meme traitement que l'icone correspondante et reprend
+     * ses conditions d'affichage.
      */
     onAutresActions: function (view, rowIndex, colIndex, item, e) {
-        const me = this;
-        const rec = view.getStore().getAt(rowIndex);
+        var grille = this;
+        var rec = view.getStore().getAt(rowIndex);
         if (!rec) {
             return;
         }
-        const entrees = [{
-                text: 'Détail sur l\'article',
-                icon: 'resources/images/icons/fam/application_view_list.png',
-                handler: function () {
-                    me.onDetailClick(view, rowIndex);
-                }
-            }, {
-                text: 'Voir les lots / péremptions',
-                icon: 'resources/images/icons/fam/recherche.png',
-                handler: function () {
-                    me.onViewPerimesClick(view, rowIndex);
-                }
-            }, {
-                text: 'Modifier la date de péremption',
-                icon: 'resources/images/icons/fam/calendar.png',
-                handler: function () {
-                    me.addPeremptiondate(view, rowIndex);
-                }
-            }];
-        if (rec.get('bool_DECONDITIONNE') == "0") {
-            entrees.push({
-                text: 'Déconditionner l\'article',
-                icon: 'resources/images/icons/fam/cut.png',
-                handler: function () {
-                    me.onDeconditionClick(view, rowIndex);
-                }
-            });
-            if (rec.get('lg_EMPLACEMENT_ID') == "1") {
-                entrees.push({
-                    text: 'Gérer grossiste',
-                    icon: 'resources/images/icons/fam/grossiste.png',
-                    handler: function () {
-                        me.onAddGrossisteClick(view, rowIndex);
-                    }
-                });
+        var entrees = [];
+        Ext.Array.each(grille.actionsMenu || [], function (code) {
+            var action = FA_ACTIONS[code];
+            if (!action || (action.visible && !action.visible(rec))) {
+                return;
             }
-        }
-        if (rec.get('lg_EMPLACEMENT_ID') === "1" && rec.get('ACTION_DESACTIVE_PRODUIT')) {
-            entrees.push('-');
+            if (action.danger && entrees.length) {
+                entrees.push('-');
+            }
             entrees.push({
-                text: 'Désactiver l\'article',
-                icon: 'resources/images/icons/fam/disable.png',
+                text: action.texte,
+                icon: action.icon,
                 handler: function () {
-                    me.onDesableClick(view, rowIndex);
+                    action.lancer(view, rowIndex);
                 }
             });
+        });
+        if (!entrees.length) {
+            return;
         }
         Ext.create('Ext.menu.Menu', {
             items: entrees,
@@ -1601,6 +1871,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             }
         }).showAt(e.getXY());
     },
+
     onDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
         Ext.Ajax.request({

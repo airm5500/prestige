@@ -1816,4 +1816,113 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         return new JSONObject().put("count", count);
     }
 
+    // ---------------- Configuration des actions de ligne de la fiche article ----------------
+
+    /**
+     * Ordre des actions et nombre d'icones. Le parametrage est officine : il vit dans t_parameters, aux cotes des
+     * autres options d'affichage. Tant qu'il n'a pas ete pose, on renvoie l'ordre livre par defaut, dont les quatre
+     * premieres actions reproduisent l'affichage d'origine de l'ecran.
+     */
+    @Override
+    public JSONObject actionsConfig() {
+        JSONObject json = new JSONObject();
+        try {
+            String ordre = valeurParametre(Constant.PARAM_FICHE_ARTICLE_ORDRE_ACTIONS);
+            if (ordre == null || ordre.trim().isEmpty()) {
+                ordre = Constant.FICHE_ARTICLE_ACTIONS_DEFAUT;
+            }
+            int nb = Constant.FICHE_ARTICLE_NB_ICONES_DEFAUT;
+            String valeurNb = valeurParametre(Constant.PARAM_FICHE_ARTICLE_NB_ICONES);
+            if (valeurNb != null && !valeurNb.trim().isEmpty()) {
+                try {
+                    nb = Integer.parseInt(valeurNb.trim());
+                } catch (NumberFormatException e) {
+                    // valeur illisible en base : on garde le defaut plutot que d'echouer
+                    nb = Constant.FICHE_ARTICLE_NB_ICONES_DEFAUT;
+                }
+            }
+            json.put("ordre", ordre);
+            json.put("nbIcones", nb);
+            json.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "actionsConfig", e);
+            try {
+                json = new JSONObject().put("success", true).put("ordre", Constant.FICHE_ARTICLE_ACTIONS_DEFAUT)
+                        .put("nbIcones", Constant.FICHE_ARTICLE_NB_ICONES_DEFAUT);
+            } catch (Exception ignore) {
+            }
+        }
+        return json;
+    }
+
+    @Override
+    public JSONObject enregistrerActionsConfig(String ordre, int nbIcones) {
+        JSONObject json = new JSONObject();
+        try {
+            if (ordre == null || ordre.trim().isEmpty()) {
+                return json.put("success", false).put("message", "L'ordre des actions est vide.");
+            }
+            // On n'accepte que des codes connus, sans doublon : une valeur fantaisiste en
+            // base ferait disparaitre des actions de l'ecran sans explication.
+            java.util.List<String> connus = java.util.Arrays.asList(Constant.FICHE_ARTICLE_ACTIONS_DEFAUT.split(","));
+            java.util.LinkedHashSet<String> retenus = new java.util.LinkedHashSet<>();
+            for (String code : ordre.split(",")) {
+                String c = code.trim();
+                if (!c.isEmpty() && connus.contains(c)) {
+                    retenus.add(c);
+                }
+            }
+            if (retenus.size() != connus.size()) {
+                return json.put("success", false).put("message",
+                        "La liste des actions est incomplete ou contient un code inconnu.");
+            }
+            int nb = nbIcones;
+            if (nb < 0) {
+                nb = Constant.FICHE_ARTICLE_NB_ICONES_DEFAUT;
+            }
+            if (nb > retenus.size()) {
+                nb = retenus.size();
+            }
+            poserParametre(Constant.PARAM_FICHE_ARTICLE_ORDRE_ACTIONS, String.join(",", retenus),
+                    "Fiche article : ordre des actions de ligne");
+            poserParametre(Constant.PARAM_FICHE_ARTICLE_NB_ICONES, String.valueOf(nb),
+                    "Fiche article : nombre d'actions affichees en icone");
+            return json.put("success", true).put("ordre", String.join(",", retenus)).put("nbIcones", nb);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "enregistrerActionsConfig", e);
+            try {
+                return new JSONObject().put("success", false).put("message",
+                        "L'enregistrement a echoue. Veuillez consulter les logs du serveur.");
+            } catch (Exception ignore) {
+                return json;
+            }
+        }
+    }
+
+    private String valeurParametre(String cle) {
+        try {
+            dal.TParameters p = em.find(dal.TParameters.class, cle);
+            return p != null ? p.getStrVALUE() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Cree le parametre s'il n'existe pas encore, sinon met a jour sa valeur. */
+    private void poserParametre(String cle, String valeur, String description) {
+        dal.TParameters p = em.find(dal.TParameters.class, cle);
+        if (p == null) {
+            p = new dal.TParameters();
+            p.setStrKEY(cle);
+            p.setStrDESCRIPTION(description);
+            p.setStrTYPE("STRING");
+            p.setStrSTATUT("enable");
+            p.setStrVALUE(valeur);
+            em.persist(p);
+        } else {
+            p.setStrVALUE(valeur);
+            em.merge(p);
+        }
+        em.flush();
+    }
 }
