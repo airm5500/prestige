@@ -36,4 +36,22 @@ public class SupportDemandeRessource {
         List<SupportDemande> data = supportService.findAll(start, limit);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, supportService.count())).build();
     }
+
+    /**
+     * Export Excel des demandes envoyees (point 2). Il porte tout le resultat, pas la page affichee : la limite
+     * negative demande la liste complete.
+     */
+    @GET
+    @Path("export/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exportExcel() throws java.io.IOException {
+        List<SupportDemande> data = supportService.toutes();
+        byte[] contenu = new rest.report.excel.ClasseurExcel<SupportDemande>("Demandes")
+                .titre("CENTRE DE SUPPORT - DEMANDES ENVOYEES").dateHeure("Date", SupportDemande::getCreatedAt)
+                .texte("Objet", SupportDemande::getObjet).texte("Module", SupportDemande::getModuleConcerne)
+                .texte("Urgence", SupportDemande::getUrgence).texte("Statut envoi", SupportDemande::getStatutEnvoi)
+                .texte("Utilisateur", SupportDemande::getCreePar).texte("Message", SupportDemande::getMessage)
+                .construire(data);
+        return rest.report.excel.NomFichierExport.reponse(contenu, "demandes_support");
+    }
 }

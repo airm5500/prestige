@@ -103,26 +103,63 @@ public class SupportEventServiceImpl implements SupportEventService {
 
     @Override
     public List<ApplicationEvent> findAll(int start, int limit, String niveau) {
-        TypedQuery<ApplicationEvent> query;
-        if (StringUtils.isNotBlank(niveau)) {
-            query = em
-                    .createQuery("SELECT o FROM ApplicationEvent o WHERE o.niveau = :niveau ORDER BY o.lastSeenAt DESC",
-                            ApplicationEvent.class)
-                    .setParameter("niveau", niveau);
-        } else {
-            query = em.createQuery("SELECT o FROM ApplicationEvent o ORDER BY o.lastSeenAt DESC",
-                    ApplicationEvent.class);
+        return findAll(start, limit, niveau, null);
+    }
+
+    /**
+     * Liste des evenements, filtree par niveau et par recherche libre.
+     *
+     * <p>
+     * La recherche est un « contient », insensible a la casse, et porte sur les colonnes textuelles de la liste :
+     * message, module, type, ecran ou URL, utilisateur. Sans elle, retrouver un bug signale par une officine imposait
+     * de parcourir les pages une a une.
+     */
+    @Override
+    public List<ApplicationEvent> findAll(int start, int limit, String niveau, String recherche) {
+        StringBuilder jpql = new StringBuilder("SELECT o FROM ApplicationEvent o WHERE 1=1");
+        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche);
+        jpql.append(" ORDER BY o.lastSeenAt DESC");
+        TypedQuery<ApplicationEvent> query = em.createQuery(jpql.toString(), ApplicationEvent.class);
+        params.forEach(query::setParameter);
+        query.setFirstResult(start);
+        // limit <= 0 : tout le resultat, pour l'export ; sinon la page demandee.
+        if (limit > 0) {
+            query.setMaxResults(limit);
         }
-        return query.setFirstResult(start).setMaxResults(limit > 0 ? limit : 20).getResultList();
+        return query.getResultList();
     }
 
     @Override
     public long count(String niveau) {
-        if (StringUtils.isNotBlank(niveau)) {
-            return em.createQuery("SELECT COUNT(o) FROM ApplicationEvent o WHERE o.niveau = :niveau", Long.class)
-                    .setParameter("niveau", niveau).getSingleResult();
+        return count(niveau, null);
+    }
+
+    @Override
+    public long count(String niveau, String recherche) {
+        StringBuilder jpql = new StringBuilder("SELECT COUNT(o) FROM ApplicationEvent o WHERE 1=1");
+        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche);
+        TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
+        params.forEach(query::setParameter);
+        return query.getSingleResult();
+    }
+
+    /**
+     * Criteres communs a la liste, au comptage et a l'export : les trois doivent voir exactement le meme ensemble, sans
+     * quoi la pagination et le total ne s'accordent plus.
+     */
+    private Map<String, Object> criteresDeRecherche(StringBuilder jpql, String niveau, String recherche) {
+        Map<String, Object> params = new java.util.HashMap<>();
+        if (StringUtils.isNotBlank(niveau) && !"TOUS".equalsIgnoreCase(niveau)) {
+            jpql.append(" AND o.niveau = :niveau");
+            params.put("niveau", niveau);
         }
-        return em.createQuery("SELECT COUNT(o) FROM ApplicationEvent o", Long.class).getSingleResult();
+        if (StringUtils.isNotBlank(recherche)) {
+            jpql.append(" AND (LOWER(o.messageCourt) LIKE :terme OR LOWER(o.module) LIKE :terme")
+                    .append(" OR LOWER(o.type) LIKE :terme OR LOWER(o.urlOuEcran) LIKE :terme")
+                    .append(" OR LOWER(o.utilisateur) LIKE :terme)");
+            params.put("terme", "%" + recherche.trim().toLowerCase() + "%");
+        }
+        return params;
     }
 
     @Override

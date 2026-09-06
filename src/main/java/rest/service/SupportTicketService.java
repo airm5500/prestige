@@ -35,6 +35,9 @@ public interface SupportTicketService {
 
     List<SupportTicket> findAll(int start, int limit, String statut);
 
+    /** Tous les tickets du statut demande, sans pagination : pour l'export Excel (point 2). */
+    List<SupportTicket> tous(String statut);
+
     long count(String statut);
 
     long countOpen();

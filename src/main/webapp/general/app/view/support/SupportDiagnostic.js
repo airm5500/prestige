@@ -72,6 +72,29 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                             value: 'TOUS'
                         },
                         {
+                            /* Point 2 : recherche « contient » sur les colonnes textuelles de la
+                             * liste (message, module, type, ecran, utilisateur). Sans elle,
+                             * retrouver un bug signale par une officine imposait de parcourir les
+                             * pages une a une. */
+                            xtype: 'textfield',
+                            itemId: 'champRecherche',
+                            width: 260,
+                            emptyText: 'Contient... (message, module, écran, utilisateur)',
+                            enableKeyEvents: true
+                        },
+                        {
+                            xtype: 'button',
+                            itemId: 'btnRechercher',
+                            text: 'Rechercher',
+                            iconCls: 'searchicon'
+                        },
+                        {
+                            xtype: 'button',
+                            itemId: 'btnEffacerRecherche',
+                            text: 'Effacer',
+                            tooltip: 'Vider la recherche et revenir à la liste complète'
+                        },
+                        {
                             xtype: 'button',
                             itemId: 'btnActualiser',
                             text: 'Actualiser'

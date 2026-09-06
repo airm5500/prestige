@@ -46,9 +46,13 @@ public class SupportEventRessource {
 
     @GET
     public Response findAll(@DefaultValue("0") @QueryParam("start") int start,
-            @DefaultValue("20") @QueryParam("limit") int limit, @QueryParam("niveau") String niveau) {
-        List<ApplicationEvent> data = supportEventService.findAll(start, limit, niveau);
-        return Response.ok().entity(ResultFactory.getSuccessResult(data, supportEventService.count(niveau))).build();
+            @DefaultValue("20") @QueryParam("limit") int limit, @QueryParam("niveau") String niveau,
+            @QueryParam("query") String query) {
+        // « TOUS » est le libelle de la liste deroulante, pas un niveau : il vaut absence de filtre.
+        String filtreNiveau = "TOUS".equalsIgnoreCase(niveau) ? "" : niveau;
+        List<ApplicationEvent> data = supportEventService.findAll(start, limit, filtreNiveau, query);
+        return Response.ok()
+                .entity(ResultFactory.getSuccessResult(data, supportEventService.count(filtreNiveau, query))).build();
     }
 
     @POST
@@ -82,15 +86,16 @@ public class SupportEventRessource {
     @GET
     @Path("export/excel")
     @Produces("application/vnd.ms-excel")
-    public Response exportExcel(@QueryParam("niveau") String niveau,
+    public Response exportExcel(@QueryParam("niveau") String niveau, @QueryParam("query") String query,
             @DefaultValue("500") @QueryParam("limit") int limit) throws java.io.IOException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         int plafond = Math.max(1, Math.min(limit, 2000));
+        // L'export doit refleter ce que l'utilisateur a sous les yeux : meme niveau ET meme recherche.
         List<ApplicationEvent> data = supportEventService.findAll(0, plafond,
-                "TOUS".equalsIgnoreCase(niveau) ? "" : niveau);
+                "TOUS".equalsIgnoreCase(niveau) ? "" : niveau, query);
         java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         String[] entetes = { "Première apparition", "Dernière", "Occ.", "Niveau", "Module", "Type", "Message",
                 "Écran / URL", "Utilisateur", "Fil d'Ariane", "Détail (début)" };
@@ -132,6 +137,49 @@ public class SupportEventRessource {
     public Response recap(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) {
         List<java.util.Map<String, Object>> data = supportEventService.recap(dtStart, dtEnd);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    /**
+     * Export Excel de la liste des evenements telle qu'elle est affichee (point 2, onglet « Evenements captures » de
+     * l'Historique) : memes colonnes que la grille, memes criteres, et TOUT le resultat.
+     *
+     * <p>
+     * Distinct de {@code export/excel}, qui est un export d'analyse : celui-la lit en plus le detail des erreurs dans
+     * les fichiers de log, ce qui impose de le borner.
+     */
+    @GET
+    @Path("export/liste")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exportListe(@QueryParam("niveau") String niveau, @QueryParam("query") String query)
+            throws java.io.IOException {
+        String filtreNiveau = "TOUS".equalsIgnoreCase(niveau) ? "" : niveau;
+        List<ApplicationEvent> data = supportEventService.findAll(0, 0, filtreNiveau, query);
+        byte[] contenu = new rest.report.excel.ClasseurExcel<ApplicationEvent>("Événements")
+                .titre("CENTRE DE SUPPORT - ÉVÉNEMENTS CAPTURÉS").critere("Niveau", filtreNiveau)
+                .critere("Recherche", query).dateHeure("1ère apparition", ApplicationEvent::getCreatedAt)
+                .dateHeure("Dernière", ApplicationEvent::getLastSeenAt).texte("Module", ApplicationEvent::getModule)
+                .texte("Type", ApplicationEvent::getType).texte("Niveau", ApplicationEvent::getNiveau)
+                .texte("Message", ApplicationEvent::getMessageCourt)
+                .nombre("Occurrences", ApplicationEvent::getOccurrences)
+                .texte("Écran / URL", ApplicationEvent::getUrlOuEcran)
+                .texte("Utilisateur", ApplicationEvent::getUtilisateur).construire(data);
+        return rest.report.excel.NomFichierExport.reponse(contenu, "evenements_support");
+    }
+
+    /** Export Excel du recapitulatif analytique (point 2, onglet « Recap » de l'Historique). */
+    @GET
+    @Path("recap/export/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response recapExportExcel(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd)
+            throws java.io.IOException {
+        List<java.util.Map<String, Object>> data = supportEventService.recap(dtStart, dtEnd);
+        byte[] contenu = new rest.report.excel.ClasseurExcel<java.util.Map<String, Object>>("Récapitulatif")
+                .titre("CENTRE DE SUPPORT - RÉCAPITULATIF DES ANOMALIES").critere("Du", dtStart).critere("Au", dtEnd)
+                .texte("Module", m -> m.get("module")).texte("Type", m -> m.get("type"))
+                .texte("Niveau", m -> m.get("niveau")).nombre("Nb anomalies", m -> m.get("nbAnomalies"))
+                .nombre("Total occurrences", m -> m.get("totalOccurrences"))
+                .texte("Dernière apparition", m -> m.get("derniereApparition")).construire(data);
+        return rest.report.excel.NomFichierExport.reponse(contenu, "recap_support");
     }
 
     @GET

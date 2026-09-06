@@ -33,7 +33,16 @@ public interface SupportEventService {
 
     List<ApplicationEvent> findAll(int start, int limit, String niveau);
 
+    /**
+     * Liste filtree par niveau ET par recherche libre « contient » sur les colonnes textuelles (message, module, type,
+     * ecran ou URL, utilisateur). limit <= 0 : tout le resultat.
+     */
+    List<ApplicationEvent> findAll(int start, int limit, String niveau, String recherche);
+
     long count(String niveau);
+
+    /** Comptage avec les memes criteres que la liste, recherche comprise. */
+    long count(String niveau, String recherche);
 
     String createTicketFromEvent(String eventId, TUser user);
 
