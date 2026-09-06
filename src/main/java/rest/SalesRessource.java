@@ -216,7 +216,12 @@ public class SalesRessource {
     @POST
     @Path("net/assurance")
     public Response netPayerAssurance(SalesParams params) throws JSONException {
-
+        // Meme garde que pour l'ajout : vente disparue ou cloturee, client detache, aucun tiers payant : le calcul
+        // du net tombait en erreur 500 sans rien dire a la caissiere.
+        String motif = salesService.controleCalculNetAssurance(params);
+        if (motif != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+        }
         JSONObject json = salesService.computeVONet(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -372,6 +377,12 @@ public class SalesRessource {
     @POST
     @Path("add/item")
     public Response addItemVente(SalesParams params) {
+        // Vente disparue ou deja cloturee, produit absent : le motif remonte a l'ecran au lieu d'une erreur 500
+        // levee au fond du traitement (l'identifiant manquant partait chercher une vente inexistante).
+        String motif = salesService.controleAjoutProduit(params);
+        if (motif != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+        }
         JSONObject json = salesService.addPreenregistrementItem(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -379,16 +390,34 @@ public class SalesRessource {
     @POST
     @Path("remove/vno/item/{id}")
     public Response removeItemVente(@PathParam("id") String itemId) throws JSONException {
-
+        Response refus = refusRetraitLigne(itemId);
+        if (refus != null) {
+            return refus;
+        }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpayVno(tp);
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Retrait d'un produit refuse : la vente n'est plus en cours (cloturee entre-temps par une autre caisse) ou la
+     * ligne n'existe plus. Le motif remonte a l'ecran au lieu d'une erreur 500 laissee par la contrainte de base.
+     */
+    private Response refusRetraitLigne(String itemId) {
+        String motif = salesService.controleRetraitLigne(itemId);
+        if (motif == null) {
+            return null;
+        }
+        return Response.ok().entity(ResultFactory.getFailResult(motif)).build();
+    }
+
     @POST
     @Path("remove/depot/item/{id}")
     public Response removeItemVentedepot(@PathParam("id") String itemId) throws JSONException {
-
+        Response refus = refusRetraitLigne(itemId);
+        if (refus != null) {
+            return refus;
+        }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpaydepotAgree(tp);
         return Response.ok().entity(json.toString()).build();

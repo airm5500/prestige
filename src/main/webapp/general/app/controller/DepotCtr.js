@@ -730,12 +730,16 @@ Ext.define('testextjs.controller.DepotCtr', {
                             .focus(true, 100);
                     me.getVenteQte();
 
+                } else {
+                    // Retrait refuse (vente cloturee entre-temps, ligne disparue) : motif affiche a l'ecran.
+                    Ext.Msg.alert('Retrait du produit', result.msg || 'Le produit n\'a pas pu être retiré');
                 }
                 me.refresh();
             },
             failure: function (response, options) {
                 progress.hide();
-                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                Ext.Msg.alert('Retrait du produit',
+                        'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
             }
         });
     }

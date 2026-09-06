@@ -39,6 +39,26 @@ public interface SalesService {
 
     TPreenregistrement removePreenregistrementDetail(String itemId);
 
+    /**
+     * Motif de refus du retrait d'un produit (vente deja cloturee, ligne disparue), null si le retrait est possible.
+     */
+    String controleRetraitLigne(String itemId);
+
+    /**
+     * Motif de refus quand la vente visee n'est plus modifiable (identifiant absent, vente disparue ou deja cloturee),
+     * null quand le traitement peut se poursuivre.
+     */
+    String controleVenteModifiable(String venteId);
+
+    /** Motif de refus de l'ajout d'un produit a une vente (vente, produit, quantite), null si l'ajout est possible. */
+    String controleAjoutProduit(SalesParams params);
+
+    /**
+     * Motif de refus du calcul du net a payer d'une vente tiers payant (vente non modifiable, client detache, aucun
+     * tiers payant retenu), null quand le calcul peut se faire.
+     */
+    String controleCalculNetAssurance(SalesParams params);
+
     JSONObject updateayantdroit(SalesParams params);
 
     JSONObject updateclient(SalesParams params) throws JSONException;

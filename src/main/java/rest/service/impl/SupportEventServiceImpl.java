@@ -42,6 +42,8 @@ import rest.service.SupportBusinessException;
 import rest.service.SupportTicketService;
 import rest.service.dto.SupportEventDTO;
 import util.AppParameters;
+import util.Constant;
+import util.DateCommonUtils;
 
 /**
  *
@@ -165,8 +167,12 @@ public class SupportEventServiceImpl implements SupportEventService {
     @Override
     public String readLogContent(String eventId) {
         ApplicationEvent event = em.find(ApplicationEvent.class, eventId);
-        if (event == null || StringUtils.isBlank(event.getLogRef())) {
+        if (event == null) {
             return "Aucun fichier log associé à cet événement.";
+        }
+        if (StringUtils.isBlank(event.getLogRef())) {
+            return StringUtils.isBlank(event.getStackExtrait()) ? "Aucun fichier log associé à cet événement."
+                    : extraitConserve(event, "Aucun fichier log associé à cet événement.");
         }
         try {
             Path base = getStorageBase().resolve("logs").toRealPath();
@@ -183,8 +189,108 @@ public class SupportEventServiceImpl implements SupportEventService {
             return new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOG.log(Level.WARNING, "readLogContent " + eventId, e);
-            return "Log introuvable sur le disque (peut-être purgé) :\n" + event.getLogRef();
+            // Le fichier a disparu (purge, ou dossier de travail change avec le compte du serveur) : on rend
+            // l'extrait conserve en base, qui suffit a nommer la cause.
+            return extraitConserve(event,
+                    "Fichier de détail introuvable sur le disque (purgé, ou écrit par une installation précédente) :\n"
+                            + event.getLogRef() + "\nDossier de travail actuel : " + getStorageBase().resolve("logs"));
         }
+    }
+
+    /**
+     * Contexte metier d'une erreur survenue sur la vente, deduit de l'adresse appelee : identite de la vente concernee,
+     * son etat et qui la tenait.
+     *
+     * Sans cela, l'evenement ne dit que « violation d'integrite sur la ligne 4c8f... » : il faut alors interroger la
+     * base pour savoir de quelle vente il s'agissait et dans quel etat elle etait, ce qui n'est plus possible a
+     * distance. Recherche bornee : une vente, sinon une ligne de vente, et jamais d'echec propage.
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public String contexteMetier(String uri) {
+        // Transaction DEDIEE : on lit la vente alors qu'une exception vient de survenir, donc alors que la
+        // transaction appelante peut deja etre condamnee ; la lecture ne doit pas s'y greffer.
+        try {
+            if (StringUtils.isBlank(uri) || !uri.contains("/vente")) {
+                return null;
+            }
+            for (String segment : uri.split("/")) {
+                if (segment.length() < 20) {
+                    continue;
+                }
+                Object[] vente = chercherVente(segment, false);
+                if (vente == null) {
+                    vente = chercherVente(segment, true);
+                }
+                if (vente != null) {
+                    return decrireVente((String) vente[0], (String) vente[1], (java.util.Date) vente[2],
+                            (java.util.Date) vente[3], (String) vente[4]);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "contexteMetier " + uri, e);
+            return null;
+        }
+    }
+
+    /** Vente designee par son identifiant, ou par l'identifiant d'une de ses lignes quand {@code parLigne}. */
+    private Object[] chercherVente(String identifiant, boolean parLigne) {
+        try {
+            String sql = "SELECT p.str_REF, p.str_STATUT, p.dt_CREATED, p.dt_UPDATED,"
+                    + " CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME) FROM t_preenregistrement p"
+                    + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+                    + (parLigne
+                            ? " JOIN t_preenregistrement_detail d"
+                                    + " ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                                    + " WHERE d.lg_PREENREGISTREMENT_DETAIL_ID = ?1"
+                            : " WHERE p.lg_PREENREGISTREMENT_ID = ?1");
+            List<Object[]> lignes = em.createNativeQuery(sql).setParameter(1, identifiant).setMaxResults(1)
+                    .getResultList();
+            return lignes.isEmpty() ? null : lignes.get(0);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "chercherVente " + identifiant, e);
+            return null;
+        }
+    }
+
+    /** Une ligne lisible : « Vente N° 260903_00035 (clôturée), créée le ..., dernière écriture le ..., par ... ». */
+    static String decrireVente(String reference, String statut, java.util.Date creee, java.util.Date modifiee,
+            String operateur) {
+        StringBuilder texte = new StringBuilder("Vente concernée : N° ")
+                .append(StringUtils.defaultIfBlank(reference, "(sans référence)"));
+        texte.append(" (").append(libelleStatutVente(statut)).append(")");
+        String creation = DateCommonUtils.formatDateHeureCreation(creee);
+        if (!creation.isEmpty()) {
+            texte.append(", créée le ").append(creation);
+        }
+        String ecriture = DateCommonUtils.formatDateHeureCreation(modifiee);
+        if (!ecriture.isEmpty()) {
+            texte.append(", dernière écriture le ").append(ecriture);
+        }
+        if (StringUtils.isNotBlank(operateur)) {
+            texte.append(", par ").append(operateur.trim());
+        }
+        return texte.append('.').toString();
+    }
+
+    /** Statut technique de la vente traduit pour le journal. */
+    private static String libelleStatutVente(String statut) {
+        if (Constant.STATUT_IS_CLOSED.equals(statut)) {
+            return "clôturée, donc encaissée";
+        }
+        if (Constant.STATUT_IS_PROGRESS.equals(statut)) {
+            return "en cours";
+        }
+        return StringUtils.defaultIfBlank(statut, "état inconnu");
+    }
+
+    /** Extrait conserve en base, precede de la raison pour laquelle le fichier complet n'a pas pu etre lu. */
+    private String extraitConserve(ApplicationEvent event, String entete) {
+        if (StringUtils.isBlank(event.getStackExtrait())) {
+            return entete;
+        }
+        return entete + "\n\n--- Détail conservé avec l'événement ---\n" + event.getStackExtrait();
     }
 
     @Override
@@ -539,10 +645,26 @@ public class SupportEventServiceImpl implements SupportEventService {
         event.setMessageCourt(StringUtils.abbreviate(dto.getMessageCourt(), 500));
         event.setUrlOuEcran(StringUtils.abbreviate(dto.getUrlOuEcran(), 255));
         event.setPayloadJson(StringUtils.abbreviate(dto.getPayloadJson(), 4000));
+        event.setStackExtrait(extraitStack(dto.getStack()));
         event.setUtilisateur(StringUtils.abbreviate(utilisateur, 255));
         event.setLastSeenAt(LocalDateTime.now());
         event.setLogRef(writeLogFile(event.getId(), dto, utilisateur));
         return event;
+    }
+
+    /**
+     * Debut du detail technique garde EN BASE, a cote de l'evenement.
+     *
+     * Le fichier log complet reste ecrit sur le disque du serveur, mais il devient illisible des que le compte qui fait
+     * tourner Payara change (le dossier de travail suit ce compte) ou apres une purge : le journal exporte portait
+     * alors « Log introuvable » et l'analyse a distance etait impossible. Cet extrait suffit a nommer la cause : les
+     * premieres lignes portent l'exception et l'endroit du code.
+     */
+    static String extraitStack(String stack) {
+        if (StringUtils.isBlank(stack)) {
+            return null;
+        }
+        return StringUtils.abbreviate(stack.replace("\r", "").trim(), 4000);
     }
 
     private void applyAutoTicket(ApplicationEvent event) {

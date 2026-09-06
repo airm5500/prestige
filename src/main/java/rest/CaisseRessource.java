@@ -37,6 +37,7 @@ import rest.service.ListCaisseService;
 import rest.service.dto.BalanceParamsDTO;
 import rest.service.dto.CoffreCaisseDTO;
 import rest.service.dto.MvtCaisseSummaryDTO;
+import rest.service.exception.CaisseUsingExeception;
 import util.DateConverter;
 import util.Constant;
 
@@ -251,8 +252,14 @@ public class CaisseRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = new JSONObject();
-
-        json.put("mvtId", caisseService.ouvrirCaisse(tu, coffreCaisse));
+        try {
+            json.put("mvtId", caisseService.ouvrirCaisse(tu, coffreCaisse));
+        } catch (CaisseUsingExeception e) {
+            // Caisse deja ouverte ou fond deja attribue : ce n'est pas une panne, c'est une situation que la
+            // caissiere doit lire et corriger. Le motif remonte a l'ecran au lieu d'une erreur 500.
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
+        json.put("success", true);
         return Response.ok().entity(json.toString()).build();
     }
 

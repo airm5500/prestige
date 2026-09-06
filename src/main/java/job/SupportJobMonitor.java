@@ -49,7 +49,7 @@ public class SupportJobMonitor {
             List<Object[]> jobs = lireJobsActifs();
             for (Object[] job : jobs) {
                 verifierJob(String.valueOf(job[0]), String.valueOf(job[1]), String.valueOf(job[2]),
-                        ((Number) job[3]).longValue());
+                        ((Number) job[3]).longValue(), job[4] == null ? null : String.valueOf(job[4]));
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "SupportJobMonitor.verifier", e);
@@ -58,14 +58,19 @@ public class SupportJobMonitor {
 
     @SuppressWarnings("unchecked")
     private List<Object[]> lireJobsActifs() {
-        return em.createNativeQuery(
-                "SELECT code, libelle, requete_sql, max_age_minutes FROM t_support_job WHERE actif = 1 ORDER BY ordre")
-                .getResultList();
+        return em.createNativeQuery("SELECT code, libelle, requete_sql, max_age_minutes, parametre_actif"
+                + " FROM t_support_job WHERE actif = 1 ORDER BY ordre").getResultList();
     }
 
-    private void verifierJob(String code, String libelle, String sql, long maxAgeMinutes) {
+    private void verifierJob(String code, String libelle, String sql, long maxAgeMinutes, String parametreActif) {
         try {
             if (!isSelectSeul(sql)) {
+                return;
+            }
+            if (estDesactiveParParametre(parametreActif)) {
+                // Un traitement qu'on a choisi de ne pas faire tourner n'a jamais de dernier passage : alerter
+                // chaque heure reviendrait a reprocher a l'application d'obeir au reglage.
+                LOG.log(Level.FINE, "Job {0} ignore : {1} vaut 0.", new Object[] { code, parametreActif });
                 return;
             }
             LocalDateTime dernier = premierResultatDate(sql);
@@ -122,6 +127,30 @@ public class SupportJobMonitor {
                 + "Verifier que le serveur tourne en continu et que le job est actif.";
         supportEventService.recordServerIncident("job-" + code + "-" + LocalDate.now(), "ERROR", message, detail);
         LOG.log(Level.WARNING, "Alerte job : {0}", message);
+    }
+
+    private boolean estDesactiveParParametre(String cle) {
+        if (StringUtils.isBlank(cle)) {
+            return false;
+        }
+        try {
+            return jobSuspendu(cle, supportEventService.getParameter(cle.trim()));
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "estDesactiveParParametre " + cle, e);
+            return false;
+        }
+    }
+
+    /**
+     * Vrai si le job est commande par un parametre positionne a 0.
+     *
+     * Un parametre absent de la table, ou une colonne vide, laisse le job surveille : on ne suspend une surveillance
+     * que sur un refus EXPLICITE. Le pire des deux cotes n'est pas symetrique - se taire a tort laisse passer une panne
+     * reelle, alerter a tort noie les pannes reelles sous des dizaines d'alertes par jour ; seule une consigne claire
+     * de ne pas faire tourner le traitement justifie de se taire.
+     */
+    static boolean jobSuspendu(String cle, String valeurParametre) {
+        return StringUtils.isNotBlank(cle) && "0".equals(StringUtils.trimToEmpty(valeurParametre));
     }
 
     private boolean isSelectSeul(String sql) {

@@ -1646,8 +1646,10 @@ public class OrderServiceImpl implements OrderService {
             predicates.add(cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
         }
         if (StringUtils.isNotEmpty(dtStart) && StringUtils.isNotEmpty(dtEnd)) {
-            predicates.add(cb.between(cb.function("DATE", Date.class, root.get(TBonLivraison_.dtUPDATED)),
-                    java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd)));
+            // Comparaison sur la colonne elle-meme, entre le debut du premier jour et la fin du dernier. Enveloppee
+            // dans DATE(), la colonne cessait d'etre indexable et le SGBD relisait toute la table a chaque filtre.
+            predicates.add(cb.between(root.get(TBonLivraison_.dtUPDATED), DateCommonUtils.from(dtStart),
+                    DateCommonUtils.toDateAtEndOfDay(dtEnd)));
         }
 
         return predicates;
@@ -1679,6 +1681,11 @@ public class OrderServiceImpl implements OrderService {
             CriteriaQuery<TBonLivraison> cq = cb.createQuery(TBonLivraison.class);
             Root<TBonLivraison> root = cq.from(TBonLivraison.class);
 
+            // L'ecran affiche pour chaque bon l'operateur, la reference de commande et le grossiste. Sans ces
+            // jointures, chaque ligne allait les rechercher une par une : trois requetes de plus par bon affiche.
+            root.fetch(TBonLivraison_.lgUSERID, JoinType.LEFT);
+            root.fetch(TBonLivraison_.lgORDERID, JoinType.LEFT).fetch(TOrder_.lgGROSSISTEID, JoinType.LEFT);
+
             cq.select(root).orderBy(cb.desc(root.get(TBonLivraison_.dtUPDATED)));
             List<Predicate> predicates = getListBonsPredicats(cb, root, statut, search, dtStart, dtEnd);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -1706,10 +1713,90 @@ public class OrderServiceImpl implements OrderService {
 
     }
 
+    /**
+     * Chiffres d'un bon calcules par le SGBD : nombre de lignes, quantite totale, prix d'achat total et avancement du
+     * pointage. Donnee inerte, une instance par bon de la page.
+     */
+    private static final class ResumeBon {
+
+        private final int lignes;
+        private final int quantite;
+        private final long prixAchat;
+        private final int pointees;
+        private final int nonPointees;
+
+        private ResumeBon(int lignes, int quantite, long prixAchat, int pointees, int nonPointees) {
+            this.lignes = lignes;
+            this.quantite = quantite;
+            this.prixAchat = prixAchat;
+            this.pointees = pointees;
+            this.nonPointees = nonPointees;
+        }
+
+        /** Bon dont aucune ligne n'a ete trouvee : tout a zero, comme le parcours d'une collection vide. */
+        private static final ResumeBon VIDE = new ResumeBon(0, 0, 0L, 0, 0);
+
+        private StatutTraitement statutTraitement() {
+            return OrderServiceImpl.statutTraitement(pointees, nonPointees);
+        }
+    }
+
+    /**
+     * Resume de toutes les lignes des bons d'une page, en UNE requete.
+     *
+     * <p>
+     * L'ecran ne montre que des totaux, mais les obtenait en chargeant en memoire la collection complete des lignes de
+     * chaque bon - une trentaine d'objets par bon, cent bons par page - puis en interrogeant une seconde fois la base
+     * pour l'avancement du pointage. Trois cents allers-retours pour cinq nombres par ligne affichee. Le SGBD sait
+     * faire ces totaux lui-meme, sur l'index de la cle etrangere.
+     * </p>
+     *
+     * <p>
+     * Les deux comptages de pointage reprennent exactement les expressions de l'ancienne requete par bon : une ligne
+     * dont le pointage n'est pas renseigne n'est comptee ni comme pointee ni comme restante.
+     * </p>
+     */
+    private Map<String, ResumeBon> resumerLignesDesBons(List<String> bonIds) {
+        Map<String, ResumeBon> resumes = new HashMap<>();
+        if (CollectionUtils.isEmpty(bonIds)) {
+            return resumes;
+        }
+        try {
+            Query q = getEmg().createNativeQuery("SELECT d.lg_BON_LIVRAISON_ID," + " COUNT(*) AS lignes,"
+                    + " SUM(d.int_QTE_CMDE) AS quantite," + " SUM(d.int_PAF * d.int_QTE_CMDE) AS prixAchat,"
+                    + " SUM(CASE WHEN d.checked THEN 1 ELSE 0 END) AS pointees,"
+                    + " SUM(CASE WHEN d.checked IS FALSE THEN 1 ELSE 0 END) AS nonPointees"
+                    + " FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID IN (?1)"
+                    + " GROUP BY d.lg_BON_LIVRAISON_ID");
+            q.setParameter(1, bonIds);
+            for (Object ligne : q.getResultList()) {
+                Object[] colonnes = (Object[]) ligne;
+                resumes.put(String.valueOf(colonnes[0]), new ResumeBon(entier(colonnes[1]), entier(colonnes[2]),
+                        entierLong(colonnes[3]), entier(colonnes[4]), entier(colonnes[5])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "resume des lignes des bons", e);
+        }
+        return resumes;
+    }
+
+    private static int entier(Object valeur) {
+        return valeur instanceof Number ? ((Number) valeur).intValue() : 0;
+    }
+
+    private static long entierLong(Object valeur) {
+        return valeur instanceof Number ? ((Number) valeur).longValue() : 0L;
+    }
+
     private JSONArray buildListBons(String statut, String search, int start, int limit, String dtStart, String dtEnd) {
         try {
             JSONArray array = new JSONArray();
             List<TBonLivraison> datats = fetchListBons(statut, start, limit, search, dtStart, dtEnd);
+            Map<String, ResumeBon> resumes = resumerLignesDesBons(
+                    datats.stream().map(TBonLivraison::getLgBONLIVRAISONID).collect(Collectors.toList()));
+            // Le filtre de peremption est un reglage de l'officine, identique pour toute la page : il etait relu a
+            // chaque ligne.
+            boolean afficherFiltre = !checkDatePeremption();
 
             for (TBonLivraison bonLivraison : datats) {
                 JSONObject json = new JSONObject();
@@ -1726,25 +1813,18 @@ public class OrderServiceImpl implements OrderService {
                 json.put("int_MHT", bonLivraison.getIntMHT());
                 json.put("int_TVA", bonLivraison.getIntTVA());
                 json.put("int_HTTC", bonLivraison.getIntHTTC());
-                int totalQte = 0;
-                int prixAchat = 0;
-                int count = 0;
-                for (TBonLivraisonDetail it : bonLivraison.getTBonLivraisonDetailCollection()) {
-                    totalQte += it.getIntQTECMDE();
-                    prixAchat += (it.getIntPAF() * it.getIntQTECMDE());
-                    count++;
-                }
-                json.put("int_NBRE_LIGNE_BL_DETAIL", count);
-                json.put("int_NBRE_PRODUIT", totalQte);
+                ResumeBon resume = resumes.getOrDefault(bonLivraison.getLgBONLIVRAISONID(), ResumeBon.VIDE);
+                json.put("int_NBRE_LIGNE_BL_DETAIL", resume.lignes);
+                json.put("int_NBRE_PRODUIT", resume.quantite);
 
-                json.put("PRIX_ACHAT_TOTAL", prixAchat);
-                json.put("DISPLAYFILTER", !checkDatePeremption());
+                json.put("PRIX_ACHAT_TOTAL", resume.prixAchat);
+                json.put("DISPLAYFILTER", afficherFiltre);
 
                 json.put("str_STATUT", bonLivraison.getStrSTATUT());
                 json.put("dt_DATE_LIVRAISON", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtDATELIVRAISON()));
                 json.put("dt_CREATED", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtCREATED()));
                 json.put("dt_CREATED", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtUPDATED()));
-                json.put("statutTraitement", getBonStatut(bonLivraison.getLgBONLIVRAISONID()));
+                json.put("statutTraitement", resume.statutTraitement());
                 array.put(json);
             }
             return array;
@@ -2604,23 +2684,24 @@ public class OrderServiceImpl implements OrderService {
         return getStatutTraitement(result);
     }
 
-    private StatutTraitement getBonStatut(String id) {
-
-        Query q = getEmg().createNativeQuery(
-                "SELECT SUM(CASE WHEN d.checked THEN 1 ELSE 0 END) AS checkedCount,SUM(CASE WHEN d.checked IS FALSE THEN 1 ELSE 0 END) AS uncheckedCount FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID=?1");
-        q.setParameter(1, id);
-        Object[] result = (Object[]) q.getSingleResult();
-
-        return getStatutTraitement(result);
+    /**
+     * Avancement du pointage a partir des deux comptages.
+     *
+     * <p>
+     * Les SUM sont lus sans supposer qu'ils rendent un nombre : sur un dossier sans aucune ligne, le SGBD rend NULL et
+     * la lecture directe faisait echouer tout l'ecran. L'officine a 500 commandes sans ligne de detail au journal du
+     * support ; c'est exactement ce cas.
+     * </p>
+     */
+    private StatutTraitement getStatutTraitement(Object[] result) {
+        return statutTraitement(entier(result[0]), entier(result[1]));
     }
 
-    private StatutTraitement getStatutTraitement(Object[] result) {
-        int checkedCount = ((Number) result[0]).intValue();
-        int uncheckedCount = ((Number) result[1]).intValue();
-        if (uncheckedCount == 0) {
+    static StatutTraitement statutTraitement(int pointees, int nonPointees) {
+        if (nonPointees == 0) {
             return StatutTraitement.TERMINE;
         }
-        if (checkedCount == 0) {
+        if (pointees == 0) {
             return StatutTraitement.A_FAIRE;
         }
         return StatutTraitement.EN_COURS;

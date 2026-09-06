@@ -59,6 +59,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -2783,7 +2784,16 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (CollectionUtils.isEmpty(tuples)) {
             return Collections.emptyList();
         }
-        return tuples.stream().map(tuple -> tupleToVenteDTO(tuple, canexport, params)).collect(Collectors.toList());
+        List<VenteDTO> ventes = tuples.stream().map(tuple -> tupleToVenteDTO(tuple, canexport, params))
+                .collect(Collectors.toList());
+        if (params.isOnlyAvoir()) {
+            // Les produits en avoir sont ramenes pour toute la page en une fois : voir avoirItems.
+            Map<String, List<VenteDetailsDTO>> parVente = avoirItems(
+                    ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).collect(Collectors.toList()));
+            ventes.forEach(vente -> vente
+                    .setItems(parVente.getOrDefault(vente.getLgPREENREGISTREMENTID(), Collections.emptyList())));
+        }
+        return ventes;
     }
 
     /**
@@ -2860,11 +2870,6 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (dtClotureAvoir != null) {
             venteDTO.setDtCLOTUREAVOIR(dateFormat.format(dtClotureAvoir) + " " + heureFormat.format(dtClotureAvoir));
         }
-        // Produits uniquement en avoir (pour le centre de notifications)
-        if (params.isOnlyAvoir()) {
-            venteDTO.setItems(avoirItems(venteDTO.getLgPREENREGISTREMENTID()));
-        }
-
         String pkBrand = tuple.get("pkBrand", String.class);
         if (StringUtils.isNotEmpty(pkBrand)) {
             MagasinDTO magasin = new MagasinDTO(findEmplacementById(pkBrand));
@@ -2875,18 +2880,36 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return venteDTO;
     }
 
-    // Lignes effectivement en avoir d'une vente (quantite courante ou historisee > 0),
-    // utilisees pour afficher les produits en avoir dans les notifications.
-    private List<VenteDetailsDTO> avoirItems(String venteId) {
+    /**
+     * Lignes effectivement en avoir (quantite courante ou historisee > 0) des ventes d'une page, groupees par vente.
+     *
+     * <p>
+     * Ces produits alimentent la cloche des avoirs, que chaque poste rafraichit toutes les 60 secondes. Ils etaient
+     * cherches vente par vente, et le detail de chaque ligne allait ensuite chercher sa vente puis son article : pour
+     * cinquante avoirs affiches, plus de cent soixante-dix allers-retours a la base, quatre fois par heure et par
+     * poste. Une seule requete les ramene maintenant tous, avec la vente et l'article dont le detail a besoin.
+     * </p>
+     */
+    private Map<String, List<VenteDetailsDTO>> avoirItems(List<String> venteIds) {
+        if (CollectionUtils.isEmpty(venteIds)) {
+            return Collections.emptyMap();
+        }
         try {
-            List<TPreenregistrementDetail> lines = getEntityManager().createQuery(
-                    "SELECT d FROM TPreenregistrementDetail d WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = :id "
-                            + "AND (d.intAVOIR > 0 OR d.intAVOIRINITIAL > 0)",
-                    TPreenregistrementDetail.class).setParameter("id", venteId).getResultList();
-            return lines.stream().map(VenteDetailsDTO::new).collect(Collectors.toList());
+            List<TPreenregistrementDetail> lines = getEntityManager()
+                    .createQuery("SELECT d FROM TPreenregistrementDetail d"
+                            + " JOIN FETCH d.lgPREENREGISTREMENTID v JOIN FETCH d.lgFAMILLEID"
+                            + " WHERE v.lgPREENREGISTREMENTID IN :ids"
+                            + " AND (d.intAVOIR > 0 OR d.intAVOIRINITIAL > 0)", TPreenregistrementDetail.class)
+                    .setParameter("ids", venteIds).getResultList();
+            Map<String, List<VenteDetailsDTO>> parVente = new HashMap<>();
+            for (TPreenregistrementDetail ligne : lines) {
+                parVente.computeIfAbsent(ligne.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID(),
+                        cle -> new ArrayList<>()).add(new VenteDetailsDTO(ligne));
+            }
+            return parVente;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
     }
 

@@ -53,6 +53,12 @@ public interface SupportEventService {
     String readLogContent(String eventId);
 
     /**
+     * Contexte metier a joindre a un evenement, deduit de l'adresse appelee : pour la vente, la reference de la vente
+     * concernee, son etat et qui la tenait. {@code null} quand rien n'est reconnu.
+     */
+    String contexteMetier(String uri);
+
+    /**
      * Valeur d'un parametre applicatif (t_parameters), ou {@code null} si absent.
      */
     String getParameter(String key);

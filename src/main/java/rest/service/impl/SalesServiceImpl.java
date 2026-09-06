@@ -567,6 +567,13 @@ public class SalesServiceImpl implements SalesService {
                 return json;
 
             }
+            String motifStock = controleAnnulationVente(tp);
+            if (motifStock != null) {
+                json.put("success", false);
+                json.put("venteSansSortieStock", true);
+                json.put("msg", motifStock);
+                return json;
+            }
 
             Optional<TRecettes> oprectte = findRecette(tp.getLgPREENREGISTREMENTID());
             List<TPreenregistrementDetail> preenregistrementDetails = getItems(tp);
@@ -1606,9 +1613,212 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Motif de refus du retrait d'un produit, null quand le retrait est possible.
+     *
+     * Une vente cloturee a deja donne ses mouvements de stock, qui pointent sur ses lignes : la ligne ne peut plus etre
+     * supprimee (contrainte hmvtproduit) et, surtout, elle ne DOIT pas l'etre, sinon la caisse et le stock ne
+     * correspondraient plus a la vente. Le cas se produit quand l'ecran d'une caisse reste sur une vente qu'une autre
+     * caisse vient de cloturer : la caissiere voyait alors une erreur 500.
+     */
+    @Override
+    public String controleRetraitLigne(String itemId) {
+        TPreenregistrementDetail tpd = this.getEm().find(TPreenregistrementDetail.class, itemId);
+        if (tpd == null) {
+            return "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.";
+        }
+        TPreenregistrement tp = tpd.getLgPREENREGISTREMENTID();
+        if (tp == null) {
+            return "Ce produit n'est plus rattaché à une vente : actualisez l'écran avant de continuer.";
+        }
+        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+            return null;
+        }
+        return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
+    }
+
+    /**
+     * Motif de refus quand la vente visee n'est plus modifiable, null si le traitement peut se poursuivre.
+     *
+     * Constate en officine : l'ecran envoie l'identifiant d'une vente disparue ou deja cloturee (type de vente change,
+     * vente reprise ailleurs, ecran reste ouvert). Le serveur allait alors chercher la vente avec un identifiant absent
+     * ou inconnu et tombait en erreur 500, sans rien dire a la caissiere.
+     */
+    @Override
+    public String controleVenteModifiable(String venteId) {
+        if (StringUtils.isBlank(venteId)) {
+            return "La vente n'est plus identifiée à l'écran : actualisez l'écran de vente avant de continuer.";
+        }
+        TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, venteId);
+        if (tp == null) {
+            return "Cette vente n'existe plus : actualisez l'écran de vente avant de continuer.";
+        }
+        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+            return null;
+        }
+        return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
+    }
+
+    /**
+     * Motif de refus du calcul du net a payer d'une vente tiers payant, null quand le calcul peut se faire.
+     *
+     * Constate en officine : le client venait d'etre detache de la vente et l'ecran redemandait le net assurance ; le
+     * calcul cherchait la remise du client absent et tombait en erreur 500.
+     */
+    @Override
+    public String controleCalculNetAssurance(SalesParams params) {
+        if (params == null) {
+            return "Aucune donnée n'a été reçue pour ce calcul : actualisez l'écran de vente.";
+        }
+        String motif = controleVenteModifiable(params.getVenteId());
+        if (motif != null) {
+            return motif;
+        }
+        TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, params.getVenteId());
+        if (tp.getClient() == null) {
+            return "Cette vente n'a plus de client : rattachez le client avant de demander le net à payer.";
+        }
+        if (params.getTierspayants() == null || params.getTierspayants().isEmpty()) {
+            return "Aucun tiers payant n'est retenu sur cette vente : ajoutez-le avant de demander le net à payer.";
+        }
+        return null;
+    }
+
+    /** Motif de refus de l'ajout d'un produit a une vente en cours, null quand l'ajout peut se faire. */
+    @Override
+    public String controleAjoutProduit(SalesParams params) {
+        if (params == null) {
+            return "Aucune donnée n'a été reçue pour cet ajout : actualisez l'écran de vente.";
+        }
+        String motif = controleVenteModifiable(params.getVenteId());
+        if (motif != null) {
+            return motif;
+        }
+        if (StringUtils.isBlank(params.getProduitId())) {
+            return "Aucun produit n'a été retenu : choisissez le produit dans la liste avant de valider la quantité.";
+        }
+        if (this.getEm().find(TFamille.class, params.getProduitId()) == null) {
+            return "Ce produit n'existe plus dans le fichier des articles : actualisez l'écran de vente.";
+        }
+        if (params.getQte() <= 0) {
+            return "La quantité doit être supérieure à zéro.";
+        }
+        return null;
+    }
+
+    /**
+     * Nombre de produits d'une vente cloturee qui ne sont jamais sortis du stock.
+     *
+     * MvtProduitServiceImpl.updateVenteStock fait DEUX choses dans la meme boucle : il ecrit le mouvement dans
+     * hmvtproduit ET passe la ligne a « is_Closed ». Une ligne restee a « is_Process » sous une vente « is_Closed »
+     * signifie donc, de facon certaine, que le stock n'a jamais ete diminue pour ce produit.
+     *
+     * La regle ne regarde que les ventes cloturees : sur une vente en cours, « is_Process » est l'etat normal.
+     */
+    static int lignesSansSortieDeStock(String statutVente, List<String> statutsDesLignes) {
+        if (!Constant.STATUT_IS_CLOSED.equals(statutVente) || statutsDesLignes == null) {
+            return 0;
+        }
+        return (int) statutsDesLignes.stream().filter(Constant.STATUT_IS_PROGRESS::equals).count();
+    }
+
+    /**
+     * Message de refus de l'annulation : les produits de cette vente ne sont jamais sortis du stock.
+     *
+     * On informe, sans orienter : l'annulation est impossible, il n'y a pas de geste de remplacement a proposer a la
+     * caissiere. Le detail chiffre permet de retrouver la vente et de comprendre le refus.
+     */
+    static String messageAnnulationSansSortieStock(String reference, Date cloturee, int sansSortie, int total) {
+        String quand = DateCommonUtils.formatDateHeureCreation(cloturee);
+        String produits;
+        if (sansSortie >= total) {
+            produits = total <= 1 ? "son produit n'est jamais sorti du stock"
+                    : "aucun de ses " + total + " produits n'est jamais sorti du stock";
+        } else {
+            produits = sansSortie == 1 ? "1 de ses " + total + " produits n'est jamais sorti du stock"
+                    : sansSortie + " de ses " + total + " produits ne sont jamais sortis du stock";
+        }
+        String vente = StringUtils.isBlank(reference) ? "cette vente" : "la vente N° " + reference;
+        if (!quand.isEmpty()) {
+            vente = vente + ", clôturée le " + quand + ",";
+        }
+        return "Annulation refusée : " + vente + " n'a pas diminué le stock — " + produits
+                + ". L'annuler remettrait en stock des produits qui n'en sont jamais sortis, et le stock affiché"
+                + " passerait au-dessus du stock réel. L'incident est signalé au Centre de Support.";
+    }
+
+    /** Statuts des lignes d'une vente, en une requete : la regle ci-dessus n'a besoin que de ceux-la. */
+    private List<String> statutsDesLignes(String venteId) {
+        try {
+            return this.getEm()
+                    .createQuery("SELECT d.strSTATUT FROM TPreenregistrementDetail d"
+                            + " WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1", String.class)
+                    .setParameter(1, venteId).getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Lecture des statuts des lignes de la vente " + venteId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Motif de refus de l'annulation, null quand l'annulation peut se faire.
+     *
+     * Constate en officine : des ventes cloturees portent des lignes restees « is_Process », donc jamais destockees —
+     * soit parce que la cloture s'est interrompue avant la sortie de stock, soit parce que la vente a ete modifiee
+     * apres coup. annulerVente recredite le stock ligne par ligne sans verifier que la sortie a eu lieu : sur une telle
+     * vente, l'annulation cree un ecart au lieu d'en corriger un.
+     */
+    private String controleAnnulationVente(TPreenregistrement tp) {
+        List<String> statuts = statutsDesLignes(tp.getLgPREENREGISTREMENTID());
+        int sansSortie = lignesSansSortieDeStock(tp.getStrSTATUT(), statuts);
+        if (sansSortie == 0) {
+            return null;
+        }
+        signalerAnnulationSansSortieStock(tp, sansSortie, statuts.size());
+        return messageAnnulationSansSortieStock(tp.getStrREF(), tp.getDtUPDATED(), sansSortie, statuts.size());
+    }
+
+    private void signalerAnnulationSansSortieStock(TPreenregistrement tp, int sansSortie, int total) {
+        try {
+            String date = DateCommonUtils.formatDateHeureCreation(tp.getDtUPDATED());
+            TUser caissier = tp.getLgUSERCAISSIERID() != null ? tp.getLgUSERCAISSIERID() : tp.getLgUSERID();
+            String login = caissier != null ? caissier.getStrLOGIN() : "?";
+            rest.service.dto.SupportEventDTO dto = new rest.service.dto.SupportEventDTO();
+            dto.setType("APPLICATION");
+            dto.setNiveau(dal.ApplicationEvent.NIVEAU_WARN);
+            dto.setModule("VENTE");
+            dto.setMessageCourt("Annulation refusée : vente clôturée dont les produits ne sont jamais sortis du stock");
+            dto.setUrlOuEcran("Vente " + StringUtils.defaultString(tp.getStrREF()) + " du " + date);
+            dto.setStack("La sortie de stock n'a pas eu lieu pour " + sansSortie + " ligne(s) sur " + total
+                    + " : les recréditer augmenterait le stock de produits jamais sortis."
+                    + " Seul un comptage physique peut trancher l'état réel de ces articles.");
+            dto.setPayloadJson(new JSONObject().put("venteId", tp.getLgPREENREGISTREMENTID())
+                    .put("reference", StringUtils.defaultString(tp.getStrREF())).put("date", date)
+                    .put("montant", tp.getIntPRICE()).put("lignesSansSortie", sansSortie).put("lignesTotal", total)
+                    .put("caissier", login).toString());
+            supportEventService.record(dto, login);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Signalement au support d'une annulation refusee", e);
+        }
+    }
+
+    /** Message de refus : la vente n'est plus en cours, le retrait passe par les ventes terminees. */
+    static String messageVenteNonModifiable(String reference, Date cloturee) {
+        String quand = DateCommonUtils.formatDateHeureCreation(cloturee);
+        return "Cette vente" + (StringUtils.isBlank(reference) ? "" : " (N° " + reference + ")") + " a été clôturée"
+                + (quand.isEmpty() ? "" : " le " + quand)
+                + " : elle ne peut plus être modifiée ici. Pour retirer un produit, passez par"
+                + " « Ventes terminées » puis « Modifier ».";
+    }
+
     @Override
     public TPreenregistrement removePreenregistrementDetail(String itemId) {
         EntityManager emg = this.getEm();
+        // Meme regle appliquee au plus pres de la suppression : une vente cloturee entre l'affichage de l'ecran et
+        // le clic ne doit pas perdre une ligne.
+        if (controleRetraitLigne(itemId) != null) {
+            return null;
+        }
         try {
             TPreenregistrementDetail tpd = emg.find(TPreenregistrementDetail.class, itemId);
             TPreenregistrement tp = tpd.getLgPREENREGISTREMENTID();

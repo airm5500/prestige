@@ -102,6 +102,10 @@ public class DailyStockService {
                 if (deja > 0) {
                     LOG.log(Level.INFO, "Journee {0} deja relevee ({1} lignes) : releve ignore au demarrage.",
                             new Object[] { dateAsInt, deja });
+                    // Le job a bien fait son travail : la journee est relevee, il n'y avait rien a ecrire. Sans cette
+                    // declaration, le controle de fraicheur du Centre de Support concluait « le job n'a peut-etre
+                    // jamais tourne » a chaque heure, alors que la donnee etait la.
+                    supportEventService.recordJobRun("SNAPSHOT_STOCK");
                     return;
                 }
             }
@@ -336,6 +340,29 @@ public class DailyStockService {
             }
         }
         LOG.info("Stock daily value update finished");
+    }
+
+    /**
+     * Rattrapage de la valorisation au demarrage.
+     *
+     * <p>
+     * Le declenchement de 00:05 n'arrive jamais dans une officine qui eteint son serveur la nuit : sans ce rattrapage,
+     * stock_daily_value reste vide et le Centre de Support signale une valorisation en retard que rien ne peut plus
+     * rattraper.
+     * </p>
+     *
+     * <p>
+     * A la difference du declenchement planifie, ce rattrapage respecte KEY_VALORISATION_JOURNALIERE : un demarrage ne
+     * doit pas produire un traitement que l'officine a choisi d'arreter.
+     * </p>
+     */
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    public void updateStockDailyValueOnStartup() {
+        if (!isEnabled()) {
+            LOG.info("Valorisation quotidienne desactivee : rattrapage au demarrage ignore.");
+            return;
+        }
+        self.updateStockDailyValueAsync();
     }
 
     private boolean isAlreadyUpdated(int day) {

@@ -2368,11 +2368,18 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.getVnoproduitCombo()
                             .focus(false, 100);
                     me.refresh();
+                } else {
+                    /* Retrait refuse (vente cloturee entre-temps par une autre caisse, ligne disparue) :
+                     * le motif est affiche et la vente est relue pour que l'ecran cesse de montrer
+                     * une vente qui n'est plus modifiable. */
+                    Ext.Msg.alert('Retrait du produit', result.msg || 'Le produit n\'a pas pu être retiré');
+                    me.refresh();
                 }
             },
             failure: function (response, options) {
                 progress.hide();
-                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                Ext.Msg.alert('Retrait du produit',
+                        'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
             }
         });
     }
@@ -6551,6 +6558,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                                     });
                                 }
                             } else {
+                                /* Calcul refusé (vente disparue ou clôturée entre-temps) : le motif est affiché,
+                                 * sinon la caissière voyait le bouton sans effet. */
+                                if (result && result.msg) {
+                                    Ext.MessageBox.show({
+                                        title: 'Net à payer',
+                                        width: 550,
+                                        msg: result.msg,
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.WARNING
+                                    });
+                                }
                                 me.getMontantRecu().focus(true, 50);
 
                             }
@@ -6558,7 +6576,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         },
                         failure: function (response, options) {
                             progress.hide();
-                            Ext.Msg.alert("Message", 'Un problème s\'est produit avec le server ' + response.status);
+                            Ext.Msg.alert('Net à payer',
+                                    'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
                         }
 
                     });
