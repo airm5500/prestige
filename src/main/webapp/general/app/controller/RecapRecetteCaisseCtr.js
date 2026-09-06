@@ -13,7 +13,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         },
         {
             ref: 'pagingtoolbar',
-            selector: 'caisserecetterecap gridpanel pagingtoolbar'
+            selector: 'caisserecetterecap #caisserecetterecapGrid pagingtoolbar'
         }
 
         , {
@@ -32,12 +32,24 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         },
 
         {
+            /* Selecteurs precis : depuis l'ajout de l'onglet « Suivi des modes de reglement »,
+               l'ecran porte DEUX grilles. « caisserecetterecap gridpanel » aurait rendu la
+               premiere venue, ce qui tient tant que l'ordre des onglets ne bouge pas - une
+               dependance invisible qu'on ne veut pas laisser. */
             ref: 'caisserecetterecapGrid',
-            selector: 'caisserecetterecap gridpanel'
+            selector: 'caisserecetterecap #caisserecetterecapGrid'
+        },
+        {
+            ref: 'grilleModes',
+            selector: 'caisserecetterecap #grilleModes'
+        },
+        {
+            ref: 'courbeModes',
+            selector: 'caisserecetterecap #courbeModes'
         },
         {
             ref: 'pagingtoolbar',
-            selector: 'caisserecetterecap gridpanel pagingtoolbar'
+            selector: 'caisserecetterecap #caisserecetterecapGrid pagingtoolbar'
         },
         {ref: 'groupByYear',
             selector: 'caisserecetterecap #groupByYear'
@@ -50,7 +62,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
     ],
     init: function (application) {
         this.control({
-            'caisserecetterecap gridpanel pagingtoolbar': {
+            'caisserecetterecap #caisserecetterecapGrid pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
             'caisserecetterecap #rechercher': {
@@ -66,7 +78,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             'caisserecetterecap #btnExcel': {
                 click: this.onExport
             },
-            'caisserecetterecap gridpanel': {
+            'caisserecetterecap #caisserecetterecapGrid': {
                 viewready: this.doInitStore
             }
 
@@ -132,5 +144,106 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
                 dtEnd: me.getEndDateField().getSubmitValue()
             }
         });
+        me.chargerModes();
+    },
+
+    /* Suivi des modes de reglement (point 22) : la synthese et la courbe suivent la MEME periode
+       que le tableau. Le filtre par type de reglement n'est volontairement pas repris : cet onglet
+       repond a « comment mes clients paient-ils ? », question qui perd son sens si l'on ne regarde
+       qu'un mode. */
+    chargerModes: function () {
+        const me = this;
+        const grille = me.getGrilleModes();
+        if (!grille) {
+            return;
+        }
+        grille.getStore().load({
+            params: {
+                dtStart: me.getStartDateField().getSubmitValue(),
+                dtEnd: me.getEndDateField().getSubmitValue(),
+                groupByYear: me.getGroupByYear().checked
+            },
+            callback: function (enregistrements, operation, succes) {
+                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true)) || {};
+                me.construireCourbeModes(json);
+            }
+        });
+    },
+
+    construireCourbeModes: function (json) {
+        const me = this;
+        const panneau = me.getCourbeModes();
+        if (!panneau) {
+            return;
+        }
+        const tranches = json.tranches || [];
+        const series = json.series || [];
+        panneau.removeAll(true);
+        panneau.update('');
+        if (!tranches.length || !series.length) {
+            panneau.update('<div style="margin:20px;color:#666;">Aucun encaissement sur la période.</div>');
+            return;
+        }
+        /* Magasin transpose : une ligne par tranche de temps, un champ par mode. C'est la forme
+           qu'attend le traceur, alors que le serveur rend une serie par mode. */
+        const champs = ['periode'].concat(series.map(function (s, i) {
+            return {name: 'm' + i, type: 'number'};
+        }));
+        const donnees = tranches.map(function (tranche, rang) {
+            const ligne = {periode: String(tranche)};
+            series.forEach(function (s, i) {
+                ligne['m' + i] = (s.points || [])[rang] || 0;
+            });
+            return ligne;
+        });
+        const store = Ext.create('Ext.data.Store', {fields: champs, data: donnees});
+        panneau.add(Ext.create('Ext.chart.Chart', {
+            itemId: 'courbe',
+            style: 'background:#fff',
+            animate: true,
+            insetPadding: 30,
+            store: store,
+            // Legende demandee en recette : sans elle, une courbe a six modes ne se lit pas.
+            legend: {position: 'bottom'},
+            axes: [{
+                    type: 'Numeric',
+                    position: 'left',
+                    minimum: 0,
+                    grid: true,
+                    fields: series.map(function (s, i) {
+                        return 'm' + i;
+                    }),
+                    title: 'Montant encaissé',
+                    label: {renderer: Ext.util.Format.numberRenderer('0,0')}
+                }, {
+                    type: 'Category',
+                    position: 'bottom',
+                    fields: ['periode'],
+                    title: false
+                }],
+            series: series.map(function (s, i) {
+                return {
+                    type: 'line',
+                    axis: 'left',
+                    xField: 'periode',
+                    yField: 'm' + i,
+                    title: s.mode,
+                    highlight: {size: 6, radius: 6},
+                    smooth: false,
+                    markerConfig: {type: 'circle', size: 4, radius: 4, 'stroke-width': 0},
+                    style: {'stroke-width': 2},
+                    // Info-bulle a la valeur EXACTE : la courbe donne la tendance, l'info-bulle le chiffre.
+                    tips: {
+                        trackMouse: true,
+                        width: 320,
+                        height: 34,
+                        renderer: function (element) {
+                            this.setTitle(s.mode + ' - ' + element.get('periode') + ' : '
+                                    + Ext.util.Format.number(element.get('m' + i), '0,000'));
+                        }
+                    }
+                };
+            })
+        }));
     }
 });
