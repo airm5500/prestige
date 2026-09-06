@@ -323,7 +323,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                             handler: this.showDetail,
                             getClass: function (value, metadata, record) {
                                 if (record.get('id') != "") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -345,7 +345,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                             handler: this.onReediterTicket,
                             getClass: function (value, metadata, record) {
                                 // Sans identifiant de mouvement, il n'y a pas de ticket a refaire.
-                                return record.get('id') ? 'x-display-hide' : 'x-hide-display';
+                                return record.get('id') ? '' : 'x-hide-display';
                             }
                         }]
                 }

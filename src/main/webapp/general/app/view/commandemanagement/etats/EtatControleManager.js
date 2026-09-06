@@ -349,7 +349,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             scope: this,
                             getClass: function (value, metadata, record) {
                                 if (record.get('returnFullBl')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 }
 
                                 return 'x-hide-display';
@@ -370,7 +370,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             scope: this,
                             getClass: function (value, metadata, record) {
                                 if (btnUpdate) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }

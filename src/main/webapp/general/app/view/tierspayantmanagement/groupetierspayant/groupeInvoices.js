@@ -157,7 +157,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                         var certifiees = Number(rec.get('NB_CERTIFIEES') || 0);
                                         var total = Number(rec.get('NBFACTURES') || 0);
                                         return (total > 0 && certifiees >= total) ? 'x-hide-display'
-                                                : 'x-display-hide';
+                                                : '';
                                     },
                                     getTip: function (v, meta, rec) {
                                         var certifiees = Number(rec.get('NB_CERTIFIEES') || 0);
@@ -177,7 +177,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                     getClass: function (v, meta, rec) {
                                         var certifiees = Number(rec.get('NB_CERTIFIEES') || 0);
                                         var total = Number(rec.get('NBFACTURES') || 0);
-                                        return (total > 0 && certifiees >= total) ? 'x-display-hide'
+                                        return (total > 0 && certifiees >= total) ? ''
                                                 : 'x-hide-display';
                                     },
                                     getTip: function (v, meta, rec) {
@@ -210,7 +210,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                     // certifiee. Les factures qui portent deja un avoir ne sont jamais
                                     // renvoyees, celles non certifiees sont ignorees (controle serveur).
                                     getClass: function (v, meta, rec) {
-                                        return Number(rec.get('NB_CERTIFIEES') || 0) > 0 ? 'x-display-hide'
+                                        return Number(rec.get('NB_CERTIFIEES') || 0) > 0 ? ''
                                                 : 'x-hide-display';
                                     },
                                     getTip: function (v, meta, rec) {

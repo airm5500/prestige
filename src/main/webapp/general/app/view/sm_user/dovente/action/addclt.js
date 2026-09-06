@@ -212,7 +212,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.addclt', {
                                     handler: this.onChooseCustomerClick,
                                     getClass: function() {
                                         if (Ogrid === "Client") {
-                                            return 'x-display-hide';
+                                            return '';
                                         } else if (Ogrid === "Tiers.Payant") {
                                             return 'x-hide-display';
                                         }
@@ -254,7 +254,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.addclt', {
                                         if (Ogrid === "Client") {
                                             return 'x-hide-display';
                                         } else if (Ogrid === "Tiers.Payant") {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                     }
                                 }]

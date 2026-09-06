@@ -661,7 +661,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             handler: this.onVoirLots,
                                             getClass: function (value, metadata, record) {
                                                 if (record.get('lots').length > 0) {
-                                                    return 'x-display-hide'; //affiche l'icone
+                                                    return '';
                                                 } else {
                                                     return 'x-hide-display'; //cache l'icone
                                                 }
@@ -692,7 +692,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             handler: this.onAddGrossisteClick,
                                             getClass: function (value, metadata, record) {
                                                 if (record.get('str_CODE_ARTICLE') == "") {
-                                                    return 'x-display-hide'; //affiche l'icone
+                                                    return '';
                                                 } else {
                                                     return 'x-hide-display'; //cache l'icone
                                                 }

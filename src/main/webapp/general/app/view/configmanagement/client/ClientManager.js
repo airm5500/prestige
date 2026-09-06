@@ -265,7 +265,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             handler: this.onAyantDroitView,
                             getClass: function (value, metadata, record) {
                                 if (record.get('lg_TYPE_CLIENT_ID') === "Assurance") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -298,7 +298,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             tooltip: 'Supprimer',
                             scope: this, getClass: function (value, metadata, record) {
                                 if (record.get('BTNDELETE')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }
@@ -320,7 +320,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
 
                                 //"Standard"
                                 if (record.get('lg_TYPE_CLIENT_ID') === "Assurance") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -350,7 +350,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             tooltip: 'D&eacute;sactiver / R&eacute;activer le client',
                             scope: this, getClass: function (value, metadata, record) {
                                 if (record.get('P_BTN_DESACTIVER_CLIENT')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }

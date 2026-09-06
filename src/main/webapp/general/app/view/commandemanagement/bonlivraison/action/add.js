@@ -251,7 +251,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                     items: [{
                                             icon: 'resources/images/icons/fam/delete.png', tooltip: 'Suppression de lot', scope: this, handler: this.onRemoveLotClick,
                                             getClass: function (v, m, r) {
-                                                return (r.get('freeQty') > 0 || r.get('hasLots')) ? 'x-display-hide' : 'x-hide-display';
+                                                return (r.get('freeQty') > 0 || r.get('hasLots')) ? '' : 'x-hide-display';
                                             }
                                         }]
                                 }

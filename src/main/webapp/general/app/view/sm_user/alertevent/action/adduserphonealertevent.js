@@ -185,7 +185,7 @@ Ext.define('testextjs.view.sm_user.alertevent.action.adduserphonealertevent', {
                          if (Ogrid === "Client") {
                          return 'x-hide-display';
                          } else if (Ogrid === "Tiers.Payant") {
-                         return 'x-display-hide';
+                         return '';
                          }
                          }
                          }]

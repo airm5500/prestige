@@ -215,7 +215,7 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                             getClass: function(value, metadata, record) {
                                 //    alert("etat"+record.get('etat')+"|int_STOCK_REAPROVISONEMENT"+record.get('int_STOCK_REAPROVISONEMENT'));
                                 if (record.get('etat') === "1" && record.get('int_STOCK_REAPROVISONEMENT') > 0) {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -236,10 +236,15 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                             handler: this.onDeleteProductToPerimeClick,
                             getClass: function(value, metadata, record) {
 
-                                if (record.get('int_STOCK_REAPROVISONEMENT') === 0) {  //read your condition from the record
-                                    return 'x-hide-display'; //affiche l'icone
+                                /* Attention : les deux commentaires d'origine annoncaient l'inverse
+                                 * de ce que le code fait. Le comportement est laisse tel quel - la
+                                 * colonne entiere est masquee (hidden ci-dessus), personne ne le voit -
+                                 * mais les libelles sont remis d'aplomb : sans reappro, l'icone est
+                                 * CACHEE ; avec un reappro, elle est visible. */
+                                if (record.get('int_STOCK_REAPROVISONEMENT') === 0) {
+                                    return 'x-hide-display'; // cache l'icone
                                 } else {
-                                    return 'x-display-hide'; //cache l'icone
+                                    return ''; // affiche l'icone
                                 }
                             }
                         }

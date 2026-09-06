@@ -320,7 +320,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                                     getClass: function (value, metadata, record) {
 
                                         if (record.get('ligneResumeCaisses').length > 0 || record.get('ligneReglements').length) {  //read your condition from the record
-                                            return 'x-display-hide'; //affiche l'icone
+                                            return '';
                                         } else {
                                             return 'x-hide-display'; //cache l'icone
                                         }
@@ -344,7 +344,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
 
                                     getClass: function (value, metadata, record) {
                                         if (record.get('statut') == "is_Using" || record.get('statut') == "is_Process") {  //read your condition from the record
-                                            return 'x-display-hide'; //affiche l'icone
+                                            return '';
                                         } else {
                                             return 'x-hide-display'; //cache l'icone
                                         }
@@ -366,7 +366,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                                     },
                                     getClass: function (value, metadata, record) {
                                         if (record.get('statut') == "is_Process") {  //read your condition from the record
-                                            return 'x-display-hide'; //affiche l'icone
+                                            return '';
                                         } else {
                                             return 'x-hide-display'; //cache l'icone
                                         }
@@ -390,7 +390,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                                             return 'x-hide-display';
                                         } else {
                                             if (record.get('statut') == "is_Process") {  //read your condition from the record
-                                                return 'x-display-hide'; //affiche l'icone
+                                                return '';
                                             } else {
                                                 return 'x-hide-display'; //cache l'icone
                                             }

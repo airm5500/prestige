@@ -319,7 +319,7 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
                                         if (record.get('cancel') || record.get('intPRICE') <= 0) {
                                             return 'x-hide-display';
                                         }
-                                        return ''; // ⚠️ pas x-display-hide
+                                        return '';
                                     }
                                 }]
                         }

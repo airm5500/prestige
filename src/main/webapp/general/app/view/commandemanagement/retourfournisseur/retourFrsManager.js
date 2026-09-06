@@ -167,7 +167,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             handler: this.onPasseRetourFournisseurClick,
                             getClass: function (value, metadata, record) {
                                 if (record.get('str_STATUT') == "enable") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -186,7 +186,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             handler: this.onManageDetailsClick,
                             getClass: function (value, metadata, record) {
                                 if (record.get('str_STATUT') == "is_Process") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -199,7 +199,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             handler: this.Response,
                             getClass: function (value, metadata, record) {
                                 if (!record.get('closed')) {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -234,7 +234,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             getClass: function (value, metadata, record) {
                                 if (record.get('str_STATUT') === "enable") {  //read your condition from the record
                                     if (record.get('BTNDELETE'))
-                                        return 'x-display-hide';
+                                        return '';
                                     else
                                         return 'lock';
                                 } else {

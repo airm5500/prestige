@@ -522,7 +522,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         scope: me,
                                                         getClass: function (value, metadata, record) {
                                                             if (record.get('canRemove') == 1) {
-                                                                return 'x-display-hide';
+                                                                return '';
                                                             } else {
                                                                 return "x-hide-display";
                                                             }

@@ -352,7 +352,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     tooltip: 'ticket vente modifiée',
                                     getClass: function (value, metadata, record) {
                                         if (record.get('copy')) {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
 
                                         return 'x-hide-display';
@@ -382,7 +382,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                                 if (record.get('intPRICE') <= 0) {
                                                     return 'x-hide-display';
                                                 } else {
-                                                    return 'x-display-hide';
+                                                    return '';
                                                 }
                                             }
                                         }
@@ -408,7 +408,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                             if (record.get('intPRICE') <= 0) {
                                                 return 'x-hide-display';
                                             } else {
-                                                return 'x-display-hide';
+                                                return '';
                                             }
                                         }
                                     },
@@ -433,7 +433,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                             if (record.get('cancel')) {
                                                 return 'x-hide-display';
                                             } else {
-                                                return 'x-display-hide';
+                                                return '';
                                             }
 
                                         }
@@ -457,7 +457,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     getClass: function (value, metadata, record) {
 
                                         if (record.get('lgTYPEVENTEID') === "5") {
-                                            return 'x-display-hide'; //affiche l'icone
+                                            return '';
                                         } else {
                                             return 'x-hide-display'; //cache l'icone
                                         }
@@ -478,7 +478,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     },
                                     getClass: function (value, metadata, record) {
                                         if (record.get('intPRICE') > 0 && !record.get('cancel') && record.get('modification')) {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                         return 'x-hide-display';
                                     }
@@ -499,7 +499,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     },
                                     getClass: function (value, metadata, record) {
                                         if (record.get('intPRICE') > 0 && !record.get('cancel') && record.get('modificationClientTp') && (record.get('strTYPEVENTE') !== "VNO")) {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                         return 'x-hide-display';
                                     }
@@ -520,7 +520,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     },
                                     getClass: function (value, metadata, record) {
                                         if (record.get('intPRICE') > 0 && !record.get('cancel') && record.get('modificationVenteDate') && (record.get('strTYPEVENTE') === "VO")) {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                         return 'x-hide-display';
                                     }
@@ -542,7 +542,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     },
                                     getClass: function (value, metadata, record) {
                                         if (record.get('intPRICE') > 0 && !record.get('cancel') && record.get('canexport')) {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                         return 'x-hide-display';
                                     }

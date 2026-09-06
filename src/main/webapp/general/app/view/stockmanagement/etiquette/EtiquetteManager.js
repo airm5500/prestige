@@ -350,7 +350,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
     },
 //    testaction: function (Ovalue) {
 //        if (Ovalue == "0") {
-//            return 'x-display-hide';
+//            return '';
 //        } else if (Ovalue == "1") {
 //            return 'x-hide-display';
 //        }

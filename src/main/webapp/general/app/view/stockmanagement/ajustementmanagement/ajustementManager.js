@@ -99,7 +99,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
                             handler: this.onManageDetailsClick,
                             getClass: function(value, metadata, record) {
                                 if (record.get('str_STATUT') == "enable") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -147,7 +147,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
                             handler: this.onbtnprint,
                             getClass: function(value, metadata, record) {
                                 if (record.get('str_STATUT') == "enable") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }

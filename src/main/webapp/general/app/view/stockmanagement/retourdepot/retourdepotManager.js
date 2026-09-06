@@ -205,7 +205,7 @@ Ext.define('testextjs.view.stockmanagement.retourdepot.retourdepotManager', {
                             getClass: function (value, metadata, record) {
                                 if (record.get('USEREMPLACEMENT') !== "1") {
                                     if (record.get('str_STATUT') == "is_Process") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
+                                        return '';
                                     } else {
                                         return 'x-hide-display'; //cache l'icone
                                     }
@@ -228,7 +228,7 @@ Ext.define('testextjs.view.stockmanagement.retourdepot.retourdepotManager', {
                             handler: this.onPrintClick,
                             getClass: function (value, metadata, record) {
                                 if (record.get('str_STATUT') == "is_Closed") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -250,7 +250,7 @@ Ext.define('testextjs.view.stockmanagement.retourdepot.retourdepotManager', {
 
                                 if (!record.get('bool_SAME_LOCATION')) {
                                     if (record.get('lg_EMPLACEMENT_ID') != "1" && record.get('str_STATUT') == "is_Closed") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
+                                        return '';
                                     } else {
                                         return 'x-hide-display'; //cache l'icone
                                     }
@@ -276,7 +276,7 @@ Ext.define('testextjs.view.stockmanagement.retourdepot.retourdepotManager', {
                                 if (!record.get('bool_SAME_LOCATION')) {
 
                                     if (record.get('lg_EMPLACEMENT_ID') != "1" && record.get('str_STATUT') == "is_Closed") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
+                                        return '';
                                     } else {
                                         return 'x-hide-display'; //cache l'icone
                                     }

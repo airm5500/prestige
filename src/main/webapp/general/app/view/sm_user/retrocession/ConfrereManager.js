@@ -168,7 +168,7 @@ Ext.define('testextjs.view.sm_user.retrocession.ConfrereManager', {
                             handler: this.onAyantDroitView,
                             getClass: function (value, metadata, record) {
                                 if (record.get('lg_TYPE_CLIENT_ID') == "Assurance") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }

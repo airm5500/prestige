@@ -163,7 +163,7 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                                         // le bouton n'attendait que « pending » et ne sortait jamais.
                                         if (record.get('strSTATUT') === 'pending' || record.get('strSTATUT') === 'is_Process') {
 
-                                            return 'x-display-hide';
+                                            return '';
                                         } else {
                                             return 'x-hide-display';
                                         }

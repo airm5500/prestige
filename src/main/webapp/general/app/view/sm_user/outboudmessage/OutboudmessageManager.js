@@ -102,7 +102,7 @@ Ext.define('testextjs.view.sm_user.outboudmessage.OutboudmessageManager', {
                             handler: this.onReloadSmsClick,
                             getClass: function(value, metadata, record) {
                                 if (record.get('etat') == "is_Waiting") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }

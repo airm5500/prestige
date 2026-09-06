@@ -1803,7 +1803,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             if (action.visible && !action.visible(record)) {
                                 return 'x-hide-display';
                             }
-                            return 'x-display-hide fa-action ' + action.classe;
+                            return 'fa-action ' + action.classe;
                         }
                     }]
             });
