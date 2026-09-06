@@ -38,6 +38,11 @@ Ext.define('testextjs.view.configmanagement.modelemessage.ModeleMessageManager',
                     itemId: 'btnModifier',
                     iconCls: 'editicon'
                 }, {
+                    text: 'Dupliquer',
+                    itemId: 'btnDupliquer',
+                    iconCls: 'copyicon',
+                    tooltip: 'Créer un nouveau modèle à partir du modèle sélectionné'
+                }, {
                     text: 'Activer / désactiver',
                     itemId: 'btnBasculer'
                 }, '->', {
@@ -65,7 +70,27 @@ Ext.define('testextjs.view.configmanagement.modelemessage.ModeleMessageManager',
                             renderer: function (v) {
                                 return v ? '<span style="color:#1e7e34;font-weight:bold;">Oui</span>'
                                         : '<span style="color:#c0392b;font-weight:bold;">Non</span>';
-                            }}
+                            }},
+                        // Duplication a portee de chaque ligne : la demande la veut « sur chaque modele »,
+                        // et non au prix d'une selection prealable dans la barre d'outils.
+                        {
+                            xtype: 'actioncolumn',
+                            itemId: 'colDupliquer',
+                            text: 'Dupliquer',
+                            width: 70,
+                            align: 'center',
+                            menuDisabled: true,
+                            sortable: false,
+                            items: [{
+                                    iconCls: 'copyicon',
+                                    tooltip: 'Dupliquer ce modèle',
+                                    handler: function (grille, ligne) {
+                                        grille.getSelectionModel().select(ligne);
+                                        grille.up('modelemessagemanager').fireEvent('dupliquerModele',
+                                                grille.getStore().getAt(ligne));
+                                    }
+                                }]
+                        }
                     ]
                 }]
         });

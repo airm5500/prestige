@@ -39,6 +39,13 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
     private static final DateTimeFormatter FR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     // {motif} est remplace par un filtre optionnel sur d.motif_ajustement_id (?4)
+    //
+    // L'analyse repond a la question « quels produits ajuste-t-on sans cesse ? » : c'est le NOMBRE
+    // d'ajustements qui ouvre la liste, et non plus le volume deplace. Un produit ajuste trente
+    // fois de une boite signale un probleme de comptage ; le meme volume en un seul ajustement
+    // n'est qu'une regularisation. A egalite, la designation par ordre alphabetique : l'ordre
+    // reste alors le meme d'une page a l'autre et d'un appel au suivant, ce qu'une egalite non
+    // departagee ne garantit pas.
     private static final String BASE_QUERY = "SELECT f.lg_FAMILLE_ID AS familleId, f.lg_GROSSISTE_ID AS grossisteId,"
             + " f.int_CIP AS cip, f.str_NAME AS name, COUNT(d.lg_AJUSTEMENTDETAIL_ID) AS nbAjustement,"
             + " COALESCE(SUM(CASE WHEN d.int_NUMBER > 0 THEN d.int_NUMBER ELSE 0 END),0) AS qtePositive,"
@@ -47,7 +54,7 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
             + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID" + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
             + " WHERE a.str_STATUT = 'enable' AND DATE(d.dt_CREATED) BETWEEN ?1 AND ?2 AND u.lg_EMPLACEMENT_ID = ?3"
-            + "{motif} GROUP BY f.lg_FAMILLE_ID ORDER BY COALESCE(SUM(ABS(d.int_NUMBER)),0) DESC, nbAjustement DESC";
+            + "{motif} GROUP BY f.lg_FAMILLE_ID ORDER BY nbAjustement DESC, f.str_NAME ASC";
 
     private static final String COUNT_QUERY = "SELECT COUNT(DISTINCT d.lg_FAMILLE_ID)"
             + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"

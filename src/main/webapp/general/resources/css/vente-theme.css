@@ -739,6 +739,12 @@ body.x-body,
     background-image: url(../images/icons/fam/delete.png) !important;
 }
 
+/* Duplication d'un modele de message (point 15). Declaree ici, avec une image qui existe :
+   une classe d'icone sans regle CSS laisse un bouton vide dont la zone reste cliquable. */
+.copyicon {
+    background-image: url(../images/icons/fam/page_copy.png) !important;
+}
+
 /* ============================================================
  * BOUTON D'ENREGISTREMENT QUI A RECU LE FOCUS AU CLAVIER
  *

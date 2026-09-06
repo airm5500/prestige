@@ -72,6 +72,18 @@ public class ModeleMessageRessource {
         return Response.ok().entity(modeleMessageService.basculer(id).toString()).build();
     }
 
+    /** Duplique un modele. Le modele source reste inchange ; la copie est cree sous un libelle libre. */
+    @POST
+    @Path("{id}/dupliquer")
+    public Response dupliquer(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        JSONObject r = modeleMessageService.dupliquer(id);
+        return Response.status(r.optBoolean("success") ? Response.Status.CREATED : Response.Status.BAD_REQUEST)
+                .entity(r.toString()).build();
+    }
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
     }

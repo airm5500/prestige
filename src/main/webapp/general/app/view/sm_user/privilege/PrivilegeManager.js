@@ -127,7 +127,9 @@ Ext.define('testextjs.view.sm_user.privilege.PrivilegeManager', {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'user',
-                    emptyText: 'Recherche',
+                    width: 260,
+                    emptyText: 'Contient... (3 caractères minimum)',
+                    enableKeyEvents: true,
                     listeners: {
                         'render': function(cmp) {
                             cmp.getEl().on('keypress', function(e) {
@@ -136,6 +138,31 @@ Ext.define('testextjs.view.sm_user.privilege.PrivilegeManager', {
 
                                 }
                             });
+                        },
+                        /*
+                         * Recherche automatique a partir du troisieme caractere (point 7).
+                         *
+                         * En dessous de trois caracteres on ne cherche pas : « a » ramenerait la liste entiere
+                         * et couterait une requete pour rien. Le champ vide, en revanche, RECHARGE la liste :
+                         * c'est ainsi qu'on revient a l'affichage complet apres avoir efface sa saisie.
+                         *
+                         * La temporisation evite une requete par frappe : seule la derniere saisie part, un
+                         * tiers de seconde apres que l'utilisateur a cesse de taper.
+                         */
+                        'keyup': function(cmp, e) {
+                            if (e.getKey() === e.ENTER) {
+                                return;
+                            }
+                            var saisie = Ext.String.trim(cmp.getValue() || '');
+                            clearTimeout(Me_Workflow.minuterieRecherche);
+                            if (saisie.length > 0 && saisie.length < 3) {
+                                return;
+                            }
+                            Me_Workflow.minuterieRecherche = setTimeout(function() {
+                                if (!cmp.isDestroyed) {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }, 350);
                         }
                     }
                 }, {
@@ -264,9 +291,15 @@ Ext.define('testextjs.view.sm_user.privilege.PrivilegeManager', {
     },
     onRechClick: function() {
         var val = Ext.getCmp('rechecher');
+        // Retour a la premiere page : sans cela, une recherche lancee depuis la page 4 demande la
+        // page 4 d'un resultat qui n'en compte souvent qu'une, et la grille s'affiche vide. Le rang
+        // est repositionne sur le magasin lui-meme, et non par la barre de pagination : moveFirst()
+        // declencherait un chargement supplementaire, avec les criteres PRECEDENTS.
+        this.getStore().currentPage = 1;
         this.getStore().load({
             params: {
-                search_value: val.getValue()
+                search_value: Ext.String.trim(val.getValue() || ''),
+                start: 0
             }
         }, url_services_data_privilege);
     }
