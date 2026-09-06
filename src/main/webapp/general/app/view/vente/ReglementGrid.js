@@ -41,13 +41,17 @@ Ext.define('testextjs.view.vente.ReglementGrid', {
                 // on retire le mode principal déjà sélectionné. En fractionnement
                 // mobile, la liste est en plus restreinte aux modes mobiles.
                 load: function (store) {
-                    if (me.excludeModeId || me.onlyModeIds) {
+                    // onlyModeIds accepte un tableau ou une fonction qui le rend : la forme
+                    // fonction permet de lire la liste APRES la reponse du serveur, et non celle
+                    // qui existait au moment de creer la fenetre.
+                    const permis = Ext.isFunction(me.onlyModeIds) ? me.onlyModeIds() : me.onlyModeIds;
+                    if (me.excludeModeId || permis) {
                         store.filterBy(function (rec) {
                             const id = rec.get('id');
                             if (me.excludeModeId && id === me.excludeModeId) {
                                 return false;
                             }
-                            return !me.onlyModeIds || me.onlyModeIds.indexOf(id) !== -1;
+                            return !permis || permis.indexOf(id) !== -1;
                         });
                     }
                 }

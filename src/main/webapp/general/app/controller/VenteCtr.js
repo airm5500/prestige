@@ -75,10 +75,15 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     maxChangeAllowed: 9500, // monnaie à rendre max avant alerte (anti scan)
 
-    // === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
-    // Liste de repli (opérateurs historiques) ; complétée au démarrage par le
-    // serveur (point 7 : modes mobile money créés par l'officine).
+    /* === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
+     *
+     * Cette liste vient de la BASE, plus du code (point 13). Les identifiants ci-dessous ne sont
+     * qu'un repli, servant uniquement si le serveur ne répond pas : ils étaient auparavant COMPLÉTÉS
+     * par la réponse du serveur au lieu d'être remplacés, si bien qu'un opérateur désactivé dans la
+     * configuration - CELPAID et TRESORPAY le sont - restait reconnu par l'écran de vente. */
     mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
+    /* Vrai dès que le serveur a répondu : la liste n'est alors plus celle du code. */
+    mobileModeIdsCharges: false,
 
     // === Types de reglement exigeant un client (cf. typeReglementSelectEvent) ===
     // Liste de repli : cheque (2), carte bancaire (3), differe (4) et virement (6), ceux qui
@@ -125,14 +130,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                     json = Ext.decode(response.responseText);
                 } catch (e) {
                 }
-                if (json.success && Ext.isArray(json.data)) {
-                    const ids = me.mobileModeIds.slice();
-                    json.data.forEach(function (id) {
-                        if (ids.indexOf(String(id)) === -1) {
-                            ids.push(String(id));
-                        }
-                    });
-                    me.mobileModeIds = ids;
+                /* La réponse REMPLACE la liste, elle ne s'y ajoute pas : c'est la configuration
+                 * qui fait foi, y compris quand elle RETIRE un mode. Une réponse vide est refusée -
+                 * elle signifierait qu'aucun mode mobile n'existe, ce qui priverait la vente de tout
+                 * le comportement mobile ; dans ce cas on garde le repli. */
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.mobileModeIds = json.data.map(String);
+                    me.mobileModeIdsCharges = true;
                 }
             }
         });
@@ -2310,10 +2314,19 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         const typeRegle = me.getVnotypeReglement().getValue();
+        /* La liste est relue AVANT d'ouvrir : un mode cree ou desactive pendant que la caisse est
+         * restee ouverte - elles le restent toute la journee - doit valoir des l'ouverture
+         * suivante, sans redemarrer l'application. La fenetre s'ouvre sans attendre la reponse :
+         * son propre magasin est charge ensuite, et le filtre est applique a ce chargement. */
+        me.chargerModesMobileMoney();
         Ext.create('testextjs.view.vente.ReglementGrid', {
             title: 'AJOUTEZ UN AUTRE MODE MOBILE',
             excludeModeId: typeRegle,
-            onlyModeIds: me.mobileModeIds
+            // Fonction et non tableau fige : le filtre lit la liste AU MOMENT du chargement,
+            // donc apres la reponse du serveur demandee juste au-dessus.
+            onlyModeIds: function () {
+                return me.mobileModeIds;
+            }
         }).show();
     },
     showAndHideCbInfos: function (v) {

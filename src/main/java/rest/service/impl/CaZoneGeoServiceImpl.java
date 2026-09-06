@@ -17,6 +17,7 @@ import javax.persistence.Query;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.CaZoneGeoService;
+import util.CalculMarge;
 import util.DateConverter;
 import util.PeriodesCa;
 import util.PeriodesCa.Granularite;
@@ -62,7 +63,13 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             StringBuilder sql = new StringBuilder("SELECT STRAIGHT_JOIN f.lg_ZONE_GEO_ID, z.str_LIBELLEE,")
                     .append(" f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, ")
                     .append(granularite.expressionSql("p.dt_UPDATED")).append(" AS tranche,")
-                    .append(" SUM(d.int_PRICE - IFNULL(d.int_PRICE_REMISE, 0)) AS ca, SUM(d.int_QUANTITY) AS qte")
+                    .append(" SUM(d.int_PRICE - IFNULL(d.int_PRICE_REMISE, 0)) AS ca, SUM(d.int_QUANTITY) AS qte,")
+                    // Point 19 : de quoi calculer la marge selon la formule unique (util.CalculMarge),
+                    // celle de l'ecran « Marge sur produits ». Le prix d'achat pris est celui FIGE sur la
+                    // ligne de vente, jamais le prix courant de la fiche article.
+                    .append(" SUM(IFNULL(d.montantTva, 0)) AS tva,")
+                    .append(" SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY) AS achat,")
+                    .append(" SUM(IFNULL(d.int_PRICE_REMISE, 0)) AS remise")
                     .append(" FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)")
                     .append(" INNER JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID")
                     .append(" INNER JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID")
@@ -99,6 +106,8 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             List<Object[]> lignesSql = requete.getResultList();
 
             Map<String, Ligne> lignes = new LinkedHashMap<>();
+            long totalTva = 0;
+            long totalAchat = 0;
             Map<String, Long> totauxTranches = new LinkedHashMap<>();
             for (Tranche t : tranches) {
                 totauxTranches.put(t.getCle(), 0L);
@@ -111,6 +120,9 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 String tranche = texte(r[4]);
                 long ca = r[5] == null ? 0 : ((Number) r[5]).longValue();
                 long qte = r[6] == null ? 0 : ((Number) r[6]).longValue();
+                long tva = r[7] == null ? 0 : ((Number) r[7]).longValue();
+                long achat = r[8] == null ? 0 : ((Number) r[8]).longValue();
+                long remise = r[9] == null ? 0 : ((Number) r[9]).longValue();
                 if (!totauxTranches.containsKey(tranche)) {
                     continue; // hors des tranches (ne devrait pas arriver, les bornes SQL sont celles des tranches)
                 }
@@ -131,6 +143,16 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 ligne.montants.merge(tranche, ca, Long::sum);
                 ligne.quantites.merge(tranche, qte, Long::sum);
                 ligne.total += ca;
+                /*
+                 * « ca » est le montant remise deduite : le hors taxes s'obtient en retirant la seule TVA. On cumule
+                 * donc separement TVA et achat, la marge etant calculee une fois les cumuls faits - additionner des
+                 * marges arrondies ligne a ligne ne donnerait pas le meme total.
+                 */
+                ligne.tva += tva;
+                ligne.achat += achat;
+                ligne.remise += remise;
+                totalTva += tva;
+                totalAchat += achat;
                 totauxTranches.merge(tranche, ca, Long::sum);
             }
             List<Ligne> triees = new ArrayList<>(lignes.values());
@@ -143,7 +165,10 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             for (Ligne l : triees) {
                 JSONObject o = new JSONObject().put("zoneId", l.zoneId).put("zone", l.zone)
                         .put("familleId", l.familleId).put("famille", l.famille).put("libelle", l.libelle())
-                        .put("total", l.total);
+                        .put("total", l.total)
+                        // Marge en valeur et en pourcentage, formule unique documentee dans util.CalculMarge.
+                        .put("montantHt", l.montantHt()).put("achat", l.achat).put("tva", l.tva).put("marge", l.marge())
+                        .put("pourcentageMarge", l.pourcentageMarge());
                 String clePrecedente = null;
                 for (Tranche t : tranches) {
                     o.put("t_" + t.getCle(), l.montants.getOrDefault(t.getCle(), 0L));
@@ -173,6 +198,10 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                                 totauxTranches.getOrDefault(t.getCle(), 0L)));
                 precedente = t.getCle();
             }
+            long htGeneral = totalGeneral - totalTva;
+            long margeGenerale = htGeneral - totalAchat;
+            json.put("margeGenerale", margeGenerale).put("montantHtGeneral", htGeneral).put("achatGeneral", totalAchat)
+                    .put("pourcentageMargeGeneral", util.CalculMarge.pourcentage(margeGenerale, htGeneral));
             json.put("success", true).put("data", data).put("total", data.length()).put("tranches", tranchesJson)
                     .put("granularite", granularite.name()).put("totauxTranches", totaux)
                     .put("evolutionsTranches", evolutionsTranches).put("totalGeneral", totalGeneral)
@@ -182,6 +211,120 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "chiffreAffaires zone geo", e);
             json.put("success", false).put("msg", "Le calcul du chiffre d'affaires a échoué")
+                    .put("data", new JSONArray()).put("total", 0);
+        }
+        return json;
+    }
+
+    /**
+     * Produits pris en compte dans une ligne de l'analyse (point 19).
+     *
+     * <p>
+     * La requete reprend mot pour mot les criteres de l'analyse - memes bornes de dates, meme emplacement, memes
+     * exclusions - et n'y ajoute que la zone et la famille de la ligne cliquee. C'est ce qui garantit que la somme des
+     * montants du detail redonne exactement le total de la ligne : un detail qui ne se raccorde pas a son total ne sert
+     * a rien.
+     * </p>
+     */
+    @Override
+    public JSONObject produitsDeLaLigne(TUser utilisateur, Filtres filtres, String zoneId, String familleId) {
+        JSONObject json = new JSONObject();
+        try {
+            List<Tranche> tranches = PeriodesCa.tranches(filtres.getTypePeriode(), filtres.getDebut(), filtres.getFin(),
+                    LocalDate.now());
+            if (tranches.isEmpty()) {
+                return json.put("success", true).put("total", 0).put("data", new JSONArray());
+            }
+            LocalDate debut = tranches.get(0).getDebut();
+            LocalDate fin = tranches.get(tranches.size() - 1).getFin();
+            String emplacementId = utilisateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+
+            StringBuilder sql = new StringBuilder("SELECT STRAIGHT_JOIN f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME,")
+                    .append(" SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY) AS achat, SUM(d.int_QUANTITY) AS qte,")
+                    .append(" SUM(d.int_PRICE - IFNULL(d.int_PRICE_REMISE, 0)) AS montant,")
+                    .append(" SUM(IFNULL(d.montantTva, 0)) AS tva, SUM(IFNULL(d.int_PRICE_REMISE, 0)) AS remise")
+                    .append(" FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)")
+                    .append(" INNER JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID")
+                    .append(" INNER JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID")
+                    .append(" INNER JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID")
+                    .append(" WHERE p.str_STATUT = ?4 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2")
+                    .append(" AND u.lg_EMPLACEMENT_ID = ?3 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
+                    .append(" AND p.lg_TYPE_VENTE_ID <> ?5");
+            /*
+             * Les filtres de l'ecran s'appliquent AUSSI : le detail doit porter sur le meme perimetre que l'analyse
+             * affichee, sans quoi on ouvrirait le detail d'une ligne filtree et l'on verrait des produits que le total
+             * ne compte pas.
+             */
+            boolean filtreZone = estRenseigne(filtres.getZoneId());
+            boolean filtreFamille = estRenseigne(filtres.getFamilleId());
+            List<Object> supplementaires = new ArrayList<>();
+            if (filtreZone) {
+                sql.append(" AND f.lg_ZONE_GEO_ID = ?").append(6 + supplementaires.size());
+                supplementaires.add(filtres.getZoneId());
+            }
+            if (filtreFamille) {
+                sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(6 + supplementaires.size());
+                supplementaires.add(filtres.getFamilleId());
+            }
+            // Zone et famille de la LIGNE cliquee. La zone peut etre vide en base : « sans zone » est une ligne
+            // comme une autre, et se retrouve par IS NULL plutot que par une egalite qui ne ramenerait rien.
+            if (estRenseigne(zoneId)) {
+                sql.append(" AND f.lg_ZONE_GEO_ID = ?").append(6 + supplementaires.size());
+                supplementaires.add(zoneId);
+            } else if (zoneId != null && zoneId.isEmpty()) {
+                sql.append(" AND (f.lg_ZONE_GEO_ID IS NULL OR f.lg_ZONE_GEO_ID = '')");
+            }
+            if (estRenseigne(familleId)) {
+                sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(6 + supplementaires.size());
+                supplementaires.add(familleId);
+            } else if (familleId != null && familleId.isEmpty()) {
+                sql.append(" AND (f.lg_FAMILLEARTICLE_ID IS NULL OR f.lg_FAMILLEARTICLE_ID = '')");
+            }
+            sql.append(" GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY montant DESC");
+
+            Query requete = em.createNativeQuery(sql.toString())
+                    .setParameter(1, java.sql.Timestamp.valueOf(debut.atStartOfDay()))
+                    .setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()))
+                    .setParameter(3, emplacementId).setParameter(4, DateConverter.STATUT_IS_CLOSED)
+                    .setParameter(5, DateConverter.DEPOT_EXTENSION);
+            for (int i = 0; i < supplementaires.size(); i++) {
+                requete.setParameter(6 + i, supplementaires.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> resultat = requete.getResultList();
+
+            JSONArray data = new JSONArray();
+            long totalMontant = 0;
+            long totalAchat = 0;
+            long totalTva = 0;
+            long totalQte = 0;
+            for (Object[] r : resultat) {
+                long achat = r[3] == null ? 0 : ((Number) r[3]).longValue();
+                long qte = r[4] == null ? 0 : ((Number) r[4]).longValue();
+                long montant = r[5] == null ? 0 : ((Number) r[5]).longValue();
+                long tva = r[6] == null ? 0 : ((Number) r[6]).longValue();
+                long ht = montant - tva;
+                data.put(new JSONObject().put("produitId", texte(r[0])).put("cip", texte(r[1]))
+                        .put("designation", texte(r[2]))
+                        // Prix unitaires : la moyenne sur la periode, le prix ayant pu changer entre deux ventes.
+                        .put("prixAchat", qte == 0 ? 0 : Math.round((double) achat / qte))
+                        .put("prixVente", qte == 0 ? 0 : Math.round((double) montant / qte)).put("quantite", qte)
+                        .put("montant", montant).put("montantHt", ht).put("achat", achat).put("marge", ht - achat)
+                        .put("pourcentageMarge", CalculMarge.pourcentage(ht - achat, ht)));
+                totalMontant += montant;
+                totalAchat += achat;
+                totalTva += tva;
+                totalQte += qte;
+            }
+            long htTotal = totalMontant - totalTva;
+            json.put("success", true).put("data", data).put("total", data.length())
+                    .put("totaux", new JSONObject().put("quantite", totalQte).put("montant", totalMontant)
+                            .put("montantHt", htTotal).put("achat", totalAchat).put("marge", htTotal - totalAchat)
+                            .put("pourcentageMarge", CalculMarge.pourcentage(htTotal - totalAchat, htTotal)))
+                    .put("debut", debut.toString()).put("fin", fin.toString());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "detail d'une ligne de l'analyse du CA", e);
+            json.put("success", false).put("msg", "Le détail de cette ligne n'a pas pu être calculé")
                     .put("data", new JSONArray()).put("total", 0);
         }
         return json;
@@ -214,6 +357,25 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
         final Map<String, Long> montants = new LinkedHashMap<>();
         final Map<String, Long> quantites = new LinkedHashMap<>();
         long total;
+        /*
+         * Cumuls servant la marge. « total » porte deja le montant remise deduite : le hors taxes s'en deduit en
+         * retirant la TVA, sans retirer la remise une seconde fois.
+         */
+        long tva;
+        long achat;
+        long remise;
+
+        long montantHt() {
+            return total - tva;
+        }
+
+        long marge() {
+            return montantHt() - achat;
+        }
+
+        double pourcentageMarge() {
+            return util.CalculMarge.pourcentage(marge(), montantHt());
+        }
 
         Ligne(Regroupement regroupement, String zoneId, String zone, String familleId, String famille) {
             this.regroupement = regroupement;

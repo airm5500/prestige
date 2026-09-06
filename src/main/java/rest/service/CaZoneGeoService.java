@@ -26,6 +26,22 @@ public interface CaZoneGeoService {
         }
     }
 
+    /**
+     * Produits pris en compte dans une ligne de l'analyse (point 19).
+     *
+     * <p>
+     * Memes criteres que l'analyse - periode, emplacement, ventes cloturees non annulees - restreints a la zone et a la
+     * famille de la ligne cliquee. Chaque produit rend son code, sa designation, son prix d'achat, son prix de vente,
+     * la quantite totale et le montant ; les totaux suivent la formule unique de {@link util.CalculMarge}.
+     * </p>
+     *
+     * @param zoneId
+     *            zone de la ligne, ou {@code null} quand la ligne n'est pas regroupee par zone
+     * @param familleId
+     *            famille de la ligne, ou {@code null} quand la ligne n'est pas regroupee par famille
+     */
+    org.json.JSONObject produitsDeLaLigne(dal.TUser utilisateur, Filtres filtres, String zoneId, String familleId);
+
     /** Parametres de la recherche. */
     final class Filtres {
 

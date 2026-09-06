@@ -66,7 +66,48 @@ public class TypeReglementServiceImpl implements TypeReglementService {
 
     @Override
     public List<String> identifiantsMobileMoney() {
-        return util.MobileMoney.identifiants().stream().sorted().collect(Collectors.toList());
+        List<String> depuisLaBase = actifsDeCategorie(util.MobileMoney.CATEGORIE_MOBILE_MONEY);
+        if (!depuisLaBase.isEmpty()) {
+            return depuisLaBase;
+        }
+        /*
+         * Base pas encore migree : aucun type ne porte la categorie. On retombe sur les operateurs historiques, mais en
+         * ne gardant que ceux encore ACTIFS - un mode desactive dans la configuration ne doit plus etre propose, c'est
+         * tout l'objet de la demande.
+         */
+        return actifsParmi(util.MobileMoney.identifiants());
+    }
+
+    /** Identifiants des types de reglement ACTIFS portant cette categorie, tries. */
+    private List<String> actifsDeCategorie(String categorie) {
+        try {
+            TypedQuery<String> q = getEntityManager()
+                    .createQuery("SELECT t.lgTYPEREGLEMENTID FROM TTypeReglement t WHERE t.strSTATUT = ?1 "
+                            + "AND UPPER(t.strCATEGORIE) = ?2 ORDER BY t.lgTYPEREGLEMENTID", String.class);
+            q.setParameter(1, Constant.STATUT_ENABLE);
+            q.setParameter(2, categorie.toUpperCase(java.util.Locale.ROOT));
+            return q.getResultList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /** Parmi des identifiants donnes, ceux que la base declare encore actifs. */
+    private List<String> actifsParmi(java.util.Set<String> identifiants) {
+        if (identifiants == null || identifiants.isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            TypedQuery<String> q = getEntityManager()
+                    .createQuery("SELECT t.lgTYPEREGLEMENTID FROM TTypeReglement t WHERE t.strSTATUT = ?1 "
+                            + "AND t.lgTYPEREGLEMENTID IN ?2 ORDER BY t.lgTYPEREGLEMENTID", String.class);
+            q.setParameter(1, Constant.STATUT_ENABLE);
+            q.setParameter(2, identifiants);
+            return q.getResultList();
+        } catch (Exception e) {
+            // Dernier repli : la liste telle quelle, plutot que de priver la vente du mobile money.
+            return identifiants.stream().sorted().collect(Collectors.toList());
+        }
     }
 
     /**
