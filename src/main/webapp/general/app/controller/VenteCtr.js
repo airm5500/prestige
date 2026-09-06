@@ -4560,46 +4560,81 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "strSEXE": record.get('strSEXE'),
                 "tiersPayants": tiersPayants
             };
-            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-            Ext.Ajax.request({
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/client/add/assurance',
-                params: Ext.JSON.encode(datas),
-                success: function (response, options) {
-                    progress.hide();
-                    const result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
-                        me.onBtnCancelAssClient();
-                        let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
-                        me.client = recordR;
-                        if (me.getCurrent()) {
-                            me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+            // L'envoi est nomme afin de pouvoir etre rejoue tel quel apres confirmation d'un
+            // doublon d'identite signale par le serveur.
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/assurance',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelAssClient();
+                            let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = recordR;
+                            if (me.getCurrent()) {
+                                me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
 
+                            } else {
+                                me.onNewClientAssurance();
+                            }
+
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
                         } else {
-                            me.onNewClientAssurance();
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
                         }
 
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Message d\'erreur',
-                            width: 550,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
-
-                        });
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
                     }
 
-                },
-                failure: function (response, options) {
-                    progress.hide();
-                    Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
-                }
-
-            });
+                });
+            };
+            envoyer();
         }
 
+    },
+    /**
+     * Le serveur a trouve un ou plusieurs clients actifs portant deja cette identite.
+     * On les nomme et on demande confirmation, plutot que de creer un second enregistrement
+     * en silence. « Non » laisse le formulaire ouvert : l'utilisateur peut aller chercher
+     * le client existant au lieu d'en creer un doublon.
+     */
+    confirmerDoublonClient: function (result, datas, renvoyer) {
+        const items = (result.doublons || []).map(function (c) {
+            const identite = ((c.strLASTNAME || '') + ' ' + (c.strFIRSTNAME || '')).trim();
+            const code = c.strCODEINTERNE ? ' (code ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + code + '</li>';
+        }).join('');
+        Ext.MessageBox.show({
+            title: 'Doublon possible',
+            width: 550,
+            msg: result.msg + '<ul style="margin: 6px 0 6px 18px;">' + items + '</ul>'
+                    + 'Voulez-vous quand même créer un nouveau client ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes') {
+                    // Rejoue le meme envoi, cette fois avec l'accord explicite de l'utilisateur.
+                    datas.forcerCreation = true;
+                    renvoyer();
+                }
+            }
+        });
     },
     updateClientAssurance: function (clientData) {
         const me = this;
@@ -4672,44 +4707,49 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "remiseId": record.get('remiseId')
 
             };
-            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-            Ext.Ajax.request({
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/client/add/carnet',
-                params: Ext.JSON.encode(datas),
-                success: function (response, options) {
-                    progress.hide();
-                    const result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
-                        me.onBtnCancelCarnet();
-                        let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
-                        me.client = clientR;
-                        if (me.getCurrent()) {
-                            if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {
-                                me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/carnet',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelCarnet();
+                            let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = clientR;
+                            if (me.getCurrent()) {
+                                if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {
+                                    me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+                                }
                             }
+
+                            me.onClientAssuranceUpdate();
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
                         }
 
-                        me.onClientAssuranceUpdate();
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Message d\'erreur',
-                            width: 550,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
-
-                        });
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur de création du client');
                     }
 
-                },
-                failure: function (response, options) {
-                    progress.hide();
-                    Ext.Msg.alert("Message", 'Erreur de création du client');
-                }
-
-            });
+                });
+            };
+            envoyer();
         }
 
     },

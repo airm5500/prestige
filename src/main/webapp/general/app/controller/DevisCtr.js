@@ -1473,41 +1473,72 @@ Ext.define('testextjs.controller.DevisCtr', {
                 "strSEXE": record.get('strSEXE')
 
             };
-            var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-            Ext.Ajax.request({
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/client/add/carnet',
-                params: Ext.JSON.encode(datas),
-                success: function (response, options) {
-                    progress.hide();
-                    var result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
-                        me.getClientSearchTextField().setValue('');
-                        me.onBtnCancelCarnet();
-                        var clientR = new testextjs.model.caisse.ClientAssurance(result.data);
-                        me.client = clientR;
-                        me.onClientAssuranceUpdate();
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Message d\'erreur',
-                            width: 320,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
+            // Envoi nomme, pour pouvoir etre rejoue apres confirmation d'un doublon d'identite.
+            var envoyer = function () {
+                var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/carnet',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        var result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.getClientSearchTextField().setValue('');
+                            me.onBtnCancelCarnet();
+                            var clientR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = clientR;
+                            me.onClientAssuranceUpdate();
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 320,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
 
-                        });
+                            });
+                        }
+
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur de création du client');
                     }
 
-                },
-                failure: function (response, options) {
-                    progress.hide();
-                    Ext.Msg.alert("Message", 'Erreur de création du client');
-                }
-
-            });
+                });
+            };
+            envoyer();
         }
 
+    },
+    /**
+     * Meme avertissement que sur l'ecran de vente : le serveur a trouve un client actif portant
+     * deja cette identite. On le nomme et on demande confirmation avant d'en creer un second.
+     */
+    confirmerDoublonClient: function (result, datas, renvoyer) {
+        var items = (result.doublons || []).map(function (c) {
+            var identite = ((c.strLASTNAME || '') + ' ' + (c.strFIRSTNAME || '')).trim();
+            var code = c.strCODEINTERNE ? ' (code ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + code + '</li>';
+        }).join('');
+        Ext.MessageBox.show({
+            title: 'Doublon possible',
+            width: 550,
+            msg: result.msg + '<ul style="margin: 6px 0 6px 18px;">' + items + '</ul>'
+                    + 'Voulez-vous quand même créer un nouveau client ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes') {
+                    datas.forcerCreation = true;
+                    renvoyer();
+                }
+            }
+        });
     },
     resetCarnetTp: function () {
         var me = this, tpName = me.getTpName(), taux = me.getTaux(), refBon = me.getRefBon();
