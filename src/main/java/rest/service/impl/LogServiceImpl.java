@@ -189,6 +189,37 @@ public class LogServiceImpl implements LogService {
 
     }
 
+    /**
+     * Export Excel du fichier journal (point 14). Il porte TOUTES les lignes correspondant aux criteres, et non la
+     * seule page affichee : c'est la difference entre un export et une copie d'ecran. Les criteres sont rappeles en
+     * tete du classeur pour que le fichier reste lisible une fois sorti de l'application.
+     */
+    @Override
+    public byte[] exportExcel(String query, LocalDate dtStart, LocalDate dtEnd, String userId, int criteria)
+            throws java.io.IOException {
+        List<LogDTO> lignes = logs(query, dtStart, dtEnd, 0, 0, true, userId, criteria);
+        java.time.format.DateTimeFormatter jour = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return new rest.report.excel.ClasseurExcel<LogDTO>("Fichier journal").titre("FICHIER JOURNAL")
+                .critere("Période", dtStart.format(jour) + " au " + dtEnd.format(jour)).critere("Recherche", query)
+                .critere("Opérateur", nomUtilisateur(userId)).texte("Action", LogDTO::getTypeLog)
+                .dateHeure("Date et heure", LogDTO::getOperationDate).texte("Opérateur", LogDTO::getUserFullName)
+                .texte("Description", LogDTO::getStrDESCRIPTION).construire(lignes);
+    }
+
+    /** Nom lisible de l'operateur filtre, pour le rappel des criteres ; vide si aucun filtre. */
+    private String nomUtilisateur(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return "";
+        }
+        try {
+            TUser u = getEntityManager().find(TUser.class, userId);
+            return u == null ? "" : ((u.getStrFIRSTNAME() == null ? "" : u.getStrFIRSTNAME()) + " "
+                    + (u.getStrLASTNAME() == null ? "" : u.getStrLASTNAME())).trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     @Override
     public void updateItem(TUser user, String ref, String desc, TypeLog typeLog, Object T, Date date) {
         TEventLog eventLog = new TEventLog(UUID.randomUUID().toString());

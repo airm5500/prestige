@@ -34,6 +34,10 @@ public interface LogService {
     JSONObject logs(String query, LocalDate dtStart, LocalDate dtEnd, int start, int limit, String userId, int criteria)
             throws JSONException;
 
+    /** Export Excel du fichier journal : toutes les lignes des criteres, pas la seule page affichee. */
+    byte[] exportExcel(String query, LocalDate dtStart, LocalDate dtEnd, String userId, int criteria)
+            throws java.io.IOException;
+
     void updateItem(TUser user, String ref, String desc, TypeLog typeLog, Object T, Date date);
 
     void updateLogFile(TUser user, String ref, String desc, TypeLog typeLog, Object T, String remoteHost,

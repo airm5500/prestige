@@ -349,6 +349,34 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                             }
 
 
+                        }, {
+                            xtype: 'tbseparator'
+                        },
+                        {
+                            /* Point 14 : export Excel du journal. Memes criteres que la recherche
+                             * a l'ecran, mais toutes les lignes du resultat - le serveur ne
+                             * pagine pas cet appel. */
+                            width: 95,
+                            xtype: 'button',
+                            text: 'Excel',
+                            tooltip: 'Exporter le r&eacute;sultat complet vers Excel',
+                            icon: 'resources/images/icons/fam/excel_icon.png',
+                            listeners: {
+                                click: function () {
+                                    var criteria = Ext.getCmp('cmbologfile').getValue();
+                                    if (criteria === null || criteria === undefined || criteria === '') {
+                                        criteria = -1;
+                                    }
+                                    var lien = '../api/v1/common/logs/export-excel?' + Ext.Object.toQueryString({
+                                        dtStart: Ext.getCmp('dt_log_start').getSubmitValue(),
+                                        dtEnd: Ext.getCmp('dt_end_log').getSubmitValue(),
+                                        userId: Ext.getCmp('cmbousers').getValue() || '',
+                                        criteria: criteria,
+                                        query: Ext.getCmp('rechlog').getValue() || ''
+                                    });
+                                    window.location = lien;
+                                }
+                            }
                         }
 
 
