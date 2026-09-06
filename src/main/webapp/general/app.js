@@ -877,14 +877,25 @@ Ext.application({
 // grille existante ne change de comportement sans stateId.
 // ---------------------------------------------------------------------
 (function () {
-    try {
-        if (window.localStorage && Ext.state && Ext.state.LocalStorageProvider) {
-            Ext.state.Manager.setProvider(new Ext.state.LocalStorageProvider({prefix: 'prestige-'}));
+    /*
+     * Le stockage local est attache au navigateur, donc au POSTE : sur un poste partage,
+     * la mise en page d'un utilisateur s'imposait au suivant. Les cles sont donc prefixees
+     * par l'identifiant de l'utilisateur connecte, connu seulement apres l'appel
+     * /user/account : d'ou un fournisseur pose des le demarrage (cle « anonyme »),
+     * remplace par rattacherUtilisateur() quand l'identite est connue.
+     */
+    function poserFournisseur(prefixe) {
+        try {
+            if (window.localStorage && Ext.state && Ext.state.LocalStorageProvider) {
+                Ext.state.Manager.setProvider(new Ext.state.LocalStorageProvider({prefix: prefixe}));
+            }
+        } catch (e) {
+            // stockage local indisponible (navigation privee, quota...) :
+            // pas de memorisation, comportement d'origine
         }
-    } catch (e) {
-        // stockage local indisponible (navigation privee, quota...) :
-        // pas de memorisation, comportement d'origine
     }
+
+    poserFournisseur('prestige-anonyme-');
 
     /*
      * Identifiant STABLE par colonne, indispensable a la memorisation.
@@ -905,7 +916,23 @@ Ext.application({
                 }
             });
             return colonnes;
-        }
+        },
+
+        /*
+         * Rattache la memorisation a l'utilisateur connecte. Appele une seule fois, a la
+         * reception de /user/account. Le fournisseur relit le stockage a sa construction :
+         * les grilles ouvertes ensuite retrouvent la mise en page de CET utilisateur, et
+         * celle d'un autre utilisateur du meme poste reste intacte de son cote.
+         */
+        rattacherUtilisateur: function (identifiant) {
+            if (!identifiant || this.utilisateurCourant === identifiant) {
+                return;
+            }
+            this.utilisateurCourant = identifiant;
+            poserFournisseur('prestige-' + identifiant + '-');
+        },
+
+        utilisateurCourant: null
     };
 })();
 

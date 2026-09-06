@@ -2,6 +2,7 @@
    assurance ou carnet, et avertissement de doublon.
    Les appels sont faits depuis la page apres connexion, pour beneficier de la session. */
 const { chromium } = require('playwright-core');
+const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 220) + ']' : '')); }
 
@@ -60,8 +61,19 @@ const PRENOMS = 'ALIDATEST' + SUFFIXE;
   j = JSON.parse(r.body);
   ok('doublon detecte aussi sur le circuit assurance', j.success === false && j.doublonClient === true, r.body);
 
-  console.log('CREES=' + [clientId, clientId2, clientId3].filter(Boolean).join(','));
   await b.close();
+
+  // Les clients crees par le test sont retires : le test reste rejouable a l'identique.
+  const BASE = process.env.DB_TEST || 'capitale';
+  const motif = "str_LAST_NAME LIKE '" + NOM + "%'";
+  execFileSync('mariadb', [BASE, '-e',
+    "DELETE FROM t_compte_client_tiers_payant WHERE lg_COMPTE_CLIENT_ID IN "
+    + "(SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client WHERE lg_CLIENT_ID IN "
+    + "(SELECT lg_CLIENT_ID FROM t_client WHERE " + motif + "));"
+    + "DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE " + motif + ");"
+    + "DELETE FROM t_ayant_droit WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE " + motif + ");"
+    + "DELETE FROM t_client WHERE " + motif + ";"], { encoding: 'utf8' });
+  console.log('  (clients de test retires : ' + [clientId, clientId2, clientId3].filter(Boolean).length + ')');
   const kos = res.filter(x => !x.c).length;
   console.log('\n===== ' + (res.length - kos) + '/' + res.length + (kos ? ' FAIL' : ' PASS') + ' =====');
   process.exit(kos ? 1 : 0);

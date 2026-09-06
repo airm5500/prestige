@@ -168,6 +168,11 @@ Ext.define('testextjs.controller.App', {
                 const accountInfo = data.accountInfo;
                 xtypeload = accountInfo.xtypeload;
                 lg_USER_ID.setValue(accountInfo.lg_USER_ID);
+                // Rattache la memorisation des colonnes a cet utilisateur : sur un poste
+                // partage, la mise en page de l'un ne s'impose plus au suivant.
+                if (window.PrestigeEtatColonnes) {
+                    window.PrestigeEtatColonnes.rattacherUtilisateur(accountInfo.lg_USER_ID);
+                }
                 const fullName = ((accountInfo.str_FIRST_NAME || '') + ' ' + (accountInfo.str_LAST_NAME || '')).trim();
                 // Affiche nom + role dans la carte utilisateur du header
                 if (typeof prestigeSetHeaderUser === 'function') {
