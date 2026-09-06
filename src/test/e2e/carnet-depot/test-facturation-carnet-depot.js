@@ -3,6 +3,7 @@
    creation, impressions, pagination. */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
+const zlib = require('zlib');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 280) + ']' : '')); }
 
@@ -19,6 +20,8 @@ const ORDINAIRE = MARQUE + '-TP-NORMAL';
 const NB_FACTURES_DEPOT = 3;
 
 function nettoyer() {
+  exec("DELETE FROM t_facture_detail WHERE lg_FACTURE_DETAIL_ID LIKE '" + MARQUE + "%'");
+  exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_DETAIL_ID LIKE '" + MARQUE + "%'");
   exec("DELETE FROM t_facture WHERE lg_FACTURE_ID LIKE '" + MARQUE + "%'");
   exec("DELETE FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID LIKE '" + MARQUE + "%'");
   exec("DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "%'");
@@ -78,6 +81,30 @@ function clonerBon(suffixe, tiersPayant) {
     + " DROP TEMPORARY TABLE tmp_b;");
 }
 
+/* Rattache la vente d'un bon a une facture, avec ses lignes de medicaments : c'est ce que
+   l'edition detaillee va chercher (t_facture_detail.P_KEY porte l'identifiant de la vente). */
+const ARTICLES = [];
+function rattacherArticles(factureId, suffixe) {
+  const vente = MARQUE + '-V-' + suffixe;
+  exec("CREATE TEMPORARY TABLE tmp_fd SELECT * FROM t_facture_detail LIMIT 1;"
+    + " UPDATE tmp_fd SET lg_FACTURE_DETAIL_ID='" + MARQUE + "-FD', lg_FACTURE_ID='" + factureId + "',"
+    + " P_KEY='" + vente + "', str_REF='" + MARQUE + "-B-" + suffixe + "';"
+    + " INSERT INTO t_facture_detail SELECT * FROM tmp_fd; DROP TEMPORARY TABLE tmp_fd;");
+  const produits = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID,'~',int_CIP) SEPARATOR '|') FROM ("
+    + " SELECT lg_FAMILLE_ID, int_CIP FROM t_famille WHERE str_STATUT='enable' AND int_CIP IS NOT NULL"
+    + " AND int_CIP <> '' ORDER BY str_NAME LIMIT 2) x");
+  produits.split('|').forEach((couple, i) => {
+    const [produit, cip] = couple.split('~');
+    ARTICLES.push(cip);
+    exec("CREATE TEMPORARY TABLE tmp_pd SELECT * FROM t_preenregistrement_detail LIMIT 1;"
+      + " UPDATE tmp_pd SET lg_PREENREGISTREMENT_DETAIL_ID='" + MARQUE + "-PD-" + i + "',"
+      + " lg_PREENREGISTREMENT_ID='" + vente + "', lg_FAMILLE_ID='" + produit + "',"
+      + " int_QUANTITY=" + (i + 2) + ", int_PRICE=" + (5000 * (i + 1)) + ","
+      + " int_PRICE_UNITAIR=" + (2500 * (i + 1)) + ", int_PRICE_REMISE=0;"
+      + " INSERT INTO t_preenregistrement_detail SELECT * FROM tmp_pd; DROP TEMPORARY TABLE tmp_pd;");
+  });
+}
+
 function semer() {
   nettoyer();
   clonerTiersPayant(DEPOT, MARQUE + ' CARNET DEPOT', true);
@@ -89,6 +116,7 @@ function semer() {
   clonerFacture(MARQUE + '-F-ORD-1', ORDINAIRE, MARQUE + 'O1', 0);
   clonerBon('DEP', DEPOT);
   clonerBon('ORD', ORDINAIRE);
+  rattacherArticles(MARQUE + '-F-DEP-1', 'DEP');
   return true;
 }
 
@@ -213,16 +241,45 @@ function semer() {
       + " AND str_STATUT='enable'");
     const detail = await p.evaluate(async (u) => {
       const r = await fetch(u);
-      return { status: r.status, texte: (await r.text()).slice(0, 600) };
+      const buf = await r.arrayBuffer();
+      let brut = '';
+      const octets = new Uint8Array(buf);
+      for (let i = 0; i < octets.length; i++) { brut += String.fromCharCode(octets[i]); }
+      return { status: r.status, texte: brut.slice(0, 600), brut: brut };
     }, '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?details=true&lg_FACTURE_ID='
       + encodeURIComponent(MARQUE + '-F-DEP-1'));
-    if (Number(modeleDetail) === 0) {
-      // Aucun modele DETAIL_ARTICLE actif : la page doit le DIRE, et nommer le reglage a faire.
-      ok('scenario F : sans modele DETAIL_ARTICLE, l impression detaillee explique ce qui manque',
-         detail.texte.indexOf('DETAIL_ARTICLE') !== -1, detail.texte.replace(/\s+/g, ' ').slice(0, 200));
-    } else {
-      ok('scenario F : l impression detaillee aboutit', detail.status === 200,
-         detail.texte.replace(/\s+/g, ' ').slice(0, 200));
+    ok('scenario F : un modele DETAIL_ARTICLE actif est configure', Number(modeleDetail) > 0,
+       'modeles = ' + modeleDetail);
+    ok('scenario F : l impression detaillee aboutit et rend un PDF',
+       detail.status === 200 && detail.texte.indexOf('%PDF') === 0,
+       detail.texte.replace(/\s+/g, ' ').slice(0, 160));
+    if (detail.texte.indexOf('%PDF') === 0) {
+      /* Le PDF est relu et decompresse : ce qui doit etre verifie, c'est qu'il porte bien les
+         MEDICAMENTS de la vente, et pas seulement le bon. */
+      const octets = Buffer.from(detail.brut, 'latin1');
+      let texte = '';
+      let pos = 0;
+      const debutFlux = Buffer.from('stream');
+      const finFlux = Buffer.from('endstream');
+      while (true) {
+        const d = octets.indexOf(debutFlux, pos);
+        if (d === -1) { break; }
+        const f = octets.indexOf(finFlux, d);
+        if (f === -1) { break; }
+        let debut = d + 6;
+        while (octets[debut] === 13 || octets[debut] === 10) { debut++; }
+        try { texte += zlib.inflateSync(octets.slice(debut, f)).toString('latin1'); } catch (e) { }
+        pos = f + 9;
+      }
+      ok('scenario F : le document annonce le detail des medicaments',
+         /DÉTAIL DES MÉDICAMENTS|D.TAIL DES M.DICAMENTS/.test(texte), 'texte=' + texte.length);
+      ok('scenario F : les medicaments sont regroupes par vente',
+         texte.indexOf('Vente n') !== -1 && /Sous-total/.test(texte), 'texte=' + texte.length);
+      ok('scenario F : le document contient les medicaments de la vente',
+         ARTICLES.every(cip => texte.indexOf(String(cip)) !== -1),
+         'cip cherches=' + ARTICLES.join(',') + ' texte=' + texte.length);
+      ok('scenario F : le document porte un total general',
+         texte.indexOf('TOTAL') !== -1, 'texte=' + texte.length);
     }
 
     // ---- l'ecran

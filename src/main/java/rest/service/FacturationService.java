@@ -76,6 +76,9 @@ public interface FacturationService {
 
     List<VenteDetailsDTO> findArticleByFacturId(String id);
 
+    /** Premier modele de facture ACTIF de type DETAIL_ARTICLE, ou {@code null} si la configuration n'en porte aucun. */
+    dal.TModelFacture modeleDetailArticleActif();
+
     TModelFacture modelFactureById(String lgMODELFACTUREID);
 
     /**

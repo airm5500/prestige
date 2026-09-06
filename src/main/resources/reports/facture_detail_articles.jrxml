@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Facture d'un tiers payant AVEC le detail des medicaments de chaque vente.
+
+  Modele embarque dans le war (src/main/resources/reports) : ReportUtil le compile depuis le
+  classpath lorsqu'il n'est pas deploye dans le repertoire des rapports de l'officine. Il sert
+  l'action « Imprimer les bons + details des medicaments » de l'onglet FACTURES des carnets depot,
+  et plus generalement toute edition dont le modele porte le type d'affichage DETAIL_ARTICLE.
+
+  Les lignes sont REGROUPEES par VENTE : la reference de la vente, puis les medicaments qu'elle
+  contient, puis son sous-total. Sans ce regroupement, la liste serait illisible - on ne saurait
+  plus de quelle vente vient quelle ligne.
+
+  Le regroupement se fait sur « strREF », la reference de la vente, et non sur « strRefBon » : ce
+  dernier n'est pas renseigne par les donnees que rend findArticleByFacturId, et un regroupement
+  sur un champ vide aurait mis toutes les lignes dans un seul bloc anonyme.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="facture_detail_articles" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_CODE_FACTURE" class="java.lang.String"/>
+    <parameter name="P_TIERS_PAYANT_NAME" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="strREF" class="java.lang.String"/>
+    <field name="dtCREATED" class="java.lang.String"/>
+    <field name="intCIP" class="java.lang.String"/>
+    <field name="strNAME" class="java.lang.String"/>
+    <field name="intQUANTITY" class="java.lang.Integer"/>
+    <field name="intPRICEUNITAIR" class="java.lang.Integer"/>
+    <field name="intPRICE" class="java.lang.Integer"/>
+
+    <variable name="V_TOTAL" class="java.lang.Integer" calculation="Sum">
+        <variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+    </variable>
+    <variable name="V_LIGNES" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{intCIP}]]></variableExpression>
+    </variable>
+    <variable name="V_TOTAL_VENTE" class="java.lang.Integer" resetType="Group" resetGroup="Vente" calculation="Sum">
+        <variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+    </variable>
+
+    <group name="Vente">
+        <groupExpression><![CDATA[$F{strREF}]]></groupExpression>
+        <groupHeader>
+            <band height="18">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="2" width="555" height="15" backcolor="#E3F0EF"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="4" y="0" width="420" height="15" forecolor="#12564F"/>
+                        <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Vente n° " + $F{strREF}]]></textFieldExpression>
+                    </textField>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="426" y="0" width="125" height="15" forecolor="#12564F"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                        <textFieldExpression><![CDATA[$F{dtCREATED}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="16">
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="300" y="0" width="180" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["Sous-total de la vente"]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="485" y="0" width="70" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_TOTAL_VENTE}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupFooter>
+    </group>
+
+    <title>
+        <band height="86" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="380" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="380" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="385" y="0" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="385" y="13" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="34" width="555" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_CODE_FACTURE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="52" width="555" height="14"/>
+                <textElement textAlignment="Center"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_TIERS_PAYANT_NAME}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="66" width="555" height="14"/>
+                <textElement textAlignment="Center"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS} + "   |   DÉTAIL DES MÉDICAMENTS"]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="555" height="18" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="4" y="0" width="80" height="18" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[CIP]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="88" y="0" width="252" height="18" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Médicament]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="342" y="0" width="60" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Qté]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="406" y="0" width="75" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Prix unit.]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="485" y="0" width="70" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Montant]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="13" width="555" height="1" forecolor="#E0E0E0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="4" y="0" width="80" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{intCIP}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="88" y="0" width="252" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{strNAME}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="342" y="0" width="60" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{intQUANTITY}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="406" y="0" width="75" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{intPRICEUNITAIR}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="485" y="0" width="70" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{intPRICE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="420" height="12"/>
+                <textElement><font size="6"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="455" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="26">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="4" width="555" height="20" backcolor="#2E75B6"/>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="4" y="0" width="400" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["TOTAL GÉNÉRAL (" + $V{V_LIGNES} + " ligne(s) de médicament)"]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="485" y="0" width="70" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_TOTAL}]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </summary>
+
+</jasperReport>

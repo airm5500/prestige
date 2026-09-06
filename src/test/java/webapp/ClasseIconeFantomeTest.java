@@ -49,15 +49,27 @@ class ClasseIconeFantomeTest {
     void aucuneClasseFantome() throws IOException {
         List<String> coupables = new ArrayList<>();
         for (Path fichier : sourcesInterface()) {
-            String contenu = new String(Files.readAllBytes(fichier), StandardCharsets.UTF_8);
-            if (contenu.contains(FANTOME)) {
-                coupables.add(String.valueOf(fichier));
+            /*
+             * Le rapport nomme le fichier, la LIGNE et son contenu : quand ces occurrences reviennent - une fusion qui
+             * garde l'ancienne version d'une vue, par exemple - il faut pouvoir corriger sans avoir a rechercher
+             * soi-meme dans neuf fichiers.
+             */
+            List<String> lignes = Files.readAllLines(fichier, StandardCharsets.UTF_8);
+            for (int i = 0; i < lignes.size(); i++) {
+                if (lignes.get(i).contains(FANTOME)) {
+                    coupables.add("  " + fichier + ":" + (i + 1) + "   " + lignes.get(i).trim());
+                }
             }
         }
         assertTrue(coupables.isEmpty(),
-                "La classe « " + FANTOME + " » n'existe dans aucune feuille de style : l'icone qui en depend devient"
-                        + " invisible des qu'un theme la definit, la case restant cliquable."
-                        + " Renvoyez une chaine vide.\n" + String.join("\n", coupables));
+                "La classe « " + FANTOME + " » n'existe dans aucune feuille de style, ni celles d'ExtJS ni celles du"
+                        + " projet : l'icone qui en depend est invisible des qu'un theme la definit, la case de seize"
+                        + " pixels restant cliquable.\n"
+                        + "Corrigez en renvoyant une chaine vide - « return '' » - qui est ce que la classe inconnue"
+                        + " fait deja, mais en le disant.\n"
+                        + "Attention a ne pas confondre avec « x-hide-display », qui existe, masque reellement, et ne"
+                        + " doit pas etre touchee.\n" + coupables.size() + " occurrence(s) :\n"
+                        + String.join("\n", coupables));
     }
 
     @Test

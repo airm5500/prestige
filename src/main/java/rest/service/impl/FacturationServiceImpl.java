@@ -655,6 +655,21 @@ public class FacturationServiceImpl implements FacturationService {
     }
 
     @Override
+    public dal.TModelFacture modeleDetailArticleActif() {
+        try {
+            List<dal.TModelFacture> modeles = getEntityManager()
+                    .createQuery("SELECT m FROM TModelFacture m WHERE m.typeAffichage = :type"
+                            + " AND m.strSTATUT = :statut ORDER BY m.lgMODELFACTUREID", dal.TModelFacture.class)
+                    .setParameter("type", dal.enumeration.TypeAffichage.DETAIL_ARTICLE)
+                    .setParameter("statut", DateConverter.STATUT_ENABLE).setMaxResults(1).getResultList();
+            return modeles.isEmpty() ? null : modeles.get(0);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "modele DETAIL_ARTICLE actif", e);
+            return null;
+        }
+    }
+
+    @Override
     public List<VenteDetailsDTO> findArticleByFacturId(String id) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
