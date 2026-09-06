@@ -4129,7 +4129,12 @@ public class SalesServiceImpl implements SalesService {
                     tp.getLgPREENREGISTREMENTID());
 
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
+            LOG.log(Level.SEVERE, "modification des informations client / tiers payant d'une vente", e);
+            // L'echec etait annonce a l'utilisateur mais les ecritures deja faites restaient
+            // acquises : la vente gardait une modification partielle - un tiers payant remplace
+            // avec un taux a zero, par exemple - alors que l'ecran affichait « l'opération a
+            // échoué ». La transaction est donc annulee : la vente reste telle qu'elle etait.
+            sessionContext.setRollbackOnly();
             return new JSONObject().put("success", false).put("msg", "l'opération a échoué");
         }
     }
@@ -4232,6 +4237,12 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private String buildAyantDroit(TAyantDroit oldAyantDroit) {
+        // Une vente peut n'avoir aucun ayant droit. Le mouchard des modifications appelait
+        // pourtant cette methode sans controle : la modification entiere echouait alors sur une
+        // vente sans ayant droit, pour une simple ligne de journal. Absence = chaine vide.
+        if (oldAyantDroit == null) {
+            return "";
+        }
         return oldAyantDroit.getLgAYANTSDROITSID() + ";" + oldAyantDroit.getStrFIRSTNAME() + " "
                 + oldAyantDroit.getStrLASTNAME() + ";" + oldAyantDroit.getStrNUMEROSECURITESOCIAL();
     }
