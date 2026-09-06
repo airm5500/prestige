@@ -35,14 +35,28 @@ public interface FacturationService {
 
     JSONObject groupetierspayant(String query) throws JSONException;
 
+    /**
+     * Bons a facturer. {@code carnetDepot} separe les deux circuits : faux, on ne voit que les tiers payants ordinaires
+     * ; vrai, on ne voit que les carnets depot. Le meme drapeau sert au comptage, sans quoi la pagination annoncerait
+     * un nombre de pages sans rapport avec ce qu'elle affiche.
+     */
     JSONObject provisoires(Mode mode, String groupTp, String typetp, String tpid, String codegroup, String dtStart,
-            String dtEnd, String query, int start, int limit) throws JSONException;
+            String dtEnd, String query, int start, int limit, boolean carnetDepot) throws JSONException;
 
     List<FactureDTO> provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
-            boolean all, int start, int limit);
+            boolean all, int start, int limit, boolean carnetDepot);
 
+    /**
+     * Factures des carnets depot, provisoires ET definitives, pour l'onglet dedie de « Gerer carnet depot ».
+     *
+     * @param tpid
+     *            restreint a un carnet precis ; vide ou null, tous les carnets depot
+     */
+    JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException;
+
+    /** Liste paginee des factures. {@code carnetDepot} y separe les deux circuits, comme pour les bons (RG-02). */
     JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
-            int start, int limit) throws JSONException;
+            int start, int limit, boolean carnetDepot) throws JSONException;
 
     void removeFacture(String idFacture);
 
@@ -54,7 +68,7 @@ public interface FacturationService {
 
     /** Factures provisoires d'une periode, avec les filtres de l'ecran. Ne supprime rien. */
     List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,
-            String dtStart, String dtEnd);
+            String dtStart, String dtEnd, boolean carnetDepot);
 
     List<FactureDetailDTO> findFacturesDetailsByFactureId(String id);
 

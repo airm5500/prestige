@@ -101,9 +101,14 @@ public class FacturationRessouce {
             @QueryParam(value = "query") String query, @QueryParam(value = "tpid") String tpid,
             @QueryParam(value = "codegroup") String codegroup, @QueryParam(value = "typetp") String typetp,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode) throws JSONException {
+            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode,
+            @DefaultValue("false") @QueryParam(value = "carnetDepot") boolean carnetDepot) throws JSONException {
+        /*
+         * carnetDepot absent = circuit normal (RG-08). La valeur par defaut permet aux appelants existants de continuer
+         * sans rien changer, tout en ecartant d'office les carnets depot de l'affichage ordinaire.
+         */
         JSONObject jsono = facturationService.provisoires(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, query,
-                start, limit);
+                start, limit, carnetDepot);
 
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -112,10 +117,34 @@ public class FacturationRessouce {
     @Path("summary/provisoires")
     public Response provisoires10(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "tpid") String tpid, @QueryParam(value = "codegroup") String codegroup,
-            @QueryParam(value = "typetp") String typetp, @QueryParam(value = "groupTp") String groupTp)
-            throws JSONException {
-        JSONObject jsono = facturationService.provisoires10(groupTp, typetp, tpid, codegroup, true, start, limit);
+            @QueryParam(value = "typetp") String typetp, @QueryParam(value = "groupTp") String groupTp,
+            @DefaultValue("false") @QueryParam(value = "carnetDepot") boolean carnetDepot) throws JSONException {
+        JSONObject jsono = facturationService.provisoires10(groupTp, typetp, tpid, codegroup, true, start, limit,
+                carnetDepot);
 
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Factures des carnets depot (onglet FACTURES de « Gerer carnet depot »).
+     *
+     * <p>
+     * Point d'entree dedie : il ne rend QUE les factures dont le tiers payant est marque {@code is_depot}, quel que
+     * soit l'ecran depuis lequel elles ont ete creees - le classement depend du tiers payant rattache, pas du chemin de
+     * creation (RG-06). Le filtre {@code tpid} restreint a un carnet precis ; sans lui, tous les carnets.
+     * </p>
+     */
+    @GET
+    @Path("summary/carnet-depot")
+    public Response facturesCarnetDepot(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "tpid") String tpid) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        JSONObject jsono = facturationService.facturesCarnetDepot(tpid, start, limit <= 0 ? 18 : limit);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -138,7 +167,8 @@ public class FacturationRessouce {
     @Path("provisoires/periode")
     public Response compterProvisoiresPeriode(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tpid") String tpid, @QueryParam("groupTp") String groupTp, @QueryParam("typetp") String typetp,
-            @QueryParam("codegroup") String codegroup) {
+            @QueryParam("codegroup") String codegroup,
+            @DefaultValue("false") @QueryParam("carnetDepot") boolean carnetDepot) {
         HttpSession hs = servletRequest.getSession();
         if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
             return Response.ok().entity(
@@ -146,7 +176,7 @@ public class FacturationRessouce {
                     .build();
         }
         List<commonTasks.dto.FactureDTO> factures = facturationService.provisoiresDeLaPeriode(groupTp, typetp, tpid,
-                codegroup, dtStart, dtEnd);
+                codegroup, dtStart, dtEnd, carnetDepot);
         JSONArray ids = new JSONArray();
         double montant = 0;
         int dossiers = 0;
@@ -199,8 +229,9 @@ public class FacturationRessouce {
             @QueryParam(value = "query") String query, @QueryParam(value = "tpid") String tpid,
             @QueryParam(value = "codegroup") String codegroup, @QueryParam(value = "typetp") String typetp,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode) throws JSONException {
-        return provisoires(start, limit, query, tpid, codegroup, typetp, dtEnd, dtStart, groupTp, mode);
+            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode,
+            @DefaultValue("false") @QueryParam(value = "carnetDepot") boolean carnetDepot) throws JSONException {
+        return provisoires(start, limit, query, tpid, codegroup, typetp, dtEnd, dtStart, groupTp, mode, carnetDepot);
     }
 
     @GET

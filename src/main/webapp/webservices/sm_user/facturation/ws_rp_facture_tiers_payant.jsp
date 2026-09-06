@@ -67,6 +67,10 @@
         modeId = request.getParameter("modeId");
 
     }
+    // Impression detaillee (carnet depot) : « details=true » demande une edition portant les
+    // medicaments de chaque vente. Sans ce parametre, rien ne change - le modele rattache au
+    // tiers payant reste utilise, comme il l'a toujours ete.
+    boolean avecDetailsArticles = "true".equalsIgnoreCase(request.getParameter("details"));
     // Chemins des morceaux a assembler. Des CHEMINS et non des flux : un flux ouvert
     // empeche d'effacer le fichier, et les morceaux s'accumulaient dans le dossier.
     List<String> inputPdfList = new ArrayList<>();
@@ -118,6 +122,36 @@
     if (modeId != null) {
         codeModelFacture = modeId;
         modelFacture = obllBase.getOdataManager().getEm().find(TModelFacture.class, modeId);
+    }
+    /*
+     * Impression detaillee : on cherche un modele ACTIF dont le type d'affichage est DETAIL_ARTICLE,
+     * et c'est lui qui prend la main. Un choix explicite de modele (modeId) reste prioritaire : il
+     * vient de l'utilisateur, il ne doit pas etre contredit.
+     *
+     * Aucun modele de ce type dans la configuration : on ne bascule pas en silence sur l'edition
+     * ordinaire, qui donnerait le meme document que le bouton d'a cote sans que personne comprenne
+     * pourquoi. On le dit, et on nomme le reglage a faire.
+     */
+    if (avecDetailsArticles && modeId == null) {
+        List<TModelFacture> modelesDetail = obllBase.getOdataManager().getEm()
+                .createQuery("SELECT m FROM TModelFacture m WHERE m.typeAffichage = :type AND m.strSTATUT = :statut"
+                        + " ORDER BY m.lgMODELFACTUREID", TModelFacture.class)
+                .setParameter("type", dal.enumeration.TypeAffichage.DETAIL_ARTICLE)
+                .setParameter("statut", "enable").setMaxResults(1).getResultList();
+        if (modelesDetail.isEmpty()) {
+            out.println("<html><head><meta charset=\"UTF-8\"><title>Impression detaillee impossible</title></head>"
+                    + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">");
+            out.println("<h3 style=\"color:#C00000;\">Impression detaillee impossible : aucun modele de facture actif"
+                    + " de type DETAIL_ARTICLE n'est configure.</h3>");
+            out.println("<p>L'edition detaillee s'appuie sur un modele dedie, qui porte les medicaments de chaque"
+                    + " vente. Demandez a votre administrateur d'activer un modele de ce type dans la configuration"
+                    + " des modeles de facture, puis relancez l'impression.</p>");
+            out.println("<p>L'impression des bons seuls, elle, reste disponible.</p>");
+            out.println("</body></html>");
+            return;
+        }
+        modelFacture = modelesDetail.get(0);
+        codeModelFacture = modelFacture.getLgMODELFACTUREID();
     }
     facManagement = new factureManagement(OdataManager, OTUser);
     // int codeFACT = 7;

@@ -147,16 +147,17 @@ public class FacturationServiceImpl implements FacturationService {
 
     @Override
     public JSONObject provisoires(Mode mode, String groupTp, String typetp, String tpid, String codegroup,
-            String dtStart, String dtEnd, String query, int start, int limit) throws JSONException {
+            String dtStart, String dtEnd, String query, int start, int limit, boolean carnetDepot)
+            throws JSONException {
         if (Mode.BONS == mode) {
-            return provisoiresBon(tpid, dtStart, dtEnd, query, start, limit);
+            return provisoiresBon(tpid, dtStart, dtEnd, query, start, limit, carnetDepot);
         }
-        return provisoirespartp(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, start, limit);
+        return provisoirespartp(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, start, limit, carnetDepot);
 
     }
 
     private long provisoiresCount(Mode mode, String groupTp, String typetp, String tpid, String codegroup,
-            String dtStart, String dtEnd) throws JSONException {
+            String dtStart, String dtEnd, boolean carnetDepot) throws JSONException {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -170,7 +171,7 @@ public class FacturationServiceImpl implements FacturationService {
                     .groupBy(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
                             .get(TCompteClientTiersPayant_.lgTIERSPAYANTID));
             List<Predicate> predicates = provisoirespartp(cb, root, st, mode, groupTp, typetp, tpid, codegroup, dtStart,
-                    dtEnd);
+                    dtEnd, carnetDepot);
             cq.where(cb.and(predicates.toArray(new Predicate[0])));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList().size();
@@ -181,7 +182,8 @@ public class FacturationServiceImpl implements FacturationService {
 
     }
 
-    private long provisoiresBonCount(String tpid, String query, String dtStart, String dtEnd) throws JSONException {
+    private long provisoiresBonCount(String tpid, String query, String dtStart, String dtEnd, boolean carnetDepot)
+            throws JSONException {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -191,7 +193,8 @@ public class FacturationServiceImpl implements FacturationService {
             Join<TPreenregistrementCompteClientTiersPayent, TPreenregistrement> st = root
                     .join(TPreenregistrementCompteClientTiersPayent_.lgPREENREGISTREMENTID, JoinType.INNER);
             cq.select(cb.count(root));
-            List<Predicate> predicates = provisoiresBonPredicate(cb, root, st, tpid, dtStart, dtEnd, query);
+            List<Predicate> predicates = provisoiresBonPredicate(cb, root, st, tpid, dtStart, dtEnd, query,
+                    carnetDepot);
 
             cq.where(cb.and(predicates.toArray(new Predicate[0])));
             Query q = getEntityManager().createQuery(cq);
@@ -202,11 +205,11 @@ public class FacturationServiceImpl implements FacturationService {
         }
     }
 
-    private JSONObject provisoiresBon(String tpid, String dtStart, String dtEnd, String query, int start, int limit)
-            throws JSONException {
+    private JSONObject provisoiresBon(String tpid, String dtStart, String dtEnd, String query, int start, int limit,
+            boolean carnetDepot) throws JSONException {
 
         try {
-            long count = provisoiresBonCount(tpid, query, dtStart, dtEnd);
+            long count = provisoiresBonCount(tpid, query, dtStart, dtEnd, carnetDepot);
             if (count == 0) {
                 return new JSONObject().put("total", 0).put("data", new JSONArray());
             }
@@ -222,7 +225,8 @@ public class FacturationServiceImpl implements FacturationService {
                     root.get(TPreenregistrementCompteClientTiersPayent_.strREFBON),
                     root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE)))
                     .orderBy(cb.asc(root.get(TPreenregistrementCompteClientTiersPayent_.dtUPDATED)));
-            List<Predicate> predicates = provisoiresBonPredicate(cb, root, st, tpid, dtStart, dtEnd, query);
+            List<Predicate> predicates = provisoiresBonPredicate(cb, root, st, tpid, dtStart, dtEnd, query,
+                    carnetDepot);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             q.setFirstResult(start);
@@ -236,11 +240,39 @@ public class FacturationServiceImpl implements FacturationService {
 
     }
 
+    /**
+     * Predicat de separation des circuits de facturation (carnets depot).
+     *
+     * <p>
+     * Un tiers payant marque {@code is_depot} suit son propre circuit : ses bons et ses factures ne doivent pas
+     * apparaitre dans la facturation ordinaire, et reciproquement. Le meme predicat sert aux requetes de donnees ET aux
+     * requetes de comptage - sans cette symetrie, la pagination annoncerait un nombre de pages qui ne correspond a rien
+     * (RG-05).
+     * </p>
+     *
+     * <p>
+     * Cote circuit ORDINAIRE, l'indicateur non renseigne est traite comme « pas un depot » : la colonne est declaree
+     * non nulle, mais une base plus ancienne peut porter des valeurs vides, et il vaut mieux montrer une facture de
+     * trop que de la faire disparaitre sans que personne comprenne pourquoi.
+     * </p>
+     */
+    private static Predicate predicatCarnetDepot(CriteriaBuilder cb,
+            javax.persistence.criteria.Path<dal.TTiersPayant> tiersPayant, boolean carnetDepot) {
+        javax.persistence.criteria.Path<Boolean> depot = tiersPayant.get(TTiersPayant_.isDepot);
+        if (carnetDepot) {
+            return cb.isTrue(depot);
+        }
+        return cb.or(cb.isFalse(depot), cb.isNull(depot));
+    }
+
     private List<Predicate> provisoiresBonPredicate(CriteriaBuilder cb,
             Root<TPreenregistrementCompteClientTiersPayent> root,
             Join<TPreenregistrementCompteClientTiersPayent, TPreenregistrement> st, String tpid, String dtStart,
-            String dtEnd, String query) {
+            String dtEnd, String query, boolean carnetDepot) {
         List<Predicate> predicates = new ArrayList<>();
+        predicates.add(
+                predicatCarnetDepot(cb, root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
+                        .get(TCompteClientTiersPayant_.lgTIERSPAYANTID), carnetDepot));
         predicates.add(cb.isFalse(st.get(TPreenregistrement_.bISCANCEL)));
         predicates.add(cb.greaterThan(st.get(TPreenregistrement_.intPRICE), 0));
         Predicate btw = cb.between(cb.function("DATE", Date.class, st.get(TPreenregistrement_.dtUPDATED)),
@@ -264,9 +296,9 @@ public class FacturationServiceImpl implements FacturationService {
     }
 
     private JSONObject provisoirespartp(Mode mode, String groupTp, String typetp, String tpid, String codegroup,
-            String dtStart, String dtEnd, int start, int limit) throws JSONException {
+            String dtStart, String dtEnd, int start, int limit, boolean carnetDepot) throws JSONException {
         try {
-            long count = provisoiresCount(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd);
+            long count = provisoiresCount(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, carnetDepot);
             if (count == 0) {
                 return new JSONObject().put("total", 0).put("data", new JSONArray());
             }
@@ -288,7 +320,7 @@ public class FacturationServiceImpl implements FacturationService {
                     .orderBy(cb.asc(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
                             .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.strFULLNAME)));
             List<Predicate> predicates = provisoirespartp(cb, root, st, mode, groupTp, typetp, tpid, codegroup, dtStart,
-                    dtEnd);
+                    dtEnd, carnetDepot);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             q.setFirstResult(start);
@@ -303,9 +335,12 @@ public class FacturationServiceImpl implements FacturationService {
 
     private List<Predicate> provisoirespartp(CriteriaBuilder cb, Root<TPreenregistrementCompteClientTiersPayent> root,
             Join<TPreenregistrementCompteClientTiersPayent, TPreenregistrement> st, Mode mode, String groupTp,
-            String typetp, String tpid, String codegroup, String dtStart, String dtEnd) {
+            String typetp, String tpid, String codegroup, String dtStart, String dtEnd, boolean carnetDepot) {
         List<Predicate> predicates = new ArrayList<>();
 
+        predicates.add(
+                predicatCarnetDepot(cb, root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
+                        .get(TCompteClientTiersPayant_.lgTIERSPAYANTID), carnetDepot));
         predicates.add(cb.isFalse(st.get(TPreenregistrement_.bISCANCEL)));
         predicates.add(cb.greaterThan(st.get(TPreenregistrement_.intPRICE), 0));
         Predicate btw = cb.between(cb.function("DATE", Date.class, st.get(TPreenregistrement_.dtUPDATED)),
@@ -356,16 +391,28 @@ public class FacturationServiceImpl implements FacturationService {
 
     @Override
     public JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
-            int start, int limit) throws JSONException {
-        long count = provisoires10(groupTp, typetp, tpid, codegroup, isTemplate);
+            int start, int limit, boolean carnetDepot) throws JSONException {
+        return listerFactures(groupTp, typetp, tpid, codegroup, Boolean.valueOf(isTemplate), start, limit, carnetDepot);
+    }
+
+    @Override
+    public JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException {
+        // isTemplate a null : provisoires et definitives, sans distinction (RG-06).
+        return listerFactures(null, null, tpid, null, null, start, limit, true);
+    }
+
+    private JSONObject listerFactures(String groupTp, String typetp, String tpid, String codegroup, Boolean isTemplate,
+            int start, int limit, boolean carnetDepot) throws JSONException {
+        long count = provisoires10(groupTp, typetp, tpid, codegroup, isTemplate, carnetDepot);
         if (count == 0) {
             return new JSONObject().put("total", 0).put("data", new JSONArray());
         }
-        return new JSONObject().put("total", count).put("data",
-                new JSONArray(provisoires10(groupTp, typetp, tpid, codegroup, isTemplate, false, start, limit)));
+        return new JSONObject().put("total", count).put("data", new JSONArray(
+                listerFactures(groupTp, typetp, tpid, codegroup, isTemplate, false, start, limit, carnetDepot)));
     }
 
-    private long provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate) {
+    private long provisoires10(String groupTp, String typetp, String tpid, String codegroup, Boolean isTemplate,
+            boolean carnetDepot) {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -374,7 +421,7 @@ public class FacturationServiceImpl implements FacturationService {
             Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
             cq.select(cb.count(root));
             List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup,
-                    isTemplate);
+                    isTemplate, carnetDepot);
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
@@ -387,7 +434,13 @@ public class FacturationServiceImpl implements FacturationService {
 
     @Override
     public List<FactureDTO> provisoires10(String groupTp, String typetp, String tpid, String codegroup,
-            boolean isTemplate, boolean all, int start, int limit) {
+            boolean isTemplate, boolean all, int start, int limit, boolean carnetDepot) {
+        return listerFactures(groupTp, typetp, tpid, codegroup, Boolean.valueOf(isTemplate), all, start, limit,
+                carnetDepot);
+    }
+
+    private List<FactureDTO> listerFactures(String groupTp, String typetp, String tpid, String codegroup,
+            Boolean isTemplate, boolean all, int start, int limit, boolean carnetDepot) {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -396,7 +449,7 @@ public class FacturationServiceImpl implements FacturationService {
             Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
             cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)), cb.desc(st.get(TTiersPayant_.strFULLNAME)));
             List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup,
-                    isTemplate);
+                    isTemplate, carnetDepot);
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TFacture> q = getEntityManager().createQuery(cq);
@@ -413,11 +466,19 @@ public class FacturationServiceImpl implements FacturationService {
 
     private List<Predicate> provisoires10Predicates(CriteriaBuilder cb, Root<TFacture> root,
             Join<TFacture, TTiersPayant> st, String groupTp, String typetp, String tpid, String codegroup,
-            boolean isTemplate) {
+            Boolean isTemplate, boolean carnetDepot) {
         List<Predicate> predicates = new ArrayList<>();
-        if (isTemplate) {
+        // Le classement d'une facture depend du tiers payant qui lui est rattache, jamais de l'ecran
+        // qui l'a creee (RG-01, RG-06).
+        predicates.add(predicatCarnetDepot(cb, st, carnetDepot));
+        /*
+         * isTemplate null = on ne filtre pas sur ce critere. L'onglet des carnets depot montre « les factures deja
+         * creees », provisoires ET definitives : une facture qui disparaitrait de la liste en devenant definitive
+         * donnerait l'impression de s'etre volatilisee.
+         */
+        if (Boolean.TRUE.equals(isTemplate)) {
             predicates.add(cb.isTrue(root.get(TFacture_.template)));
-        } else {
+        } else if (Boolean.FALSE.equals(isTemplate)) {
             predicates.add(cb.isFalse(root.get(TFacture_.template)));
         }
 
@@ -532,14 +593,15 @@ public class FacturationServiceImpl implements FacturationService {
      */
     @Override
     public List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,
-            String dtStart, String dtEnd) {
+            String dtStart, String dtEnd, boolean carnetDepot) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<TFacture> cq = cb.createQuery(TFacture.class);
             Root<TFacture> root = cq.from(TFacture.class);
             Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
             cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)));
-            List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup, true);
+            List<Predicate> predicates = provisoires10Predicates(cb, root, st, groupTp, typetp, tpid, codegroup, true,
+                    carnetDepot);
             // Meme critere que la purge automatique de JobCalendar : la date de GENERATION.
             predicates.add(cb.greaterThanOrEqualTo(cb.function("DATE", Date.class, root.get(TFacture_.dtCREATED)),
                     java.sql.Date.valueOf(dtStart)));

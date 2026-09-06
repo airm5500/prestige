@@ -19,9 +19,16 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
         'Ext.grid.*'
     ],
     config: {
-        selectAll: null
+        selectAll: null,
     },
     initComponent: function () {
+        /* Le mode arrive par « data » : c'est ainsi que le routeur d'ecrans (App.onRedirectTo)
+           transmet ses parametres. On le lit une fois, ici, plutot qu'a chaque usage. */
+        var enCarnetDepot = !!(this.data && this.data.carnetDepot);
+        if (enCarnetDepot) {
+            // Le titre doit dire sans ambiguite ce que l'on est en train de creer.
+            this.title = 'Edition factures provisoires — CARNET DÉPÔT';
+        }
         var typeTp = Ext.create('Ext.data.Store', {
             autoLoad: true,
             fields: ['value', 'name', "code"],
@@ -133,6 +140,9 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/facturation/provisoires',
+                // Le drapeau part sur CHAQUE requete de ce magasin : liste agregee comme liste des
+                // bons. Sans lui, le serveur retombe sur le circuit normal.
+                extraParams: {carnetDepot: enCarnetDepot},
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -166,6 +176,9 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/facturation/provisoires',
+                // Le drapeau part sur CHAQUE requete de ce magasin : liste agregee comme liste des
+                // bons. Sans lui, le serveur retombe sur le circuit normal.
+                extraParams: {carnetDepot: enCarnetDepot},
                 reader: {
                     type: 'json',
                     root: 'data',

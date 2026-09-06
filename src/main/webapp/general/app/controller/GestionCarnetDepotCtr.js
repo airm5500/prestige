@@ -87,10 +87,66 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         }
         
     ],
+    /* Onglet FACTURES du carnet depot. La selection de tiers-payant de la barre superieure
+       restreint la liste a un carnet precis ; sans selection, tous les carnets depot. */
+    chargerFacturesDepot: function () {
+        const ecran = this.getReglementdepot();
+        if (!ecran) {
+            return;
+        }
+        const grille = ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        const tiersPayant = ecran.down('#tiersPayantsExclus');
+        grille.getStore().getProxy().extraParams = {tpid: (tiersPayant && tiersPayant.getValue()) || ''};
+        grille.getStore().loadPage(1);
+    },
+
+    /* Creation : on ouvre l'ecran de facturation EXISTANT en mode carnet depot, plutot que d'ecrire
+       une seconde fois la generation. Seul le perimetre des bons proposes change. */
+    creerFactureDepot: function () {
+        const ecran = this.getReglementdepot();
+        const tiersPayant = ecran && ecran.down('#tiersPayantsExclus');
+        testextjs.app.getController('App').onRedirectTo('oneditfacture', {
+            carnetDepot: true,
+            tiersPayantId: (tiersPayant && tiersPayant.getValue()) || ''
+        });
+    },
+
+    /**
+     * Impression d'une facture carnet depot.
+     *
+     * @param avecDetails
+     *            faux : le modele normalement rattache au tiers payant ; vrai : une edition
+     *            DETAIL_ARTICLE, qui ajoute les medicaments de chaque vente.
+     */
+    imprimerFactureDepot: function (enregistrement, avecDetails) {
+        if (!enregistrement) {
+            return;
+        }
+        const url = '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
+                + encodeURIComponent(enregistrement.get('lgFACTUREID'))
+                + (avecDetails ? '&details=true' : '');
+        window.open(url);
+    },
+
     init: function (application) {
         this.control({
             'reglementdepot #btnVentePanel': {
                 click: this.searchAll
+            },
+            'reglementdepot #facturesPanel [xtype=gridpanel]': {
+                viewready: this.chargerFacturesDepot
+            },
+            'reglementdepot #btnRafraichirFacturesDepot': {
+                click: this.chargerFacturesDepot
+            },
+            'reglementdepot #btnCreerFactureDepot': {
+                click: this.creerFactureDepot
+            },
+            'reglementdepot': {
+                imprimerFactureDepot: this.imprimerFactureDepot
             },
  
             'reglementdepot #imprimer': {
