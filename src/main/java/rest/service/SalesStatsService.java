@@ -115,6 +115,27 @@ public interface SalesStatsService {
      */
     List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query);
 
+    /**
+     * Le meme registre, en choisissant si chaque vente embarque ou non ses produits.
+     *
+     * <p>
+     * La grille n'affiche pas les produits : les charger pour toutes les ventes de la periode alourdit le chargement
+     * sans servir a rien, puisque l'utilisateur n'en consulte qu'une a la fois, par le bouton « Voir detail ». Les
+     * editions et l'export, eux, en ont besoin : ils lisent le registre produit par produit.
+     * </p>
+     *
+     * @param avecProduits
+     *            {@code false} pour la grille, {@code true} pour les editions et l'export
+     */
+    List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query,
+            boolean avecProduits);
+
+    /**
+     * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau.
+     * C'est ce que le bouton « Voir detail » de l'ordonnancier va chercher, pour la seule vente choisie.
+     */
+    List<VenteDetailsDTO> produitsOrdonnancier(String venteId);
+
     JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start,
             int limit) throws JSONException;
 

@@ -57,6 +57,9 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             'ordonnancier gridpanel': {
                 viewready: this.doInitStore
             },
+            'ordonnancier gridpanel actioncolumn': {
+                voirDetail: this.doVoirDetail
+            },
             'ordonnancier #query': {
                 // La touche Entree lance la recherche : personne ne va chercher le bouton
                 // apres avoir tape un nom de client.
@@ -119,6 +122,22 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             medecinId: me.getMedecin().getValue() || '',
             query: me.getQueryField().getValue() || ''
         };
+    },
+
+    /**
+     * Ouvre les produits de la vente choisie. Ils ne sont demandes qu'ici : la liste, elle, ne les
+     * transporte pas.
+     */
+    doVoirDetail: function (view, rowIndex, colIndex, item, e, record) {
+        if (!record) {
+            return;
+        }
+        Ext.create('testextjs.view.vente.DetailProduitsVente', {
+            venteId: record.get('lgPREENREGISTREMENTID'),
+            reference: record.get('strREF'),
+            urlDetail: '../api/v1/ventestats/ventesordonnanciers/detail/',
+            avecTableau: true
+        });
     },
 
     doImprimer: function () {

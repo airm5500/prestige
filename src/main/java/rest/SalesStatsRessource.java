@@ -715,6 +715,39 @@ public class SalesStatsRessource {
                 .append(" ligne(s) de produit").toString();
     }
 
+    /**
+     * Les produits soumis a ordonnance d'UNE vente, charges a la demande.
+     *
+     * <p>
+     * L'ecran ne les descend pas avec la liste : sur un mois de registre, cela ferait des centaines de lignes
+     * transportees pour celles que l'utilisateur consulte reellement, c'est-a-dire une a la fois.
+     * </p>
+     */
+    @GET
+    @Path("ventesordonnanciers/detail/{venteId}")
+    public Response detailOrdonnancier(@PathParam("venteId") String venteId) throws JSONException {
+        List<commonTasks.dto.VenteDetailsDTO> produits = salesService.produitsOrdonnancier(venteId);
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", produits.size())
+                .put("data", new org.json.JSONArray(produits)).toString()).build();
+    }
+
+    /**
+     * TOUS les produits d'une vente, charges a la demande.
+     *
+     * <p>
+     * Meme raison que pour l'ordonnancier : l'ecran des suppressions de vente ouvrait un (+) par ligne, alimente par un
+     * champ que le serveur ne remplit jamais. Le detail se demande desormais vente par vente, et seulement quand on le
+     * regarde.
+     * </p>
+     */
+    @GET
+    @Path("vente/detail/{venteId}")
+    public Response detailProduitsVente(@PathParam("venteId") String venteId) throws JSONException {
+        List<commonTasks.dto.VenteDetailsDTO> produits = salesService.venteDetailsByVenteId(venteId);
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", produits.size())
+                .put("data", new org.json.JSONArray(produits)).toString()).build();
+    }
+
     @GET
     @Path("ventesordonnanciers/pdf")
     public Response imprimerOrdonnancier(@QueryParam(value = "dtStart") String dtStart,

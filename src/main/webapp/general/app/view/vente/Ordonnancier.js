@@ -4,7 +4,7 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
     extend: 'Ext.panel.Panel',
     xtype: 'ordonnancier',
     requires: [
-        'Ext.grid.plugin.RowExpander'
+        'testextjs.view.vente.DetailProduitsVente'
     ],
 
     frame: true,
@@ -141,47 +141,6 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
             items: [
                 {
                     xtype: 'gridpanel',
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            /*
-                             * Le (+) affichait « {details} », un champ que le serveur ne remplit
-                             * jamais : il ouvrait donc une zone vide. Ce sont les produits de la
-                             * delivrance qu'on attend en dessous, et ils arrivent bien, dans
-                             * « items ». Un tableau plutot qu'un paragraphe : le registre se lit
-                             * produit par produit, avec le code tableau qui l'y fait entrer.
-                             */
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<tpl if="items &amp;&amp; items.length &gt; 0">',
-                                    '<table class="ordonnancier-detail" style="width:100%;margin:4px 0 4px 26px;',
-                                    'border-collapse:collapse">',
-                                    '<tr style="background:#f0f0f0">',
-                                    '<th style="text-align:left;padding:2px 6px">CIP</th>',
-                                    '<th style="text-align:left;padding:2px 6px">Produit</th>',
-                                    '<th style="text-align:center;padding:2px 6px">Tableau</th>',
-                                    '<th style="text-align:right;padding:2px 6px">Qt&eacute;</th>',
-                                    '<th style="text-align:right;padding:2px 6px">P.U.</th>',
-                                    '<th style="text-align:right;padding:2px 6px">Montant</th>',
-                                    '</tr>',
-                                    '<tpl for="items">',
-                                    '<tr style="border-top:1px solid #ddd">',
-                                    '<td style="padding:2px 6px">{intCIP}</td>',
-                                    '<td style="padding:2px 6px">{strNAME}</td>',
-                                    '<td style="text-align:center;padding:2px 6px"><b>{codeTableau}</b></td>',
-                                    '<td style="text-align:right;padding:2px 6px">{intQUANTITY}</td>',
-                                    '<td style="text-align:right;padding:2px 6px">',
-                                    '{[Ext.util.Format.number(values.intPRICEUNITAIR, \'0,000\')]}</td>',
-                                    '<td style="text-align:right;padding:2px 6px">',
-                                    '{[Ext.util.Format.number(values.intPRICE, \'0,000\')]}</td>',
-                                    '</tr>',
-                                    '</tpl>',
-                                    '</table>',
-                                    '<tpl else>',
-                                    '<p style="margin:4px 0 4px 26px;font-style:italic">',
-                                    'Aucun produit soumis &agrave; ordonnance dans cette vente.</p>',
-                                    '</tpl>'
-                                    )
-                        }
-                    ],
                     store: vente,
                     viewConfig: {
                         forceFit: true,
@@ -191,6 +150,22 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                         draggable: false
                     },
                     columns: [
+                        {
+                            // Les produits ne descendent PAS avec la liste : ce bouton va les
+                            // chercher pour la seule vente choisie. Un (+) sur chaque ligne
+                            // obligerait a les transporter tous, pour ceux qu'on n'ouvre jamais.
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
+                                    tooltip: 'Voir le d&eacute;tail des produits',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('voirDetail', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+                                }]
+                        },
                         {
                             sortable: false,
                             menuDisabled: true,

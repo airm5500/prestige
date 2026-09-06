@@ -131,24 +131,81 @@ function nettoyer() {
     ok('Le numero d\'ordre du medecin suit', lignes.every(l => l.numOrder === 'E2E-9001'),
       lignes.map(l => l.numOrder).join(' | '));
 
-    // ---------------------------------------------------------- 2. le detail du (+)
-    const v1 = lignes.filter(l => l.strREF === 'E2EORD-REF-1')[0] || {};
-    ok('Le (+) recoit les produits de la delivrance', Array.isArray(v1.items) && v1.items.length === 2,
-      JSON.stringify(v1.items || []).slice(0, 200));
-    ok('Chaque produit porte son code tableau',
-      (v1.items || []).every(i => ['A', 'C', 'II'].indexOf(i.codeTableau) >= 0),
-      (v1.items || []).map(i => i.strNAME + '=' + i.codeTableau).join(' | '));
-    ok('Chaque produit porte CIP, quantite et montant',
-      (v1.items || []).every(i => i.intCIP && i.intQUANTITY > 0 && i.intPRICE > 0),
-      JSON.stringify((v1.items || []).map(i => [i.intCIP, i.intQUANTITY, i.intPRICE])));
+    // ------------------------------------------- 2. le detail, charge a la demande
+    // La liste ne doit PAS transporter les produits : sur un mois de registre, cela ferait des
+    // centaines de lignes descendues pour celles qu'on n'ouvre jamais.
+    ok('La liste ne transporte aucun produit',
+      lignes.every(l => !l.items || l.items.length === 0),
+      JSON.stringify(lignes.map(l => (l.items || []).length)));
+    ok('Le modele ExtJS ne retient pas de produits', modeleSansItems(await champsModele(p)));
 
-    // le modele ExtJS doit conserver items, sinon le (+) reste vide a l'ecran
-    const modele = await p.evaluate(() => {
-      const champs = [];
-      Ext.ClassManager.get('testextjs.model.caisse.Vente').getFields().forEach(f => champs.push(f.name));
-      return champs;
+    const v1 = lignes.filter(l => l.strREF === 'E2EORD-REF-1')[0] || {};
+    const detail = await p.evaluate(async (id) => {
+      const r = await fetch('../api/v1/ventestats/ventesordonnanciers/detail/' + id,
+        { credentials: 'same-origin' });
+      return await r.json();
+    }, v1.lgPREENREGISTREMENTID);
+    ok('Le detail d\'une vente se charge a la demande',
+      detail.success === true && (detail.data || []).length === 2,
+      JSON.stringify(detail).slice(0, 200));
+    ok('Chaque produit porte son code tableau',
+      (detail.data || []).every(i => ['A', 'C', 'II'].indexOf(i.codeTableau) >= 0),
+      (detail.data || []).map(i => i.strNAME + '=' + i.codeTableau).join(' | '));
+    ok('Chaque produit porte CIP, quantite et montant',
+      (detail.data || []).every(i => i.intCIP && i.intQUANTITY > 0 && i.intPRICE > 0),
+      JSON.stringify((detail.data || []).map(i => [i.intCIP, i.intQUANTITY, i.intPRICE])));
+
+    const detail3 = await p.evaluate(async (id) => {
+      const r = await fetch('../api/v1/ventestats/ventesordonnanciers/detail/' + id,
+        { credentials: 'same-origin' });
+      return await r.json();
+    }, (lignes.filter(l => l.strREF === 'E2EORD-REF-3')[0] || {}).lgPREENREGISTREMENTID);
+    ok('Le detail rend le bon nombre de produits par vente', (detail3.data || []).length === 1,
+      (detail3.data || []).length);
+
+    const inconnu = await p.evaluate(async () => {
+      const r = await fetch('../api/v1/ventestats/ventesordonnanciers/detail/VENTE-INEXISTANTE',
+        { credentials: 'same-origin' });
+      return await r.json();
     });
-    ok('Le modele conserve « items »', modele.indexOf('items') >= 0);
+    ok('Une vente inconnue rend une liste vide, pas une erreur',
+      inconnu.success === true && (inconnu.data || []).length === 0, JSON.stringify(inconnu));
+
+    // la fenetre de detail existe et sait interroger le bon point d'entree
+    const fenetre = await p.evaluate((id) => {
+      const f = Ext.create('testextjs.view.vente.DetailProduitsVente', {
+        venteId: id, reference: 'E2EORD-REF-1',
+        urlDetail: '../api/v1/ventestats/ventesordonnanciers/detail/', avecTableau: true
+      });
+      const grille = f.down('#grilleProduits');
+      const entetes = [];
+      grille.columns.forEach(c => entetes.push(c.text || c.header));
+      const resultat = {
+        titre: f.title,
+        url: f.produitStore.getProxy().url,
+        entetes: entetes
+      };
+      f.destroy();
+      return resultat;
+    }, v1.lgPREENREGISTREMENTID);
+    ok('La fenetre de detail nomme la vente ouverte', /E2EORD-REF-1/.test(fenetre.titre), fenetre.titre);
+    ok('Elle interroge le point d\'entree de l\'ordonnancier',
+      /ventesordonnanciers\/detail\//.test(fenetre.url), fenetre.url);
+    ok('Elle montre le code tableau', fenetre.entetes.join('|').indexOf('Tableau') >= 0,
+      fenetre.entetes.join(' | '));
+
+    // le meme composant, sans code tableau, pour les suppressions de vente
+    const fenetreAnnul = await p.evaluate(() => {
+      const f = Ext.create('testextjs.view.vente.DetailProduitsVente', {
+        venteId: 'X', urlDetail: '../api/v1/ventestats/vente/detail/', avecTableau: false
+      });
+      const entetes = [];
+      f.down('#grilleProduits').columns.forEach(c => entetes.push(c.text || c.header));
+      f.destroy();
+      return entetes;
+    });
+    ok('La meme fenetre sert les suppressions, sans colonne Tableau',
+      fenetreAnnul.join('|').indexOf('Tableau') < 0, fenetreAnnul.join(' | '));
 
     // ---------------------------------------------------------- 3. le client
     ok('La colonne Client est renseignee', lignes.every(l => l.clientFullName && l.clientFullName.trim()),
@@ -266,6 +323,21 @@ function nettoyer() {
   console.log('\n' + (res.length - ko) + '/' + res.length + ' assertions');
   process.exit(ko ? 1 : 0);
 })();
+
+/* Les champs du modele de vente partage. */
+function champsModele(page) {
+  return page.evaluate(() => {
+    const champs = [];
+    Ext.ClassManager.get('testextjs.model.caisse.Vente').getFields().forEach(f => champs.push(f.name));
+    return champs;
+  });
+}
+
+/* Le modele est partage par plusieurs ecrans : y declarer « items » ferait retenir les produits
+   en memoire partout ou le serveur en envoie, ce que l'on veut precisement eviter. */
+function modeleSansItems(champs) {
+  return champs.indexOf('items') < 0;
+}
 
 /* Fusion de deux objets sans dependre d'Ext cote node. */
 function Ext_apply(base, ajouts) {

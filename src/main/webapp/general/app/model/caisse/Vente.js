@@ -99,16 +99,6 @@ Ext.define('testextjs.model.caisse.Vente', {
             name: 'typeRemiseId',
             type: 'string'
         }, {
-            /*
-             * Les produits de la vente, tels que le serveur les renvoie. Sans ce champ, le store
-             * les jetait a la lecture : le (+) de l'ordonnancier n'avait plus rien a afficher.
-             * « auto » parce que c'est un tableau d'objets, pas une valeur simple.
-             */
-            name: 'items',
-            type: 'auto',
-            defaultValue: null
-        },
-        {
             name: 'details',
             type: 'string'
         },
