@@ -531,6 +531,8 @@ public class ReglementFactureRessource {
             @DefaultValue("") @QueryParam("search_value") String searchValue,
             @DefaultValue("") @QueryParam("query") String query,
             @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant,
             @DefaultValue("") @QueryParam("action") String action, @QueryParam("start") String startParam) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
@@ -551,8 +553,11 @@ public class ReglementFactureRessource {
             }
             String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
             odm.initEntityManager();
-            reglementManager orm = new reglementManager(odm, sessionUser);
-            List<EntityData> entityDatas = orm.getAllDossierReglements(tiersPayantId, search, dtDebut, dtFin);
+            // Les criteres de type et de groupe (point 21) sont appliques ICI, avant la pagination :
+            // filtrer la seule page affichee donnerait des pages inegales et un total faux.
+            List<rest.service.filtre.LigneReglement> entityDatas = new rest.service.filtre.FiltresReglement(
+                    typeTiersPayant, groupeTiersPayant)
+                            .appliquer(lignesReglement(odm, sessionUser, tiersPayantId, search, dtDebut, dtFin));
 
             int dataPerPage = jdom.int_size_pagination;
             int pageAsInt = pageDepuisStart(action, startParam, dataPerPage);
@@ -573,17 +578,19 @@ public class ReglementFactureRessource {
             }
             JSONArray arrayObj = new JSONArray();
             for (int i = pgInt; i < pgIntLast; i++) {
+                rest.service.filtre.LigneReglement ligne = entityDatas.get(i);
                 JSONObject json = new JSONObject();
-                json.put("lg_DOSSIER_REGLEMENT_ID", entityDatas.get(i).getStr_value1());
-                json.put("str_MODE_REGLEMENT", entityDatas.get(i).getStr_value3());
-                json.put("str_MONTANT", entityDatas.get(i).getStr_value2());
-                json.put("dt_DATE_REGLEMENT", entityDatas.get(i).getStr_value6());
-                json.put("str_ORGANISME", entityDatas.get(i).getStr_value4());
-                json.put("LIBELLE_TYPE_TIERS_PAYANT", entityDatas.get(i).getStr_value8());
-                json.put("HEURE_REGLEMENT", entityDatas.get(i).getStr_value7());
-                json.put("OPERATEUR", entityDatas.get(i).getStr_value5());
-                json.put("MONTANT_ATT", entityDatas.get(i).getStr_value10());
-                json.put("CODE_FACTURE", entityDatas.get(i).getStr_value9());
+                json.put("lg_DOSSIER_REGLEMENT_ID", ligne.getDossierId());
+                json.put("str_MODE_REGLEMENT", ligne.getModeReglement());
+                json.put("str_MONTANT", ligne.getMontantRegle());
+                json.put("dt_DATE_REGLEMENT", ligne.getDateReglement());
+                json.put("str_ORGANISME", ligne.getOrganisme());
+                json.put("LIBELLE_TYPE_TIERS_PAYANT", ligne.getTypeTiersPayant());
+                json.put("HEURE_REGLEMENT", ligne.getHeureReglement());
+                json.put("OPERATEUR", ligne.getOperateur());
+                json.put("MONTANT_ATT", ligne.getMontantAttente());
+                json.put("CODE_FACTURE", ligne.getCodeFacture());
+                json.put("GROUPE", ligne.getGroupe());
                 arrayObj.put(json);
             }
             String result = "{\"total\":\"" + entityDatas.size() + "\",\"results\":" + arrayObj.toString() + "}";
@@ -591,6 +598,183 @@ public class ReglementFactureRessource {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "liste reglements", e);
             return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Lignes de la liste des reglements, nommees et enrichies de leur groupe de tiers payants.
+     *
+     * <p>
+     * La couche ancienne rend des valeurs numerotees et ne connait pas le groupe. Celui-ci est resolu en une seule
+     * requete, a partir du NOM de l'organisme : c'est la seule cle que la liste porte. Le nom et le nom complet sont
+     * tous deux essayes, les deux etant employes selon les ecrans.
+     */
+    private List<rest.service.filtre.LigneReglement> lignesReglement(dataManager odm, TUser sessionUser,
+            String tiersPayantId, String search, String dtDebut, String dtFin) {
+        reglementManager orm = new reglementManager(odm, sessionUser);
+        List<EntityData> brutes = orm.getAllDossierReglements(tiersPayantId, search, dtDebut, dtFin);
+        Map<String, String> groupeParNom = groupesParNomOrganisme(odm);
+        List<rest.service.filtre.LigneReglement> lignes = new java.util.ArrayList<>();
+        for (EntityData brute : brutes) {
+            rest.service.filtre.LigneReglement ligne = new rest.service.filtre.LigneReglement();
+            ligne.setDossierId(brute.getStr_value1());
+            ligne.setMontantRegle(brute.getStr_value2());
+            ligne.setModeReglement(brute.getStr_value3());
+            ligne.setOrganisme(brute.getStr_value4());
+            ligne.setOperateur(brute.getStr_value5());
+            ligne.setDateReglement(brute.getStr_value6());
+            ligne.setHeureReglement(brute.getStr_value7());
+            ligne.setTypeTiersPayant(brute.getStr_value8());
+            ligne.setCodeFacture(brute.getStr_value9());
+            ligne.setMontantAttente(brute.getStr_value10());
+            ligne.setGroupe(groupeParNom.get(StringUtils.trimToEmpty(brute.getStr_value4()).toUpperCase()));
+            lignes.add(ligne);
+        }
+        return lignes;
+    }
+
+    /** Nom (et nom complet) d'organisme -> libelle du groupe de tiers payants, en une requete. */
+    private Map<String, String> groupesParNomOrganisme(dataManager odm) {
+        Map<String, String> groupes = new java.util.HashMap<>();
+        try {
+            String sql = "SELECT tp.str_NAME, tp.str_FULLNAME, g.str_LIBELLE FROM t_tiers_payant tp"
+                    + " JOIN t_groupe_tierspayant g ON g.lg_GROUPE_ID = tp.lg_GROUPE_ID";
+            for (Object[] row : (List<Object[]>) odm.getEm().createNativeQuery(sql).getResultList()) {
+                String libelle = String.valueOf(row[2]);
+                for (int i = 0; i < 2; i++) {
+                    String cle = row[i] == null ? "" : String.valueOf(row[i]).trim().toUpperCase();
+                    if (!cle.isEmpty()) {
+                        groupes.put(cle, libelle);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Le groupe n'est qu'un critere de confort : sans lui l'ecran reste utilisable.
+            LOG.log(Level.WARNING, "groupes de tiers payants de la liste des reglements", e);
+        }
+        return groupes;
+    }
+
+    /**
+     * Export Excel de la liste des reglements (point 21) : memes criteres que l'ecran, et TOUTES les lignes du
+     * resultat, la grille restant paginee.
+     */
+    @GET
+    @Path("export-excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response reglementsExcel(@DefaultValue("") @QueryParam("dt_debut") String dtDebutParam,
+            @DefaultValue("") @QueryParam("dt_fin") String dtFinParam,
+            @DefaultValue("") @QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant) throws java.io.IOException {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            String dtDebut = StringUtils.isNotEmpty(dtDebutParam) ? dtDebutParam
+                    : date.formatterMysqlShort.format(new Date());
+            String dtFin = StringUtils.isNotEmpty(dtFinParam) ? dtFinParam + " 23:59:59"
+                    : date.formatterMysql.format(new Date());
+            String search = StringUtils.isNotEmpty(searchValue) ? searchValue : "%%";
+            String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
+            rest.service.filtre.FiltresReglement filtres = new rest.service.filtre.FiltresReglement(typeTiersPayant,
+                    groupeTiersPayant);
+            List<rest.service.filtre.LigneReglement> lignes = filtres
+                    .appliquer(lignesReglement(odm, sessionUser, tiersPayantId, search, dtDebut, dtFin));
+
+            rest.report.excel.ClasseurExcel<rest.service.filtre.LigneReglement> classeur = new rest.report.excel.ClasseurExcel<rest.service.filtre.LigneReglement>(
+                    "Règlements").titre("LISTE DES RÈGLEMENTS").critere("Période", dtDebut + " au " + dtFinParam)
+                            .critere("Recherche", "%%".equals(search) ? "" : search);
+            filtres.libelles().forEach(classeur::critere);
+            byte[] contenu = classeur.texte("Groupe", rest.service.filtre.LigneReglement::getGroupe)
+                    .texte("Organisme", rest.service.filtre.LigneReglement::getOrganisme)
+                    .texte("Type tiers payant", rest.service.filtre.LigneReglement::getTypeTiersPayant)
+                    .texte("Code facture", rest.service.filtre.LigneReglement::getCodeFacture)
+                    .texte("Mode de règlement", rest.service.filtre.LigneReglement::getModeReglement)
+                    .nombre("Montant réglé", rest.service.filtre.LigneReglement::getMontantRegle)
+                    .nombre("Montant en attente", rest.service.filtre.LigneReglement::getMontantAttente)
+                    .texte("Date", rest.service.filtre.LigneReglement::getDateReglement)
+                    .texte("Heure", rest.service.filtre.LigneReglement::getHeureReglement)
+                    .texte("Opérateur", rest.service.filtre.LigneReglement::getOperateur).construire(lignes);
+            return rest.report.excel.NomFichierExport.reponse(contenu, "liste_reglements");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "export de la liste des reglements", e);
+            return Response.serverError().build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Edition PDF de la liste des reglements, REGROUPEE par groupe de tiers payants, avec un sous-total par groupe et
+     * un total general (point 21). Meme principe que le recapitulatif : le modele est embarque et alimente par la MEME
+     * liste que l'ecran.
+     *
+     * @return l'URL du PDF genere, que l'ecran ouvre dans un onglet.
+     */
+    @GET
+    @Path("print-groupe")
+    public Response reglementsPrint(@DefaultValue("") @QueryParam("dt_debut") String dtDebutParam,
+            @DefaultValue("") @QueryParam("dt_fin") String dtFinParam,
+            @DefaultValue("") @QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            String dtDebut = StringUtils.isNotEmpty(dtDebutParam) ? dtDebutParam
+                    : date.formatterMysqlShort.format(new Date());
+            String dtFin = StringUtils.isNotEmpty(dtFinParam) ? dtFinParam + " 23:59:59"
+                    : date.formatterMysql.format(new Date());
+            String search = StringUtils.isNotEmpty(searchValue) ? searchValue : "%%";
+            String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
+            rest.service.filtre.FiltresReglement filtres = new rest.service.filtre.FiltresReglement(typeTiersPayant,
+                    groupeTiersPayant);
+            List<rest.service.filtre.LigneReglement> lignes = filtres
+                    .appliquer(lignesReglement(odm, sessionUser, tiersPayantId, search, dtDebut, dtFin));
+            // Jasper suppose la liste deja triee par groupe : sinon un meme groupe reapparait
+            // plusieurs fois, avec autant de sous-totaux partiels.
+            lignes.sort(java.util.Comparator
+                    .comparing(rest.service.filtre.LigneReglement::getGroupeLibelle, String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(l -> StringUtils.trimToEmpty(l.getOrganisme()), String.CASE_INSENSITIVE_ORDER));
+
+            Map<String, Object> parametres = reportUtil.officineData(sessionUser);
+            parametres.put("P_H_CLT_INFOS", "LISTE DES RÈGLEMENTS");
+            StringBuilder periode = new StringBuilder("Période du " + dtDebut + " au " + dtFinParam);
+            for (String critere : filtres.libelles()) {
+                periode.append("   |   ").append(critere);
+            }
+            periode.append("   |   ").append(lignes.size()).append(" règlement(s)");
+            parametres.put("P_PERIODE", periode.toString());
+            String url = reportUtil.buildReport(parametres, "liste_reglements", lignes);
+            if (StringUtils.isNotBlank(url)
+                    && !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1)))
+                            .exists()) {
+                LOG.log(Level.SEVERE, "edition des reglements : le PDF {0} n''a pas ete produit", url);
+                url = "";
+            }
+            if (StringUtils.isBlank(url)) {
+                return Response.ok().entity(
+                        new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
+                        .build();
+            }
+            return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "edition de la liste des reglements", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
                     .build();
         } finally {
             odm.closeEntityManager();

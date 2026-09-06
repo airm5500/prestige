@@ -730,6 +730,13 @@ public class reglementManager extends bll.bllBase {
                 TTiersPayant OPayant = this.getOdataManager().getEm().find(TTiersPayant.class,
                         ODossierReglement.getStrORGANISMEID());
                 TReglement oReglement = getReglementByRef(ODossierReglement.getLgDOSSIERREGLEMENTID());
+                // Un dossier sans reglement rattache faisait echouer getSingleResult, et le
+                // rattrapage etant HORS de la boucle, c'est la liste ENTIERE qui repartait vide :
+                // l'ecran des reglements semblait n'avoir aucune donnee alors que la base en
+                // contenait. Le dossier orphelin est desormais simplement ignore.
+                if (oReglement == null || OPayant == null) {
+                    continue;
+                }
 
                 EntityData OEntityData = new EntityData();
                 OEntityData.setStr_value1(ODossierReglement.getLgDOSSIERREGLEMENTID());
@@ -753,10 +760,21 @@ public class reglementManager extends bll.bllBase {
         return entityDatas;
     }
 
+    /**
+     * Reglement rattache a une ressource, ou null s'il n'y en a pas.
+     *
+     * <p>
+     * getSingleResult levait une exception pour une ressource sans reglement. Rendre null laisse l'appelant decider :
+     * la liste des reglements ignore le dossier orphelin au lieu de s'arreter.
+     */
     public TReglement getReglementByRef(String str_Ref) {
-        return (TReglement) this.getOdataManager().getEm()
-                .createQuery("SELECT o FROM TReglement o WHERE o.strREFRESSOURCE =?1").setParameter(1, str_Ref)
-                .getSingleResult();
+        try {
+            return (TReglement) this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM TReglement o WHERE o.strREFRESSOURCE =?1").setParameter(1, str_Ref)
+                    .setMaxResults(1).getSingleResult();
+        } catch (javax.persistence.NoResultException e) {
+            return null;
+        }
     }
 
     public List<EntityData> getAllDossierReglementDetails(String lg_DOSSIER_REGLEMENT_ID, String search_value) {
