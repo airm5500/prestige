@@ -1027,29 +1027,24 @@ body.x-body,
 }
 
 /* --------------------------------------------------------------------------
- * Icone « code EAN ».
+ * Icone « code EAN » (point 3).
  *
  * La colonne portait « page_white_edit.png », un crayon sur une feuille : elle
- * dit « modifier quelque chose », pas « code-barres ». Comme pour l'icone
- * « vider », le theme n'a aucune image de code-barres et en ajouter une
- * obligerait a livrer un fichier de plus : le pictogramme est dessine en
- * caractere, dans la place que la colonne reserve deja a son icone.
+ * dit « modifier quelque chose », pas « code-barres ». Le pictogramme a donc
+ * ete redessine - mais en « :before », ce qui l'a rendu INVISIBLE : dans une
+ * colonne d'action, ExtJS 4 pose la classe sur une balise <img> portant un GIF
+ * transparent, et un navigateur ne rend aucun pseudo-element sur une image.
+ * L'icone disparaissait, la case de 16 pixels restait cliquable : c'est le
+ * defaut signale.
  *
- * U+2016 (double barre verticale) et U+007C se lisent comme les barres d'un
- * code-barres ; l'espacement resserre les rapproche.
+ * Le code-barres est donc redessine en IMAGE DE FOND, seule chose qu'une
+ * balise <img> sait afficher. Il reste dessine sur place, en SVG intercalé
+ * dans la feuille : rien de plus a livrer, et l'image ne peut pas manquer.
  * -------------------------------------------------------------------------- */
 .vp-icone-ean {
-    background-image: none !important;
-}
-.vp-icone-ean:before {
-    content: '\2016\2016';
-    display: block;
-    font-size: 15px;
-    line-height: 16px;
-    letter-spacing: -1px;
-    text-align: center;
-    color: #1f4e79;
-    font-weight: bold;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cg fill='%231f4e79'%3E%3Crect x='1' y='2' width='2' height='12'/%3E%3Crect x='4' y='2' width='1' height='12'/%3E%3Crect x='6' y='2' width='2' height='12'/%3E%3Crect x='9' y='2' width='1' height='12'/%3E%3Crect x='11' y='2' width='1' height='12'/%3E%3Crect x='13' y='2' width='2' height='12'/%3E%3C/g%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat;
+    background-position: center center;
 }
 
 /* ---------------------------------------------------------------------

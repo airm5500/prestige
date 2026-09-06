@@ -24,11 +24,33 @@ Ext.define('testextjs.view.produits.DetailsManager', {
             return Ext.util.Format.number(v || 0, '0,000');
         };
 
+        /* Point 8 : la colonne « Qte Det » compte des BOITES deconditionnees, pas des unites de
+         * detail. Elle est mise en rouge, et le nom du detail porte juste apres, en vert, ce que
+         * l'operation a REELLEMENT produit : boites x contenance. Les deux nombres se lisaient
+         * jusqu'ici comme un seul, et on croyait avoir sorti 2 unites la ou on en avait sorti 20. */
+        var nombreDeBoites = function (v) {
+            return '<span style="color:#c0392b;font-weight:bold;">' + entier(v) + '</span>';
+        };
+
+        var nomAvecQuantiteObtenue = function (valeur, meta, enregistrement) {
+            var nom = Ext.String.htmlEncode(valeur || '');
+            var obtenue = enregistrement.get('qteDetailObtenue');
+            var contenance = enregistrement.get('contenance');
+            if (!obtenue) {
+                return nom;
+            }
+            var infobulle = entier(enregistrement.get('qteDet')) + ' boîte(s) x ' + entier(contenance)
+                    + ' par boîte = ' + entier(obtenue) + ' unité(s) de détail';
+            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(infobulle) + '"';
+            return nom + ' <span style="color:#1e7e34;font-weight:bold;">(+' + entier(obtenue) + ')</span>';
+        };
+
         // ---------- Onglet 1 : historique ----------
         var storeHistorique = new Ext.data.Store({
             fields: ['date', 'codeCh', 'nomCh', 'codeDet', 'nomDet', 'utilisateur',
                 {name: 'qteDet', type: 'int'}, {name: 'stockAvant', type: 'int'}, {name: 'stockApres', type: 'int'},
-                {name: 'stockAvantDet', type: 'int'}, {name: 'stockApresDet', type: 'int'}],
+                {name: 'stockAvantDet', type: 'int'}, {name: 'stockApresDet', type: 'int'},
+                {name: 'contenance', type: 'int'}, {name: 'qteDetailObtenue', type: 'int'}],
             pageSize: 50,
             autoLoad: false,
             proxy: {
@@ -80,9 +102,14 @@ Ext.define('testextjs.view.produits.DetailsManager', {
                             renderer: entier},
                         {header: 'Stock ap. CH', dataIndex: 'stockApres', width: 90, align: 'center',
                             renderer: entier},
-                        {header: 'Qté Det', dataIndex: 'qteDet', width: 70, align: 'center', renderer: entier},
+                        {header: 'Qté Det', dataIndex: 'qteDet', width: 70, align: 'center',
+                            tooltip: 'Nombre de boîtes déconditionnées', renderer: nombreDeBoites},
+                        /* Contenance rappelee : sans elle, « 2 boites » et « (+20) » n'ont aucun
+                         * rapport visible, et le lecteur ne peut pas refaire le calcul. */
+                        {header: 'Contenance', dataIndex: 'contenance', width: 85, align: 'center',
+                            tooltip: 'Unités de détail contenues dans une boîte', renderer: entier},
                         {header: 'Code Det', dataIndex: 'codeDet', width: 110},
-                        {header: 'Nom Det', dataIndex: 'nomDet', flex: 2},
+                        {header: 'Nom Det', dataIndex: 'nomDet', flex: 2, renderer: nomAvecQuantiteObtenue},
                         {header: 'Stock av. Det', dataIndex: 'stockAvantDet', width: 90, align: 'center',
                             renderer: entier},
                         {header: 'Stock ap. Det', dataIndex: 'stockApresDet', width: 90, align: 'center',

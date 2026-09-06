@@ -96,7 +96,10 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
                 + " h.qteFinale AS stock_apres, hd.qteDebut AS stock_avant_det, hd.qteFinale AS stock_apres_det,"
                 + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS operateur,"
                 // Identifiants ajoutes EN FIN de selection : les rangs des colonnes deja lues ne bougent pas.
-                + " fp.lg_FAMILLE_ID AS id_ch, fd.lg_FAMILLE_ID AS id_det" + " FROM hmvtproduit h"
+                + " fp.lg_FAMILLE_ID AS id_ch, fd.lg_FAMILLE_ID AS id_det,"
+                // Contenance de la boite : c'est le PARENT qui la porte (int_NUMBERDETAIL), et c'est
+                // elle qui, multipliee par le nombre de boites, donne la quantite de detail obtenue.
+                + " COALESCE(fp.int_NUMBERDETAIL, 0) AS contenance" + " FROM hmvtproduit h"
                 + " INNER JOIN t_famille fp ON fp.lg_FAMILLE_ID = h.lg_FAMILLE_ID"
                 + " LEFT JOIN t_famille fd ON fd.lg_FAMILLE_PARENT_ID = fp.lg_FAMILLE_ID AND fd.bool_DECONDITIONNE = 1"
                 /*
@@ -150,6 +153,9 @@ public class DetailsProduitServiceImpl implements DetailsProduitService {
             dto.setUtilisateur(texte(r[10]));
             dto.setFamilleIdCh(texte(r[11]));
             dto.setFamilleIdDet(texte(r[12]));
+            dto.setContenance(nombre(r[13]));
+            // Quantite de detail obtenue = nombre de boites deconditionnees x contenance.
+            dto.setQteDetailObtenue(dto.getQteDet() * dto.getContenance());
             lignes.add(dto);
         }
         return lignes;

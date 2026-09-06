@@ -32,6 +32,10 @@ public class DeconditionnementHistoDTO implements Serializable {
      */
     private String familleIdCh;
     private String familleIdDet;
+    /** Contenance de la boite : nombre d'unites de detail qu'elle renferme. */
+    private long contenance;
+    /** Quantite de detail obtenue : nombre de boites deconditionnees x contenance. */
+    private long qteDetailObtenue;
 
     public String getDate() {
         return date;
@@ -135,5 +139,21 @@ public class DeconditionnementHistoDTO implements Serializable {
 
     public void setFamilleIdDet(String familleIdDet) {
         this.familleIdDet = familleIdDet;
+    }
+
+    public long getContenance() {
+        return contenance;
+    }
+
+    public void setContenance(long contenance) {
+        this.contenance = contenance;
+    }
+
+    public long getQteDetailObtenue() {
+        return qteDetailObtenue;
+    }
+
+    public void setQteDetailObtenue(long qteDetailObtenue) {
+        this.qteDetailObtenue = qteDetailObtenue;
     }
 }

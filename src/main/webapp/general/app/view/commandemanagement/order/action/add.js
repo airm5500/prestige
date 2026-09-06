@@ -706,9 +706,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     menuDisabled: true,
                                     items: [{
                                             /* Un crayon sur une feuille ne disait pas « code-barres » :
-                                             * pictogramme dedie (vente-theme.css). */
+                                             * pictogramme dedie (vente-theme.css). Il est dessine en
+                                             * IMAGE DE FOND et non en « :before » : ExtJS pose la classe
+                                             * sur une balise <img>, qui ne rend aucun pseudo-element. */
                                             iconCls: 'vp-icone-ean',
                                             tooltip: 'Ajouter ou modifier le code EAN de cet article',
+                                            // Repris dans l'attribut alt de l'image : c'est ce que lit
+                                            // une synthese vocale, l'info-bulle ne lui parvenant pas.
+                                            altText: 'Ajouter ou modifier le code EAN',
                                             scope: this,
                                             handler: this.onMajCodeEanClick
                                         }]
@@ -1503,14 +1508,23 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                             dock: 'bottom',
                             ui: 'footer',
                             layout: {pack: 'end', type: 'hbox'},
+                            // Chaque action porte son pictogramme et son info-bulle : deux boutons
+                            // de texte seul se ressemblent trop pour etre distingues d'un coup d'oeil,
+                            // et l'un des deux enregistre pendant que l'autre abandonne.
                             items: [{
                                     xtype: 'button',
-                                    text: 'Mettre a jour',
+                                    text: 'Valider',
+                                    itemId: 'btnValiderEan',
+                                    icon: 'resources/images/icons/fam/accept.png',
+                                    tooltip: 'Enregistrer ce code EAN sur l\'article et son détail',
                                     handler: function (btn) {
                                         envoyer(win, btn.up('form').down('#codeEan'));
                                     }
                                 }, {
                                     text: 'Fermer',
+                                    itemId: 'btnFermerEan',
+                                    icon: 'resources/images/icons/fam/cross.gif',
+                                    tooltip: 'Fermer sans rien enregistrer',
                                     handler: function () {
                                         win.close();
                                     }
