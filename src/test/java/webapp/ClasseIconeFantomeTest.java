@@ -28,6 +28,13 @@ import org.junit.jupiter.api.Test;
  * L'ecriture juste est de ne renvoyer aucune classe : {@code return ""}. Ce test relit les sources de l'interface pour
  * s'en assurer.
  * </p>
+ *
+ * <p>
+ * Ce garde-fou existe parce que l'idiome se recopie tout seul : deux des occurrences retirees venaient d'un ecran
+ * ajoute plus tot (ReserveGrid, commit 9b8595fa), ou la formule avait ete reprise du code environnant sans etre
+ * verifiee. Ecrire comme le code voisin est une bonne regle tant qu'on a compris ce que fait le voisin. C'est la
+ * relecture automatique qui tranche, pas la vigilance de qui ecrit.
+ * </p>
  */
 class ClasseIconeFantomeTest {
 
