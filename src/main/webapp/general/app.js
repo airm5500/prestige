@@ -937,6 +937,74 @@ Ext.application({
 })();
 
 // ---------------------------------------------------------------------
+// Mise en forme des colonnes comptables (points 10 et 21).
+//
+// Le debit s'affiche en rouge et gras, le credit en vert et gras. Le solde
+// prend sa couleur de son SIGNE : rouge quand l'organisme doit encore quelque
+// chose, vert quand il est crediteur, gris quand le compte est solde. La
+// couleur porte ainsi une information, au lieu de servir de simple repere de
+// colonne, et reste coherente avec les deux colonnes voisines.
+//
+// Les deux ecrans concernes partagent ces fonctions : une couleur differente
+// d'un ecran a l'autre pour la meme notion serait une source d'erreur.
+// ---------------------------------------------------------------------
+window.PrestigeMontants = (function () {
+    'use strict';
+
+    /** Montant lisible quelle que soit son ecriture ; NaN si rien d'exploitable. */
+    function nombre(valeur) {
+        if (typeof valeur === 'number') {
+            return valeur;
+        }
+        var texte = String(valeur === null || valeur === undefined ? '' : valeur).trim();
+        if (!texte) {
+            return NaN;
+        }
+        texte = texte.replace(/[\s\u00a0]/g, '');
+        if (texte.indexOf(',') !== -1) {
+            texte = texte.replace(/\./g, '').replace(',', '.');
+        } else if (/^-?\d{1,3}(\.\d{3})+$/.test(texte)) {
+            texte = texte.replace(/\./g, '');
+        }
+        return parseFloat(texte);
+    }
+
+    function formate(valeur) {
+        var n = nombre(valeur);
+        return isNaN(n) ? '' : Ext.util.Format.number(n, '0,000.');
+    }
+
+    function colore(valeur, couleur) {
+        var texte = formate(valeur);
+        return texte === '' ? '' : '<span style="color:' + couleur + ';font-weight:bold;">' + texte + '</span>';
+    }
+
+    return {
+        nombre: nombre,
+
+        /** Debit : rouge et gras. */
+        debit: function (valeur) {
+            return colore(valeur, '#c0392b');
+        },
+
+        /** Credit : vert et gras. */
+        credit: function (valeur) {
+            return colore(valeur, '#1e7e34');
+        },
+
+        /** Solde : rouge s'il est debiteur, vert s'il est crediteur, gris s'il est nul. */
+        solde: function (valeur) {
+            var n = nombre(valeur);
+            if (isNaN(n)) {
+                return '';
+            }
+            var couleur = n > 0 ? '#c0392b' : (n < 0 ? '#1e7e34' : '#7f8c8d');
+            return colore(valeur, couleur);
+        }
+    };
+})();
+
+// ---------------------------------------------------------------------
 // Couleurs de mise en evidence des lignes, reglees par officine.
 //
 // Deux parametres de l'ecran « Gestion des parametrages » donnent la couleur

@@ -89,6 +89,14 @@ public final class ClasseurExcel<T> {
         return this;
     }
 
+    /** Critere deja redige, rappele tel quel. Une ligne vide est ignoree. */
+    public ClasseurExcel<T> critere(String ligne) {
+        if (ligne != null && !ligne.isBlank()) {
+            criteres.add(ligne.trim());
+        }
+        return this;
+    }
+
     public ClasseurExcel<T> texte(String titreColonne, Function<T, Object> valeur) {
         return colonne(titreColonne, Type.TEXTE, valeur);
     }

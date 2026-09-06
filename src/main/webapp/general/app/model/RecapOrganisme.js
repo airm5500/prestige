@@ -12,7 +12,8 @@ Ext.define('testextjs.model.RecapOrganisme', {
         {name: 'MONTANTOP', type: 'float'},
         {name: 'MONTANTSOLDE', type: 'float'},
         {name: 'FULNAME', type: 'string'},
-        {name: 'CREDIT', type: 'string'}
+        {name: 'CREDIT', type: 'string'},
+        {name: 'GROUPE', type: 'string'}
         
        
     ]

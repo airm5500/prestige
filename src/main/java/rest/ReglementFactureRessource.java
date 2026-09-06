@@ -24,6 +24,7 @@ import dal.TUser;
 import dal.dataManager;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
@@ -663,6 +664,10 @@ public class ReglementFactureRessource {
             @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
             @DefaultValue("") @QueryParam("search_value") String searchValue,
             @DefaultValue("") @QueryParam("query") String query, @DefaultValue("") @QueryParam("action") String action,
+            @DefaultValue("") @QueryParam("operateurMontant") String operateurMontant,
+            @DefaultValue("") @QueryParam("valeurMontant") String valeurMontant,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant,
             @QueryParam("start") String startParam) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
@@ -685,8 +690,12 @@ public class ReglementFactureRessource {
             }
             odm.initEntityManager();
             StatisticsFamilleArticle familleArticle = new StatisticsFamilleArticle(odm);
-            List<EntityData> lstdetails = familleArticle.getRecapReglementByOrganismeData(dtStart, dtEnd, tiersPayantId,
-                    search);
+            // Les criteres de montant, de type et de groupe (point 10) sont appliques ICI, avant la
+            // pagination : filtrer la seule page affichee donnerait des pages inegales et un total
+            // faux. La procedure stockee n'est pas retouchee pour autant.
+            List<rest.service.filtre.LigneRecapOrganisme> lstdetails = new rest.service.filtre.FiltresRecapOrganisme(
+                    operateurMontant, valeurMontant, typeTiersPayant, groupeTiersPayant).appliquer(
+                            lignesRecapOrganisme(odm, familleArticle, dtStart, dtEnd, tiersPayantId, search));
 
             int dataPerPage = 20;
             int pageAsInt = 0;
@@ -718,16 +727,18 @@ public class ReglementFactureRessource {
 
             JSONArray arrayObj = new JSONArray();
             for (int i = pgInt; i < pgIntLast; i++) {
+                rest.service.filtre.LigneRecapOrganisme ligne = lstdetails.get(i);
                 JSONObject json = new JSONObject();
                 json.put("id", i);
-                json.put("TYPEORGANISME", lstdetails.get(i).getStr_value2());
-                json.put("CODEORGANISME", lstdetails.get(i).getStr_value3());
-                json.put("NUMORGANISME", lstdetails.get(i).getStr_value5());
-                json.put("COMPTECOMPTABLE", lstdetails.get(i).getStr_value4());
-                json.put("MONTANTOP", lstdetails.get(i).getStr_value6());
-                json.put("MONTANTSOLDE", lstdetails.get(i).getStr_value8());
-                json.put("FULNAME", lstdetails.get(i).getStr_value1());
-                json.put("CREDIT", lstdetails.get(i).getStr_value7());
+                json.put("TYPEORGANISME", ligne.getTypeOrganisme());
+                json.put("CODEORGANISME", ligne.getCodeOrganisme());
+                json.put("NUMORGANISME", ligne.getNumeroCompte());
+                json.put("COMPTECOMPTABLE", ligne.getCompteComptable());
+                json.put("MONTANTOP", ligne.getDebit());
+                json.put("MONTANTSOLDE", ligne.getSolde());
+                json.put("FULNAME", ligne.getOrganisme());
+                json.put("CREDIT", ligne.getCredit());
+                json.put("GROUPE", ligne.getGroupe());
                 arrayObj.put(json);
             }
             return Response.ok()
@@ -744,6 +755,109 @@ public class ReglementFactureRessource {
             return Response.serverError().entity(new JSONObject().put("success", "0").put("data", new JSONArray())
                     .put("total", 0).put("errors", "Le récapitulatif n'a pas pu être calculé : " + cause).toString())
                     .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Lignes du recapitulatif, nommees et enrichies de leur groupe de tiers payants.
+     *
+     * <p>
+     * La procedure stockee rend des colonnes anonymes et ne connait pas le groupe. Celui-ci est resolu en une seule
+     * requete, a partir du code organisme : une requete par ligne rendrait l'ecran inutilisable des la centaine de
+     * comptes.
+     */
+    private List<rest.service.filtre.LigneRecapOrganisme> lignesRecapOrganisme(dataManager odm,
+            StatisticsFamilleArticle familleArticle, String dtStart, String dtEnd, String tiersPayantId,
+            String search) {
+        List<EntityData> brutes = familleArticle.getRecapReglementByOrganismeData(dtStart, dtEnd, tiersPayantId,
+                search);
+        Map<String, String> groupeParCode = groupesParCodeOrganisme(odm);
+        List<rest.service.filtre.LigneRecapOrganisme> lignes = new java.util.ArrayList<>();
+        for (EntityData brute : brutes) {
+            rest.service.filtre.LigneRecapOrganisme ligne = new rest.service.filtre.LigneRecapOrganisme();
+            ligne.setOrganisme(brute.getStr_value1());
+            ligne.setTypeOrganisme(brute.getStr_value2());
+            ligne.setCodeOrganisme(brute.getStr_value3());
+            ligne.setCompteComptable(brute.getStr_value4());
+            ligne.setNumeroCompte(brute.getStr_value5());
+            ligne.setDebit(brute.getStr_value6());
+            ligne.setCredit(brute.getStr_value7());
+            ligne.setSolde(brute.getStr_value8());
+            ligne.setGroupe(groupeParCode.get(StringUtils.trimToEmpty(brute.getStr_value3())));
+            lignes.add(ligne);
+        }
+        return lignes;
+    }
+
+    /** Code organisme -> libelle du groupe de tiers payants, en une requete. */
+    private Map<String, String> groupesParCodeOrganisme(dataManager odm) {
+        Map<String, String> groupes = new java.util.HashMap<>();
+        try {
+            String sql = "SELECT tp.str_CODE_ORGANISME, g.str_LIBELLE FROM t_tiers_payant tp"
+                    + " JOIN t_groupe_tierspayant g ON g.lg_GROUPE_ID = tp.lg_GROUPE_ID"
+                    + " WHERE tp.str_CODE_ORGANISME IS NOT NULL";
+            for (Object[] row : (List<Object[]>) odm.getEm().createNativeQuery(sql).getResultList()) {
+                groupes.put(StringUtils.trimToEmpty(String.valueOf(row[0])), String.valueOf(row[1]));
+            }
+        } catch (Exception e) {
+            // Le groupe n'est qu'un critere de confort : sans lui l'ecran reste utilisable.
+            LOG.log(Level.WARNING, "groupes de tiers payants du recapitulatif", e);
+        }
+        return groupes;
+    }
+
+    /**
+     * Export Excel du recapitulatif par compte organisme (point 10) : memes criteres que l'ecran, et TOUTES les lignes
+     * du resultat, la grille restant paginee.
+     */
+    @GET
+    @Path("recap-organisme/export-excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response recapOrganismeExcel(@DefaultValue("") @QueryParam("dt_start_vente") String dtStartParam,
+            @DefaultValue("") @QueryParam("dt_end_vente") String dtEndParam,
+            @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
+            @DefaultValue("") @QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("operateurMontant") String operateurMontant,
+            @DefaultValue("") @QueryParam("valeurMontant") String valeurMontant,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant) throws java.io.IOException {
+        if (utilisateurSession() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        dataManager odm = new dataManager();
+        try {
+            String dtStart = StringUtils.isNotEmpty(dtStartParam) ? dtStartParam
+                    : date.formatterMysqlShort.format(new Date());
+            String dtEnd = StringUtils.isNotEmpty(dtEndParam) ? dtEndParam
+                    : date.formatterMysqlShort.format(new Date());
+            String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
+            String search = StringUtils.isNotEmpty(searchValue) ? searchValue : "%%";
+            odm.initEntityManager();
+            rest.service.filtre.FiltresRecapOrganisme filtres = new rest.service.filtre.FiltresRecapOrganisme(
+                    operateurMontant, valeurMontant, typeTiersPayant, groupeTiersPayant);
+            List<rest.service.filtre.LigneRecapOrganisme> lignes = filtres.appliquer(lignesRecapOrganisme(odm,
+                    new StatisticsFamilleArticle(odm), dtStart, dtEnd, tiersPayantId, search));
+
+            rest.report.excel.ClasseurExcel<rest.service.filtre.LigneRecapOrganisme> classeur = new rest.report.excel.ClasseurExcel<rest.service.filtre.LigneRecapOrganisme>(
+                    "Récapitulatif").titre("RÉCAPITULATIF PAR COMPTE ORGANISME")
+                            .critere("Période", dtStart + " au " + dtEnd)
+                            .critere("Recherche", "%%".equals(search) ? "" : search);
+            filtres.libelles().forEach(classeur::critere);
+            byte[] contenu = classeur.texte("Type organisme", rest.service.filtre.LigneRecapOrganisme::getTypeOrganisme)
+                    .texte("Organisme", rest.service.filtre.LigneRecapOrganisme::getOrganisme)
+                    .texte("Groupe", rest.service.filtre.LigneRecapOrganisme::getGroupe)
+                    .texte("Code organisme", rest.service.filtre.LigneRecapOrganisme::getCodeOrganisme)
+                    .texte("Numéro compte", rest.service.filtre.LigneRecapOrganisme::getNumeroCompte)
+                    .texte("Compte comptable", rest.service.filtre.LigneRecapOrganisme::getCompteComptable)
+                    .nombre("Débit", rest.service.filtre.LigneRecapOrganisme::getDebit)
+                    .nombre("Crédit", rest.service.filtre.LigneRecapOrganisme::getCredit)
+                    .nombre("Solde", rest.service.filtre.LigneRecapOrganisme::getSolde).construire(lignes);
+            return rest.report.excel.NomFichierExport.reponse(contenu, "recapitulatif_organisme");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "export du recapitulatif par compte organisme", e);
+            return Response.serverError().build();
         } finally {
             odm.closeEntityManager();
         }
