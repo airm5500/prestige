@@ -194,6 +194,24 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                             {text: 'Synthèse par tiers payant', itemId: 'btnExportTiersPayants'},
                             {text: 'Détail par produit', itemId: 'btnExportProduits'}
                         ]
+                    },
+                    /* Point 5 : export Excel, en plus du CSV. Le classeur garde les montants comme
+                     * des nombres, donc exploitables par les calculs du tableur. */
+                    {
+                        text: 'Excel', itemId: 'btnExcel',
+                        icon: 'resources/images/icons/fam/excel_icon.png',
+                        menu: [
+                            {text: 'Synthèse par tiers payant', itemId: 'btnExcelTiersPayants'},
+                            {text: 'Détail par produit', itemId: 'btnExcelProduits'}
+                        ]
+                    },
+                    /* Point 5 : suggestion de commande batie sur les produits du resultat COURANT,
+                     * c'est-a-dire la liste filtree au moment du clic. */
+                    {
+                        text: 'Créer une suggestion', itemId: 'btnSuggestion',
+                        iconCls: 'addicon',
+                        tooltip: 'Cr&eacute;er une suggestion de commande &agrave; partir des produits '
+                                + 'du r&eacute;sultat affich&eacute;'
                     }
                 ]
             }],

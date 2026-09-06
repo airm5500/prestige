@@ -14,9 +14,11 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import rest.report.ReportUtil;
 import rest.service.AnalyseTiersPayantService;
+import rest.service.SuggestionService;
 import rest.service.dto.AnalyseTiersPayantDTO;
 import toolkits.parameters.commonparameter;
 import util.Constant;
@@ -36,6 +38,9 @@ public class AnalyseTiersPayantRessource {
     private AnalyseTiersPayantService analyseTiersPayantService;
     @EJB
     private ReportUtil reportUtil;
+
+    @EJB
+    private SuggestionService suggestionService;
 
     @GET
     @Path("tiers-payants")
@@ -82,6 +87,109 @@ public class AnalyseTiersPayantRessource {
                 .header("Content-Disposition",
                         "attachment; filename=\"analyse_tiers_payants" + (parProduit ? "_produits" : "") + ".csv\"")
                 .build();
+    }
+
+    /**
+     * Export Excel de l'analyse affichee (point 5). Le CSV existant est conserve : certains postes l'ouvrent
+     * directement dans un tableur configure en francais. Le classeur, lui, garde les montants comme des nombres et
+     * reste exploitable par les calculs.
+     */
+    @GET
+    @Path("excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response excel(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
+            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri, @QueryParam("groupeId") String groupeId)
+            throws java.io.IOException {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        boolean parProduit = "PRODUIT".equalsIgnoreCase(niveau);
+        List<AnalyseTiersPayantDTO> lignes = parProduit
+                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri, groupeId)
+                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri, groupeId);
+        String[] periode = analyseTiersPayantService.periodeRetenue(dtStart, dtEnd);
+        rest.report.excel.ClasseurExcel<AnalyseTiersPayantDTO> classeur = new rest.report.excel.ClasseurExcel<AnalyseTiersPayantDTO>(
+                parProduit ? "Par produit" : "Par tiers payant")
+                        .titre(parProduit ? "ANALYSE TIERS PAYANTS - DÉTAIL PAR PRODUIT"
+                                : "ANALYSE TIERS PAYANTS - SYNTHÈSE PAR TIERS PAYANT")
+                        .critere("Période", periode[0] + " au " + periode[1]).critere("Recherche", recherche)
+                        .critere("Tiers payant", parProduit ? nomTiersPayant(dtStart, dtEnd, tiersPayantId) : "");
+        if (parProduit) {
+            classeur.texte("CIP", AnalyseTiersPayantDTO::getCip).texte("Désignation",
+                    AnalyseTiersPayantDTO::getDesignation);
+        } else {
+            classeur.texte("Tiers payant", AnalyseTiersPayantDTO::getTiersPayant);
+        }
+        classeur.nombre("Nb ventes", AnalyseTiersPayantDTO::getNbVentes)
+                .nombre("Quantité", AnalyseTiersPayantDTO::getQuantite)
+                .nombre("CA TTC", AnalyseTiersPayantDTO::getCaTtc).nombre("CA HT", AnalyseTiersPayantDTO::getCaHt)
+                .nombre("Montant achat", AnalyseTiersPayantDTO::getMontantAchat)
+                .nombre("Marge", AnalyseTiersPayantDTO::getMarge);
+        if (!parProduit) {
+            classeur.nombre("Part tiers payant", AnalyseTiersPayantDTO::getPartTiersPayant);
+        }
+        byte[] contenu = classeur.construire(lignes);
+        return rest.report.excel.NomFichierExport.reponse(contenu,
+                parProduit ? "analyse_tiers_payants_produits" : "analyse_tiers_payants");
+    }
+
+    /**
+     * Cree une suggestion de commande a partir des produits du resultat COURANT (point 5) : la liste filtree au moment
+     * du clic, et non l'ensemble des produits. Rend le nombre de produits reellement integres, que l'ecran affiche en
+     * confirmation.
+     *
+     * <p>
+     * Un produit sans grossiste par defaut ne peut pas etre commande : il est ecarte, et l'ecart entre le resultat
+     * affiche et le nombre integre est signale a l'utilisateur.
+     */
+    @GET
+    @Path("suggestion")
+    public Response suggestion(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
+            @QueryParam("tri") String tri, @QueryParam("groupeId") String groupeId) throws JSONException {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        List<AnalyseTiersPayantDTO> lignes = analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId,
+                recherche, tri, groupeId);
+        if (lignes.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "Aucun produit dans le résultat courant : la suggestion n'a pas été créée.").toString())
+                    .build();
+        }
+        java.util.Set<String> produitIds = new java.util.LinkedHashSet<>();
+        lignes.forEach(l -> {
+            if (StringUtils.isNotBlank(l.getProduitId())) {
+                produitIds.add(l.getProduitId());
+            }
+        });
+        List<commonTasks.dto.ArticleDTO> articles = new java.util.ArrayList<>();
+        for (String id : produitIds) {
+            dal.TFamille famille = analyseTiersPayantService.produit(id);
+            if (famille == null || famille.getLgGROSSISTEID() == null) {
+                continue;
+            }
+            commonTasks.dto.ArticleDTO article = new commonTasks.dto.ArticleDTO();
+            article.setId(famille.getLgFAMILLEID());
+            article.setGrossisteId(famille.getLgGROSSISTEID().getLgGROSSISTEID());
+            articles.add(article);
+        }
+        if (articles.isEmpty()) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("msg",
+                                    "Aucun des " + produitIds.size()
+                                            + " produits du résultat n'a de grossiste par défaut : "
+                                            + "la suggestion n'a pas été créée.")
+                            .toString())
+                    .build();
+        }
+        JSONObject resultat = suggestionService.makeSuggestionFromArticleInvendus(articles, user);
+        resultat.put("produitsDuResultat", produitIds.size());
+        resultat.put("produitsCommandables", articles.size());
+        return Response.ok().entity(resultat.toString()).build();
     }
 
     /**

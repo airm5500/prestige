@@ -14,6 +14,12 @@ public class AnalyseTiersPayantDTO {
 
     private String tiersPayantId;
     private String tiersPayant;
+    /**
+     * Identifiant du produit, sur les lignes de l'analyse par produit. Il etait deja lu par la requete mais laisse de
+     * cote : la creation d'une suggestion a partir du resultat courant en a besoin, le CIP ne suffisant pas a retrouver
+     * la fiche.
+     */
+    private String produitId;
     private String cip;
     private String designation;
     private long nbVentes;
@@ -39,6 +45,14 @@ public class AnalyseTiersPayantDTO {
 
     public void setTiersPayant(String tiersPayant) {
         this.tiersPayant = tiersPayant;
+    }
+
+    public String getProduitId() {
+        return produitId;
+    }
+
+    public void setProduitId(String produitId) {
+        this.produitId = produitId;
     }
 
     public String getCip() {

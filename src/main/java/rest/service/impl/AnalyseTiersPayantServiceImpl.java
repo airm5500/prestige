@@ -152,6 +152,7 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
             List<AnalyseTiersPayantDTO> lignes = new ArrayList<>();
             for (Object[] row : (List<Object[]>) query.getResultList()) {
                 AnalyseTiersPayantDTO dto = new AnalyseTiersPayantDTO();
+                dto.setProduitId(texte(row[0]));
                 dto.setCip(texte(row[1]));
                 dto.setDesignation(texte(row[2]));
                 remplirAgregats(dto, row, 3);
@@ -167,6 +168,18 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
     @Override
     public String[] periodeRetenue(String dtStart, String dtEnd) {
         return periodeOuMoisEnCours(dtStart, dtEnd);
+    }
+
+    @Override
+    public dal.TFamille produit(String produitId) {
+        if (StringUtils.isBlank(produitId)) {
+            return null;
+        }
+        try {
+            return em.find(dal.TFamille.class, produitId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
