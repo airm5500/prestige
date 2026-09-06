@@ -2,7 +2,28 @@
    du menu, dans les deux sens (colonne decochee qui restait masquee, colonne cochee qui
    restait affichee), et rester propre a l'utilisateur connecte. */
 const { chromium } = require('playwright-core');
+const { execFileSync } = require('child_process');
 const res = [];
+
+/* Le controle d'isolement demande une SECONDE session. Le test pose donc lui-meme un mot de
+   passe de test sur un deuxieme compte, puis remet l'empreinte d'origine - a jouer sur une base
+   de test, comme tout le reste du dossier. Le premier compte (KGA3) est celui de
+   l'environnement de test decrit dans ENVIRONNEMENT_ET_TESTS.md. */
+const BASE = process.env.DB_TEST || 'capitale';
+const AUTRE = process.env.SECOND_LOGIN || 'WANE';
+const sql = (q) => execFileSync('mariadb', [BASE, '-sN', '-e', q], { encoding: 'utf8' });
+let empreinteOrigine = null;
+function poserMotDePasse() {
+  empreinteOrigine = sql("SELECT str_PASSWORD FROM t_user WHERE str_LOGIN='" + AUTRE + "'").trim();
+  sql("UPDATE t_user SET str_PASSWORD=MD5('e2etest') WHERE str_LOGIN='" + AUTRE + "'");
+}
+function rendreMotDePasse() {
+  if (empreinteOrigine) {
+    sql("UPDATE t_user SET str_PASSWORD='" + empreinteOrigine + "' WHERE str_LOGIN='" + AUTRE + "'");
+    empreinteOrigine = null;
+  }
+}
+
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 200) + ']' : '')); }
 
 const URL = 'http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr';
@@ -33,6 +54,7 @@ async function session(b, login) {
 const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
 
 (async () => {
+  poserMotDePasse();
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
 
   // ---- utilisateur 1 ----
@@ -69,7 +91,7 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
      cles.some(k => /^prestige-\d+-grille-inventaires$/.test(k)), cles.join(' | '));
 
   // ---- utilisateur 2, meme navigateur : sa presentation ne doit pas avoir bouge ----
-  const s2 = await session(b, 'WANE');
+  const s2 = await session(b, AUTRE);
   await s2.p.ouvrir('inventaire', 'Inventaire');
   const autre = await s2.p.etat();
   ok('la presentation d un autre utilisateur n est pas modifiee',
@@ -80,7 +102,8 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
      p.erreurs.concat(s2.p.erreurs).join(' || '));
 
   await b.close();
+  rendreMotDePasse();
   const ko = res.filter(r => !r.c).length;
   console.log('\n===== ' + (res.length - ko) + '/' + res.length + (ko ? ' FAIL' : ' PASS') + ' =====');
   process.exit(ko ? 1 : 0);
-})().catch(e => { console.error('FATAL', e); process.exit(2); });
+})().catch(e => { console.error('FATAL', e); try { rendreMotDePasse(); } catch (_) {} process.exit(2); });

@@ -76,6 +76,20 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                     totalProperty: 'total'
                 }
 
+            },
+            listeners: {
+                /* Meme regle que le journal (voir MvtCaisseManager.js) : seuls les trois types
+                 * retenus par l'ecran sont proposes a la creation. Proposer les autres revenait
+                 * a creer un mouvement que le journal n'affiche pas. */
+                load: function (store) {
+                    // En consultation, le type du mouvement affiche doit rester lisible meme si
+                    // la regle du journal evoluait : le filtre ne vaut que pour la creation.
+                    if (Omode === 'create' && typeof estTypeDuJournal === 'function') {
+                        store.filterBy(function (rec) {
+                            return estTypeDuJournal(rec.get('str_NAME'));
+                        });
+                    }
+                }
             }
         });
         var form = new Ext.form.Panel({
@@ -108,6 +122,10 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                     name: 'dt_DATE_MVT',
                                     maxValue: new Date(),
                                     emptyText: 'Date Mouvement',
+                                    /* Le champ s'ouvrait vide : la date du jour, cas courant,
+                                     * devait etre saisie a chaque creation. En modification, la
+                                     * date du mouvement est reposee plus bas. */
+                                    value: new Date(),
                                     submitFormat: 'Y-m-d'
 
 
@@ -210,6 +228,24 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
 
                                 },
                                 {
+                                    /* Le montant prend la place laissee libre par le mode de
+                                     * reglement : il se lit desormais en face du champ portant
+                                     * « Especes », et non plus deux lignes plus bas. */
+                                    xtype: 'textfield',
+                                    name: 'int_MONTANT_Add_MvtCaisse',
+                                    id: 'int_MONTANT_Add_MvtCaisse',
+                                    fieldLabel: 'Montant',
+                                    flex: 1,
+                                    emptyText: 'Montant',
+                                    // Montant strictement numerique : on bloque la saisie de tout caractere non chiffre
+                                    // (maskRe filtre la frappe, stripCharsRe nettoie un collage), + regex de validation.
+                                    maskRe: /[0-9]/,
+                                    stripCharsRe: /[^0-9]/,
+                                    regex: /^[0-9]+$/,
+                                    regexText: 'Le montant doit être strictement numérique',
+                                    invalidText: 'Le montant doit être strictement numérique'
+                                },
+                                {
                                     xtype: 'combobox',
 //                            labelWidth: 120,
                                     fieldLabel: 'Mode.Reglement',
@@ -223,6 +259,10 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                     typeAhead: true,
                                     queryMode: 'remote',
                                     allowBlank: false,
+                                    /* Champ retire de l'affichage sans etre retire du formulaire :
+                                     * sa valeur (Cash par defaut, voir plus bas) continue d'etre
+                                     * calculee et envoyee a l'enregistrement. */
+                                    hidden: true,
                                     emptyText: 'Choisir un mode de reglement...'
 
                                 }
@@ -284,22 +324,6 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                             layout: 'hbox',
                             margin: '0 10 5 0',
                             items: [
-                                {
-                                    xtype: 'textfield',
-                                    name: 'int_MONTANT_Add_MvtCaisse',
-                                    id: 'int_MONTANT_Add_MvtCaisse',
-                                    fieldLabel: 'Montant',
-                                    flex: 1,
-                                    emptyText: 'Montant',
-                                    // Montant strictement numerique : on bloque la saisie de tout caractere non chiffre
-                                    // (maskRe filtre la frappe, stripCharsRe nettoie un collage), + regex de validation.
-                                    maskRe: /[0-9]/,
-                                    stripCharsRe: /[^0-9]/,
-                                    regex: /^[0-9]+$/,
-                                    regexText: 'Le montant doit être strictement numérique',
-                                    invalidText: 'Le montant doit être strictement numérique'
-
-                                },
                                 {
                                     xtype: 'textfield',
                                     name: 'str_LIEU',

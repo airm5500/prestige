@@ -1428,8 +1428,17 @@ public class CaisseServiceImpl implements CaisseService {
                 DateConverter.MVT_FOND_CAISSE, DateConverter.MVT_REGLE_TP, DateConverter.MVT_REGLE_DIFF,
                 DateConverter.MVT_ENTREE_CAISSE, DateConverter.MVT_SORTIE_CAISSE));
         if (!StringUtils.isEmpty(caisseParams.getTypeMvtId())) {
-            predicates.add(cb.equal(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID),
-                    caisseParams.getTypeMvtId()));
+            // L'ecran envoie UN type quand l'utilisateur en choisit un, et la LISTE des types du
+            // journal separee par des virgules quand il laisse « Tous les types ». Compare par
+            // egalite, cette liste ne correspondait a aucun type : le journal se vidait des qu'on
+            // ne choisissait pas explicitement un type. On lit donc la valeur comme une liste,
+            // ce qui laisse le cas d'un seul type identique a ce qu'il etait.
+            List<String> types = Arrays.stream(caisseParams.getTypeMvtId().split(",")).map(String::trim)
+                    .filter(t -> !t.isEmpty()).collect(Collectors.toList());
+            if (!types.isEmpty()) {
+                predicates
+                        .add(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID).in(types));
+            }
         }
         if (caisseParams.getUtilisateurId() != null) {
             predicates.add(cb.and(
