@@ -28,6 +28,25 @@ function montantFormat(val) {
     return '<span style="color:#0B57D0;">' + amountformat(val) + '</span>';
 }
 
+/* Criteres de l'ecran, lus au meme endroit par la recherche, l'impression et l'export : trois
+   lectures separees finissaient par diverger. */
+function criteresControleAchat() {
+    var lu = function (id) {
+        var c = Ext.getCmp(id);
+        var v = c ? c.getValue() : null;
+        return (v === null || v === undefined) ? '' : v;
+    };
+    return {
+        search: lu('rechecher'),
+        grossisteId: lu('lg_GROSSISTE_ID'),
+        dtStart: Ext.getCmp('datedebut') ? Ext.getCmp('datedebut').getSubmitValue() : '',
+        dtEnd: Ext.getCmp('datefin') ? Ext.getCmp('datefin').getSubmitValue() : '',
+        dateType: lu('dateType'),
+        statutControle: lu('filtreStatutControle'),
+        ecart: lu('filtreEcartControle')
+    };
+}
+
 Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'etatscontrolemanager',
@@ -492,6 +511,57 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         }
                     }
                 },
+                /* Point 17 : filtre sur le statut du controle et sur la presence d'ecarts. Ni
+                 * l'un ni l'autre n'est stocke en base - le statut est calcule a partir des
+                 * lignes du bon, l'ecart se lit en comparant le comptage a la quantite recue -,
+                 * le tri se fait donc cote serveur sur la liste complete. « Tous » ne filtre
+                 * rien : l'ecran s'ouvre comme avant. */
+                {
+                    xtype: 'combo',
+                    id: 'filtreStatutControle',
+                    width: 140,
+                    editable: false,
+                    queryMode: 'local',
+                    value: 'TOUS',
+                    valueField: 'code',
+                    displayField: 'libelle',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['code', 'libelle'],
+                        data: [
+                            {code: 'TOUS', libelle: 'Contrôle : tous'},
+                            {code: 'CONTROLE', libelle: 'Contrôlés'},
+                            {code: 'NON_CONTROLE', libelle: 'Non contrôlés'}
+                        ]
+                    }),
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        }
+                    }
+                },
+                {
+                    xtype: 'combo',
+                    id: 'filtreEcartControle',
+                    width: 130,
+                    editable: false,
+                    queryMode: 'local',
+                    value: 'TOUS',
+                    valueField: 'code',
+                    displayField: 'libelle',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['code', 'libelle'],
+                        data: [
+                            {code: 'TOUS', libelle: 'Écarts : tous'},
+                            {code: 'AVEC_ECART', libelle: 'Avec écarts'},
+                            {code: 'SANS_ECART', libelle: 'Sans écart'}
+                        ]
+                    }),
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        }
+                    }
+                },
                 {
                     text: 'rechercher',
                     tooltip: 'rechercher',
@@ -712,20 +782,29 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         });
 
     },
+    /* Point 17 : l'impression reprend les criteres de l'ecran - filtres de statut et d'ecarts
+       compris -, les rappelle en tete de l'etat et regroupe les bons par grossiste avec un
+       sous-total par grossiste et un total general. */
     onPrintClick: function () {
-        const valeur = Ext.getCmp('rechecher').getValue();
-        let lg_GROSSISTE_ID = "";
-        if (Ext.getCmp('lg_GROSSISTE_ID').getValue() !== null) {
-            lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
-        }
-        const dtEnd = Ext.getCmp('datefin').getSubmitValue();
-        const dtStart = Ext.getCmp('datedebut').getSubmitValue();
-
-        const linkUrl = '../EtatControlStockServlet?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur
-                + '&dateType=' + Ext.getCmp('dateType').getValue();
-        window.open(linkUrl);
-
+        const attente = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/etat-control-bon/print',
+            params: criteresControleAchat(),
+            success: function (reponse) {
+                attente.hide();
+                const res = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (res.success && res.msg) {
+                    window.open('..' + res.msg, '_blank');
+                } else {
+                    Ext.Msg.alert('Message', res.msg || 'Impossible de générer le PDF');
+                }
+            },
+            failure: function () {
+                attente.hide();
+                Ext.Msg.alert('Message', 'Un problème avec le serveur');
+            }
+        });
     },
 
     onExportToExcel: function () {
@@ -754,15 +833,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             Ext.MessageBox.alert('Erreur au niveau date', 'La date de d&eacute;but doit &ecirc;tre inf&eacute;rieur &agrave; la date fin');
             return;
         }
-        this.getStore().load({
-            params: {
-                search: Ext.getCmp('rechecher').getValue(),
-                grossisteId: lg_GROSSISTE_ID,
-                dtStart: Ext.getCmp('datedebut').getSubmitValue(),
-                dtEnd: Ext.getCmp('datefin').getSubmitValue(),
-                dateType: Ext.getCmp('dateType').getValue()
-            }
-        });
+        this.getStore().load({params: criteresControleAchat()});
     },
 
     onGestionQuinzaine: function () {

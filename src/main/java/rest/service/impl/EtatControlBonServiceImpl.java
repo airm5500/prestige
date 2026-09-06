@@ -124,7 +124,9 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             q.setMaxResults(limit);
 
         }
-        return q.getResultList().stream().map(e -> EtatControlBonBuilder.build(e))
+        // Un bon dont la commande a disparu est ecarte plutot que de faire echouer tout l'ecran
+        // (voir EtatControlBonBuilder.build).
+        return q.getResultList().stream().map(EtatControlBonBuilder::build).filter(Objects::nonNull)
                 .peek(e1 -> e1.setReturnFullBl((!DELETE.equals(e1.getStrSTATUT()) && e1.getIntHTTC() > 0) && fullAuth))
                 .collect(Collectors.toList());
     }
@@ -151,6 +153,13 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         // au lieu de scanner toute la table (cause de la lenteur au chargement et en recherche).
         Date startInclusive = java.sql.Timestamp.valueOf(dtStart.atStartOfDay());
         Date endExclusive = java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay());
+        // Jointure INTERNE sur la commande : un bon dont la commande a disparu de la base ne peut
+        // pas etre mis en forme (le grossiste se lit sur la commande), et le chargement paresseux
+        // levait alors une exception qui remontait jusqu'a la ressource - l'ecran ENTIER repartait
+        // en erreur a cause d'un seul bon incoherent. La jointure les ecarte des la requete, ce
+        // qu'un rattrapage en Java ne peut pas faire : l'exception survient au commit.
+        // Le meme predicat sert a la liste et au comptage : les deux doivent voir le meme ensemble.
+        root.join(TBonLivraison_.lgORDERID, javax.persistence.criteria.JoinType.INNER);
         predicates.add(cb.equal(root.get(TBonLivraison_.strSTATUT), Constant.STATUT_IS_CLOSED));
         predicates.add(cb.greaterThanOrEqualTo(root.get(dateAttr), startInclusive));
         predicates.add(cb.lessThan(root.get(dateAttr), endExclusive));
@@ -176,6 +185,38 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         long count = count(search, dtStart, dtEnd, grossisteId, dateType);
         return FunctionUtils
                 .returnData(list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false, dateType), count);
+    }
+
+    /**
+     * Meme liste, filtree en outre par statut de controle et par presence d'ecarts (point 17).
+     *
+     * <p>
+     * Ces deux criteres ne peuvent pas etre poses en base : le statut est calcule apres coup a partir des lignes du
+     * bon, et l'ecart se lit en comparant la quantite controlee a la quantite recue. La liste complete est donc
+     * chargee, filtree, PUIS paginee ; sans quoi les pages seraient inegales et le total faux. Sans critere, on retombe
+     * sur la pagination en base, bien plus econome.
+     */
+    @Override
+    public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart) {
+        rest.service.filtre.FiltresControleAchat filtres = new rest.service.filtre.FiltresControleAchat(statutControle,
+                ecart);
+        if (filtres.inactif()) {
+            return list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType);
+        }
+        List<EtatControlBon> retenus = filtres
+                .appliquer(list(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType));
+        int debut = Math.max(0, Math.min(start, retenus.size()));
+        int fin = limit > 0 ? Math.min(debut + limit, retenus.size()) : retenus.size();
+        return FunctionUtils.returnData(retenus.subList(debut, fin), retenus.size());
+    }
+
+    /** Toutes les lignes retenues par les criteres, sans pagination : pour l'impression et l'export. */
+    @Override
+    public List<EtatControlBon> tous(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
+            String dateType, String statutControle, String ecart) {
+        return new rest.service.filtre.FiltresControleAchat(statutControle, ecart)
+                .appliquer(list(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType));
     }
 
     @Override

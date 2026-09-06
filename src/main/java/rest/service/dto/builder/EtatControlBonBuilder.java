@@ -19,10 +19,30 @@ import util.DateUtil;
  */
 public final class EtatControlBonBuilder extends CommonBuilder {
 
+    /**
+     * Bon de livraison mis en forme pour l'ecran, ou null quand sa commande ou son grossiste sont introuvables.
+     *
+     * <p>
+     * Le chargement paresseux levait alors une exception qui remontait jusqu'a la ressource, et l'ecran entier
+     * repartait en erreur - « une erreur interne est survenue » - a cause d'un seul bon rattache a une commande
+     * disparue. Le bon incoherent est desormais ecarte : la liste s'affiche, sans lui.
+     */
     public static EtatControlBon build(TBonLivraison bonLivraison) {
-        TOrder order = bonLivraison.getLgORDERID();
-        TGrossiste grossiste = order.getLgGROSSISTEID();
-        TUser oUser = bonLivraison.getLgUSERID();
+        TOrder order;
+        TGrossiste grossiste;
+        TUser oUserVerifie;
+        try {
+            order = bonLivraison.getLgORDERID();
+            grossiste = order == null ? null : order.getLgGROSSISTEID();
+            oUserVerifie = bonLivraison.getLgUSERID();
+            if (grossiste == null || grossiste.getStrLIBELLE() == null || oUserVerifie == null
+                    || oUserVerifie.getStrLASTNAME() == null) {
+                return null;
+            }
+        } catch (RuntimeException e) {
+            return null;
+        }
+        TUser oUser = oUserVerifie;
         List<BonLivraisonDetail> bonLivraisonDetails = bonLivraison.getTBonLivraisonDetailCollection().stream()
                 .map(EtatControlBonBuilder::buildItem).collect(Collectors.toList());
         return EtatControlBon.builder().dtCREATED(DateUtil.convertDateToDD_MM_YYYY_HH_mm(bonLivraison.getDtCREATED()))
