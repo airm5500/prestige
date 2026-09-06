@@ -106,6 +106,15 @@ public interface SalesStatsService {
 
     List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd);
 
+    /**
+     * Le registre de l'ordonnancier, filtre en plus par un mot cherche dans le nom du client ou la reference de la
+     * vente.
+     *
+     * @param query
+     *            mot cherche ; vide ou {@code null} ne filtre rien
+     */
+    List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query);
+
     JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start,
             int limit) throws JSONException;
 

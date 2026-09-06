@@ -23,6 +23,7 @@ import dal.MvtTransaction;
 import dal.MvtTransaction_;
 import dal.TAyantDroit;
 import dal.TClient;
+import dal.TClient_;
 import dal.TCompteClientTiersPayant;
 import dal.TCompteClientTiersPayant_;
 import dal.TEmplacement;
@@ -1265,7 +1266,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     public JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start,
             int limit) throws JSONException {
         try {
-            List<VenteDTO> l = findAllVenteOrdonnancier(medecinId, dtStart, dtEnd);
+            List<VenteDTO> l = findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query);
             return new JSONObject().put("total", l.size()).put("data", new JSONArray(l));
         } catch (Exception e) {
             return new JSONObject().put("total", 0).put("data", new JSONArray());
@@ -1274,6 +1275,11 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
     @Override
     public List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd) {
+        return findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, null);
+    }
+
+    @Override
+    public List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query) {
         try {
 
             List<Predicate> predicates = new ArrayList<>();
@@ -1289,6 +1295,21 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
             if (!StringUtils.isEmpty(medecinId)) {
                 predicates.add(cb.equal(root.get(TPreenregistrement_.medecin).get(Medecin_.id), medecinId));
+            }
+            // Recherche par nom de client. Retrouver une delivrance quand on a le nom du patient et
+            // pas la reference etait impossible : il fallait derouler la periode entiere a l'oeil.
+            // La reference est cherchee en meme temps, parce qu'un utilisateur qui l'a sous les yeux
+            // la tape naturellement dans le meme champ.
+            if (StringUtils.isNotBlank(query)) {
+                String recherche = "%" + query.trim().toUpperCase() + "%";
+                // LEFT : une vente sans client rattache ne doit pas disparaitre de la recherche par
+                // reference simplement parce qu'elle n'a pas de nom a comparer.
+                Join<TPreenregistrement, TClient> client = root.join(TPreenregistrement_.client, JoinType.LEFT);
+                predicates.add(cb.or(cb.like(cb.upper(client.get(TClient_.strFIRSTNAME)), recherche),
+                        cb.like(cb.upper(client.get(TClient_.strLASTNAME)), recherche),
+                        cb.like(cb.upper(cb.concat(cb.concat(cb.coalesce(client.get(TClient_.strFIRSTNAME), ""), " "),
+                                cb.coalesce(client.get(TClient_.strLASTNAME), ""))), recherche),
+                        cb.like(cb.upper(root.get(TPreenregistrement_.strREF)), recherche)));
             }
 
             cq.where(cb.and(predicates.toArray(new Predicate[0])));

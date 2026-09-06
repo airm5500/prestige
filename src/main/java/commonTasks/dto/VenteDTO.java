@@ -5,6 +5,7 @@
  */
 package commonTasks.dto;
 
+import dal.Medecin;
 import dal.MvtTransaction;
 import dal.TClient;
 import dal.TPreenregistrement;
@@ -1236,6 +1237,19 @@ public class VenteDTO implements Serializable {
 
         if (cl != null) {
             this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
+            this.lgCLIENTID = cl.getLgCLIENTID();
+        }
+
+        // Le medecin prescripteur. Il n'etait pas repris ici : la colonne « Medecin » de
+        // l'ordonnancier restait donc vide alors que la requete ne rapporte QUE des ventes
+        // rattachees a un medecin. C'est le registre reglementaire : le prescripteur en est
+        // la donnee centrale, une colonne vide rendait l'ecran inutilisable.
+        Medecin medecin = tp.getMedecin();
+        if (medecin != null) {
+            this.nom = medecin.getNom();
+            this.medecinId = medecin.getId();
+            this.numOrder = medecin.getNumOrdre();
+            this.commentaire = medecin.getCommentaire();
         }
 
         try {

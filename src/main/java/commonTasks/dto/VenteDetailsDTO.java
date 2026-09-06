@@ -60,6 +60,11 @@ public class VenteDetailsDTO implements Serializable {
     private String numOrder;
     private String medecinId;
     private String commentaire;
+    /**
+     * Code tableau du produit (I, II, ...). C'est lui qui fait entrer une ligne dans l'ordonnancier : le registre ne
+     * retient que les produits soumis a ordonnance ET porteurs d'un code tableau.
+     */
+    private String codeTableau;
     private String nom;
     private int intAVOIR;
     private int currentStock;
@@ -419,6 +424,7 @@ public class VenteDetailsDTO implements Serializable {
         this.intCIP = f.getIntCIP();
         this.intEAN13 = f.getIntEAN13();
         this.strSTATUT = f.getStrSTATUT();
+        this.codeTableau = f.getIntT();
         this.intPRICEUNITAIR = d.getIntPRICEUNITAIR();
         this.intQUANTITY = d.getIntQUANTITY();
         this.intQUANTITYSERVED = (p.getStrSTATUT().equals(Constant.STATUT_IS_CLOSED)
@@ -458,6 +464,7 @@ public class VenteDetailsDTO implements Serializable {
         this.intCIP = f.getIntCIP();
         this.intEAN13 = f.getIntEAN13();
         this.strSTATUT = f.getStrSTATUT();
+        this.codeTableau = f.getIntT();
         this.intPRICEUNITAIR = d.getIntPRICEUNITAIR();
         this.intQUANTITY = d.getIntQUANTITY();
         this.intQUANTITYSERVED = (p.getStrSTATUT().equals(Constant.STATUT_IS_CLOSED)
@@ -879,4 +886,11 @@ public class VenteDetailsDTO implements Serializable {
         this.prixAchat = famille.getIntPAF();
     }
 
+    public String getCodeTableau() {
+        return codeTableau;
+    }
+
+    public void setCodeTableau(String codeTableau) {
+        this.codeTableau = codeTableau;
+    }
 }

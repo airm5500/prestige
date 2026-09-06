@@ -100,6 +100,13 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                             emptyText: 'Selectionner un medecin'
 
                         }, '-',
+                        {
+                            xtype: 'textfield',
+                            itemId: 'query',
+                            flex: 1,
+                            enableKeyEvents: true,
+                            emptyText: 'Nom du client ou r&eacute;f&eacute;rence...'
+                        }, '-',
 
                         {
                             text: 'rechercher',
@@ -107,6 +114,25 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
+                        }, '-',
+                        {
+                            text: 'Imprimer',
+                            tooltip: 'Editer le registre affich&eacute;, une ligne par produit d&eacute;livr&eacute;',
+                            itemId: 'imprimer',
+                            iconCls: 'printable'
+                        }, '-',
+                        {
+                            text: 'Exporter',
+                            tooltip: 'Exporter le registre affich&eacute; au format Excel',
+                            itemId: 'exporter',
+                            iconCls: 'export_excel_icon'
+                        }, '-',
+                        {
+                            text: 'Cr&eacute;er inventaire',
+                            tooltip: 'Cr&eacute;er un inventaire des produits d&eacute;livr&eacute;s sur la '
+                                    + 'p&eacute;riode affich&eacute;e',
+                            itemId: 'inventaire',
+                            iconCls: 'addicon'
                         }
                     ]
                 }
@@ -117,9 +143,42 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                     xtype: 'gridpanel',
                     plugins: [{
                             ptype: 'rowexpander',
+                            /*
+                             * Le (+) affichait « {details} », un champ que le serveur ne remplit
+                             * jamais : il ouvrait donc une zone vide. Ce sont les produits de la
+                             * delivrance qu'on attend en dessous, et ils arrivent bien, dans
+                             * « items ». Un tableau plutot qu'un paragraphe : le registre se lit
+                             * produit par produit, avec le code tableau qui l'y fait entrer.
+                             */
                             rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-
+                                    '<tpl if="items &amp;&amp; items.length &gt; 0">',
+                                    '<table class="ordonnancier-detail" style="width:100%;margin:4px 0 4px 26px;',
+                                    'border-collapse:collapse">',
+                                    '<tr style="background:#f0f0f0">',
+                                    '<th style="text-align:left;padding:2px 6px">CIP</th>',
+                                    '<th style="text-align:left;padding:2px 6px">Produit</th>',
+                                    '<th style="text-align:center;padding:2px 6px">Tableau</th>',
+                                    '<th style="text-align:right;padding:2px 6px">Qt&eacute;</th>',
+                                    '<th style="text-align:right;padding:2px 6px">P.U.</th>',
+                                    '<th style="text-align:right;padding:2px 6px">Montant</th>',
+                                    '</tr>',
+                                    '<tpl for="items">',
+                                    '<tr style="border-top:1px solid #ddd">',
+                                    '<td style="padding:2px 6px">{intCIP}</td>',
+                                    '<td style="padding:2px 6px">{strNAME}</td>',
+                                    '<td style="text-align:center;padding:2px 6px"><b>{codeTableau}</b></td>',
+                                    '<td style="text-align:right;padding:2px 6px">{intQUANTITY}</td>',
+                                    '<td style="text-align:right;padding:2px 6px">',
+                                    '{[Ext.util.Format.number(values.intPRICEUNITAIR, \'0,000\')]}</td>',
+                                    '<td style="text-align:right;padding:2px 6px">',
+                                    '{[Ext.util.Format.number(values.intPRICE, \'0,000\')]}</td>',
+                                    '</tr>',
+                                    '</tpl>',
+                                    '</table>',
+                                    '<tpl else>',
+                                    '<p style="margin:4px 0 4px 26px;font-style:italic">',
+                                    'Aucun produit soumis &agrave; ordonnance dans cette vente.</p>',
+                                    '</tpl>'
                                     )
                         }
                     ],
@@ -187,11 +246,26 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                             flex: 0.6,
                             align: 'center'
                         }, {
+                            // Le registre repond a « qui a recu quoi, prescrit par qui ». Le nom du
+                            // patient en etait absent : il fallait ouvrir chaque vente pour le voir.
+                            sortable: false,
+                            menuDisabled: true,
+                            header: 'Client',
+                            dataIndex: 'clientFullName',
+                            flex: 1
+                        }, {
                             sortable: false,
                             menuDisabled: true,
                             header: 'Medecin',
                             dataIndex: 'nom',
                             flex: 1
+                        }, {
+                            sortable: false,
+                            menuDisabled: true,
+                            header: 'N&deg; ordre',
+                            dataIndex: 'numOrder',
+                            align: 'center',
+                            flex: 0.5
                         }
 
                         , {
