@@ -679,7 +679,21 @@ public class TiersPayantRessource {
                                 .put("str_CODE_EDIT_BORDEREAU", tp.getLgMODELFACTUREID() != null
                                         ? StringUtils.defaultString(tp.getLgMODELFACTUREID().getStrVALUE()) : "")
                                 .put("int_NB_BONS_PAR_PAGE", tp.bonsParPageEffectif())
-                                .put("int_TAILLE_POLICE", tp.taillePoliceEffective()));
+                                .put("int_TAILLE_POLICE", tp.taillePoliceEffective())
+                                // Les dix autres donnees reglables. Elles sont renvoyees meme quand la
+                                // colonne correspondante est masquee : l'officine peut afficher celle
+                                // qu'elle regle sans relancer la recherche.
+                                .put("int_NBRE_EXEMPLAIRE_BORD", entierOuZero(tp.getIntNBREEXEMPLAIREBORD()))
+                                .put("int_NBREBONS", entierOuZero(tp.getIntNBREBONS()))
+                                .put("int_MONTANTFAC", entierOuZero(tp.getIntMONTANTFAC()))
+                                .put("str_MODE_TRI_FACTURE", StringUtils.defaultString(tp.getStrMODETRIFACTURE()))
+                                .put("dbl_PLAFOND_CREDIT", decimalOuZero(tp.getDblPLAFONDCREDIT()))
+                                .put("dbl_PLAFOND_VENTE", decimalOuZero(tp.getDblPLAFONDVENTE()))
+                                .put("b_IsAbsolute", Boolean.TRUE.equals(tp.getBIsAbsolute()))
+                                .put("str_COMPTE_CONTRIBUABLE",
+                                        StringUtils.defaultString(tp.getStrCOMPTECONTRIBUABLE()))
+                                .put("str_REGISTRE_COMMERCE", StringUtils.defaultString(tp.getStrREGISTRECOMMERCE()))
+                                .put("str_CODE_OFFICINE", StringUtils.defaultString(tp.getStrCODEOFFICINE())));
             }
             return Response.ok().entity(new JSONObject().put("total", total).put("results", resultats).toString())
                     .build();
@@ -703,7 +717,7 @@ public class TiersPayantRessource {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response appliquerMiseAJourSelective(@FormParam("tiersPayants") String tiersPayants,
             @FormParam("codeEditBordereau") String codeEditBordereau, @FormParam("nbBonsParPage") String nbBonsParPage,
-            @FormParam("taillePolice") String taillePolice) {
+            @FormParam("taillePolice") String taillePolice, @FormParam("valeurs") String valeurs) {
         if (!peutMettreAJourEnMasse()) {
             return reponseNonAutorise();
         }
@@ -714,9 +728,18 @@ public class TiersPayantRessource {
         boolean poseCode = StringUtils.isNotBlank(codeEditBordereau);
         Integer bons = MiseAJourSelectiveUtil.entierOuNull(nbBonsParPage);
         Integer police = MiseAJourSelectiveUtil.entierOuNull(taillePolice);
-        if (!poseCode && bons == null && police == null) {
+        // Les dix autres donnees arrivent dans une seule table « champ -> valeur » : ajouter une
+        // donnee reglable ne demande donc plus de toucher a la signature de cette methode.
+        java.util.Map<ChampTiersPayantMaj, Object> autres;
+        try {
+            autres = ChampTiersPayantMaj.lire(valeurs);
+        } catch (IllegalArgumentException e) {
+            // Valeur refusee : on s'arrete AVANT d'ouvrir la transaction, rien n'est modifie.
+            return reponseSimple(commonparameter.PROCESS_FAILED, e.getMessage());
+        }
+        if (!poseCode && bons == null && police == null && autres.isEmpty()) {
             return reponseSimple(commonparameter.PROCESS_FAILED,
-                    "Renseignez au moins un réglage à appliquer (code d'édition, bons par page ou police).");
+                    "Renseignez au moins une donnée à appliquer. Une donnée non cochée n'est pas modifiée.");
         }
         dataManager odm = new dataManager();
         odm.initEntityManager();
@@ -749,6 +772,9 @@ public class TiersPayantRessource {
                 if (police != null) {
                     tp.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(police));
                 }
+                for (java.util.Map.Entry<ChampTiersPayantMaj, Object> reglage : autres.entrySet()) {
+                    reglage.getKey().appliquer(tp, reglage.getValue());
+                }
                 tp.setDtUPDATED(new java.util.Date());
                 odm.getEm().merge(tp);
                 modifies++;
@@ -771,6 +797,15 @@ public class TiersPayantRessource {
         } finally {
             odm.closeEntityManager();
         }
+    }
+
+    /** Un entier absent vaut zero a l'affichage : la grille attend un nombre, pas un vide. */
+    private static int entierOuZero(Integer valeur) {
+        return valeur != null ? valeur : 0;
+    }
+
+    private static double decimalOuZero(Double valeur) {
+        return valeur != null ? valeur : 0D;
     }
 
     /** Le message le plus parlant de la chaine d'erreurs, pour que le support sache quoi regarder. */
