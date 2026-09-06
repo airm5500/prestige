@@ -4,6 +4,9 @@
    - debit en rouge gras, credit en vert gras, solde colore selon son signe ;
    - export Excel du resultat complet. */
 const { chromium } = require('playwright-core');
+const fs = require('fs');
+const path = require('path');
+const zlib = require('zlib');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 240) + ']' : '')); }
 
@@ -113,6 +116,49 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       + '&operateurMontant=&valeurMontant=&typeTiersPayant=&groupeTiersPayant=');
   ok('l export Excel produit un classeur valide',
      excel.status === 200 && excel.signature === 'PK' && excel.taille > 1000, JSON.stringify(excel));
+
+  // --- edition PDF regroupee par groupe, avec sous-totaux et total general ---
+  const pdf = await appel('../api/v1/reglement-facture/recap-organisme/print?dt_start_vente=2020-01-01'
+      + '&dt_end_vente=' + new Date().toISOString().slice(0, 10) + '&search_value=&lg_TIERS_PAYANT_ID='
+      + '&operateurMontant=&valeurMontant=&typeTiersPayant=&groupeTiersPayant=');
+  ok('l edition PDF aboutit', pdf.json && pdf.json.success === true && /\.pdf$/i.test(pdf.json.msg || ''),
+     JSON.stringify(pdf.json));
+
+  if (pdf.json && pdf.json.success) {
+    /* Le PDF est lu SUR LE DISQUE : le repertoire des editions est configure hors de
+       l'application (jdom.scr_report_pdf), et l'URL rendue n'est servie par le serveur que si
+       l'exploitant l'a montee. Ce qui doit etre verifie ici, c'est le contenu de l'etat. */
+    const dossier = process.env.REPORTS_PDF || '/opt/CONF/reports/pdf';
+    const fichier = path.join(dossier, pdf.json.msg.split('/').pop());
+    ok('le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
+    if (fs.existsSync(fichier)) {
+      const brut = fs.readFileSync(fichier);
+      ok('le fichier est un PDF non vide',
+         brut.slice(0, 4).toString() === '%PDF' && brut.length > 1000, 'octets=' + brut.length);
+      // Les flux du PDF sont compresses : on les decompresse pour lire les libelles. Le
+      // reperage se fait sur les OCTETS - passer par une chaine abimerait le binaire.
+      let texte = '';
+      let position = 0;
+      const debut = Buffer.from('stream');
+      const fin = Buffer.from('endstream');
+      while (true) {
+        const d = brut.indexOf(debut, position);
+        if (d < 0) { break; }
+        const f = brut.indexOf(fin, d);
+        if (f < 0) { break; }
+        let depart = d + debut.length;
+        while (brut[depart] === 0x0d || brut[depart] === 0x0a) { depart++; }
+        try {
+          texte += zlib.inflateSync(brut.slice(depart, f)).toString('latin1');
+        } catch (e) { /* flux non compresse ou binaire : ignore */ }
+        position = f + fin.length;
+      }
+      ok('l edition est regroupee par groupe de tiers payants', /Groupe/.test(texte), 'longueur texte=' + texte.length);
+      ok('un sous-total est edite par groupe', /Sous-total/.test(texte));
+      ok('le total general est edite', /TOTAL/.test(texte));
+      fs.unlinkSync(fichier);
+    }
+  }
 
   ok('aucune erreur JavaScript', err.length === 0, err.join(' || '));
   await b.close();

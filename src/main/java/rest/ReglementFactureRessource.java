@@ -66,6 +66,10 @@ public class ReglementFactureRessource {
     @Inject
     private HttpServletRequest servletRequest;
 
+    /** Edition des etats embarques : le recapitulatif est desormais imprime depuis l'application. */
+    @javax.ejb.EJB
+    private rest.report.ReportUtil reportUtil;
+
     private TUser utilisateurSession() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -806,6 +810,85 @@ public class ReglementFactureRessource {
             LOG.log(Level.WARNING, "groupes de tiers payants du recapitulatif", e);
         }
         return groupes;
+    }
+
+    /**
+     * Edition PDF du recapitulatif, REGROUPEE par groupe de tiers payants, avec un sous-total par groupe et un total
+     * general (point 10).
+     *
+     * <p>
+     * L'edition precedente passait par un modele installe sur chaque poste, qui refaisait sa propre requete : on ne
+     * pouvait ni y porter les nouveaux filtres, ni y ajouter les regroupements. Le modele est desormais embarque dans
+     * l'application et alimente par la MEME liste que l'ecran, criteres compris - ce qui est imprime est donc
+     * exactement ce qui est affiche.
+     *
+     * @return l'URL du PDF genere, que l'ecran ouvre dans un onglet.
+     */
+    @GET
+    @Path("recap-organisme/print")
+    public Response recapOrganismePrint(@DefaultValue("") @QueryParam("dt_start_vente") String dtStartParam,
+            @DefaultValue("") @QueryParam("dt_end_vente") String dtEndParam,
+            @DefaultValue("") @QueryParam("lg_TIERS_PAYANT_ID") String lgTiersPayantId,
+            @DefaultValue("") @QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("operateurMontant") String operateurMontant,
+            @DefaultValue("") @QueryParam("valeurMontant") String valeurMontant,
+            @DefaultValue("") @QueryParam("typeTiersPayant") String typeTiersPayant,
+            @DefaultValue("") @QueryParam("groupeTiersPayant") String groupeTiersPayant) {
+        TUser user = utilisateurSession();
+        if (user == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        try {
+            String dtStart = StringUtils.isNotEmpty(dtStartParam) ? dtStartParam
+                    : date.formatterMysqlShort.format(new Date());
+            String dtEnd = StringUtils.isNotEmpty(dtEndParam) ? dtEndParam
+                    : date.formatterMysqlShort.format(new Date());
+            String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
+            String search = StringUtils.isNotEmpty(searchValue) ? searchValue : "%%";
+            odm.initEntityManager();
+            rest.service.filtre.FiltresRecapOrganisme filtres = new rest.service.filtre.FiltresRecapOrganisme(
+                    operateurMontant, valeurMontant, typeTiersPayant, groupeTiersPayant);
+            List<rest.service.filtre.LigneRecapOrganisme> lignes = filtres.appliquer(lignesRecapOrganisme(odm,
+                    new StatisticsFamilleArticle(odm), dtStart, dtEnd, tiersPayantId, search));
+            // Le regroupement de Jasper suppose la liste DEJA triee par groupe : sinon un meme
+            // groupe reapparait plusieurs fois, avec autant de sous-totaux partiels.
+            lignes.sort(java.util.Comparator
+                    .comparing(rest.service.filtre.LigneRecapOrganisme::getGroupeLibelle, String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(l -> StringUtils.trimToEmpty(l.getOrganisme()), String.CASE_INSENSITIVE_ORDER));
+
+            Map<String, Object> parametres = reportUtil.officineData(user);
+            parametres.put("P_H_CLT_INFOS", "RÉCAPITULATIF PAR COMPTE ORGANISME");
+            StringBuilder periode = new StringBuilder("Période du " + dtStart + " au " + dtEnd);
+            for (String critere : filtres.libelles()) {
+                periode.append("   |   ").append(critere);
+            }
+            periode.append("   |   ").append(lignes.size()).append(" compte(s)");
+            parametres.put("P_PERIODE", periode.toString());
+            String url = reportUtil.buildReport(parametres, "recapitulatif_organisme", lignes);
+            // buildReport rattrape ses erreurs et rend le chemin quand meme : sans ce controle,
+            // l'ecran ouvrait un onglet sur un fichier inexistant et l'utilisateur ne voyait
+            // qu'une page blanche, sans savoir que l'edition avait echoue.
+            if (StringUtils.isNotBlank(url)
+                    && !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1)))
+                            .exists()) {
+                LOG.log(Level.SEVERE, "edition du recapitulatif : le PDF {0} n''a pas ete produit", url);
+                url = "";
+            }
+            if (StringUtils.isBlank(url)) {
+                return Response.ok().entity(
+                        new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
+                        .build();
+            }
+            return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "edition du recapitulatif par compte organisme", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 
     /**

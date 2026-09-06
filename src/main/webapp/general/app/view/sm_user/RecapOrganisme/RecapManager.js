@@ -416,8 +416,30 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
                                              lg_TIERS_PAYANT_ID="";  
                                                
                                            }
-                                            var linkUrl = "../webservices/sm_user/RecapOrganisme/ws_recapOrganisme_pdf.jsp" + "?" + Ext.Object.toQueryString(criteresRecap());
-                                            window.open(linkUrl);
+                                            /* Point 10 : l'edition est desormais regroupee par
+                                             * groupe de tiers payants, avec un sous-total par
+                                             * groupe et un total general, et reprend les filtres
+                                             * de l'ecran. Le modele est embarque dans
+                                             * l'application ; le service repond par l'URL du PDF. */
+                                            var attente = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+                                            Ext.Ajax.request({
+                                                method: 'GET',
+                                                url: '../api/v1/reglement-facture/recap-organisme/print',
+                                                params: criteresRecap(),
+                                                success: function (reponse) {
+                                                    attente.hide();
+                                                    var res = Ext.JSON.decode(reponse.responseText, true) || {};
+                                                    if (res.success && res.msg) {
+                                                        window.open('..' + res.msg, '_blank');
+                                                    } else {
+                                                        Ext.Msg.alert('Message', res.msg || 'Impossible de générer le PDF');
+                                                    }
+                                                },
+                                                failure: function () {
+                                                    attente.hide();
+                                                    Ext.Msg.alert('Message', 'Un problème avec le serveur');
+                                                }
+                                            });
 
                                         }
                                     }

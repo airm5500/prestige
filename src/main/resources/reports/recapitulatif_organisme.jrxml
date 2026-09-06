@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Recapitulatif par compte organisme, A4 paysage.
+
+  Le modele est embarque dans le war (src/main/resources/reports) : ReportUtil le compile depuis le
+  classpath lorsqu'il n'est pas deploye dans le repertoire des rapports de l'officine. Rien a
+  installer chez le client.
+
+  Les lignes sont REGROUPEES par groupe de tiers payants, avec un sous-total par groupe et un total
+  general (point 10 du cahier des charges). Les comptes sans groupe sont rassembles sous « Sans
+  groupe » plutot que sous une bande vide.
+
+  Les montants sont fournis en nombres par LigneRecapOrganisme : Jasper ne peut pas additionner des
+  chaines. Le solde est colore selon son signe, comme a l'ecran - rouge s'il est debiteur, vert s'il
+  est crediteur.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="recapitulatif_organisme" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <!-- Le solde prend sa couleur de son signe. Un style conditionnel plutot qu'une propriete
+         d'element : le schema de JasperReports n'accepte pas propertyExpression a cet endroit. -->
+    <style name="Solde" fontName="SansSerif" fontSize="8" isBold="true" forecolor="#7F8C8D">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{soldeNombre} != null && $F{soldeNombre}.signum() > 0]]></conditionExpression>
+            <style forecolor="#C0392B"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{soldeNombre} != null && $F{soldeNombre}.signum() < 0]]></conditionExpression>
+            <style forecolor="#1E7E34"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="groupeLibelle" class="java.lang.String"/>
+    <field name="typeOrganisme" class="java.lang.String"/>
+    <field name="organisme" class="java.lang.String"/>
+    <field name="codeOrganisme" class="java.lang.String"/>
+    <field name="numeroCompte" class="java.lang.String"/>
+    <field name="compteComptable" class="java.lang.String"/>
+    <field name="debitNombre" class="java.math.BigDecimal"/>
+    <field name="creditNombre" class="java.math.BigDecimal"/>
+    <field name="soldeNombre" class="java.math.BigDecimal"/>
+
+    <variable name="V_DEBIT" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{debitNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_CREDIT" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{creditNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_SOLDE" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{soldeNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_DEBIT_GROUPE" class="java.math.BigDecimal" resetType="Group" resetGroup="Groupe" calculation="Sum">
+        <variableExpression><![CDATA[$F{debitNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_CREDIT_GROUPE" class="java.math.BigDecimal" resetType="Group" resetGroup="Groupe" calculation="Sum">
+        <variableExpression><![CDATA[$F{creditNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_SOLDE_GROUPE" class="java.math.BigDecimal" resetType="Group" resetGroup="Groupe" calculation="Sum">
+        <variableExpression><![CDATA[$F{soldeNombre}]]></variableExpression>
+    </variable>
+    <variable name="V_COMPTES_GROUPE" class="java.lang.Integer" resetType="Group" resetGroup="Groupe" calculation="Count">
+        <variableExpression><![CDATA[$F{organisme}]]></variableExpression>
+    </variable>
+
+    <group name="Groupe">
+        <groupExpression><![CDATA[$F{groupeLibelle}]]></groupExpression>
+        <groupHeader>
+            <band height="20">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="2" width="802" height="17" backcolor="#E3F0EF"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="4" y="0" width="600" height="17" forecolor="#12564F"/>
+                        <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Groupe : " + $F{groupeLibelle}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="20">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#DDE6F0"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="4" y="0" width="440" height="18"/>
+                        <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Sous-total " + $F{groupeLibelle} + " (" + $V{V_COMPTES_GROUPE} + " compte(s))"]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0" isBlankWhenNull="true">
+                        <reportElement x="446" y="0" width="110" height="18"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{V_DEBIT_GROUPE}]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0" isBlankWhenNull="true">
+                        <reportElement x="560" y="0" width="110" height="18"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{V_CREDIT_GROUPE}]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0" isBlankWhenNull="true">
+                        <reportElement x="674" y="0" width="124" height="18"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{V_SOLDE_GROUPE}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupFooter>
+    </group>
+
+    <title>
+        <band height="76" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="36" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="56" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="20" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="2" y="0" width="110" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Type organisme]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="114" y="0" width="200" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Organisme]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="316" y="0" width="90" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Code]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="408" y="0" width="80" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[N° compte]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="490" y="0" width="90" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Compte comptable]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="582" y="0" width="70" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Débit]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="654" y="0" width="70" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Crédit]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="726" y="0" width="72" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Solde]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Stretch">
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+            </line>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="110" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{typeOrganisme}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="114" y="1" width="200" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{organisme}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="316" y="1" width="90" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{codeOrganisme}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="408" y="1" width="80" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{numeroCompte}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="490" y="1" width="90" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{compteComptable}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="582" y="1" width="70" height="13" forecolor="#C0392B"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{debitNombre}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="654" y="1" width="70" height="13" forecolor="#1E7E34"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{creditNombre}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement style="Solde" stretchType="RelativeToTallestObject" x="726" y="1" width="72" height="13"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{soldeNombre}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="26">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="4" width="802" height="20" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="4" y="0" width="440" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <text><![CDATA[TOTAL GÉNÉRAL]]></text>
+                </staticText>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="446" y="0" width="110" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_DEBIT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="560" y="0" width="110" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_CREDIT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="674" y="0" width="124" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_SOLDE}]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </summary>
+
+</jasperReport>

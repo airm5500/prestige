@@ -1,5 +1,7 @@
 package rest.service.filtre;
 
+import java.math.BigDecimal;
+
 /**
  * Une ligne du recapitulatif par compte organisme (point 10).
  *
@@ -83,6 +85,39 @@ public final class LigneRecapOrganisme {
 
     public void setSolde(String solde) {
         this.solde = solde;
+    }
+
+    /**
+     * Montants sous forme de nombres, pour l'edition PDF : Jasper additionne les sous-totaux par groupe et le total
+     * general, ce qu'il ne peut pas faire sur des chaines. Une valeur illisible vaut zero, une ligne isolee ne devant
+     * pas faire echouer tout l'etat.
+     */
+    public BigDecimal getDebitNombre() {
+        return nombre(debit);
+    }
+
+    public BigDecimal getCreditNombre() {
+        return nombre(credit);
+    }
+
+    public BigDecimal getSoldeNombre() {
+        return nombre(solde);
+    }
+
+    /** Libelle du groupe pour l'edition : « Sans groupe » plutot qu'une bande vide. */
+    public String getGroupeLibelle() {
+        return groupe == null || groupe.isBlank() ? "Sans groupe" : groupe;
+    }
+
+    private static BigDecimal nombre(String valeur) {
+        if (valeur == null || valeur.trim().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(valeur.trim().replace(" ", "").replace(",", "."));
+        } catch (NumberFormatException e) {
+            return BigDecimal.ZERO;
+        }
     }
 
     public String getGroupe() {
