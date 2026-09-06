@@ -425,7 +425,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'parametermanager', 'kobysky', 'zonegeographiquemanager', 'usermanager',
     // caisse
     'listecaissemanager', 'visualisercaissemanager', 'gestcaissemanager',
-    'caisserecetterecap', 'cashmovements',
+    'caisserecetterecap', 'cashmovements', 'balancesalecahs',
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
     'ugmanager', 'mouvementprixvente',
@@ -446,14 +446,14 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'evaluationventemoyenne', 'cazonegeomanager',
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
-    'suppressionsvente', 'delayed',
+    'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier',
     // service client
     'ventesrateesmanager', 'modelemessagemanager',
     // gestion des fichiers
     'ventesmodifieesmanager',
     // etats et tableaux de bord
     'etatscontrolemanager', 'etatannuel', 'achatgrossistemensuel',
-    'tableauPhama', 'tableauPhamaCarnet', 'statistiqueTVA',
+    'tableauPhama', 'tableauPhamaCarnet', 'statistiqueTVA', 'recap',
     // divers
     'diffmanager','valorisationstock',
     // centre de support

@@ -1328,6 +1328,9 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     private static final String CHAMP_CODE_TABLEAU = "CODE_TABLEAU";
     private static final String CHAMP_LABORATOIRE = "LABORATOIRE";
     private static final String CHAMP_GAMME = "GAMME";
+    /** Deux reglages oui / non, transmis « 1 » ou « 0 » : une chaine vide serait refusee en amont. */
+    private static final String CHAMP_ORDONNANCIER = "ORDONNANCIER";
+    private static final String CHAMP_REMISE = "REMISE";
 
     /**
      * Les combos « Tous » des services communs renvoient la valeur ALL - ou, pour les laboratoires et les gammes, un
@@ -1538,6 +1541,14 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             case CHAMP_GAMME:
                 valeurAffectee = em.find(dal.GammeProduit.class, valeurSaisie);
                 jpql = "UPDATE TFamille f SET f.gamme = :valeur WHERE f.lgFAMILLEID IN :ids";
+                break;
+            case CHAMP_ORDONNANCIER:
+                valeurAffectee = Boolean.valueOf("1".equals(valeurSaisie) || "true".equalsIgnoreCase(valeurSaisie));
+                jpql = "UPDATE TFamille f SET f.scheduled = :valeur WHERE f.lgFAMILLEID IN :ids";
+                break;
+            case CHAMP_REMISE:
+                valeurAffectee = Boolean.valueOf("1".equals(valeurSaisie) || "true".equalsIgnoreCase(valeurSaisie));
+                jpql = "UPDATE TFamille f SET f.boolREMISE = :valeur WHERE f.lgFAMILLEID IN :ids";
                 break;
             default:
                 return res.put("success", false).put("count", 0).put("message",

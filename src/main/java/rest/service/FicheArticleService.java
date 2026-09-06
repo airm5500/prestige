@@ -157,7 +157,7 @@ public interface FicheArticleService {
      * moins les exceptions decochees).
      *
      * @param champ
-     *            GROSSISTE, FAMILLE, TVA, CODE_REMISE, CODE_TABLEAU, LABORATOIRE ou GAMME
+     *            GROSSISTE, FAMILLE, TVA, CODE_REMISE, CODE_TABLEAU, LABORATOIRE, GAMME, ORDONNANCIER ou REMISE
      * @param valeur
      *            la valeur a affecter, verifiee avant toute ecriture pour les champs qui referencent une autre table
      */
