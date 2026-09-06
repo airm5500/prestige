@@ -51,6 +51,7 @@ public class ModeReglementServiceImpl implements ModeReglementService {
                     modeReglement.setName(reglement.getStrNAME());
                     modeReglement.setTypeReglementId(reglement.getLgTYPEREGLEMENTID());
                     modeReglement.setMobileMoney(util.MobileMoney.est(reglement.getLgTYPEREGLEMENTID()));
+                    modeReglement.setClientRequis(Boolean.TRUE.equals(reglement.getBoolCLIENTREQUIS()));
                     modeReglement.setQrCode(e.getQrCode());
                     // client par defaut (mobile money) pour l'affichage du menu Mode reglement
                     if (e.getLgCLIENTDEFAUTID() != null && !e.getLgCLIENTDEFAUTID().trim().isEmpty()) {
@@ -135,7 +136,7 @@ public class ModeReglementServiceImpl implements ModeReglementService {
     private MobileMoneyCache mobileMoneyCache;
 
     @Override
-    public JSONObject creer(String nom, boolean mobileMoney) {
+    public JSONObject creer(String nom, boolean mobileMoney, boolean clientRequis) {
         String libelle = nom == null ? "" : nom.trim().toUpperCase();
         if (libelle.isEmpty()) {
             return new JSONObject().put("success", false).put("msg", "Le nom du mode de règlement est obligatoire");
@@ -164,6 +165,9 @@ public class ModeReglementServiceImpl implements ModeReglementService {
             type.setStrSTATUT(Constant.STATUT_ENABLE);
             type.setStrCATEGORIE(
                     mobileMoney ? util.MobileMoney.CATEGORIE_MOBILE_MONEY : util.MobileMoney.CATEGORIE_STANDARD);
+            // Un mode mobile money demande toujours un client : c'etait deja le cas des operateurs
+            // historiques, la case ne sert donc qu'aux autres modes.
+            type.setBoolCLIENTREQUIS(mobileMoney || clientRequis);
             type.setDtCREATED(maintenant);
             type.setDtUPDATED(maintenant);
             em.persist(type);
@@ -183,6 +187,29 @@ public class ModeReglementServiceImpl implements ModeReglementService {
             java.util.logging.Logger.getLogger(ModeReglementServiceImpl.class.getName())
                     .log(java.util.logging.Level.SEVERE, "creer mode de reglement", e);
             return new JSONObject().put("success", false).put("msg", "La création a échoué");
+        }
+    }
+
+    /**
+     * Change l'exigence de client d'un mode de reglement. C'est ce reglage, et non plus une liste dans le code de
+     * l'ecran de vente, qui decide si le parcours « choisir ou creer un client » s'ouvre a la selection du mode.
+     */
+    @Override
+    public JSONObject setClientRequis(String modeReglementId, boolean clientRequis) {
+        try {
+            TModeReglement mode = em.find(TModeReglement.class, modeReglementId);
+            if (mode == null || mode.getLgTYPEREGLEMENTID() == null) {
+                return new JSONObject().put("success", false).put("msg", "Mode de règlement introuvable");
+            }
+            TTypeReglement type = mode.getLgTYPEREGLEMENTID();
+            type.setBoolCLIENTREQUIS(clientRequis);
+            type.setDtUPDATED(new Date());
+            em.merge(type);
+            return new JSONObject().put("success", true);
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(ModeReglementServiceImpl.class.getName())
+                    .log(java.util.logging.Level.SEVERE, "exigence de client d'un mode de reglement", e);
+            return new JSONObject().put("success", false).put("msg", "L'enregistrement a échoué");
         }
     }
 

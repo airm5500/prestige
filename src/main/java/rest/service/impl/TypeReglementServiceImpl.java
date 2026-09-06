@@ -69,4 +69,23 @@ public class TypeReglementServiceImpl implements TypeReglementService {
         return util.MobileMoney.identifiants().stream().sorted().collect(Collectors.toList());
     }
 
+    /**
+     * Types de reglement qui exigent un client sur la vente. L'ecran de vente s'en sert pour decider s'il ouvre le
+     * parcours « choisir ou creer un client » : la liste vient de la base, plus jamais du code, de sorte qu'un mode
+     * cree par l'officine se regle dans l'ecran des modes de reglement au lieu de demander une livraison.
+     */
+    @Override
+    public List<String> identifiantsClientRequis() {
+        try {
+            TypedQuery<String> q = getEntityManager()
+                    .createQuery("SELECT t.lgTYPEREGLEMENTID FROM TTypeReglement t WHERE t.strSTATUT = ?1 "
+                            + "AND t.boolCLIENTREQUIS = TRUE ORDER BY t.lgTYPEREGLEMENTID", String.class);
+            q.setParameter(1, Constant.STATUT_ENABLE);
+            return q.getResultList();
+        } catch (Exception e) {
+            // L'ecran garde sa liste de repli : mieux vaut le comportement historique que rien.
+            return Collections.emptyList();
+        }
+    }
+
 }

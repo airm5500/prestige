@@ -27,5 +27,8 @@ public interface ModeReglementService {
      * Cree un mode de reglement (type + mode, meme identifiant) et le classe mobile money ou standard. Reponse
      * {success, msg, id}.
      */
-    JSONObject creer(String nom, boolean mobileMoney);
+    JSONObject creer(String nom, boolean mobileMoney, boolean clientRequis);
+
+    /** Exigence de client du mode (point 12) : pilote l'ouverture du parcours client a la vente. */
+    JSONObject setClientRequis(String modeReglementId, boolean clientRequis);
 }

@@ -21,6 +21,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                         {name: 'qrCode', type: 'auto'},
                         {name: 'typeReglementId', type: 'string'},
                         {name: 'mobileMoney', type: 'boolean'},
+                        {name: 'clientRequis', type: 'boolean'},
                         {name: 'clientDefautId', type: 'string'},
                         {name: 'clientDefautNom', type: 'string'}
                     ],
@@ -59,6 +60,40 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                         return value
                                 ? '<span style="color:#1e7e34;font-weight:bold;">Mobile money</span>'
                                 : 'Standard';
+                    }
+                },
+                {
+                    /* Point 12 : c'est ce reglage, et non plus une liste dans le code de l'ecran de
+                     * vente, qui decide si choisir ce mode ouvre le parcours « choisir ou creer un
+                     * client ». Un mode mobile money l'exige toujours. */
+                    xtype: 'checkcolumn',
+                    text: 'Client requis',
+                    dataIndex: 'clientRequis',
+                    width: 110,
+                    listeners: {
+                        checkchange: function (colonne, rang, coche) {
+                            const enregistrement = colonne.up('grid').getStore().getAt(rang);
+                            Ext.Ajax.request({
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                url: '../api/v1/modereglement/client-requis/' + enregistrement.get('id')
+                                        + '?requis=' + (coche ? 'true' : 'false'),
+                                callback: function (opts, succes, reponse) {
+                                    let json = {};
+                                    try {
+                                        json = Ext.decode(reponse.responseText);
+                                    } catch (e) {
+                                    }
+                                    if (!json.success) {
+                                        // La case revient a son etat precedent : elle ne doit pas
+                                        // laisser croire a un reglage qui n'a pas ete enregistre.
+                                        enregistrement.set('clientRequis', !coche);
+                                        enregistrement.commit();
+                                        Ext.Msg.alert('Message', json.msg || "L'enregistrement a échoué");
+                                    }
+                                }
+                            });
+                        }
                     }
                 },
                 {

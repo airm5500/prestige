@@ -80,6 +80,40 @@ Ext.define('testextjs.controller.VenteCtr', {
     // serveur (point 7 : modes mobile money créés par l'officine).
     mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
 
+    // === Types de reglement exigeant un client (cf. typeReglementSelectEvent) ===
+    // Liste de repli : cheque (2), carte bancaire (3), differe (4) et virement (6), ceux qui
+    // ouvraient deja le parcours client. Elle est remplacee au demarrage par le reglage de la base
+    // (point 12), de sorte qu'un mode cree par l'officine - Wyzall, par exemple - se comporte comme
+    // les autres sans toucher au code. Si l'appel echoue, on garde le comportement historique.
+    clientRequisIds: ['2', '3', '4', '6'],
+
+    chargerTypesClientRequis: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/type-reglements/client-requis',
+            success: function (response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.clientRequisIds = json.data.map(String);
+                }
+            }
+        });
+    },
+
+    /*
+     * Ce mode de reglement demande-t-il un client ? Le mobile money reste reconnu par sa propre
+     * liste : il porte d'autres comportements que le seul parcours client.
+     */
+    modeExigeClient: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.clientRequisIds.indexOf(id) !== -1 || this.isMobileMode(id);
+    },
+
     chargerModesMobileMoney: function () {
         const me = this;
         Ext.Ajax.request({
@@ -580,6 +614,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         }, 150);
         Ext.on('resize', me._onWinResizeFill);
         me.chargerModesMobileMoney();
+        me.chargerTypesClientRequis();
         this.control(
                 {
 
@@ -2388,8 +2423,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         me._previousTypeReglement = me._appliedTypeReglement || '1';
         // Cette sélection va-t-elle ouvrir la fenêtre « client lié » ? Si oui
         // et que l'utilisateur clique Annuler, on défera tout (rollback).
-        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient())
-                && (value === '4' || value === '2' || value === '3' || value === '6' || me.isMobileMode(value));
+        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient()) && me.modeExigeClient(value);
         if (value === '1') {
             me.getMontantRecu().enable();
             me.getMontantRecu().setReadOnly(false);
@@ -2411,6 +2445,16 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 me.getMontantRecu().disable();
 
+            } else if (me.modeExigeClient(value)) {
+                /* Mode de reglement configure comme exigeant un client, sans etre l'un des quatre
+                 * types historiques : il ouvre le meme parcours client, mais sans la zone cheque /
+                 * carte bancaire, qui ne le concerne pas. */
+                me.showAndHideInfosStandardClient(true);
+                me.getCbContainer().hide();
+                if (me.getNetAmountToPay()) {
+                    me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
+                }
+                me.getMontantRecu().setReadOnly(true);
             } else {
                 me.getMontantRecu().setValue(0);
                 me.getMontantRecu().setReadOnly(false);

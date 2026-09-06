@@ -45,6 +45,8 @@ public class ModeReglementTDO {
 
     /** Vrai si le type du mode est du mobile money (voir util.MobileMoney). */
     private boolean mobileMoney;
+    /** Ce mode ouvre-t-il le parcours « choisir ou creer un client » a la vente ? (point 12) */
+    private boolean clientRequis;
 
     public boolean isMobileMoney() {
         return mobileMoney;
@@ -52,6 +54,14 @@ public class ModeReglementTDO {
 
     public void setMobileMoney(boolean mobileMoney) {
         this.mobileMoney = mobileMoney;
+    }
+
+    public boolean isClientRequis() {
+        return clientRequis;
+    }
+
+    public void setClientRequis(boolean clientRequis) {
+        this.clientRequis = clientRequis;
     }
 
     /** Client standard par defaut du mode (mobile money) — lot 3. */

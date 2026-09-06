@@ -53,6 +53,17 @@ public class TypeReglementRessource {
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
+    /**
+     * Identifiants des types de reglement qui exigent un client sur la vente. Pas de cache : un reglage change dans
+     * l'ecran des modes de reglement doit valoir des la vente suivante.
+     */
+    @GET
+    @Path("client-requis")
+    public Response clientRequis() throws JSONException {
+        List<String> data = typeReglementService.identifiantsClientRequis();
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
     @GET
     @Path("list")
     public Response findAll() throws JSONException {
