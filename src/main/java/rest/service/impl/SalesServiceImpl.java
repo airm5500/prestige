@@ -4273,6 +4273,18 @@ public class SalesServiceImpl implements SalesService {
         getClientTiersPayents(tp.getLgPREENREGISTREMENTID()).forEach(action -> {
             action.setStrSTATUT(STATUT_DELETE);
             emg.merge(action);
+            // Le solde du carnet depot est une valeur STOCKEE sur le tiers payant
+            // (t_tiers_payant.account), tenue par increments a chaque operation, et non
+            // recalculee a l'affichage. Marquer l'ecriture supprimee ne suffisait donc
+            // pas : le montant de la vente annulee restait acquis au solde.
+            //
+            // Modifier une vente de 25 000 en 20 000 laissait ainsi 45 000 au lieu de
+            // 20 000. L'annulation simple (annulerVente) faisait deja ce debit ; la
+            // modification l'oubliait. Meme condition et meme montant qu'elle.
+            TTiersPayant payantDuCompte = action.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID();
+            if (payantDuCompte.getToBeExclude() || payantDuCompte.getIsDepot()) {
+                payantExclusService.updateTiersPayantAccount(payantDuCompte, (-1) * action.getIntPRICE());
+            }
         });
         TEmplacement emplacement = ooTUser.getLgEMPLACEMENTID();
         final Typemvtproduit typemvtproduit = checked ? findTypeMvtProduitById(ANNULATION_DE_VENTE)

@@ -138,9 +138,17 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     onSelectTiersPayant: function (cmp) {
         let me = this;
         let value = cmp.getValue();
-        let record = cmp.findRecord("id" || "nomComplet", value);
-        me.getAccountReglement().setValue(record.get('account'));
-         me.getAccount().setValue(record.get('account'));
+        let record = cmp.findRecord("id", value);
+        // Le solde n'est repris que si le carnet a ete retrouve dans le store : sans
+        // cette garde, un enregistrement absent faisait echouer la selection.
+        if (record) {
+            me.getAccountReglement().setValue(record.get('account'));
+            me.getAccount().setValue(record.get('account'));
+        }
+        // Choisir un carnet lance directement la recherche de l'onglet ouvert
+        // (ventes, reglements, depenses ou produits) : l'utilisateur n'a plus a
+        // cliquer sur Rechercher apres avoir choisi son tiers payant.
+        me.searchAll();
     },
     printTicket: function (view, rowIndex, colIndex, item, e, rec, row) {
         const me = this;
