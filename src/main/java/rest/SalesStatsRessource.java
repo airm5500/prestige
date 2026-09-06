@@ -47,6 +47,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.GenerateTicketService;
 import rest.service.SalesStatsService;
@@ -746,6 +747,108 @@ public class SalesStatsRessource {
         List<commonTasks.dto.VenteDetailsDTO> produits = salesService.venteDetailsByVenteId(venteId);
         return Response.ok().entity(new JSONObject().put("success", true).put("total", produits.size())
                 .put("data", new org.json.JSONArray(produits)).toString()).build();
+    }
+
+    /** Nombre de lignes gardees dans chaque palmares quand l'ecran n'en demande pas d'autre. */
+    private static final int TOP_ORDONNANCIER_DEFAUT = 20;
+
+    /** En-tetes de l'analyse, partages par l'edition PDF et l'export Excel. */
+    private static final String[] ENTETES_ANALYSE_ORDONNANCIER = { "Section", "Libellé", "Complément", "Délivrances",
+            "Quantité", "Montant" };
+
+    private rest.service.impl.AnalyseOrdonnancier.Resultat analyseOrdonnancier(String medecinId, String dtStart,
+            String dtEnd, String query, int top) {
+        // L'analyse porte sur EXACTEMENT la population du registre : meme appel, memes criteres.
+        // Deux chemins de lecture differents donneraient deux verites, sans qu'on sache laquelle croire.
+        return rest.service.impl.AnalyseOrdonnancier.analyser(
+                salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, true),
+                top > 0 ? top : TOP_ORDONNANCIER_DEFAUT);
+    }
+
+    private static JSONArray palmaresJson(List<rest.service.impl.AnalyseOrdonnancier.Cumul> cumuls) {
+        JSONArray tableau = new JSONArray();
+        for (rest.service.impl.AnalyseOrdonnancier.Cumul cumul : cumuls) {
+            tableau.put(new JSONObject().put("libelle", cumul.getLibelle()).put("complement", cumul.getComplement())
+                    .put("delivrances", cumul.getDelivrances()).put("quantite", cumul.getQuantite())
+                    .put("montant", cumul.getMontant()));
+        }
+        return tableau;
+    }
+
+    /**
+     * L'analyse du registre : ce qui sort le plus, pour qui, et sur prescription de qui.
+     *
+     * @param top
+     *            nombre de lignes gardees dans chaque palmares
+     */
+    @GET
+    @Path("ventesordonnanciers/analyse")
+    public Response analyseOrdonnancierJson(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) throws JSONException {
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        JSONObject indicateurs = new JSONObject().put("delivrances", r.getDelivrances()).put("lignes", r.getLignes())
+                .put("produitsDistincts", r.getProduitsDistincts()).put("clientsDistincts", r.getClientsDistincts())
+                .put("medecinsDistincts", r.getMedecinsDistincts()).put("quantiteTotale", r.getQuantiteTotale())
+                .put("montantTotal", r.getMontantTotal());
+        return Response.ok().entity(new JSONObject().put("success", true).put("indicateurs", indicateurs)
+                .put("topProduits", palmaresJson(r.getTopProduits())).put("topClients", palmaresJson(r.getTopClients()))
+                .put("topMedecins", palmaresJson(r.getTopMedecins())).toString()).build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/analyse/pdf")
+    public Response imprimerAnalyseOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_H_CLT_INFOS", "ANALYSE DE L'ORDONNANCIER");
+        parametres.put("P_PERIODE", sousTitreOrdonnancier(dtStart, dtEnd, query, r.getLignes(), r.getDelivrances()));
+        parametres.put("P_INDICATEURS", rest.service.impl.AnalyseOrdonnancier.indicateursTexte(r));
+        String url = reportUtil.buildReport(parametres, "analyse_ordonnancier",
+                rest.service.impl.AnalyseOrdonnancier.aPlat(r));
+        // Meme precaution que pour le registre : buildReport rend l'URL attendue meme quand
+        // l'edition a echoue. On verifie que le PDF existe avant d'annoncer un succes.
+        if (StringUtils.isBlank(url)
+                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
+                    .build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).put("msg", url).toString())
+                .build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/analyse/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exporterAnalyseOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) throws IOException {
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        String titre = "ANALYSE DE L'ORDONNANCIER - du " + StringUtils.defaultString(dtStart) + " au "
+                + StringUtils.defaultString(dtEnd) + " - " + rest.service.impl.AnalyseOrdonnancier.indicateursTexte(r);
+        byte[] data = excelExportService.createExcelReport(titre, ENTETES_ANALYSE_ORDONNANCIER,
+                rest.service.impl.AnalyseOrdonnancier.aPlat(r), (row, ligne) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(ligne.getSection());
+                    row.createCell(col++).setCellValue(ligne.getLibelle());
+                    row.createCell(col++).setCellValue(ligne.getComplement());
+                    row.createCell(col++).setCellValue(ligne.getDelivrances());
+                    row.createCell(col++).setCellValue(ligne.getQuantite());
+                    row.createCell(col++).setCellValue(ligne.getMontant());
+                });
+        String nomFichier = "analyse_ordonnancier_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename = " + nomFichier).build();
     }
 
     @GET

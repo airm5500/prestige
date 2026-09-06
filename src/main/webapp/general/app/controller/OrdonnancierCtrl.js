@@ -15,12 +15,14 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             selector: 'ordonnancier #rechercher'
         },
         {
+            // L'ecran porte desormais quatre grilles (le registre et les trois palmares) :
+            // « ordonnancier gridpanel » designerait la premiere venue.
             ref: 'ordonnancierGrid',
-            selector: 'ordonnancier gridpanel'
+            selector: 'ordonnancier #grilleRegistre'
         },
         {
             ref: 'pagingtoolbar',
-            selector: 'ordonnancier gridpanel pagingtoolbar'
+            selector: 'ordonnancier #grilleRegistre pagingtoolbar'
         }
         , {
             ref: 'dtStart',
@@ -45,7 +47,7 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
     },
     init: function (application) {
         this.control({
-            'ordonnancier gridpanel pagingtoolbar': {
+            'ordonnancier #grilleRegistre pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
             'ordonnancier #rechercher': {
@@ -54,11 +56,29 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             'ordonnancier #medecin': {
                 select: this.doSearch
             },
-            'ordonnancier gridpanel': {
+            'ordonnancier #grilleRegistre': {
                 viewready: this.doInitStore
             },
-            'ordonnancier gridpanel actioncolumn': {
+            'ordonnancier #grilleRegistre actioncolumn': {
                 voirDetail: this.doVoirDetail
+            },
+            'ordonnancier #ongletsOrdonnancier': {
+                tabchange: this.surChangementOnglet
+            },
+            'ordonnancier #analyseActualiser': {
+                click: this.doAnalyser
+            },
+            'ordonnancier #analyseTop': {
+                select: this.doAnalyser
+            },
+            'ordonnancier #analyseImprimer': {
+                click: this.doImprimerAnalyse
+            },
+            'ordonnancier #analyseExporter': {
+                click: this.doExporterAnalyse
+            },
+            'ordonnancier #analyseInventaire': {
+                click: this.doInventaire
             },
             'ordonnancier #query': {
                 // La touche Entree lance la recherche : personne ne va chercher le bouton
@@ -138,6 +158,88 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             urlDetail: '../api/v1/ventestats/ventesordonnanciers/detail/',
             avecTableau: true
         });
+    },
+
+    /**
+     * L'analyse n'est lancee qu'a l'ouverture de son onglet, et une seule fois : elle coute une
+     * lecture complete du registre, que l'utilisateur venu consulter une delivrance n'a pas a payer.
+     * Ensuite, seuls « Actualiser » et un changement de filtres la relancent.
+     */
+    surChangementOnglet: function (onglets, onglet) {
+        if (onglet && onglet.getItemId() === 'ongletAnalyse' && !this.analyseChargee) {
+            this.doAnalyser();
+        }
+    },
+
+    doAnalyser: function () {
+        var me = this;
+        var ecran = me.getOrdonnancier();
+        var indicateurs = ecran.down('#analyseIndicateurs');
+        var selectTop = ecran.down('#analyseTop');
+        var criteres = Ext.apply({top: selectTop ? selectTop.getValue() : 20}, me.criteres());
+        indicateurs.update('<i>Analyse en cours...</i>');
+        Ext.Ajax.request({
+            url: '../api/v1/ventestats/ventesordonnanciers/analyse',
+            method: 'GET',
+            params: criteres,
+            timeout: 600000,
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                var ind = objet.indicateurs || {};
+                ecran.produitStore.loadData(objet.topProduits || []);
+                ecran.clientStore.loadData(objet.topClients || []);
+                ecran.medecinStore.loadData(objet.topMedecins || []);
+                indicateurs.update('<b>' + (ind.delivrances || 0) + '</b> d&eacute;livrance(s) &middot; <b>'
+                        + (ind.lignes || 0) + '</b> ligne(s) &middot; <b>' + (ind.produitsDistincts || 0)
+                        + '</b> produit(s) &middot; <b>' + (ind.clientsDistincts || 0)
+                        + '</b> client(s) &middot; <b>' + (ind.medecinsDistincts || 0)
+                        + '</b> m&eacute;decin(s) &middot; <b>' + (ind.quantiteTotale || 0)
+                        + '</b> unit&eacute;(s) &middot; <b>'
+                        + Ext.util.Format.number(ind.montantTotal || 0, '0,000') + '</b> au total');
+                me.analyseChargee = true;
+            },
+            failure: function () {
+                indicateurs.update('<span style="color:#a00">L\'analyse n\'a pas pu &ecirc;tre '
+                        + 'calcul&eacute;e.</span>');
+            }
+        });
+    },
+
+    /** Les criteres de l'analyse : ceux de la recherche, plus le nombre de lignes gardees. */
+    criteresAnalyse: function () {
+        var selectTop = this.getOrdonnancier().down('#analyseTop');
+        return Ext.apply({top: selectTop ? selectTop.getValue() : 20}, this.criteres());
+    },
+
+    doImprimerAnalyse: function () {
+        var attente = Ext.MessageBox.wait('Veuillez patienter . . .', 'Edition de l\'analyse');
+        Ext.Ajax.request({
+            url: '../api/v1/ventestats/ventesordonnanciers/analyse/pdf',
+            method: 'GET',
+            params: this.criteresAnalyse(),
+            timeout: 600000,
+            callback: function () {
+                attente.hide();
+            },
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (objet.success && objet.url) {
+                    window.open('..' + objet.url);
+                } else {
+                    Ext.MessageBox.alert('Message',
+                            objet.msg || 'L\'&eacute;dition n\'a pas pu &ecirc;tre g&eacute;n&eacute;r&eacute;e.');
+                }
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Message',
+                        'L\'&eacute;dition n\'a pas pu &ecirc;tre g&eacute;n&eacute;r&eacute;e.');
+            }
+        });
+    },
+
+    doExporterAnalyse: function () {
+        window.open('../api/v1/ventestats/ventesordonnanciers/analyse/excel?'
+                + Ext.Object.toQueryString(this.criteresAnalyse()));
     },
 
     doImprimer: function () {
@@ -244,6 +346,16 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
     
     doSearch: function () {
         var me = this;
+        // Les deux onglets partagent les filtres : changer de periode rend l'analyse affichee
+        // fausse. On la relance si elle est visible, sinon on la marque a recalculer.
+        if (me.analyseChargee) {
+            var onglets = me.getOrdonnancier() ? me.getOrdonnancier().down('#ongletsOrdonnancier') : null;
+            var actif = onglets ? onglets.getActiveTab() : null;
+            me.analyseChargee = false;
+            if (actif && actif.getItemId() === 'ongletAnalyse') {
+                me.doAnalyser();
+            }
+        }
         me.getOrdonnancierGrid().getStore().load({
             params: {
 

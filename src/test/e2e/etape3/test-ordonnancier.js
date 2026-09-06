@@ -304,6 +304,121 @@ function nettoyer() {
     ok('L\'inventaire porte un nom parlant',
       q("SELECT COUNT(*) FROM t_inventaire WHERE str_NAME LIKE 'INVENTAIRE ORDONNANCIER%'") !== '0');
 
+    // ---------------------------------------------------------- 8. l'onglet Analyse
+    /* Le jeu d'essai est connu : 3 delivrances, 4 lignes de produit, 3 produits distincts,
+       2 clients (dont un avec DEUX delivrances), 1 medecin. Le semis pose une quantite de 2 + j
+       sur la j-ieme ligne d'une vente : 2 et 3 sur la premiere, 2 sur chacune des deux autres,
+       soit 9 unites et 5000 de montant. */
+    const analyse = await p.evaluate(async (params) => {
+      const url = '../api/v1/ventestats/ventesordonnanciers/analyse?' + Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+      const r = await fetch(url, { credentials: 'same-origin' });
+      return await r.json();
+    }, Ext_apply(jour, { top: 20 }));
+    const ind = analyse.indicateurs || {};
+    ok('L\'analyse repond', analyse.success === true, JSON.stringify(analyse).slice(0, 200));
+    ok('Elle compte 3 delivrances, pas 4 lignes', ind.delivrances === 3, JSON.stringify(ind));
+    ok('Elle compte 4 lignes de produit', ind.lignes === 4, JSON.stringify(ind));
+    ok('Elle compte 3 produits distincts', ind.produitsDistincts === 3, JSON.stringify(ind));
+    ok('Elle compte 2 clients distincts', ind.clientsDistincts === 2, JSON.stringify(ind));
+    ok('Elle compte 1 medecin prescripteur', ind.medecinsDistincts === 1, JSON.stringify(ind));
+    ok('Elle totalise 9 unites', ind.quantiteTotale === 9, JSON.stringify(ind));
+    ok('Elle totalise 5000 de montant', ind.montantTotal === 5000, JSON.stringify(ind));
+
+    ok('Le palmares des produits est rempli', (analyse.topProduits || []).length === 3,
+      JSON.stringify(analyse.topProduits));
+    ok('Il est trie par quantite decroissante',
+      (analyse.topProduits || []).every((l, i, t) => i === 0 || t[i - 1].quantite >= l.quantite),
+      (analyse.topProduits || []).map(l => l.libelle + '=' + l.quantite).join(' | '));
+    ok('Chaque produit porte son CIP et son code tableau',
+      (analyse.topProduits || []).every(l => /tableau/.test(l.complement)),
+      (analyse.topProduits || []).map(l => l.complement).join(' | '));
+
+    const clientDeuxFois = (analyse.topClients || []).filter(l => l.delivrances === 2);
+    ok('Le client servi deux fois compte 2 delivrances', clientDeuxFois.length === 1,
+      (analyse.topClients || []).map(l => l.libelle + '=' + l.delivrances).join(' | '));
+    ok('Le medecin totalise les 3 delivrances',
+      (analyse.topMedecins || []).length === 1 && analyse.topMedecins[0].delivrances === 3,
+      JSON.stringify(analyse.topMedecins));
+    ok('Le numero d\'ordre suit le medecin',
+      (analyse.topMedecins[0] || {}).complement === 'E2E-9001', JSON.stringify(analyse.topMedecins));
+
+    // l'analyse porte sur la MEME population que le registre : les filtres s'y appliquent
+    const analyseFiltree = await p.evaluate(async (params) => {
+      const url = '../api/v1/ventestats/ventesordonnanciers/analyse?' + Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+      const r = await fetch(url, { credentials: 'same-origin' });
+      return await r.json();
+    }, Ext_apply(jour, { query: 'E2EORD-REF-3', top: 20 }));
+    ok('La recherche filtre aussi l\'analyse',
+      (analyseFiltree.indicateurs || {}).delivrances === 1
+      && (analyseFiltree.topProduits || []).length === 1,
+      JSON.stringify(analyseFiltree.indicateurs));
+
+    const analyseLimitee = await p.evaluate(async (params) => {
+      const url = '../api/v1/ventestats/ventesordonnanciers/analyse?' + Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+      const r = await fetch(url, { credentials: 'same-origin' });
+      return await r.json();
+    }, Ext_apply(jour, { top: 1 }));
+    ok('La limite coupe le palmares sans fausser les indicateurs',
+      (analyseLimitee.topProduits || []).length === 1
+      && (analyseLimitee.indicateurs || {}).produitsDistincts === 3,
+      JSON.stringify(analyseLimitee.indicateurs));
+
+    const analysePdf = await p.evaluate(async (params) => {
+      const url = '../api/v1/ventestats/ventesordonnanciers/analyse/pdf?' + Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+      const r = await fetch(url, { credentials: 'same-origin' });
+      return await r.json();
+    }, Ext_apply(jour, { top: 20 }));
+    ok('L\'edition de l\'analyse aboutit', analysePdf.success === true && !!analysePdf.url,
+      JSON.stringify(analysePdf));
+    if (analysePdf.url) {
+      const fs = require('fs');
+      ok('Le PDF de l\'analyse est ecrit sur le disque',
+        fs.existsSync('/opt/CONF/reports/pdf/' + analysePdf.url.split('/').pop()), analysePdf.url);
+    }
+
+    const analyseExcel = await p.evaluate(async (params) => {
+      const url = '../api/v1/ventestats/ventesordonnanciers/analyse/excel?' + Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+      const r = await fetch(url, { credentials: 'same-origin' });
+      const buf = await r.arrayBuffer();
+      return { statut: r.status, taille: buf.byteLength };
+    }, Ext_apply(jour, { top: 20 }));
+    ok('L\'export Excel de l\'analyse repond', analyseExcel.statut === 200 && analyseExcel.taille > 2000,
+      JSON.stringify(analyseExcel));
+
+    // l'ecran : deux onglets sur les memes filtres, et l'analyse chargee seulement a l'ouverture
+    const ecran = await p.evaluate(() => {
+      const vue = Ext.create('testextjs.view.vente.Ordonnancier', {renderTo: Ext.getBody()});
+      const onglets = vue.down('#ongletsOrdonnancier');
+      const resultat = {
+        nbOnglets: onglets.items.getCount(),
+        titres: onglets.items.getRange().map(o => o.title),
+        // les filtres sont docked au panneau : ils valent pour les deux onglets
+        filtresPartages: !!vue.down('#dtStart') && !!vue.down('#query') && !!vue.down('#medecin'),
+        registrePresent: !!vue.down('#grilleRegistre'),
+        palmares: ['grilleTopProduits', 'grilleTopClients', 'grilleTopMedecins']
+          .every(id => !!vue.down('#' + id)),
+        boutonsAnalyse: ['analyseImprimer', 'analyseExporter', 'analyseInventaire', 'analyseTop']
+          .every(id => !!vue.down('#' + id)),
+        // rien n'est charge tant qu'on n'ouvre pas l'onglet
+        palmaresVides: vue.produitStore.getCount() === 0 && vue.clientStore.getCount() === 0
+          && vue.medecinStore.getCount() === 0
+      };
+      vue.destroy();
+      return resultat;
+    });
+    ok('L\'ecran a deux onglets', ecran.nbOnglets === 2, ecran.titres.join(' | '));
+    ok('Registre et Analyse', ecran.titres.join('|') === 'Registre|Analyse', ecran.titres.join('|'));
+    ok('Les filtres sont partages par les deux onglets', ecran.filtresPartages);
+    ok('La grille du registre porte son propre itemId', ecran.registrePresent);
+    ok('Les trois palmares sont presents', ecran.palmares);
+    ok('L\'onglet Analyse a ses filtres et ses actions', ecran.boutonsAnalyse);
+    ok('Rien n\'est calcule tant que l\'onglet n\'est pas ouvert', ecran.palmaresVides);
+
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
     ok('Deroulement sans exception', false, e.message + '\n' + e.stack);
