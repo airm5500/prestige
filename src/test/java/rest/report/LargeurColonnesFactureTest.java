@@ -53,6 +53,28 @@ class LargeurColonnesFactureTest {
         CAS.put("PART_TIERS_PAYANT", new String[] { "PART TP", "1 234 567" });
     }
 
+    /**
+     * Colonnes du sous-tableau des PRODUITS (point 20 : le prix s'affichait sur deux lignes).
+     *
+     * <p>
+     * Les valeurs retenues sont les plus longues rencontrees en production : un CIP a treize chiffres, une designation
+     * complete, et des montants a sept chiffres separateurs compris.
+     */
+    private static final Map<String, String[]> CAS_PRODUIT = new LinkedHashMap<>();
+
+    static {
+        CAS_PRODUIT.put("PROD_CIP", new String[] { "CIP", "3400930000000" });
+        CAS_PRODUIT.put("PROD_DESIGNATION",
+                new String[] { "DÉSIGNATION", "DOLIPRANE 1000MG COMPRIME EFFERVESCENT B/8" });
+        CAS_PRODUIT.put("PROD_QUANTITE", new String[] { "QTÉ", "999" });
+        CAS_PRODUIT.put("PROD_PRIX_UNITAIRE", new String[] { "P.U.", "1 234 567" });
+        CAS_PRODUIT.put("PROD_MONTANT", new String[] { "MONTANT", "12 345 678" });
+        CAS_PRODUIT.put("PROD_REMISE", new String[] { "REMISE", "1 234 567" });
+    }
+
+    /** Les lignes de produit sont d'un point plus petites que la ligne du bon. */
+    private static final float TAILLE_LIGNE_PRODUIT = TAILLE_LIGNE - 1f;
+
     private static BaseFont normal;
     private static BaseFont gras;
 
@@ -77,6 +99,71 @@ class LargeurColonnesFactureTest {
             liste.add(c);
         }
         return liste;
+    }
+
+    private static float besoinProduit(String champ) throws Exception {
+        if (normal == null) {
+            normal = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false);
+            gras = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, false);
+        }
+        String[] cas = CAS_PRODUIT.get(champ);
+        return Math.max(gras.getWidthPoint(cas[0], TAILLE_ENTETE), normal.getWidthPoint(cas[1], TAILLE_LIGNE_PRODUIT))
+                + MARGES_CELLULE;
+    }
+
+    @Test
+    @DisplayName("Point 20 : aucun prix du sous-tableau des produits ne passe a la ligne")
+    void aucunPrixDeProduitNeCoupeSonContenu() throws Exception {
+        String[] champs = CAS_PRODUIT.keySet().toArray(new String[0]);
+        int[] largeurs = JrxmlFactureBuilder.largeursColonnesProduit(colonnes(champs));
+        for (int i = 0; i < champs.length; i++) {
+            float besoin = besoinProduit(champs[i]);
+            assertTrue(largeurs[i] >= besoin, champs[i] + " : " + largeurs[i] + " pt alloues pour " + Math.round(besoin)
+                    + " pt necessaires, le contenu passera a la ligne");
+        }
+    }
+
+    @Test
+    @DisplayName("Point 20 : le prix tient a TOUTES les tailles de police proposees")
+    void lePrixTientAToutesLesTaillesDePolice() throws Exception {
+        if (normal == null) {
+            normal = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, false);
+            gras = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, false);
+        }
+        String[] champs = CAS_PRODUIT.keySet().toArray(new String[0]);
+        // La taille de police est reglable de 5 a 12 points sur le modele de facture ; les lignes
+        // de produit sont d'un point plus petites. Le prix doit tenir sur une ligne dans tous les
+        // cas, sans quoi il se coupe en deux - c'est le defaut signale.
+        for (int taille = dal.ModelFactureDynamique.TAILLE_POLICE_MINIMUM; taille <= dal.ModelFactureDynamique.TAILLE_POLICE_MAXIMUM; taille++) {
+            float tailleProduit = Math.max(dal.ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
+            int[] largeurs = JrxmlFactureBuilder.largeursColonnesProduit(colonnes(champs), taille);
+            for (int i = 0; i < champs.length; i++) {
+                // La designation est du texte libre, long et de longueur imprevisible : c'est la
+                // seule colonne dont le passage a la ligne est normal, et elle absorbe la place
+                // restante. Le controle porte sur les colonnes a contenu borne - CIP, quantite et
+                // surtout les MONTANTS, qui ne doivent jamais se couper (point 20).
+                if ("PROD_DESIGNATION".equals(champs[i])) {
+                    continue;
+                }
+                String[] cas = CAS_PRODUIT.get(champs[i]);
+                float besoin = Math.max(gras.getWidthPoint(cas[0], Math.min(tailleProduit, TAILLE_ENTETE)),
+                        normal.getWidthPoint(cas[1], tailleProduit)) + MARGES_CELLULE;
+                assertTrue(largeurs[i] >= besoin, "police " + taille + " pt, " + champs[i] + " : " + largeurs[i]
+                        + " pt alloues pour " + Math.round(besoin) + " pt necessaires, le contenu passera a la ligne");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Point 20 : les colonnes de montant tiennent meme sans la designation")
+    void lesMontantsTiennentDansUnSousTableauReduit() throws Exception {
+        // Le modele peut n'afficher que les montants : chaque colonne doit garder sa largeur utile.
+        String[] champs = { "PROD_CIP", "PROD_PRIX_UNITAIRE", "PROD_MONTANT", "PROD_REMISE" };
+        int[] largeurs = JrxmlFactureBuilder.largeursColonnesProduit(colonnes(champs));
+        for (int i = 0; i < champs.length; i++) {
+            assertTrue(largeurs[i] >= besoinProduit(champs[i]), champs[i] + " : " + largeurs[i] + " pt alloues, "
+                    + Math.round(besoinProduit(champs[i])) + " pt necessaires");
+        }
     }
 
     @Test

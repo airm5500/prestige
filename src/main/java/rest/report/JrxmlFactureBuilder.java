@@ -25,6 +25,11 @@ public final class JrxmlFactureBuilder {
     /** Largeur utile d'une page A4 avec les marges du modele de reference (595 - 5 - 5). */
     private static final int LARGEUR_UTILE = 585;
     private static final int MARGE_GAUCHE_TABLE = 2;
+    /**
+     * Largeur en dessous de laquelle on ne comprime plus une colonne de texte libre, meme quand la page manque de place
+     * : en dessous, le libelle se decoupe en tranches d'un ou deux caracteres et ne se lit plus du tout.
+     */
+    private static final int PLANCHER_TEXTE = 40;
     private static final int HAUTEUR_LIGNE = 20;
     private static final int HAUTEUR_ENTETE_COLONNES = 25;
     private static final int HAUTEUR_LIGNE_PRODUIT = 13;
@@ -69,6 +74,20 @@ public final class JrxmlFactureBuilder {
             this.champSql = champSql;
             this.numerique = numerique;
         }
+
+        /**
+         * Vrai pour les seules colonnes de texte libre (nom, prenom, designation du produit).
+         *
+         * <p>
+         * Ce sont les seules qu'on peut retrecir sans nuire a la lecture : un nom trop long se poursuit sur une
+         * deuxieme ligne et se lit encore. Tout le reste - code CIP, numero de bon, date, quantite, montant - est une
+         * valeur d'un seul tenant, illisible des qu'elle est coupee en deux. Le fanion {@code numerique} ne convient
+         * pas ici : il designe les colonnes qu'on totalise, ce qui laisse de cote le CIP et la quantite.
+         * </p>
+         */
+        boolean texteLibre() {
+            return "Left".equals(alignement);
+        }
     }
 
     private static final Map<String, Champ> CHAMPS = new LinkedHashMap<>();
@@ -106,8 +125,10 @@ public final class JrxmlFactureBuilder {
     private static final Map<String, Champ> CHAMPS_PRODUIT = new LinkedHashMap<>();
 
     static {
+        // 62 points : un CIP a treize chiffres, mesure avec la police des lignes de produit. La
+        // valeur precedente (55) etait calibree sur des CIP a sept chiffres et coupait les autres.
         CHAMPS_PRODUIT.put("PROD_CIP",
-                new Champ("$F{PROD_CIP}", "java.lang.String", null, "Center", 55, "PROD_CIP", false));
+                new Champ("$F{PROD_CIP}", "java.lang.String", null, "Center", 62, "PROD_CIP", false));
         CHAMPS_PRODUIT.put("PROD_DESIGNATION",
                 new Champ("$F{PROD_DESIGNATION}", "java.lang.String", null, "Left", 160, "PROD_DESIGNATION", false));
         CHAMPS_PRODUIT.put("PROD_QUANTITE",
@@ -162,11 +183,17 @@ public final class JrxmlFactureBuilder {
         }
         boolean avecProduits = !colonnesProduit.isEmpty();
 
-        int[] largeurs = repartirLargeurs(colonnes, CHAMPS, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE);
+        // La taille de police du modele entre dans le calcul des largeurs : sinon un prix a sept
+        // chiffres, calibre pour 8 points, se coupe en deux des que l'officine choisit 10 ou 12.
+        int taillePolice = modele.taillePoliceEffective();
+        int[] largeurs = repartirLargeurs(colonnes, CHAMPS, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE, taillePolice);
         int[] positions = positions(largeurs, MARGE_GAUCHE_TABLE);
         // le sous-tableau des produits est decale vers la droite, sous la ligne du bon
+        // Les lignes de produit sont d'un point plus petites que la ligne du bon : c'est cette
+        // taille-la qui doit servir a calibrer leurs colonnes.
+        int taillePoliceProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taillePolice - 1);
         int[] largeursProduit = avecProduits ? repartirLargeurs(colonnesProduit, CHAMPS_PRODUIT,
-                LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE - RETRAIT_PRODUIT) : new int[0];
+                LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE - RETRAIT_PRODUIT, taillePoliceProduit) : new int[0];
         int[] positionsProduit = positions(largeursProduit, MARGE_GAUCHE_TABLE + RETRAIT_PRODUIT);
 
         StringBuilder xml = new StringBuilder(16000);
@@ -680,6 +707,25 @@ public final class JrxmlFactureBuilder {
      */
     private static int[] repartirLargeurs(List<ModelFactureDynamiqueColonne> colonnes, Map<String, Champ> registre,
             int disponible) {
+        return repartirLargeurs(colonnes, registre, disponible, ModelFactureDynamique.TAILLE_POLICE_DEFAUT);
+    }
+
+    /**
+     * Repartition des largeurs pour une taille de police donnee.
+     *
+     * <p>
+     * Les largeurs minimales sont exprimees pour la taille par defaut. La taille est reglable sur le modele de facture
+     * : a 12 points, un prix a sept chiffres depasse la colonne calculee pour 8 points et se coupe en deux (point 20).
+     * Les minima sont donc mis a l'echelle de la police reellement demandee, et jamais reduits en dessous de leur
+     * valeur d'origine.
+     */
+    private static int[] repartirLargeurs(List<ModelFactureDynamiqueColonne> colonnes, Map<String, Champ> registre,
+            int disponible, int taillePolice) {
+        // Les minima du registre des produits ont ete calibres sur la police des lignes de produit,
+        // d'un point plus petite que celle de la ligne du bon : c'est cette taille-la qui sert de
+        // reference pour la mise a l'echelle, faute de quoi les colonnes restent trop etroites.
+        int tailleReference = registre == CHAMPS_PRODUIT ? ModelFactureDynamique.TAILLE_POLICE_DEFAUT - 1
+                : ModelFactureDynamique.TAILLE_POLICE_DEFAUT;
         if (colonnes.isEmpty()) {
             return new int[0];
         }
@@ -690,7 +736,7 @@ public final class JrxmlFactureBuilder {
         int sommePoids = 0;
         for (int i = 0; i < nombre; i++) {
             Champ champ = registre.get(colonnes.get(i).getChamp());
-            minima[i] = Math.max(20, champ.largeurMini);
+            minima[i] = Math.max(20, aLEchelle(champ.largeurMini, taillePolice, tailleReference));
             poids[i] = champ.largeur;
             sommeMinima += minima[i];
             sommePoids += poids[i];
@@ -699,9 +745,40 @@ public final class JrxmlFactureBuilder {
         int cumul = 0;
         if (sommeMinima >= disponible) {
             /*
-             * Trop de colonnes pour la largeur d'une page : aucune ne peut avoir sa largeur minimale. On les reduit
-             * alors TOUTES dans la meme proportion, plutot que d'en servir quelques-unes et d'ecraser les dernieres.
+             * Trop de colonnes pour la largeur d'une page a la taille de police demandee. Un montant coupe en deux est
+             * illisible et se relit de travers ; un libelle coupe en deux reste parfaitement lisible. On prend donc le
+             * manque UNIQUEMENT sur les colonnes de texte libre, en laissant aux colonnes de valeur (code, date,
+             * quantite, montant) la largeur qu'il leur faut. Si le texte libre n'a pas de quoi absorber le manque, on
+             * retombe sur la reduction proportionnelle de TOUTES les colonnes, faute de mieux.
              */
+            int manque = sommeMinima - disponible;
+            int[] marges = new int[nombre];
+            int sommeMarges = 0;
+            for (int i = 0; i < nombre; i++) {
+                Champ champ = registre.get(colonnes.get(i).getChamp());
+                if (champ.texteLibre()) {
+                    marges[i] = Math.max(0, minima[i] - PLANCHER_TEXTE);
+                    sommeMarges += marges[i];
+                }
+            }
+            if (sommeMarges >= manque) {
+                int pris = 0;
+                int dernierCompressible = -1;
+                for (int i = 0; i < nombre; i++) {
+                    int part = marges[i] > 0 ? manque * marges[i] / sommeMarges : 0;
+                    largeurs[i] = minima[i] - part;
+                    pris += part;
+                    if (marges[i] > 0) {
+                        dernierCompressible = i;
+                    }
+                }
+                // Le reste entier de la division va sur la derniere colonne de texte : la somme
+                // fait alors exactement la largeur utile, sans toucher a une colonne de montant.
+                if (dernierCompressible >= 0) {
+                    largeurs[dernierCompressible] -= manque - pris;
+                }
+                return largeurs;
+            }
             for (int i = 0; i < nombre - 1; i++) {
                 largeurs[i] = Math.max(20, minima[i] * disponible / sommeMinima);
                 cumul += largeurs[i];
@@ -746,6 +823,52 @@ public final class JrxmlFactureBuilder {
             }
         }
         return repartirLargeurs(retenues, CHAMPS, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE);
+    }
+
+    /**
+     * Largeurs du sous-tableau des PRODUITS, dans l'ordre des colonnes fournies.
+     *
+     * <p>
+     * Le sous-tableau est decale sous la ligne du bon : il dispose de moins de place que le tableau principal, et c'est
+     * la que les prix se retrouvaient coupes sur deux lignes (point 20). Le calcul est expose pour que la mesure puisse
+     * etre controlee sans imprimer.
+     */
+    public static int[] largeursColonnesProduit(List<ModelFactureDynamiqueColonne> colonnes) {
+        return largeursColonnesProduit(colonnes, ModelFactureDynamique.TAILLE_POLICE_DEFAUT);
+    }
+
+    /** Memes largeurs, pour la taille de police retenue sur le modele. */
+    public static int[] largeursColonnesProduit(List<ModelFactureDynamiqueColonne> colonnes, int taillePolice) {
+        // Meme convention que la generation : les lignes de produit sont d'un point plus petites.
+        int taillePoliceProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taillePolice - 1);
+        List<ModelFactureDynamiqueColonne> retenues = new ArrayList<>();
+        for (ModelFactureDynamiqueColonne c : colonnes) {
+            if (CHAMPS_PRODUIT.containsKey(c.getChamp())) {
+                retenues.add(c);
+            }
+        }
+        return repartirLargeurs(retenues, CHAMPS_PRODUIT, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE - RETRAIT_PRODUIT,
+                taillePoliceProduit);
+    }
+
+    /**
+     * Largeur minimale mise a l'echelle de la police demandee.
+     *
+     * <p>
+     * La largeur d'un texte est proportionnelle a la taille de sa police. Les minima du registre valent pour la taille
+     * par defaut ; au-dela, ils sont augmentes dans la meme proportion. En deca, ils sont conserves : reduire une
+     * colonne parce que la police est plus petite ne gagne rien et rapproche du seuil de coupure.
+     */
+    private static int aLEchelle(int largeurMini, int taillePolice, int tailleReference) {
+        int taille = taillePolice < ModelFactureDynamique.TAILLE_POLICE_MINIMUM
+                || taillePolice > ModelFactureDynamique.TAILLE_POLICE_MAXIMUM
+                        ? ModelFactureDynamique.TAILLE_POLICE_DEFAUT : taillePolice;
+        if (taille <= tailleReference) {
+            return largeurMini;
+        }
+        // Arrondi au point superieur, plus un point de marge : la repartition du surplus se fait en
+        // entiers, et un demi-point manquant suffit a couper un prix en deux.
+        return (int) Math.ceil(largeurMini * (double) taille / tailleReference) + 1;
     }
 
     /** Abscisses cumulees des colonnes, a partir d'une marge de depart. */
