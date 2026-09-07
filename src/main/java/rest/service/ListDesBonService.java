@@ -21,16 +21,17 @@ public interface ListDesBonService {
     BonsTotauxDTO listBonsTotaux(BonsParam bonsParam);
 
     /**
-     * PDF de la liste des bons construit en code (sans gabarit jasper) — lot 3.
+     * Les bons ranges pour l'edition PDF, produits compris quand l'etat les demande.
+     *
+     * L'ordre est fixe ICI, et non par l'etat : celui-ci ouvre une nouvelle section des que la valeur groupee change
+     * d'une ligne a la suivante, si bien qu'une liste mal rangee ferait apparaitre le meme organisme a plusieurs
+     * endroits, chacun avec son propre total.
      *
      * @param avecProduits
-     *            true : chaque bon est suivi de ses produits (liste avec produits) ; false : une ligne par bon (liste
-     *            simple, utilisee quand le regroupement par groupe est demande).
+     *            true : chaque bon porte ses produits (edition « avec produits ») ; false : la liste reste simple et
+     *            aucune requete de produits n'est faite.
      * @param parGroupe
-     *            true : sections et totaux par groupe de tiers payant.
-     * @param entete
-     *            libelles d'entete (nom officine, periode, imprime par).
+     *            true : les bons sont d'abord ranges par groupe de tiers payant.
      */
-    byte[] buildBonsPdf(BonsParam bonsParam, boolean avecProduits, boolean parGroupe, String entete, String periode,
-            String imprimePar);
+    List<BonsDTO> bonsPourEdition(BonsParam bonsParam, boolean avecProduits, boolean parGroupe);
 }

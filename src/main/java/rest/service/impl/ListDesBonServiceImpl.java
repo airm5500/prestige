@@ -27,6 +27,7 @@ import rest.service.ListDesBonService;
 import rest.service.dto.BonsDTO;
 import rest.service.dto.BonsParam;
 import rest.service.dto.BonsTotauxDTO;
+import rest.service.dto.ProduitBonDTO;
 import util.DateCommonUtils;
 import util.DateConverter;
 import util.FunctionUtils;
@@ -203,211 +204,48 @@ public class ListDesBonServiceImpl implements ListDesBonService {
     // donc rien a deployer dans le dossier CONF des officines.
     // ------------------------------------------------------------------
     @Override
-    public byte[] buildBonsPdf(BonsParam bonsParam, boolean avecProduits, boolean parGroupe, String entete,
-            String periode, String imprimePar) {
+    public List<BonsDTO> bonsPourEdition(BonsParam bonsParam, boolean avecProduits, boolean parGroupe) {
         List<BonsDTO> bons = listAllBons(bonsParam);
-        Map<String, List<String[]>> produitsParVente = avecProduits
-                ? produitsParVente(bons.stream().map(BonsDTO::getLg_PREENREGISTREMENT_ID).collect(Collectors.toList()))
-                : java.util.Collections.emptyMap();
-
-        com.lowagie.text.Document document = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 24, 24, 24,
-                24);
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-        try {
-            com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
-            document.open();
-
-            com.lowagie.text.Font titre = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12);
-            com.lowagie.text.Font sousTitre = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 9);
-            com.lowagie.text.Font groupeFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, java.awt.Color.WHITE);
-            com.lowagie.text.Font tpFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9);
-            com.lowagie.text.Font headFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 7.5f);
-            com.lowagie.text.Font cellFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7.5f);
-            com.lowagie.text.Font produitFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7f, java.awt.Color.DARK_GRAY);
-            // Le montant attendu est la colonne que l'organisme recontrole : il est mis en avant.
-            com.lowagie.text.Font montantFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 7.5f, new java.awt.Color(27, 107, 58));
-
-            com.lowagie.text.Paragraph pTitre = new com.lowagie.text.Paragraph(entete, titre);
-            document.add(pTitre);
-            document.add(new com.lowagie.text.Paragraph(
-                    (avecProduits ? "LISTE DES BONS AVEC PRODUITS" : "LISTE DES BONS") + " - " + periode, sousTitre));
-            document.add(new com.lowagie.text.Paragraph("Imprimé par : " + imprimePar, sousTitre));
-            document.add(com.lowagie.text.Chunk.NEWLINE);
-
-            // Regroupement : groupe -> tiers payant -> bons (ordre alphabetique stable)
-            Map<String, Map<String, List<BonsDTO>>> arbre = new java.util.TreeMap<>();
-            for (BonsDTO bon : bons) {
-                String groupe = parGroupe
-                        ? (StringUtils.isNotEmpty(bon.getGroupeLibelle()) ? bon.getGroupeLibelle() : "SANS GROUPE")
-                        : "";
-                arbre.computeIfAbsent(groupe, k -> new java.util.TreeMap<>())
-                        .computeIfAbsent(bon.getTiersPayantLibelle() == null ? "" : bon.getTiersPayantLibelle(),
-                                k -> new ArrayList<>())
-                        .add(bon);
-            }
-
-            long totalGeneral = 0;
-            int nbreBonsGeneral = 0;
-            for (Map.Entry<String, Map<String, List<BonsDTO>>> groupeEntry : arbre.entrySet()) {
-                long totalGroupe = 0;
-                int nbreBonsGroupe = 0;
-                if (parGroupe) {
-                    com.lowagie.text.pdf.PdfPTable bandeau = new com.lowagie.text.pdf.PdfPTable(1);
-                    bandeau.setWidthPercentage(100);
-                    com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(
-                            new com.lowagie.text.Phrase("GROUPE : " + groupeEntry.getKey(), groupeFont));
-                    cell.setBackgroundColor(new java.awt.Color(52, 73, 94));
-                    cell.setPadding(4f);
-                    bandeau.addCell(cell);
-                    bandeau.setSpacingBefore(6f);
-                    document.add(bandeau);
-                }
-                for (Map.Entry<String, List<BonsDTO>> tpEntry : groupeEntry.getValue().entrySet()) {
-                    document.add(new com.lowagie.text.Paragraph(tpEntry.getKey(), tpFont));
-
-                    // Le montant attendu est une COLONNE, apres le taux : il etait auparavant sur une
-                    // ligne pleine largeur sous chaque bon, ce qui doublait le nombre de lignes de la
-                    // page et empechait de comparer les montants entre eux d'un coup d'oeil.
-                    com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(8);
-                    table.setWidthPercentage(100);
-                    // Largeurs calees sur le contenu reel : un numero de ticket fait douze caracteres
-                    // ("220517_00012") et se coupait en deux lignes, ce qui doublait la hauteur de
-                    // CHAQUE bon. La date, qui ne porte plus l'heure, lui cede la place.
-                    table.setWidths(new float[] { 8f, 9f, 8f, 15f, 15f, 9f, 4f, 11f });
-                    table.setSpacingBefore(2f);
-                    table.setHeaderRows(1);
-                    for (String h : new String[] { "Date", "Ticket", "N° bon", "Assuré principal", "Bénéficiaire",
-                            "Matricule", "%", "Montant attendu" }) {
-                        com.lowagie.text.pdf.PdfPCell hc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(h, headFont));
-                        hc.setGrayFill(0.88f);
-                        table.addCell(hc);
-                    }
-                    long totalTp = 0;
-                    for (BonsDTO bon : tpEntry.getValue()) {
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(dateSeule(bon.getDateHeure()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrREF()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrREFBON()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getClientFullName()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getBeneficiaireFullName()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrNUMEROSECURITESOCIAL()), cellFont)));
-                        com.lowagie.text.pdf.PdfPCell pc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(String.valueOf(bon.getIntPERCENT()), cellFont));
-                        pc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                        table.addCell(pc);
-                        com.lowagie.text.pdf.PdfPCell mc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(formatMontant(bon.getIntPRICE()), montantFont));
-                        mc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                        mc.setPaddingRight(3f);
-                        table.addCell(mc);
-                        totalTp += bon.getIntPRICE();
-                        if (avecProduits) {
-                            List<String[]> produits = produitsParVente.getOrDefault(bon.getLg_PREENREGISTREMENT_ID(),
-                                    java.util.Collections.emptyList());
-                            for (String[] p : produits) {
-                                com.lowagie.text.pdf.PdfPCell vide = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase("", produitFont));
-                                vide.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                table.addCell(vide);
-                                com.lowagie.text.pdf.PdfPCell lib = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase(p[0] + "  " + p[1], produitFont));
-                                lib.setColspan(5);
-                                lib.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                table.addCell(lib);
-                                com.lowagie.text.pdf.PdfPCell qte = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase("x " + p[2], produitFont));
-                                qte.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                qte.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                                table.addCell(qte);
-                                com.lowagie.text.pdf.PdfPCell mt = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase(formatMontant(Integer.parseInt(p[3])),
-                                                produitFont));
-                                mt.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                mt.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                                // Le prix du produit tombe sous la colonne « Montant attendu » : les chiffres
-                                // s'alignent sur le meme axe. Il reste en gris clair, le montant du bon en
-                                // vert gras : on ne confond pas le prix d'un produit avec le du de l'organisme.
-                                mt.setPaddingRight(3f);
-                                table.addCell(mt);
-                            }
-                        }
-                    }
-                    // total du tiers payant
-                    com.lowagie.text.pdf.PdfPCell tot = new com.lowagie.text.pdf.PdfPCell(
-                            new com.lowagie.text.Phrase("TOTAL " + tpEntry.getKey() + " (" + tpEntry.getValue().size()
-                                    + " bon(s)) : " + formatMontant(totalTp), tpFont));
-                    tot.setColspan(8);
-                    tot.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                    tot.setGrayFill(0.95f);
-                    table.addCell(tot);
-                    document.add(table);
-                    totalGroupe += totalTp;
-                    nbreBonsGroupe += tpEntry.getValue().size();
-                }
-                if (parGroupe) {
-                    com.lowagie.text.Paragraph pGroupe = new com.lowagie.text.Paragraph("TOTAL GROUPE "
-                            + groupeEntry.getKey() + " (" + nbreBonsGroupe + " bon(s)) : " + formatMontant(totalGroupe),
-                            tpFont);
-                    pGroupe.setSpacingAfter(4f);
-                    document.add(pGroupe);
-                }
-                totalGeneral += totalGroupe;
-                nbreBonsGeneral += nbreBonsGroupe;
-            }
-            com.lowagie.text.Paragraph pTotal = new com.lowagie.text.Paragraph(
-                    "TOTAL GENERAL (" + nbreBonsGeneral + " bon(s)) : " + formatMontant(totalGeneral), titre);
-            pTotal.setSpacingBefore(6f);
-            document.add(pTotal);
-            document.close();
-            return baos.toByteArray();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Construction du PDF liste des bons impossible", e);
-            if (document.isOpen()) {
-                document.close();
-            }
-            return new byte[0];
+        if (avecProduits) {
+            Map<String, List<ProduitBonDTO>> produits = produitsParVente(
+                    bons.stream().map(BonsDTO::getLg_PREENREGISTREMENT_ID).collect(Collectors.toList()));
+            bons.forEach(b -> b.setProduits(
+                    produits.getOrDefault(b.getLg_PREENREGISTREMENT_ID(), java.util.Collections.emptyList())));
         }
+        bons.sort(ordreEdition(parGroupe));
+        return bons;
+    }
+
+    /**
+     * Ordre des bons dans l'edition : le groupe de tiers payant s'il est demande, puis l'organisme, puis la date.
+     *
+     * L'etat ouvre une nouvelle section des que la valeur groupee change d'une ligne a la suivante : un organisme dont
+     * les bons ne se suivent pas apparaitrait plusieurs fois, chaque fois avec son propre total. C'est donc ici, et pas
+     * dans l'etat, que l'ordre se decide.
+     */
+    static java.util.Comparator<BonsDTO> ordreEdition(boolean parGroupe) {
+        java.util.Comparator<BonsDTO> ordre = parGroupe
+                ? java.util.Comparator.comparing((BonsDTO b) -> cleDeTri(b.getGroupeLibelle())) : (a, b) -> 0;
+        return ordre.thenComparing(b -> cleDeTri(b.getTiersPayantLibelle())).thenComparing(b -> nz(b.getDtUPDATED()))
+                .thenComparing(b -> nz(b.getHeure()));
+    }
+
+    /** Cle de tri d'un libelle : sans accent, en majuscules, pour obtenir l'ordre du dictionnaire. */
+    static String cleDeTri(String libelle) {
+        if (libelle == null) {
+            return "";
+        }
+        return java.text.Normalizer.normalize(libelle, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toUpperCase().trim();
     }
 
     private static String nz(String s) {
         return s == null ? "" : s;
     }
 
-    /**
-     * Date seule, sans l'heure.
-     *
-     * BonsDTO.getDateHeure() rend "jj/mm/aaaa hh:mm:ss". L'heure n'apporte rien sur un releve destine a un organisme et
-     * elle imposait a la colonne une largeur qui manquait ailleurs, notamment aux montants.
-     */
-    static String dateSeule(String dateHeure) {
-        if (dateHeure == null) {
-            return "";
-        }
-        String valeur = dateHeure.trim();
-        return valeur.length() > 10 ? valeur.substring(0, 10) : valeur;
-    }
-
-    private static String formatMontant(long montant) {
-        return String.format("%,d", montant).replace(',', ' ') + " F";
-    }
-
     /** Produits (cip, libelle, quantite, montant) de chaque vente, en une seule requete par lot d'identifiants. */
-    private Map<String, List<String[]>> produitsParVente(List<String> venteIds) {
-        Map<String, List<String[]>> map = new java.util.HashMap<>();
+    private Map<String, List<ProduitBonDTO>> produitsParVente(List<String> venteIds) {
+        Map<String, List<ProduitBonDTO>> map = new java.util.HashMap<>();
         if (venteIds == null || venteIds.isEmpty()) {
             return map;
         }
@@ -423,10 +261,10 @@ public class ListDesBonServiceImpl implements ListDesBonService {
                         .setParameter("ids", chunk).getResultList();
                 for (Object[] r : rows) {
                     map.computeIfAbsent((String) r[0], k -> new ArrayList<>())
-                            .add(new String[] { r[1] == null ? "" : r[1].toString(),
-                                    r[2] == null ? "" : r[2].toString(),
-                                    r[3] == null ? "0" : String.valueOf(((Number) r[3]).intValue()),
-                                    r[4] == null ? "0" : String.valueOf(((Number) r[4]).intValue()) });
+                            .add(ProduitBonDTO.builder().cip(r[1] == null ? "" : r[1].toString())
+                                    .libelle(r[2] == null ? "" : r[2].toString())
+                                    .quantite(r[3] == null ? 0 : ((Number) r[3]).intValue())
+                                    .montant(r[4] == null ? 0 : ((Number) r[4]).intValue()).build());
                 }
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Lecture des produits des bons impossible", e);

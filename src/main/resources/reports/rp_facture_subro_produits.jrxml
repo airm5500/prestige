@@ -1,0 +1,548 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Liste des bons par organisme, AVEC le detail des produits.
+     Cette edition etait construite en code (iText) ; elle devient un etat, editable dans
+     Jaspersoft Studio et deployable sans livraison, comme les autres.
+
+     Les produits d'un bon arrivent dans le champ « produits » (BonsDTO.getProduits) et sont
+     rendus par un tableau imbrique, place sous la ligne du bon.
+
+     Deux niveaux de regroupement :
+     - « groupeTp » : groupe de tiers payant, imprime seulement quand P_PAR_GROUPE vaut vrai ;
+     - « organisme » : le tiers payant, toujours imprime.
+     L'ORDRE des bons est fixe cote application (ListDesBonServiceImpl.ordreEdition) : un etat
+     ouvre une nouvelle section des que la valeur groupee change d'une ligne a la suivante, un
+     tri fait ici ne suffirait donc pas. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_facture_subro_produits" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" whenNoDataType="AllSectionsNoDetail" uuid="b7a1c2d3-1111-4a2b-9c3d-0e1f2a3b4c5d">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+
+	<style name="EnteteColonne" mode="Opaque" backcolor="#1E3A5F" forecolor="#FFFFFF" fontName="SansSerif" fontSize="7.5" isBold="true" vAlign="Middle" hAlign="Center">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="3">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<style name="EnteteColonneMontant" style="EnteteColonne" hAlign="Right">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="4">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<!-- Ligne d'un bon : un filet sous la ligne, pas de quadrillage. Le bon et ses produits
+	     forment un bloc ; c'est le filet qui separe un bloc du suivant, pas un cadre.
+	     Les champs de longueur variable (ticket, numero de bon, noms, matricule) portent
+	     textAdjust="StretchHeight" : la base contient des numeros de bon de dix-neuf caracteres
+	     et des matricules de dix-huit, qu'aucune largeur tenable ici ne contiendrait. Sans cela
+	     JasperReports ne renvoie pas a la ligne, il COUPE — et une valeur amputee est fausse. -->
+	<style name="Cellule" mode="Transparent" fontName="SansSerif" fontSize="8" vAlign="Middle">
+		<box topPadding="1" bottomPadding="1" leftPadding="4" rightPadding="4">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<style name="CelluleMontant" style="Cellule" forecolor="#1B6B3A" isBold="true" hAlign="Right"/>
+	<!-- Identifiants (ticket, numero de bon, matricule) : 7 points et marges reduites. Ils vont
+	     jusqu'a dix-neuf caracteres et ne contiennent pas d'espace ; le retour a la ligne ne peut
+	     donc pas les couper, c'est la taille de police qui les fait tenir. -->
+	<style name="Identifiant" style="Cellule" fontSize="7" hAlign="Center">
+		<box topPadding="1" bottomPadding="1" leftPadding="2" rightPadding="2">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<!-- Produits : plus petits et gris, pour rester au second plan derriere la ligne du bon. -->
+	<style name="Produit" mode="Transparent" fontName="SansSerif" fontSize="7" forecolor="#5A6B7D" vAlign="Middle">
+		<box topPadding="0" bottomPadding="0" leftPadding="4" rightPadding="4">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<style name="Organisme" mode="Opaque" backcolor="#FFFFFF" forecolor="#1E3A5F" fontName="SansSerif" fontSize="9" isBold="true" vAlign="Middle">
+		<box topPadding="1" bottomPadding="1" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<leftPen lineWidth="3.0" lineColor="#48A9A6"/>
+			<bottomPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+	<style name="TotalOrganisme" mode="Opaque" backcolor="#DDE6F0" fontName="SansSerif" fontSize="8" isBold="true" vAlign="Middle">
+		<box topPadding="0" bottomPadding="0" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<topPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+
+	<!-- Produits d'un bon : jeu de donnees du tableau imbrique. -->
+	<subDataset name="produits" uuid="b7a1c2d3-2222-4a2b-9c3d-0e1f2a3b4c5d">
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+		<field name="cip" class="java.lang.String"/>
+		<field name="libelle" class="java.lang.String"/>
+		<field name="quantite" class="java.lang.Integer"/>
+		<field name="montant" class="java.lang.Integer"/>
+	</subDataset>
+
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_CODE_OFFICINE" class="java.lang.String"/>
+	<parameter name="P_REGISTRE_COMMERCE" class="java.lang.String"/>
+	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
+	<parameter name="P_COMPTE_CONTRIBUABLE" class="java.lang.String"/>
+	<parameter name="P_CODE_POSTALE" class="java.lang.String"/>
+	<parameter name="P_SEARCH" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<!-- Vrai quand l'ecran demande un regroupement par groupe de tiers payant. -->
+	<parameter name="P_PAR_GROUPE" class="java.lang.Boolean">
+		<defaultValueExpression><![CDATA[Boolean.FALSE]]></defaultValueExpression>
+	</parameter>
+	<parameter name="montant" class="java.math.BigDecimal"/>
+	<parameter name="nbreBon" class="java.lang.Integer"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="strREF" class="java.lang.String"/>
+	<field name="strREFBON" class="java.lang.String"/>
+	<field name="strNUMEROSECURITESOCIAL" class="java.lang.String"/>
+	<field name="intPERCENT" class="java.lang.Integer"/>
+	<field name="intPRICE" class="java.lang.Integer"/>
+	<field name="clientFullName" class="java.lang.String"/>
+	<field name="beneficiaireFullName" class="java.lang.String"/>
+	<field name="dateSeule" class="java.lang.String"/>
+	<field name="tiersPayantId" class="java.lang.String"/>
+	<field name="tiersPayantLibelle" class="java.lang.String"/>
+	<field name="groupeLibelle" class="java.lang.String"/>
+	<field name="produits" class="java.util.List"/>
+
+	<variable name="v_montant_tp" class="java.lang.Integer" resetType="Group" resetGroup="organisme" calculation="Sum">
+		<variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+	</variable>
+	<variable name="v_nb_tp" class="java.lang.Integer" resetType="Group" resetGroup="organisme" calculation="Count">
+		<variableExpression><![CDATA[$F{strREFBON}]]></variableExpression>
+	</variable>
+	<variable name="v_montant_groupe" class="java.lang.Integer" resetType="Group" resetGroup="groupeTp" calculation="Sum">
+		<variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+	</variable>
+	<variable name="v_nb_groupe" class="java.lang.Integer" resetType="Group" resetGroup="groupeTp" calculation="Count">
+		<variableExpression><![CDATA[$F{strREFBON}]]></variableExpression>
+	</variable>
+
+	<group name="groupeTp">
+		<groupExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE}) ? $F{groupeLibelle} : ""]]></groupExpression>
+		<groupHeader>
+			<band height="22">
+				<printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE})]]></printWhenExpression>
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="4" width="555" height="17" backcolor="#1E7B74" uuid="b7a1c2d3-3001-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="0"/>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="4" width="555" height="17" forecolor="#FFFFFF" uuid="b7a1c2d3-3002-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="8"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["GROUPE : " + ($F{groupeLibelle} == null || $F{groupeLibelle}.trim().isEmpty() ? "SANS GROUPE" : $F{groupeLibelle})]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="24">
+				<printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE})]]></printWhenExpression>
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="2" width="555" height="18" backcolor="#D3E9E7" uuid="b7a1c2d3-3003-4a2b-9c3d-0e1f2a3b4c5d">
+						<property name="local"/>
+					</reportElement>
+					<box>
+						<pen lineWidth="0.0"/>
+						<topPen lineWidth="1.0" lineColor="#1E7B74"/>
+						<bottomPen lineWidth="1.0" lineColor="#1E7B74"/>
+					</box>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="2" width="420" height="18" forecolor="#12564F" uuid="b7a1c2d3-3004-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="8"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["TOTAL GROUPE " + ($F{groupeLibelle} == null || $F{groupeLibelle}.trim().isEmpty() ? "SANS GROUPE" : $F{groupeLibelle}.toUpperCase())
+	+ "   (" + $V{v_nb_groupe} + ($V{v_nb_groupe}.intValue() > 1 ? " bons)" : " bon)")]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="420" y="2" width="134" height="18" forecolor="#12564F" uuid="b7a1c2d3-3005-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box rightPadding="6"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{v_montant_groupe} == null ? "" : String.format("%,d", $V{v_montant_groupe}.longValue()).replace(',', ' ') + " F"]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+
+	<group name="organisme" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[$F{tiersPayantId}]]></groupExpression>
+		<groupHeader>
+			<band height="38">
+				<textField>
+					<reportElement style="Organisme" x="0" y="3" width="554" height="17" uuid="b7a1c2d3-4001-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<textFieldExpression><![CDATA[$F{tiersPayantLibelle}]]></textFieldExpression>
+				</textField>
+				<!-- En-tete des colonnes repete sous chaque organisme : sur une edition ou les bons
+				     sont espaces par leurs produits, l'entete de page seul ne suffit pas a savoir
+				     ce qu'on lit. Largeurs : 55+62+62+108+108+62+30+67 = 554. -->
+				<staticText>
+					<reportElement style="EnteteColonne" x="0" y="21" width="52" height="15" uuid="b7a1c2d3-4002-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Date]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="52" y="21" width="58" height="15" uuid="b7a1c2d3-4003-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Ticket]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="110" y="21" width="89" height="15" uuid="b7a1c2d3-4004-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[N° bon]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="199" y="21" width="90" height="15" uuid="b7a1c2d3-4005-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Assuré principal]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="289" y="21" width="92" height="15" uuid="b7a1c2d3-4006-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Bénéficiaire]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="381" y="21" width="85" height="15" uuid="b7a1c2d3-4007-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Matricule]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonne" x="466" y="21" width="24" height="15" uuid="b7a1c2d3-4008-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[%]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="EnteteColonneMontant" x="490" y="21" width="64" height="15" uuid="b7a1c2d3-4009-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<text><![CDATA[Montant attendu]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="22">
+				<textField isBlankWhenNull="true">
+					<reportElement style="TotalOrganisme" x="0" y="1" width="420" height="16" forecolor="#1E3A5F" uuid="b7a1c2d3-4010-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<textElement textAlignment="Left" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA["TOTAL " + ($F{tiersPayantLibelle} != null ? $F{tiersPayantLibelle}.toUpperCase() : "")
+	+ "   (" + $V{v_nb_tp} + ($V{v_nb_tp}.intValue() > 1 ? " bons)" : " bon)")]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement style="TotalOrganisme" x="420" y="1" width="134" height="16" forecolor="#1B6B3A" uuid="b7a1c2d3-4011-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="8.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{v_montant_tp} == null ? "" : String.format("%,d", $V{v_montant_tp}.longValue()).replace(',', ' ') + " F"]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="96">
+			<image onErrorType="Blank">
+				<reportElement x="0" y="0" width="72" height="43" uuid="b7a1c2d3-5001-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="555" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="b7a1c2d3-5002-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="16" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="13" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="b7a1c2d3-5003-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="47" width="555" height="2" backcolor="#1E3A5F" uuid="b7a1c2d3-5004-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="55" width="555" height="24" backcolor="#EDF2F8" uuid="b7a1c2d3-5005-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+					<leftPen lineWidth="3.0" lineColor="#48A9A6"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="8" y="55" width="412" height="24" forecolor="#1E3A5F" uuid="b7a1c2d3-5006-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box leftPadding="6"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8.5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS} == null ? "" : $P{P_H_CLT_INFOS}.replace("\n", " ")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement x="424" y="55" width="125" height="24" forecolor="#5A6B7D" uuid="b7a1c2d3-5007-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7.5"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité le " + new SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new Date())]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="16" splitType="Stretch">
+			<!-- Ligne du bon -->
+			<textField isBlankWhenNull="true">
+				<reportElement style="Identifiant" x="0" y="0" width="52" height="15" uuid="b7a1c2d3-6001-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{dateSeule}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Identifiant" x="52" y="0" width="58" height="15" uuid="b7a1c2d3-6002-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{strREF}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Identifiant" x="110" y="0" width="89" height="15" uuid="b7a1c2d3-6003-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{strREFBON}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true" textAdjust="StretchHeight">
+				<reportElement style="Cellule" x="199" y="0" width="90" height="15" uuid="b7a1c2d3-6004-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textFieldExpression><![CDATA[$F{clientFullName}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true" textAdjust="StretchHeight">
+				<reportElement style="Cellule" x="289" y="0" width="92" height="15" uuid="b7a1c2d3-6005-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textFieldExpression><![CDATA[$F{beneficiaireFullName}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Identifiant" x="381" y="0" width="85" height="15" uuid="b7a1c2d3-6006-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textFieldExpression><![CDATA[$F{strNUMEROSECURITESOCIAL}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="466" y="0" width="24" height="15" uuid="b7a1c2d3-6007-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{intPERCENT}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="CelluleMontant" x="490" y="0" width="64" height="15" uuid="b7a1c2d3-6008-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textFieldExpression><![CDATA[$F{intPRICE} == null ? "" : String.format("%,d", $F{intPRICE}.longValue()).replace(',', ' ') + " F"]]></textFieldExpression>
+			</textField>
+		</band>
+		<!-- Produits du bon : bande separee, qui disparait quand le bon n'en a pas. -->
+		<band height="14">
+			<printWhenExpression><![CDATA[$F{produits} != null && !$F{produits}.isEmpty()]]></printWhenExpression>
+			<componentElement>
+				<reportElement x="0" y="0" width="554" height="12" uuid="b7a1c2d3-7001-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
+					<datasetRun subDataset="produits" uuid="b7a1c2d3-7002-4a2b-9c3d-0e1f2a3b4c5d">
+						<dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource($F{produits})]]></dataSourceExpression>
+					</datasetRun>
+					<jr:column width="52" uuid="b7a1c2d3-7003-4a2b-9c3d-0e1f2a3b4c5d">
+						<jr:detailCell height="12"/>
+					</jr:column>
+					<jr:column width="58" uuid="b7a1c2d3-7004-4a2b-9c3d-0e1f2a3b4c5d">
+						<jr:detailCell height="12">
+							<textField isBlankWhenNull="true">
+								<reportElement style="Produit" x="0" y="0" width="58" height="12" uuid="b7a1c2d3-7005-4a2b-9c3d-0e1f2a3b4c5d"/>
+								<textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="291" uuid="b7a1c2d3-7006-4a2b-9c3d-0e1f2a3b4c5d">
+						<jr:detailCell height="12">
+							<textField isBlankWhenNull="true">
+								<reportElement style="Produit" x="0" y="0" width="291" height="12" uuid="b7a1c2d3-7007-4a2b-9c3d-0e1f2a3b4c5d"/>
+								<textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="89" uuid="b7a1c2d3-7008-4a2b-9c3d-0e1f2a3b4c5d">
+						<jr:detailCell height="12">
+							<textField isBlankWhenNull="true">
+								<reportElement style="Produit" x="0" y="0" width="89" height="12" uuid="b7a1c2d3-7009-4a2b-9c3d-0e1f2a3b4c5d"/>
+								<textElement textAlignment="Right"/>
+								<textFieldExpression><![CDATA["x " + $F{quantite}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="64" uuid="b7a1c2d3-7010-4a2b-9c3d-0e1f2a3b4c5d">
+						<jr:detailCell height="12">
+							<textField isBlankWhenNull="true">
+								<reportElement style="Produit" x="0" y="0" width="64" height="12" uuid="b7a1c2d3-7011-4a2b-9c3d-0e1f2a3b4c5d"/>
+								<textElement textAlignment="Right"/>
+								<textFieldExpression><![CDATA[$F{montant} == null ? "" : String.format("%,d", $F{montant}.longValue()).replace(',', ' ') + " F"]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+				</jr:table>
+			</componentElement>
+		</band>
+		<!-- Filet de separation entre deux bons -->
+		<band height="3">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="1" width="554" height="1" backcolor="#D6DEE8" uuid="b7a1c2d3-8001-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="24">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="b7a1c2d3-9001-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9002-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité par " + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9003-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9004-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="52">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="b7a1c2d3-9101-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9102-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité par " + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9103-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="b7a1c2d3-9104-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="11" forecolor="#5A6B7D" uuid="b7a1c2d3-9105-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="35" width="555" height="11" forecolor="#5A6B7D" uuid="b7a1c2d3-9106-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+	<summary>
+		<band height="60">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="8" width="555" height="18" backcolor="#1E3A5F" uuid="b7a1c2d3-9201-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="8" width="200" height="18" forecolor="#FFFFFF" uuid="b7a1c2d3-9202-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box leftPadding="8"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL GÉNÉRAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="200" y="8" width="160" height="18" backcolor="#EDF2F8" uuid="b7a1c2d3-9203-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box leftPadding="6">
+					<pen lineWidth="0.0"/>
+					<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nombre de bons]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="200" y="8" width="154" height="18" forecolor="#1E3A5F" uuid="b7a1c2d3-9204-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{nbreBon}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="360" y="8" width="195" height="18" backcolor="#E6F2E9" uuid="b7a1c2d3-9205-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box leftPadding="6">
+					<pen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Montant attendu]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="360" y="8" width="189" height="18" forecolor="#1B6B3A" uuid="b7a1c2d3-9206-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{montant} == null ? "" : String.format("%,d", $P{montant}.longValue()).replace(',', ' ') + " F"]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="34" width="555" height="16" forecolor="#5A6B7D" uuid="b7a1c2d3-9207-4a2b-9c3d-0e1f2a3b4c5d">
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT} == 0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[Aucun bon ne correspond aux critères demandés sur cette période.]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

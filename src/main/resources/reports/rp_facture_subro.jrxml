@@ -80,6 +80,12 @@
 	<parameter name="P_SEARCH" class="java.lang.String">
 		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
 	</parameter>
+	<!-- Vrai quand l'ecran demande un regroupement par groupe de tiers payant.
+	     Faux (ou absent) : le niveau « groupe » ne s'imprime pas du tout, et l'etat est
+	     exactement celui d'avant. -->
+	<parameter name="P_PAR_GROUPE" class="java.lang.Boolean">
+		<defaultValueExpression><![CDATA[Boolean.FALSE]]></defaultValueExpression>
+	</parameter>
 	<parameter name="montant" class="java.math.BigDecimal"/>
 	<parameter name="nbreBon" class="java.lang.Integer"/>
 	<queryString>
@@ -99,6 +105,9 @@
 	<field name="tiersPayantLibelle" class="java.lang.String"/>
 	<field name="typeTiersPayant" class="java.lang.String"/>
 	<field name="strREFBON" class="java.lang.String"/>
+	<!-- Libelle du groupe de tiers payant. Vide quand le tiers payant n'appartient a aucun
+	     groupe ; l'etat ne le lit que si P_PAR_GROUPE vaut vrai. -->
+	<field name="groupeLibelle" class="java.lang.String"/>
 	<variable name="v_montant" class="java.lang.Integer" resetType="Group" resetGroup="groupeBy" calculation="Sum">
 		<variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
 	</variable>
@@ -106,6 +115,69 @@
 	<variable name="v_nb_bons" class="java.lang.Integer" resetType="Group" resetGroup="groupeBy" calculation="Count">
 		<variableExpression><![CDATA[$F{strREFBON}]]></variableExpression>
 	</variable>
+	<variable name="v_montant_groupe" class="java.lang.Integer" resetType="Group" resetGroup="groupeTp" calculation="Sum">
+		<variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+	</variable>
+	<variable name="v_nb_groupe" class="java.lang.Integer" resetType="Group" resetGroup="groupeTp" calculation="Count">
+		<variableExpression><![CDATA[$F{strREFBON}]]></variableExpression>
+	</variable>
+	<!-- Niveau « groupe de tiers payant », au-dessus de l'organisme.
+	     Il doit etre declare AVANT groupeBy : dans JasperReports, l'ordre de declaration est
+	     l'ordre d'imbrication. Quand P_PAR_GROUPE est faux, l'expression de groupe est
+	     constante (une seule occurrence) et les deux bandes ne s'impriment pas : l'edition
+	     est alors rigoureusement identique a ce qu'elle etait. -->
+	<group name="groupeTp">
+		<groupExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE}) ? $F{groupeLibelle} : ""]]></groupExpression>
+		<groupHeader>
+			<band height="22">
+				<printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE})]]></printWhenExpression>
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="4" width="555" height="17" backcolor="#1E7B74" uuid="c8b2d3e4-3101-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="0"/>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="4" width="555" height="17" forecolor="#FFFFFF" uuid="c8b2d3e4-3102-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="8"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["GROUPE : " + ($F{groupeLibelle} == null || $F{groupeLibelle}.trim().isEmpty() ? "SANS GROUPE" : $F{groupeLibelle})]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="24">
+				<printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_PAR_GROUPE})]]></printWhenExpression>
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="2" width="555" height="18" backcolor="#D3E9E7" uuid="c8b2d3e4-3103-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box>
+						<pen lineWidth="0.0"/>
+						<topPen lineWidth="1.0" lineColor="#1E7B74"/>
+						<bottomPen lineWidth="1.0" lineColor="#1E7B74"/>
+					</box>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="2" width="420" height="18" forecolor="#12564F" uuid="c8b2d3e4-3104-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box leftPadding="8"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["TOTAL GROUPE " + ($F{groupeLibelle} == null || $F{groupeLibelle}.trim().isEmpty() ? "SANS GROUPE" : $F{groupeLibelle}.toUpperCase())
+	+ "   (" + $V{v_nb_groupe} + ($V{v_nb_groupe}.intValue() > 1 ? " bons)" : " bon)")]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement x="420" y="2" width="134" height="18" forecolor="#12564F" uuid="c8b2d3e4-3105-4a2b-9c3d-0e1f2a3b4c5d"/>
+					<box rightPadding="6"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="9" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{v_montant_groupe} == null ? "" : String.format("%,d", $V{v_montant_groupe}.longValue()).replace(',', ' ')]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
 	<group name="groupeBy" isReprintHeaderOnEachPage="true">
 		<groupExpression><![CDATA[$F{tiersPayantId}]]></groupExpression>
 		<groupHeader>
