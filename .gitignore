@@ -14,4 +14,9 @@ nb-configuration.xml
 /src/main/resources/build.properties
 *.properties
 src/main/resources/build.properties
+# Exception a la regle ci-dessus. Ce fichier ne porte aucun parametre d'environnement : il
+# declare la famille de polices des etats (voir src/main/resources/fonts/prestige-fonts.xml).
+# JasperReports impose ce nom exact, qu'il cherche sur le classpath. S'il n'est pas livre,
+# tout etat demandant « Arial » echoue avec JRFontNotFoundException et aucun PDF n'est produit.
+!src/main/resources/jasperreports_extension.properties
 *.md

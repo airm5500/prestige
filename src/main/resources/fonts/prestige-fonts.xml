@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Familles de polices connues des etats.
+
+     Pourquoi ce fichier existe :
+     les etats demandent « Arial ». Or Arial n'est pas livree avec l'application et n'existe
+     pas sur un serveur Linux. Dans ce cas JasperReports ne se rabat PAS sur une autre police :
+     il leve JRFontNotFoundException et l'edition echoue completement. Declarer la famille ici
+     la rend disponible a la JVM quelle que soit la machine, et le comportement devient le meme
+     sur le poste du developpeur, sur le serveur de recette et chez le client.
+
+     Deux choses distinctes, a ne pas confondre :
+     - les fichiers .ttf ci-dessous servent a MESURER le texte (largeur des colonnes, retours
+       a la ligne). Ils sont pris dans jasperreports-fonts, deja present : rien de nouveau
+       n'est ajoute au projet ;
+     - pdfFontName="Helvetica", porte par les etats, fixe ce que le PDF DESSINE. Helvetica est
+       l'une des quatorze polices que tout lecteur PDF possede et elle a les metriques d'Arial :
+       le document a donc l'aspect demande, partout, sans rien installer.
+
+     Les deux polices n'ayant pas la meme chasse (0,636 em par chiffre pour celle qui mesure,
+     0,556 pour celle qui dessine), l'ecart va dans le sens sur : on reserve plus large qu'on
+     ne dessine. Rien ne peut donc etre tronque, et les colonnes des etats sont calibrees sur
+     la mesure large. -->
+<fontFamilies>
+	<fontFamily name="Arial">
+		<!-- Chaque face dit deux choses : le .ttf qui MESURE, et la police base-14 qui DESSINE.
+		     Le pdfFontName porte par les etats ne suffit pas : des qu'une famille est declaree
+		     ici, c'est elle qui decide, et le PDF sortait en DejaVu. -->
+		<normal>
+			<ttf>net/sf/jasperreports/fonts/dejavu/DejaVuSans.ttf</ttf>
+			<pdf>Helvetica</pdf>
+		</normal>
+		<bold>
+			<ttf>net/sf/jasperreports/fonts/dejavu/DejaVuSans-Bold.ttf</ttf>
+			<pdf>Helvetica-Bold</pdf>
+		</bold>
+		<italic>
+			<ttf>net/sf/jasperreports/fonts/dejavu/DejaVuSans-Oblique.ttf</ttf>
+			<pdf>Helvetica-Oblique</pdf>
+		</italic>
+		<boldItalic>
+			<ttf>net/sf/jasperreports/fonts/dejavu/DejaVuSans-BoldOblique.ttf</ttf>
+			<pdf>Helvetica-BoldOblique</pdf>
+		</boldItalic>
+		<pdfEncoding>Cp1252</pdfEncoding>
+		<pdfEmbedded>false</pdfEmbedded>
+		<exportFonts>
+			<export key="net.sf.jasperreports.html">Arial, Helvetica, sans-serif</export>
+		</exportFonts>
+	</fontFamily>
+</fontFamilies>
