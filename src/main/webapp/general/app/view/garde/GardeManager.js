@@ -25,7 +25,17 @@ Ext.define('testextjs.view.garde.GardeManager', {
     title: 'Gestion des gardes',
     iconCls: 'icon-grid',
     width: '97%',
-    height: 'auto',
+    /*
+     * Hauteur EXPLICITE, et non « auto ».
+     *
+     * Le conteneur qui accueille les ecrans du menu est en disposition automatique : il ne donne
+     * aucune hauteur a son contenu. Une disposition « border », elle, ne sait pas se dimensionner
+     * sur son contenu - c'est elle qui repartit la place, elle doit donc en recevoir. Les deux
+     * ensemble donnaient un panneau de DOUZE pixels : l'ecran s'ouvrait, ses trois zones existaient
+     * et se disaient visibles, mais rien n'etait dessine. C'est la meme hauteur que le
+     * recapitulatif caisse / recette, qui porte la meme disposition.
+     */
+    height: Ext.getBody() ? Ext.getBody().getViewSize().height * 0.85 : 700,
     minHeight: 570,
     cls: 'custompanel',
     layout: {type: 'border'},
