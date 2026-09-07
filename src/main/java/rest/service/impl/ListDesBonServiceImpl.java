@@ -197,6 +197,19 @@ public class ListDesBonServiceImpl implements ListDesBonService {
                 .montant(tuple.get("montant", BigDecimal.class)).build();
     }
 
+    /*
+     * Point 14 : les deux editions de la liste des bons - « liste simple » et « liste avec produits » - sont mises au
+     * format demande.
+     *
+     * Polices : titre 9 gras, en-tetes de colonnes 8 gras, lignes 8 normal, textes secondaires (sous-titres, lignes de
+     * produits) 7 normal. La police demandee est Arial ; elle n'est pas garantie sur un serveur Linux, et un PDF qui la
+     * reclame sans l'embarquer s'affiche de toute facon avec sa substitution. Helvetica, police de base du PDF, a les
+     * memes chasses qu'Arial et rend un document identique sur toutes les machines : c'est elle qui est declaree.
+     *
+     * Le montant attendu est une COLONNE, placee apres le taux et mise en gras, au lieu de la ligne pleine largeur
+     * precedente. Les dates sont sans heure. Aucun quadrillage : les cellules n'ont pas de bordure, seules les bandes
+     * de titre et de total restent grisees.
+     */
     @Override
     public byte[] buildBonsPdf(BonsParam bonsParam, boolean avecProduits, boolean parGroupe, String entete,
             String periode, String imprimePar) {
@@ -213,22 +226,23 @@ public class ListDesBonServiceImpl implements ListDesBonService {
             document.open();
 
             com.lowagie.text.Font titre = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12);
-            com.lowagie.text.Font sousTitre = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 9);
-            com.lowagie.text.Font groupeFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, java.awt.Color.WHITE);
-            com.lowagie.text.Font tpFont = com.lowagie.text.FontFactory
                     .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9);
+            com.lowagie.text.Font sousTitre = com.lowagie.text.FontFactory
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7);
+            com.lowagie.text.Font groupeFont = com.lowagie.text.FontFactory
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9, java.awt.Color.WHITE);
+            com.lowagie.text.Font tpFont = com.lowagie.text.FontFactory
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8);
             com.lowagie.text.Font headFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 7.5f);
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8);
             com.lowagie.text.Font cellFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7.5f);
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 8);
+            com.lowagie.text.Font montantFont = com.lowagie.text.FontFactory
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8);
             com.lowagie.text.Font produitFont = com.lowagie.text.FontFactory
-                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7f, java.awt.Color.DARK_GRAY);
+                    .getFont(com.lowagie.text.FontFactory.HELVETICA, 7, java.awt.Color.DARK_GRAY);
 
-            com.lowagie.text.Paragraph pTitre = new com.lowagie.text.Paragraph(entete, titre);
-            document.add(pTitre);
+            document.add(new com.lowagie.text.Paragraph(entete, titre));
             document.add(new com.lowagie.text.Paragraph(
                     (avecProduits ? "LISTE DES BONS AVEC PRODUITS" : "LISTE DES BONS") + " - " + periode, sousTitre));
             document.add(new com.lowagie.text.Paragraph("Imprimé par : " + imprimePar, sousTitre));
@@ -257,6 +271,7 @@ public class ListDesBonServiceImpl implements ListDesBonService {
                     com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(
                             new com.lowagie.text.Phrase("GROUPE : " + groupeEntry.getKey(), groupeFont));
                     cell.setBackgroundColor(new java.awt.Color(52, 73, 94));
+                    cell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
                     cell.setPadding(4f);
                     bandeau.addCell(cell);
                     bandeau.setSpacingBefore(6f);
@@ -265,69 +280,46 @@ public class ListDesBonServiceImpl implements ListDesBonService {
                 for (Map.Entry<String, List<BonsDTO>> tpEntry : groupeEntry.getValue().entrySet()) {
                     document.add(new com.lowagie.text.Paragraph(tpEntry.getKey(), tpFont));
 
-                    com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(7);
+                    com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(COLONNES_BON.length);
                     table.setWidthPercentage(100);
-                    table.setWidths(new float[] { 8f, 6f, 8f, 14f, 14f, 7f, 3f });
+                    table.setWidths(LARGEURS_BON);
                     table.setSpacingBefore(2f);
                     table.setHeaderRows(1);
-                    for (String h : new String[] { "Date et heure", "Ticket", "N° bon", "Assuré principal",
-                            "Bénéficiaire", "Matricule", "%" }) {
+                    for (int i = 0; i < COLONNES_BON.length; i++) {
                         com.lowagie.text.pdf.PdfPCell hc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(h, headFont));
+                                new com.lowagie.text.Phrase(COLONNES_BON[i], headFont));
                         hc.setGrayFill(0.88f);
+                        hc.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
+                        hc.setPadding(2f);
+                        // le taux et le montant se lisent a droite
+                        if (i >= COLONNES_BON.length - 2) {
+                            hc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+                        }
                         table.addCell(hc);
                     }
                     long totalTp = 0;
                     for (BonsDTO bon : tpEntry.getValue()) {
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(bon.getDateHeure(), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrREF()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrREFBON()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getClientFullName()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getBeneficiaireFullName()), cellFont)));
-                        table.addCell(new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(nz(bon.getStrNUMEROSECURITESOCIAL()), cellFont)));
-                        com.lowagie.text.pdf.PdfPCell pc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase(String.valueOf(bon.getIntPERCENT()), cellFont));
-                        pc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                        table.addCell(pc);
-                        // montant attendu du bon, sur une ligne dediee alignee a droite
-                        com.lowagie.text.pdf.PdfPCell mc = new com.lowagie.text.pdf.PdfPCell(
-                                new com.lowagie.text.Phrase("Montant attendu : " + formatMontant(bon.getIntPRICE()),
-                                        cellFont));
-                        mc.setColspan(7);
-                        mc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                        mc.setBorder(com.lowagie.text.Rectangle.BOTTOM);
-                        table.addCell(mc);
+                        // date seule : l'heure n'apporte rien a un etat de bons
+                        table.addCell(celluleBon(nz(bon.getDtUPDATED()), cellFont, false));
+                        table.addCell(celluleBon(nz(bon.getStrREF()), cellFont, false));
+                        table.addCell(celluleBon(nz(bon.getStrREFBON()), cellFont, false));
+                        table.addCell(celluleBon(nz(bon.getClientFullName()), cellFont, false));
+                        table.addCell(celluleBon(nz(bon.getBeneficiaireFullName()), cellFont, false));
+                        table.addCell(celluleBon(nz(bon.getStrNUMEROSECURITESOCIAL()), cellFont, false));
+                        table.addCell(celluleBon(String.valueOf(bon.getIntPERCENT()), cellFont, true));
+                        // montant attendu : colonne a part, en gras, juste apres le taux
+                        table.addCell(celluleBon(formatMontant(bon.getIntPRICE()), montantFont, true));
                         totalTp += bon.getIntPRICE();
                         if (avecProduits) {
                             List<String[]> produits = produitsParVente.getOrDefault(bon.getLg_PREENREGISTREMENT_ID(),
                                     java.util.Collections.emptyList());
                             for (String[] p : produits) {
-                                com.lowagie.text.pdf.PdfPCell vide = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase("", produitFont));
-                                vide.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                table.addCell(vide);
-                                com.lowagie.text.pdf.PdfPCell lib = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase(p[0] + "  " + p[1], produitFont));
-                                lib.setColspan(4);
-                                lib.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
+                                table.addCell(celluleBon("", produitFont, false));
+                                com.lowagie.text.pdf.PdfPCell lib = celluleBon(p[0] + "  " + p[1], produitFont, false);
+                                lib.setColspan(COLONNES_BON.length - 3);
                                 table.addCell(lib);
-                                com.lowagie.text.pdf.PdfPCell qte = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase("x " + p[2], produitFont));
-                                qte.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                qte.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                                table.addCell(qte);
-                                com.lowagie.text.pdf.PdfPCell mt = new com.lowagie.text.pdf.PdfPCell(
-                                        new com.lowagie.text.Phrase(formatMontant(Integer.parseInt(p[3])),
-                                                produitFont));
-                                mt.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-                                mt.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-                                table.addCell(mt);
+                                table.addCell(celluleBon("x " + p[2], produitFont, true));
+                                table.addCell(celluleBon(formatMontant(Integer.parseInt(p[3])), produitFont, true));
                             }
                         }
                     }
@@ -335,9 +327,10 @@ public class ListDesBonServiceImpl implements ListDesBonService {
                     com.lowagie.text.pdf.PdfPCell tot = new com.lowagie.text.pdf.PdfPCell(
                             new com.lowagie.text.Phrase("TOTAL " + tpEntry.getKey() + " (" + tpEntry.getValue().size()
                                     + " bon(s)) : " + formatMontant(totalTp), tpFont));
-                    tot.setColspan(7);
+                    tot.setColspan(COLONNES_BON.length);
                     tot.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
                     tot.setGrayFill(0.95f);
+                    tot.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
                     table.addCell(tot);
                     document.add(table);
                     totalGroupe += totalTp;
@@ -366,6 +359,29 @@ public class ListDesBonServiceImpl implements ListDesBonService {
             }
             return new byte[0];
         }
+    }
+
+    /** Colonnes de l'etat des bons : le montant attendu suit le taux (point 14). */
+    private static final String[] COLONNES_BON = { "Date", "Ticket", "N° bon", "Assuré principal", "Bénéficiaire",
+            "Matricule", "%", "Montant attendu" };
+
+    /*
+     * Le numero de ticket et le numero de bon tiennent sur une seule ligne : ils etaient coupes en deux, ce qui rendait
+     * la colonne illisible.
+     */
+    private static final float[] LARGEURS_BON = { 8f, 10f, 9f, 13f, 13f, 7f, 3f, 12f };
+
+    /** Cellule sans quadrillage, alignee a droite pour les nombres. */
+    private static com.lowagie.text.pdf.PdfPCell celluleBon(String texte, com.lowagie.text.Font police,
+            boolean aDroite) {
+        com.lowagie.text.pdf.PdfPCell cellule = new com.lowagie.text.pdf.PdfPCell(
+                new com.lowagie.text.Phrase(texte, police));
+        cellule.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
+        cellule.setPadding(2f);
+        if (aDroite) {
+            cellule.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        }
+        return cellule;
     }
 
     private static String nz(String s) {
