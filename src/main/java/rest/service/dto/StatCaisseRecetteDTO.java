@@ -203,6 +203,39 @@ public class StatCaisseRecetteDTO {
         return detailMobile;
     }
 
+    /**
+     * Ecart entre le comptant et le billetage de la journee : positif quand la caisse contient plus que le comptant
+     * attendu, negatif quand elle contient moins.
+     *
+     * <p>
+     * L'ecart n'a de sens que si un billetage a ete saisi : sans billetage il n'y a rien a comparer, et afficher
+     * l'oppose du comptant ferait croire a un manquant. {@link #isBilletageSaisi()} distingue les deux cas, l'ecran et
+     * les editions affichant alors un tiret.
+     * </p>
+     */
+    public long getMontantEcart() {
+        return montantEspece - montantBilletage;
+    }
+
+    /** Vrai si un billetage a ete saisi pour la journee : sans lui, l'ecart ne se calcule pas. */
+    public boolean isBilletageSaisi() {
+        return montantBilletage != 0;
+    }
+
+    /**
+     * Solde de la journee, tel que l'officine le definit : comptant + mobile + reglement tiers payant + reglement
+     * differe.
+     *
+     * <p>
+     * Le comptant ({@code montantEspece}) vient de {@code vente_reglement} : il porte donc deja les ventes payees en
+     * especes ET la part en especes d'une vente a credit, chacune y etant une ligne de reglement a part entiere.
+     * Cheque, carte bancaire et virement n'entrent PAS dans ce solde : ils ne passent pas par la caisse.
+     * </p>
+     */
+    public void calculerSolde() {
+        this.montantSolde = montantEspece + montantMobile + montantReglementFacture + montantReglementDiff;
+    }
+
     /** Ajoute la part d'un mode mobile money a la journee, et au total mobile. */
     public void ajouterDetailMobile(String libelle, long montant) {
         detailMobile.merge(libelle, montant, Long::sum);

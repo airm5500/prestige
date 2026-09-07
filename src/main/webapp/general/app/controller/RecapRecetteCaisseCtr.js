@@ -55,6 +55,10 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             selector: 'caisserecetterecap #groupByYear'
 
         },
+        {ref: 'groupByMonth',
+            selector: 'caisserecetterecap #groupByMonth'
+
+        },
         {ref: 'btnExcel',
             selector: 'caisserecetterecap #btnExcel'
 
@@ -80,10 +84,44 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             },
             'caisserecetterecap #caisserecetterecapGrid': {
                 viewready: this.doInitStore
+            },
+            /* Point 16 : « Annuelle » et « Mensuelle » s'excluent. Cocher l'une decoche l'autre ;
+               ne rien cocher garde le detail par jour, comportement d'origine de l'ecran. */
+            'caisserecetterecap #groupByYear': {
+                change: this.surRegroupementAnnuel
+            },
+            'caisserecetterecap #groupByMonth': {
+                change: this.surRegroupementMensuel
             }
 
         });
     },
+    surRegroupementAnnuel: function (champ, valeur) {
+        const mensuel = this.getGroupByMonth();
+        if (valeur && mensuel && mensuel.getValue()) {
+            mensuel.setValue(false);
+        }
+    },
+
+    surRegroupementMensuel: function (champ, valeur) {
+        const annuel = this.getGroupByYear();
+        if (valeur && annuel && annuel.getValue()) {
+            annuel.setValue(false);
+        }
+    },
+
+    /* Regroupement demande : « annee », « mois », ou « jour » quand rien n'est coche. */
+    granularite: function () {
+        const me = this;
+        if (me.getGroupByYear() && me.getGroupByYear().getValue()) {
+            return 'annee';
+        }
+        if (me.getGroupByMonth() && me.getGroupByMonth().getValue()) {
+            return 'mois';
+        }
+        return 'jour';
+    },
+
     onPdfClick: function () {
         const me = this;
         const groupByYear = me.getGroupByYear().checked;
@@ -93,7 +131,8 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         if (!reglement) {
             reglement = '';
         }
-        const linkUrl = '../RecapRecetteCaisseServlet?typeRglementId=' + reglement + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear;
+        const linkUrl = '../RecapRecetteCaisseServlet?typeRglementId=' + reglement + '&dtStart=' + dtStart
+                + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear + '&granularite=' + me.granularite();
         window.open(linkUrl);
     },
 
@@ -106,7 +145,11 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
           if (!reglement) {
             reglement = '';
         }
-        window.location = '../api/v1/stats-recette-caisse/export-csv?typeRglementId=' + reglement + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear;
+        /* Point 16 : le bouton existant rend maintenant un vrai classeur .xlsx, et non plus un .csv
+           qu'Excel ouvrait en devinant separateurs et formats. */
+        window.location = '../api/v1/stats-recette-caisse/export-excel?typeRglementId=' + reglement
+                + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear
+                + '&granularite=' + me.granularite();
     },
     doBeforechange: function (page, currentPage) {
         var me = this;
@@ -124,6 +167,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         myProxy.setExtraParam('dtStart', me.getStartDateField().getSubmitValue());
         myProxy.setExtraParam('dtEnd', me.getEndDateField().getSubmitValue());
         myProxy.setExtraParam('groupByYear', me.getGroupByYear().checked);
+        myProxy.setExtraParam('granularite', me.granularite());
         myProxy.setExtraParam('typeRglementId', me.getReglementComboField().getValue());
     },
 
@@ -139,6 +183,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         me.getCaisserecetterecapGrid().getStore().load({
             params: {
                 groupByYear: me.getGroupByYear().checked,
+                granularite: me.granularite(),
                 typeRglementId: me.getReglementComboField().getValue(),
                 dtStart: me.getStartDateField().getSubmitValue(),
                 dtEnd: me.getEndDateField().getSubmitValue()

@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import rest.report.ReportUtil;
 import rest.service.StatCaisseRecetteService;
+import rest.service.StatCaisseRecetteService.Granularite;
 import rest.service.dto.StatCaisseRecetteDTO;
 import util.Constant;
 
@@ -33,8 +34,19 @@ public class RecapRecetteCaisseServlet extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        /*
+         * Point 16 : l'edition est construite en code et servie directement.
+         *
+         * Elle passait par l'etat jasper « rp_recap_caisse_recette », introuvable dans les sources comme sur le serveur
+         * : la redirection menait a un fichier jamais ecrit, donc a un 404. Le constructeur en code corrige cela et
+         * permet de poser les lignes mobile money au pied de chaque journee.
+         */
         response.setContentType("application/pdf");
-        response.sendRedirect(request.getContextPath() + buildReport(request));
+        byte[] pdf = buildReport(request);
+        response.setHeader("Content-Disposition", "inline; filename=\"recap_caisse_recette.pdf\"");
+        response.setContentLength(pdf.length);
+        response.getOutputStream().write(pdf);
+        response.getOutputStream().flush();
     }
 
     @Override
@@ -59,14 +71,15 @@ public class RecapRecetteCaisseServlet extends HttpServlet {
         return "Short description";
     }// </editor-fold>
 
-    private String buildReport(HttpServletRequest request) {
+    private byte[] buildReport(HttpServletRequest request) {
         HttpSession session = request.getSession();
         TUser user = (TUser) session.getAttribute(Constant.AIRTIME_USER);
 
         String dtStart = request.getParameter("dtStart");
         String dtEnd = request.getParameter("dtEnd");
         String typeRglementId = request.getParameter("typeRglementId");
-        boolean groupByYear = Boolean.parseBoolean(request.getParameter("groupByYear"));
+        Granularite granularite = Granularite.depuis(request.getParameter("granularite"),
+                Boolean.parseBoolean(request.getParameter("groupByYear")));
         LocalDate dtSt = LocalDate.parse(dtStart);
         LocalDate dtd = LocalDate.parse(dtEnd);
         Map<String, Object> parameters = reportUtil.officineData(user);
@@ -74,12 +87,10 @@ public class RecapRecetteCaisseServlet extends HttpServlet {
         if (!dtSt.isEqual(dtd)) {
             periode += " AU " + dtd.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        String reportName = "rp_recap_caisse_recette";
-
-        parameters.put("P_H_CLT_INFOS", "RECAPITULATIF CAISSE/RECETTE\n DU  " + periode);
         List<StatCaisseRecetteDTO> datas = this.statCaisseRecetteService.fetchStatCaisseRecettes(dtStart, dtEnd,
-                typeRglementId, groupByYear, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-        return reportUtil.buildReport(parameters, reportName, datas);
+                typeRglementId, granularite, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        return RecapCaisseRecettePdf.construire(datas, String.valueOf(parameters.getOrDefault("P_H_INSTITUTION", "")),
+                "DU " + periode, String.valueOf(parameters.getOrDefault("P_PRINTED_BY", "")));
 
     }
 }

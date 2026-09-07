@@ -112,6 +112,16 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     type: 'number'
                 },
                 {
+                    // Ecart comptant / billetage, calcule par le serveur pour que l'ecran, le PDF et
+                    // le classeur Excel affichent tous les trois le meme chiffre.
+                    name: 'montantEcart',
+                    type: 'number'
+                },
+                {
+                    name: 'billetageSaisi',
+                    type: 'boolean'
+                },
+                {
                     name: 'montantEntre',
                     type: 'number'
                 },
@@ -201,6 +211,15 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             itemId: 'groupByYear'
                         },
                         {
+                            /* Point 16 : « Mensuelle » vient a cote d'« Annuelle ». Les deux s'excluent -
+                               cocher l'une decoche l'autre - et ne rien cocher garde le detail par jour. */
+                            xtype: 'checkbox',
+                            boxLabel: 'Mensuelle',
+                            checked: false,
+                            margin: '0 10 0 6',
+                            itemId: 'groupByMonth'
+                        },
+                        {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'rechercher',
@@ -250,18 +269,16 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             ptype: 'rowexpander',
                             rowBodyTpl: new Ext.XTemplate(
                                 '<tpl if="this.vide(values.detailMobile)">',
-                                '<div style="padding:6px 12px;color:#7f8c8d;">Aucun paiement mobile ce jour-là.</div>',
+                                '<div style="padding:4px 12px;color:#7f8c8d;">Aucun paiement mobile ce jour-là.</div>',
                                 '<tpl else>',
-                                '<div style="padding:6px 12px;">',
-                                '<div style="font-weight:bold;color:#2a4d69;margin-bottom:4px;">',
-                                'Détail des paiements mobiles</div>',
-                                '<table style="border-collapse:collapse;">',
-                                '{[ this.lignes(values.detailMobile) ]}',
-                                '<tr><td style="padding:2px 18px 2px 0;border-top:1px solid #b8c6d4;',
-                                'font-weight:bold;">Total mobile</td>',
-                                '<td style="padding:2px 0;border-top:1px solid #b8c6d4;text-align:right;',
-                                'font-weight:bold;">{[ this.montant(values.montantMobile) ]}</td></tr>',
-                                '</table></div>',
+                                /* Point 16 : le detail tient sur UNE ligne, au pied de la journee.
+                                   Le total est rappele au bout : il vaut la somme des parts, par construction. */
+                                '<div style="padding:4px 12px;">',
+                                '<span style="font-weight:bold;color:#2a4d69;">Mobile money :</span> ',
+                                '{[ this.ligne(values.detailMobile) ]}',
+                                '<span style="color:#7f8c8d;"> = </span>',
+                                '<span style="font-weight:bold;">{[ this.montant(values.montantMobile) ]}</span>',
+                                '</div>',
                                 '</tpl>',
                                 {
                                     vide: function (detail) {
@@ -270,13 +287,11 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                                     montant: function (v) {
                                         return Ext.util.Format.number(v || 0, '0,000');
                                     },
-                                    lignes: function (detail) {
+                                    ligne: function (detail) {
                                         const format = this.montant;
                                         return Ext.Object.getKeys(detail || {}).map(function (mode) {
-                                            return '<tr><td style="padding:2px 18px 2px 0;">' + Ext.String.htmlEncode(mode)
-                                                    + '</td><td style="padding:2px 0;text-align:right;">'
-                                                    + format(detail[mode]) + '</td></tr>';
-                                        }).join('');
+                                            return Ext.String.htmlEncode(mode) + ' <b>' + format(detail[mode]) + '</b>';
+                                        }).join('<span style="color:#b8c6d4;"> &middot; </span>');
                                     }
                                 })
                         }],
@@ -516,7 +531,48 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
+                            /* Point 16 : ecart entre le comptant et le billetage.
+                               Rouge quand le comptant est INFERIEUR au billetage, vert quand il est superieur,
+                               tiret quand aucun billetage n'a ete saisi : il n'y a alors rien a comparer, et
+                               afficher l'oppose du comptant ferait croire a un manquant. */
+                            header: 'Écart',
+                            dataIndex: 'montantEcart',
+                            flex: 1,
+                            align: 'right',
+                            tooltip: 'Comptant moins billetage',
+                            renderer: function (valeur, meta, enregistrement) {
+                                if (!enregistrement.get('billetageSaisi')) {
+                                    return "<span style='color:#7f8c8d;'>-</span>";
+                                }
+                                const ecart = valeur || 0;
+                                const couleur = ecart < 0 ? '#c0392b' : '#1e8449';
+                                return "<span style='color:" + couleur + ";font-weight:bold;'>"
+                                        + Ext.util.Format.number(ecart, '0,000') + "</span>";
+                            },
+                            summaryType: 'sum',
+                            summaryRenderer: function (value, donnees, champ, contexte) {
+                                // Le total n'a de sens que si au moins une journee a ete billetee.
+                                const store = contexte && contexte.store ? contexte.store : null;
+                                let billete = false;
+                                if (store) {
+                                    store.each(function (r) {
+                                        if (r.get('billetageSaisi')) {
+                                            billete = true;
+                                            return false;
+                                        }
+                                    });
+                                }
+                                if (!billete) {
+                                    return "<span style='color:#7f8c8d;'>-</span>";
+                                }
+                                const couleur = (value || 0) < 0 ? '#c0392b' : '#1e8449';
+                                return "<b><span style='color:" + couleur + ";'>"
+                                        + Ext.util.Format.number(value || 0, '0,000') + "</span></b>";
+                            }
+                        },
+                        {
                             header: 'Solde',
+                            tooltip: 'Comptant + mobile + règlement tiers payant + règlement différé',
                             /* Point 22 : couleur imposee en recette, sur la ligne comme sur le total.
                                Ces trois colonnes se lisent d'un coup d'oeil au moment de fermer la caisse. */
                             renderer: function (valeur) {

@@ -12,10 +12,39 @@ import rest.service.dto.StatCaisseRecetteDTO;
 @Local
 public interface StatCaisseRecetteService {
 
+    /**
+     * Pas de regroupement du recapitulatif.
+     *
+     * <p>
+     * L'ecran proposait « Annuelle » ou rien ; le point 16 ajoute « Mensuelle » a cote. Une enumeration remplace le
+     * booleen la ou le choix se fait, les signatures a booleen restant en place pour les appelants existants.
+     * </p>
+     */
+    enum Granularite {
+        JOUR, MOIS, ANNEE;
+
+        /** Lecture du parametre recu de l'ecran ; toute valeur inconnue vaut le jour, comportement d'origine. */
+        public static Granularite depuis(String valeur, boolean groupByYear) {
+            if ("mois".equalsIgnoreCase(valeur)) {
+                return MOIS;
+            }
+            if ("annee".equalsIgnoreCase(valeur) || groupByYear) {
+                return ANNEE;
+            }
+            return JOUR;
+        }
+    }
+
     List<StatCaisseRecetteDTO> fetchStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
             boolean groupByYear, String emplacementId);
 
+    List<StatCaisseRecetteDTO> fetchStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
+            Granularite granularite, String emplacementId);
+
     JSONObject getStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId, boolean groupByYear,
+            String emplacementId);
+
+    JSONObject getStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId, Granularite granularite,
             String emplacementId);
 
     /**
