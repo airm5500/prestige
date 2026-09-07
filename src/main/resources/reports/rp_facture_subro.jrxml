@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Liste des bons par organisme, sans le detail des produits.
+     Presentation refondue : memes donnees, memes parametres, meme source (aucun changement
+     cote application). Seule la mise en page change.
+
+     Ce qui a change, et pourquoi :
+     - le quadrillage complet (quatre traits autour de CHAQUE cellule, en 0.25) est remplace
+       par un simple filet sous chaque ligne, plus une teinte une ligne sur deux : l'oeil suit
+       la ligne sans que la page ressemble a un tableur ;
+     - le tableau passe de 7 a 8 points ; a 7 points la liste se lit mal une fois imprimee,
+       et la place gagnee sur la colonne de date paie l'agrandissement ;
+     - la date ne porte plus l'heure : elle n'apporte rien sur un releve destine a un
+       organisme, et elle imposait 95 px a la premiere colonne ;
+     - « CLient » devient « Client ». -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_facture_subrogatoire" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" whenNoDataType="AllSectionsNoDetail" uuid="f265d67a-36a3-4b93-b5e3-281424fccc43">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+
+	<!-- ============================ Palette et styles ============================ -->
+	<!-- Bleu nuit de l'application pour les entetes, vert pour les montants attendus.
+	     Ces couleurs restent lisibles une fois la page photocopiee en noir et blanc. -->
+	<style name="EnteteColonne" mode="Opaque" backcolor="#1E3A5F" forecolor="#FFFFFF" fontName="SansSerif" fontSize="7.5" isBold="true" vAlign="Middle" hAlign="Center">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="3">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<!-- Entete d'une colonne de MONTANTS : cale a droite, avec la meme marge que les
+	     chiffres en dessous, pour que libelle et colonne tombent sur le meme axe. -->
+	<style name="EnteteColonneMontant" style="EnteteColonne" hAlign="Right">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="4">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<style name="Cellule" mode="Transparent" fontName="SansSerif" fontSize="8" vAlign="Middle">
+		<box topPadding="0" bottomPadding="0" leftPadding="4" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<bottomPen lineWidth="0.25" lineColor="#D6DEE8"/>
+		</box>
+		<!-- une ligne sur deux legerement teintee : c'est ce qui remplace le quadrillage -->
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+			<style mode="Opaque" backcolor="#F2F6FA"/>
+		</conditionalStyle>
+	</style>
+	<style name="CelluleMontant" style="Cellule" forecolor="#1B6B3A" isBold="true" hAlign="Right"/>
+	<!-- Nom de l'organisme : barre verticale coloree a gauche plutot qu'un cadre complet.
+	     Le regard trouve le debut d'un organisme sans avoir a lire. -->
+	<style name="Organisme" mode="Opaque" backcolor="#FFFFFF" forecolor="#1E3A5F" fontName="SansSerif" fontSize="9" isBold="true" vAlign="Middle">
+		<box topPadding="1" bottomPadding="1" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<leftPen lineWidth="3.0" lineColor="#48A9A6"/>
+			<bottomPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+	<style name="TotalOrganisme" mode="Opaque" backcolor="#DDE6F0" fontName="SansSerif" fontSize="8" isBold="true" vAlign="Middle">
+		<box topPadding="0" bottomPadding="0" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<topPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_CODE_OFFICINE" class="java.lang.String"/>
+	<parameter name="P_REGISTRE_COMMERCE" class="java.lang.String"/>
+	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
+	<parameter name="P_COMPTE_CONTRIBUABLE" class="java.lang.String"/>
+	<parameter name="P_CODE_POSTALE" class="java.lang.String"/>
+	<parameter name="P_DATE_END" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="P_DATE_START" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="P_SEARCH" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="montant" class="java.math.BigDecimal"/>
+	<parameter name="nbreBon" class="java.lang.Integer"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="strREF" class="java.lang.String"/>
+	<field name="strNUMEROSECURITESOCIAL" class="java.lang.String"/>
+	<field name="intPERCENT" class="java.lang.Integer"/>
+	<field name="clientFullName" class="java.lang.String"/>
+	<field name="intPRICE" class="java.lang.Integer"/>
+	<field name="heure" class="java.lang.String"/>
+	<field name="dtUPDATED" class="java.lang.String"/>
+	<!-- Date et heure reunies : "05/08/2026 10:20". Champ calcule cote application
+	     (BonsDTO.getDateHeure()). L'etat n'en garde que la date. -->
+	<field name="dateHeure" class="java.lang.String"/>
+	<field name="tiersPayantId" class="java.lang.String"/>
+	<field name="tiersPayantLibelle" class="java.lang.String"/>
+	<field name="typeTiersPayant" class="java.lang.String"/>
+	<field name="strREFBON" class="java.lang.String"/>
+	<variable name="v_montant" class="java.lang.Integer" resetType="Group" resetGroup="groupeBy" calculation="Sum">
+		<variableExpression><![CDATA[$F{intPRICE}]]></variableExpression>
+	</variable>
+	<!-- Nombre de bons de l'organisme : le total ne dit rien s'il ne dit pas sur combien de bons. -->
+	<variable name="v_nb_bons" class="java.lang.Integer" resetType="Group" resetGroup="groupeBy" calculation="Count">
+		<variableExpression><![CDATA[$F{strREFBON}]]></variableExpression>
+	</variable>
+	<group name="groupeBy" isReprintHeaderOnEachPage="true">
+		<groupExpression><![CDATA[$F{tiersPayantId}]]></groupExpression>
+		<groupHeader>
+			<band height="20">
+				<textField>
+					<reportElement style="Organisme" x="0" y="3" width="554" height="17" uuid="c92f6146-62a1-49c8-99f5-f063f59545b0"/>
+					<textFieldExpression><![CDATA[$F{tiersPayantLibelle}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="24">
+				<textField isBlankWhenNull="true">
+					<reportElement style="TotalOrganisme" x="0" y="1" width="458" height="16" forecolor="#1E3A5F" uuid="d79d9860-48b4-442d-b34e-90ff5e25198d"/>
+					<textElement textAlignment="Left" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA["TOTAL " + ($F{tiersPayantLibelle} != null ? $F{tiersPayantLibelle}.toUpperCase() : "")
+	+ "   (" + $V{v_nb_bons} + ($V{v_nb_bons}.intValue() > 1 ? " bons)" : " bon)")]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement style="TotalOrganisme" x="458" y="1" width="96" height="16" forecolor="#1B6B3A" uuid="50660a6e-1d3f-4b68-a473-e49df6ac0bbf"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="8.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{v_montant} == null ? "" : String.format("%,d", $V{v_montant}.longValue()).replace(',', ' ')]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="96">
+			<image onErrorType="Blank">
+				<reportElement x="0" y="0" width="72" height="43" uuid="707f3dbe-fdbc-41c0-adc0-82d49b31908a"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="555" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="862f4daf-1080-4cb6-adc5-45f4d7b62b6a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="16" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="13" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="d28d108e-e39b-4dff-a5cb-036f8478cf38"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="47" width="555" height="2" backcolor="#1E3A5F" uuid="5f77a8c6-5bd3-43b1-a749-393997797f83"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="55" width="555" height="24" backcolor="#EDF2F8" uuid="bcebb6da-ab21-4033-bcac-53f597cf4ec1"/>
+				<box>
+					<pen lineWidth="0.0"/>
+					<leftPen lineWidth="3.0" lineColor="#48A9A6"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<!-- Titre de l'edition : « LISTE DES BONS DU ... », envoye par l'application.
+			     Il arrive avec un retour a la ligne, d'ou la hauteur de 24 px. -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="8" y="55" width="412" height="24" forecolor="#1E3A5F" uuid="bcebb6da-ab21-4033-bcac-53f597cf4ece"/>
+				<box leftPadding="6"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8.5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS} == null ? "" : $P{P_H_CLT_INFOS}.replace("\n", " ")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement x="424" y="55" width="125" height="24" forecolor="#5A6B7D" uuid="77c1f257-082f-4f63-bdb3-c1272490c248"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7.5"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité le " + new SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new Date())]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="16">
+			<!-- Largeurs : 62 + 88 + 170 + 98 + 40 + 96 = 554.
+			     La date sans heure tient en 62 px ; les 33 px rendus sont partages entre le
+			     numero de bon, le nom du client et le montant. -->
+			<staticText>
+				<reportElement style="EnteteColonne" x="0" y="0" width="62" height="16" uuid="e5adce93-ae6e-4cc3-bc9f-b006486df15d"/>
+				<text><![CDATA[Date]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="EnteteColonne" x="62" y="0" width="88" height="16" uuid="0ee878b6-fbcc-4c65-bb48-428377cb0ed5"/>
+				<text><![CDATA[N° bon]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="EnteteColonne" x="150" y="0" width="170" height="16" uuid="0a02247d-1300-4355-988e-6d3450e1ee83"/>
+				<text><![CDATA[Client]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="EnteteColonne" x="320" y="0" width="98" height="16" uuid="c66e9fcc-2798-4e2f-a9f5-17acad89077a"/>
+				<text><![CDATA[Matricule]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="EnteteColonne" x="418" y="0" width="40" height="16" uuid="3b1a9d54-77c0-4f0a-9d0e-2f9f6a1c0001"/>
+				<text><![CDATA[%]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="EnteteColonneMontant" x="458" y="0" width="96" height="16" uuid="5123aa95-a506-422b-8b61-ec1ab8719b5d"/>
+				<text><![CDATA[Montant attendu]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<!-- Date seule : le champ dateHeure vaut "jj/mm/aaaa hh:mm", on n'en garde que
+			     les dix premiers caracteres. Le test de longueur protege une valeur tronquee. -->
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="0" y="0" width="62" height="15" uuid="6d9bb90f-23c5-4a82-b1a3-a0df168d9c2e"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{dateHeure} == null ? "" : ($F{dateHeure}.length() > 10 ? $F{dateHeure}.substring(0, 10) : $F{dateHeure})]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="62" y="0" width="88" height="15" uuid="65e3a8fe-35c2-4419-9765-a970bdc8cd17"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{strREFBON}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="150" y="0" width="170" height="15" uuid="7850b1d2-188a-4b42-b819-773c1e310247"/>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA[$F{clientFullName}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="320" y="0" width="98" height="15" uuid="ad6be15e-ae84-4cf9-9f54-2078a71ff943"/>
+				<textElement textAlignment="Left"/>
+				<textFieldExpression><![CDATA[$F{strNUMEROSECURITESOCIAL}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="Cellule" x="418" y="0" width="40" height="15" uuid="3b1a9d54-77c0-4f0a-9d0e-2f9f6a1c0002"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{intPERCENT}]]></textFieldExpression>
+			</textField>
+			<!-- Milliers separes par une ESPACE, pas par une virgule : « 2,770 » se lit comme
+			     deux virgule sept-cent-soixante-dix. C'est aussi l'ecriture de l'autre edition. -->
+			<textField isBlankWhenNull="true">
+				<reportElement style="CelluleMontant" x="458" y="0" width="96" height="15" uuid="0a77723f-c6aa-4ba6-aaa8-1ad978f32400"/>
+				<textFieldExpression><![CDATA[$F{intPRICE} == null ? "" : String.format("%,d", $F{intPRICE}.longValue()).replace(',', ' ')]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="24">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="f18b9f8e-6b7c-4779-86a9-1edd7d430c5e"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="2258a252-3e1e-4b69-840a-d8af0cd05679"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité par " + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="08eabd29-6355-4226-b8b8-8e51ceb6e738"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="7a3b7e46-5025-424b-9723-dad83950993f"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="52">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="f18b9f8e-6b7c-4779-86a9-1edd7d430c5d"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="42e7ae01-b641-4a68-a273-a7e04274482f"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité par " + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="2379d8b1-c53e-49b3-bf46-03fe90233a14"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="03fa3c4c-faf8-4a6d-9bbe-478b08447029"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="11" forecolor="#5A6B7D" uuid="fa8d8708-aa44-4bd9-aac5-c5f25219c501"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="35" width="555" height="11" forecolor="#5A6B7D" uuid="6aa1792c-688f-43d5-a6e5-b16950b4b444"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+	<summary>
+		<band height="60">
+			<!-- Recapitulatif : une bande unique, lue de gauche a droite, plutot que quatre
+			     cases encadrees separement en bas de page. -->
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="8" width="555" height="18" backcolor="#1E3A5F" uuid="abb2c4ab-e988-4866-91ac-de917cd66f01"/>
+				<box>
+					<pen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="8" width="200" height="18" forecolor="#FFFFFF" uuid="abb2c4ab-e988-4866-91ac-de917cd66f0b"/>
+				<box leftPadding="8"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL GÉNÉRAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="200" y="8" width="160" height="18" backcolor="#EDF2F8" uuid="a1000001-0000-0000-0000-000000000001"/>
+				<box leftPadding="6">
+					<pen lineWidth="0.0"/>
+					<rightPen lineWidth="0.5" lineColor="#FFFFFF"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nombre de bons]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="200" y="8" width="154" height="18" forecolor="#1E3A5F" uuid="90f9751f-19c7-4727-9ea6-e937c3328220"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{nbreBon}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="360" y="8" width="195" height="18" backcolor="#E6F2E9" uuid="a1000001-0000-0000-0000-000000000002"/>
+				<box leftPadding="6">
+					<pen lineWidth="0.0"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Montant attendu]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="360" y="8" width="189" height="18" forecolor="#1B6B3A" uuid="01c380a0-c1b3-4ec5-903c-14534ec44eff"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{montant} == null ? "" : String.format("%,d", $P{montant}.longValue()).replace(',', ' ')]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="34" width="555" height="16" forecolor="#5A6B7D" uuid="a1000001-0000-0000-0000-000000000009">
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT} == 0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[Aucun bon ne correspond aux critères demandés sur cette période.]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>
