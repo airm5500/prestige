@@ -215,7 +215,7 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                             getClass: function(value, metadata, record) {
                                 //    alert("etat"+record.get('etat')+"|int_STOCK_REAPROVISONEMENT"+record.get('int_STOCK_REAPROVISONEMENT'));
                                 if (record.get('etat') === "1" && record.get('int_STOCK_REAPROVISONEMENT') > 0) {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                    return ''; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -239,7 +239,7 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                                 if (record.get('int_STOCK_REAPROVISONEMENT') === 0) {  //read your condition from the record
                                     return 'x-hide-display'; //affiche l'icone
                                 } else {
-                                    return 'x-display-hide'; //cache l'icone
+                                    return ''; //cache l'icone
                                 }
                             }
                         }

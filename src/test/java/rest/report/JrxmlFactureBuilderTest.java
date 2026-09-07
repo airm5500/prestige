@@ -208,6 +208,26 @@ class JrxmlFactureBuilderTest {
     }
 
     @Test
+    @DisplayName("A toutes les tailles de police, le tableau remplit la page sans jamais la deborder")
+    void pasDeDebordementQuelleQueSoitLaPolice() throws Exception {
+        // Point 20 : les largeurs minimales sont mises a l'echelle de la police demandee. Il faut
+        // verifier qu'a 12 points, la plus grande taille reglable, le decoupage tient toujours dans
+        // la page - et qu'a 5 points il ne laisse pas la moitie de la page vide.
+        for (int taille = 5; taille <= 12; taille++) {
+            ModelFactureDynamique m = modeleAvecProduits(
+                    new String[] { "NUMERO", "DATE_BON", "REF_BON", "NOM_COMPLET", "MATRICULE", "MONTANT_BRUT",
+                            "PART_CLIENT", "PART_TIERS_PAYANT" },
+                    "PROD_CIP", "PROD_DESIGNATION", "PROD_QUANTITE", "PROD_PRIX_UNITAIRE", "PROD_MONTANT",
+                    "PROD_REMISE");
+            m.setTaillePolice(taille);
+            Element racine = racine(JrxmlFactureBuilder.construire(m, true, true));
+            int largeur = largeurCumulee(racine, "detail");
+            assertTrue(largeur <= 585, taille + " pt : largeur " + largeur + " > 585");
+            assertTrue(largeur >= 575, taille + " pt : la page n'est pas remplie (" + largeur + ")");
+        }
+    }
+
+    @Test
     @DisplayName("En-tete masque : la bande ne contient plus que le bandeau des colonnes")
     void enteteMasquee() throws Exception {
         String avec = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT"), true, true);

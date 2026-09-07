@@ -209,6 +209,24 @@ public final class Constant {
     public static final String P_BTN_MAJ_SEUIL = "P_BTN_MAJ_SEUIL";
     public static final String P_BTN_CREER_ARTICLE = "P_BTN_CREER_ARTICLE";
     public static final String P_BTN_IMPORT_ARTICLE = "P_BTN_IMPORT_ARTICLE";
+    /**
+     * Privilege deja utilise pour l'ecran "Gestion des parametrages" : il garde aussi la configuration des actions de
+     * la fiche article.
+     */
+    public static final String P_SM_PARAMETER_MANAGER = "P_SM_PARAMETER_MANAGER";
+    /**
+     * Nombre d'actions presentees en icone sur la fiche article ; les suivantes vont dans le menu "...". Le menu
+     * disparait quand toutes les actions sont en icone.
+     */
+    public static final String PARAM_FICHE_ARTICLE_NB_ICONES = "FICHE_ARTICLE_NB_ICONES";
+    /**
+     * Ordre complet des actions de la fiche article, separees par des virgules. Les premieres, au nombre defini
+     * ci-dessus, sont affichees en icone.
+     */
+    public static final String PARAM_FICHE_ARTICLE_ORDRE_ACTIONS = "FICHE_ARTICLE_ORDRE_ACTIONS";
+    /** Ordre livre par defaut : les quatre premieres reproduisent l'affichage d'origine. */
+    public static final String FICHE_ARTICLE_ACTIONS_DEFAUT = "PRIX,CREER_DETAIL,SUIVI,MODIFIER,DETAIL,LOTS,DATE_PEREMPTION,DECONDITIONNER,GROSSISTE,DESACTIVER";
+    public static final int FICHE_ARTICLE_NB_ICONES_DEFAUT = 4;
     public static final String CAUTION_ID = "10";
     public static final String KEY_OPTION_SUGGESTION = "KEY_OPTION_SUGGESTION";
     public static final String STATUT_PERIME = "perime";

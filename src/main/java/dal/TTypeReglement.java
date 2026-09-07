@@ -52,6 +52,13 @@ public class TTypeReglement implements Serializable {
     /** MOBILE_MONEY ou STANDARD : la regle unique de reconnaissance du mobile money (voir util.MobileMoney). */
     @Column(name = "str_CATEGORIE", length = 20)
     private String strCATEGORIE;
+    /**
+     * Ce type de reglement exige-t-il un client sur la vente ? Le parcours « choisir ou creer un client » etait
+     * declenche par une liste d'identifiants codee en dur dans l'ecran de vente ; un mode cree par l'officine n'y
+     * figurait pas. La reponse est desormais une donnee du type.
+     */
+    @Column(name = "bool_CLIENT_REQUIS")
+    private Boolean boolCLIENTREQUIS;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
     @Column(name = "dt_CREATED")
@@ -70,6 +77,14 @@ public class TTypeReglement implements Serializable {
 
     public TTypeReglement(String lgTYPEREGLEMENTID) {
         this.lgTYPEREGLEMENTID = lgTYPEREGLEMENTID;
+    }
+
+    public Boolean getBoolCLIENTREQUIS() {
+        return boolCLIENTREQUIS;
+    }
+
+    public void setBoolCLIENTREQUIS(Boolean boolCLIENTREQUIS) {
+        this.boolCLIENTREQUIS = boolCLIENTREQUIS;
     }
 
     public String getLgTYPEREGLEMENTID() {

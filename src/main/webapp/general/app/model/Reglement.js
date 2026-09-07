@@ -61,6 +61,9 @@ Ext.define('testextjs.model.Reglement', {
             type: 'string'
         },
         {
+            name: 'GROUPE'
+        },
+        {
             name: 'MONTANT_ATT',
             type: 'float'
         }

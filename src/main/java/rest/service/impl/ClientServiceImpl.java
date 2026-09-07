@@ -337,6 +337,107 @@ public class ClientServiceImpl implements ClientService {
         }
     }
 
+    /**
+     * Normalisation d'un nom ou d'un prenom avant enregistrement.
+     *
+     * Une saisie « KONAN » etait enregistree telle quelle, espace de fin compris : le controle d'unicite ne rapprochait
+     * donc pas « KONAN » et « KONAN », et le doublon passait. Le trim est fait ici, cote serveur, pour valoir quel que
+     * soit le client appelant.
+     *
+     * La mise en majuscules etait deja appliquee par createClient/updateClient ; elle est remontee ici pour que la
+     * valeur enregistree et la valeur comparee soient les memes. Les espaces multiples internes et les accents sont
+     * volontairement laisses intacts : ces regles restent a arbitrer fonctionnellement (point 10 des points a
+     * clarifier).
+     */
+    private String normaliserNom(String valeur) {
+        if (valeur == null) {
+            return null;
+        }
+        return valeur.trim().toUpperCase();
+    }
+
+    /**
+     * Applique la normalisation a l'identite portee par le DTO, client et ayants droit compris, avant que les methodes
+     * de creation et de mise a jour ne l'exploitent. Traiter le DTO en amont evite d'avoir a retoucher chacun des
+     * points d'enregistrement.
+     */
+    private void normaliserIdentite(ClientDTO client) {
+        if (client == null) {
+            return;
+        }
+        client.setStrLASTNAME(normaliserNom(client.getStrLASTNAME()));
+        client.setStrFIRSTNAME(normaliserNom(client.getStrFIRSTNAME()));
+        if (client.getAyantDroits() != null) {
+            client.getAyantDroits().forEach(ayantDroit -> {
+                ayantDroit.setStrLASTNAME(normaliserNom(ayantDroit.getStrLASTNAME()));
+                ayantDroit.setStrFIRSTNAME(normaliserNom(ayantDroit.getStrFIRSTNAME()));
+            });
+        }
+    }
+
+    /**
+     * Clients actifs dont le nom et les prenoms normalises sont identiques a ceux fournis. La comparaison porte sur les
+     * valeurs normalisees des DEUX cotes : l'historique peut contenir des enregistrements crees avant le trim, avec un
+     * espace de fin.
+     */
+    private List<TClient> chercherDoublons(String nom, String prenoms) {
+        if (StringUtils.isEmpty(nom)) {
+            return Collections.emptyList();
+        }
+        try {
+            TypedQuery<TClient> query = em.createQuery("SELECT c FROM TClient c WHERE c.strSTATUT = ?1 "
+                    + "AND UPPER(TRIM(c.strLASTNAME)) = ?2 " + "AND COALESCE(UPPER(TRIM(c.strFIRSTNAME)), '') = ?3",
+                    TClient.class);
+            query.setParameter(1, Constant.STATUT_ENABLE);
+            query.setParameter(2, nom);
+            query.setParameter(3, prenoms == null ? "" : prenoms);
+            return query.getResultList();
+        } catch (Exception e) {
+            // Un controle anti-doublon en echec ne doit pas empecher la creation du client.
+            LOG.log(Level.SEVERE, "recherche de doublons client", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Reponse d'avertissement quand un ou plusieurs clients portent deja cette identite. Rend {@code null} quand il n'y
+     * a rien a signaler, ou quand l'utilisateur a explicitement demande la creation malgre l'avertissement
+     * (forcerCreation).
+     *
+     * L'appelant recoit la liste des clients trouves afin de pouvoir proposer l'existant plutot que d'en creer un
+     * second en silence.
+     */
+    private JSONObject avertissementDoublon(ClientDTO client) throws JSONException {
+        if (client.isForcerCreation()) {
+            return null;
+        }
+        List<TClient> doublons = chercherDoublons(client.getStrLASTNAME(), client.getStrFIRSTNAME());
+        if (doublons.isEmpty()) {
+            return null;
+        }
+        JSONArray existants = new JSONArray();
+        doublons.forEach(existant -> {
+            JSONObject item = new JSONObject();
+            try {
+                item.put("lgCLIENTID", existant.getLgCLIENTID());
+                item.put("strCODEINTERNE", existant.getStrCODEINTERNE());
+                item.put("strLASTNAME", existant.getStrLASTNAME());
+                item.put("strFIRSTNAME", existant.getStrFIRSTNAME());
+                item.put("strNUMEROSECURITESOCIAL", existant.getStrNUMEROSECURITESOCIAL());
+                existants.put(item);
+            } catch (JSONException e) {
+                LOG.log(Level.SEVERE, null, e);
+            }
+        });
+        String identite = (client.getStrLASTNAME() + " "
+                + (client.getStrFIRSTNAME() == null ? "" : client.getStrFIRSTNAME())).trim();
+        return new JSONObject().put("success", false).put("doublonClient", true).put("doublons", existants).put("msg",
+                doublons.size() == 1
+                        ? "Un client nomme [<span style=\"color: blue; \">" + identite + "</span>] existe deja."
+                        : doublons.size() + " clients nommes [<span style=\"color: blue; \">" + identite
+                                + "</span>] existent deja.");
+    }
+
     private TClient updateClientCarnet(ClientDTO client, TClient tc, TCompteClientTiersPayant oltp) {
         try {
             tc = updateClient(client, tc);
@@ -973,6 +1074,9 @@ public class ClientServiceImpl implements ClientService {
         JSONObject json = new JSONObject();
 
         try {
+            // Espaces de fin retires cote serveur, avant tout controle : sans cela « KONAN »
+            // et « KONAN » restaient deux clients distincts pour le controle d'unicite.
+            normaliserIdentite(client);
             TClient tc = findById(client.getLgCLIENTID());
             TTiersPayant p = findTiersPayantById(client.getLgTIERSPAYANTID());
             if (p == null) {
@@ -990,6 +1094,10 @@ public class ClientServiceImpl implements ClientService {
                     }
                 }
 
+                JSONObject doublon = avertissementDoublon(client);
+                if (doublon != null) {
+                    return doublon;
+                }
                 tc = createClient(client);
                 TCompteClient compteClient = createCompteClient(client, tc);
                 createAyantDroit(client, tc);
@@ -1043,6 +1151,7 @@ public class ClientServiceImpl implements ClientService {
 
         TClient tc;
         try {
+            normaliserIdentite(client);
             tc = findById(client.getLgCLIENTID());
             TTiersPayant p = findTiersPayantById(client.getLgTIERSPAYANTID());
             if (p == null) {
@@ -1059,6 +1168,10 @@ public class ClientServiceImpl implements ClientService {
                                         + " </span>] est déjà utilisé dans le système");
                         return json;
                     }
+                }
+                JSONObject doublon = avertissementDoublon(client);
+                if (doublon != null) {
+                    return doublon;
                 }
                 tc = createClientCarnet(client, tc, p);
 

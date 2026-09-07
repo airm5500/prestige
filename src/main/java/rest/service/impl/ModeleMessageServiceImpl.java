@@ -106,4 +106,55 @@ public class ModeleMessageServiceImpl implements ModeleMessageService {
             return new JSONObject().put("success", false).put("msg", "L'opération a échoué");
         }
     }
+
+    @Override
+    public JSONObject dupliquer(String id) {
+        try {
+            ModeleMessage source = StringUtils.isBlank(id) ? null : em.find(ModeleMessage.class, id.trim());
+            if (source == null) {
+                return new JSONObject().put("success", false).put("msg", "Modèle introuvable");
+            }
+            ModeleMessage copie = new ModeleMessage();
+            copie.setLibelle(libelleDeCopieLibre(source.getLibelle()));
+            copie.setCanal(source.getCanal());
+            copie.setContenu(source.getContenu());
+            copie.setUpdatedAt(LocalDateTime.now());
+            em.persist(copie);
+            return new JSONObject().put("success", true).put("id", copie.getId()).put("libelle", copie.getLibelle())
+                    .put("msg", "Modèle dupliqué sous « " + copie.getLibelle() + " »");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "duplication du modele", e);
+            return new JSONObject().put("success", false).put("msg", "La duplication a échoué");
+        }
+    }
+
+    /**
+     * Libelle libre pour une copie : « X (Copie) », puis « X (Copie 2) », « X (Copie 3) »...
+     *
+     * <p>
+     * Le libelle est unique en base : dupliquer deux fois le meme modele echouerait si la copie portait toujours le
+     * meme nom. La recherche d'un rang libre est bornee, et le libelle source est raccourci autant qu'il faut pour que
+     * le tout tienne dans la colonne, sans quoi la copie serait refusee sur la longueur.
+     * </p>
+     */
+    String libelleDeCopieLibre(String libelleSource) {
+        String base = StringUtils.trimToEmpty(libelleSource);
+        for (int rang = 1; rang <= 100; rang++) {
+            String suffixe = rang == 1 ? " (Copie)" : " (Copie " + rang + ")";
+            String candidat = base.length() + suffixe.length() > LIBELLE_MAX
+                    ? base.substring(0, LIBELLE_MAX - suffixe.length()).trim() + suffixe : base + suffixe;
+            if (!libelleExiste(candidat)) {
+                return candidat;
+            }
+        }
+        // Cent copies du meme modele : on rend la main a l'horodatage plutot que d'echouer.
+        String suffixe = " (Copie " + System.currentTimeMillis() % 100000 + ")";
+        return base.length() + suffixe.length() > LIBELLE_MAX
+                ? base.substring(0, LIBELLE_MAX - suffixe.length()).trim() + suffixe : base + suffixe;
+    }
+
+    private boolean libelleExiste(String libelle) {
+        return em.createQuery("SELECT COUNT(m) FROM ModeleMessage m WHERE UPPER(m.libelle) = :lib", Long.class)
+                .setParameter("lib", libelle.toUpperCase(java.util.Locale.ROOT)).getSingleResult() > 0;
+    }
 }

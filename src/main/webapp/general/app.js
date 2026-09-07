@@ -877,14 +877,25 @@ Ext.application({
 // grille existante ne change de comportement sans stateId.
 // ---------------------------------------------------------------------
 (function () {
-    try {
-        if (window.localStorage && Ext.state && Ext.state.LocalStorageProvider) {
-            Ext.state.Manager.setProvider(new Ext.state.LocalStorageProvider({prefix: 'prestige-'}));
+    /*
+     * Le stockage local est attache au navigateur, donc au POSTE : sur un poste partage,
+     * la mise en page d'un utilisateur s'imposait au suivant. Les cles sont donc prefixees
+     * par l'identifiant de l'utilisateur connecte, connu seulement apres l'appel
+     * /user/account : d'ou un fournisseur pose des le demarrage (cle « anonyme »),
+     * remplace par rattacherUtilisateur() quand l'identite est connue.
+     */
+    function poserFournisseur(prefixe) {
+        try {
+            if (window.localStorage && Ext.state && Ext.state.LocalStorageProvider) {
+                Ext.state.Manager.setProvider(new Ext.state.LocalStorageProvider({prefix: prefixe}));
+            }
+        } catch (e) {
+            // stockage local indisponible (navigation privee, quota...) :
+            // pas de memorisation, comportement d'origine
         }
-    } catch (e) {
-        // stockage local indisponible (navigation privee, quota...) :
-        // pas de memorisation, comportement d'origine
     }
+
+    poserFournisseur('prestige-anonyme-');
 
     /*
      * Identifiant STABLE par colonne, indispensable a la memorisation.
@@ -905,6 +916,90 @@ Ext.application({
                 }
             });
             return colonnes;
+        },
+
+        /*
+         * Rattache la memorisation a l'utilisateur connecte. Appele une seule fois, a la
+         * reception de /user/account. Le fournisseur relit le stockage a sa construction :
+         * les grilles ouvertes ensuite retrouvent la mise en page de CET utilisateur, et
+         * celle d'un autre utilisateur du meme poste reste intacte de son cote.
+         */
+        rattacherUtilisateur: function (identifiant) {
+            if (!identifiant || this.utilisateurCourant === identifiant) {
+                return;
+            }
+            this.utilisateurCourant = identifiant;
+            poserFournisseur('prestige-' + identifiant + '-');
+        },
+
+        utilisateurCourant: null
+    };
+})();
+
+// ---------------------------------------------------------------------
+// Mise en forme des colonnes comptables (points 10 et 21).
+//
+// Le debit s'affiche en rouge et gras, le credit en vert et gras. Le solde
+// prend sa couleur de son SIGNE : rouge quand l'organisme doit encore quelque
+// chose, vert quand il est crediteur, gris quand le compte est solde. La
+// couleur porte ainsi une information, au lieu de servir de simple repere de
+// colonne, et reste coherente avec les deux colonnes voisines.
+//
+// Les deux ecrans concernes partagent ces fonctions : une couleur differente
+// d'un ecran a l'autre pour la meme notion serait une source d'erreur.
+// ---------------------------------------------------------------------
+window.PrestigeMontants = (function () {
+    'use strict';
+
+    /** Montant lisible quelle que soit son ecriture ; NaN si rien d'exploitable. */
+    function nombre(valeur) {
+        if (typeof valeur === 'number') {
+            return valeur;
+        }
+        var texte = String(valeur === null || valeur === undefined ? '' : valeur).trim();
+        if (!texte) {
+            return NaN;
+        }
+        texte = texte.replace(/[\s\u00a0]/g, '');
+        if (texte.indexOf(',') !== -1) {
+            texte = texte.replace(/\./g, '').replace(',', '.');
+        } else if (/^-?\d{1,3}(\.\d{3})+$/.test(texte)) {
+            texte = texte.replace(/\./g, '');
+        }
+        return parseFloat(texte);
+    }
+
+    function formate(valeur) {
+        var n = nombre(valeur);
+        return isNaN(n) ? '' : Ext.util.Format.number(n, '0,000.');
+    }
+
+    function colore(valeur, couleur) {
+        var texte = formate(valeur);
+        return texte === '' ? '' : '<span style="color:' + couleur + ';font-weight:bold;">' + texte + '</span>';
+    }
+
+    return {
+        nombre: nombre,
+
+        /** Debit : rouge et gras. */
+        debit: function (valeur) {
+            return colore(valeur, '#c0392b');
+        },
+
+        /** Credit : vert et gras. */
+        credit: function (valeur) {
+            return colore(valeur, '#1e7e34');
+        },
+
+        /** Solde : rouge s'il est debiteur, vert s'il est crediteur, gris s'il est nul. */
+        solde: function (valeur) {
+            var n = nombre(valeur);
+            if (isNaN(n)) {
+                return '';
+            }
+            var couleur = n > 0 ? '#c0392b' : (n < 0 ? '#1e7e34' : '#7f8c8d');
+            return colore(valeur, couleur);
         }
     };
 })();

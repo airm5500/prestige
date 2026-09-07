@@ -20,4 +20,7 @@ public interface TypeReglementService {
 
     /** Identifiants des types de reglement mobile money (historiques + categorie MOBILE_MONEY en base), tries. */
     List<String> identifiantsMobileMoney();
+
+    /** Types de reglement qui exigent un client sur la vente (point 12). */
+    List<String> identifiantsClientRequis();
 }

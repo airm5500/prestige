@@ -21,6 +21,12 @@ public interface SearchProduitServcie {
 
     JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId);
 
+    /**
+     * Apercu d'un article pour le bandeau de la fiche article : consommation des 13 derniers mois, lots proches de la
+     * peremption et reperes de gestion.
+     */
+    JSONObject apercuProduit(TUser user, String produitId);
+
     List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
             String stockOperator, String stockValue, String tvaId, boolean onlyReserve);
 }

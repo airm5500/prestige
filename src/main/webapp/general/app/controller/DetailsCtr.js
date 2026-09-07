@@ -205,6 +205,46 @@ Ext.define('testextjs.controller.DetailsCtr', {
      * reponse est immediate - le PDF s'ouvre directement dans un nouvel onglet (URL relative
      * au contexte, comme les autres editions). On ne parle a l'usager qu'en cas d'echec.
      */
+    /*
+     * Point 8 : boite de message a contenu entierement visible.
+     *
+     * Ext.Msg est un singleton dont la largeur est bornee et dont le corps ne defile pas : un
+     * message long - un refus du serveur qui enumere les articles en cause, par exemple - etait
+     * coupe, sans aucun moyen d'en lire la suite. On ouvre donc une fenetre a soi, redimensionnable,
+     * dont le corps defile au-dela d'une hauteur raisonnable. Rien n'est tronque, jamais.
+     */
+    messageComplet: function (titre, message) {
+        var hauteurMax = Math.max(180, Math.floor(Ext.getBody().getViewSize().height * 0.7));
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: titre || 'Message',
+            modal: true,
+            resizable: true,
+            maximizable: true,
+            width: 560,
+            minWidth: 320,
+            maxHeight: hauteurMax,
+            layout: 'fit',
+            items: [{
+                    xtype: 'container',
+                    itemId: 'corpsMessage',
+                    autoScroll: true,
+                    padding: 12,
+                    // Les mots tres longs - une URL, une reference sans espace - debordaient la
+                    // largeur au lieu de passer a la ligne.
+                    style: 'word-wrap:break-word;overflow-wrap:break-word;',
+                    html: message || ''
+                }],
+            buttons: [{
+                    text: 'Fermer',
+                    handler: function () {
+                        fenetre.close();
+                    }
+                }]
+        });
+        fenetre.show();
+        return fenetre;
+    },
+
     imprimer: function (url, params) {
         /*
          * L'onglet est ouvert TOUT DE SUITE, pendant le clic, puis on y charge le PDF quand le
@@ -216,12 +256,13 @@ Ext.define('testextjs.controller.DetailsCtr', {
          *
          * Si la generation echoue, l'onglet ouvert pour rien est referme avant le message.
          */
+        var me = this;
         var onglet = window.open('', '_blank');
         var echec = function (message) {
             if (onglet && !onglet.closed) {
                 onglet.close();
             }
-            Ext.Msg.alert('Message', message);
+            me.messageComplet('Message', message);
         };
         Ext.Ajax.request({
             method: 'GET',
@@ -306,14 +347,14 @@ Ext.define('testextjs.controller.DetailsCtr', {
                         success: function (response) {
                             progress.hide();
                             var r = Ext.JSON.decode(response.responseText, true) || {};
-                            Ext.Msg.alert('Message', r.success
+                            me.messageComplet('Message', r.success
                                     ? 'Inventaire « ' + r.name + ' » créé : ' + r.count + ' produit(s),'
                                             + ' issus de ' + r.mouvements + ' déconditionnement(s).'
                                     : (r.msg || 'La création a échoué.'));
                         },
                         failure: function () {
                             progress.hide();
-                            Ext.Msg.alert('Message', 'La création a échoué.');
+                            me.messageComplet('Message', 'La création a échoué.');
                         }
                     });
                 });
@@ -355,13 +396,13 @@ Ext.define('testextjs.controller.DetailsCtr', {
                         success: function (response) {
                             progress.hide();
                             var r = Ext.JSON.decode(response.responseText, true) || {};
-                            Ext.Msg.alert('Message', r.success
+                            me.messageComplet('Message', r.success
                                     ? 'Inventaire « ' + r.name + ' » créé : ' + r.count + ' produit(s).'
                                     : (r.msg || 'La création a échoué.'));
                         },
                         failure: function () {
                             progress.hide();
-                            Ext.Msg.alert('Message', 'La création a échoué.');
+                            me.messageComplet('Message', 'La création a échoué.');
                         }
                     });
                 });

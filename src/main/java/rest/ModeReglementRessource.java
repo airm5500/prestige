@@ -54,14 +54,21 @@ public class ModeReglementRessource {
         return Response.ok(modeReglementService.clientsMobileMoney().toString()).build();
     }
 
-    /** Cree un mode de reglement : corps JSON {name, mobileMoney}. 201 si cree, 400 sinon (msg). */
+    /** Cree un mode de reglement : corps JSON {name, mobileMoney, clientRequis}. 201 si cree, 400 sinon (msg). */
     @POST
     public Response creer(String corps) {
         org.json.JSONObject entree = new org.json.JSONObject(corps == null || corps.isBlank() ? "{}" : corps);
         org.json.JSONObject resultat = modeReglementService.creer(entree.optString("name", ""),
-                entree.optBoolean("mobileMoney", false));
+                entree.optBoolean("mobileMoney", false), entree.optBoolean("clientRequis", false));
         return Response.status(resultat.optBoolean("success") ? Response.Status.CREATED : Response.Status.BAD_REQUEST)
                 .entity(resultat.toString()).build();
+    }
+
+    /** Exigence de client d'un mode de reglement (point 12) : {requis} en parametre d'URL. */
+    @POST
+    @Path("/client-requis/{modeId}")
+    public Response setClientRequis(@PathParam("modeId") String modeId, @QueryParam("requis") boolean requis) {
+        return Response.ok(modeReglementService.setClientRequis(modeId, requis).toString()).build();
     }
 
     /**

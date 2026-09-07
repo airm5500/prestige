@@ -165,7 +165,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantDesactiv
                             scope: this,
                             getClass: function (value, metadata, record) {
                                 if (record.get('BTNDELETE')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }

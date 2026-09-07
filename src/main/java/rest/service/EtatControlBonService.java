@@ -22,6 +22,14 @@ public interface EtatControlBonService {
     JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType);
 
+    /** Meme liste, filtree par statut de controle et presence d'ecarts (point 17). */
+    JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart);
+
+    /** Toutes les lignes retenues par les criteres, sans pagination : impression et export. */
+    List<EtatControlBon> tous(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
+            String dateType, String statutControle, String ecart);
+
     EtatControlAnnuelWrapperDTO listBonAnnuel(String groupBy, String dtStart, String dtEnd, String grossisteId,
             Integer groupeId);
 

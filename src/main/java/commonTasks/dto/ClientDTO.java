@@ -71,12 +71,26 @@ public class ClientDTO implements Serializable {
     private List<TiersPayantParams> preenregistrementstp = new ArrayList<>();
     private String libelleTypeClient;
 
+    /**
+     * Demande explicite de creer le client malgre l'avertissement de doublon. Absent de la requete => false : un client
+     * qui ignore le champ obtient l'avertissement, jamais une creation silencieuse.
+     */
+    private boolean forcerCreation;
+
     public String getRemiseId() {
         return remiseId;
     }
 
     public void setRemiseId(String remiseId) {
         this.remiseId = remiseId;
+    }
+
+    public boolean isForcerCreation() {
+        return forcerCreation;
+    }
+
+    public void setForcerCreation(boolean forcerCreation) {
+        this.forcerCreation = forcerCreation;
     }
 
     public String getLibelleTypeClient() {

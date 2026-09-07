@@ -1,6 +1,7 @@
 package rest.service.impl;
 
 import dal.TTypeReglement;
+import java.math.RoundingMode;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import javax.persistence.Query;
 import javax.persistence.Tuple;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.StatCaisseRecetteService;
 import rest.service.dto.StatCaisseRecetteDTO;
@@ -75,6 +77,100 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         List<StatCaisseRecetteDTO> caisseRecettes = this.fetchStatCaisseRecettes(dateDebut, dateFin, typeRglementId,
                 groupByYear, emplacementId);
         return FunctionUtils.returnData(caisseRecettes, caisseRecettes.size());
+    }
+
+    /**
+     * Requete du suivi des modes de reglement (point 22).
+     *
+     * <p>
+     * Elle part de {@code vente_reglement}, ou chaque encaissement porte son mode et son montant, et retient les memes
+     * ventes que le recapitulatif : cloturees, de l'emplacement, hors depot extension, hors ventes exclues. Sans ces
+     * memes exclusions, la synthese des modes ne se raccorderait pas au tableau qu'elle accompagne.
+     * </p>
+     */
+    private static final String MODES_QUERY = "SELECT tr.lg_TYPE_REGLEMENT_ID AS modeId, tr.str_NAME AS mode,"
+            + " {tranche} AS tranche, SUM(vr.montant_attentu) AS montant, COUNT(*) AS operations"
+            + " FROM vente_reglement vr" + " JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
+            + " JOIN mvttransaction m ON m.vente_id = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE DATE(vr.mvtDate) BETWEEN ?1 AND ?2 AND p.str_STATUT = 'is_Closed'"
+            + " AND m.lg_EMPLACEMENT_ID = ?3 AND p.lg_TYPE_VENTE_ID <> '5' AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
+            + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, tr.str_NAME, tranche ORDER BY tranche";
+
+    @Override
+    public JSONObject suiviModesReglement(String dateDebut, String dateFin, boolean groupByYear, String emplacementId) {
+        JSONObject json = new JSONObject();
+        try {
+            String sql = MODES_QUERY.replace("{tranche}",
+                    groupByYear ? "YEAR(vr.mvtDate)" : "DATE_FORMAT(vr.mvtDate, '%Y-%m-%d')");
+            @SuppressWarnings("unchecked")
+            List<javax.persistence.Tuple> resultat = em.createNativeQuery(sql, javax.persistence.Tuple.class)
+                    .setParameter(1, java.sql.Date.valueOf(dateDebut)).setParameter(2, java.sql.Date.valueOf(dateFin))
+                    .setParameter(3, emplacementId).getResultList();
+
+            // Un mode = un cumul ; une tranche = un point de la courbe. Les deux se remplissent en un seul parcours.
+            Map<String, JSONObject> parMode = new java.util.LinkedHashMap<>();
+            Map<String, Map<String, Long>> serie = new java.util.LinkedHashMap<>();
+            java.util.SortedSet<String> tranches = new java.util.TreeSet<>();
+            long totalGeneral = 0;
+            long operationsGenerales = 0;
+            for (javax.persistence.Tuple t : resultat) {
+                String modeId = String.valueOf(t.get("modeId"));
+                String mode = t.get("mode") == null || String.valueOf(t.get("mode")).trim().isEmpty() ? modeId
+                        : String.valueOf(t.get("mode")).trim();
+                String tranche = String.valueOf(t.get("tranche"));
+                long montant = t.get("montant") == null ? 0 : ((Number) t.get("montant")).longValue();
+                long operations = t.get("operations") == null ? 0 : ((Number) t.get("operations")).longValue();
+                tranches.add(tranche);
+                JSONObject cumul = parMode.computeIfAbsent(modeId,
+                        k -> new JSONObject().put("modeId", modeId).put("mode", mode).put("montant", 0L)
+                                .put("operations", 0L).put("mobile", util.MobileMoney.est(modeId)));
+                cumul.put("montant", cumul.optLong("montant") + montant);
+                cumul.put("operations", cumul.optLong("operations") + operations);
+                serie.computeIfAbsent(modeId, k -> new java.util.LinkedHashMap<>()).merge(tranche, montant, Long::sum);
+                totalGeneral += montant;
+                operationsGenerales += operations;
+            }
+
+            // Part et montant moyen : c'est ce qui fait de la synthese une aide a la decision, et non un simple
+            // releve. La part est calculee sur le total de la periode, a une decimale.
+            List<JSONObject> modes = new ArrayList<>(parMode.values());
+            modes.sort((a, b) -> Long.compare(b.optLong("montant"), a.optLong("montant")));
+            JSONArray dataModes = new JSONArray();
+            for (JSONObject m : modes) {
+                long montant = m.optLong("montant");
+                long operations = m.optLong("operations");
+                m.put("part",
+                        totalGeneral == 0 ? 0d
+                                : java.math.BigDecimal.valueOf(montant).multiply(java.math.BigDecimal.valueOf(100))
+                                        .divide(java.math.BigDecimal.valueOf(totalGeneral), 1, RoundingMode.HALF_UP)
+                                        .doubleValue());
+                m.put("montantMoyen", operations == 0 ? 0L : Math.round((double) montant / operations));
+                dataModes.put(m);
+            }
+
+            // Courbe : une serie par mode, une valeur par tranche, les tranches sans encaissement valant zero -
+            // une courbe trouee se lit de travers.
+            JSONArray series = new JSONArray();
+            for (JSONObject m : modes) {
+                Map<String, Long> valeurs = serie.getOrDefault(m.optString("modeId"), java.util.Collections.emptyMap());
+                JSONArray points = new JSONArray();
+                for (String tranche : tranches) {
+                    points.put(valeurs.getOrDefault(tranche, 0L));
+                }
+                series.put(new JSONObject().put("mode", m.optString("mode")).put("modeId", m.optString("modeId"))
+                        .put("points", points));
+            }
+            json.put("success", true).put("data", dataModes).put("total", dataModes.length())
+                    .put("tranches", new JSONArray(tranches)).put("series", series).put("totalGeneral", totalGeneral)
+                    .put("operationsGenerales", operationsGenerales);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "suivi des modes de reglement", e);
+            json.put("success", false).put("msg", "Le suivi des modes de règlement a échoué")
+                    .put("data", new JSONArray()).put("total", 0);
+        }
+        return json;
     }
 
     private String buildQuery(String query, String typeRglementId, boolean groupByYear) {
@@ -243,7 +339,13 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
             }
         }
 
-        getTTypeReglements().stream().map(TTypeReglement::getLgTYPEREGLEMENTID).forEach(name -> {
+        /*
+         * Point 22 : le sous-detail des paiements mobiles est construit a partir des modes REELLEMENT rencontres,
+         * jamais d'une liste ecrite d'avance. Un operateur cree par l'officine y figure donc au meme titre qu'Orange,
+         * et le total du sous-detail vaut par construction le montant mobile de la ligne.
+         */
+        getTTypeReglements().forEach(type -> {
+            String name = type.getLgTYPEREGLEMENTID();
             Long montant = map.get(name);
             if (Objects.nonNull(montant)) {
                 switch (name) {
@@ -255,7 +357,7 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                 case Constant.MODE_MTN:
                 case Constant.MODE_MOOV:
                 case Constant.TYPE_REGLEMENT_ORANGE:
-                    caisseRecette.setMontantMobile(caisseRecette.getMontantMobile() + montant);
+                    caisseRecette.ajouterDetailMobile(libelleMode(type), montant);
                     break;
                 case Constant.MODE_CHEQUE:
                     caisseRecette.setMontantCheque(montant);
@@ -268,9 +370,9 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                     break;
 
                 default:
-                    // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
+                    // Mode mobile money cree par l'officine : compte dans le total mobile ET dans le sous-detail.
                     if (util.MobileMoney.est(name)) {
-                        caisseRecette.setMontantMobile(caisseRecette.getMontantMobile() + montant);
+                        caisseRecette.ajouterDetailMobile(libelleMode(type), montant);
                     }
                     break;
                 }
@@ -278,6 +380,12 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
 
         });
 
+    }
+
+    /** Nom affichable d'un mode : son libelle, ou son identifiant si le libelle n'est pas renseigne. */
+    private static String libelleMode(TTypeReglement type) {
+        String libelle = type.getStrNAME();
+        return libelle == null || libelle.trim().isEmpty() ? type.getLgTYPEREGLEMENTID() : libelle.trim();
     }
 
     private List<TTypeReglement> getTTypeReglements() {
@@ -342,6 +450,14 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                         o.setMontantSolde(o.getMontantSolde() + o.getMontantEspece() + o.getMontantCb()
                                 + o.getMontantCheque() + o.getMontantMobile() + o.getMontantVirement()
                                 + o.getMontantReglementFacture() + o.getMontantReglementDiff());
+                        /*
+                         * La journee est recomposee dans un objet NEUF, champ par champ : le sous-detail des paiements
+                         * mobiles doit etre reporte lui aussi, sinon il se perd ici alors qu'il a bien ete calcule. Les
+                         * parts sont ADDITIONNEES, comme le montant mobile juste au-dessus : les deux restent ainsi
+                         * egaux par construction. On ne repasse pas par ajouterDetailMobile, qui ajouterait une seconde
+                         * fois au total.
+                         */
+                        e.getDetailMobile().forEach((mode, part) -> o.getDetailMobile().merge(mode, part, Long::sum));
                     });
                     datas.add(o);
                 });

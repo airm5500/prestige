@@ -24,6 +24,9 @@ Ext.define('testextjs.controller.SupportTicketsCtr', {
             'supporttickets button#btnNouveauTicket': {
                 click: this.onNouveauTicket
             },
+            'supporttickets button#btnExcel': {
+                click: this.onExcel
+            },
             'supporttickets button#btnImprimer': {
                 click: this.onImprimer
             },
@@ -45,6 +48,13 @@ Ext.define('testextjs.controller.SupportTicketsCtr', {
      * Dictionnaire de suivi des pannes : PDF paysage de TOUS les tickets (une ligne par ticket), ouvert dans un nouvel
      * onglet.
      */
+    /* Export Excel des tickets : meme filtre de statut que l'ecran, tout le resultat. */
+    onExcel: function () {
+        const params = this.getTicketsGrid().getStore().getProxy().extraParams || {};
+        window.location = '../api/v1/support/tickets/export/excel?'
+                + Ext.Object.toQueryString({statut: params.statut || ''});
+    },
+
     onImprimer: function () {
         const progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({

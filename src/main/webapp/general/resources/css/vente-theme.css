@@ -739,6 +739,12 @@ body.x-body,
     background-image: url(../images/icons/fam/delete.png) !important;
 }
 
+/* Duplication d'un modele de message (point 15). Declaree ici, avec une image qui existe :
+   une classe d'icone sans regle CSS laisse un bouton vide dont la zone reste cliquable. */
+.copyicon {
+    background-image: url(../images/icons/fam/page_copy.png) !important;
+}
+
 /* ============================================================
  * BOUTON D'ENREGISTREMENT QUI A RECU LE FOCUS AU CLAVIER
  *
@@ -1021,27 +1027,230 @@ body.x-body,
 }
 
 /* --------------------------------------------------------------------------
- * Icone « code EAN ».
+ * Icone « code EAN » (point 3).
  *
  * La colonne portait « page_white_edit.png », un crayon sur une feuille : elle
- * dit « modifier quelque chose », pas « code-barres ». Comme pour l'icone
- * « vider », le theme n'a aucune image de code-barres et en ajouter une
- * obligerait a livrer un fichier de plus : le pictogramme est dessine en
- * caractere, dans la place que la colonne reserve deja a son icone.
+ * dit « modifier quelque chose », pas « code-barres ». Le pictogramme a donc
+ * ete redessine - mais en « :before », ce qui l'a rendu INVISIBLE : dans une
+ * colonne d'action, ExtJS 4 pose la classe sur une balise <img> portant un GIF
+ * transparent, et un navigateur ne rend aucun pseudo-element sur une image.
+ * L'icone disparaissait, la case de 16 pixels restait cliquable : c'est le
+ * defaut signale.
  *
- * U+2016 (double barre verticale) et U+007C se lisent comme les barres d'un
- * code-barres ; l'espacement resserre les rapproche.
+ * Le code-barres est donc redessine en IMAGE DE FOND, seule chose qu'une
+ * balise <img> sait afficher. Il reste dessine sur place, en SVG intercalé
+ * dans la feuille : rien de plus a livrer, et l'image ne peut pas manquer.
  * -------------------------------------------------------------------------- */
 .vp-icone-ean {
-    background-image: none !important;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cg fill='%231f4e79'%3E%3Crect x='1' y='2' width='2' height='12'/%3E%3Crect x='4' y='2' width='1' height='12'/%3E%3Crect x='6' y='2' width='2' height='12'/%3E%3Crect x='9' y='2' width='1' height='12'/%3E%3Crect x='11' y='2' width='1' height='12'/%3E%3Crect x='13' y='2' width='2' height='12'/%3E%3C/g%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat;
+    background-position: center center;
 }
-.vp-icone-ean:before {
-    content: '\2016\2016';
-    display: block;
-    font-size: 15px;
-    line-height: 16px;
-    letter-spacing: -1px;
-    text-align: center;
-    color: #1f4e79;
-    font-weight: bold;
+
+/* ---------------------------------------------------------------------
+   Fiche article (Gestion des Articles) : actions de ligne.
+
+   Quatre actions frequentes restent en icones, teintees par nature pour
+   etre reperables du coin de l'oeil ; les autres sont regroupees dans le
+   menu « ... » en fin de ligne.
+   --------------------------------------------------------------------- */
+.x-action-col-icon.fa-action {
+    border-radius: 6px;
+    padding: 1px;
+    box-sizing: content-box;
+}
+/* background-color et NON le raccourci background : « suivi » porte son dessin
+   par iconCls (donc par background-image), que le raccourci effacerait. */
+.x-action-col-icon.fa-action-prix   { background-color: #dde7fd; }  /* prix de reference */
+.x-action-col-icon.fa-action-detail { background-color: #d7ecea; }  /* creer le detail   */
+.x-action-col-icon.fa-action-suivi  { background-color: #d9f0e2; }  /* suivi de l'article*/
+.x-action-col-icon.fa-action-edit   { background-color: #fbecd7; }  /* modifier          */
+.x-action-col-icon.fa-action-plus   { background-color: #eceff1; }  /* autres actions    */
+.x-action-col-icon.fa-action:hover  { outline: 1px solid #8fa6b3; }
+
+/* =====================================================================
+   Fiche article : allegement de la grille et barre d'indicateurs.
+
+   Tout est porte par .vp-fiche-article (grille) et .vp-apercu-barre, poses
+   uniquement sur cet ecran : aucune autre grille de l'application n'est
+   touchee.
+   ===================================================================== */
+
+/* --- Bandeau d'apercu de l'article selectionne --- */
+.vp-apercu-barre {
+    padding: 10px 10px 6px 10px;
+    background: #f6f8f9;
+    border-bottom: 1px solid #dbe2e6;
+}
+.vp-apercu {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+}
+/* La courbe prend la place disponible, le panneau lateral garde une largeur lisible
+   et passe dessous quand l'ecran est trop etroit. */
+.vp-ap-conso {
+    flex: 1 1 520px;
+    min-width: 340px;
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+    padding: 8px 10px 2px 10px;
+}
+.vp-ap-tete {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+.vp-ap-nom {
+    font-weight: 800;
+    font-size: 13px;
+    color: #14303a;
+}
+.vp-ap-cip {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #6b8089;
+    background: #eef2f4;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+/* Legende des deux courbes : sorties et achats, avec leur total sur la periode. */
+.vp-ap-legende {
+    margin-left: auto;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+.vp-ap-leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: #6b8089;
+}
+.vp-ap-leg i {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+}
+.vp-ap-leg.conso i  { background: #0d6a74; }
+.vp-ap-leg.achats i { background: #b25a00; }
+.vp-ap-leg.conso b  { color: #0d6a74; font-size: 13px; }
+.vp-ap-leg.achats b { color: #b25a00; font-size: 13px; }
+.vp-ap-suite {
+    float: right;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #8296a0;
+}
+
+.vp-ap-cote {
+    flex: 0 1 330px;
+    min-width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.vp-ap-ligne {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: baseline;
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+}
+.vp-ap-ligne .l { color: #6b8089; font-weight: 700; white-space: nowrap; }
+.vp-ap-ligne .v { color: #14303a; font-weight: 700; text-align: right; }
+.vp-ap-ligne em { font-style: normal; font-weight: 600; color: #6b8089; }
+.vp-ap-ligne em.alerte { color: #c0392b; }
+.vp-ap-ligne em.ok { color: #1c7c1c; }
+
+.vp-ap-puces { display: flex; gap: 6px; flex-wrap: wrap; }
+.vp-ap-puce {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a5f9e;
+    background: #eaf1fa;
+    border: 1px solid #cfe0f1;
+    border-radius: 999px;
+    padding: 2px 9px;
+}
+.vp-ap-puce.contenance { color: #8a4c00; background: #fdf1e0; border-color: #f0d8b5; }
+
+.vp-ap-lots {
+    background: #ffffff;
+    border: 1px solid #dbe2e6;
+    border-radius: 8px;
+    padding: 6px 10px 8px 10px;
+}
+.vp-ap-soustitre {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: #6b8089;
+    margin-bottom: 3px;
+}
+.vp-ap-lots ul { list-style: none; margin: 0; padding: 0; }
+.vp-ap-lots li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11.5px;
+    padding: 2px 0 2px 8px;
+    border-left: 3px solid #c9d3d9;
+}
+.vp-ap-lots li.proche { border-left-color: #c26a00; }
+.vp-ap-lots li.perime { border-left-color: #c0392b; }
+.vp-ap-lots li .d { font-weight: 800; color: #14303a; }
+.vp-ap-lots li .q { color: #6b8089; }
+.vp-ap-lots li .r { margin-left: auto; font-weight: 700; color: #6b8089; }
+.vp-ap-lots li.proche .r { color: #c26a00; }
+.vp-ap-lots li.perime .r { color: #c0392b; }
+
+/* Ecran etroit : le panneau lateral passe sous la courbe plutot que de la comprimer. */
+@media (max-width: 1180px) {
+    .vp-apercu { flex-wrap: wrap; }
+    .vp-ap-cote { flex: 1 1 100%; flex-direction: row; flex-wrap: wrap; }
+    .vp-ap-cote > * { flex: 1 1 240px; }
+}
+
+/* --- Grille allegee --- */
+/* En-tetes : petites capitales discretes au lieu d'un bandeau lourd. */
+.vp-fiche-article .x-column-header-inner .x-column-header-text {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+}
+/* Lignes plus aerees et lisibles ; le gras est reserve a l'identite de
+   l'article (CIP et designation), pas applique a toutes les cellules. */
+.vp-fiche-article .x-grid-cell-inner {
+    padding: 7px 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+.vp-fiche-article .x-grid-item-alt .x-grid-cell:not([style*="background-color"]) {
+    background-color: #fafbfc;
+}
+/* Identite de l'article : un cran plus marque que le reste des colonnes. */
+.vp-fiche-article .x-grid-cell-int_CIP .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-str_DESCRIPTION .x-grid-cell-inner {
+    font-weight: 800;
+    color: #14303a;
+}
+/* Chiffres alignes en colonne : prix, seuils, quantites. */
+.vp-fiche-article .x-grid-cell-int_PRICE .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_PAF .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_STOCK_REAPROVISONEMENT .x-grid-cell-inner,
+.vp-fiche-article .x-grid-cell-int_QTE_REAPPROVISIONNEMENT .x-grid-cell-inner {
+    font-variant-numeric: tabular-nums;
 }

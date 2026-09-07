@@ -75,10 +75,49 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     maxChangeAllowed: 9500, // monnaie à rendre max avant alerte (anti scan)
 
-    // === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
-    // Liste de repli (opérateurs historiques) ; complétée au démarrage par le
-    // serveur (point 7 : modes mobile money créés par l'officine).
+    /* === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
+     *
+     * Cette liste vient de la BASE, plus du code (point 13). Les identifiants ci-dessous ne sont
+     * qu'un repli, servant uniquement si le serveur ne répond pas : ils étaient auparavant COMPLÉTÉS
+     * par la réponse du serveur au lieu d'être remplacés, si bien qu'un opérateur désactivé dans la
+     * configuration - CELPAID et TRESORPAY le sont - restait reconnu par l'écran de vente. */
     mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
+    /* Vrai dès que le serveur a répondu : la liste n'est alors plus celle du code. */
+    mobileModeIdsCharges: false,
+
+    // === Types de reglement exigeant un client (cf. typeReglementSelectEvent) ===
+    // Liste de repli : cheque (2), carte bancaire (3), differe (4) et virement (6), ceux qui
+    // ouvraient deja le parcours client. Elle est remplacee au demarrage par le reglage de la base
+    // (point 12), de sorte qu'un mode cree par l'officine - Wyzall, par exemple - se comporte comme
+    // les autres sans toucher au code. Si l'appel echoue, on garde le comportement historique.
+    clientRequisIds: ['2', '3', '4', '6'],
+
+    chargerTypesClientRequis: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/type-reglements/client-requis',
+            success: function (response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.clientRequisIds = json.data.map(String);
+                }
+            }
+        });
+    },
+
+    /*
+     * Ce mode de reglement demande-t-il un client ? Le mobile money reste reconnu par sa propre
+     * liste : il porte d'autres comportements que le seul parcours client.
+     */
+    modeExigeClient: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.clientRequisIds.indexOf(id) !== -1 || this.isMobileMode(id);
+    },
 
     chargerModesMobileMoney: function () {
         const me = this;
@@ -91,14 +130,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                     json = Ext.decode(response.responseText);
                 } catch (e) {
                 }
-                if (json.success && Ext.isArray(json.data)) {
-                    const ids = me.mobileModeIds.slice();
-                    json.data.forEach(function (id) {
-                        if (ids.indexOf(String(id)) === -1) {
-                            ids.push(String(id));
-                        }
-                    });
-                    me.mobileModeIds = ids;
+                /* La réponse REMPLACE la liste, elle ne s'y ajoute pas : c'est la configuration
+                 * qui fait foi, y compris quand elle RETIRE un mode. Une réponse vide est refusée -
+                 * elle signifierait qu'aucun mode mobile n'existe, ce qui priverait la vente de tout
+                 * le comportement mobile ; dans ce cas on garde le repli. */
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.mobileModeIds = json.data.map(String);
+                    me.mobileModeIdsCharges = true;
                 }
             }
         });
@@ -580,6 +618,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         }, 150);
         Ext.on('resize', me._onWinResizeFill);
         me.chargerModesMobileMoney();
+        me.chargerTypesClientRequis();
         this.control(
                 {
 
@@ -1234,7 +1273,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                             nbreBoite = produit.intNUMBERAVAILABLE;
                                     let stockParent = (nbreBoite * qtyDetail) + stock;
 
-                                    if (qte < stockParent) {
+                                    if (qte <= stockParent) {
                                         if (isVno) {
                                             me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
                                         } else {
@@ -1644,7 +1683,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                                             nbreBoite = produit.intNUMBERAVAILABLE;
                                                     let stockParent = (nbreBoite * qtyDetail) + stock;
 //
-                                                    if (qte < stockParent) {
+                                                    if (qte <= stockParent) {
                                                         if (isVno) {
                                                             me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
                                                         } else {
@@ -2275,10 +2314,19 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         const typeRegle = me.getVnotypeReglement().getValue();
+        /* La liste est relue AVANT d'ouvrir : un mode cree ou desactive pendant que la caisse est
+         * restee ouverte - elles le restent toute la journee - doit valoir des l'ouverture
+         * suivante, sans redemarrer l'application. La fenetre s'ouvre sans attendre la reponse :
+         * son propre magasin est charge ensuite, et le filtre est applique a ce chargement. */
+        me.chargerModesMobileMoney();
         Ext.create('testextjs.view.vente.ReglementGrid', {
             title: 'AJOUTEZ UN AUTRE MODE MOBILE',
             excludeModeId: typeRegle,
-            onlyModeIds: me.mobileModeIds
+            // Fonction et non tableau fige : le filtre lit la liste AU MOMENT du chargement,
+            // donc apres la reponse du serveur demandee juste au-dessus.
+            onlyModeIds: function () {
+                return me.mobileModeIds;
+            }
         }).show();
     },
     showAndHideCbInfos: function (v) {
@@ -2395,8 +2443,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         me._previousTypeReglement = me._appliedTypeReglement || '1';
         // Cette sélection va-t-elle ouvrir la fenêtre « client lié » ? Si oui
         // et que l'utilisateur clique Annuler, on défera tout (rollback).
-        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient())
-                && (value === '4' || value === '2' || value === '3' || value === '6' || me.isMobileMode(value));
+        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient()) && me.modeExigeClient(value);
         if (value === '1') {
             me.getMontantRecu().enable();
             me.getMontantRecu().setReadOnly(false);
@@ -2418,6 +2465,16 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 me.getMontantRecu().disable();
 
+            } else if (me.modeExigeClient(value)) {
+                /* Mode de reglement configure comme exigeant un client, sans etre l'un des quatre
+                 * types historiques : il ouvre le meme parcours client, mais sans la zone cheque /
+                 * carte bancaire, qui ne le concerne pas. */
+                me.showAndHideInfosStandardClient(true);
+                me.getCbContainer().hide();
+                if (me.getNetAmountToPay()) {
+                    me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
+                }
+                me.getMontantRecu().setReadOnly(true);
             } else {
                 me.getMontantRecu().setValue(0);
                 me.getMontantRecu().setReadOnly(false);
@@ -3194,6 +3251,66 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         this.queryClientLambda();
     },
+    /**
+     * Pre-controle du stock vendable avant une modification de quantite en grille. Interroge le serveur
+     * (v1/vente/stock-vendable/{produitId}) : si le produit est deconditionnable et que la quantite demandee
+     * depasse le stock vendable, affiche le message et retablit la quantite precedente SANS appeler l'update.
+     * Dans tous les autres cas (produit non detail, quantite couverte, ou echec du controle), poursuit via
+     * onOk() : le flux existant et la barriere serveur restent inchanges.
+     */
+    /**
+     * Rend la main dans le champ quantite de la zone recherche produit, valeur preselectionnee (meme
+     * geste que les autres refus de stock de la caisse : focus(true, ...) selectionne le contenu pour
+     * une ressaisie immediate).
+     */
+    redonnerFocusQuantite: function () {
+        const me = this;
+        const champ = me.getVnoqtyField && me.getVnoqtyField();
+        if (champ && champ.focus) {
+            champ.focus(true, 100);
+        }
+    },
+    controlerVendableAvantModif: function (produitId, qte, e, onOk) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/stock-vendable/' + produitId,
+            success: function (response) {
+                let r = null;
+                try { r = Ext.JSON.decode(response.responseText, true); } catch (ex) { r = null; }
+                if (r && r.success === true && r.deconditionnable === true && qte > parseInt(r.stockVendable)) {
+                    if (e && e.originalValue !== undefined && e.originalValue !== null) {
+                        e.record.set(e.field, e.originalValue);
+                    }
+                    e.record.commit();
+                    me.refresh();
+                    me.autoComputeNetAfterChange();
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Stock insuffisant pour ' + (r.libelle || 'ce produit')
+                                + ' : plus aucune boîte à déconditionner. Veuillez réduire la quantité.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        // apres OK : rendre la main dans le champ quantite (zone recherche produit) avec la
+                        // valeur preselectionnee, pour que la caissiere ressaisisse directement
+                        fn: function (buttonId) {
+                            if (buttonId === 'ok') {
+                                me.redonnerFocusQuantite();
+                            }
+                        }
+                    });
+                    return;
+                }
+                onOk();
+            },
+            failure: function () {
+                // controle indisponible : ne pas bloquer, laisser le flux normal (la validation serveur protege)
+                onOk();
+            }
+        });
+    },
     updateventeOngrid: function (editor, e, url, params) {
         const me = this;
         let record = e.record;
@@ -3220,7 +3337,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                     let produit = result.data;
                                     let qtyDetail = produit.intNUMBERDETAIL, nbreBoite = produit.intNUMBERAVAILABLE;
                                     let stockParent = (nbreBoite * qtyDetail) + stock;
-                                    if (qte < stockParent) {
+                                    if (qte <= stockParent) {
                                         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                         Ext.Ajax.request({
                                             method: 'POST',
@@ -3321,9 +3438,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 params: Ext.JSON.encode(params),
                 success: function (response, options) {
                     progress.hide();
-                    e.record.commit();
                     let result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
+                        e.record.commit();
                         me.current = result.data;
 
                         me.getTotalField().setValue(me.getCurrent().intPRICE);
@@ -3336,6 +3453,29 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refresh();
                         me.autoComputeNetAfterChange();
 
+                    } else {
+                        // Refus metier du serveur (ex. produit detail au-dela du stock vendable : plus aucune
+                        // boite a deconditionner) : sans ce traitement, la grille gardait la valeur saisie alors
+                        // que la base la refusait, laissant l'ecran incoherent et la vente se validant sur
+                        // l'ancienne quantite. On retablit la valeur precedente et on affiche le message du serveur.
+                        if (e.originalValue !== undefined && e.originalValue !== null) {
+                            e.record.set(e.field, e.originalValue);
+                        }
+                        e.record.commit();
+                        me.refresh();
+                        me.autoComputeNetAfterChange();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg || 'Modification refusée.',
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR,
+                            fn: function (buttonId) {
+                                if (buttonId === 'ok') {
+                                    me.redonnerFocusQuantite();
+                                }
+                            }
+                        });
                     }
                 },
                 failure: function (response, options) {
@@ -3366,7 +3506,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "qteServie": qteServie,
                 "produitId": record.get('lgFAMILLEID')
             };
-            me.updateventeOngrid(editor, e, url, params);
+            // Pre-controle du stock vendable AVANT l'appel de modification : pour un produit detail, une
+            // quantite au-dela du stock vendable (rayon + boites deconditionnables) est bloquee des la saisie,
+            // sans aller-retour d'update. Le controle interroge le serveur (source unique de la regle) ; en cas
+            // d'echec de ce pre-controle (reseau, produit non deconditionnable), on retombe sur le flux normal
+            // et la barriere serveur de validation reste en place. Zero regression : rien n'est retire.
+            me.controlerVendableAvantModif(record.get('lgFAMILLEID'), parseInt(record.get('intQUANTITY')), e,
+                    function () { me.updateventeOngrid(editor, e, url, params); });
         } else if (e.field === 'intQUANTITYSERVED') {
             if (parseInt(record.get('intQUANTITYSERVED')) > parseInt(record.get('intQUANTITY'))) {
                 editor.cancelEdit();
@@ -3650,6 +3796,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refreshBtnClientComptant();
                     }
                     me.refresh();
+                    me.controlerDetailPanier(record.lgPREENREGISTREMENTID);
 
 
                 }
@@ -3657,6 +3804,32 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
 
+    },
+    /**
+     * Re-contrôle du panier à son ouverture : entre la mise en attente et la reprise, le stock a pu
+     * changer (autre caisse, vente de la boîte). Prévient tout de suite si un produit détail n'est
+     * plus couvert par le stock vendable (rayon + boîtes à déconditionner), plutôt que d'attendre le
+     * refus à l'encaissement.
+     */
+    controlerDetailPanier: function (venteId) {
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/controle-detail/' + venteId,
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success && result.produits && result.produits.length > 0) {
+                    Ext.MessageBox.show({
+                        title: 'Stock insuffisant',
+                        width: 550,
+                        msg: 'Stock insuffisant pour :<br/><b>' + result.produits.join('</b><br/><b>')
+                                + '</b><br/>Plus aucune boîte à déconditionner : veuillez modifier les quantités avant de valider la vente.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.WARNING
+                    });
+                }
+            }
+        });
     },
     loadExistantSale: function (venteId) {
         const me = this, contenu = me.getContenu();
@@ -4451,46 +4624,81 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "strSEXE": record.get('strSEXE'),
                 "tiersPayants": tiersPayants
             };
-            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-            Ext.Ajax.request({
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/client/add/assurance',
-                params: Ext.JSON.encode(datas),
-                success: function (response, options) {
-                    progress.hide();
-                    const result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
-                        me.onBtnCancelAssClient();
-                        let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
-                        me.client = recordR;
-                        if (me.getCurrent()) {
-                            me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+            // L'envoi est nomme afin de pouvoir etre rejoue tel quel apres confirmation d'un
+            // doublon d'identite signale par le serveur.
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/assurance',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelAssClient();
+                            let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = recordR;
+                            if (me.getCurrent()) {
+                                me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
 
+                            } else {
+                                me.onNewClientAssurance();
+                            }
+
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
                         } else {
-                            me.onNewClientAssurance();
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
                         }
 
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Message d\'erreur',
-                            width: 550,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
-
-                        });
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
                     }
 
-                },
-                failure: function (response, options) {
-                    progress.hide();
-                    Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
-                }
-
-            });
+                });
+            };
+            envoyer();
         }
 
+    },
+    /**
+     * Le serveur a trouve un ou plusieurs clients actifs portant deja cette identite.
+     * On les nomme et on demande confirmation, plutot que de creer un second enregistrement
+     * en silence. « Non » laisse le formulaire ouvert : l'utilisateur peut aller chercher
+     * le client existant au lieu d'en creer un doublon.
+     */
+    confirmerDoublonClient: function (result, datas, renvoyer) {
+        const items = (result.doublons || []).map(function (c) {
+            const identite = ((c.strLASTNAME || '') + ' ' + (c.strFIRSTNAME || '')).trim();
+            const code = c.strCODEINTERNE ? ' (code ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + code + '</li>';
+        }).join('');
+        Ext.MessageBox.show({
+            title: 'Doublon possible',
+            width: 550,
+            msg: result.msg + '<ul style="margin: 6px 0 6px 18px;">' + items + '</ul>'
+                    + 'Voulez-vous quand même créer un nouveau client ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes') {
+                    // Rejoue le meme envoi, cette fois avec l'accord explicite de l'utilisateur.
+                    datas.forcerCreation = true;
+                    renvoyer();
+                }
+            }
+        });
     },
     updateClientAssurance: function (clientData) {
         const me = this;
@@ -4563,44 +4771,49 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "remiseId": record.get('remiseId')
 
             };
-            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-            Ext.Ajax.request({
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                url: '../api/v1/client/add/carnet',
-                params: Ext.JSON.encode(datas),
-                success: function (response, options) {
-                    progress.hide();
-                    const result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
-                        me.onBtnCancelCarnet();
-                        let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
-                        me.client = clientR;
-                        if (me.getCurrent()) {
-                            if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {
-                                me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/carnet',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelCarnet();
+                            let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = clientR;
+                            if (me.getCurrent()) {
+                                if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {
+                                    me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+                                }
                             }
+
+                            me.onClientAssuranceUpdate();
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
                         }
 
-                        me.onClientAssuranceUpdate();
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Message d\'erreur',
-                            width: 550,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.ERROR
-
-                        });
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur de création du client');
                     }
 
-                },
-                failure: function (response, options) {
-                    progress.hide();
-                    Ext.Msg.alert("Message", 'Erreur de création du client');
-                }
-
-            });
+                });
+            };
+            envoyer();
         }
 
     },

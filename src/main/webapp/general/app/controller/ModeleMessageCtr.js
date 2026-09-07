@@ -21,6 +21,12 @@ Ext.define('testextjs.controller.ModeleMessageCtr', {
             'modelemessagemanager #btnBasculer': {
                 click: this.onBasculer
             },
+            'modelemessagemanager #btnDupliquer': {
+                click: this.onDupliquer
+            },
+            'modelemessagemanager': {
+                dupliquerModele: this.onDupliquerLigne
+            },
             'modelemessagemanager #grille': {
                 itemdblclick: this.onModifier
             }
@@ -59,6 +65,42 @@ Ext.define('testextjs.controller.ModeleMessageCtr', {
             url: '../api/v1/modeles-messages/' + rec.get('id') + '/toggle',
             callback: function () {
                 me.getGrille().getStore().reload();
+            }
+        });
+    },
+
+    onDupliquer: function () {
+        const rec = this.selection();
+        if (rec) {
+            this.onDupliquerLigne(rec);
+        }
+    },
+
+    /*
+     * Duplication : le nom libre est trouve par le SERVEUR, seul a savoir quels libelles sont deja
+     * pris - ils sont uniques en base. L'ecran ne fait que rafraichir et annoncer le nom obtenu.
+     */
+    onDupliquerLigne: function (rec) {
+        const me = this;
+        if (!rec) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/modeles-messages/' + rec.get('id') + '/dupliquer',
+            callback: function (opts, success, response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (json.success) {
+                    me.getGrille().getStore().reload();
+                    Ext.toast ? Ext.toast(json.msg) : Ext.Msg.alert('Modèles de messages', json.msg);
+                } else {
+                    Ext.Msg.alert('Modèles de messages', json.msg || 'La duplication a échoué');
+                }
             }
         });
     },
@@ -109,9 +151,23 @@ Ext.define('testextjs.controller.ModeleMessageCtr', {
                     value: rec ? rec.get('contenu') : ''
                 }, {
                     xtype: 'displayfield',
+                    itemId: 'variables',
                     fieldLabel: 'Variables',
-                    value: '<span style="color:#555;">{client} {prenom} {nom} {medicament} {officine} '
-                            + '{telephone_officine} {dernier_achat}</span>'
+                    // Chaque variable est un bouton : la lire pour la recopier a la main etait une
+                    // source de fautes de frappe, et une variable mal orthographiee reste telle
+                    // quelle dans le message envoye au client.
+                    value: me.htmlVariables(),
+                    listeners: {
+                        render: function (champ) {
+                            champ.getEl().on('click', function (evenement, cible) {
+                                const variable = cible.getAttribute('data-variable');
+                                if (variable) {
+                                    evenement.preventDefault();
+                                    me.insererVariable(champ.up('window').down('#contenu'), variable);
+                                }
+                            }, null, {delegate: '[data-variable]'});
+                        }
+                    }
                 }],
             buttons: [{
                     text: 'Enregistrer',
@@ -127,6 +183,47 @@ Ext.define('testextjs.controller.ModeleMessageCtr', {
                 }]
         });
         win.show();
+    },
+
+    /** Variables disponibles dans un message. Une seule liste, partagee par l'ecran et la fenetre. */
+    VARIABLES: ['{client}', '{prenom}', '{nom}', '{medicament}', '{officine}', '{telephone_officine}',
+        '{dernier_achat}'],
+
+    htmlVariables: function () {
+        return this.VARIABLES.map(function (variable) {
+            return '<a href="#" data-variable="' + variable + '" title="Insérer ' + variable + ' dans le message"'
+                    + ' style="display:inline-block;margin:0 6px 4px 0;padding:1px 6px;border:1px solid #b8c6d4;'
+                    + 'border-radius:3px;background:#f4f7fa;color:#2a4d69;text-decoration:none;">'
+                    + variable + '</a>';
+        }).join('');
+    },
+
+    /*
+     * Insere la variable la ou se trouve le curseur, et replace le curseur JUSTE APRES : sans cela
+     * l'insertion suivante repartirait du debut du message, et il faudrait recliquer dans la zone
+     * de saisie entre chaque variable.
+     */
+    insererVariable: function (zone, variable) {
+        if (!zone) {
+            return;
+        }
+        const element = zone.inputEl && zone.inputEl.dom;
+        const texte = zone.getValue() || '';
+        let debut = texte.length;
+        let fin = texte.length;
+        if (element && typeof element.selectionStart === 'number') {
+            debut = element.selectionStart;
+            fin = element.selectionEnd;
+        }
+        zone.setValue(texte.slice(0, debut) + variable + texte.slice(fin));
+        zone.focus();
+        if (element && element.setSelectionRange) {
+            const apres = debut + variable.length;
+            // Apres setValue, le champ est re-rendu : on repositionne au tour de boucle suivant.
+            Ext.defer(function () {
+                element.setSelectionRange(apres, apres);
+            }, 1);
+        }
     },
 
     enregistrer: function (win, rec) {

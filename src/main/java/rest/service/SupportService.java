@@ -32,5 +32,8 @@ public interface SupportService {
 
     List<SupportDemande> findAll(int start, int limit);
 
+    /** Toutes les demandes, sans pagination : pour l'export Excel (point 2). */
+    List<SupportDemande> toutes();
+
     long count();
 }

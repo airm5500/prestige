@@ -217,7 +217,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                             scope: this,
                             getClass: function (value, metadata, record) {
                                 if (record.get('BTNDELETE')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }
@@ -248,7 +248,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                             scope: this,
                             getClass: function (value, metadata, record) {
                                 if (record.get('P_BTN_DESACTIVER_TIERS_PAYANT')) {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }

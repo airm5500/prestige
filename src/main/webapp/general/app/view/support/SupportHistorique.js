@@ -85,6 +85,21 @@ Ext.define('testextjs.view.support.SupportHistorique', {
             }
         });
 
+        /* Point 2 : chaque onglet de l'historique porte son export Excel. L'export reprend les
+           criteres de l'onglet et TOUT son resultat, alors que la grille reste paginee. */
+        const boutonExcel = function (lien) {
+            return {
+                xtype: 'button',
+                text: 'Excel',
+                itemId: 'btnExcel',
+                icon: 'resources/images/icons/fam/excel_icon.png',
+                tooltip: 'Exporter le r&eacute;sultat complet vers Excel',
+                handler: function (btn) {
+                    window.location = lien(btn);
+                }
+            };
+        };
+
         Ext.applyIf(me, {
             items: [
                 {
@@ -95,6 +110,9 @@ Ext.define('testextjs.view.support.SupportHistorique', {
                             xtype: 'gridpanel',
                             title: 'Demandes envoyées',
                             store: storeDemandes,
+                            tbar: [boutonExcel(function () {
+                                    return '../api/v1/support/demandes/export/excel';
+                                })],
                             viewConfig: {
                                 forceFit: true,
                                 columnLines: true,
@@ -120,6 +138,14 @@ Ext.define('testextjs.view.support.SupportHistorique', {
                             xtype: 'gridpanel',
                             title: 'Événements capturés',
                             store: storeEvents,
+                            tbar: [boutonExcel(function () {
+                                    const p = storeEvents.getProxy().extraParams || {};
+                                    return '../api/v1/support/events/export/liste?'
+                                            + Ext.Object.toQueryString({
+                                                niveau: p.niveau || '',
+                                                query: p.query || ''
+                                            });
+                                })],
                             viewConfig: {
                                 forceFit: true,
                                 columnLines: true,
@@ -146,6 +172,11 @@ Ext.define('testextjs.view.support.SupportHistorique', {
                             xtype: 'gridpanel',
                             title: 'Tickets',
                             store: storeTickets,
+                            tbar: [boutonExcel(function () {
+                                    const p = storeTickets.getProxy().extraParams || {};
+                                    return '../api/v1/support/tickets/export/excel?'
+                                            + Ext.Object.toQueryString({statut: p.statut || ''});
+                                })],
                             viewConfig: {
                                 forceFit: true,
                                 columnLines: true,
@@ -201,7 +232,15 @@ Ext.define('testextjs.view.support.SupportHistorique', {
                                         storeRecap.getProxy().extraParams.dtEnd = dtEnd ? Ext.Date.format(dtEnd, 'Y-m-d') : '';
                                         storeRecap.load();
                                     }
-                                }
+                                },
+                                boutonExcel(function () {
+                                    const p = storeRecap.getProxy().extraParams || {};
+                                    return '../api/v1/support/events/recap/export/excel?'
+                                            + Ext.Object.toQueryString({
+                                                dtStart: p.dtStart || '',
+                                                dtEnd: p.dtEnd || ''
+                                            });
+                                })
                             ],
                             viewConfig: {
                                 forceFit: true,

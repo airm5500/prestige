@@ -67,6 +67,10 @@
         modeId = request.getParameter("modeId");
 
     }
+    // Impression detaillee (carnet depot) : « details=true » demande une edition portant les
+    // medicaments de chaque vente. Sans ce parametre, rien ne change - le modele rattache au
+    // tiers payant reste utilise, comme il l'a toujours ete.
+    boolean avecDetailsArticles = "true".equalsIgnoreCase(request.getParameter("details"));
     // Chemins des morceaux a assembler. Des CHEMINS et non des flux : un flux ouvert
     // empeche d'effacer le fichier, et les morceaux s'accumulaient dans le dossier.
     List<String> inputPdfList = new ArrayList<>();
@@ -118,6 +122,19 @@
     if (modeId != null) {
         codeModelFacture = modeId;
         modelFacture = obllBase.getOdataManager().getEm().find(TModelFacture.class, modeId);
+    }
+    /*
+     * Impression detaillee : l'edition est confiee a la ressource REST dediee, qui choisit le modele
+     * ACTIF de type DETAIL_ARTICLE et rend les medicaments de chaque vente. Le calcul n'est pas fait
+     * ici : cette page n'est pas dans une archive CDI et ne peut pas resoudre les beans du projet.
+     * C'est le meme procede que pour les modeles de facture dynamiques, quelques lignes plus haut.
+     *
+     * Un choix explicite de modele (modeId) reste prioritaire : il vient de l'utilisateur.
+     */
+    if (avecDetailsArticles && modeId == null) {
+        response.sendRedirect(request.getContextPath() + "/api/v1/facturation/facture/" + lg_FACTURE_ID
+                + "/detail-articles/pdf");
+        return;
     }
     facManagement = new factureManagement(OdataManager, OTUser);
     // int codeFACT = 7;

@@ -377,7 +377,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
     },
 //    testaction: function (Ovalue) {
 //        if (Ovalue == "0") {
-//            return 'x-display-hide';
+//            return '';
 //        } else if (Ovalue == "1") {
 //            return 'x-hide-display';
 //        }

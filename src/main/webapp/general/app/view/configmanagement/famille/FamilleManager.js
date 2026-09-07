@@ -24,10 +24,136 @@ var FM_NULL_FIELD = {
 
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
+// Teinte de ligne selon l'etat du stock rayon : un fond vert tres clair a zero,
+// rose tres clair en negatif. Remplace le gras applique a chaque cellule, qui
+// rendait la grille uniformement lourde et masquait la hierarchie.
+function teinteSelonStock(stock, meta) {
+    var n = parseInt(stock, 10);
+    if (isNaN(n)) { n = 0; }
+    if (n === 0) {
+        meta.style = 'background-color:#e9f8ec;';
+    } else if (n < 0) {
+        meta.style = 'background-color:#fdeceb;';
+    }
+}
+
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
 
+
+// ---------------------------------------------------------------------------
+// Catalogue des actions de ligne de la fiche article.
+//
+// L'ordre d'affichage et le nombre d'actions presentees en icone viennent du
+// parametrage de l'officine (t_parameters). Les suivantes sont regroupees dans
+// le menu « ... » en fin de ligne ; si toutes sont en icone, ce menu disparait.
+// Les conditions d'affichage sont celles des colonnes d'origine, a l'identique.
+// ---------------------------------------------------------------------------
+var FA_ICONE_MENU = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNGE1YjY2Ij48Y2lyY2xlIGN4PSI1IiBjeT0iMTIiIHI9IjIiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PGNpcmNsZSBjeD0iMTkiIGN5PSIxMiIgcj0iMiIvPjwvc3ZnPg==';
+
+var FA_ACTIONS = {
+    PRIX: {
+        texte: 'Prix de référence',
+        icon: 'resources/images/duplicate_3671686.png',
+        classe: 'fa-action-prix',
+        lancer: function (grid, rowIndex) {
+            new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
+        }
+    },
+    CREER_DETAIL: {
+        texte: 'Créer le détail',
+        icon: 'resources/images/icons/fam/connect.png',
+        classe: 'fa-action-detail',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE_EXIST') == "0" && rec.get('lg_EMPLACEMENT_ID') == "1";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onCreateDeconditionClick(grid, rowIndex);
+        }
+    },
+    SUIVI: {
+        texte: 'Suivi de cet article',
+        icon: 'build/KitchenSink/ext-theme-neptune/resources/images/dd/suivmt.png',
+        classe: 'fa-action-suivi',
+        lancer: function (grid, rowIndex) {
+            var rec = grid.getStore().getAt(rowIndex);
+            Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
+        }
+    },
+    MODIFIER: {
+        texte: 'Modifier',
+        icon: 'resources/images/icons/fam/page_white_edit.png',
+        classe: 'fa-action-edit',
+        visible: function (rec) {
+            return !!rec.get('P_BT_UPDATE');
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onEditClick(grid, rowIndex);
+        }
+    },
+    DETAIL: {
+        texte: 'Détail sur l\'article',
+        icon: 'resources/images/icons/fam/application_view_list.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDetailClick(grid, rowIndex);
+        }
+    },
+    LOTS: {
+        texte: 'Voir les lots / péremptions',
+        icon: 'resources/images/icons/fam/recherche.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onViewPerimesClick(grid, rowIndex);
+        }
+    },
+    DATE_PEREMPTION: {
+        texte: 'Modifier la date de péremption',
+        icon: 'resources/images/icons/fam/calendar.png',
+        classe: 'fa-action-plus',
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.addPeremptiondate(grid, rowIndex);
+        }
+    },
+    DECONDITIONNER: {
+        texte: 'Déconditionner l\'article',
+        icon: 'resources/images/icons/fam/cut.png',
+        classe: 'fa-action-plus',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE') == "0";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDeconditionClick(grid, rowIndex);
+        }
+    },
+    GROSSISTE: {
+        texte: 'Gérer grossiste',
+        icon: 'resources/images/icons/fam/grossiste.png',
+        classe: 'fa-action-plus',
+        visible: function (rec) {
+            return rec.get('bool_DECONDITIONNE') == "0" && rec.get('lg_EMPLACEMENT_ID') == "1";
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onAddGrossisteClick(grid, rowIndex);
+        }
+    },
+    DESACTIVER: {
+        texte: 'Désactiver l\'article',
+        icon: 'resources/images/icons/fam/disable.png',
+        classe: 'fa-action-plus',
+        danger: true,
+        visible: function (rec) {
+            return rec.get('lg_EMPLACEMENT_ID') === "1" && rec.get('ACTION_DESACTIVE_PRODUIT');
+        },
+        lancer: function (grid, rowIndex) {
+            Me_Workflow.onDesableClick(grid, rowIndex);
+        }
+    }
+};
+var FA_ORDRE_DEFAUT = ['PRIX', 'CREER_DETAIL', 'SUIVI', 'MODIFIER', 'DETAIL', 'LOTS',
+    'DATE_PEREMPTION', 'DECONDITIONNER', 'GROSSISTE', 'DESACTIVER'];
+var FA_NB_ICONES_DEFAUT = 4;
 
 Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     extend: 'Ext.grid.Panel',
@@ -37,6 +163,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
+        'Ext.menu.Menu',
         'Ext.data.*',
         'Ext.util.*',
         'Ext.form.*',
@@ -49,6 +176,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'testextjs.view.configmanagement.famille.action.comptabilite',
         'testextjs.view.configmanagement.famille.action.autreinfos',
         'Ext.ux.ProgressBarPager',
+        'Ext.grid.plugin.DragDrop',
         'testextjs.view.stockmanagement.suivistockvente.action.detailStock',
         'testextjs.view.produits.PrixReference'
 
@@ -80,6 +208,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }
             },
             listeners: {
+                load: function () {
+                    // Nouvelle liste : l'apercu de la ligne precedente n'a plus de sens.
+                    var ap = Ext.getCmp('apercu_fiche_article');
+                    if (ap) {
+                        ap.hide();
+                        ap.produitAffiche = null;
+                    }
+                },
                 beforeload: function (store, operation) {
                     const proxy = store.getProxy();
 
@@ -187,13 +323,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
             store: store,
             /* vp-grille-survol : survol de ligne bien visible (vente-theme.css) */
-            cls: 'my-grid-header vp-grille-survol',
+            cls: 'my-grid-header vp-grille-survol vp-fiche-article',
             id: 'GridArticleID',
             /* Memorisation des colonnes par poste (voir app.js) : colonnes affichees ou
                masquees, largeurs et ordre sont conserves dans le navigateur. */
             stateful: true,
-            stateId: 'grille-fiche-article',
-            columns: window.PrestigeEtatColonnes.identifier('article', [
+            stateId: 'grille-fiche-article-v2',
+            columns: window.PrestigeEtatColonnes.identifier('article-v2', [
                 {
                     header: 'lg_FAMILLE_ID',
                     dataIndex: 'lg_FAMILLE_ID',
@@ -202,27 +338,39 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 },
                 {
 
-                    header: 'Etat.cmde',
+                    // Pastille de couleur + libelle abrege (Sugg. / Cmde / Entree) : la
+                    // couleur seule, sans texte, n'indiquait pas de quoi il s'agissait.
+                    // Le libelle complet reste en info-bulle.
+                    header: 'État',
                     dataIndex: 'produitState',
                     renderer: function (v, m, r) {
                         const produitState = r.data.produitState;
                         const enSuggestion = produitState?.enSuggestion;
                         const enCommande = produitState?.enCommande;
                         const entree = produitState?.entree;
+                        let couleur, abrege, complet;
                         if (enSuggestion && enSuggestion > 0) {
-                            m.style = 'background-color:#73C774;';
-                            return 1;
+                            couleur = '#2e9e4f';
+                            abrege = 'Sugg.';
+                            complet = 'Suggestion de réapprovisionnement';
                         } else if (enCommande && enCommande > 0) {
-                            m.style = 'background-color:#5fa2dd;';
-                            return 2;
+                            couleur = '#1a5f9e';
+                            abrege = 'Cmde';
+                            complet = 'En commande';
                         } else if (entree && entree > 0) {
-                            m.style = 'background-color:#ffc107;';
-                            return 3;
+                            couleur = '#b25a00';
+                            abrege = 'Entrée';
+                            complet = 'Entrée en cours';
+                        } else {
+                            return '';
                         }
-                        return null;
-
+                        m.tdAttr = 'data-qtip="' + complet + '"';
+                        return '<span style="display:inline-block;white-space:nowrap;font-size:11px;color:#2b2b2b;">'
+                                + '<i style="width:9px;height:9px;border-radius:50%;background:' + couleur
+                                + ';display:inline-block;vertical-align:middle;margin-right:5px;"></i>'
+                                + abrege + '</span>';
                     },
-                    width: 35
+                    width: 82
                 },
 
                 {
@@ -230,14 +378,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'int_CIP',
                     flex: 0.6,
                     renderer: function (v, m, r) {
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 },
@@ -247,14 +388,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 2,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 },
@@ -265,14 +399,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return amountformat(v);
                     }
                 },
@@ -284,113 +411,46 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return amountformat(v);
                     }
                 },
                 {
-                    header: 'Stock',
+                    // Stock unifie : le total bien lisible, avec le detail rayon / reserve
+                    // juste a cote. Remplace les trois colonnes Stock, RES et Stock total,
+                    // qui portaient la meme information et obligeaient a survoler pour la lire.
+                    // Le tri porte sur le stock rayon (seul champ trie par le serveur).
+                    header: 'Stock (RAY + RES)',
                     dataIndex: 'int_NUMBER_AVAILABLE',
+                    itemId: 'stockUnifie',
                     align: 'center',
-                    flex: 0.5,
-                    renderer: function (v, m, r) {
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-
-                        if (stock < 0) {
-                            // Valeurs négatives : texte en rouge, fond rosé
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
-                        } else if (stock == 0) {
-                            // Valeur zéro : texte en noir, fond verdâtre
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            // Valeurs positives : texte en bleu
-                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
-                        }
-                        var rayonQte = parseInt(stock, 10);
-                        if (isNaN(rayonQte)) { rayonQte = 0; }
-                        var reserveQte = parseInt(r.data.int_STOCK_RESERVE, 10);
-                        if (isNaN(reserveQte)) { reserveQte = 0; }
-                        var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
-                        return v;
-                    }
-                }, {
-                    header: 'RES',
-                    dataIndex: 'int_STOCK_RESERVE',
-                    align: 'center',
-                    flex: 0.5,
-                    hidden: false,
-                    renderer: function (v, m, r) {
-                        if (!r.data.bool_RESERVE) {
-                            return '';
-                        }
-                        const reserve = v != null ? v : 0;
-/*
-                        // Appliquer la même mise en forme que Stock
-                        if (reserve < 0) {
-                            // Valeurs négatives : texte en rouge, fond rosé
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
-                        } else if (reserve == 0) {
-                            // Valeur zéro : texte en bleu, fond verdâtre
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            // Valeurs positives : texte en vert
-                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
-                        }*/
-                        
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;background-color:#B0F2B6;font-weight:bold;font-size: 18px;';
-                        } else if (stock > 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;font-weight:bold;font-size: 18px;';
-                        } else if (stock < 0) {
-                            m.style = 'color:#6600cc; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
-                        }
-
-                        var rayonQte = parseInt(stock, 10);
-                        if (isNaN(rayonQte)) { rayonQte = 0; }
-                        var reserveQte = parseInt(reserve, 10);
-                        if (isNaN(reserveQte)) { reserveQte = 0; }
-                        var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
-
-                        return reserve;
-                    }
-                }, {
-                    /* Stock total = rayon + reserve. L'information n'existait que dans
-                     * l'info-bulle des colonnes Stock et RES : elle a sa colonne, pour etre
-                     * lisible d'un coup d'oeil et exportable comme les autres. Elle n'est pas
-                     * triable ni filtrable : la valeur est calculee a l'affichage et n'existe
-                     * pas telle quelle en base. */
-                    header: 'Stock total',
-                    dataIndex: 'int_NUMBER_AVAILABLE',
-                    itemId: 'stockTotal',
-                    align: 'center',
-                    flex: 0.5,
-                    sortable: false,
+                    flex: 0.95,
+                    tooltip: 'Total = rayon + réserve. Le tri porte sur le stock rayon.',
                     renderer: function (v, m, r) {
                         var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
                         if (isNaN(rayon)) { rayon = 0; }
                         var reserve = r.data.bool_RESERVE ? parseInt(r.data.int_STOCK_RESERVE, 10) : 0;
                         if (isNaN(reserve)) { reserve = 0; }
                         var total = rayon + reserve;
+                        var couleur = '#1c7c1c';
                         if (total < 0) {
-                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
+                            couleur = '#c0392b';
+                            m.style = 'background-color:#fdeceb;';
                         } else if (total === 0) {
-                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
-                        } else {
-                            m.style = 'color:#14213d; font-weight:bold;font-size: 18px;';
+                            couleur = '#1a3fc4';
+                            m.style = 'background-color:#e9f8ec;';
                         }
-                        m.tdAttr = 'data-qtip="<span style=\'white-space:nowrap;\'>Rayon ' + rayon
-                                + ' + Réserve ' + reserve + '</span>" data-qwidth="160"';
-                        return total;
+                        m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
+                                + ' = ' + total + '" data-qwidth="180"';
+                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;">RAY '
+                                + rayon + '</span>';
+                        if (reserve !== 0) {
+                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;">RES '
+                                    + reserve + '</span>';
+                        }
+                        return '<span style="white-space:nowrap;">'
+                                + '<b style="font-size:17px;color:' + couleur + ';vertical-align:middle;">' + total + '</b>'
+                                + '<span style="font-size:10px;margin-left:7px;vertical-align:middle;">' + puces + '</span></span>';
                     }
                 }, {
                     header: 'Seuil',
@@ -400,14 +460,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 }, {
@@ -418,14 +471,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
-                        }
+                        teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
                         return v;
                     }
                 }, {
@@ -437,12 +483,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
+                        // Une seule ligne par article : un libelle d'emplacement long etait
+                        // renvoye a la ligne et cassait la hauteur reguliere des lignes.
+                        teinteSelonStock(stock, m);
+                        m.style = (m.style || '') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                        if (v) {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(String(v)) + '"';
                         }
                         return v;
                     }
@@ -517,219 +563,22 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             });
                         }
                     }
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/duplicate_3671686.png',
-                            tooltip: 'Gérer les prix de référence',
-                            scope: this,
-                            handler: function (grid, rowIndex, colIndex) {
-                                new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
-                                
-                            }
-
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            iconCls: 'calendar',
-                            tooltip: 'Modifier la date de péremption',
-                            scope: this,
-                            handler: this.addPeremptiondate
-
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/recherche.png',
-                            tooltip: 'Voir les lots / péremptions',
-                            scope: this,
-                            handler: this.onViewPerimesClick
-                        }]
-                },
-
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/page_white_edit.png',
-                            tooltip: 'Modifier',
-                            scope: this,
-                            handler: this.onEditClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('P_BT_UPDATE')) {
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/grossiste.png',
-                            tooltip: 'Gerer Grossiste',
-                            scope: this,
-                            handler: this.onAddGrossisteClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE') == "0") {  //read your condition from the record
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-                                    //  return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    hidden: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/delete.png',
-                            tooltip: 'Supprimer',
-                            scope: this,
-
-                            getClass: function (value, metadata, record) {
-                                if (record.get('BTNDELETE')) {
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-
-                                } else {
-
-                                    return 'x-hide-display';
-                                }
-                            },
-                            handler: this.onRemoveClick
-                        }]
-                }, {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/connect.png',
-                            tooltip: 'Créer detail',
-                            scope: this,
-                            handler: this.onCreateDeconditionClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE_EXIST') == "0") {  //read your condition from the record
-                                    if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
-                                    } else {
-                                        return 'x-hide-display'; //cache l'icone
-                                    }
-                                    // return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                }, {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/cut.png',
-                            tooltip: 'Deconditionner l\'article',
-                            scope: this,
-                            handler: this.onDeconditionClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('bool_DECONDITIONNE') == "0") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/application_view_list.png',
-                            tooltip: 'Detail sur l\'article',
-                            scope: this,
-                            handler: this.onDetailClick
-                        }]
-                },
-                //onDesableClick
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/disable.png',
-                            tooltip: 'Désactiver l\'article',
-                            scope: this,
-                            handler: this.onDesableClick,
-                            getClass: function (value, metadata, record) {
-                                if (record.get('lg_EMPLACEMENT_ID') === "1" && record.get('ACTION_DESACTIVE_PRODUIT')) {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
-                                } else {
-                                    return 'x-hide-display'; //cache l'icone
-                                }
-                            }
-                        }]
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            iconCls: 'suivimvt',
-                            tooltip: 'Suivi de cet Article',
-                            scope: this,
-                            handler:
-                                    function (grid, rowIndex) {
-                                        const rec = grid.getStore().getAt(rowIndex);
-                                        Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
-
-                                    }
-
-                        }]
                 }
-
-
-
             ]),
             /* Selection a la LIGNE : au clic c'est la ligne entiere qui est
                marquee, pas la seule cellule cliquee (retour d'officine). */
             selModel: {
                 selType: 'rowmodel'
+            },
+            viewConfig: {
+                listeners: {
+                    // Un clic selectionne seulement ; le double-clic ouvre ou referme
+                    // l'apercu, pour ne pas interroger le serveur a chaque deplacement
+                    // dans la liste.
+                    itemdblclick: function (view, record) {
+                        Me_Workflow.basculerApercu(record.get('lg_FAMILLE_ID'));
+                    }
+                }
             },
             dockedItems: [
                 {
@@ -801,40 +650,25 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         '-',
                         {
                             xtype: 'combobox',
-                            name: 'stock_operator',
-                            id: 'stock_operator',
-                            store: store_stock_operator,
-                            valueField: 'operator',
-                            displayField: 'str_desc',
-                            typeAhead: true,
-                            queryMode: 'local',
-                            width: 150,
-                            emptyText: 'Operateur stock...',
+                            name: 'lg_ZONE_GEO_ID',
+                            id: 'lg_ZONE_GEO_ID',
+                            store: rayons,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            minChars: 0,
+                            pageSize: 9999,
+                            width: 260,
+                            emptyText: 'Sélectionner un rayon...',
+                            forceSelection: true,
                             listeners: {
                                 select: function () {
-                                    // Au choix d'un operateur : envoyer le focus sur la quantite.
-                                    const qte = Me_Workflow.fmField('stock_value');
-                                    if (qte) {
-                                        qte.focus(true, 100);
-                                    }
+                                    Me_Workflow.onRechClick();
                                 }
                             }
                         },
-                        {
-                            xtype: 'textfield',
-                            id: 'stock_value',
-                            name: 'stock_value',
-                            width: 90,
-                            emptyText: 'Qte.Stock',
-                            enableKeyEvents: true,
-                            listeners: {
-                                specialKey: function (field, e) {
-                                    if (e.getKey() === e.ENTER) {
-                                        Me_Workflow.onRechClick();
-                                    }
-                                }
-                            }
-                        },
+                        '-',
                         '-',
                         {
                             text: 'Importer des articles',
@@ -902,29 +736,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
-                            text: 'Effacer tous les filtres',
-                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
-                            icon: 'resources/images/icons/fam/delete.png',
-                            style: 'background-color:#add8e6; border-color:#add8e6;',
-                            scope: this,
-                            handler: function () {
-                                Me_Workflow.fmField('rechecher').setValue('');
-                                Me_Workflow.fmField('str_TYPE_TRANSACTION').clearValue();
-                                Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').clearValue();
-                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
-                                Me_Workflow.fmField('stock_operator').clearValue();
-                                Me_Workflow.fmField('stock_value').setValue('');
-                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
-                                Me_Workflow.onRechClick();
-                            }
-                        },
-                        '-',
-                        {
                             text: 'Imprimer',
                             tooltip: 'imprimer',
                             iconCls: 'printable',
                             scope: this,
                             handler: this.onPdfClick
+                        },
+                        {
+                            // Reserve au privilege de parametrage : affiche apres reponse du
+                            // serveur (voir chargerConfigActions).
+                            id: 'btn_config_actions',
+                            tooltip: 'Configurer les actions affichées sur chaque ligne',
+                            iconCls: 'configuration',
+                            hidden: true,
+                            scope: this,
+                            handler: this.onConfigurerActions
                         }
                     ]
                 },
@@ -1025,28 +851,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'searchicon',
                             handler: this.onRechClick
                         },
-                        '-',
-                        {
-                            xtype: 'combobox',
-                            name: 'lg_ZONE_GEO_ID',
-                            id: 'lg_ZONE_GEO_ID',
-                            store: rayons,
-                            valueField: 'id',
-                            displayField: 'libelle',
-                            typeAhead: false,
-                            queryMode: 'remote',
-                            minChars: 0,
-                            pageSize: 9999,
-                            width: 260,
-                            emptyText: 'Sélectionner un rayon...',
-                            forceSelection: true,
-                            listeners: {
-                                select: function () {
-                                    Me_Workflow.onRechClick();
-                                }
-                            }
-                        },
-                        '-',
                         {
                             xtype: 'combobox',
                             name: 'lg_CODE_TVA_ID_FILTRE',
@@ -1065,8 +869,75 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     Me_Workflow.onRechClick();
                                 }
                             }
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'stock_operator',
+                            id: 'stock_operator',
+                            store: store_stock_operator,
+                            valueField: 'operator',
+                            displayField: 'str_desc',
+                            typeAhead: true,
+                            queryMode: 'local',
+                            width: 150,
+                            emptyText: 'Operateur stock...',
+                            listeners: {
+                                select: function () {
+                                    // Au choix d'un operateur : envoyer le focus sur la quantite.
+                                    const qte = Me_Workflow.fmField('stock_value');
+                                    if (qte) {
+                                        qte.focus(true, 100);
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'textfield',
+                            id: 'stock_value',
+                            name: 'stock_value',
+                            width: 90,
+                            emptyText: 'Qte.Stock',
+                            enableKeyEvents: true,
+                            listeners: {
+                                specialKey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        Me_Workflow.onRechClick();
+                                    }
+                                }
+                            }
+                        },
+                        '-',
+                        '-',
+                        {
+                            text: 'Réinitialiser',
+                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
+                            icon: 'resources/images/icons/fam/delete.png',
+                            style: 'background-color:#add8e6; border-color:#add8e6;',
+                            scope: this,
+                            handler: function () {
+                                Me_Workflow.fmField('rechecher').setValue('');
+                                Me_Workflow.fmField('str_TYPE_TRANSACTION').clearValue();
+                                Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').clearValue();
+                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.fmField('stock_operator').clearValue();
+                                Me_Workflow.fmField('stock_value').setValue('');
+                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
+                                Me_Workflow.onRechClick();
+                                Me_Workflow.focusRecherche();
+                            }
                         }
                     ]
+                },
+                {
+                    // Apercu de l'article selectionne : consommation des 13 derniers mois,
+                    // reperes de gestion et peremptions proches. Rempli au clic sur une ligne.
+                    xtype: 'component',
+                    dock: 'top',
+                    id: 'apercu_fiche_article',
+                    hidden: true,
+                    cls: 'vp-apercu-barre',
+                    html: ''
                 }
             ],
             bbar: {
@@ -1106,6 +977,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         Ext.getCmp('btn_import_menu').show();
                     }
                     Me_Workflow.chargerPrivilegesBoutons();
+                    Me_Workflow.chargerConfigActions();
                 }
             }
         });
@@ -1124,6 +996,236 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         // disponible pour demander explicitement la liste complete.
 
     },
+    /**
+     * Apercu de l'article selectionne, au-dessus de la liste : courbe de consommation
+     * des 13 derniers mois (les douze precedents plus le mois en cours, pour qu'un
+     * debut d'annee garde une annee complete de recul), reperes de gestion et
+     * peremptions proches. Un echec masque simplement le bandeau.
+     */
+    /**
+     * Double-clic : ouvre l'apercu, ou le referme s'il montre deja cet article.
+     * Le focus revient au champ de recherche pour enchainer une autre saisie.
+     */
+    basculerApercu: function (produitId) {
+        var barre = Ext.getCmp('apercu_fiche_article');
+        if (!barre) {
+            return;
+        }
+        if (barre.isVisible() && barre.produitAffiche === produitId) {
+            barre.hide();
+            barre.produitAffiche = null;
+            Me_Workflow.focusRecherche();
+            return;
+        }
+        Me_Workflow.majApercu(produitId);
+    },
+
+    /** Retour au champ de recherche, texte preselectionne pour enchainer. */
+    focusRecherche: function () {
+        var champ = Me_Workflow.fmField('rechecher');
+        if (champ && champ.focus) {
+            champ.focus(true, 100);
+        }
+    },
+
+    majApercu: function (produitId) {
+        var barre = Ext.getCmp('apercu_fiche_article');
+        if (!barre || !produitId) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/produit-search/apercu/' + encodeURIComponent(produitId),
+            method: 'GET',
+            success: function (reponse) {
+                var o = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (o.success === false) {
+                    barre.hide();
+                    return;
+                }
+                barre.update(Me_Workflow.htmlApercu(o));
+                barre.show();
+                barre.produitAffiche = produitId;
+                // Le curseur doit rester dans le champ produit : la lecture de l'apercu
+                // ne doit pas obliger a recliquer pour saisir l'article suivant.
+                Me_Workflow.focusRecherche();
+            },
+            failure: function () {
+                barre.hide();
+            }
+        });
+    },
+
+    /**
+     * Deux courbes sur la meme periode : les sorties (consommation) et les achats
+     * (quantites recues), avec la quantite au sommet de chaque mois. Le trace
+     * garde ses proportions : il est dessine a la taille reelle du bandeau plutot
+     * qu'etire pour remplir la largeur.
+     */
+    courbeApercu: function (conso, achats) {
+        var L = 1000, H = 180, mg = 30, md = 16, mh = 24, mb = 34;
+        var iw = L - mg - md, ih = H - mh - mb, i, max = 0;
+        var n = conso.length;
+        for (i = 0; i < n; i++) {
+            if (conso[i].qte > max) { max = conso[i].qte; }
+            if (achats && achats[i] > max) { max = achats[i]; }
+        }
+        max = max * 1.35 || 1;
+        var px = function (k) {
+            return mg + (n <= 1 ? iw / 2 : iw * k / (n - 1));
+        };
+        var py = function (v) {
+            return mh + ih - (v / max) * ih;
+        };
+        // Traces d'abord, etiquettes ensuite : pour chaque mois, la valeur la plus
+        // haute est etiquetee au-dessus de son point et l'autre en dessous, afin que
+        // les deux series ne se recouvrent jamais. Un mois sans mouvement n'est pas
+        // etiquete : aligner des zeros encombre le trace sans rien apprendre.
+        var trace = function (valeurs, couleur, aire) {
+            var d = '', svg = '';
+            for (var k = 0; k < valeurs.length; k++) {
+                d += (k ? 'L' : 'M') + px(k) + ' ' + py(valeurs[k]);
+            }
+            if (aire) {
+                svg += '<path d="' + d + 'L' + px(n - 1) + ' ' + (mh + ih) + 'L' + px(0) + ' ' + (mh + ih)
+                        + 'Z" fill="' + couleur + '" fill-opacity="0.10"/>';
+            }
+            svg += '<path d="' + d + '" fill="none" stroke="' + couleur
+                    + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+            for (var k2 = 0; k2 < valeurs.length; k2++) {
+                svg += '<circle cx="' + px(k2) + '" cy="' + py(valeurs[k2]) + '" r="2.8" fill="#ffffff" stroke="'
+                        + couleur + '" stroke-width="2"/>';
+            }
+            return svg;
+        };
+        var etiquette = function (k, valeur, couleur, dessous) {
+            if (!valeur) {
+                return '';
+            }
+            // Lisere blanc derriere le chiffre : la valeur reste lisible meme lorsqu'elle
+            // se pose sur le trait de l'autre courbe, la ou les deux series se croisent.
+            return '<text x="' + px(k) + '" y="' + (dessous ? py(valeur) + 14 : py(valeur) - 8)
+                    + '" text-anchor="middle" font-size="10.5" font-weight="700"'
+                    + ' stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" paint-order="stroke"'
+                    + ' fill="' + couleur + '">' + valeur + '</text>';
+        };
+
+        var qteConso = [];
+        for (i = 0; i < n; i++) {
+            qteConso.push(conso[i].qte);
+        }
+        var mois = '';
+        for (i = 0; i < n; i++) {
+            mois += '<text x="' + px(i) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="'
+                    + (i === n - 1 ? '#0d6a74' : '#8296a0') + '" font-weight="' + (i === n - 1 ? '700' : '400') + '">'
+                    + conso[i].libelle + '</text>';
+        }
+        // viewBox sans preserveAspectRatio="none" : le dessin garde ses proportions
+        // au lieu d'etre etire horizontalement.
+        var aAchats = achats && achats.length;
+        var libelles = '';
+        for (i = 0; i < n; i++) {
+            var va = aAchats ? achats[i] : 0;
+            var vc = qteConso[i];
+            libelles += etiquette(i, vc, '#0d6a74', aAchats && va > vc);
+            if (aAchats) {
+                libelles += etiquette(i, va, '#b25a00', va <= vc);
+            }
+        }
+        return '<svg viewBox="0 0 ' + L + ' ' + H + '" width="100%" style="max-width:' + L + 'px;display:block">'
+                + '<line x1="' + mg + '" y1="' + (mh + ih) + '" x2="' + (L - md) + '" y2="' + (mh + ih)
+                + '" stroke="#dbe2e6" stroke-width="1"/>'
+                + (aAchats ? trace(achats, '#b25a00', false) : '')
+                + trace(qteConso, '#0d6a74', true)
+                + libelles + mois + '</svg>';
+    },
+
+    htmlApercu: function (o) {
+        var esc = function (v) {
+            return Ext.String.htmlEncode(String(v == null ? '' : v));
+        };
+        var conso = o.conso || [];
+
+        // --- reperes de gestion ---
+        var ligne = function (libelle, valeur) {
+            return '<div class="vp-ap-ligne"><span class="l">' + libelle + '</span><span class="v">' + valeur + '</span></div>';
+        };
+        var reperes = '';
+        if (o.derniereVente) {
+            var j = o.joursSansVente;
+            var mention = '';
+            if (j === 0) {
+                mention = '<em class="ok">(vendu aujourd\'hui)</em>';
+            } else if (j > 0) {
+                mention = '<em class="alerte">(non vendu depuis ' + j + ' jour' + (j > 1 ? 's' : '') + ')</em>';
+            }
+            reperes += ligne('Derni\u00e8re vente', esc(o.derniereVente) + (mention ? ' ' + mention : ''));
+        } else {
+            reperes += ligne('Derni\u00e8re vente', '<em class="alerte">jamais vendu</em>');
+        }
+        if (o.derniereEntree) {
+            var det = [];
+            if (o.qteEntree) {
+                det.push(esc(o.qteEntree) + ' u.');
+            }
+            if (o.grossiste) {
+                det.push(esc(o.grossiste));
+            }
+            reperes += ligne('Derni\u00e8re entr\u00e9e',
+                    esc(o.derniereEntree) + (det.length ? ' <em>' + det.join(' \u00b7 ') + '</em>' : ''));
+        } else {
+            reperes += ligne('Derni\u00e8re entr\u00e9e', '<em>aucune entr\u00e9e enregistr\u00e9e</em>');
+        }
+
+        var puces = '';
+        if (o.classe) {
+            puces += '<span class="vp-ap-puce">Classe ' + esc(o.classe) + '</span>';
+        }
+        if (o.tva) {
+            // Le libelle de TVA porte souvent deja la mention ("TVA 0") : ne pas la doubler.
+            var tva = String(o.tva);
+            puces += '<span class="vp-ap-puce">' + (/tva/i.test(tva) ? esc(tva) : 'TVA ' + esc(tva)) + '</span>';
+        }
+        // Contenance : seulement si l'article est deconditionnable et qu'elle est renseignee.
+        if (o.contenance) {
+            puces += '<span class="vp-ap-puce contenance">Contenance ' + esc(o.contenance) + '</span>';
+        }
+        if (puces) {
+            reperes += '<div class="vp-ap-puces">' + puces + '</div>';
+        }
+
+        // --- peremptions proches ---
+        var lots = o.lots || [];
+        var blocLots = '';
+        if (lots.length) {
+            // Seule la peremption la plus proche : la liste complete allongeait le
+            // bandeau au detriment de la courbe, et reste consultable dans le detail.
+            var l = lots[0];
+            var ton = l.jours < 0 ? 'perime' : (l.jours <= 90 ? 'proche' : 'valide');
+            var reste = l.jours < 0 ? 'p\u00e9rim\u00e9' : ('dans ' + l.jours + ' j');
+            var suite = lots.length > 1
+                    ? '<span class="vp-ap-suite">+ ' + (lots.length - 1) + ' autre'
+                        + (lots.length > 2 ? 's' : '') + ' lot' + (lots.length > 2 ? 's' : '') + '</span>'
+                    : '';
+            blocLots = '<div class="vp-ap-lots"><div class="vp-ap-soustitre">P\u00e9remption la plus proche' + suite + '</div>'
+                    + '<ul><li class="' + ton + '"><span class="d">' + esc(l.peremption) + '</span>'
+                    + '<span class="q">Lot ' + esc(l.lot) + ' \u00d7 ' + esc(l.qte) + '</span>'
+                    + '<span class="r">' + reste + '</span></li></ul></div>';
+        }
+
+        return '<div class="vp-apercu">'
+                + '<div class="vp-ap-conso">'
+                + '<div class="vp-ap-tete"><span class="vp-ap-nom">' + esc(o.nom) + '</span>'
+                + '<span class="vp-ap-cip">' + esc(o.cip) + '</span>'
+                + '<span class="vp-ap-legende">'
+                + '<span class="vp-ap-leg conso"><i></i>Sorties <b>' + amountformat(o.consoTotal || 0) + '</b></span>'
+                + '<span class="vp-ap-leg achats"><i></i>Achats <b>' + amountformat(o.achatsTotal || 0) + '</b></span>'
+                + '</span></div>'
+                + this.courbeApercu(conso, o.achats || [])
+                + '</div>'
+                + '<div class="vp-ap-cote">' + reperes + blocLots + '</div>'
+                + '</div>';
+    },
+
     loadStore: function () {
         const grid = this;
         const store = grid.getStore();
@@ -1177,6 +1279,200 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 masquerSiRefuse('btn_maj_selective', 'P_BTN_MAJ_SEUIL');
                 masquerSiRefuse('btn_import_menu', 'P_BTN_IMPORT_ARTICLE');
             }
+        });
+    },
+
+    /**
+     * Configuration des actions de ligne (officine). Les colonnes ne sont ajoutees
+     * qu'a la reponse : en cas d'echec, on retombe sur l'ordre livre par defaut pour
+     * que l'ecran reste utilisable.
+     */
+    chargerConfigActions: function () {
+        var grille = this;
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/actions-config',
+            method: 'GET',
+            success: function (reponse) {
+                var o = Ext.JSON.decode(reponse.responseText, true) || {};
+                grille.configActions = {
+                    ordre: o.ordre || FA_ORDRE_DEFAUT.join(','),
+                    nbIcones: (o.nbIcones === undefined || o.nbIcones === null) ? FA_NB_ICONES_DEFAUT : o.nbIcones
+                };
+                grille.construireColonnesActions(grille.configActions);
+                var bouton = Ext.getCmp('btn_config_actions');
+                if (bouton && o.modifiable) {
+                    bouton.show();
+                }
+            },
+            failure: function () {
+                grille.configActions = {ordre: FA_ORDRE_DEFAUT.join(','), nbIcones: FA_NB_ICONES_DEFAUT};
+                grille.construireColonnesActions(grille.configActions);
+            }
+        });
+    },
+
+    /**
+     * Fenetre de configuration des actions de ligne, reservee au privilege de
+     * parametrage. Deux listes : a gauche les actions affichees en icone, dans
+     * l'ordre voulu ; a droite celles regroupees dans le menu « ... ». On deplace
+     * les actions d'une liste a l'autre et on les reordonne par glisser-deposer.
+     * A la validation, l'ordre complet et le nombre d'icones sont enregistres dans
+     * t_parameters et l'ecran est reconstruit sans rechargement.
+     */
+    onConfigurerActions: function () {
+        var grille = this;
+        var config = grille.configActions || {ordre: FA_ORDRE_DEFAUT.join(','), nbIcones: FA_NB_ICONES_DEFAUT};
+        var ordre = String(config.ordre).split(',');
+        var retenus = [];
+        Ext.Array.each(ordre, function (c) {
+            c = Ext.String.trim(c);
+            if (FA_ACTIONS[c] && retenus.indexOf(c) < 0) {
+                retenus.push(c);
+            }
+        });
+        Ext.Array.each(FA_ORDRE_DEFAUT, function (c) {
+            if (retenus.indexOf(c) < 0) {
+                retenus.push(c);
+            }
+        });
+        var nb = Math.min(config.nbIcones, retenus.length);
+
+        var enLigne = function (code) {
+            return {code: code, libelle: FA_ACTIONS[code].texte, icone: FA_ACTIONS[code].icon};
+        };
+        var champs = ['code', 'libelle', 'icone'];
+        var storeIcones = Ext.create('Ext.data.Store', {fields: champs,
+            data: Ext.Array.map(retenus.slice(0, nb), enLigne)});
+        var storeMenu = Ext.create('Ext.data.Store', {fields: champs,
+            data: Ext.Array.map(retenus.slice(nb), enLigne)});
+
+        var colonnes = [{
+                dataIndex: 'icone',
+                width: 34,
+                sortable: false,
+                menuDisabled: true,
+                renderer: function (v) {
+                    return v ? '<img src="' + v + '" width="16" height="16" style="vertical-align:middle">' : '';
+                }
+            }, {
+                text: 'Action',
+                dataIndex: 'libelle',
+                flex: 1,
+                sortable: false,
+                menuDisabled: true
+            }];
+
+        var liste = function (titre, store, vide) {
+            return {
+                xtype: 'gridpanel',
+                title: titre,
+                flex: 1,
+                store: store,
+                columns: colonnes,
+                hideHeaders: false,
+                viewConfig: {
+                    plugins: {ptype: 'gridviewdragdrop', dragGroup: 'faActions', dropGroup: 'faActions'},
+                    emptyText: '<div style="padding:12px;color:#8296a0;">' + vide + '</div>',
+                    deferEmptyText: false
+                }
+            };
+        };
+
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: 'Actions affichées sur la fiche article',
+            modal: true,
+            width: 720,
+            height: 430,
+            layout: 'fit',
+            items: [{
+                    xtype: 'container',
+                    layout: {type: 'vbox', align: 'stretch'},
+                    padding: 10,
+                    items: [{
+                            xtype: 'component',
+                            margin: '0 0 8 0',
+                            html: '<div style="color:#3e5761;font-size:12px;">'
+                                    + 'Faites glisser les actions d\'une liste à l\'autre, et de haut en bas pour '
+                                    + 'choisir leur ordre. Les actions de gauche apparaissent en icône sur chaque '
+                                    + 'ligne ; les autres restent accessibles par le bouton « … ». '
+                                    + 'Ce réglage vaut pour toute l\'officine.</div>'
+                        }, {
+                            xtype: 'container',
+                            flex: 1,
+                            layout: {type: 'hbox', align: 'stretch'},
+                            defaults: {margin: '0 5 0 5'},
+                            items: [liste('Affichées en icône', storeIcones, 'Aucune icône : toutes les actions seront dans le menu « … »'),
+                                liste('Dans le menu « … »', storeMenu, 'Aucune : toutes les actions seront en icône, le menu « … » disparaîtra')]
+                        }]
+                }],
+            buttons: [{
+                    text: 'Valider',
+                    handler: function () {
+                        var codes = [];
+                        storeIcones.each(function (r) {
+                            codes.push(r.get('code'));
+                        });
+                        var nbIcones = codes.length;
+                        storeMenu.each(function (r) {
+                            codes.push(r.get('code'));
+                        });
+                        var attente = Ext.MessageBox.wait('Enregistrement . . .', 'Veuillez patienter');
+                        Ext.Ajax.request({
+                            url: '../api/v1/fichearticle/actions-config',
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            jsonData: {ordre: codes.join(','), nbIcones: nbIcones},
+                            success: function (reponse) {
+                                attente.hide();
+                                var r = Ext.JSON.decode(reponse.responseText, true) || {};
+                                if (!r.success) {
+                                    Ext.MessageBox.show({title: 'Enregistrement impossible',
+                                        msg: r.message || 'Le réglage n\'a pas pu être enregistré.',
+                                        width: 460, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                                    return;
+                                }
+                                fenetre.close();
+                                // Les colonnes d'action sont refaites sur place : pas besoin
+                                // de rouvrir l'ecran pour voir le nouveau reglage.
+                                grille.configActions = {ordre: r.ordre, nbIcones: r.nbIcones};
+                                grille.retirerColonnesActions();
+                                grille.construireColonnesActions(grille.configActions);
+                                Me_Workflow.focusRecherche();
+                            },
+                            failure: function (reponse) {
+                                attente.hide();
+                                Ext.MessageBox.show({title: 'Erreur',
+                                    msg: 'L\'enregistrement a échoué. Code HTTP : ' + reponse.status,
+                                    width: 460, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                            }
+                        });
+                    }
+                }, {
+                    text: 'Annuler',
+                    handler: function () {
+                        fenetre.close();
+                    }
+                }],
+            listeners: {
+                close: function () {
+                    Me_Workflow.focusRecherche();
+                }
+            }
+        });
+        fenetre.show();
+    },
+
+    /** Retire les colonnes d'action avant de les reconstruire. */
+    retirerColonnesActions: function () {
+        var grille = this;
+        var aRetirer = [];
+        Ext.Array.each(grille.headerCt.items.items, function (col) {
+            if (col.xtype === 'actioncolumn') {
+                aRetirer.push(col);
+            }
+        });
+        Ext.Array.each(aRetirer, function (col) {
+            grille.headerCt.remove(col);
         });
     },
 
@@ -1457,6 +1753,125 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     }
     
 },
+    /**
+     * Construit les colonnes d'action a partir du parametrage de l'officine : les
+     * premieres actions de l'ordre configure deviennent des icones, les suivantes
+     * sont regroupees dans le menu « ... ». Ce menu n'est pas cree lorsque toutes
+     * les actions sont deja en icone.
+     *
+     * Les colonnes sont ajoutees ici, une fois la configuration recue, et non a la
+     * construction de la grille : l'ecran s'ouvre vide, il n'y a donc rien a
+     * redessiner et l'ordre demande est respecte du premier affichage.
+     */
+    construireColonnesActions: function (config) {
+        var grille = this;
+        var ordre = (config && config.ordre) ? String(config.ordre).split(',') : FA_ORDRE_DEFAUT.slice();
+        var retenus = [];
+        Ext.Array.each(ordre, function (code) {
+            code = Ext.String.trim(code);
+            if (FA_ACTIONS[code] && retenus.indexOf(code) < 0) {
+                retenus.push(code);
+            }
+        });
+        // Une action absente du parametrage reste accessible : elle rejoint la fin de
+        // la liste plutot que de disparaitre de l'ecran.
+        Ext.Array.each(FA_ORDRE_DEFAUT, function (code) {
+            if (retenus.indexOf(code) < 0) {
+                retenus.push(code);
+            }
+        });
+        var nb = (config && config.nbIcones >= 0) ? config.nbIcones : FA_NB_ICONES_DEFAUT;
+        if (nb > retenus.length) {
+            nb = retenus.length;
+        }
+        grille.actionsMenu = retenus.slice(nb);
+
+        var colonnes = [];
+        Ext.Array.each(retenus.slice(0, nb), function (code) {
+            var action = FA_ACTIONS[code];
+            colonnes.push({
+                xtype: 'actioncolumn',
+                width: 28,
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                items: [{
+                        icon: action.icon,
+                        tooltip: action.texte,
+                        handler: action.lancer,
+                        getClass: function (value, metadata, record) {
+                            if (action.visible && !action.visible(record)) {
+                                return 'x-hide-display';
+                            }
+                            return '' + action.classe;
+                        }
+                    }]
+            });
+        });
+        if (grille.actionsMenu.length) {
+            colonnes.push({
+                xtype: 'actioncolumn',
+                width: 32,
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                items: [{
+                        icon: FA_ICONE_MENU,
+                        tooltip: 'Autres actions',
+                        scope: grille,
+                        getClass: function () {
+                            return 'fa-action fa-action-plus';
+                        },
+                        handler: grille.onAutresActions
+                    }]
+            });
+        }
+        grille.headerCt.add(colonnes);
+    },
+
+    /**
+     * Menu « ... » : les actions qui ne sont pas en icone, dans l'ordre configure.
+     * Chaque entree appelle le meme traitement que l'icone correspondante et reprend
+     * ses conditions d'affichage.
+     */
+    onAutresActions: function (view, rowIndex, colIndex, item, e) {
+        var grille = this;
+        var rec = view.getStore().getAt(rowIndex);
+        if (!rec) {
+            return;
+        }
+        var entrees = [];
+        Ext.Array.each(grille.actionsMenu || [], function (code) {
+            var action = FA_ACTIONS[code];
+            if (!action || (action.visible && !action.visible(rec))) {
+                return;
+            }
+            if (action.danger && entrees.length) {
+                entrees.push('-');
+            }
+            entrees.push({
+                text: action.texte,
+                icon: action.icon,
+                handler: function () {
+                    action.lancer(view, rowIndex);
+                }
+            });
+        });
+        if (!entrees.length) {
+            return;
+        }
+        Ext.create('Ext.menu.Menu', {
+            items: entrees,
+            listeners: {
+                hide: function (menu) {
+                    Ext.defer(function () {
+                        menu.destroy();
+                    }, 20);
+                }
+            }
+        }).showAt(e.getXY());
+    },
+
     onDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
         Ext.Ajax.request({
@@ -1883,7 +2298,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                     ]
                 }
-            ]
+            ],
+            listeners: {
+                // Fermeture ou annulation de la periode de suivi : le curseur revient
+                // dans le champ produit, pret pour la recherche suivante.
+                close: function () {
+                    Me_Workflow.focusRecherche();
+                }
+            }
 
         });
         win.show();
@@ -2023,6 +2445,69 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 failure: function (response) {
                     progress.hide();
                     Ext.MessageBox.alert('Erreur', response.responseText || 'Impossible de charger les lots du produit.');
+                }
+            });
+        };
+
+        // Suppression d'un lot, sur confirmation. La fenetre est dimensionnee pour que
+        // la question tienne en entier : un numero de lot et une date de peremption
+        // tronques ne permettraient pas de confirmer en connaissance de cause.
+        const supprimerLot = function (record) {
+            if (!record) {
+                return;
+            }
+            const lotId = record.get('lgLOTID');
+            const numLot = record.get('numLot') || '?';
+            const peremption = record.get('datePerement') || 'sans date';
+            if (!lotId) {
+                Ext.MessageBox.alert('Suppression impossible',
+                        'Identifiant du lot introuvable : ce lot ne peut pas être supprimé.');
+                return;
+            }
+            Ext.MessageBox.show({
+                title: 'Supprimer le lot',
+                msg: 'Êtes-vous sûr de vouloir supprimer le lot <b>' + Ext.String.htmlEncode(String(numLot))
+                        + '</b><br>dont la péremption est le <b>' + Ext.String.htmlEncode(String(peremption))
+                        + '</b> ?',
+                width: 460,
+                minWidth: 460,
+                buttons: Ext.MessageBox.YESNO,
+                buttonText: {yes: 'Oui', no: 'Non'},
+                icon: Ext.MessageBox.QUESTION,
+                fn: function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    const attente = Ext.MessageBox.wait('Suppression en cours . . .', 'Veuillez patienter');
+                    Ext.Ajax.request({
+                        method: 'DELETE',
+                        url: '../api/v1/lot/' + encodeURIComponent(lotId),
+                        success: function (reponse) {
+                            attente.hide();
+                            const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                            if (r.success) {
+                                loadPerimes(false);
+                            } else {
+                                Ext.MessageBox.show({
+                                    title: 'Suppression impossible',
+                                    msg: r.message || 'La suppression a échoué.',
+                                    width: 460,
+                                    buttons: Ext.MessageBox.OK,
+                                    icon: Ext.MessageBox.ERROR
+                                });
+                            }
+                        },
+                        failure: function (reponse) {
+                            attente.hide();
+                            Ext.MessageBox.show({
+                                title: 'Erreur',
+                                msg: 'La suppression a échoué. Code HTTP : ' + reponse.status,
+                                width: 460,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+                            });
+                        }
+                    });
                 }
             });
         };
@@ -2167,6 +2652,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     tooltip: 'Modifier le lot / la date de péremption',
                                     handler: function (grid, rowIndex) {
                                         openEditLot(grid.getStore().getAt(rowIndex));
+                                    }
+                                }]
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            text: 'Supprimer',
+                            width: 75,
+                            align: 'center',
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/delete.png',
+                                    tooltip: 'Supprimer ce lot',
+                                    handler: function (grid, rowIndex) {
+                                        supprimerLot(grid.getStore().getAt(rowIndex));
                                     }
                                 }]
                         }

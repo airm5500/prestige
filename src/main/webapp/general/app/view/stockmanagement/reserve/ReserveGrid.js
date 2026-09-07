@@ -130,7 +130,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     scope: me,
                     handler: me.onAssortClick,
                     getClass: function (value, metadata, record) {
-                        return record.get('int_STOCK_RAYON') > 0 ? 'x-display-hide' : 'x-hide-display';
+                        return record.get('int_STOCK_RAYON') > 0 ? '' : 'x-hide-display';
                     }
                 }]
         };
@@ -142,7 +142,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     scope: me,
                     handler: me.onReassortClick,
                     getClass: function (value, metadata, record) {
-                        return record.get('int_STOCK_RESERVE') > 0 ? 'x-display-hide' : 'x-hide-display';
+                        return record.get('int_STOCK_RESERVE') > 0 ? '' : 'x-hide-display';
                     }
                 }]
         };

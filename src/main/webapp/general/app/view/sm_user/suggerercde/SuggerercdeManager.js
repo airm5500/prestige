@@ -374,7 +374,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {header: AppController.getMonthToDisplay(3, currentMonth), dataIndex: 'int_VALUE3', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
                                 {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/cog.png', tooltip: 'Qté détail', scope: this, handler: this.onQtyDetail, getClass: function (value, metadata, record) {
                                                 if (record.get('bool_DECONDITIONNE_EXIST') === 1) {
-                                                    return 'x-display-hide';
+                                                    return '';
                                                 } else {
                                                     return 'x-hide-display';
                                                 }

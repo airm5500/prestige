@@ -12,6 +12,10 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         {
             ref: 'comboNiveau',
             selector: 'supportdiagnostic combobox#comboNiveau'
+        },
+        {
+            ref: 'champRecherche',
+            selector: 'supportdiagnostic textfield#champRecherche'
         }
     ],
     init: function (application) {
@@ -24,6 +28,15 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             },
             'supportdiagnostic button#btnActualiser': {
                 click: this.doRefresh
+            },
+            'supportdiagnostic textfield#champRecherche': {
+                specialkey: this.onToucheRecherche
+            },
+            'supportdiagnostic button#btnRechercher': {
+                click: this.onRechercher
+            },
+            'supportdiagnostic button#btnEffacerRecherche': {
+                click: this.onEffacerRecherche
             },
             'supportdiagnostic button#btnPurger': {
                 click: this.onPurger
@@ -55,17 +68,50 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         this.getDiagnosticGrid().getStore().reload();
     },
 
-    /* Export Excel minimaliste du journal, avec le niveau filtre a l'ecran (500 derniers evenements). */
+    /* Export Excel du journal : memes criteres que l'ecran, niveau ET recherche. */
     onExcel: function () {
         const niveau = this.getComboNiveau() ? this.getComboNiveau().getValue() : 'TOUS';
         window.open('../api/v1/support/events/export/excel?limit=500&niveau='
-                + encodeURIComponent(niveau === 'TOUS' || !niveau ? '' : niveau));
+                + encodeURIComponent(niveau === 'TOUS' || !niveau ? '' : niveau)
+                + '&query=' + encodeURIComponent(this.termeRecherche()));
     },
 
-    onNiveauChange: function (combo, newValue) {
+    /** Terme saisi dans le champ de recherche, vide si le champ est absent. */
+    termeRecherche: function () {
+        const champ = this.getChampRecherche();
+        return champ && champ.getValue() ? champ.getValue().trim() : '';
+    },
+
+    /* Recharge la liste avec les deux criteres, en revenant a la premiere page : rester sur la
+       page 7 d'un resultat qui n'en compte plus que deux afficherait une grille vide. */
+    rechargerListe: function () {
         const store = this.getDiagnosticGrid().getStore();
-        store.getProxy().extraParams.niveau = (newValue === 'TOUS') ? '' : newValue;
+        const niveau = this.getComboNiveau() ? this.getComboNiveau().getValue() : '';
+        store.getProxy().extraParams.niveau = (niveau === 'TOUS') ? '' : niveau;
+        store.getProxy().extraParams.query = this.termeRecherche();
         store.loadPage(1);
+    },
+
+    onRechercher: function () {
+        this.rechargerListe();
+    },
+
+    onToucheRecherche: function (champ, e) {
+        if (e.getKey() === e.ENTER) {
+            this.rechargerListe();
+        }
+    },
+
+    onEffacerRecherche: function () {
+        const champ = this.getChampRecherche();
+        if (champ) {
+            champ.setValue('');
+        }
+        this.rechargerListe();
+    },
+
+    onNiveauChange: function () {
+        this.rechargerListe();
     },
 
     /**

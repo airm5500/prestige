@@ -154,7 +154,7 @@ Ext.define('testextjs.view.sm_user.retrocession.retrocessionManager', {
                             handler: this.onPdfClick,
                             getClass: function(value, metadata, record) {
                                 if (record.get('str_STATUT') == "enable") {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }

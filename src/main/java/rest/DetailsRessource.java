@@ -110,7 +110,9 @@ public class DetailsRessource {
                     .put("qteDet", l.getQteDet()).put("codeDet", l.getCodeDet()).put("nomDet", l.getNomDet())
                     .put("stockAvant", l.getStockAvant()).put("stockApres", l.getStockApres())
                     .put("stockAvantDet", l.getStockAvantDet()).put("stockApresDet", l.getStockApresDet())
-                    .put("utilisateur", l.getUtilisateur()));
+                    .put("utilisateur", l.getUtilisateur())
+                    // Point 8 : la contenance de la boite, et la quantite de detail qu'elle a donnee.
+                    .put("contenance", l.getContenance()).put("qteDetailObtenue", l.getQteDetailObtenue()));
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", lignes.size()).put("data", data).toString())

@@ -6,8 +6,10 @@ package rest;
 
 import javax.ejb.EJB;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
@@ -36,6 +38,13 @@ public class LotRessource {
 
         return Response.ok().entity(lotService.getAllLots(dtStart, dtEnd, searchValue, start, limit).toString())
                 .build();
+    }
+
+    /** Suppression d'un lot depuis l'ecran des lots / peremptions. */
+    @DELETE
+    @Path("{lotId}")
+    public Response supprimerLot(@PathParam("lotId") String lotId) {
+        return Response.ok().entity(lotService.supprimerLot(lotId).toString()).build();
     }
 
     @GET

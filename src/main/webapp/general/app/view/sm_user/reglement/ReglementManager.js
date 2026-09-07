@@ -18,6 +18,24 @@ function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
 
+/* Criteres de l'ecran, lus au meme endroit par la recherche, l'export et l'impression : trois
+   lectures separees finissaient par diverger. */
+function criteresReglement() {
+    var lu = function (id) {
+        var c = Ext.getCmp(id);
+        var v = c ? c.getValue() : null;
+        return (v === null || v === undefined) ? '' : v;
+    };
+    return {
+        lg_TIERS_PAYANT_ID: lu('lg_TIERS_PAYANT_ID'),
+        dt_debut: Ext.getCmp('datedebut') ? (Ext.getCmp('datedebut').getSubmitValue() || '') : '',
+        dt_fin: Ext.getCmp('datefin') ? (Ext.getCmp('datefin').getSubmitValue() || '') : '',
+        search_value: lu('re_search'),
+        typeTiersPayant: lu('reglementTypeTiersPayant'),
+        groupeTiersPayant: lu('reglementGroupeTiersPayant')
+    };
+}
+
 Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'reglementmanager',
@@ -117,6 +135,13 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
 
                 }
                 , {
+                    /* Point 21 : le groupe sert de filtre et de regroupement a l'impression ;
+                     * l'afficher evite d'avoir a le deviner. */
+                    header: 'Groupe',
+                    dataIndex: 'GROUPE',
+                    flex: 1
+                }
+                , {
                     header: 'Code Facture',
                     dataIndex: 'CODE_FACTURE',
                     flex: 1
@@ -130,9 +155,14 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     flex: 1
 
                 }, {
+                    /* Point 21 : le montant regle - ce qui est encaisse - en vert et gras ; le
+                     * montant restant en attente en rouge et gras (voir PrestigeMontants dans
+                     * app.js, partage avec le recapitulatif par compte organisme). */
                     header: 'Montant.Regl',
                     dataIndex: 'str_MONTANT',
-                    renderer: amountformat,
+                    renderer: function (v) {
+                        return window.PrestigeMontants.credit(v);
+                    },
                     align: 'right',
                     flex: 1,
                     summaryType: "sum",
@@ -143,7 +173,9 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                 , {
                     header: 'Montant.ATT',
                     dataIndex: 'MONTANT_ATT',
-                    renderer: amountformat,
+                    renderer: function (v) {
+                        return window.PrestigeMontants.debit(v);
+                    },
                     align: 'right',
                     flex: 1
 
@@ -227,15 +259,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                                     if (Ext.getCmp('datedebut').getSubmitValue() != null && Ext.getCmp('datedebut').getSubmitValue() != "") {
                                         dt_debut = Ext.getCmp('datedebut').getSubmitValue();
                                     }
-                                    OGrid.getStore().load({
-                                        params: {
-                                            lg_TIERS_PAYANT_ID: lg_TIERS_PAYANT_ID,
-                                            dt_fin: dt_fin,
-                                            dt_debut: dt_debut,
-                                            search_value: re_search
-
-                                        }
-                                    });
+                                    OGrid.getStore().load({params: criteresReglement()});
                                 }
                             });
                         }
@@ -336,6 +360,56 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
 
                         }
                     }
+                },
+                /* Point 21 : filtres par type et par groupe de tiers payants. Valeur vide = pas de
+                 * filtre, l'ecran s'ouvre donc comme avant. */
+                {
+                    xtype: 'combo',
+                    id: 'reglementTypeTiersPayant',
+                    width: 130,
+                    editable: false,
+                    queryMode: 'local',
+                    emptyText: 'Tous les types...',
+                    valueField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
+                    displayField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['str_LIBELLE_TYPE_TIERS_PAYANT'],
+                        autoLoad: true,
+                        proxy: {
+                            type: 'ajax',
+                            url: '../api/v1/common/types-tiers-payant',
+                            reader: {type: 'json', root: 'results', totalProperty: 'total'}
+                        },
+                        listeners: {
+                            load: function (magasin) {
+                                magasin.insert(0, [{str_LIBELLE_TYPE_TIERS_PAYANT: ''}]);
+                            }
+                        }
+                    })
+                },
+                {
+                    xtype: 'combo',
+                    id: 'reglementGroupeTiersPayant',
+                    width: 150,
+                    editable: false,
+                    queryMode: 'local',
+                    emptyText: 'Tous les groupes...',
+                    valueField: 'libelle',
+                    displayField: 'libelle',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['libelle'],
+                        autoLoad: true,
+                        proxy: {
+                            type: 'ajax',
+                            url: '../api/v1/facturation/groupetierspayant',
+                            reader: {type: 'json', root: 'data', totalProperty: 'total'}
+                        },
+                        listeners: {
+                            load: function (magasin) {
+                                magasin.insert(0, [{libelle: ''}]);
+                            }
+                        }
+                    })
                 }, {
                     text: 'rechercher',
                     tooltip: 'rechercher',
@@ -362,13 +436,11 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     iconCls: 'excel',
                     tooltip: 'Exporter les r\u00e9sultats affich\u00e9s en Excel',
                     handler: function () {
-                        var tp = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() || '';
-                        var lien = '../FactureDataExport?action=reglements'
-                                + '&dt_debut=' + (Ext.getCmp('datedebut').getSubmitValue() || '')
-                                + '&dt_fin=' + (Ext.getCmp('datefin').getSubmitValue() || '')
-                                + '&lg_TIERS_PAYANT_ID=' + tp
-                                + '&search_value=' + encodeURIComponent(Ext.getCmp('re_search').getValue() || '');
-                        window.location = lien;
+                        /* Point 21 : l'export passe par le service, qui applique les MEMES
+                         * criteres que la grille - filtres de type et de groupe compris, que
+                         * l'ancien export ne connaissait pas - et porte tout le resultat. */
+                        window.location = '../api/v1/reglement-facture/export-excel?'
+                                + Ext.Object.toQueryString(criteresReglement());
                     }
                 }
 
@@ -537,13 +609,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
             dt_debut = Ext.getCmp('datedebut').getSubmitValue();
         }
 
-        grid.getStore().load({
-            params: {
-                lg_TIERS_PAYANT_ID: lg_TIERS_PAYANT_ID,
-                dt_fin: dt_fin,
-                dt_debut: dt_debut
-            }
-        });
+        grid.getStore().load({params: criteresReglement()});
     },
     onPdfClickTicket: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
@@ -564,14 +630,28 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         const linkUrl = url_ws_generate_reglement_pdf + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin;
         window.open(linkUrl);
     },
+    /* Point 21 : l'edition est regroupee par groupe de tiers payants, avec un sous-total par
+       groupe et un total general, et reprend les filtres de l'ecran. Le modele est embarque dans
+       l'application ; le service repond par l'URL du PDF. */
     onPdfPrint: function () {
-        let tiersPayantId = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
-                dtEnd = Ext.getCmp('datefin').getSubmitValue(), dtStart = Ext.getCmp('datedebut').getSubmitValue();
-        if (tiersPayantId == null || tiersPayantId == undefined) {
-            tiersPayantId = '';
-        }
-        const linkUrl = '../FacturePdfServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&mode=REGLEMENT_FACTURE_GROUPE" + "&tiersPayantId=" + tiersPayantId;
-
-        window.open(linkUrl);
+        const attente = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/reglement-facture/print-groupe',
+            params: criteresReglement(),
+            success: function (reponse) {
+                attente.hide();
+                const res = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (res.success && res.msg) {
+                    window.open('..' + res.msg, '_blank');
+                } else {
+                    Ext.Msg.alert('Message', res.msg || 'Impossible de générer le PDF');
+                }
+            },
+            failure: function () {
+                attente.hide();
+                Ext.Msg.alert('Message', 'Un problème avec le serveur');
+            }
+        });
     }
 });

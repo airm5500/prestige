@@ -369,7 +369,7 @@ Ext.define('testextjs.view.produits.Ajustement', {
                                         if (record.get('cancel')) {
                                             return 'x-hide-display';
                                         } else {
-                                            return 'x-display-hide';
+                                            return '';
 
                                         }
                                     }

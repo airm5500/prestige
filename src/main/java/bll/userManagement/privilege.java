@@ -411,35 +411,42 @@ public class privilege extends bllBase {
         TRoleUser OTRoleUser = null;
         try {
             OTRoleUser = new user(this.getOdataManager()).getTRoleUser(this.getOTUser().getLgUSERID());
-            if (search_value.equalsIgnoreCase("")) {
-                search_value = "%%";
-            }
+            /*
+             * Recherche « contient » (point 7). Le motif etait « saisie% » : il fallait connaitre le DEBUT du libelle.
+             * Or on cherche un privilege par un mot qu'on en retient - « remise », « annulation » - et ce mot est
+             * presque toujours au milieu du libelle. Le motif devient donc « %saisie% ».
+             *
+             * Le motif est monte ici, une seule fois, plutot que dans chacune des quatre requetes qui suivent :
+             * l'ancienne ecriture concatenait « % » a quatre endroits, et une seule oubliee suffisait a rendre la
+             * recherche incoherente d'un profil a l'autre.
+             */
+            search_value = "%" + (search_value == null ? "" : search_value.trim()) + "%";
 
             if (OTRoleUser != null) {
                 if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_SUPERADMIN)) {
                     lstTPrivilege = this.getOdataManager().getEm().createQuery(
                             "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) ORDER BY t.strDESCRIPTION ASC")
                             .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
-                            .setParameter(3, search_value + "%").getResultList();
+                            .setParameter(3, search_value).getResultList();
                 } else if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN)
                         || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN)) {
                     lstTPrivilege = this.getOdataManager().getEm().createQuery(
                             "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND (t.strTYPE LIKE ?4 OR t.strTYPE LIKE ?5) ORDER BY t.strDESCRIPTION ASC")
                             .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
-                            .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                            .setParameter(3, search_value).setParameter(4, commonparameter.PARAMETER_CUSTOMER)
                             .setParameter(5, commonparameter.PARAMETER_ADMIN).getResultList();
                 } else {
                     lstTPrivilege = this.getOdataManager().getEm().createQuery(
                             "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
                             .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
-                            .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                            .setParameter(3, search_value).setParameter(4, commonparameter.PARAMETER_CUSTOMER)
                             .getResultList();
                 }
             } else {
                 lstTPrivilege = this.getOdataManager().getEm().createQuery(
                         "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
                         .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
-                        .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                        .setParameter(3, search_value).setParameter(4, commonparameter.PARAMETER_CUSTOMER)
                         .getResultList();
             }
         } catch (Exception e) {

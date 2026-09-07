@@ -1022,9 +1022,16 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false).put("msg", "Veuillez ajouter au moins un tiers-payant à la vente");
                 return json;
             }
+            if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
+                return json;
+            }
             if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
+            }
+            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
+                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                return json;
             }
             Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
             TPreenregistrement preenregistrement = pair.getKey();
@@ -1105,7 +1112,7 @@ public class SalesServiceImpl implements SalesService {
 
     private boolean forcerStock(int qty, String familleId, TEmplacement em) {
         TFamilleStock familleStock = this.findStock(familleId, em);
-        if (qty > familleStock.getIntNUMBERAVAILABLE()) {
+        if (qty > stockVendable(familleStock, em)) {
             Optional<TParameters> o = findParamettre("FORCER_STOCK_VENTE");
             if (o.isEmpty()) {
                 return true;
@@ -1118,15 +1125,188 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Stock reellement vendable d'un produit. Pour un produit detail, les boites du parent encore deconditionnables
+     * s'ajoutent au stock detail : sans elles, la saisie refusait la vente ("Impossible de forcer le stock") des que
+     * FORCER_STOCK_VENTE valait 0, et le deconditionnement automatique de la validation (updateVenteStock) devenait
+     * inatteignable.
+     */
+    private int stockVendable(TFamilleStock familleStock, TEmplacement em) {
+        int stockDetail = familleStock.getIntNUMBERAVAILABLE();
+        try {
+            TFamille famille = familleStock.getLgFAMILLEID();
+            if (famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1
+                    || StringUtils.isEmpty(famille.getLgFAMILLEPARENTID())) {
+                return stockDetail;
+            }
+            TFamille parent = this.getEm().find(TFamille.class, famille.getLgFAMILLEPARENTID());
+            if (parent == null || parent.getIntNUMBERDETAIL() == null || parent.getIntNUMBERDETAIL() <= 0) {
+                return stockDetail;
+            }
+            TFamilleStock stockParent = this.findStock(parent.getLgFAMILLEID(), em);
+            if (stockParent == null) {
+                return stockDetail;
+            }
+            return util.DeconditionnementCalcul.stockVendable(stockDetail, stockParent.getIntNUMBERAVAILABLE(),
+                    parent.getIntNUMBERDETAIL());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stockVendable", e);
+            return stockDetail;
+        }
+    }
+
+    /**
+     * Vrai si la quantite demandee pour un produit detail depasse le stock vendable (rayon plus boites du parent
+     * deconditionnables). Le stock detail negatif n'est pas un cas gere : ce depassement est refuse a la saisie, a la
+     * modification de ligne et a la validation, meme quand le forcage de stock est autorise pour les autres produits.
+     * Les produits non detail ne sont jamais concernes.
+     */
+    private boolean detailAuDelaDuVendable(TFamille famille, int qty, TEmplacement emplacement) {
+        if (famille == null || famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1) {
+            return false;
+        }
+        TFamilleStock familleStock = this.findStock(famille.getLgFAMILLEID(), emplacement);
+        if (familleStock == null) {
+            return false;
+        }
+        return qty > stockVendable(familleStock, emplacement);
+    }
+
+    /**
+     * Stock vendable d'un produit pour le controle de saisie cote caisse (avant l'appel de modification). Renvoie le
+     * stock vendable (rayon + boites du parent deconditionnables), et si le produit est deconditionnable. Sur un
+     * produit non deconditionnable, deconditionnable = false : le front laisse alors le comportement habituel.
+     */
+    @Override
+    public JSONObject stockVendableProduit(String produitId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TEmplacement emplacement = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+            TFamille famille = this.getEm().find(TFamille.class, produitId);
+            if (famille == null) {
+                return json.put("success", false).put("msg", "Produit introuvable");
+            }
+            boolean deconditionnable = famille.getBoolDECONDITIONNE() != null && famille.getBoolDECONDITIONNE() == 1;
+            TFamilleStock familleStock = this.findStock(produitId, emplacement);
+            int vendable = familleStock == null ? 0 : stockVendable(familleStock, emplacement);
+            json.put("success", true);
+            json.put("produitId", produitId);
+            json.put("deconditionnable", deconditionnable);
+            json.put("stockVendable", vendable);
+            json.put("libelle", libelleProduit(famille));
+            return json;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "stockVendableProduit", e);
+            return json.put("success", false);
+        }
+    }
+
+    private static String libelleProduit(TFamille famille) {
+        return (famille.getIntCIP() == null ? "" : famille.getIntCIP() + " ") + famille.getStrNAME();
+    }
+
+    /**
+     * Garde de saisie et de modification de ligne : refuse une quantite de produit detail au-dela du stock vendable,
+     * avant meme la validation. Renseigne json et retourne vrai en cas de refus.
+     */
+    private boolean refuserQuantiteDetailInvendable(JSONObject json, String produitId, int qty,
+            TEmplacement emplacement) throws JSONException {
+        TFamille famille = this.getEm().find(TFamille.class, produitId);
+        if (!detailAuDelaDuVendable(famille, qty, emplacement)) {
+            return false;
+        }
+        json.put("success", false);
+        json.put("msg", "Stock insuffisant pour " + libelleProduit(famille)
+                + " : plus aucune boîte à déconditionner. Veuillez réduire la quantité.");
+        return true;
+    }
+
+    /**
+     * Produits detail de la vente dont la quantite n'est plus couverte par le stock vendable. Utilise par les clotures
+     * (refus avant toute ecriture) et par le re-controle a l'ouverture du panier : entre l'ajout au panier et la
+     * validation, le stock a pu changer (autre caisse, vente de la boite, deconditionnement).
+     */
+    private List<String> produitsDetailInvendables(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+        List<String> produits = new ArrayList<>();
+        for (TPreenregistrementDetail it : items) {
+            TFamille famille = it.getLgFAMILLEID();
+            if (detailAuDelaDuVendable(famille, it.getIntQUANTITY(), emplacement)) {
+                produits.add(libelleProduit(famille));
+            }
+        }
+        return produits;
+    }
+
+    /**
+     * Validation d'entree de la quantite vendue : une ligne de vente doit porter au moins 1 unite. Une quantite nulle
+     * ou negative (envoyee directement a l'API, hors des controles du champ numerique de la caisse) creait une ligne
+     * aberrante (prix negatif) et, a la validation, faisait remonter le stock. Renseigne json et retourne vrai en cas
+     * de refus.
+     */
+    private boolean refuserQuantiteNonPositive(JSONObject json, int qte) throws JSONException {
+        if (qte >= 1) {
+            return false;
+        }
+        json.put("success", false);
+        json.put("msg", "La quantité doit être au moins égale à 1.");
+        return true;
+    }
+
+    private Optional<String> produitDetailInvendable(List<TPreenregistrementDetail> items, TEmplacement emplacement) {
+        return produitsDetailInvendables(items, emplacement).stream().findFirst();
+    }
+
+    /**
+     * Re-controle du panier a son ouverture : liste les produits detail qui ne sont plus couverts par le stock
+     * vendable, pour prevenir le caissier des la reprise de la vente plutot qu'au moment de l'encaissement.
+     */
+    @Override
+    public JSONObject controleDetailVente(String venteId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement tp = this.getEm().find(TPreenregistrement.class, venteId);
+            if (tp == null) {
+                return json.put("success", false).put("msg", "Vente introuvable").put("produits", new JSONArray());
+            }
+            List<String> produits = produitsDetailInvendables(getItems(tp), tp.getLgUSERID().getLgEMPLACEMENTID());
+            json.put("success", true);
+            json.put("produits", new JSONArray(produits));
+            return json;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "controleDetailVente", e);
+            return json.put("success", false).put("produits", new JSONArray());
+        }
+    }
+
+    private boolean refuserVenteDetailInvendable(JSONObject json, TPreenregistrement tp,
+            List<TPreenregistrementDetail> items) throws JSONException {
+        Optional<String> produit = produitDetailInvendable(items, tp.getLgUSERID().getLgEMPLACEMENTID());
+        if (produit.isPresent()) {
+            json.put("success", false);
+            json.put("msg", "Impossible de valider la vente : stock insuffisant pour " + produit.get()
+                    + " et plus aucune boîte à déconditionner. Veuillez modifier la vente.");
+            json.put("codeError", 0);
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public JSONObject createPreVente(SalesParams salesParams) {
         salesParams.setUserId(this.sessionHelperService.getCurrentUser());
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
+                return json;
+            }
             if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
                     salesParams.getUserId().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
+            }
+            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
+                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                return json;
             }
 
             Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
@@ -1253,6 +1433,9 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, params.getQte())) {
+                return json;
+            }
             TPreenregistrement tp = emg.find(TPreenregistrement.class, params.getVenteId());
             Optional<TPreenregistrementDetail> detailOp = findItemByProduitAndVente(params.getVenteId(),
                     params.getProduitId());
@@ -1266,6 +1449,10 @@ public class SalesServiceImpl implements SalesService {
                 if (!forcerStock(qty, params.getProduitId(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
+                }
+                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), qty,
+                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                    return json;
                 }
                 int oldPrice = tpd.getIntPRICE();
                 int montantTva = tpd.getMontantTva();
@@ -1292,6 +1479,10 @@ public class SalesServiceImpl implements SalesService {
                 if (!forcerStock(params.getQte(), params.getProduitId(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
+                }
+                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), params.getQte(),
+                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                    return json;
                 }
                 TPreenregistrementDetail dp = addPreenregistrementItem(tp, famille, params.getQte(),
                         params.getQteServie(), params.getQteUg(), params.getItemPu());
@@ -1327,6 +1518,9 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            if (refuserQuantiteNonPositive(json, params.getQte())) {
+                return json;
+            }
             TPreenregistrementDetail detail = emg.find(TPreenregistrementDetail.class, params.getItemId());
             int intQUANTITYSERVEDOLD = detail.getIntQUANTITYSERVED();
             int oldPrice = detail.getIntPRICE();
@@ -1336,6 +1530,10 @@ public class SalesServiceImpl implements SalesService {
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
             if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
+            }
+            if (refuserQuantiteDetailInvendable(json, famille.getLgFAMILLEID(), params.getQte(),
+                    tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                return json;
             }
             if (detail.getIntPRICEUNITAIR().compareTo(params.getItemPu()) != 0) {
                 Optional<TParameters> p = findParamettre("KEY_CHECK_PRICE_UPDATE_AUTH");
@@ -2281,6 +2479,9 @@ public class SalesServiceImpl implements SalesService {
                 json.put("codeError", 0);
                 return json;
             }
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
             int montant = tp.getIntPRICE();
             if (diffAmount(montant, lstTPreenregistrementDetail)) {
                 json.put("success", false);
@@ -2546,6 +2747,9 @@ public class SalesServiceImpl implements SalesService {
                 json.put("success", false);
                 json.put("msg", "Vous devez ajouter des lignes à la vente avant de la finaliser");
                 json.put("codeError", 0);
+                return json;
+            }
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
                 return json;
             }
 
@@ -3367,6 +3571,9 @@ public class SalesServiceImpl implements SalesService {
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
             Optional<TTypeMvtCaisse> typeMvtCaisse = getOne(KEY_PARAM_MVT_VENTE_ORDONNANCE);
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
             boolean isAvoir = checkAvoir(lstTPreenregistrementDetail);
             String statut = statutDiff(clotureVenteParams.getTypeRegleId());
             TUser vendeur = userFromId(clotureVenteParams.getUserVendeurId());
@@ -3473,6 +3680,9 @@ public class SalesServiceImpl implements SalesService {
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
             Optional<TTypeMvtCaisse> typeMvtCaisse = getOne(KEY_PARAM_MVT_VENTE_NON_ORDONNANCEE);
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            if (refuserVenteDetailInvendable(json, tp, lstTPreenregistrementDetail)) {
+                return json;
+            }
 
             int montant = tp.getIntPRICE();
             if (diffAmount(montant, lstTPreenregistrementDetail)) {
@@ -4129,7 +4339,12 @@ public class SalesServiceImpl implements SalesService {
                     tp.getLgPREENREGISTREMENTID());
 
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
+            LOG.log(Level.SEVERE, "modification des informations client / tiers payant d'une vente", e);
+            // L'echec etait annonce a l'utilisateur mais les ecritures deja faites restaient
+            // acquises : la vente gardait une modification partielle - un tiers payant remplace
+            // avec un taux a zero, par exemple - alors que l'ecran affichait « l'opération a
+            // échoué ». La transaction est donc annulee : la vente reste telle qu'elle etait.
+            sessionContext.setRollbackOnly();
             return new JSONObject().put("success", false).put("msg", "l'opération a échoué");
         }
     }
@@ -4232,6 +4447,12 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private String buildAyantDroit(TAyantDroit oldAyantDroit) {
+        // Une vente peut n'avoir aucun ayant droit. Le mouchard des modifications appelait
+        // pourtant cette methode sans controle : la modification entiere echouait alors sur une
+        // vente sans ayant droit, pour une simple ligne de journal. Absence = chaine vide.
+        if (oldAyantDroit == null) {
+            return "";
+        }
         return oldAyantDroit.getLgAYANTSDROITSID() + ";" + oldAyantDroit.getStrFIRSTNAME() + " "
                 + oldAyantDroit.getStrLASTNAME() + ";" + oldAyantDroit.getStrNUMEROSECURITESOCIAL();
     }
@@ -4273,6 +4494,18 @@ public class SalesServiceImpl implements SalesService {
         getClientTiersPayents(tp.getLgPREENREGISTREMENTID()).forEach(action -> {
             action.setStrSTATUT(STATUT_DELETE);
             emg.merge(action);
+            // Le solde du carnet depot est une valeur STOCKEE sur le tiers payant
+            // (t_tiers_payant.account), tenue par increments a chaque operation, et non
+            // recalculee a l'affichage. Marquer l'ecriture supprimee ne suffisait donc
+            // pas : le montant de la vente annulee restait acquis au solde.
+            //
+            // Modifier une vente de 25 000 en 20 000 laissait ainsi 45 000 au lieu de
+            // 20 000. L'annulation simple (annulerVente) faisait deja ce debit ; la
+            // modification l'oubliait. Meme condition et meme montant qu'elle.
+            TTiersPayant payantDuCompte = action.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID();
+            if (payantDuCompte.getToBeExclude() || payantDuCompte.getIsDepot()) {
+                payantExclusService.updateTiersPayantAccount(payantDuCompte, (-1) * action.getIntPRICE());
+            }
         });
         TEmplacement emplacement = ooTUser.getLgEMPLACEMENTID();
         final Typemvtproduit typemvtproduit = checked ? findTypeMvtProduitById(ANNULATION_DE_VENTE)

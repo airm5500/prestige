@@ -253,7 +253,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
                                     scope: this,
                                     getClass: function(value, metadata, record) {
                                         if (record.get('BTNDELETE')) {
-                                            return 'x-display-hide';
+                                            return '';
                                         } else {
                                             return 'x-hide-display';
                                         }
@@ -274,7 +274,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
                          if (Ogrid === "Client") {
                          return 'x-hide-display';
                          } else if (Ogrid === "Tiers.Payant") {
-                         return 'x-display-hide';
+                         return '';
                          }
                          }
                          }]

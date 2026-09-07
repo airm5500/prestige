@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Etat de controle des achats, A4 paysage (point 17).
+
+  Le modele est embarque dans le war (src/main/resources/reports) : ReportUtil le compile depuis le
+  classpath lorsqu'il n'est pas deploye dans le repertoire des rapports de l'officine.
+
+  Les bons sont REGROUPES par grossiste, avec un sous-total par grossiste et un total general. Les
+  criteres retenus - periode, statut de controle, ecarts, recherche - sont rappeles sous le titre :
+  une impression sortie de son contexte doit pouvoir se relire.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="controle_achats" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="grossiste" class="java.lang.String"/>
+    <field name="reference" class="java.lang.String"/>
+    <field name="commande" class="java.lang.String"/>
+    <field name="dateLivraison" class="java.lang.String"/>
+    <field name="operateur" class="java.lang.String"/>
+    <field name="statut" class="java.lang.String"/>
+    <field name="ecart" class="java.lang.String"/>
+    <field name="montantHt" class="java.math.BigDecimal"/>
+    <field name="montantTva" class="java.math.BigDecimal"/>
+    <field name="montantTtc" class="java.math.BigDecimal"/>
+    <field name="montantAvoir" class="java.math.BigDecimal"/>
+
+    <variable name="V_HT" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{montantHt}]]></variableExpression>
+    </variable>
+    <variable name="V_TTC" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{montantTtc}]]></variableExpression>
+    </variable>
+    <variable name="V_HT_GROUPE" class="java.math.BigDecimal" resetType="Group" resetGroup="Groupe" calculation="Sum">
+        <variableExpression><![CDATA[$F{montantHt}]]></variableExpression>
+    </variable>
+    <variable name="V_TTC_GROUPE" class="java.math.BigDecimal" resetType="Group" resetGroup="Groupe" calculation="Sum">
+        <variableExpression><![CDATA[$F{montantTtc}]]></variableExpression>
+    </variable>
+    <variable name="V_BONS_GROUPE" class="java.lang.Integer" resetType="Group" resetGroup="Groupe" calculation="Count">
+        <variableExpression><![CDATA[$F{reference}]]></variableExpression>
+    </variable>
+
+    <group name="Groupe">
+        <groupExpression><![CDATA[$F{grossiste}]]></groupExpression>
+        <groupHeader>
+            <band height="20">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="2" width="802" height="17" backcolor="#E3F0EF"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="4" y="0" width="600" height="17" forecolor="#12564F"/>
+                        <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Grossiste : " + $F{grossiste}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="20">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#DDE6F0"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="4" y="0" width="540" height="18"/>
+                        <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Sous-total " + $F{grossiste} + " (" + $V{V_BONS_GROUPE} + " bon(s))"]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0" isBlankWhenNull="true">
+                        <reportElement x="550" y="0" width="74" height="18"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{V_HT_GROUPE}]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0" isBlankWhenNull="true">
+                        <reportElement x="692" y="0" width="72" height="18"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{V_TTC_GROUPE}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupFooter>
+    </group>
+
+    <title>
+        <band height="76" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="36" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="56" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="20" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="2" y="0" width="110" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Réf. BL]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="114" y="0" width="100" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Commande]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="216" y="0" width="100" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Date livraison]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="318" y="0" width="80" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Opérateur]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="400" y="0" width="70" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Contrôle]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="472" y="0" width="76" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Écart]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="550" y="0" width="74" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Montant HT]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="626" y="0" width="64" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[TVA]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="692" y="0" width="72" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Montant TTC]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="766" y="0" width="32" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Avoir]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Stretch">
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="110" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{reference}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="114" y="1" width="100" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{commande}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="216" y="1" width="100" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{dateLivraison}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="318" y="1" width="80" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{operateur}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="400" y="1" width="70" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{statut}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="472" y="1" width="76" height="13"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{ecart}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="550" y="1" width="74" height="13"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantHt}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="626" y="1" width="64" height="13"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantTva}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="692" y="1" width="72" height="13"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantTtc}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="766" y="1" width="32" height="13"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantAvoir}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="26">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="4" width="802" height="20" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="4" y="0" width="540" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <text><![CDATA[TOTAL GÉNÉRAL]]></text>
+                </staticText>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="550" y="0" width="74" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_HT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement x="692" y="0" width="72" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_TTC}]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </summary>
+
+</jasperReport>

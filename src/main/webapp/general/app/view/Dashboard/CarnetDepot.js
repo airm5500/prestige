@@ -272,7 +272,24 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
         
         
         
+        /* Factures des carnets depot : point d'entree DEDIE. Il ne rend que les factures dont le
+           tiers payant est marque « depot », quel que soit l'ecran depuis lequel elles ont ete
+           creees - le classement depend du tiers payant rattache, pas du chemin de creation. */
+        const facturesDepot = Ext.create('Ext.data.Store', {
+            fields: ['lgFACTUREID', 'periode', 'strFULLNAME', 'strCODEFACTURE',
+                {name: 'nbDossier', type: 'number'}, {name: 'dblMONTANTCMDE', type: 'number'},
+                'dtDATEFACTURE'],
+            pageSize: 18,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/summary/carnet-depot',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
         let me = this;
+        me.storeFacturesDepot = facturesDepot;
         Ext.applyIf(me, {
             dockedItems: [
                 {xtype: 'toolbar',
@@ -895,6 +912,88 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                             ]
                         }
                     ]
+                },
+                {
+                    xtype: 'panel',
+                    title: 'FACTURES',
+                    border: false,
+                    itemId: 'facturesPanel',
+                    layout: 'fit',
+                    items: [{
+                            xtype: 'gridpanel',
+                            itemId: 'grilleFacturesDepot',
+                            border: false,
+                            store: facturesDepot,
+                            viewConfig: {
+                                columnLines: true,
+                                emptyText: '<div style="margin:20px;">Aucune facture carnet dépôt</div>',
+                                deferEmptyText: false
+                            },
+                            dockedItems: [{
+                                    xtype: 'toolbar',
+                                    dock: 'top',
+                                    items: [{
+                                            text: 'Créer une facture',
+                                            itemId: 'btnCreerFactureDepot',
+                                            iconCls: 'addicon',
+                                            tooltip: 'Créer une facture pour un carnet dépôt'
+                                        }, {
+                                            text: 'Rafraîchir',
+                                            itemId: 'btnRafraichirFacturesDepot',
+                                            iconCls: 'searchicon'
+                                        }, '->', {
+                                            xtype: 'tbtext',
+                                            text: '<span style="color:#555;">La sélection de tiers-payant '
+                                                    + 'ci-dessus limite la liste à un carnet précis.</span>'
+                                        }]
+                                }],
+                            columns: [
+                                {header: 'Période facturée', dataIndex: 'periode', flex: 1.2},
+                                {header: 'Dépôt / tiers-payant', dataIndex: 'strFULLNAME', flex: 1.6},
+                                {header: 'N° facture', dataIndex: 'strCODEFACTURE', flex: 1},
+                                {header: 'Nbre bons', dataIndex: 'nbDossier', align: 'right', flex: 0.6,
+                                    renderer: function (v) {
+                                        return Ext.util.Format.number(v || 0, '0,000');
+                                    }},
+                                {header: 'Montant net', dataIndex: 'dblMONTANTCMDE', align: 'right', flex: 0.9,
+                                    renderer: function (v) {
+                                        return '<b>' + Ext.util.Format.number(v || 0, '0,000') + '</b>';
+                                    }},
+                                {header: 'Date facture', dataIndex: 'dtDATEFACTURE', flex: 0.9},
+                                {
+                                    xtype: 'actioncolumn',
+                                    header: 'Impressions',
+                                    width: 90,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
+                                            icon: 'resources/images/icons/fam/printer.png',
+                                            tooltip: 'Imprimer les bons (modèle du tiers-payant)',
+                                            altText: 'Imprimer les bons',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
+                                                        grille.getStore().getAt(ligne), false);
+                                            }
+                                        }, {
+                                            icon: 'resources/images/icons/fam/text_list_bullets.png',
+                                            tooltip: 'Imprimer les bons + le détail des médicaments',
+                                            altText: 'Imprimer les bons avec le détail des médicaments',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
+                                                        grille.getStore().getAt(ligne), true);
+                                            }
+                                        }]
+                                }
+                            ],
+                            bbar: {
+                                xtype: 'pagingtoolbar',
+                                store: facturesDepot,
+                                displayInfo: true,
+                                displayMsg: 'Factures {0} - {1} sur {2}',
+                                emptyMsg: 'Aucune facture'
+                            }
+                        }]
                 }
             ]
         });

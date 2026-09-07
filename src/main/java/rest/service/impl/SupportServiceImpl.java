@@ -129,6 +129,16 @@ public class SupportServiceImpl implements SupportService {
                 .setFirstResult(start).setMaxResults(limit > 0 ? limit : 20).getResultList();
     }
 
+    /**
+     * Toutes les demandes, sans pagination : l'export doit porter le resultat complet. findAll ne convient pas, une
+     * limite nulle ou negative y ramenant la page par defaut de vingt lignes.
+     */
+    @Override
+    public List<SupportDemande> toutes() {
+        return em.createQuery("SELECT o FROM SupportDemande o ORDER BY o.createdAt DESC", SupportDemande.class)
+                .getResultList();
+    }
+
     @Override
     public long count() {
         return em.createQuery("SELECT COUNT(o) FROM SupportDemande o", Long.class).getSingleResult();

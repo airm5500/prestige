@@ -138,6 +138,21 @@ public class SupportTicketServiceImpl implements SupportTicketService {
         return query.setFirstResult(start).setMaxResults(limit > 0 ? limit : 20).getResultList();
     }
 
+    /**
+     * Tous les tickets du statut demande, sans pagination : l'export doit porter le resultat complet. findAll ne
+     * convient pas, une limite nulle ou negative y ramenant la page par defaut de vingt lignes.
+     */
+    @Override
+    public List<SupportTicket> tous(String statut) {
+        if (StringUtils.isNotBlank(statut)) {
+            return em.createQuery(
+                    "SELECT o FROM SupportTicket o WHERE o.statutTicket = :statut ORDER BY o.createdAt DESC",
+                    SupportTicket.class).setParameter("statut", statut).getResultList();
+        }
+        return em.createQuery("SELECT o FROM SupportTicket o ORDER BY o.createdAt DESC", SupportTicket.class)
+                .getResultList();
+    }
+
     @Override
     public long count(String statut) {
         if (StringUtils.isNotBlank(statut)) {

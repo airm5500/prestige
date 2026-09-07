@@ -54,6 +54,26 @@ public class SupportTicketRessource {
     }
 
     /**
+     * Export Excel des tickets (point 2) : meme filtre de statut que l'ecran, mais tout le resultat et non la seule
+     * page affichee.
+     */
+    @GET
+    @Path("export/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exportExcel(@QueryParam("statut") String statut) throws java.io.IOException {
+        List<SupportTicket> data = supportTicketService.tous(statut);
+        byte[] contenu = new rest.report.excel.ClasseurExcel<SupportTicket>("Tickets")
+                .titre("CENTRE DE SUPPORT - TICKETS").critere("Statut", statut)
+                .texte("Numéro", SupportTicket::getNumero).dateHeure("Créé le", SupportTicket::getCreatedAt)
+                .dateHeure("Mis à jour", SupportTicket::getModifiedAt).texte("Sujet", SupportTicket::getSujet)
+                .texte("Module", SupportTicket::getModule).texte("Type", SupportTicket::getType)
+                .texte("Priorité", SupportTicket::getPriorite).texte("Statut", SupportTicket::getStatutTicket)
+                .texte("Déclarant", SupportTicket::getUtilisateur).texte("Affecté à", SupportTicket::getAffecteA)
+                .texte("Description", SupportTicket::getDescription).construire(data);
+        return rest.report.excel.NomFichierExport.reponse(contenu, "tickets_support");
+    }
+
+    /**
      * Impression du dictionnaire de suivi des pannes : TOUS les tickets, une ligne par ticket, PDF paysage (modele
      * ticket_support.jrxml). Retourne l'URL du PDF genere.
      */

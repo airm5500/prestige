@@ -26,6 +26,49 @@ var url_services_transaction_dci_famille = '../webservices/configmanagement/dci/
 var Oview, Omode, Me, ref, type, bool_DECONDITIONNE;
 var gammeStore, laboratoireStore;
 
+/* Valeurs par defaut de la fiche article a la creation (point 18). Ce sont des LIBELLES, pas
+   des identifiants : ceux-ci changent d'une officine a l'autre, le libelle est ce qui est stable.
+   La comparaison ignore la casse et les espaces de bordure, « Default » et « DEFAULT » designant
+   le meme emplacement. */
+var EMPLACEMENT_PAR_DEFAUT = 'DEFAULT';
+var FAMILLE_PAR_DEFAUT = 'SPECIALITES PUBLIQUES';
+
+/**
+ * Preselectionne dans une liste deroulante l'entree du referentiel portant ce libelle.
+ *
+ * Ne fait rien si la liste porte deja une valeur (l'utilisateur a choisi avant que la reponse
+ * n'arrive), ni si le referentiel ne contient pas ce libelle : le champ reste alors vide, a
+ * remplir a la main, exactement comme avant.
+ *
+ * @param combo        la liste deroulante a servir
+ * @param libelle      le libelle recherche dans le referentiel
+ * @param champLibelle le nom du champ qui porte le libelle dans le modele
+ */
+function preselectionnerParLibelle(combo, libelle, champLibelle) {
+    if (!combo || !libelle || !combo.getStore()) {
+        return;
+    }
+    var voulu = String(libelle).trim().toUpperCase();
+    combo.getStore().load({
+        params: { query: libelle, start: 0, limit: 20 },
+        callback: function (enregistrements) {
+            if (combo.isDestroyed || !Ext.isEmpty(combo.getValue())) {
+                return;
+            }
+            var trouve = null;
+            Ext.each(enregistrements || [], function (enregistrement) {
+                if (String(enregistrement.get(champLibelle) || '').trim().toUpperCase() === voulu) {
+                    trouve = enregistrement;
+                    return false;
+                }
+            });
+            if (trouve) {
+                combo.setValue(trouve.get(combo.valueField));
+            }
+        }
+    });
+}
+
 Ext.define('testextjs.view.configmanagement.famille.action.add', {
     extend: 'Ext.window.Window',
     xtype: 'addfamille',
@@ -466,6 +509,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
 
         // Valeurs par défaut en création
         if (Omode === 'create') {
+            /* Emplacement et famille : la creation partait de deux listes vides, alors que la
+               quasi-totalite des articles crees a la main vont au meme endroit. Les deux valeurs
+               sont donc preselectionnees, et restent modifiables.
+
+               Elles sont cherchees DANS le referentiel, par leur libelle, jamais creees : un
+               identifiant en dur ne vaudrait que pour une officine, et creer l'entree manquante
+               fabriquerait le doublon que l'on veut eviter. Quand le libelle n'existe pas dans
+               le referentiel, le champ reste vide comme avant. */
+            preselectionnerParLibelle(g('lg_ZONE_GEO_ID'), EMPLACEMENT_PAR_DEFAUT, 'str_LIBELLEE');
+            preselectionnerParLibelle(g('lg_FAMILLEARTICLE_ID'), FAMILLE_PAR_DEFAUT, 'str_LIBELLE');
+
             var lg_CODE_ACTE_IDcom = g('lg_CODE_ACTE_ID');
             if (lg_CODE_ACTE_IDcom) {
                 lg_CODE_ACTE_IDcom.getStore().on('load', function () {

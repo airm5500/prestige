@@ -72,7 +72,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
           
             store: store,
             id: 'GridInventaireID',
-            columns: [{
+            /* Memorisation des colonnes affichees, par utilisateur (voir app.js).
+             * Sans stateful/stateId, une colonne decochee revenait a chaque retour
+             * dans le menu, et une colonne cochee disparaissait de nouveau. */
+            stateful: true,
+            stateId: 'grille-inventaires',
+            columns: window.PrestigeEtatColonnes.identifier('inv', [{
                     /* Coche de selection pour la suppression multiple. Une ligne cloturee n'est
                      * pas cochable : la supprimer effacerait la trace d'un stock deja applique. */
                     xtype: 'checkcolumn',
@@ -179,7 +184,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                                     return 'x-hide-display';
                                 } else {
                                     if (record.get('str_TYPE') == "unitaire") {
-                                        return 'x-display-hide';
+                                        return '';
                                     } else {
                                         return 'x-hide-display';
                                     }
@@ -226,7 +231,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             handler: this.onEditClick,
                             getClass: function(value, metadata, record) {
                                 if (record.get('etat') == "enable") {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }
@@ -246,7 +251,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             getClass: function (value, metadata, record) {
                                 // Un inventaire cloture a deja modifie du stock : le supprimer
                                 // effacerait la trace de ce qui a ete compte et applique.
-                                return record.get('etat') === 'is_Closed' ? 'x-hide-display' : 'x-display-hide';
+                                return record.get('etat') === 'is_Closed' ? 'x-hide-display' : '';
                             }
                         }]
                 },
@@ -292,7 +297,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                              * inventaires en cours (pas apres cloture) */
                             getClass: function(value, metadata, record) {
                                 if (record.get('etat') == "enable") {
-                                    return 'x-display-hide';
+                                    return '';
                                 } else {
                                     return 'x-hide-display';
                                 }
@@ -332,7 +337,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             scope: this,
                             handler: this.onExportExcelClick
                         }]
-                }],
+                }]),
             selModel: {
                 selType: 'cellmodel'
             },

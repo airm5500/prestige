@@ -434,6 +434,23 @@ Ext.define('testextjs.controller.FactureCtr', {
             params: Ext.JSON.encode(factures)
         });
     },
+    /**
+     * Revient a la liste des factures provisoires et la recharge.
+     *
+     * Le rechargement est demande APRES l'affichage : la vue est reconstruite par la redirection,
+     * son magasin n'existe donc pas encore au moment ou l'on quitte l'ecran de generation.
+     */
+    retourALaListeProvisoire: function () {
+        testextjs.app.getController('App').onRedirectTo('factureprovisoire', {});
+        Ext.defer(function () {
+            var grille = Ext.ComponentQuery.query('factureprovisoire #gridFactureProvi')[0]
+                    || Ext.getCmp('gridFactureProvi');
+            if (grille && grille.getStore()) {
+                grille.getStore().loadPage(1);
+            }
+        }, 300);
+    },
+
     onGenerate: function () {
         var me = this;
         var tpid = me.getTpayant().getValue();
@@ -495,6 +512,11 @@ Ext.define('testextjs.controller.FactureCtr', {
                 if (result.success) {
                     me.onPrint();
                     me.resetAll();
+                    // Point 4 : la generation laissait l'utilisateur sur l'ecran de selection, sans
+                    // rien qui montre que la facture existe. On revient donc a la liste, et on la
+                    // recharge : sans rechargement la liste reaffichee est celle d'avant, et la
+                    // facture qui vient d'etre creee n'y figure pas.
+                    me.retourALaListeProvisoire();
                 } else {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',

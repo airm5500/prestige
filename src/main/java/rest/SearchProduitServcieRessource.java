@@ -57,6 +57,17 @@ public class SearchProduitServcieRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /** Apercu d'un article : consommation 13 mois, lots proches et reperes de gestion. */
+    @GET
+    @Path("apercu/{produitId}")
+    public Response apercuProduit(@PathParam("produitId") String produitId) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).toString()).build();
+        }
+        return Response.ok().entity(this.searchProduitServcie.apercuProduit(tu, produitId).toString()).build();
+    }
+
     /**
      * Cree un inventaire a partir du resultat de la recherche courante de la fiche article. mode = "RESERVE" :
      * inventaire de reserve, restreint aux produits ayant bool_RESERVE = true ; sinon : inventaire normal (emplacement)

@@ -184,7 +184,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addmedecin', {
                                     handler: this.onChooseCustomerClick,
                                     getClass: function() {
                                         if (Ogrid === "Client") {
-                                            return 'x-display-hide';
+                                            return '';
                                         } else if (Ogrid === "Tiers.Payant") {
                                             return 'x-hide-display';
                                         }
@@ -226,7 +226,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addmedecin', {
                                         if (Ogrid === "Client") {
                                             return 'x-hide-display';
                                         } else if (Ogrid === "Tiers.Payant") {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                     }
                                 }]

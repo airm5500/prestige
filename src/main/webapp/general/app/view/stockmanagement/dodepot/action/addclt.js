@@ -203,7 +203,7 @@ Ext.define('testextjs.view.stockmanagement.dodepot.action.addclt', {
                                     getClass: function() {
                                         //alert("Ogrid  "+Ogrid);
                                         if (Ogrid === "Client") {
-                                            return 'x-display-hide';
+                                            return '';
                                         } else if (Ogrid === "Tiers.Payant") {
                                             return 'x-hide-display';
                                         }
@@ -245,7 +245,7 @@ Ext.define('testextjs.view.stockmanagement.dodepot.action.addclt', {
                                         if (Ogrid === "Client") {
                                             return 'x-hide-display';
                                         } else if (Ogrid === "Tiers.Payant") {
-                                            return 'x-display-hide';
+                                            return '';
                                         }
                                     }
                                 }]

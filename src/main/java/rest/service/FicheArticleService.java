@@ -174,4 +174,12 @@ public interface FicheArticleService {
     JSONObject createInventaireComparaison(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException;
 
+    /**
+     * Ordre des actions de la fiche article et nombre d'entre elles affichees en icone. Renvoie les valeurs livrees par
+     * defaut si le parametrage n'a jamais ete pose.
+     */
+    JSONObject actionsConfig();
+
+    /** Enregistre l'ordre des actions et le nombre d'icones dans t_parameters. */
+    JSONObject enregistrerActionsConfig(String ordre, int nbIcones);
 }

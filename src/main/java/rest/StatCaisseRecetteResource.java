@@ -58,6 +58,28 @@ public class StatCaisseRecetteResource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Suivi des modes de reglement (point 22) : synthese par mode et series pour la courbe.
+     *
+     * <p>
+     * L'emplacement est celui de l'utilisateur connecte, comme pour le tableau du recapitulatif : c'est la caisse qu'il
+     * tient, et il ne doit pas voir celle d'une autre officine.
+     * </p>
+     */
+    @GET
+    @Path("modes")
+    public Response suiviModes(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "groupByYear") Boolean groupByYear) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = caisseRecetteService.suiviModesReglement(dtStart, dtEnd, Boolean.TRUE.equals(groupByYear),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @GET
     @Path("export-csv")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)

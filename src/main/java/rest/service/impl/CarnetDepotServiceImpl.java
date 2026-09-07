@@ -20,6 +20,8 @@ import dal.TPreenregistrementCompteClientTiersPayent_;
 import dal.TPreenregistrement_;
 import dal.TTiersPayant;
 import dal.TTiersPayant_;
+import dal.TTypeTiersPayant_;
+import util.Constant;
 import dal.TTypeMvtCaisse;
 import dal.TUser;
 import dal.VenteExclus;
@@ -124,6 +126,13 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
             if (depot) {
 
                 predicates.add(cb.isTrue(root.get(TTiersPayant_.isDepot)));
+                // L'ecran « Gerer carnet depot » ne doit presenter que des carnets.
+                // L'indicateur is_depot est independant du TYPE de tiers payant : une
+                // assurance marquee depot y apparaissait, alors qu'elle ne se gere pas
+                // comme un carnet. Le type est donc exige en plus de l'indicateur.
+                predicates.add(
+                        cb.equal(root.get(TTiersPayant_.lgTYPETIERSPAYANTID).get(TTypeTiersPayant_.lgTYPETIERSPAYANTID),
+                                Constant.TYPE_TIERS_PAYANT_CARNET_ID));
             } else {
                 predicates.add(cb.isFalse(root.get(TTiersPayant_.isDepot)));
             }

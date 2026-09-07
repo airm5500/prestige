@@ -84,6 +84,21 @@ public class UserServiceImpl implements UserService {
             user.setIntCONNEXION(user.getIntCONNEXION() + 1);
             user.setBIsConnected(true);
             getEm().merge(user);
+            // Le flush est ici volontaire, avant l'ecriture du journal.
+            //
+            // La ligne de journal reference l'utilisateur (cle etrangere de t_event_log
+            // vers t_user) : son insertion prend un verrou PARTAGE sur la ligne de
+            // l'utilisateur, tandis que la mise a jour ci-dessus en demande un verrou
+            // EXCLUSIF. Or Hibernate execute ses insertions avant ses mises a jour.
+            // Deux connexions simultanees sur le MEME compte prenaient donc chacune le
+            // verrou partage, puis attendaient l'exclusif que l'autre empechait :
+            // interblocage, et MySQL en annulait une (« Deadlock found when trying to
+            // get lock »), soit un utilisateur sur trois refuse a l'ouverture.
+            //
+            // En forcant la mise a jour maintenant, toutes les connexions prennent le
+            // verrou exclusif d'abord, donc dans le meme ordre : elles s'attendent
+            // brievement au lieu de s'interbloquer.
+            getEm().flush();
             // Une seule lecture du nom de poste : elle etait faite deux fois, et chacune pouvait
             // bloquer sur la resolution DNS inverse (voir util.NomDePoste).
             String nomPoste = getHostName(request);

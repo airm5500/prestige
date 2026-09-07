@@ -9,6 +9,7 @@ import javax.ejb.EJB;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -45,6 +46,8 @@ public class CaZoneGeoRessource {
     private ReportExcelExportService reportExcelExportService;
     @EJB
     private rest.report.ReportUtil reportUtil;
+    @EJB
+    private rest.service.ReserveService reserveService;
     @Context
     private HttpServletRequest servletRequest;
 
@@ -277,6 +280,165 @@ public class CaZoneGeoRessource {
                     .append(premiere == null ? filtres.getFamilleId() : premiere.optString("famille"));
         }
         return sb.toString();
+    }
+
+    /**
+     * Produits pris en compte dans une ligne de l'analyse (point 19).
+     *
+     * <p>
+     * Les criteres de l'analyse en cours sont transmis tels quels et completes par la zone et la famille de la ligne
+     * cliquee : le detail porte exactement sur le perimetre de cette ligne, et la somme de ses montants redonne le
+     * total affiche.
+     * </p>
+     */
+    @GET
+    @Path("detail")
+    public Response detail(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
+            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneFamilleId") String ligneFamilleId) {
+        TUser utilisateur = utilisateur();
+        if (utilisateur == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement), ligneZoneId, ligneFamilleId);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Export Excel du detail d'une ligne : memes colonnes que l'ecran, sur TOUT le detail. */
+    @GET
+    @Path("detail/excel")
+    @Produces(javax.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM)
+    public Response detailExcel(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
+            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneFamilleId") String ligneFamilleId,
+            @QueryParam("libelle") String libelle) throws java.io.IOException {
+        TUser utilisateur = utilisateur();
+        if (utilisateur == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement), ligneZoneId, ligneFamilleId);
+        JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
+        JSONObject totaux = json.optJSONObject("totaux") == null ? new JSONObject() : json.getJSONObject("totaux");
+        java.util.List<JSONObject> lignes = new ArrayList<>();
+        for (int i = 0; i < data.length(); i++) {
+            lignes.add(data.getJSONObject(i));
+        }
+        rest.report.excel.ClasseurExcel<JSONObject> classeur = new rest.report.excel.ClasseurExcel<JSONObject>(
+                "Détail CA").titre("PRODUITS PRIS EN COMPTE")
+                        .critere("Ligne", libelle == null || libelle.trim().isEmpty() ? "(toutes)" : libelle.trim())
+                        .critere("Période",
+                                formatFr(json.optString("debut")) + " au " + formatFr(json.optString("fin")))
+                        .texte("CIP", o -> o.optString("cip")).texte("Désignation", o -> o.optString("designation"))
+                        .nombre("Prix d'achat", o -> o.optLong("prixAchat"))
+                        .nombre("Prix de vente", o -> o.optLong("prixVente"))
+                        .nombre("Quantité", o -> o.optLong("quantite")).nombre("Montant", o -> o.optLong("montant"))
+                        .nombre("Marge", o -> o.optLong("marge"));
+        byte[] fichier = classeur.construire(lignes);
+        return rest.report.excel.NomFichierExport.reponse(fichier, "detail-ca-" + totaux.optLong("quantite"));
+    }
+
+    /** Edition PDF du detail d'une ligne : memes produits que l'ecran, avec les criteres rappeles en tete. */
+    @GET
+    @Path("detail/pdf")
+    public Response detailPdf(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
+            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
+            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneFamilleId") String ligneFamilleId,
+            @QueryParam("libelle") String libelle) {
+        TUser utilisateur = utilisateur();
+        if (utilisateur == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        try {
+            JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
+                    filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement), ligneZoneId, ligneFamilleId);
+            JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
+            java.util.List<java.util.Map<String, Object>> lignes = new ArrayList<>();
+            for (int i = 0; i < data.length(); i++) {
+                JSONObject o = data.getJSONObject(i);
+                java.util.Map<String, Object> ligne = new java.util.HashMap<>();
+                ligne.put("cip", o.optString("cip"));
+                ligne.put("designation", o.optString("designation"));
+                ligne.put("prixAchat", java.math.BigDecimal.valueOf(o.optLong("prixAchat")));
+                ligne.put("prixVente", java.math.BigDecimal.valueOf(o.optLong("prixVente")));
+                ligne.put("quantite", java.math.BigDecimal.valueOf(o.optLong("quantite")));
+                ligne.put("montant", java.math.BigDecimal.valueOf(o.optLong("montant")));
+                ligne.put("marge", java.math.BigDecimal.valueOf(o.optLong("marge")));
+                ligne.put("pourcentageMarge", java.math.BigDecimal.valueOf(o.optDouble("pourcentageMarge", 0d)));
+                lignes.add(ligne);
+            }
+            java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
+            parametres.put("P_H_CLT_INFOS", "PRODUITS PRIS EN COMPTE");
+            StringBuilder periode = new StringBuilder();
+            periode.append(libelle == null || libelle.trim().isEmpty() ? "Toutes les lignes" : libelle.trim());
+            periode.append("   |   Période du ").append(formatFr(json.optString("debut"))).append(" au ")
+                    .append(formatFr(json.optString("fin")));
+            periode.append("   |   ").append(lignes.size()).append(" produit(s)");
+            parametres.put("P_PERIODE", periode.toString());
+            String url = reportUtil.buildReport(parametres, "detail_ca_ligne", lignes);
+            if (org.apache.commons.lang3.StringUtils.isNotBlank(url)
+                    && !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1)))
+                            .exists()) {
+                url = "";
+            }
+            if (org.apache.commons.lang3.StringUtils.isBlank(url)) {
+                return Response.ok().entity(
+                        new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
+                        .build();
+            }
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("msg", url).put("url", url).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "edition du detail d'une ligne du CA", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "Impossible de générer le PDF").toString())
+                    .build();
+        }
+    }
+
+    /**
+     * Cree un inventaire sur les produits du detail d'une ligne.
+     *
+     * <p>
+     * Enchainement naturel : on constate qu'un emplacement ou une famille pese lourd, on veut recompter ce qu'il
+     * contient. Les produits sont ceux que le detail affiche, filtres compris.
+     * </p>
+     */
+    @POST
+    @Path("detail/inventaire")
+    public Response detailInventaire(@QueryParam("typePeriode") String typePeriode,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("zoneId") String zoneId, @QueryParam("familleId") String familleId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("ligneZoneId") String ligneZoneId,
+            @QueryParam("ligneFamilleId") String ligneFamilleId, @QueryParam("libelle") String libelle) {
+        TUser utilisateur = utilisateur();
+        if (utilisateur == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement), ligneZoneId, ligneFamilleId);
+        JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
+        java.util.Set<String> produits = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < data.length(); i++) {
+            String id = data.getJSONObject(i).optString("produitId", "").trim();
+            if (!id.isEmpty()) {
+                produits.add(id);
+            }
+        }
+        if (produits.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "Cette ligne ne contient aucun produit à inventorier.").toString()).build();
+        }
+        String quoi = libelle == null || libelle.trim().isEmpty() ? "de l'analyse du CA"
+                : "de « " + libelle.trim() + " »";
+        return Response
+                .ok().entity(reserveService
+                        .createInventaireFromSelection(utilisateur, produits, "Inventaire issu " + quoi).toString())
+                .build();
     }
 
     private Filtres filtres(String typePeriode, String dtStart, String dtEnd, String zoneId, String familleId,

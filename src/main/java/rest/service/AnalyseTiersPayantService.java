@@ -34,4 +34,10 @@ public interface AnalyseTiersPayantService {
      * @return deux dates au format aaaa-mm-jj, debut puis fin incluse.
      */
     String[] periodeRetenue(String dtStart, String dtEnd);
+
+    /**
+     * Fiche d'un produit de l'analyse, pour la creation d'une suggestion : son grossiste par defaut decide de la
+     * commande a laquelle il sera rattache. Rend null si le produit est introuvable.
+     */
+    dal.TFamille produit(String produitId);
 }

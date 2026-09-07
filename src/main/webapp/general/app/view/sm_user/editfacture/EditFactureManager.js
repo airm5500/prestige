@@ -651,7 +651,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                     || rec.get('fneAvoirReference')) {
                                 return 'x-hide-display';
                             }
-                            return 'x-display-hide';
+                            return '';
                         },
                         icon: 'resources/images/icons/certication.png',
                         tooltip: 'Certification',
@@ -660,7 +660,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     }, {
                         // a la place : une information, pour eviter un clic par erreur
                         getClass: function (v, meta, rec) {
-                            return (rec.get('fneUrl') || rec.get('fneAvoirReference')) ? 'x-display-hide'
+                            return (rec.get('fneUrl') || rec.get('fneAvoirReference')) ? ''
                                     : 'x-hide-display';
                         },
                         getTip: function (v, meta, rec) {
@@ -701,7 +701,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         getClass: function (v, meta, rec) {
 
                             if (rec.get('fneUrl')) {
-                                return 'x-display-hide';
+                                return '';
                             } else {
                                 return 'x-hide-display';
                             }
@@ -726,7 +726,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         getClass: function (v, meta, rec) {
                             if (rec.get('fneUrl') && !rec.get('fneAvoirReference') && rec.get('AUTORISATION_AVOIR_FNE')
                                     && rec.get('str_STATUT') !== 'paid' && rec.get('str_STATUT') !== 'avoir') {
-                                return 'x-display-hide';
+                                return '';
                             } else {
                                 return 'x-hide-display';
                             }
@@ -741,7 +741,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     }, {
                         getClass: function (v, meta, rec) {
                             if (rec.get('fneAvoirReference')) {
-                                return 'x-display-hide';
+                                return '';
                             } else {
                                 return 'x-hide-display';
                             }

@@ -20,6 +20,16 @@ public class StatCaisseRecetteDTO {
     private long montantRemise;
     private long montantReglementFacture;
     private long montantMobile;
+    /**
+     * Repartition du montant mobile money par mode, dans l'ordre ou l'officine les a declares.
+     *
+     * <p>
+     * Construite a partir des modes REELLEMENT presents sur la journee : rien n'est code en dur, un operateur cree par
+     * l'officine y figure au meme titre qu'Orange ou Wave, et un operateur sans encaissement du jour n'y figure pas du
+     * tout. La somme des montants de cette repartition vaut, par construction, {@code montantMobile}.
+     * </p>
+     */
+    private final java.util.Map<String, Long> detailMobile = new java.util.LinkedHashMap<>();
     private long montantCb;
     private long montantCheque;
     private long montantVirement;
@@ -189,4 +199,13 @@ public class StatCaisseRecetteDTO {
         this.montantSolde = montantSolde;
     }
 
+    public java.util.Map<String, Long> getDetailMobile() {
+        return detailMobile;
+    }
+
+    /** Ajoute la part d'un mode mobile money a la journee, et au total mobile. */
+    public void ajouterDetailMobile(String libelle, long montant) {
+        detailMobile.merge(libelle, montant, Long::sum);
+        this.montantMobile += montant;
+    }
 }

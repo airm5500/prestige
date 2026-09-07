@@ -286,6 +286,32 @@ public class CommonRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Export Excel du fichier journal (point 14) : memes criteres que la liste, mais toutes les lignes du resultat et
+     * non la seule page affichee.
+     */
+    @GET
+    @Path("logs/export-excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response logsExportExcel(@QueryParam(value = "query") String query,
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "criteria") int criteria)
+            throws java.io.IOException {
+        LocalDate dtSt = LocalDate.now();
+        LocalDate dtEd = dtSt;
+        if (dtStart != null && !"".equals(dtStart)) {
+            dtSt = LocalDate.parse(dtStart);
+        }
+        if (dtEnd != null && !"".equals(dtEnd)) {
+            dtEd = LocalDate.parse(dtEnd);
+        }
+        byte[] data = logService.exportExcel(query, dtSt, dtEd, userId, criteria);
+        String nom = "fichier_journal_"
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss"))
+                + ".xlsx";
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + nom + "\"").build();
+    }
+
     @GET
     @Path("grossiste")
     public Response loadFournisseur(@QueryParam(value = "query") String query) throws JSONException {

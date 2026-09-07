@@ -86,6 +86,13 @@ Ext.define('testextjs.view.modereglement.ModeReglementView', {
                     labelWidth: 110,
                     boxLabel: 'compté avec Orange, MTN, Moov, Wave, Djamo (caisse, balance, ticket Z)',
                     checked: true
+                }, {
+                    xtype: 'checkbox',
+                    itemId: 'clientRequis',
+                    fieldLabel: 'Client requis',
+                    labelWidth: 110,
+                    boxLabel: 'choisir ce mode en vente demande un client, comme chèque ou carte bancaire',
+                    checked: true
                 }],
             buttons: [{
                     text: 'Enregistrer',
@@ -121,7 +128,11 @@ Ext.define('testextjs.view.modereglement.ModeReglementView', {
         Ext.Ajax.request({
             method: 'POST',
             url: '../api/v1/modereglement',
-            jsonData: {name: nom, mobileMoney: win.down('#mobileMoney').getValue()},
+            jsonData: {
+                name: nom,
+                mobileMoney: win.down('#mobileMoney').getValue(),
+                clientRequis: win.down('#clientRequis').getValue()
+            },
             callback: function (opts, success, response) {
                 let json = {};
                 try {

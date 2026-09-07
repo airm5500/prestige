@@ -86,6 +86,15 @@ Ext.define('testextjs.view.support.SupportTickets', {
                         },
                         '->',
                         {
+                            /* Point 2 : export du resultat complet, avec le statut filtre a
+                             * l'ecran ; la grille, elle, reste paginee. */
+                            xtype: 'button',
+                            itemId: 'btnExcel',
+                            text: 'Excel',
+                            icon: 'resources/images/icons/fam/excel_icon.png',
+                            tooltip: 'Exporter le r&eacute;sultat complet vers Excel'
+                        },
+                        {
                             xtype: 'button',
                             itemId: 'btnImprimer',
                             text: 'Imprimer',
