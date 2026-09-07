@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Chiffre d'affaires par zone géographique et famille d'articles, A4 paysage.
+
+  Le modèle était ABSENT : ni dans les sources, ni installé sur les postes. L'édition échouait
+  donc systématiquement, mais ReportUtil.buildReport journalise l'erreur et renvoie malgré tout
+  l'URL attendue — l'écran annonçait un succès et ouvrait un fichier qui n'avait jamais été
+  écrit, d'où le « HTTP 404 » constaté.
+
+  Présentation en TABLEAU CROISÉ : une ligne par zone / famille, une colonne par tranche de la
+  période comparée. La source de données fournit une cellule par couple (ligne, tranche), y
+  compris à zéro, pour que chaque colonne existe même sur une tranche sans activité.
+
+  Les polices sont déclarées « SansSerif » et non « Arial » : SansSerif est une police LOGIQUE de
+  la JVM, que celle-ci fait correspondre à Arial ou Helvetica selon le système. Déclarer « Arial »
+  directement lève JRFontNotFoundException dès que la police n'est pas installée sur le serveur —
+  et comme buildReport avale l'erreur, l'utilisateur n'aurait vu qu'un 404.
+
+  La clé de ligne est préfixée d'un numéro d'ordre (« 001|LIBELLÉ ») : c'est ce qui conserve le
+  classement calculé par le serveur, un tableau croisé triant sinon ses lignes alphabétiquement.
+  Le préfixe est retiré à l'affichage.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="ca_zone_geo" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_INDICATEURS" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <!-- Cle de tranche -> libelle affichable ; le tableau croise ne connait que les cles. -->
+    <parameter name="P_LIBELLES" class="java.util.Map"/>
+
+    <field name="cleLigne" class="java.lang.String"/>
+    <field name="cle" class="java.lang.String"/>
+    <field name="montant" class="java.lang.Long"/>
+
+    <title>
+        <band height="118" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="600" height="12"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="36" width="802" height="18"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0" y="56" width="802" height="24"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement mode="Opaque" x="0" y="84" width="802" height="28" backcolor="#EEF8EE"/>
+                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["  " + $P{P_INDICATEURS}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+
+    <pageFooter>
+        <band height="14">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="700" height="12"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="300">
+            <crosstab>
+                <reportElement x="0" y="0" width="802" height="290"/>
+                <crosstabParameter name="P_LIBELLES" class="java.util.Map">
+                    <parameterValueExpression><![CDATA[$P{P_LIBELLES}]]></parameterValueExpression>
+                </crosstabParameter>
+                <rowGroup name="LIGNE" width="240" totalPosition="End">
+                    <bucket class="java.lang.String">
+                        <bucketExpression><![CDATA[$F{cleLigne}]]></bucketExpression>
+                    </bucket>
+                    <crosstabRowHeader>
+                        <cellContents mode="Opaque" backcolor="#FFFFFF">
+                            <textField isStretchWithOverflow="true">
+                                <reportElement x="2" y="0" width="236" height="16"/>
+                                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                                <!-- Le numero d'ordre qui prefixe la cle ne concerne que le tri. -->
+                                <textFieldExpression><![CDATA[$V{LIGNE}.indexOf("|") >= 0 ? $V{LIGNE}.substring($V{LIGNE}.indexOf("|") + 1) : $V{LIGNE}]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabRowHeader>
+                    <crosstabTotalRowHeader>
+                        <cellContents mode="Opaque" backcolor="#DCE6F1">
+                            <staticText>
+                                <reportElement x="2" y="0" width="236" height="16"/>
+                                <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                                <text><![CDATA[TOTAL]]></text>
+                            </staticText>
+                        </cellContents>
+                    </crosstabTotalRowHeader>
+                </rowGroup>
+                <columnGroup name="TRANCHE" height="20" totalPosition="End">
+                    <bucket class="java.lang.String">
+                        <bucketExpression><![CDATA[$F{cle}]]></bucketExpression>
+                    </bucket>
+                    <crosstabColumnHeader>
+                        <cellContents mode="Opaque" backcolor="#4C9A46">
+                            <textField>
+                                <reportElement x="0" y="0" width="90" height="20" forecolor="#FFFFFF"/>
+                                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                                <textFieldExpression><![CDATA[$P{P_LIBELLES} != null && $P{P_LIBELLES}.get($V{TRANCHE}) != null ? (String) $P{P_LIBELLES}.get($V{TRANCHE}) : $V{TRANCHE}]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabColumnHeader>
+                    <crosstabTotalColumnHeader>
+                        <cellContents mode="Opaque" backcolor="#2F6F2A">
+                            <staticText>
+                                <reportElement x="0" y="0" width="90" height="20" forecolor="#FFFFFF"/>
+                                <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                                <text><![CDATA[TOTAL]]></text>
+                            </staticText>
+                        </cellContents>
+                    </crosstabTotalColumnHeader>
+                </columnGroup>
+                <measure name="CA" class="java.lang.Long" calculation="Sum">
+                    <measureExpression><![CDATA[$F{montant}]]></measureExpression>
+                </measure>
+                <crosstabCell width="90" height="16">
+                    <cellContents mode="Opaque" backcolor="#FFFFFF">
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
+                            <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="90" height="16" rowTotalGroup="LIGNE">
+                    <cellContents mode="Opaque" backcolor="#DCE6F1">
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="90" height="16" columnTotalGroup="TRANCHE">
+                    <cellContents mode="Opaque" backcolor="#EAF2EA">
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="90" height="16" rowTotalGroup="LIGNE" columnTotalGroup="TRANCHE">
+                    <cellContents mode="Opaque" backcolor="#C6D9EC">
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+            </crosstab>
+        </band>
+    </summary>
+</jasperReport>

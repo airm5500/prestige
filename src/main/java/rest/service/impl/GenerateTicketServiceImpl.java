@@ -105,6 +105,38 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    /** Cle du parametre donnant la taille du nom de l'officine en tete de ticket. */
+    private static final String CLE_TAILLE_NOM_OFFICINE = "KEY_TAILLE_NOM_OFFICINE_TICKET";
+
+    /** Taille retenue quand le parametre est absent ou illisible : celle qui etait figee dans le code. */
+    private static final int TAILLE_NOM_OFFICINE_DEFAUT = 15;
+
+    /**
+     * Un imprimeur de ticket, deja regle sur les parametres de l'officine.
+     *
+     * <p>
+     * Les cinq points d'impression construisaient chacun leur imprimeur : un reglage ajoute a l'un d'eux aurait ete
+     * oublie par les quatre autres, et le ticket aurait change d'aspect selon l'endroit d'ou on l'imprime.
+     * </p>
+     */
+    private ImpressionServiceImpl nouvelImprimeur() {
+        ImpressionServiceImpl imprimeur = new ImpressionServiceImpl();
+        imprimeur.setTaillleNomOfficine(tailleNomOfficine());
+        return imprimeur;
+    }
+
+    private int tailleNomOfficine() {
+        try {
+            return Integer.parseInt(
+                    parametreService.getValue(CLE_TAILLE_NOM_OFFICINE, String.valueOf(TAILLE_NOM_OFFICINE_DEFAUT)));
+        } catch (RuntimeException e) {
+            // Parametre mal saisi : on garde la taille d'origine plutot que d'empecher l'impression.
+            return TAILLE_NOM_OFFICINE_DEFAUT;
+        }
+    }
+
+    @EJB
+    private rest.service.ParametreService parametreService;
     @EJB
     private VenteReglementService venteReglementService;
     @EJB
@@ -207,7 +239,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             List<String> datas = generateData(oTPreenregistrement);
             List<String> infoSellers = generateDataSeller(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -322,7 +354,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             // Une seule interrogation du spouleur d'impression : chaque recherche de l'imprimante par defaut
             // coute une a deux secondes sous Windows, et ce chemin la faisait trois fois.
             PrintService imprimante = findPrintService();
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(findImprimanteByName(imprimante));
             imp.setOfficine(findOfficine());
             imp.setService(imprimante);
@@ -381,7 +413,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayants = listeVenteTiersPayantsByIdVente(
                     oTPreenregistrement.getLgPREENREGISTREMENTID());
             List<String> infoSellers = generateDataSeller(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -817,7 +849,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             List<String> datas = generateData(oTPreenregistrement);
             List<String> infoSellers = generateDataSeller(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -957,7 +989,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayants = listeVenteTiersPayantsByIdVente(
                     oTPreenregistrement.getLgPREENREGISTREMENTID());
             List<String> infoSellers = generateDataSeller(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -1180,7 +1212,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);
             List<String> infoSellers = generateDataOperateur(mvtTransaction.getUser());
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setEmplacement(emplacement);
             imp.setOfficine(officine);
@@ -1293,7 +1325,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayants = listeVenteTiersPayantsByIdVente(
                     oTPreenregistrement.getLgPREENREGISTREMENTID());
             List<String> infoSellers = generateDataSeller(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -1398,7 +1430,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             List<String> datas = generateData(oTPreenregistrement);
             List<String> infoSellers = infoDepot(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -1527,7 +1559,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             List<String> datas = generateData(oTPreenregistrement);
             List<String> infoSellers = infoDepot(oTPreenregistrement);
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setOfficine(officine);
             imp.setService(printService);
@@ -1680,7 +1712,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);
             List<String> infoSellers = generateDataOperateur(mvtTransaction.getUser());
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setEmplacement(emplacement);
             imp.setOfficine(officine);
@@ -2612,7 +2644,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TOfficine officine = findOfficine();
             List<String> datas = generateData(mvtCaisse);
 
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setEmplacement(user.getLgEMPLACEMENTID());
             imp.setOfficine(officine);
@@ -3078,7 +3110,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TOfficine officine = findOfficine();
             List<String> datas = generateData(lstTDossierReglementDetail, dossierReglement);
             List<String> infoSellers = generateDataOperateur(mvtTransaction.getUser());
-            ImpressionServiceImpl imp = new ImpressionServiceImpl();
+            ImpressionServiceImpl imp = nouvelImprimeur();
             imp.setOTImprimante(imprimante);
             imp.setEmplacement(emplacement);
             imp.setOfficine(officine);

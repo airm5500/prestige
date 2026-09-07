@@ -61,6 +61,8 @@ public class CaisseRessource {
     private BalanceService balanceService;
     @EJB
     private ListCaisseService listCaisseService;
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
 
     public TUser getUser() {
         return Utils.getConnectedUser(servletRequest);
@@ -325,6 +327,76 @@ public class CaisseRessource {
         JSONObject json = caisseService.mouvementCaisses(caisseParams);
         return Response.ok().entity(json.toString()).build();
     }
+
+    /**
+     * Export Excel du journal de caisse, sur EXACTEMENT les criteres de la liste affichee.
+     *
+     * <p>
+     * L'ecran n'offrait que l'impression PDF : retravailler les chiffres -- filtrer, totaliser, rapprocher -- imposait
+     * de les ressaisir a la main.
+     * </p>
+     */
+    @GET
+    @Path("mvtcaisses/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response mvtcaissesExcel(@QueryParam(value = "user") String lgUSERID,
+            @QueryParam(value = "dtStart") String dtDebut, @QueryParam(value = "dtEnd") String dtFin,
+            @QueryParam(value = "typeMvtId") String typeMvtId) throws java.io.IOException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        CaisseParamsDTO caisseParams = new CaisseParamsDTO();
+        // Pas de pagination : l'export porte sur toute la periode, pas sur la page affichee. Une
+        // exportation qui ne rendrait que les vingt lignes visibles serait un piege silencieux.
+        caisseParams.setStart(0);
+        caisseParams.setLimit(Integer.MAX_VALUE);
+        if (!StringUtils.isEmpty(dtFin)) {
+            caisseParams.setEnd(LocalDate.parse(dtFin));
+        }
+        if (!StringUtils.isEmpty(dtDebut)) {
+            caisseParams.setStartDate(LocalDate.parse(dtDebut));
+        }
+        if (!StringUtils.isEmpty(lgUSERID)) {
+            caisseParams.setUtilisateurId(lgUSERID);
+        }
+        if (!StringUtils.isEmpty(typeMvtId)) {
+            caisseParams.setTypeMvtId(typeMvtId);
+        }
+        caisseParams.setEmplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+
+        JSONObject json = caisseService.mouvementCaisses(caisseParams);
+        org.json.JSONArray lignes = json.optJSONArray("data") == null ? new org.json.JSONArray()
+                : json.getJSONArray("data");
+        java.util.List<JSONObject> donnees = new java.util.ArrayList<>();
+        for (int i = 0; i < lignes.length(); i++) {
+            donnees.add(lignes.getJSONObject(i));
+        }
+        String titre = "JOURNAL DE CAISSE" + (StringUtils.isEmpty(dtDebut) ? ""
+                : " - du " + dtDebut + " au " + StringUtils.defaultString(dtFin, dtDebut));
+        byte[] data = reportExcelExportService.createExcelReport(titre, ENTETES_JOURNAL_CAISSE, donnees, (row, o) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(o.optString("dateMvt"));
+            row.createCell(col++).setCellValue(o.optString("libelleTypeMvt"));
+            row.createCell(col++).setCellValue(o.optString("libelleRegl"));
+            row.createCell(col++).setCellValue(o.optString("refTicket"));
+            row.createCell(col++).setCellValue(o.optString("numPieceComptable"));
+            row.createCell(col++).setCellValue(o.optString("banque"));
+            row.createCell(col++).setCellValue(o.optString("lieux"));
+            row.createCell(col++).setCellValue(o.optString("userFullName"));
+            row.createCell(col++).setCellValue(o.optString("commentaire"));
+            row.createCell(col).setCellValue(o.optLong("amount", 0L));
+        });
+        String nomFichier = "journal_caisse_" + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename = " + nomFichier).build();
+    }
+
+    /** En-tetes du journal de caisse, dans l'ordre des colonnes de l'ecran. */
+    private static final String[] ENTETES_JOURNAL_CAISSE = { "Date", "Type de mouvement", "Mode de règlement",
+            "Référence", "Pièce comptable", "Banque", "Lieu", "Opérateur", "Commentaire", "Montant" };
 
     @GET
     @Path("ca/ug")

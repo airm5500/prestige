@@ -533,6 +533,37 @@ public class ReportUtil {
         return "/data/reports/pdf/" + fileName;
     }
 
+    /**
+     * L'edition designee par cette URL a-t-elle REELLEMENT ete ecrite ?
+     *
+     * <p>
+     * {@link #buildReport} rend l'URL attendue dans tous les cas : quand l'edition echoue -- modele absent, police
+     * introuvable, donnee inattendue -- elle journalise et poursuit. L'appelant qui annonce un succes sur cette seule
+     * foi envoie l'utilisateur ouvrir un fichier qui n'existe pas, et celui-ci ne voit qu'un « HTTP 404 » sans rapport
+     * visible avec la cause ; le vrai motif ne vit que dans le journal.
+     * </p>
+     *
+     * <p>
+     * Le retour de {@code buildReport} n'a pas ete change : quatre-vingt-treize appels s'y fient, et les modifier tous
+     * d'un coup ferait courir un risque hors de proportion avec le defaut. C'est donc a l'appelant de poser cette
+     * verification, comme le font desormais l'ordonnancier, les gardes et l'analyse du chiffre d'affaires.
+     * </p>
+     *
+     * @param url
+     *            l'URL rendue par {@code buildReport}
+     */
+    public boolean editionEcrite(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            return new java.io.File(this.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile();
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "verification du fichier d'edition " + url, e);
+            return false;
+        }
+    }
+
     // Concatene plusieurs rapports (memes parametres, meme collection) dans un seul PDF.
     // Chaque rapport garde sa taille/orientation : ex. page(s) portrait (tableau) + page(s) paysage (graphique).
     public String buildReportMulti(Map<String, Object> parameters, List<String> reportNames, List<?> datas) {

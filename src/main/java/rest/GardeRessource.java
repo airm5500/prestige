@@ -325,8 +325,7 @@ public class GardeRessource {
         String url = reportUtil.buildReport(parametres, "garde", lignesEtat(garde, heures));
         // buildReport rend l'URL attendue meme quand l'edition a echoue : on verifie que le PDF
         // existe avant d'annoncer un succes, sinon l'utilisateur ouvrirait un fichier absent.
-        if (StringUtils.isBlank(url)
-                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+        if (!reportUtil.editionEcrite(url)) {
             return echec("L'édition n'a pas pu être générée");
         }
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).put("msg", url).toString())

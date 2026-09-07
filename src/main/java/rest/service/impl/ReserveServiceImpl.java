@@ -1320,12 +1320,19 @@ public class ReserveServiceImpl implements ReserveService {
     public JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire,
             String titre) {
         if (ids == null || ids.isEmpty()) {
-            return new JSONObject().put("count", 0).put("message", "Aucun produit selectionne.");
+            return new JSONObject().put("count", 0).put("success", false).put("message", "Aucun produit selectionne.")
+                    .put("msg", "Aucun produit sélectionné.");
         }
         String title = (titre != null && !titre.trim().isEmpty()) ? titre.trim() : buildInventaireName();
         String description = (commentaire != null && !commentaire.trim().isEmpty()) ? commentaire.trim() : title;
         JSONObject cr = inventaireService.createReserveInventaireDetaille(ids, title, description);
-        return cr.put("message", title);
+        int inventories = cr.optInt("count", 0);
+        // Le compte rendu ne portait ni « success » ni « msg » : les ecrans qui les lisaient
+        // annoncaient donc un echec A CHAQUE FOIS, y compris quand l'inventaire venait d'etre cree.
+        // Les deux cles sont ajoutees ; « message » reste en place pour les appelants existants.
+        return cr.put("message", title).put("success", inventories > 0).put("msg",
+                inventories > 0 ? "Inventaire créé : " + inventories + " produit(s) en compte."
+                        : "Aucun produit n'a pu être inventorié.");
     }
 
     /**

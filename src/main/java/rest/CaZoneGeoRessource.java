@@ -247,6 +247,13 @@ public class CaZoneGeoRessource {
         parametres.put("P_TITRE_COURBE",
                 "Courbe : " + Math.min(COURBES_MAX, data.length()) + " ligne(s) les plus fortes et le total");
         String url = reportUtil.buildReport(parametres, "ca_zone_geo", lignes);
+        // buildReport rend l'URL meme quand l'edition a echoue : sans cette verification l'ecran
+        // annoncait un succes et ouvrait un fichier absent, d'ou le « HTTP 404 » constate.
+        if (!reportUtil.editionEcrite(url)) {
+            return Response.ok().entity(
+                    ResultFactory.getFailResult("L'édition n'a pas pu être générée. Le support en a le détail."))
+                    .build();
+        }
         return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).put("url", url).toString())
                 .build();
     }

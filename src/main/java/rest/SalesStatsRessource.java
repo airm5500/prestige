@@ -816,8 +816,7 @@ public class SalesStatsRessource {
                 rest.service.impl.AnalyseOrdonnancier.aPlat(r));
         // Meme precaution que pour le registre : buildReport rend l'URL attendue meme quand
         // l'edition a echoue. On verifie que le PDF existe avant d'annoncer un succes.
-        if (StringUtils.isBlank(url)
-                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+        if (!reportUtil.editionEcrite(url)) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
                     .build();
@@ -871,8 +870,7 @@ public class SalesStatsRessource {
         // buildReport rend l'URL attendue meme quand l'edition a echoue : il journalise l'erreur et
         // continue. Annoncer un succes sur cette seule foi enverrait l'utilisateur ouvrir un fichier
         // qui n'existe pas. On verifie donc que le PDF a bien ete ecrit.
-        if (StringUtils.isBlank(url)
-                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+        if (!reportUtil.editionEcrite(url)) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
                     .build();
