@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.vente.VenteTiersPayant', {
     extend: 'Ext.panel.Panel',
     xtype: 'tpventes',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'LISTTE DES BORDEREAUX',
     width: '97%',
@@ -255,8 +252,6 @@ Ext.define('testextjs.view.vente.VenteTiersPayant', {
                     dock: 'top',
                     items: [
                         '->',
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

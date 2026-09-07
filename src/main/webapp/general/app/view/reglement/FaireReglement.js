@@ -4,7 +4,6 @@ Ext.define('testextjs.view.reglement.FaireReglement', {
     extend: 'Ext.panel.Panel',
     xtype: 'fairereglement',
     requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'testextjs.model.caisse.ClientLambda'
     ],
     config: {
@@ -256,8 +255,6 @@ Ext.define('testextjs.view.reglement.FaireReglement', {
                                     format: 'd/m/Y'
 
                                 },
-                                // Applique en un geste les bornes d'une garde enregistree.
-                                {xtype: 'selecteurgarde'},
                                 {
                                     xtype: 'button',
                                     text: 'rechercher',

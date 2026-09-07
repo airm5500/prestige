@@ -4,7 +4,6 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
     extend: 'Ext.panel.Panel',
     xtype: 'ordonnancier',
     requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'testextjs.view.vente.DetailProduitsVente'
     ],
 
@@ -126,8 +125,6 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                             emptyText: 'Nom du client ou r&eacute;f&eacute;rence...'
                         }, '-',
 
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

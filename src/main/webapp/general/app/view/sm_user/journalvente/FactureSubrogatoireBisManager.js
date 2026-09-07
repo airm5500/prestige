@@ -19,7 +19,6 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager', 
     minHeight: 570,
     /* integrer le menu a utiliser ici  */
 requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'testextjs.view.vente.user.UpdateVenteClientTpForm'
     ],
     layout: {
@@ -268,9 +267,7 @@ requires: [
                             editable: false,
                             emptyText: 'Groupe de tiers payant...',
                             triggerAction: 'all'
-                        }, '-', // Applique en un geste les bornes d'une garde enregistree.
- {xtype: 'selecteurgarde'},
- {
+                        }, '-', {
                             text: 'rechercher',
                             itemId: 'rechercher',
                             tooltip: 'rechercher',

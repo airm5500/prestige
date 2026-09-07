@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.produits.StatsByGamme', {
     extend: 'Ext.panel.Panel',
     xtype: 'statisgammeproduits',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Statistiques produits par gamme',
     width: '98%',
@@ -296,8 +293,6 @@ Ext.define('testextjs.view.produits.StatsByGamme', {
                         {
                             xtype: 'tbseparator'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

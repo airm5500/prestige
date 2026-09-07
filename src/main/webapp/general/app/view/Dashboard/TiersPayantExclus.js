@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.Dashboard.TiersPayantExclus', {
     extend: 'Ext.tab.Panel',
     xtype: 'tpexclus',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: false,
     width: '97%',
     height: 670,
@@ -204,9 +201,7 @@ Ext.define('testextjs.view.Dashboard.TiersPayantExclus', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y'
                         }
-                        ,
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'}, {
+                        , {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'btnVentePanel',

@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.Dashboard.StatistiqProvider', {
     extend: 'Ext.tab.Panel',
     xtype: 'statistiqueProvider',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     width: '97%',
     height: 570,
@@ -169,8 +166,6 @@ Ext.define('testextjs.view.Dashboard.StatistiqProvider', {
                             minChars: 2,
                             emptyText: 'Sélectionnez un grossiste'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

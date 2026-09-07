@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.Dashboard.MargeManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'margeproducts',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Marge sur produits vendus',
     width: '98%',
@@ -278,8 +275,6 @@ Ext.define('testextjs.view.Dashboard.MargeManager', {
                         {
                             xtype: 'tbseparator'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

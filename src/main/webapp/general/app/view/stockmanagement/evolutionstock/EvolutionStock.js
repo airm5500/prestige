@@ -16,7 +16,6 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
     xtype: 'evolutionstock',
     id: 'evolutionstockID',
     requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'Ext.chart.*',
         'Ext.grid.*',
         'Ext.data.*',
@@ -84,9 +83,7 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
                             format: 'd/m/Y',
                             maxValue: new Date(),
                             value: today
-                        },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'}, {
+                        }, {
                             xtype: 'tbseparator'
                         }, {
                             text: 'Rechercher',

@@ -4,7 +4,6 @@ Ext.define('testextjs.view.Dashboard.RetourCarnet', {
     extend: 'Ext.panel.Panel',
     xtype: 'retourcarnetdepot',
     requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.plugin.RowExpander'
     ],
 
@@ -161,8 +160,6 @@ Ext.define('testextjs.view.Dashboard.RetourCarnet', {
                             emptyText: 'Recherche'
                         }, '-',
 
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

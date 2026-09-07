@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.produits.StatsByLaboratoire', {
     extend: 'Ext.panel.Panel',
     xtype: 'statislaboratoireproduits',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Statistiques produits par laboratoire',
     width: '98%',
@@ -296,8 +293,6 @@ Ext.define('testextjs.view.produits.StatsByLaboratoire', {
                         {
                             xtype: 'tbseparator'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

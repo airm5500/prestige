@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
     extend: 'Ext.panel.Panel',
     xtype: 'caisserecetterecap',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Recapitulatif caisse/recette',
     width: '97%',
@@ -203,8 +200,6 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             checked: false,
                             itemId: 'groupByYear'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

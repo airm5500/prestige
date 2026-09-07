@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'vingtquatrevingt',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     title: 'Edition des 20/80',
     frame: true,
     width: '98%',
@@ -321,8 +318,6 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                                 }
                             }
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.notification.Notification', {
     extend: 'Ext.panel.Panel',
     xtype: 'menunotification',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Notifications',
     iconCls: 'icon-grid',
@@ -224,8 +221,6 @@ Ext.define('testextjs.view.notification.Notification', {
                             emptyText: 'Choisir un canal...'
 
                         }, {xtype: 'tbseparator'},
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

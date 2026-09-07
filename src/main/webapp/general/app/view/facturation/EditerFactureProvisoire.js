@@ -16,7 +16,6 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
         padding: 5
     },
     requires: [
-        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.*'
     ],
     config: {
@@ -274,9 +273,7 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
                                             value: new Date(),
                                             maxValue: new Date()
 
-                                        },
-                                        // Applique en un geste les bornes d'une garde enregistree.
-                                        {xtype: 'selecteurgarde'}, {
+                                        }, {
                                             xtype: 'textfield',
                                             fieldLabel: 'Code regroupement',
                                             margin: '0 5 0 5',

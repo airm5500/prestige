@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.produits.ComparaisonStockDetails', {
     extend: 'Ext.window.Window',
     xtype: 'comparaisonDetails',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     autoShow: false,
     minHeight: 500,
     width: '80%',
@@ -414,9 +411,7 @@ Ext.define('testextjs.view.produits.ComparaisonStockDetails', {
                                             format: 'd/m/Y',
                                             value: new Date()
 
-                                        },
-                                        // Applique en un geste les bornes d'une garde enregistree.
-                                        {xtype: 'selecteurgarde'},
+                                        }, '-',
                                         {
                                             xtype: 'textfield',
                                             itemId: 'detailquery',

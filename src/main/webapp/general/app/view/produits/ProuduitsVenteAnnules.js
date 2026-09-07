@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.produits.ProuduitsVenteAnnules', {
     extend: 'Ext.panel.Panel',
     xtype: 'venteproduitannules',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Produits vendus annulés',
     width: '98%',
@@ -113,8 +110,6 @@ Ext.define('testextjs.view.produits.ProuduitsVenteAnnules', {
                             emptyText: 'Choisir un utilisateur...'
 
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

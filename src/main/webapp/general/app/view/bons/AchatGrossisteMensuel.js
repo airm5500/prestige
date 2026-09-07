@@ -3,9 +3,6 @@
 Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
     extend: 'Ext.panel.Panel',
     xtype: 'achatgrossistemensuel',
-    requires: [
-        'testextjs.view.garde.SelecteurGarde'
-    ],
     frame: true,
     title: 'Achats mensuels par grossiste',
     width: '98%',
@@ -238,8 +235,6 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
                         {
                             xtype: 'tbseparator'
                         },
-                        // Applique en un geste les bornes d'une garde enregistree.
-                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
