@@ -49,10 +49,10 @@ public class CarnetDepotRessource {
     @Path("list")
     public Response fetchAll(@QueryParam(value = "query") String query, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "depot") String depot,
-            @QueryParam(value = "exclu") String exclu) {
-        // Les deux filtres se combinent ; absents, la liste est celle de toujours.
+            @QueryParam(value = "exclu") String exclu, @QueryParam(value = "carnet") String carnet) {
+        // Les trois filtres se combinent ; absents, la liste est celle de toujours.
         JSONObject json = carnetAsDepotService.all(start, limit, query, FiltreOuiNon.lire(depot),
-                FiltreOuiNon.lire(exclu));
+                FiltreOuiNon.lire(exclu), FiltreOuiNon.lire(carnet));
         return Response.ok().entity(json.toString()).build();
 
     }

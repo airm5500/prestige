@@ -43,6 +43,17 @@ public interface CarnetAsDepotService {
      */
     JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu);
 
+    /**
+     * La meme liste, restreinte au besoin aux tiers payants de type CARNET.
+     *
+     * @param carnetSeulement
+     *            {@code true} pour ecarter les assurances, independamment de l'indicateur de depot
+     */
+    JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu, Boolean carnetSeulement);
+
+    List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu,
+            Boolean carnetSeulement);
+
     List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu);
 
     JSONObject fetchVenteByTiersPayant(String tiersPayantId, String dtStart, String dtEnd, int start, int size);

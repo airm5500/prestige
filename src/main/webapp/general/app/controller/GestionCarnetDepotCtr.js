@@ -136,6 +136,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             'reglementdepot #btnVentePanel': {
                 click: this.searchAll
             },
+            'reglementdepot': {
+                // Chaque onglet etait alimente sur « viewready », qui ne se declenche QU'UNE FOIS,
+                // au premier rendu. Passer d'un onglet a l'autre, ou changer de tiers payant, ne
+                // rechargeait donc rien : il fallait sortir du menu et y revenir pour voir les
+                // donnees a jour -- et entre-temps l'ecran affichait des chiffres perimes sans
+                // que rien ne l'indique.
+                tabchange: this.surChangementOnglet
+            },
             'reglementdepot #facturesPanel [xtype=gridpanel]': {
                 viewready: this.chargerFacturesDepot
             },
@@ -257,17 +265,35 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         const myProxy = me.getVenteGrid().getStore().getProxy();
         me.initProxy(myProxy,me,'REGLEMENT');
     },
+    /**
+     * Recharge l'onglet qui vient d'etre ouvert.
+     *
+     * Le chargement se fait A L'OUVERTURE et non a l'avance : recharger les cinq onglets a chaque
+     * recherche couterait cinq appels pour celui qu'on regarde.
+     */
+    surChangementOnglet: function () {
+        this.searchAll();
+    },
+
     searchAll: function () {
         let me = this;
-        let itemId = me.getReglementdepot().getLayout().getActiveItem().getItemId();
+        const actif = me.getReglementdepot() ? me.getReglementdepot().getLayout().getActiveItem() : null;
+        if (!actif) {
+            return;
+        }
+        const itemId = actif.getItemId();
         if (itemId === 'ventePanel') {
             me.doSearchVente();
         } else if (itemId === 'reglementPanel') {
             me.doSearchReglement();
         } else if (itemId === 'produitsPanel') {
-me.doSearchProduits();
-        }else if(itemId === 'depensePanel'){
+            me.doSearchProduits();
+        } else if (itemId === 'depensePanel') {
             me.doSearchDepense();
+        } else if (itemId === 'facturesPanel') {
+            // L'onglet des factures etait le seul absent de cette liste : il ne se rechargeait
+            // donc jamais, pas meme sur « Rechercher ».
+            me.chargerFacturesDepot();
         }
     },
     doSearchVente: function () {

@@ -48,6 +48,11 @@ Ext.define('testextjs.view.Dashboard.TierspAsDepot', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v2/carnet-depot/list',
+                // Seuls les tiers payants de type CARNET. On designe ici les carnets a passer en
+                // depot : les assurances n'ont rien a y faire, et les laisser obligeait a trier a
+                // l'oeil une liste ou la plupart des lignes etaient hors sujet -- avec le risque
+                // de designer comme carnet depot un organisme qui ne se gere pas ainsi.
+                extraParams: {carnet: 'true'},
                 reader: {
                     type: 'json',
                     root: 'data',
