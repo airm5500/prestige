@@ -92,12 +92,12 @@ Ext.define('testextjs.controller.VenteCtr', {
     // les autres sans toucher au code. Si l'appel echoue, on garde le comportement historique.
     clientRequisIds: ['2', '3', '4', '6'],
 
-    chargerTypesClientRequis: function () {
+    chargerTypesClientRequis: function (suite) {
         const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/type-reglements/client-requis',
-            success: function (response) {
+            callback: function (opts, succes, response) {
                 let json = {};
                 try {
                     json = Ext.decode(response.responseText);
@@ -105,6 +105,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 if (json.success && Ext.isArray(json.data) && json.data.length) {
                     me.clientRequisIds = json.data.map(String);
+                }
+                if (Ext.isFunction(suite)) {
+                    suite();
                 }
             }
         });
@@ -119,12 +122,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         return this.clientRequisIds.indexOf(id) !== -1 || this.isMobileMode(id);
     },
 
-    chargerModesMobileMoney: function () {
+    chargerModesMobileMoney: function (suite) {
         const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/type-reglements/mobile-money',
-            success: function (response) {
+            callback: function (opts, succes, response) {
                 let json = {};
                 try {
                     json = Ext.decode(response.responseText);
@@ -138,8 +141,41 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.mobileModeIds = json.data.map(String);
                     me.mobileModeIdsCharges = true;
                 }
+                if (Ext.isFunction(suite)) {
+                    suite();
+                }
             }
         });
+    },
+
+    /* Modes dont le comportement est ecrit dans le code : comptant (1), cheque (2), carte (3),
+     * differe (4) et virement (6). Tout le reste doit etre classe par la configuration. */
+    MODES_CONNUS_DU_CODE: ['1', '2', '3', '4', '6'],
+
+    /*
+     * Ce mode est-il deja classe ? Un mode cree par l'officine pendant que la caisse est restee
+     * ouverte - elles le restent toute la journee - est absent des deux listes chargees au
+     * demarrage du controleur : il faut alors les relire avant de decider quoi que ce soit.
+     */
+    modeClasse: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.MODES_CONNUS_DU_CODE.indexOf(id) !== -1
+                || this.mobileModeIds.indexOf(id) !== -1
+                || this.clientRequisIds.indexOf(id) !== -1;
+    },
+
+    /* Relit les deux classements et n'appelle la suite qu'une fois les DEUX reponses arrivees. */
+    rafraichirClassementModes: function (suite) {
+        const me = this;
+        let restantes = 2;
+        const fini = function () {
+            restantes -= 1;
+            if (restantes === 0 && Ext.isFunction(suite)) {
+                suite();
+            }
+        };
+        me.chargerModesMobileMoney(fini);
+        me.chargerTypesClientRequis(fini);
     },
     models: [
         'testextjs.model.caisse.Nature',
@@ -674,7 +710,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
                     }, 'doventemanager #contenu #typeReglement': {
-                        select: this.typeReglementSelectEvent
+                        select: this.typeReglementSelectEvent,
+                        /* La liste est relue a chaque ouverture du menu deroulant : le classement
+                         * est ainsi a jour au moment ou l'utilisateur choisit, sans redemarrer
+                         * l'application. La selection ne l'attend pas - elle a son propre garde-fou
+                         * ci-dessus - ce qui evite tout blocage si le serveur tarde. */
+                        expand: this.onTypeReglementExpand
                     },
                     'clientLambda #btnCancelLambda': {
                         click: this.onCancelClientLambda
@@ -2292,6 +2333,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     },
 
+    onTypeReglementExpand: function () {
+        this.rafraichirClassementModes();
+    },
+
     isMobileMode: function (typeRegleId) {
         return this.mobileModeIds.indexOf(typeRegleId) !== -1;
     },
@@ -2415,6 +2460,23 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.getVnoproduitCombo().focus(true, 100);
                     }
                 }
+            });
+            return;
+        }
+        /* Point 9 : un mode cree depuis le menu « modes de reglement » alors que la vente etait
+         * deja ouverte n'est dans aucun des deux classements charges au demarrage. Sans cette
+         * relecture il tombait dans la branche « autre mode », donc sans parcours client ni
+         * comportement mobile : rien ne se passait a la selection, et le client n'etait reclame
+         * qu'a la validation. On relit une seule fois par selection, puis on rejoue le choix. */
+        if (!me._classementRelu && !me.modeClasse(value)) {
+            me._classementRelu = true;
+            me.rafraichirClassementModes(function () {
+                if (field.destroyed) {
+                    me._classementRelu = false;
+                    return;
+                }
+                me.typeReglementSelectEvent(field);
+                me._classementRelu = false;
             });
             return;
         }

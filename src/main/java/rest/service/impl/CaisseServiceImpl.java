@@ -2328,6 +2328,17 @@ public class CaisseServiceImpl implements CaisseService {
                 Object[] r = aggregats.get(typeId);
                 long montant = (r != null && r[1] != null) ? ((Number) r[1]).longValue() : 0;
                 long nbVentes = (r != null && r[2] != null) ? ((Number) r[2]).longValue() : 0;
+                // Un mode DESACTIVE et SANS activite du jour n'a rien a faire dans le point : il ne
+                // peut plus recevoir d'encaissement, et sa ligne a zero laisse croire a une journee
+                // creuse sur ce moyen de paiement alors qu'il n'est simplement plus propose.
+                //
+                // Mais un mode desactive DANS LA JOURNEE a pu encaisser le matin : sa ligne reste,
+                // car l'argent, lui, est bien en caisse. Le masquer ferait mentir le total general,
+                // qui ne correspondrait plus au comptage -- une erreur invisible et couteuse.
+                if (!Constant.STATUT_ENABLE.equalsIgnoreCase(typeReglement.getStrSTATUT()) && montant == 0
+                        && nbVentes == 0) {
+                    continue;
+                }
                 totalMontant += montant;
                 totalVentes += nbVentes;
                 data.put(new JSONObject().put("typeId", typeId).put("libelle", typeReglement.getStrNAME())
