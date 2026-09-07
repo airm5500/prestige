@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.vente.VenteAvoir', {
     extend: 'Ext.panel.Panel',
     xtype: 'venteavoirmanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
 
     frame: true,
     title: 'Liste des avoirs',
@@ -192,6 +195,9 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                             xtype: 'textfield', itemId: 'query', flex: 1, height: 30, enableKeyEvents: true,
                             emptyText: 'Recherche'
                         }, '-',
+                        // Applique en un geste les bornes d'une garde enregistree. Cet ecran
+                        // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
+                        {xtype: 'selecteurgarde'}, '-',
                         {text: 'rechercher', tooltip: 'rechercher', itemId: 'rechercher', scope: this, iconCls: 'searchicon'},
                         '-',
                         {text: 'Imprimer', tooltip: 'imprimer', scope: this, itemId: 'printPdf', iconCls: 'printable'}

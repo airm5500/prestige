@@ -4,6 +4,7 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventehistoriquedepotmanager',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.plugin.RowExpander'
     ],
 
@@ -160,6 +161,9 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
 
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree. Cet ecran
+                        // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
+                        {xtype: 'selecteurgarde'}, '-',
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
