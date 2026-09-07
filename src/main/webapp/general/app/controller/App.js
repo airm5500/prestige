@@ -252,6 +252,11 @@ Ext.define('testextjs.controller.App', {
         // l'entete de l'ecran est masquee et cela doit etre decide avant le rendu.
         if (window.PrestigeAffichage) {
             window.PrestigeAffichage.appliquerSiConcerne(cmp);
+            // Meme point d'accroche pour le selecteur de periodes d'analyse : la liste des
+            // ecrans concernes vit dans resources/js/selecteur-periodes.js.
+            if (window.PrestigeAnalyse) {
+                window.PrestigeAnalyse.appliquerSiConcerne(cmp);
+            }
         }
         contentPanel.add(cmp);
         if (cmp.floating) {
@@ -334,6 +339,11 @@ Ext.define('testextjs.controller.App', {
         // l'entete de l'ecran est masquee et cela doit etre decide avant le rendu.
         if (window.PrestigeAffichage) {
             window.PrestigeAffichage.appliquerSiConcerne(cmp);
+            // Meme point d'accroche pour le selecteur de periodes d'analyse : la liste des
+            // ecrans concernes vit dans resources/js/selecteur-periodes.js.
+            if (window.PrestigeAnalyse) {
+                window.PrestigeAnalyse.appliquerSiConcerne(cmp);
+            }
         }
         contentPanel.add(cmp);
         if (cmp.floating) {
@@ -953,6 +963,11 @@ Ext.define('testextjs.controller.App', {
         // ouvrait les ecrans sans leur appliquer la presentation collee.
         if (window.PrestigeAffichage) {
             window.PrestigeAffichage.appliquerSiConcerne(cmp);
+            // Meme point d'accroche pour le selecteur de periodes d'analyse : la liste des
+            // ecrans concernes vit dans resources/js/selecteur-periodes.js.
+            if (window.PrestigeAnalyse) {
+                window.PrestigeAnalyse.appliquerSiConcerne(cmp);
+            }
         }
         contentPanel.add(cmp);
         if (cmp.floating) {

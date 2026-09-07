@@ -25,6 +25,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #gardeExporterTranches': {click: this.doExporterTranches},
             'gardemanager #comparerDernieres': {click: this.doComparerDernieres},
             'gardemanager #comparerSelection': {click: this.doComparerSelection},
+            'gardemanager #nombreGardes': {select: this.doComparerDernieres},
             'gardeform #gardeEnregistrer': {click: this.doEnregistrer}
         });
     },
@@ -227,28 +228,31 @@ Ext.define('testextjs.controller.GardeCtrl', {
     },
 
     doComparerDernieres: function () {
-        this.comparer('');
+        var champ = this.getGardeManager().down('#nombreGardes');
+        this.comparer('', champ ? champ.getValue() : 3);
     },
 
     doComparerSelection: function () {
         var selection = this.getGrilleGardes().getSelectionModel().getSelection();
-        if (selection.length < 2) {
+        if (!selection.length) {
             Ext.MessageBox.alert('Information',
-                    'S&eacute;lectionnez au moins deux gardes dans la liste de gauche '
-                    + '(Ctrl + clic), ou utilisez « Trois derni&egrave;res ».');
+                    'S&eacute;lectionnez une ou plusieurs gardes dans la liste de gauche '
+                    + '(Ctrl + clic pour en choisir plusieurs).');
             return;
         }
+        // Une seule garde selectionnee est acceptee : on obtient alors ses chiffres bruts.
+        // Interdire ce cas obligerait a passer par l'onglet d'analyse pour la meme lecture.
         this.comparer(Ext.Array.map(selection, function (g) {
             return g.get('id');
-        }).join(','));
+        }).join(','), selection.length);
     },
 
-    comparer: function (ids) {
+    comparer: function (ids, nombre) {
         var ecran = this.getGardeManager();
         Ext.Ajax.request({
             url: '../api/v1/gardes/comparaison',
             method: 'GET',
-            params: {ids: ids},
+            params: {ids: ids, nombre: nombre || 3},
             timeout: 600000,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
@@ -258,6 +262,16 @@ Ext.define('testextjs.controller.GardeCtrl', {
                     return Ext.apply({}, ligne, ligne.indicateurs || {});
                 });
                 ecran.comparaisonStore.loadData(lignes);
+                var resume = ecran.down('#comparaisonResume');
+                if (resume) {
+                    // Une seule garde ne fait pas une comparaison : le dire vaut mieux que
+                    // d'afficher une colonne d'ecart restee vide sans explication.
+                    resume.setText(objet.comparatif
+                            ? 'Les &eacute;carts portent sur le chiffre <b>par heure</b>, seule base '
+                            + 'comparable entre gardes de dur&eacute;es diff&eacute;rentes.'
+                            : 'Une seule garde : ses chiffres bruts sont affich&eacute;s, sans &eacute;cart. '
+                            + 'Choisissez au moins deux gardes pour comparer.');
+                }
                 ecran.down('#ongletsGarde').setActiveTab(ecran.down('#ongletComparaison'));
             },
             failure: function () {

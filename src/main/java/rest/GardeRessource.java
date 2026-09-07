@@ -248,16 +248,26 @@ public class GardeRessource {
     /**
      * Comparaison de plusieurs gardes sur les memes indicateurs.
      *
+     * <p>
+     * Une seule garde ne fait pas une comparaison : la reponse porte alors ses chiffres bruts, sans ecart. C'est a
+     * partir de deux que la colonne d'ecart a un sens.
+     * </p>
+     *
      * @param ids
-     *            identifiants separes par des virgules ; vide compare les trois dernieres gardes enregistrees
+     *            identifiants separes par des virgules ; vide prend les {@code nombre} dernieres gardes
+     * @param nombre
+     *            nombre de dernieres gardes prises quand aucun identifiant n'est donne
      */
     @GET
     @Path("comparaison")
-    public Response comparaison(@DefaultValue("") @QueryParam("ids") String ids) {
+    public Response comparaison(@DefaultValue("") @QueryParam("ids") String ids,
+            @DefaultValue("3") @QueryParam("nombre") int nombre) {
         List<Garde> gardes = new ArrayList<>();
         if (StringUtils.isBlank(ids)) {
+            // « N dernieres gardes ». La liste est deja triee de la plus recente a la plus
+            // ancienne : les N premieres sont donc les N dernieres tenues.
             List<Garde> toutes = gardeService.lister();
-            gardes.addAll(toutes.subList(0, Math.min(3, toutes.size())));
+            gardes.addAll(toutes.subList(0, Math.min(Math.max(1, nombre), toutes.size())));
         } else {
             for (String id : ids.split(",")) {
                 Garde g = gardeService.parId(StringUtils.trimToEmpty(id));
@@ -286,9 +296,10 @@ public class GardeRessource {
             data.put(ligne);
             precedente = i;
         }
-        return Response.ok()
-                .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data).toString())
-                .build();
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
+                // Une seule garde ne fait pas une comparaison : ce sont ses chiffres bruts.
+                // C'est a partir de deux que les ecarts ont un sens.
+                .put("comparatif", data.length() >= 2).toString()).build();
     }
 
     @GET

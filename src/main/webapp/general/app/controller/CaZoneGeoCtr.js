@@ -105,6 +105,13 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                     Ext.Msg.alert('Message', json.msg || 'Le calcul du chiffre d\'affaires a échoué');
                     return;
                 }
+                // Un controleur ExtJS est global : ses « refs » ne designent un composant que tant
+                // que l'ecran est ouvert. Une reponse qui arrive apres la fermeture trouverait des
+                // refs vides. Ne rien faire est la bonne reponse -- plus personne ne regarde ce
+                // resultat -- et cela evite une erreur de console qui finirait par masquer les vraies.
+                if (!me.getRegroupement()) {
+                    return;
+                }
                 me.derniereReponse = json;
                 me.construireGrille(json);
                 me.construireCourbe(json);

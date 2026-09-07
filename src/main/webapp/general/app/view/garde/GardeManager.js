@@ -262,6 +262,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     dock: 'top',
                     items: [{
                             xtype: 'tbtext',
+                            itemId: 'comparaisonResume',
                             // L'ecart se lit sur le chiffre PAR HEURE : une garde de week-end de
                             // 36 h fera toujours plus qu'une nuit de 12 h, sans rien dire de son
                             // intensite. Comparer les bruts ferait conclure a une progression
@@ -270,8 +271,26 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                     + 'seule base comparable entre gardes de dur&eacute;es diff&eacute;rentes.'
                         }, '->',
                         {
-                            text: 'Trois derni&egrave;res', itemId: 'comparerDernieres',
-                            tooltip: 'Comparer les trois derni&egrave;res gardes enregistr&eacute;es'
+                            xtype: 'combobox',
+                            itemId: 'nombreGardes',
+                            fieldLabel: 'Comparer les',
+                            labelWidth: 80,
+                            width: 210,
+                            store: Ext.create('Ext.data.ArrayStore', {
+                                data: [[1, '1 derni&egrave;re garde'], [2, '2 derni&egrave;res'],
+                                    [3, '3 derni&egrave;res'], [4, '4 derni&egrave;res'],
+                                    [5, '5 derni&egrave;res'], [10, '10 derni&egrave;res']],
+                                fields: [{name: 'value', type: 'int'}, {name: 'libelle', type: 'string'}]
+                            }),
+                            valueField: 'value',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            value: 3
+                        }, '-',
+                        {
+                            text: 'Comparer', itemId: 'comparerDernieres',
+                            tooltip: 'Comparer les derni&egrave;res gardes enregistr&eacute;es'
                         }, '-',
                         {
                             text: 'Comparer la s&eacute;lection', itemId: 'comparerSelection',

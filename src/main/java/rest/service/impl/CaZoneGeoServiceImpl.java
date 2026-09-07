@@ -185,8 +185,12 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             }
             JSONArray tranchesJson = new JSONArray();
             for (Tranche t : tranches) {
+                // « enCours » dit que la tranche n'est pas terminee. Sans lui, l'ecran presenterait
+                // septembre entame a cote d'aout complet comme deux mois comparables, et l'officine
+                // lirait un effondrement du chiffre d'affaires le 2 du mois.
                 tranchesJson.put(new JSONObject().put("cle", t.getCle()).put("libelle", t.getLibelle())
-                        .put("debut", t.getDebut().toString()).put("fin", t.getFin().toString()));
+                        .put("debut", t.getDebut().toString()).put("fin", t.getFin().toString())
+                        .put("enCours", t.isEnCours()));
             }
             JSONObject totaux = new JSONObject();
             totauxTranches.forEach(totaux::put);
