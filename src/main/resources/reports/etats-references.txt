@@ -1,0 +1,209 @@
+# Etats (modeles jasper) references par le code, un par ligne.
+#
+# Resultat du balayage des noms d'etats passes a buildReport, setPath_report_src, getReport et
+# compileFromClasspath, replis de modeles configurables compris. Cette liste sert a la sonde
+# « /api/v1/etats/inventaire », qui dit, SUR LA MACHINE OU L'APPLICATION TOURNE, lequel de ces etats
+# se resout et lequel manque : un etat manquant ne se voit autrement qu'au moment ou l'utilisateur
+# clique et recoit un 404.
+#
+# Les noms suivis de « + » sont des PREFIXES : le code y ajoute un suffixe calcule (numero de modele,
+# type de fiche...). La sonde les signale comme tels et ne conclut pas a leur absence.
+#
+# A regenerer quand une edition est ajoutee ou retiree.
+analyse_inventaire
+analyse_ordonnancier
+analyse_tiers_payants
+analyse_tiers_payants_produits
+analyse_ventes_ratees
+article_inventaire
+balance_all_depots
+balance_single_depot
+ca_zone_geo
+controle_achats
+detail_ca_ligne
+facture_detail_articles
+garde
+historique_deconditionnements
+liste_produits_detailles
+liste_reglements
+ordonnancier
+point_caisse_report
+rayon
+recapitulatif_organisme
+reserve
+rp_ListLots
+rp_achats_caution
+rp_achats_grossiste_mensuel
+rp_activte_operateur_chart
+rp_activte_operateurportrait
+rp_all_ajustements
+rp_analyse_ajustement
+rp_analyse_frequentationbis
+rp_articles_invendus
+rp_articles_surstock
+rp_articlesvendus
+rp_articlesvendus_rayon
+rp_articlesvendus_user
+rp_articlesvendusgroup
+rp_articlesvendusgroup_rayon
+rp_balance_agee_detail
+rp_balance_agee_mensuel
+rp_balance_agee_recap
+rp_balancevente_caissev2
+rp_balancevente_caissevpara
+rp_bon_commande_passee
+rp_bon_livraison
+rp_bon_livraison_proforma
+rp_check_emplacement
+rp_code_gestions
+rp_comparaison_chiff_aff
+rp_comparaison_surstock
+rp_complementaire
+rp_compte_exploitation
+rp_conso_client
+rp_conso_clients
+rp_consoarticle_comparaison
+rp_contre_indications
+rp_defferedpayment
+rp_devis
+rp_differeslist
+rp_emplacements_comptage
+rp_etat_control_achats
+rp_etat_control_achats_annuel
+rp_etatdestock
+rp_etiquette
+rp_evaluation_vente
+rp_extrait_compte_carnet
+rp_extrait_compte_carnet_monthy
+rp_extrait_compte_carnet_only_monthly
+rp_extrait_compte_carnet_only_one
+rp_facture_ +
+rp_facture_0109
+rp_facture_Client
+rp_facture_attente_edition
+rp_facture_des_fournisseur
+rp_facture_percentage
+rp_facture_retrocession
+rp_facture_subrogatoire
+rp_facture_subrogatoire_other
+rp_facture_vente
+rp_facture_withremise_ +
+rp_facture_withremise_percentage
+rp_facturerecap
+rp_facturerecapClient
+rp_feuille_de_match
+rp_fiche_ajustement_ +
+rp_fiche_article
+rp_fiche_article_dci
+rp_fiche_article_dci_decondition
+rp_fiche_article_decondition
+rp_fiche_article_sansemplacement
+rp_fiche_article_sansemplacement_dci
+rp_fiche_inventaire
+rp_fiche_inventaire_ +
+rp_fiche_inventaire_agent_ +
+rp_fiche_inventaire_agent_alerte_ +
+rp_fiche_inventaire_alerte_ +
+rp_fiche_inventaire_final
+rp_fiche_inventaire_final_ +
+rp_gestion_surstock
+rp_gestioncaisse_ +
+rp_gestioncaisses
+rp_groupbycompany
+rp_groupe_familles
+rp_historiques_caution_depot
+rp_journal_vente
+rp_list_avoirs
+rp_liste_article_prixmodifie
+rp_liste_ayantdroit
+rp_liste_client
+rp_liste_devis
+rp_liste_differe
+rp_liste_fabriquant
+rp_liste_grossiste
+rp_liste_reassort
+rp_liste_retrocession
+rp_liste_retrocession_final
+rp_liste_tierspayant
+rp_liste_utilisateur
+rp_liste_utilisateur_admin
+rp_liste_utilisateur_superadmin
+rp_liste_vente
+rp_liste_vente_withoutbon
+rp_logfile
+rp_lots_peremptions
+rp_margeproduits
+rp_medecins
+rp_mvt_caisse
+rp_obseleteproduct
+rp_order_items
+rp_perimegroup
+rp_perimev2
+rp_pharma_dashboard
+rp_preventes_produits_liste
+rp_preventes_produits_par_vente
+rp_product_remove_perime
+rp_produits_annules
+rp_produits_vendus_au_depot
+rp_proforma
+rp_proforma_facture
+rp_qtystat
+rp_rapport_import_reappro
+rp_rapportgestion_ +
+rp_recap_mouvement_article
+rp_recap_reglement_groupe
+rp_recpareglement
+rp_regledifferes
+rp_reglement_facture_group
+rp_releve_factures
+rp_releve_factures_groupe
+rp_releve_fne
+rp_relever_reglement
+rp_reportmanagement
+rp_reserve_historique_global
+rp_reserve_historique_rayon
+rp_reserve_historique_reserve
+rp_reserve_liste_reappro_rayon
+rp_reserve_liste_reappro_reserve
+rp_reserve_liste_tout
+rp_retour_au_depot_ +
+rp_retour_founisseurs
+rp_retourdepot
+rp_retourfournisseur
+rp_rupture_stoc_ +
+rp_ruptures_pharmaml
+rp_stat_unites_vendues_labo
+rp_stat_vente_rayon
+rp_statfamilleart
+rp_statfamilleart_periode
+rp_statfamilleart_periodeveto
+rp_statfamilleartveto
+rp_statistic_famille_article_ +
+rp_statistic_unites_vendues
+rp_statistic_vente_stock_ +
+rp_statistic_ventes
+rp_statisticachatfournisseurs_ +
+rp_statisticachatproduit_ +
+rp_statisticretrocession_ +
+rp_statisticventeavoirclient_ +
+rp_statisticventereglsociete_ +
+rp_suggestion
+rp_suggestion_reserve_compte_rendu
+rp_suggestion_reserve_rayon
+rp_suggestion_reserve_reserve
+rp_suivi_mvt_article
+rp_suivi_remise
+rp_suivit_mvt_article
+rp_suppressions_vente
+rp_ticket_mouvement
+rp_ticket_vac
+rp_tva
+rp_tvastat
+rp_tvastatjour
+rp_type_societes
+rp_valorisation_stock
+rp_vente_annulees
+rp_vente_ugs
+ticket_support
+ventes_modifiees
+ventes_ratees
