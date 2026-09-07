@@ -54,6 +54,10 @@ public interface FacturationService {
      */
     JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException;
 
+    /** Factures des carnets depot filtrees par tiers payant, periode facturee et numero de facture (point 17). */
+    JSONObject facturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query, int start, int limit)
+            throws JSONException;
+
     /** Liste paginee des factures. {@code carnetDepot} y separe les deux circuits, comme pour les bons (RG-02). */
     JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
             int start, int limit, boolean carnetDepot) throws JSONException;

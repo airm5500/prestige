@@ -397,8 +397,100 @@ public class FacturationServiceImpl implements FacturationService {
 
     @Override
     public JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException {
+        return facturesCarnetDepot(tpid, null, null, null, start, limit);
+    }
+
+    /**
+     * Factures des carnets depot, filtrees (point 17).
+     *
+     * <p>
+     * L'onglet n'offrait que le choix du tiers payant : la periode affichee en haut de l'ecran et le numero de facture
+     * n'y changeaient rien, et la liste rendait tout l'historique. Les trois criteres se combinent desormais ; absents,
+     * la liste reste celle de toujours. La periode porte sur la PERIODE FACTUREE et non sur la date de creation : c'est
+     * celle que l'ecran affiche et celle qu'on cherche.
+     * </p>
+     */
+    @Override
+    public JSONObject facturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query, int start, int limit)
+            throws JSONException {
         // isTemplate a null : provisoires et definitives, sans distinction (RG-06).
-        return listerFactures(null, null, tpid, null, null, start, limit, true);
+        long count = compterFacturesCarnetDepot(tpid, dtStart, dtEnd, query);
+        if (count == 0) {
+            return new JSONObject().put("total", 0).put("data", new JSONArray());
+        }
+        return new JSONObject().put("total", count).put("data",
+                new JSONArray(listerFacturesCarnetDepot(tpid, dtStart, dtEnd, query, start, limit)));
+    }
+
+    private long compterFacturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<TFacture> root = cq.from(TFacture.class);
+            Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
+            cq.select(cb.count(root));
+            cq.where(cb.and(predicatsCarnetDepot(cb, root, st, tpid, dtStart, dtEnd, query).toArray(Predicate[]::new)));
+            return (long) getEntityManager().createQuery(cq).getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "comptage des factures carnet depot", e);
+            return 0;
+        }
+    }
+
+    private List<FactureDTO> listerFacturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query,
+            int start, int limit) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<TFacture> cq = cb.createQuery(TFacture.class);
+            Root<TFacture> root = cq.from(TFacture.class);
+            Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
+            cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)), cb.desc(st.get(TTiersPayant_.strFULLNAME)));
+            cq.where(cb.and(predicatsCarnetDepot(cb, root, st, tpid, dtStart, dtEnd, query).toArray(Predicate[]::new)));
+            TypedQuery<TFacture> q = getEntityManager().createQuery(cq);
+            q.setFirstResult(start);
+            q.setMaxResults(limit);
+            return q.getResultStream().map(FactureDTO::new).collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "liste des factures carnet depot", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Predicate> predicatsCarnetDepot(CriteriaBuilder cb, Root<TFacture> root,
+            Join<TFacture, TTiersPayant> st, String tpid, String dtStart, String dtEnd, String query) {
+        List<Predicate> predicates = provisoires10Predicates(cb, root, st, null, null, tpid, null, null, true);
+        /*
+         * Bornes de la periode facturee : une facture est retenue des lors que sa periode CHEVAUCHE celle demandee.
+         * Exiger qu'elle y soit entierement contenue ferait disparaitre une facture a cheval sur deux mois, alors
+         * qu'elle porte bien des bons de la periode cherchee.
+         */
+        java.util.Date debut = dateOuNull(dtStart);
+        java.util.Date fin = dateOuNull(dtEnd);
+        if (debut != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get(TFacture_.dtFINFACTURE), debut));
+        }
+        if (fin != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get(TFacture_.dtDEBUTFACTURE), fin));
+        }
+        if (StringUtils.isNotBlank(query)) {
+            String recherche = "%" + query.trim().toUpperCase() + "%";
+            predicates.add(cb.or(cb.like(cb.upper(root.get(TFacture_.strCODEFACTURE)), recherche),
+                    cb.like(cb.upper(st.get(TTiersPayant_.strFULLNAME)), recherche)));
+        }
+        return predicates;
+    }
+
+    /** Date de l'ecran, au format aaaa-mm-jj ; une saisie vide ou illisible ne filtre rien. */
+    private static java.util.Date dateOuNull(String valeur) {
+        if (StringUtils.isBlank(valeur)) {
+            return null;
+        }
+        try {
+            return java.sql.Date.valueOf(java.time.LocalDate.parse(valeur.trim()));
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "date de filtre illisible : {0}", valeur);
+            return null;
+        }
     }
 
     private JSONObject listerFactures(String groupTp, String typetp, String tpid, String codegroup, Boolean isTemplate,

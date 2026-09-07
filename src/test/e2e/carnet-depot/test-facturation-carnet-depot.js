@@ -303,7 +303,8 @@ function semer() {
         boutonCreer: !!vue.down('#btnCreerFactureDepot'),
         impressions: grille
           ? grille.headerCt.items.items.filter(c => c.xtype === 'actioncolumn')
-              .reduce((n, c) => n + c.items.length, 0) : 0
+              .reduce((n, c) => n + c.items.length, 0) : 0,
+        boutonImprimer: grille ? !!grille.down('#btnImprimerFactureDepot') : false
       };
     });
     ok('l onglet FACTURES est present dans Gerer carnet depot',
@@ -313,8 +314,12 @@ function semer() {
          .every(c => ecran.colonnes.indexOf(c) !== -1), JSON.stringify(ecran.colonnes));
     ok('l onglet est rempli avec les factures carnet depot', ecran.lignes >= 3, 'lignes=' + ecran.lignes);
     ok('le bouton « Créer une facture » est present', ecran.boutonCreer);
-    ok('les deux impressions sont proposees sur chaque ligne', ecran.impressions === 2,
-       'actions=' + ecran.impressions);
+    /* Point 17 : les deux icones voisines de la colonne d'action - qu'on confondait, et qui
+       obligeaient a cliquer ligne a ligne - ont laisse la place a UN SEUL bouton d'impression,
+       qui porte sur la selection et demande l'edition voulue dans sa fenetre. */
+    ok('un seul bouton d impression, plus de colonne d icones',
+       ecran.boutonImprimer === true && ecran.impressions === 0,
+       'bouton=' + ecran.boutonImprimer + ' actions=' + ecran.impressions);
 
     // ---- Scenario D : l'ecran de creation ouvert en mode carnet depot
     const creation = await p.evaluate(async () => {

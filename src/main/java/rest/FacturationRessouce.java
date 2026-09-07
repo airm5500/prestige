@@ -139,15 +139,55 @@ public class FacturationRessouce {
     @GET
     @Path("summary/carnet-depot")
     public Response facturesCarnetDepot(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "tpid") String tpid) throws JSONException {
+            @QueryParam(value = "tpid") String tpid, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
                     .build();
         }
-        JSONObject jsono = facturationService.facturesCarnetDepot(tpid, start, limit <= 0 ? 18 : limit);
+        // Point 17 : la periode et le numero de facture filtrent la liste, comme le tiers payant.
+        JSONObject jsono = facturationService.facturesCarnetDepot(tpid, dtStart, dtEnd, query, start,
+                limit <= 0 ? 18 : limit);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Edition d'une facture de carnet depot, SANS le detail des medicaments (point 17).
+     *
+     * <p>
+     * Une seule ligne par bon, la date en tete et le tri par date, ni « M.TOTAL » ni « M.ADHER », et aucune premiere
+     * page recapitulative. Les seize modeles jasper de l'officine ne sont pas touches : ils servent les autres tiers
+     * payants, dont les factures continuent de sortir exactement comme avant.
+     * </p>
+     */
+    @GET
+    @Path("facture/{id}/carnet-depot/pdf")
+    @Produces("application/pdf")
+    public Response factureCarnetDepotPdf(@PathParam("id") String factureId) {
+        HttpSession hs = servletRequest.getSession();
+        TUser utilisateur = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (utilisateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        dal.TFacture facture = facturationService.findFactureById(factureId);
+        if (facture == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
+        byte[] pdf = rest.report.pdf.FactureCarnetDepotPdf.construire(
+                facturationService.findFacturesDetailsByFactureId(factureId),
+                String.valueOf(parametres.getOrDefault("P_H_INSTITUTION", "")),
+                "FACTURE N° " + facture.getStrCODEFACTURE(),
+                facture.getTiersPayant() == null ? "" : facture.getTiersPayant().getStrFULLNAME(),
+                "PERIODE DU " + jour.format(facture.getDtDEBUTFACTURE()) + " AU "
+                        + jour.format(facture.getDtFINFACTURE()),
+                String.valueOf(parametres.getOrDefault("P_PRINTED_BY", "")));
+        return Response.ok(pdf)
+                .header("Content-Disposition", "inline; filename=facture_" + facture.getStrCODEFACTURE() + ".pdf")
+                .build();
     }
 
     @POST

@@ -99,8 +99,164 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             return;
         }
         const tiersPayant = ecran.down('#tiersPayantsExclus');
-        grille.getStore().getProxy().extraParams = {tpid: (tiersPayant && tiersPayant.getValue()) || ''};
+        const debut = ecran.down('#dtStart');
+        const fin = ecran.down('#dtEnd');
+        const recherche = grille.down('#rechercheFactureDepot');
+        /* Point 17 : les trois criteres de l'ecran filtrent enfin la liste. La periode affichee en
+           haut ne changeait rien : l'onglet rendait tout l'historique du carnet, quelle que soit
+           la periode demandee juste au-dessus. */
+        grille.getStore().getProxy().extraParams = {
+            tpid: (tiersPayant && tiersPayant.getValue()) || '',
+            dtStart: (debut && debut.getSubmitValue()) || '',
+            dtEnd: (fin && fin.getSubmitValue()) || '',
+            query: (recherche && (recherche.getValue() || '').trim()) || ''
+        };
         grille.getStore().loadPage(1);
+    },
+
+    /* Les deux boutons ne valent que sur une selection : grises tant que rien n'est coche. */
+    surSelectionFacturesDepot: function () {
+        const ecran = this.getReglementdepot();
+        const grille = ecran && ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        const selection = grille.getSelectionModel().getSelection();
+        const supprimer = grille.down('#btnSupprimerFactureDepot');
+        const imprimer = grille.down('#btnImprimerFactureDepot');
+        if (imprimer) {
+            imprimer.setDisabled(selection.length === 0);
+        }
+        if (supprimer) {
+            // Une facture definitive ne se supprime pas : le bouton reste gris tant que la
+            // selection en contient une, plutot que d'aller chercher un refus du serveur.
+            const toutesProvisoires = selection.length > 0
+                    && Ext.Array.every(selection, function (f) {
+                        return f.get('template') === true;
+                    });
+            supprimer.setDisabled(!toutesProvisoires);
+        }
+    },
+
+    /**
+     * Suppression des factures cochees : meme geste que sur les factures provisoires, meme service.
+     * Le serveur refuse une par une celles qui ne sont plus provisoires.
+     */
+    supprimerFacturesDepot: function () {
+        const me = this;
+        const ecran = me.getReglementdepot();
+        const grille = ecran && ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        const selection = grille.getSelectionModel().getSelection();
+        if (!selection.length) {
+            return;
+        }
+        Ext.MessageBox.confirm('Confirmation',
+                'Supprimer <b>' + selection.length + '</b> facture(s) provisoire(s) ?',
+                function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/facturation/provisoires/supprimer',
+                        jsonData: {ids: Ext.Array.map(selection, function (f) {
+                                return f.get('lgFACTUREID');
+                            })},
+                        callback: function (opts, succes, reponse) {
+                            let json = {};
+                            try {
+                                json = Ext.decode(reponse.responseText);
+                            } catch (e) {
+                            }
+                            Ext.MessageBox.alert('Message',
+                                    json.msg || json.message || (json.success ? 'Suppression effectuée'
+                                            : 'La suppression a échoué'));
+                            me.chargerFacturesDepot();
+                        }
+                    });
+                });
+    },
+
+    /**
+     * Impression des factures carnet depot : UN SEUL bouton, le choix de l'edition est pose dans la
+     * fenetre.
+     *
+     * <p>
+     * Deux icones voisines dans la colonne d'action se confondaient, et il fallait cliquer ligne a
+     * ligne. Le bouton porte sur la selection, et le choix « sans » ou « avec le detail des
+     * medicaments » est demande UNE FOIS pour tout le lot.
+     * </p>
+     */
+    imprimerFacturesDepot: function () {
+        const me = this;
+        const ecran = me.getReglementdepot();
+        const grille = ecran && ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        const selection = grille.getSelectionModel().getSelection();
+        if (!selection.length) {
+            Ext.MessageBox.alert('Information', 'Cochez au moins une facture à imprimer.');
+            return;
+        }
+        const identifiants = Ext.Array.map(selection, function (f) {
+            return f.get('lgFACTUREID');
+        });
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Impression de ' + identifiants.length + ' facture(s)',
+            modal: true,
+            width: 460,
+            bodyPadding: 12,
+            layout: 'anchor',
+            defaults: {anchor: '100%'},
+            items: [{
+                    xtype: 'radiogroup',
+                    itemId: 'choixEdition',
+                    columns: 1,
+                    vertical: true,
+                    items: [{
+                            boxLabel: 'Sans le détail des médicaments (une ligne par bon)',
+                            name: 'edition',
+                            inputValue: 'simple',
+                            checked: true
+                        }, {
+                            boxLabel: 'Avec le détail des médicaments (modèle DETAIL_ARTICLE)',
+                            name: 'edition',
+                            inputValue: 'details'
+                        }]
+                }],
+            buttons: [{
+                    text: 'Imprimer',
+                    handler: function () {
+                        const choix = fenetre.down('#choixEdition').getValue().edition;
+                        fenetre.destroy();
+                        me.lancerImpressionsDepot(identifiants, choix === 'details');
+                    }
+                }, {
+                    text: 'Annuler',
+                    handler: function () {
+                        fenetre.destroy();
+                    }
+                }]
+        });
+        fenetre.show();
+    },
+
+    /* Les editions sont espacees : ouvertes dans la meme milliseconde, le navigateur bloque toutes
+       les fenetres sauf la premiere. */
+    lancerImpressionsDepot: function (identifiants, avecDetails) {
+        Ext.Array.each(identifiants, function (id, rang) {
+            Ext.defer(function () {
+                window.open(avecDetails
+                        ? '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
+                        + encodeURIComponent(id) + '&details=true'
+                        : '../api/v1/facturation/facture/' + encodeURIComponent(id) + '/carnet-depot/pdf');
+            }, rang * 400);
+        });
     },
 
     /* Creation : on ouvre l'ecran de facturation EXISTANT en mode carnet depot, plutot que d'ecrire
@@ -112,23 +268,6 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             carnetDepot: true,
             tiersPayantId: (tiersPayant && tiersPayant.getValue()) || ''
         });
-    },
-
-    /**
-     * Impression d'une facture carnet depot.
-     *
-     * @param avecDetails
-     *            faux : le modele normalement rattache au tiers payant ; vrai : une edition
-     *            DETAIL_ARTICLE, qui ajoute les medicaments de chaque vente.
-     */
-    imprimerFactureDepot: function (enregistrement, avecDetails) {
-        if (!enregistrement) {
-            return;
-        }
-        const url = '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
-                + encodeURIComponent(enregistrement.get('lgFACTUREID'))
-                + (avecDetails ? '&details=true' : '');
-        window.open(url);
     },
 
     init: function (application) {
@@ -153,8 +292,21 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             'reglementdepot #btnCreerFactureDepot': {
                 click: this.creerFactureDepot
             },
-            'reglementdepot': {
-                imprimerFactureDepot: this.imprimerFactureDepot
+            'reglementdepot #btnSupprimerFactureDepot': {
+                click: this.supprimerFacturesDepot
+            },
+            'reglementdepot #btnImprimerFactureDepot': {
+                click: this.imprimerFacturesDepot
+            },
+            'reglementdepot #grilleFacturesDepot': {
+                selectionchange: this.surSelectionFacturesDepot
+            },
+            'reglementdepot #rechercheFactureDepot': {
+                specialkey: function (champ, evenement) {
+                    if (evenement.getKey() === evenement.ENTER) {
+                        this.chargerFacturesDepot();
+                    }
+                }
             },
  
             'reglementdepot #imprimer': {

@@ -278,7 +278,7 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
         const facturesDepot = Ext.create('Ext.data.Store', {
             fields: ['lgFACTUREID', 'periode', 'strFULLNAME', 'strCODEFACTURE',
                 {name: 'nbDossier', type: 'number'}, {name: 'dblMONTANTCMDE', type: 'number'},
-                'dtDATEFACTURE'],
+                'dtDATEFACTURE', {name: 'template', type: 'boolean'}],
             pageSize: 18,
             autoLoad: false,
             proxy: {
@@ -929,6 +929,11 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                 emptyText: '<div style="margin:20px;">Aucune facture carnet dépôt</div>',
                                 deferEmptyText: false
                             },
+                            /* Point 17 : cocher pour supprimer ou reimprimer plusieurs factures. */
+                            selModel: Ext.create('Ext.selection.CheckboxModel', {
+                                checkOnly: true,
+                                mode: 'MULTI'
+                            }),
                             dockedItems: [{
                                     xtype: 'toolbar',
                                     dock: 'top',
@@ -938,13 +943,35 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                             iconCls: 'addicon',
                                             tooltip: 'Créer une facture pour un carnet dépôt'
                                         }, {
+                                            /* Point 17 : la liste se filtre aussi par numero de facture,
+                                               en plus du tiers payant et de la periode de l'ecran. */
+                                            xtype: 'textfield',
+                                            itemId: 'rechercheFactureDepot',
+                                            emptyText: 'N° de facture ou organisme',
+                                            width: 200,
+                                            margin: '0 5 0 5',
+                                            enableKeyEvents: true
+                                        }, {
                                             text: 'Rafraîchir',
                                             itemId: 'btnRafraichirFacturesDepot',
                                             iconCls: 'searchicon'
                                         }, '->', {
-                                            xtype: 'tbtext',
-                                            text: '<span style="color:#555;">La sélection de tiers-payant '
-                                                    + 'ci-dessus limite la liste à un carnet précis.</span>'
+                                            /* Point 17 : suppression, meme geste que sur les factures
+                                               provisoires. Le serveur refuse celles qui ne le sont plus. */
+                                            text: 'Supprimer',
+                                            itemId: 'btnSupprimerFactureDepot',
+                                            iconCls: 'icon-delete',
+                                            tooltip: 'Supprimer les factures cochées (provisoires uniquement)',
+                                            disabled: true
+                                        }, {
+                                            /* Point 17 : UN SEUL bouton d'impression. Le choix « avec ou sans
+                                               le detail des medicaments » est pose dans la fenetre, au lieu de
+                                               deux icones voisines qu'on confondait. */
+                                            text: 'Imprimer',
+                                            itemId: 'btnImprimerFactureDepot',
+                                            iconCls: 'printable',
+                                            tooltip: 'Imprimer les factures cochées, ou la ligne sélectionnée',
+                                            disabled: true
                                         }]
                                 }],
                             columns: [
@@ -960,31 +987,14 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                         return '<b>' + Ext.util.Format.number(v || 0, '0,000') + '</b>';
                                     }},
                                 {header: 'Date facture', dataIndex: 'dtDATEFACTURE', flex: 0.9},
-                                {
-                                    xtype: 'actioncolumn',
-                                    header: 'Impressions',
-                                    width: 90,
-                                    align: 'center',
-                                    menuDisabled: true,
-                                    sortable: false,
-                                    items: [{
-                                            icon: 'resources/images/icons/fam/printer.png',
-                                            tooltip: 'Imprimer les bons (modèle du tiers-payant)',
-                                            altText: 'Imprimer les bons',
-                                            handler: function (grille, ligne) {
-                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
-                                                        grille.getStore().getAt(ligne), false);
-                                            }
-                                        }, {
-                                            icon: 'resources/images/icons/fam/text_list_bullets.png',
-                                            tooltip: 'Imprimer les bons + le détail des médicaments',
-                                            altText: 'Imprimer les bons avec le détail des médicaments',
-                                            handler: function (grille, ligne) {
-                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
-                                                        grille.getStore().getAt(ligne), true);
-                                            }
-                                        }]
-                                }
+                                {header: 'Statut', dataIndex: 'template', width: 90, align: 'center',
+                                    /* Seules les factures PROVISOIRES peuvent etre supprimees : le dire ici
+                                       evite d'essayer sur une definitive et de recevoir un refus. */
+                                    renderer: function (v) {
+                                        return v
+                                                ? '<span style="color:#b9770e;">Provisoire</span>'
+                                                : '<span style="color:#1e8449;">Définitive</span>';
+                                    }}
                             ],
                             bbar: {
                                 xtype: 'pagingtoolbar',

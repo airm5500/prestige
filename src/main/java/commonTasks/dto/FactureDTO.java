@@ -221,6 +221,8 @@ public class FactureDTO implements Serializable {
         this.strCODEORGANISME = strCODEORGANISME;
     }
 
+    private boolean template;
+
     public FactureDTO(TFacture facture) {
         this.lgFACTUREID = facture.getLgFACTUREID();
         TTiersPayant payant = facture.getTiersPayant();
@@ -260,6 +262,18 @@ public class FactureDTO implements Serializable {
         this.strCOMPTECONTRIBUABLE = payant.getStrCOMPTECONTRIBUABLE();
         this.tiersPayantId = payant.getLgTIERSPAYANTID();
         this.dtCREATED = dfFull.format(facture.getDtCREATED());
+        // Provisoire ou definitive : seules les provisoires se suppriment (point 17), et l'ecran doit
+        // pouvoir le dire avant qu'on essaie.
+        this.template = Boolean.TRUE.equals(facture.getTemplate());
+    }
+
+    /** Vrai si la facture est encore PROVISOIRE. */
+    public boolean isTemplate() {
+        return template;
+    }
+
+    public void setTemplate(boolean template) {
+        this.template = template;
     }
 
     public String getStrTELEPHONE() {
