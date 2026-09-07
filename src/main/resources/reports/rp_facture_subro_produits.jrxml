@@ -262,9 +262,9 @@
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
 			</image>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="0" width="555" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="b7a1c2d3-5002-4a2b-9c3d-0e1f2a3b4c5d"/>
+				<reportElement x="0" y="10" width="555" height="14" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="b7a1c2d3-5002-4a2b-9c3d-0e1f2a3b4c5d"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="Arial" size="16" isBold="true"/>
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
 			</textField>
