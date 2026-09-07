@@ -4,6 +4,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
     extend: 'Ext.panel.Panel',
     xtype: 'monitoringproduct',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
 
     ],
     frame: true,
@@ -241,6 +242,8 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             enableKeyEvents: true,
                             emptyText: 'Recherche'
                         }, '-',
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

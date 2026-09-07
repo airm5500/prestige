@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.caisseManager.GestionCaisse', {
     extend: 'Ext.panel.Panel',
     xtype: 'gestcaissemanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Gestion Caisse',
     iconCls: 'icon-grid',
@@ -164,6 +167,8 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
 
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

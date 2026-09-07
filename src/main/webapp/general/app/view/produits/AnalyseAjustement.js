@@ -8,6 +8,9 @@
 Ext.define('testextjs.view.produits.AnalyseAjustement', {
     extend: 'Ext.panel.Panel',
     xtype: 'analyseajustement',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
 
     frame: true,
     title: 'Analyse Ajustement de stock',
@@ -97,7 +100,9 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
                                     }
                                 }
                             })
-                        }, '-', {
+                        }, '-', // Applique en un geste les bornes d'une garde enregistree.
+ {xtype: 'selecteurgarde'},
+ {
                             text: 'Sortir la liste',
                             tooltip: 'Sortir la liste des produits les plus ajust&eacute;s sur la p&eacute;riode',
                             itemId: 'rechercher',

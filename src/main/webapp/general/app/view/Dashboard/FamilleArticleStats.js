@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.FamilleArticleStats', {
     extend: 'Ext.tab.Panel',
     xtype: 'statfamilleartcl',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     width: '97%',
     height: 'auto',
@@ -168,6 +171,8 @@ Ext.define('testextjs.view.Dashboard.FamilleArticleStats', {
                             minChars: 2,
                             emptyText: 'Sélectionnez un grossiste'
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

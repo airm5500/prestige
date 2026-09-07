@@ -9,6 +9,9 @@
 Ext.define('testextjs.view.depot.Export', {
     extend: 'Ext.panel.Panel',
     xtype: 'exportdepotvents',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     title: 'Exportation de ventes format json',
     width: '55%',
     height: 200,
@@ -73,6 +76,8 @@ Ext.define('testextjs.view.depot.Export', {
                                     value: new Date()
 
                                 }
+                                // Applique en un geste les bornes d'une garde enregistree.
+                                , {xtype: 'selecteurgarde'}
 
                             ]
 

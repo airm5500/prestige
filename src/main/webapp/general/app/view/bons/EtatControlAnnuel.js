@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.bons.EtatControlAnnuel', {
     extend: 'Ext.panel.Panel',
     xtype: 'etatannuel',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Etat de controle annuel',
     width: '98%',
@@ -193,6 +196,8 @@ Ext.define('testextjs.view.bons.EtatControlAnnuel', {
                             xtype: 'tbseparator'
                         },
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

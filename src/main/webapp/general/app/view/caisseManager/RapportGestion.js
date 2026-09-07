@@ -6,6 +6,9 @@
 Ext.define('testextjs.view.caisseManager.RapportGestion', {
     extend: 'Ext.panel.Panel',
     xtype: 'managementreport',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Rapport de gestion',
     scrollable: true,
@@ -103,6 +106,8 @@ Ext.define('testextjs.view.caisseManager.RapportGestion', {
                             value: new Date()
 
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

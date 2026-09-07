@@ -18,6 +18,7 @@ Ext.define('testextjs.view.produits.Ajustement', {
      * desormais porte par le conteneur a onglets AjustementTabPanel */
     xtype: 'ajustementgestion',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
     ],
 
     frame: true,
@@ -172,6 +173,8 @@ Ext.define('testextjs.view.produits.Ajustement', {
                             value: new Date()
 
                         }, '-',
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

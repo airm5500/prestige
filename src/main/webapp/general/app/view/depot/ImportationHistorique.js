@@ -4,6 +4,7 @@ Ext.define('testextjs.view.depot.ImportationHistorique', {
     extend: 'Ext.panel.Panel',
     xtype: 'importfromjson',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.plugin.RowExpander'
     ],
 
@@ -98,6 +99,8 @@ Ext.define('testextjs.view.depot.ImportationHistorique', {
 
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

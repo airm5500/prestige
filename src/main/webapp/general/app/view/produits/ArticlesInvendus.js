@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.produits.ArticlesInvendus', {
     extend: 'Ext.panel.Panel',
     xtype: 'stockmort',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Articles invendus',
     width: '98%',
@@ -247,6 +250,8 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                         {
                             xtype: 'tbseparator'
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

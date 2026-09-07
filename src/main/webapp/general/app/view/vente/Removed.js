@@ -4,6 +4,7 @@ Ext.define('testextjs.view.vente.Removed', {
     extend: 'Ext.panel.Panel',
     xtype: 'venteannuler',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'testextjs.view.vente.DetailProduitsVente'
     ],
 
@@ -100,6 +101,8 @@ Ext.define('testextjs.view.vente.Removed', {
                             emptyText: 'Recherche'
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

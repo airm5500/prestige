@@ -78,6 +78,10 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 }
                 fenetre.close();
                 me.getGardeManager().gardeStore.reload();
+                // Le magasin partage alimente les selecteurs poses sur les autres ecrans : sans
+                // ce rafraichissement, une garde tout juste creee n'y apparaitrait qu'apres
+                // rechargement de l'application.
+                testextjs.view.garde.MagasinGardes.rafraichir();
             },
             failure: function () {
                 Ext.MessageBox.alert('Message', 'La garde n\'a pas pu &ecirc;tre enregistr&eacute;e.');
@@ -110,6 +114,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
                                 return;
                             }
                             me.getGardeManager().gardeStore.reload();
+                            testextjs.view.garde.MagasinGardes.rafraichir();
                             me.viderAnalyse();
                         },
                         failure: function () {

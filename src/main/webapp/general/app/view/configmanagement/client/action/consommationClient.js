@@ -12,6 +12,7 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
     id: 'consommationClientID',
     maximizable: true,
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'Ext.form.*',
         'Ext.window.Window',
         'Ext.grid.*'
@@ -98,7 +99,9 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                                     maxValue: new Date(),
                                     format: 'd/m/Y',
                                     value: new Date()
-                                }, '-', {
+                                },
+                                // Applique en un geste les bornes d'une garde enregistree.
+                                {xtype: 'selecteurgarde'}, {
                                     xtype: 'textfield',
                                     itemId: 'query',
                                     flex: 1,

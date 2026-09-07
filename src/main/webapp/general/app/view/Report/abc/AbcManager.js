@@ -10,7 +10,8 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
     minHeight: 570,
     cls: 'custompanel',
     layout: 'fit',
-    requires: ['testextjs.model.AbcProduit', 'Ext.tip.ToolTip',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde','testextjs.model.AbcProduit', 'Ext.tip.ToolTip',
         'Ext.chart.Chart', 'Ext.chart.series.Line', 'Ext.chart.axis.Numeric', 'Ext.chart.axis.Category'],
 
     initComponent: function () {
@@ -184,6 +185,8 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         },
                         {xtype: 'textfield', flex: 1, itemId: 'searchField', emptyText: 'CIP, libellé, EAN, code Geo',
                             fieldStyle: 'border:2px solid #1565C0;'},
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         {xtype: 'tbseparator'},
                         /* Icones distinctes (retour d'officine) : le recalcul ne partage plus celle

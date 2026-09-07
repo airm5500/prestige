@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.actions.Ug', {
     extend: 'Ext.panel.Panel',
     xtype: 'venteugs',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Ventes unités gratuites',
     width: '97%',
@@ -122,6 +125,8 @@ Ext.define('testextjs.view.actions.Ug', {
                         }, {
                             xtype: 'tbseparator'
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

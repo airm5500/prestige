@@ -4,6 +4,9 @@
 Ext.define('testextjs.view.pharmaml.Rupturepharma', {
     extend: 'Ext.panel.Panel',
     xtype: 'rupturepharma',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'LISTE DES RUPTURES',
     scrollable: true,
@@ -173,6 +176,8 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                         {
                             xtype: 'tbseparator'
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

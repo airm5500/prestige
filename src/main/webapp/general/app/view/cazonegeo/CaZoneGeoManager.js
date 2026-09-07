@@ -12,6 +12,9 @@
 Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
     extend: 'Ext.tab.Panel',
     xtype: 'cazonegeomanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     width: '97%',
     height: 620,
@@ -99,7 +102,9 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                             submitFormat: 'Y-m-d',
                             maxValue: new Date(),
                             value: new Date()
-                        }, {
+                        },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'}, {
                             xtype: 'combobox',
                             itemId: 'zone',
                             flex: 1,

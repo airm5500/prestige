@@ -186,7 +186,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
 
                         // Applique en un geste les bornes d'une garde enregistree. Cet ecran
                         // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
-                        {xtype: 'selecteurgarde'}, '-',
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

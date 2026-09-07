@@ -18,6 +18,7 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
     extend: 'Ext.panel.Panel',
     xtype: 'suiviconsoclients',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'testextjs.view.configmanagement.client.action.consommationClient',
         'testextjs.view.configmanagement.client.action.CampagneClient',
         'testextjs.model.Search'
@@ -251,7 +252,9 @@ Ext.define('testextjs.view.configmanagement.client.SuiviConsoClients', {
                                     me.doSearch();
                                 }
                             }
-                        }, '-', {
+                        }, '-', // Applique en un geste les bornes d'une garde enregistree.
+ {xtype: 'selecteurgarde'},
+ {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'rechercher',

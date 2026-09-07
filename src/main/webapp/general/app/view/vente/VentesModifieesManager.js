@@ -12,6 +12,9 @@
 Ext.define('testextjs.view.vente.VentesModifieesManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventesmodifieesmanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     id: 'ventesmodifieesmanagerID',
     title: 'Mouchard des ventes modifiées',
     frame: true,
@@ -99,7 +102,9 @@ Ext.define('testextjs.view.vente.VentesModifieesManager', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y',
                             value: today
-                        }, {
+                        },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'}, {
                             xtype: 'combobox',
                             itemId: 'userCombo',
                             emptyText: 'Opérateur',

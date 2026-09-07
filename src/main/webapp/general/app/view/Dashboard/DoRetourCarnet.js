@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.DoRetourCarnet', {
     extend: 'Ext.panel.Panel',
     xtype: 'doRetourCarnet',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     config: {
         data: null
     },
@@ -218,6 +221,8 @@ Ext.define('testextjs.view.Dashboard.DoRetourCarnet', {
                                     value: new Date()
 
                                 },
+                                // Applique en un geste les bornes d'une garde enregistree.
+                                {xtype: 'selecteurgarde'},
                                 {
                                     xtype: 'combobox',
                                     flex: 1,

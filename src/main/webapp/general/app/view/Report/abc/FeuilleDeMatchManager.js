@@ -15,7 +15,8 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
     minHeight: 570,
     cls: 'custompanel',
     layout: 'fit',
-    requires: ['testextjs.model.AbcProduit'],
+    requires: [
+        'testextjs.view.garde.SelecteurGarde','testextjs.model.AbcProduit'],
 
     initComponent: function () {
         const me = this;
@@ -154,6 +155,8 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                         {xtype: 'combo', value: 'ALL', flex: 1.2, itemId: 'comboObjectif', labelWidth: 1, editable: false, store: filtreObjectif, valueField: 'id', displayField: 'libelle'},
                         {xtype: 'textfield', flex: 1.4, itemId: 'searchField', emptyText: 'Code CIP ou nom du produit',
                             fieldStyle: 'border:2px solid #1565C0;'},
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         '->',
                         {text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable', tooltip: 'Imprimer la feuille de match (PDF) : fréquences et quantités d\'achat du mois en cours et des 3 derniers mois'},

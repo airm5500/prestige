@@ -197,7 +197,7 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                         }, '-',
                         // Applique en un geste les bornes d'une garde enregistree. Cet ecran
                         // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
-                        {xtype: 'selecteurgarde'}, '-',
+                        {xtype: 'selecteurgarde'},
                         {text: 'rechercher', tooltip: 'rechercher', itemId: 'rechercher', scope: this, iconCls: 'searchicon'},
                         '-',
                         {text: 'Imprimer', tooltip: 'imprimer', scope: this, itemId: 'printPdf', iconCls: 'printable'}

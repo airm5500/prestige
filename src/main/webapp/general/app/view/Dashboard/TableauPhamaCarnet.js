@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.TableauPhamaCarnet', {
     extend: 'Ext.tab.Panel',
     xtype: 'tableauPhamaCarnet',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
 
     frame: true,
     width: '97%',
@@ -132,6 +135,8 @@ Ext.define('testextjs.view.Dashboard.TableauPhamaCarnet', {
                             itemId: 'monthly'
                         },
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

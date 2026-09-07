@@ -17,6 +17,48 @@
  * ordinaire en plus de la nuit. Le resultat n'est alors pas celui de la garde, et le composant le
  * dit explicitement au lieu de laisser croire le contraire.
  */
+/*
+ * Le magasin est PARTAGE par tous les selecteurs de l'application. Le composant est pose sur une
+ * soixantaine d'ecrans : lui donner son magasin propre declencherait un appel au serveur a chaque
+ * ouverture d'ecran, pour une liste qui bouge une fois par garde. Un seul chargement suffit ; les
+ * ecrans de gardes le rafraichissent quand la liste change.
+ */
+Ext.define('testextjs.view.garde.MagasinGardes', {
+    singleton: true,
+    magasin: null,
+
+    obtenir: function () {
+        if (!this.magasin) {
+            this.magasin = Ext.create('Ext.data.Store', {
+                storeId: 'magasinGardesPartage',
+                fields: ['id', 'libelle', 'dateDebut', 'dateFin', 'jourDebut', 'heureDebut',
+                    'jourFin', 'heureFin', 'duree',
+                    {
+                        name: 'libelleComplet',
+                        convert: function (valeur, ligne) {
+                            return ligne.get('libelle') + '  (' + ligne.get('dateDebut') + ' → '
+                                    + ligne.get('dateFin') + ')';
+                        }
+                    }],
+                autoLoad: true,
+                proxy: {
+                    type: 'ajax',
+                    url: '../api/v1/gardes',
+                    reader: {type: 'json', root: 'data', totalProperty: 'total'}
+                }
+            });
+        }
+        return this.magasin;
+    },
+
+    /** A appeler apres une creation, une modification ou une suppression de garde. */
+    rafraichir: function () {
+        if (this.magasin) {
+            this.magasin.reload();
+        }
+    }
+});
+
 Ext.define('testextjs.view.garde.SelecteurGarde', {
     extend: 'Ext.form.field.ComboBox',
     xtype: 'selecteurgarde',
@@ -24,6 +66,9 @@ Ext.define('testextjs.view.garde.SelecteurGarde', {
     fieldLabel: 'Garde',
     labelWidth: 40,
     width: 320,
+    // Une marge propre : le separateur « - » des barres d'outils n'est pas utilisable partout,
+    // certains ecrans posant leurs champs de periode dans un fieldcontainer et non un toolbar.
+    margin: '0 6 0 6',
     valueField: 'id',
     displayField: 'libelleComplet',
     queryMode: 'local',
@@ -40,23 +85,7 @@ Ext.define('testextjs.view.garde.SelecteurGarde', {
 
     initComponent: function () {
         var me = this;
-        me.store = Ext.create('Ext.data.Store', {
-            fields: ['id', 'libelle', 'dateDebut', 'dateFin', 'jourDebut', 'heureDebut',
-                'jourFin', 'heureFin', 'duree',
-                {
-                    name: 'libelleComplet',
-                    convert: function (valeur, ligne) {
-                        return ligne.get('libelle') + '  (' + ligne.get('dateDebut') + ' → '
-                                + ligne.get('dateFin') + ')';
-                    }
-                }],
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/gardes',
-                reader: {type: 'json', root: 'data', totalProperty: 'total'}
-            }
-        });
+        me.store = testextjs.view.garde.MagasinGardes.obtenir();
         me.listeners = Ext.apply(me.listeners || {}, {
             select: function (combo, enregistrements) {
                 combo.appliquer(enregistrements[0]);
@@ -67,12 +96,13 @@ Ext.define('testextjs.view.garde.SelecteurGarde', {
 
     /** Pose les bornes de la garde dans les champs de l'ecran hote. */
     appliquer: function (garde) {
+        var me = this;
         if (!garde) {
             return;
         }
         // On remonte au premier conteneur qui porte les champs de periode : le selecteur peut
         // etre pose dans une barre d'outils imbriquee.
-        var hote = this.up('panel');
+        var hote = me.up('panel');
         while (hote && !hote.down('#dtStart')) {
             hote = hote.up('panel');
         }
@@ -95,9 +125,12 @@ Ext.define('testextjs.view.garde.SelecteurGarde', {
             heuresPosees = true;
         }
 
-        if (!heuresPosees && garde.get('jourDebut') !== garde.get('jourFin')) {
-            // Le cas ou l'ecran ment sans le savoir : la garde couvre une nuit, l'ecran affichera
-            // deux journees pleines. Le dire vaut mieux qu'un chiffre faux tenu pour vrai.
+        // L'avertissement n'est donne QU'UNE FOIS par ecran ouvert. Il est important -- l'ecran
+        // afficherait sinon deux journees pleines en croyant montrer la garde -- mais le repeter a
+        // chaque changement de garde le ferait fermer sans le lire, ce qui reviendrait a ne rien
+        // dire du tout.
+        if (!heuresPosees && !me.avertissementDonne && garde.get('jourDebut') !== garde.get('jourFin')) {
+            me.avertissementDonne = true;
             Ext.MessageBox.alert('P&eacute;riode appliqu&eacute;e',
                     'La garde <b>' + garde.get('libelle') + '</b> va du ' + garde.get('dateDebut')
                     + ' au ' + garde.get('dateFin') + '.<br/><br/>'
@@ -106,7 +139,7 @@ Ext.define('testextjs.view.garde.SelecteurGarde', {
                     + ', activit&eacute; de jour comprise.<br/>'
                     + 'Pour les chiffres de la garde seule, utilisez l\'&eacute;cran de gestion des gardes.');
         }
-        if (this.getRechercherApres()) {
+        if (me.getRechercherApres()) {
             var bouton = hote.down('#rechercher');
             if (bouton) {
                 bouton.fireEvent('click', bouton);

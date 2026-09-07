@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
     extend: 'Ext.panel.Panel',
     xtype: 'balancesalecahs',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Balance Vente/Caisse',
     width: '97%',
@@ -128,6 +131,8 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                             value: new Date()
 
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

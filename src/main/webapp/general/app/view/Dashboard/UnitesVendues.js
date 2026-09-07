@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.UnitesVendues', {
     extend: 'Ext.panel.Panel',
     xtype: 'statistiqueuniteventemanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Statistiques sur les unités vendues',
     width: '98%',
@@ -232,6 +235,8 @@ Ext.define('testextjs.view.Dashboard.UnitesVendues', {
                         {
                             xtype: 'tbseparator'
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

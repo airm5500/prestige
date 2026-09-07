@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.TvaStat', {
     extend: 'Ext.tab.Panel',
     xtype: 'tvastat',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     width: '95%',
     height: 500,
@@ -93,6 +96,8 @@ Ext.define('testextjs.view.Dashboard.TvaStat', {
                             store: ['TOUT', 'VNO']
                         },
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

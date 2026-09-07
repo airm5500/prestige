@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.caisseManager.Cashmovement', {
     extend: 'Ext.panel.Panel',
     xtype: 'cashmovements',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Liste des mouvements',
     iconCls: 'icon-grid',
@@ -200,6 +203,8 @@ Ext.define('testextjs.view.caisseManager.Cashmovement', {
                             emptyText: 'Tous les types...'
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

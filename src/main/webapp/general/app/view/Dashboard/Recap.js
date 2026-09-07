@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.Recap', {
     extend: 'Ext.panel.Panel',
     xtype: 'recap',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     width: '98%',
     minHeight: 600,
@@ -151,6 +154,8 @@ Ext.define('testextjs.view.Dashboard.Recap', {
                             format: 'd/m/Y'
 
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

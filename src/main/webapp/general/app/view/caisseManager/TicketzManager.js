@@ -4,6 +4,9 @@
 Ext.define('testextjs.view.caisseManager.TicketzManager', {
     extend: 'Ext.form.Panel',
     xtype: 'ticketzmanager_old',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'TICKET Z',
     bodyPadding: 10,
@@ -109,6 +112,8 @@ Ext.define('testextjs.view.caisseManager.TicketzManager', {
                             submitFormat: 'Y-m-d',
                             allowBlank: false
                         },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             xtype: 'timefield',
                             name: 'hrEnd',

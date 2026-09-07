@@ -4,6 +4,7 @@ Ext.define('testextjs.view.reglement.Differe', {
     extend: 'Ext.tab.Panel',
     xtype: 'delayed',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'testextjs.model.caisse.ClientLambda'
     ],
     frame: true,
@@ -419,6 +420,8 @@ Ext.define('testextjs.view.reglement.Differe', {
 
                                 }
                                 ,
+                                // Applique en un geste les bornes d'une garde enregistree.
+                                {xtype: 'selecteurgarde'},
                                 {
                                     text: 'rechercher',
                                     tooltip: 'rechercher',

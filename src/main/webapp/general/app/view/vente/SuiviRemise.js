@@ -5,6 +5,7 @@ Ext.define('testextjs.view.vente.SuiviRemise', {
     extend: 'Ext.panel.Panel',
     xtype: 'suiviremise',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.plugin.RowExpander'
     ],
 
@@ -136,6 +137,8 @@ Ext.define('testextjs.view.vente.SuiviRemise', {
                             emptyText: 'Recherche'
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',

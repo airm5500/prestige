@@ -6,6 +6,9 @@
 Ext.define('testextjs.view.Dashboard.CarnetDepot', {
     extend: 'Ext.tab.Panel',
     xtype: 'reglementdepot',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: false,
     width: '97%',
     height: 670,
@@ -334,7 +337,9 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y'
                         }
-                        , {
+                        ,
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'}, {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'btnVentePanel',

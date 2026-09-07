@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.Dashboard.TableauPhama', {
     extend: 'Ext.tab.Panel',
     xtype: 'tableauPhama',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     width: '97%',
     height: 'auto',
@@ -140,7 +143,9 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             labelWidth: 60,
                             fieldLabel: 'Filtrer par',
                             store: ['Ratio Vente/Achat', 'Ratio Achat/Vente']
-                        }, {
+                        }, // Applique en un geste les bornes d'une garde enregistree.
+ {xtype: 'selecteurgarde'},
+ {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'rechercher',

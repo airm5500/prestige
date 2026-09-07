@@ -12,6 +12,9 @@
 Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'analysetierspayant',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     title: 'Analyse tiers payants',
     frame: true,
     width: '98%',
@@ -123,6 +126,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                         margin: '0 10 0 0', width: 170, submitFormat: 'Y-m-d', format: 'd/m/Y',
                         maxValue: new Date(), value: new Date()
                     },
+                    // Applique en un geste les bornes d'une garde enregistree.
+                    {xtype: 'selecteurgarde'},
                     {
                         xtype: 'textfield', itemId: 'rechercheTiersPayant', width: 210,
                         margin: '0 10 0 0', emptyText: 'Filtrer un tiers payant...',

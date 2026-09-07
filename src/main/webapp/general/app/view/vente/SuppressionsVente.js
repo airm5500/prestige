@@ -12,6 +12,9 @@
 Ext.define('testextjs.view.vente.SuppressionsVente', {
     extend: 'Ext.panel.Panel',
     xtype: 'suppressionsvente',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     id: 'suppressionsventeID',
     title: 'Produits rétirés et ventes abandonnées',
     frame: true,
@@ -101,7 +104,9 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y',
                             value: today
-                        }, {
+                        },
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'}, {
                             xtype: 'combobox',
                             itemId: 'userCombo',
                             emptyText: 'Utilisateur',

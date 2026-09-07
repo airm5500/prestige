@@ -4,6 +4,7 @@ Ext.define('testextjs.view.devis.Devis', {
     extend: 'Ext.panel.Panel',
     xtype: 'devismanager',
     requires: [
+        'testextjs.view.garde.SelecteurGarde',
         'Ext.grid.plugin.RowExpander'
     ],
 
@@ -87,6 +88,8 @@ Ext.define('testextjs.view.devis.Devis', {
                             emptyText: 'Recherche'
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree.
+                        {xtype: 'selecteurgarde'},
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
