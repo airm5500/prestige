@@ -200,6 +200,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         'testextjs.view.vente.user.AyantDroitGrid',
         'testextjs.view.vente.user.AddCarnet',
         'testextjs.view.vente.user.Medecin',
+        'testextjs.view.vente.user.OrdonnanceParcours',
         'testextjs.view.vente.ReglementGrid'
     ],
     config: {
@@ -607,6 +608,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             selector: 'medecin #medecinGrid'
         },
         {
+            ref: 'parcoursOrdonnance',
+            selector: 'ordonnanceparcours'
+        },
+        {
             ref: 'nomMedecin',
             selector: 'medecin form textfield[name=nom]'
         },
@@ -829,6 +834,80 @@ Ext.define('testextjs.controller.VenteCtr', {
                     },
                     'medecin #btnRechercheMedecin': {
                         click: this.queryMedecin
+                    },
+                    /* Parcours client + medecin d'une vente ordonnanciere (retour du 08/09). */
+                    'ordonnanceparcours': {
+                        clientChoisi: this.parcoursClientChoisi,
+                        medecinChoisi: this.parcoursMedecinChoisi
+                    },
+                    'ordonnanceparcours #rechercheClient': {
+                        keyup: this.parcoursRechercheClient,
+                        specialkey: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcours #btnRechercherClient': {
+                        click: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcours #btnNouveauClient': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', true);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetourListeClients': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', false);
+                        }
+                    },
+                    'ordonnanceparcours #btnEnregistrerClient': {
+                        click: this.parcoursEnregistrerClient
+                    },
+                    'ordonnanceparcours #formulaireClient textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerClient();
+                            }
+                        }
+                    },
+                    'ordonnanceparcours #rechercheMedecin': {
+                        keyup: this.parcoursRechercheMedecin,
+                        specialkey: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcours #btnRechercherMedecin': {
+                        click: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcours #btnNouveauMedecin': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecin', true);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetourListeMedecins': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecin', false);
+                        }
+                    },
+                    'ordonnanceparcours #btnEnregistrerMedecin': {
+                        click: this.parcoursEnregistrerMedecin
+                    },
+                    'ordonnanceparcours #formulaireMedecin textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerMedecin();
+                            }
+                        }
+                    },
+                    'ordonnanceparcours #btnSuivant': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(1);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetour': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(0);
+                        }
+                    },
+                    'ordonnanceparcours #btnAnnuler': {
+                        click: function () {
+                            this.getParcoursOrdonnance().close();
+                        }
                     },
                     'medecin #queryMedecin': {
                         specialkey: this.onMedecinKey,
@@ -2283,7 +2362,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let codeError = result.codeError;
                     //il faut ajouter un medecin à la vente 
                     if (codeError === 1) {
-                        me.showMedicinWindow();
+                        // Vente ordonnanciere : client puis medecin, sur un seul ecran (retour du 08/09).
+                        me.ouvrirParcoursOrdonnance();
                     } else if (codeError === 2) {
 
                         me.getInfosClientStandard().show();
@@ -6460,7 +6540,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         let codeError = result.codeError;
                         //il faut ajouter un medecin à la vente 
                         if (codeError === 1) {
-                            me.showMedicinWindow();
+                            me.ouvrirParcoursOrdonnance();
                         } else {
                             Ext.MessageBox.show({
                                 title: 'Message d\'erreur',
@@ -7153,6 +7233,169 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
 
     },
+    /*
+     * ====== Parcours client + medecin d'une vente ordonnanciere (retour du 08/09, point 4) ======
+     *
+     * Ouvert quand la validation reclame un medecin (codeError 1). Un seul ecran, deux volets :
+     * le client d'abord, le medecin ensuite. Si la vente a deja un client, on ouvre directement
+     * sur le medecin. Chaque choix est enregistre sur la vente aussitot, par les memes services
+     * que les fenetres historiques - qui restent en place pour les autres parcours.
+     */
+    ouvrirParcoursOrdonnance: function () {
+        const me = this;
+        const existant = me.getParcoursOrdonnance && me.getParcoursOrdonnance();
+        if (existant) {
+            existant.close();
+        }
+        const fenetre = Ext.create('testextjs.view.vente.user.OrdonnanceParcours');
+        fenetre.show();
+        fenetre.medecinStore.load({params: {query: ''}});
+        if (me.getClient()) {
+            fenetre.clientAcquis();
+            fenetre.allerAuVolet(1);
+        } else {
+            fenetre.allerAuVolet(0);
+        }
+    },
+
+    parcoursRechercheClient: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheClient').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheClientParcoursDifferee) {
+            me._rechercheClientParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.clientStore.load({params: {query: (f.down('#rechercheClient').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheClientParcoursDifferee();
+    },
+
+    /* Le client est rattache a la vente aussitot, puis l'on passe au medecin. */
+    parcoursClientChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        me._pendingModeNeedsClient = false;
+        me.client = record;
+        if (me.getInfosClientStandard()) {
+            me.getInfosClientStandard().show();
+        }
+        me.updateClientLambdInfos();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteClient(record.get('lgCLIENTID'), progress);
+        fenetre.clientAcquis();
+        fenetre.allerAuVolet(1);
+    },
+
+    parcoursEnregistrerClient: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireClient');
+        if (!formulaire || !formulaire.isValid()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/client/add/lambda',
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    fenetre.basculerFormulaire('client', false);
+                    me.parcoursClientChoisi(new testextjs.model.caisse.ClientLambda(result.data));
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du client a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
+    parcoursRechercheMedecin: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheMedecin').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length !== 0 && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheMedecinParcoursDifferee) {
+            me._rechercheMedecinParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.medecinStore.load({params: {query: (f.down('#rechercheMedecin').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheMedecinParcoursDifferee();
+    },
+
+    /* Le medecin est rattache a la vente : le parcours est termine, l'ecran se ferme. */
+    parcoursMedecinChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        fenetre.close();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteMedecin(record.get('id'), progress);
+    },
+
+    parcoursEnregistrerMedecin: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireMedecin');
+        if (!formulaire || !formulaire.isValid() || !me.getCurrent()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/add/medecin/' + me.getCurrent().lgPREENREGISTREMENTID,
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    me.medecinId = result.medecinId;
+                    fenetre.close();
+                    me.getMontantRecu().focus(true, 50);
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du médecin a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
     showMedicinWindow: function () {
         const me = this;
         const win = Ext.create('testextjs.view.vente.user.Medecin');
