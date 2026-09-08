@@ -127,6 +127,18 @@
 	<field name="montantRestant" class="java.math.BigDecimal"/>
 	<field name="factures" class="java.util.List"/>
 
+	<!-- L'etat trie lui-meme ses lignes : le type d'abord, l'organisme ensuite.
+	     Un etat ouvre une nouvelle section des que la valeur groupee change d'une ligne a la
+	     suivante. Si les types arrivent alternes (assurance, carnet, assurance, carnet), ils
+	     s'impriment alternes. L'application les trie deja, mais un site dont le WAR n'est pas a
+	     jour recevrait quand meme une liste alternee : ces deux lignes suffisent alors a
+	     retablir l'ordre, sans redeploiement.
+	     L'ORDRE DE CES DEUX LIGNES EST ESSENTIEL : le type doit venir en premier. Un tri sur le
+	     seul nom d'organisme melangerait les types au lieu de les regrouper — c'est exactement
+	     ce que faisait un ancien modele installe sur site. -->
+	<sortField name="typeTiersPayantLibelle" order="Ascending"/>
+	<sortField name="tiersPayantLibelle" order="Ascending"/>
+
 	<!-- Totaux par TYPE DE VENTE. Ils cumulent les montants deja calcules pour chaque
 	     organisme (une ligne de detail = un organisme) et sont remis a zero a chaque
 	     changement de type : le pied de groupe donne donc le total du type qui vient de
