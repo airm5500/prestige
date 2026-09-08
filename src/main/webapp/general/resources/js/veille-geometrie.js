@@ -13,9 +13,11 @@
  *
  *   1. SE RECALER. Les ecrans du menu sont dimensionnes en pourcentage de leur conteneur
  *      (width: '97%' / '99%'). Des que ce conteneur change de taille - repli ou depli du menu de
- *      navigation, redimensionnement de la fenetre, apparition d'un ascenseur - on relance la mise
- *      en page de l'ecran affiche, et on verifie APRES COUP que sa largeur suit bien celle du
- *      conteneur. Si elle ne suit pas, on la remet d'equerre.
+ *      navigation, redimensionnement de la fenetre, apparition d'un ascenseur - on purge d'abord
+ *      les memoires de mise en page perimees (correctifs-affichage.js, section 5 : c'est la cause
+ *      mesuree du rabattement), on relance la mise en page de l'ecran affiche, et on verifie
+ *      APRES COUP que sa largeur suit bien celle du conteneur. Si elle ne suit toujours pas, on la
+ *      remet d'equerre.
  *
  *   2. TRACER. Chaque ecart constate est journalise (console et window.PrestigeGeometrie.journal),
  *      avec la largeur du conteneur, celle de l'ecran, l'etat du menu de navigation et ce qui a
@@ -75,7 +77,15 @@
         if (!ecran) {
             return;
         }
-        // Premiere passe : la mise en page normale, qui re-resout les largeurs en pourcentage.
+        /* Premiere passe : purger les memoires de mise en page (lastBox) qui contredisent la
+           taille reelle des elements, du viewport jusqu'a l'ecran, puis relancer la mise en page.
+           C'est LA cause mesuree du rabattement (cf. correctifs-affichage.js, section 5) : apres un
+           agrandissement de la fenetre, le navigateur etire les elements mais ExtJS garde
+           l'ancienne taille en memoire, et le premier geste la repose. Un simple updateLayout
+           n'y change rien, ExtJS etant convaincu que rien n'a bouge. */
+        if (window.PrestigeAffichage && window.PrestigeAffichage.resynchroniserMiseEnPage) {
+            window.PrestigeAffichage.resynchroniserMiseEnPage();
+        }
         ecran.updateLayout();
         var mesure = mesurer(contentPanel, declencheur);
         if (mesure && mesure.rabattu) {

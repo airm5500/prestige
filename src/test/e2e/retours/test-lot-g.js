@@ -18,7 +18,7 @@ let tpDepot = null;
 
 function nettoyer() {
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + "%';");
-  exec("DELETE FROM medecin WHERE nom LIKE '" + MARQUE + "%';");
+  exec("DELETE FROM medecin WHERE nom LIKE '%" + MARQUE + "%' OR num_ordre LIKE '" + MARQUE + "%';");
   if (tpDepot) { exec("UPDATE t_tiers_payant SET is_depot=0 WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "';"); }
 }
 
@@ -162,7 +162,7 @@ function nettoyer() {
   ok('aucune erreur javascript', err.length === 0, err.join(' | '));
   await b.close();
   nettoyer();
-  ok('jeu d essai retire', q("SELECT COUNT(*) FROM medecin WHERE nom LIKE '" + MARQUE + "%'") === '0'
+  ok('jeu d essai retire', q("SELECT COUNT(*) FROM medecin WHERE nom LIKE '%" + MARQUE + "%'") === '0'
      && q("SELECT COUNT(*) FROM garde WHERE libelle LIKE '" + MARQUE + "%'") === '0');
   const echecs = res.filter(x => !x.c);
   console.log('\n' + (res.length - echecs.length) + '/' + res.length + ' OK');
