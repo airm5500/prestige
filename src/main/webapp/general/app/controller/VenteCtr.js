@@ -831,7 +831,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.queryMedecin
                     },
                     'medecin #queryMedecin': {
-                        specialkey: this.onMedecinKey
+                        specialkey: this.onMedecinKey,
+                        // « specialkey » ne voit pas les lettres : c'est « keyup » qui porte la
+                        // recherche automatique des deux caracteres.
+                        keyup: this.onMedecinKey
                     }, 'reglementGrid [xtype=gridpanel]': {
                         selectionchange: this.onModeReglementGridRowSelect
                     },
@@ -7155,24 +7158,39 @@ Ext.define('testextjs.controller.VenteCtr', {
         const win = Ext.create('testextjs.view.vente.user.Medecin');
         win.add(me.buildMedecinGrid());
         win.show();
+        /* Retour du 08/09 : la fenetre s'ouvre sur TOUS les medecins, et le champ de recherche
+           a le focus des l'affichage - on tape, la liste se trie. */
+        me.getMedecinGrid().getStore().load({params: {query: ''}});
+        const champ = me.getQueryMedecin();
+        if (champ) {
+            champ.focus(false, 150);
+        }
     },
 
     queryMedecin: function () {
-        const me = this, query = me.getQueryMedecin().getValue();
-        if (query && query.trim() !== "") {
-            me.getMedecinGrid().getStore().load({
-                params: {
-                    query: query
-                }
-            });
-        }
+        const me = this, query = (me.getQueryMedecin().getValue() || '').trim();
+        // Champ vide : la liste complete, comme a l'ouverture.
+        me.getMedecinGrid().getStore().load({
+            params: {
+                query: query
+            }
+        });
     },
     onMedecinKey: function (field, e, options) {
+        const me = this;
         if (e.getKey() === e.ENTER) {
-            if (field.getValue() && field.getValue().trim() !== "") {
-                const me = this;
-                me.queryMedecin();
+            me.queryMedecin();
+            return;
+        }
+        /* Recherche automatique a partir de deux caracteres, sans attendre ENTREE ni le bouton.
+           Temporisee : une requete par frappe encombrerait le serveur pour rien. Le champ vide
+           ramene la liste complete. */
+        const saisie = (field.getValue() || '').trim();
+        if (saisie.length >= 2 || saisie.length === 0) {
+            if (!me._rechercheMedecinDifferee) {
+                me._rechercheMedecinDifferee = Ext.Function.createBuffered(me.queryMedecin, 300, me);
             }
+            me._rechercheMedecinDifferee();
         }
     },
     /*

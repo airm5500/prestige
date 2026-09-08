@@ -93,10 +93,15 @@ public class MedecinImpl implements MedecinService {
     @Override
     public JSONObject findAllByNonOrNumOrder(String query) throws JSONException {
         try {
+            /*
+             * Retour du 08/09 : recherche par « contient » et non « commence par », et TOUS les medecins quand rien
+             * n'est saisi. Auparavant un critere absent donnait le motif « null% », qui ne trouvait personne.
+             */
+            String critere = query == null ? "" : query.trim();
             TypedQuery<Medecin> tq = getEntityManager().createNamedQuery("Medecin.findAllByNonOrNumOrder",
                     Medecin.class);
-            tq.setParameter("numorder", query + "%");
-            tq.setParameter("nom", query + "%");
+            tq.setParameter("numorder", "%" + critere + "%");
+            tq.setParameter("nom", "%" + critere + "%");
 
             List<MedecinDTO> l = tq.getResultList().stream().map(MedecinDTO::new).collect(Collectors.toList());
             return new JSONObject().put("total", l.size()).put("data", new JSONArray(l));

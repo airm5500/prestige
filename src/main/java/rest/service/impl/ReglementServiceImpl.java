@@ -476,8 +476,13 @@ public class ReglementServiceImpl implements ReglementService {
                 NumberUtils.formatIntToString(dossierReglement.getDblAMOUNT()));
         createNotification(description, TypeNotification.MVT_DE_CAISSE, user, donneesMap, caisse.getLgMVTCAISSEID());
 
-        return json.put("success", true).put("msg", "Opération effectuée").put("ref",
-                dossierReglement.getLgDOSSIERREGLEMENTID());
+        /*
+         * Retour du 08/09 : le solde du carnet est rendu avec la reponse. L'ecran l'affichait tel qu'il l'avait recu a
+         * la selection du carnet et ne le relisait jamais : il fallait sortir du menu et y revenir pour voir la
+         * nouvelle valeur.
+         */
+        return json.put("success", true).put("msg", "Opération effectuée")
+                .put("ref", dossierReglement.getLgDOSSIERREGLEMENTID()).put("solde", payant.getAccount());
 
     }
 

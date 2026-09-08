@@ -80,6 +80,7 @@
              apres ext-all.js. -->
         <script src="resources/js/correctifs-affichage.js"></script>
         <script src="resources/js/selecteur-periodes.js"></script>
+        <script src="resources/js/veille-geometrie.js"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
         <script src="resources/js/code-cip.js"></script>
 

@@ -249,13 +249,37 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     /* Les editions sont espacees : ouvertes dans la meme milliseconde, le navigateur bloque toutes
        les fenetres sauf la premiere. */
     lancerImpressionsDepot: function (identifiants, avecDetails) {
+        const me = this;
         Ext.Array.each(identifiants, function (id, rang) {
             Ext.defer(function () {
-                window.open(avecDetails
-                        ? '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
-                        + encodeURIComponent(id) + '&details=true'
-                        : '../api/v1/facturation/facture/' + encodeURIComponent(id) + '/carnet-depot/pdf');
+                if (!avecDetails) {
+                    window.open('../api/v1/facturation/facture/' + encodeURIComponent(id) + '/carnet-depot/pdf');
+                    return;
+                }
+                /* Avec le detail des medicaments : le service REST directement, et non la page
+                   d'impression historique. Cette page lit le modele de facture du tiers payant
+                   avant tout - un carnet depot n'en a pas, et elle plantait (retour du 08/09). */
+                me.editionAvecDetails(id);
             }, rang * 400);
+        });
+    },
+
+    editionAvecDetails: function (id) {
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/facturation/facture/' + encodeURIComponent(id) + '/detail-articles',
+            callback: function (opts, succes, reponse) {
+                let json = {};
+                try {
+                    json = Ext.decode(reponse.responseText);
+                } catch (e) {
+                }
+                if (json.success && json.url) {
+                    window.open('..' + json.url);
+                } else {
+                    Ext.MessageBox.alert('Message', json.msg || 'L\'édition avec le détail a échoué');
+                }
+            }
         });
     },
 
@@ -350,6 +374,27 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             
             
         });
+    },
+    /* Le solde s'affiche sur les deux onglets (reglements, depenses) : les deux sont mis a jour
+       d'un coup, et le carnet du selecteur aussi, pour que le retour sur l'onglet ne ramene pas
+       l'ancienne valeur. */
+    afficherSolde: function (solde) {
+        const me = this;
+        if (solde === undefined || solde === null) {
+            return;
+        }
+        if (me.getAccountReglement()) {
+            me.getAccountReglement().setValue(solde);
+        }
+        if (me.getAccount()) {
+            me.getAccount().setValue(solde);
+        }
+        const combo = me.getTiersPayantsExclus();
+        const carnet = combo && combo.findRecord('id', combo.getValue());
+        if (carnet) {
+            carnet.set('account', solde);
+            carnet.commit();
+        }
     },
     onSelectTiersPayant: function (cmp) {
         let me = this;
@@ -657,6 +702,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                                                     });
 
                                                             me.getReglementGrid().getStore().reload();
+                                                            me.afficherSolde(result.solde);
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',
@@ -876,6 +922,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                                                     });
 
                                                             me.getDepenseGrid().getStore().reload();
+                                                            me.afficherSolde(result.solde);
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',

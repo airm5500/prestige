@@ -67,7 +67,12 @@ Ext.define('testextjs.controller.GardeCtrl', {
             method: 'POST',
             params: fenetre.valeurs(),
             callback: function () {
-                bouton.enable();
+                /* Le rappel final passe APRES le succes, qui a ferme la fenetre et detruit le
+                   bouton avec elle : le reactiver levait « removeCls, b is null ». On ne touche
+                   qu'un bouton encore vivant. */
+                if (!bouton.destroyed && !bouton.isDestroyed) {
+                    bouton.enable();
+                }
             },
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};

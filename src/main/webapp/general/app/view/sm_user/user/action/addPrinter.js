@@ -15,6 +15,10 @@ var listProductSelected;
 
 Ext.define('testextjs.view.sm_user.user.action.addPrinter', {
     extend: 'Ext.window.Window',
+    /* Fenetre MODALE (retour du 08/09) : elle porte une saisie qu'il faut terminer ou abandonner.
+       Sans cela on peut revenir a la liste derriere, y changer de ligne, puis valider la fenetre
+       restee ouverte - qui ecrit alors sur l'utilisateur qu'on croyait avoir quitte. */
+    modal: true,
     xtype: 'addPrinter',
     id: 'addPrinterID',
     requires: [
