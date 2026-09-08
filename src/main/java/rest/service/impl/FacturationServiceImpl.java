@@ -668,8 +668,7 @@ public class FacturationServiceImpl implements FacturationService {
         // courant dans une base ancienne) faisaient donc rouvrir « Assurance » a chaque
         // bascule, au lieu de terminer toutes les assurances avant de passer aux carnets.
         // On trie donc explicitement ici, sur la meme cle que celle utilisee par l'etat.
-        tierspayants.sort(Comparator.comparing((ReportFactureDTO r) -> cleDeTriLibelle(r.getTypeTiersPayantLibelle()))
-                .thenComparing(r -> cleDeTriLibelle(r.getTiersPayantLibelle())));
+        tierspayants.sort(ordreReleve());
 
         reportTypeTiersPayantFacture.setMontantFacture(montantFacture);
         reportTypeTiersPayantFacture.setTierspayants(tierspayants);
@@ -721,6 +720,19 @@ public class FacturationServiceImpl implements FacturationService {
             }
         }
         return predicates;
+    }
+
+    /**
+     * Ordre des lignes du releve : le type d'abord, l'organisme ensuite.
+     *
+     * C'est CET ordre qui decoupe le document. Un etat JasperReports ouvre une nouvelle section des que la valeur
+     * groupee change d'une ligne a la suivante : si les types s'alternent dans la liste, ils s'alternent dans le PDF,
+     * quel que soit le modele .jasper installe. Corriger le modele seul ne peut donc rien y faire — le tri doit etre
+     * fait ici, avant que les donnees ne partent a l'edition.
+     */
+    static Comparator<ReportFactureDTO> ordreReleve() {
+        return Comparator.comparing((ReportFactureDTO r) -> cleDeTriLibelle(r.getTypeTiersPayantLibelle()))
+                .thenComparing(r -> cleDeTriLibelle(r.getTiersPayantLibelle()));
     }
 
     /**
