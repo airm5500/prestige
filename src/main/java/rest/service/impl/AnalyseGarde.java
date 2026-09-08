@@ -7,9 +7,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import commonTasks.dto.GardeKpiDTO;
 import commonTasks.dto.GardeProduitDTO;
+import commonTasks.dto.GardeReglementDTO;
 import commonTasks.dto.GardeTrancheDTO;
+import commonTasks.dto.GardeVenteDTO;
 import commonTasks.dto.GardeVenteLigneDTO;
+import util.Constant;
+import util.MobileMoney;
 
 /**
  * L'analyse d'une garde : ce qui s'est vendu, quand, et dans quelles proportions.
@@ -109,6 +114,20 @@ public final class AnalyseGarde {
      * </p>
      */
     public static List<GardeTrancheDTO> tranchesParHeureDuJour(List<GardeVenteLigneDTO> lignes, int heuresParTranche) {
+        return tranchesParHeureDuJour(lignes, heuresParTranche, null, null);
+    }
+
+    /**
+     * Les tranches de la periode, avec pour chacune le nombre d'heures de la garde qu'elle couvre (H2).
+     *
+     * <p>
+     * C'est ce qui permet de ramener les clients d'une tranche a l'heure : une garde de deux nuits a traverse deux fois
+     * la tranche 20h - 22h, soit quatre heures ; les clients qui s'y sont presentes se repartissent sur ces quatre
+     * heures, pas sur deux.
+     * </p>
+     */
+    public static List<GardeTrancheDTO> tranchesParHeureDuJour(List<GardeVenteLigneDTO> lignes, int heuresParTranche,
+            LocalDateTime debut, LocalDateTime fin) {
         List<GardeTrancheDTO> tranches = new ArrayList<>();
         int largeur = heuresParTranche > 0 && heuresParTranche <= 24 && 24 % heuresParTranche == 0 ? heuresParTranche
                 : 1;
@@ -124,11 +143,79 @@ public final class AnalyseGarde {
                 }
                 int indice = ligne.getDateOperation().getHour() / largeur;
                 if (indice >= 0 && indice < tranches.size()) {
-                    tranches.get(indice).ajouter(ligne.getVenteId(), ligne.getQuantite(), ligne.getMontant());
+                    tranches.get(indice).ajouter(ligne.getVenteId(), ligne.getCleClient(), ligne.getQuantite(),
+                            ligne.getMontant());
                 }
             }
         }
+        if (debut != null && fin != null && fin.isAfter(debut)) {
+            // Heure par heure, du debut a la fin : chaque heure entamee compte pour la tranche qui la contient.
+            // Borne haute : une garde ne dure pas plus d'un an ; au-dela, on s'arrete la.
+            int[] heures = new int[tranches.size()];
+            LocalDateTime curseur = debut.withMinute(0).withSecond(0).withNano(0);
+            int garde = 0;
+            while (curseur.isBefore(fin) && garde++ < 24 * 366) {
+                heures[curseur.getHour() / largeur]++;
+                curseur = curseur.plusHours(1);
+            }
+            for (int t = 0; t < tranches.size(); t++) {
+                tranches.get(t).setHeuresCouvertes(heures[t]);
+            }
+        }
         return tranches;
+    }
+
+    /**
+     * Les indicateurs reels d'une garde (H2), a partir de ce qui a ete lu : les lignes (chiffre, marge), les ventes au
+     * grain du ticket (clients, credit), les reglements (chiffre par mode) et le nombre de ventes ratees.
+     *
+     * <p>
+     * Le chiffre d'affaires et la marge sont ceux des lignes, les memes que l'analyse ABC et les tranches : une seule
+     * verite. Est a credit toute vente dont une part n'est pas encaissee au comptoir : la part prise en charge par un
+     * tiers (type de vente autre que comptant) et le reglement differe.
+     * </p>
+     */
+    public static GardeKpiDTO kpi(Indicateurs indicateurs, List<GardeVenteDTO> ventes,
+            List<GardeReglementDTO> reglements, int rates) {
+        GardeKpiDTO k = new GardeKpiDTO();
+        Indicateurs i = indicateurs == null ? new Indicateurs() : indicateurs;
+        k.setVentes(i.getVentes());
+        k.setMontant(i.getMontant());
+        k.setMarge(i.getMarge());
+        k.setDureeMinutes(i.getDureeMinutes());
+        k.setRates(Math.max(0, rates));
+        java.util.Set<String> clients = new java.util.HashSet<>();
+        java.util.Set<String> ventesACredit = new java.util.HashSet<>();
+        long montantCredit = 0L;
+        for (GardeVenteDTO v : ventes == null ? new ArrayList<GardeVenteDTO>() : ventes) {
+            clients.add(v.getCleClient());
+            if (v.getPartPriseEnCharge() > 0) {
+                ventesACredit.add(v.getVenteId());
+                montantCredit += v.getPartPriseEnCharge();
+            }
+        }
+        for (GardeReglementDTO r : reglements == null ? new ArrayList<GardeReglementDTO>() : reglements) {
+            String type = r.getTypeReglementId();
+            if (Constant.TYPE_REGLEMENT_ESPECE.equals(type)) {
+                k.setCaEspeces(k.getCaEspeces() + r.getMontant());
+            } else if (Constant.MODE_CHEQUE.equals(type)) {
+                k.setCaCheque(k.getCaCheque() + r.getMontant());
+            } else if (Constant.MODE_CB.equals(type)) {
+                k.setCaCarte(k.getCaCarte() + r.getMontant());
+            } else if (Constant.REGL_DIFF.equals(type)) {
+                k.setCaDiffere(k.getCaDiffere() + r.getMontant());
+                ventesACredit.add(r.getVenteId());
+                montantCredit += r.getMontant();
+            } else if (MobileMoney.est(type)) {
+                k.setCaMobile(k.getCaMobile() + r.getMontant());
+            } else {
+                k.setCaAutres(k.getCaAutres() + r.getMontant());
+            }
+        }
+        k.setClients(clients.size());
+        k.setClientsCredit(ventesACredit.size());
+        k.setMontantCredit(montantCredit);
+        return k;
     }
 
     /** Cle de tri des produits classes : chiffre d'affaires (defaut), quantite ou marge. */

@@ -22,6 +22,24 @@ public class GardeVenteLigneDTO implements Serializable {
     private long remise;
     private long tva;
     private long prixAchat;
+    /** Client rattache a la vente (H2) ; vide pour une vente anonyme. */
+    private String clientId = "";
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId == null ? "" : clientId;
+    }
+
+    /**
+     * La cle qui compte un client : le client rattache, ou la vente elle-meme quand elle est anonyme -- une vente
+     * anonyme, c'est un client venu au comptoir.
+     */
+    public String getCleClient() {
+        return clientId.isEmpty() ? "vente:" + venteId : "client:" + clientId;
+    }
 
     public GardeVenteLigneDTO() {
     }

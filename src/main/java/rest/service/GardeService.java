@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.ejb.Local;
 
+import commonTasks.dto.GardeKpiDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeTrancheDTO;
 import commonTasks.dto.GardeVenteLigneDTO;
@@ -64,4 +65,7 @@ public interface GardeService {
     List<GardeProduitDTO> abc(Garde garde);
 
     AnalyseGarde.Indicateurs indicateurs(Garde garde);
+
+    /** Les indicateurs reels de la garde (H2) : ventes, clients, chiffre, marge, rates, credit, chiffre par mode. */
+    GardeKpiDTO kpi(Garde garde);
 }

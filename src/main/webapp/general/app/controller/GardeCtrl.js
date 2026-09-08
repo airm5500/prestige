@@ -21,6 +21,10 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #gardeSupprimer': {click: this.doSupprimer},
             'gardemanager #gardeHeures': {select: this.doAnalyser},
             'gardemanager #gardeAnnee': {select: this.doFiltrerAnnee},
+            // H2 : la capacite d'une personne change l'effectif conseille, pas les chiffres.
+            'gardemanager #capacitePersonne': {change: {fn: this.doRafraichirEffectif, buffer: 400}},
+            // La courbe est dessinee dans un onglet cache a la creation : on la redessine a l'ouverture.
+            'gardemanager #ongletActivite': {activate: this.doRedessinerCourbe},
             'gardemanager #abcClasse': {select: this.doAnalyser},
             'gardemanager #abcTri': {select: this.doAnalyser},
             // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
@@ -43,6 +47,24 @@ Ext.define('testextjs.controller.GardeCtrl', {
 
     surSelection: function () {
         this.doAnalyser();
+    },
+
+    doRafraichirEffectif: function () {
+        var grille = this.getGardeManager().down('#grilleTranches');
+        if (grille) {
+            grille.getView().refresh();
+        }
+    },
+
+    doRedessinerCourbe: function () {
+        var courbe = this.getGardeManager().down('#courbeActivite');
+        if (courbe && courbe.rendered) {
+            try {
+                courbe.redraw();
+            } catch (e) {
+                // Un redessin qui echoue ne doit jamais bloquer l'onglet : la grille reste lisible.
+            }
+        }
     },
 
     /** Filtre par annee (retour du 08/09) : la liste est rechargee, l'analyse videe. */
@@ -319,8 +341,9 @@ Ext.define('testextjs.controller.GardeCtrl', {
                     // Une seule garde ne fait pas une comparaison : le dire vaut mieux que
                     // d'afficher une colonne d'ecart restee vide sans explication.
                     resume.setText(objet.comparatif
-                            ? 'Les &eacute;carts portent sur le chiffre <b>par heure</b>, seule base '
-                            + 'comparable entre gardes de dur&eacute;es diff&eacute;rentes.'
+                            ? '<b>Evolution</b> : chiffre d\'affaires rapport&eacute; &agrave; la garde '
+                            + 'pr&eacute;c&eacute;dente. <b>Par heure</b> : seule base comparable entre gardes '
+                            + 'de dur&eacute;es diff&eacute;rentes.'
                             : 'Une seule garde : ses chiffres bruts sont affich&eacute;s, sans &eacute;cart. '
                             + 'Choisissez au moins deux gardes pour comparer.');
                 }

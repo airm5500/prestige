@@ -72,7 +72,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
         });
         me.trancheStore = Ext.create('Ext.data.Store', {
             fields: ['libelle', {name: 'heureDuJour', type: 'int'}, {name: 'ventes', type: 'int'},
-                {name: 'quantite', type: 'int'}, {name: 'montant', type: 'int'}]
+                {name: 'clients', type: 'int'}, {name: 'quantite', type: 'int'}, {name: 'montant', type: 'int'},
+                {name: 'heuresCouvertes', type: 'int'}, {name: 'clientsParHeure', type: 'float'}]
         });
         me.abcStore = Ext.create('Ext.data.Store', {
             fields: ['classe', 'cip', 'libelle', {name: 'quantite', type: 'int'},
@@ -85,11 +86,18 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'},
                 {name: 'part', type: 'float'}]
         });
+        // H2 : les indicateurs REELS d'une garde, a plat, tels que le serveur les rend.
         me.comparaisonStore = Ext.create('Ext.data.Store', {
-            fields: ['libelle', 'dateDebut', 'dateFin', 'duree',
-                {name: 'ventes', type: 'int'}, {name: 'quantite', type: 'int'},
-                {name: 'montant', type: 'int'}, {name: 'montantParHeure', type: 'int'},
-                {name: 'ecartParHeure', type: 'int'}, {name: 'ecartPourcentage', type: 'float'}]
+            fields: ['id', 'libelle', 'dateDebut', 'dateFin', 'duree',
+                {name: 'ventes', type: 'int'}, {name: 'clients', type: 'int'},
+                {name: 'montant', type: 'int'}, {name: 'evolutionPourcentage', type: 'float', useNull: true},
+                {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'},
+                {name: 'rates', type: 'int'}, {name: 'clientsCredit', type: 'int'},
+                {name: 'montantCredit', type: 'int'}, {name: 'caEspeces', type: 'int'},
+                {name: 'caMobile', type: 'int'}, {name: 'caCheque', type: 'int'}, {name: 'caCarte', type: 'int'},
+                {name: 'caDiffere', type: 'int'}, {name: 'caAutres', type: 'int'},
+                {name: 'montantParHeure', type: 'int'},
+                {name: 'ecartParHeure', type: 'int', useNull: true}, {name: 'ecartPourcentage', type: 'float'}]
         });
 
         Ext.applyIf(me, {
@@ -162,7 +170,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
             region: 'center',
             xtype: 'tabpanel',
             itemId: 'ongletsGarde',
-            items: [me.ongletAnalyse(), me.ongletComparaison()]
+            items: [me.ongletAnalyse(), me.ongletActivite(), me.ongletComparaison()]
         };
     },
 
@@ -217,31 +225,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     flex: 1,
                     layout: {type: 'hbox', align: 'stretch'},
                     items: [{
-                            xtype: 'gridpanel',
-                            title: 'R&eacute;partition par tranche horaire',
-                            itemId: 'grilleTranches',
-                            width: 380,
-                            store: me.trancheStore,
-                            viewConfig: {
-                                columnLines: true,
-                                deferEmptyText: false,
-                                emptyText: '<div style="padding:12px">Aucune vente sur cette garde.</div>'
-                            },
-                            // Retour du 08/09 : les tranches sont les heures du jour, cumulees sur
-                            // toute la periode de la garde ; par tranche, le nombre de clients (ventes
-                            // distinctes) et le chiffre d'affaires. La quantite n'y disait rien.
-                            columns: [
-                                {header: 'Tranche', dataIndex: 'libelle', flex: 1},
-                                {header: 'Clients', dataIndex: 'ventes', width: 70, align: 'right'},
-                                {
-                                    header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 120,
-                                    align: 'right', xtype: 'numbercolumn', format: '0,000.'
-                                }
-                            ]
-                        }, {
                             xtype: 'container',
                             flex: 1,
-                            margin: '0 0 0 4',
                             layout: {type: 'vbox', align: 'stretch'},
                             items: [{
                                     xtype: 'toolbar',
@@ -373,6 +358,154 @@ Ext.define('testextjs.view.garde.GardeManager', {
         };
     },
 
+    /**
+     * Suivi de l'activite par tranche horaire (H2) : la courbe des clients et du chiffre sur les
+     * heures du jour, cumulees sur la periode, et l'effectif conseille par tranche.
+     */
+    ongletActivite: function () {
+        var me = this;
+        return {
+            title: 'Suivi de l\'activit&eacute;',
+            itemId: 'ongletActivite',
+            xtype: 'panel',
+            layout: {type: 'vbox', align: 'stretch'},
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'tbtext',
+                            text: 'Heures du jour cumul&eacute;es sur toute la p&eacute;riode de la garde ; '
+                                    + 'les clients sont ramen&eacute;s &agrave; l\'heure r&eacute;ellement tenue.'
+                        }, '->', {
+                            xtype: 'numberfield',
+                            itemId: 'capacitePersonne',
+                            fieldLabel: 'Clients / heure / personne',
+                            labelWidth: 150,
+                            width: 220,
+                            minValue: 1,
+                            allowDecimals: false,
+                            value: 10
+                        }]
+                }],
+            items: [{
+                    xtype: 'container',
+                    itemId: 'zoneCourbe',
+                    height: 260,
+                    layout: 'fit',
+                    items: [Ext.create('Ext.chart.Chart', {
+                            itemId: 'courbeActivite',
+                            store: me.trancheStore,
+                            animate: false,
+                            insetPadding: 12,
+                            legend: {position: 'right'},
+                            axes: [{
+                                    type: 'Numeric',
+                                    position: 'left',
+                                    fields: ['clients'],
+                                    title: 'Clients',
+                                    minimum: 0,
+                                    grid: true
+                                }, {
+                                    type: 'Numeric',
+                                    position: 'right',
+                                    fields: ['montant'],
+                                    title: 'Chiffre d\'affaires',
+                                    minimum: 0,
+                                    label: {renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }}
+                                }, {
+                                    type: 'Category',
+                                    position: 'bottom',
+                                    fields: ['libelle'],
+                                    title: 'Tranche horaire',
+                                    label: {rotate: {degrees: 300}}
+                                }],
+                            series: [{
+                                    type: 'line',
+                                    title: 'Clients',
+                                    axis: 'left',
+                                    xField: 'libelle',
+                                    yField: 'clients',
+                                    smooth: 3,
+                                    markerConfig: {type: 'circle', size: 4, radius: 4},
+                                    tips: {
+                                        trackMouse: true,
+                                        renderer: function (ligne) {
+                                            this.setTitle(ligne.get('libelle') + ' : ' + ligne.get('clients')
+                                                    + ' client(s)');
+                                        }
+                                    }
+                                }, {
+                                    type: 'line',
+                                    title: 'Chiffre d\'affaires',
+                                    axis: 'right',
+                                    xField: 'libelle',
+                                    yField: 'montant',
+                                    smooth: 3,
+                                    markerConfig: {type: 'cross', size: 4, radius: 4},
+                                    tips: {
+                                        trackMouse: true,
+                                        renderer: function (ligne) {
+                                            this.setTitle(ligne.get('libelle') + ' : '
+                                                    + Ext.util.Format.number(ligne.get('montant'), '0,000'));
+                                        }
+                                    }
+                                }]
+                        })]
+                }, {
+                    xtype: 'gridpanel',
+                    title: 'R&eacute;partition par tranche horaire',
+                    itemId: 'grilleTranches',
+                    flex: 1,
+                    store: me.trancheStore,
+                    viewConfig: {
+                        columnLines: true,
+                        deferEmptyText: false,
+                        emptyText: '<div style="padding:12px">Aucune vente sur cette garde.</div>'
+                    },
+                    // Retour du 08/09 : les tranches sont les heures du jour, cumulees sur toute la
+                    // periode de la garde ; par tranche, le nombre de clients et le chiffre d'affaires.
+                    // La quantite n'y disait rien.
+                    columns: [
+                        {header: 'Tranche', dataIndex: 'libelle', flex: 1},
+                        {header: 'Clients', dataIndex: 'clients', width: 70, align: 'right'},
+                        {
+                            header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 130,
+                            align: 'right', xtype: 'numbercolumn', format: '0,000.'
+                        },
+                        {
+                            header: 'Heures tenues', dataIndex: 'heuresCouvertes', width: 95, align: 'right',
+                            tooltip: 'Nombre d\'heures de la garde tombant dans cette tranche'
+                        },
+                        {
+                            header: 'Clients / heure', dataIndex: 'clientsParHeure', width: 100, align: 'right',
+                            xtype: 'numbercolumn', format: '0.00'
+                        },
+                        {
+                            header: 'Effectif conseill&eacute;', dataIndex: 'clientsParHeure', width: 120,
+                            align: 'right', itemId: 'colonneEffectif',
+                            // Effectif = clients par heure / capacite d'une personne, arrondi au-dessus ;
+                            // au moins une personne des qu'une tranche est tenue.
+                            renderer: function (valeur, meta, ligne) {
+                                if (!ligne.get('heuresCouvertes')) {
+                                    return '<span style="color:#999">-</span>';
+                                }
+                                var capacite = me.capacite();
+                                var effectif = Math.max(1, Math.ceil(valeur / capacite));
+                                return '<b>' + effectif + '</b>';
+                            }
+                        }
+                    ]
+                }]
+        };
+    },
+
+    /** Capacite saisie : clients par heure et par personne (10 par defaut). */
+    capacite: function () {
+        var champ = this.down('#capacitePersonne');
+        var valeur = champ ? champ.getValue() : null;
+        return valeur && valeur > 0 ? valeur : 10;
+    },
+
     ongletComparaison: function () {
         var me = this;
         return {
@@ -395,8 +528,9 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             // 36 h fera toujours plus qu'une nuit de 12 h, sans rien dire de son
                             // intensite. Comparer les bruts ferait conclure a une progression
                             // qui n'existe pas.
-                            text: 'Les &eacute;carts portent sur le chiffre <b>par heure</b>, '
-                                    + 'seule base comparable entre gardes de dur&eacute;es diff&eacute;rentes.'
+                            text: '<b>Evolution</b> : chiffre d\'affaires rapport&eacute; &agrave; la garde '
+                                    + 'pr&eacute;c&eacute;dente. <b>Par heure</b> : seule base comparable entre '
+                                    + 'gardes de dur&eacute;es diff&eacute;rentes.'
                         }, '->',
                         {
                             xtype: 'combobox',
@@ -425,42 +559,75 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             tooltip: 'Comparer les gardes s&eacute;lectionn&eacute;es dans la liste de gauche'
                         }]
                 }],
+            // H2 : comparaison sur les indicateurs REELS. La colonne « Evolution » rapporte le
+            // chiffre a celui de la garde precedente ; « Par heure » reste la seule base comparable
+            // entre gardes de durees differentes.
             columns: [
-                {header: 'Garde', dataIndex: 'libelle', flex: 1},
-                {header: 'D&eacute;but', dataIndex: 'dateDebut', width: 140},
-                {header: 'Dur&eacute;e', dataIndex: 'duree', width: 70, align: 'right'},
-                {header: 'Ventes', dataIndex: 'ventes', width: 65, align: 'right'},
-                {header: 'Qt&eacute;', dataIndex: 'quantite', width: 60, align: 'right'},
+                {header: 'Garde', dataIndex: 'libelle', width: 160, locked: false},
+                {header: 'D&eacute;but', dataIndex: 'dateDebut', width: 118,
+                    renderer: function (v) { return (v || '').substr(0, 16); }},
+                {header: 'Ventes', dataIndex: 'ventes', width: 60, align: 'right'},
+                {header: 'Clients', dataIndex: 'clients', width: 62, align: 'right'},
                 {
-                    header: 'Montant', dataIndex: 'montant', width: 110, align: 'right',
+                    header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 110, align: 'right',
                     xtype: 'numbercolumn', format: '0,000.'
                 },
                 {
-                    header: 'Par heure', dataIndex: 'montantParHeure', width: 100, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
-                {
-                    header: 'Ecart / h', dataIndex: 'ecartParHeure', width: 100, align: 'right',
+                    header: 'Evolution %', dataIndex: 'evolutionPourcentage', width: 85, align: 'right',
                     renderer: function (valeur, meta, ligne) {
-                        if (valeur === null || valeur === undefined || !ligne.get('duree')) {
+                        if (valeur === null || valeur === undefined || ligne.get('evolutionPourcentage') === null) {
                             return '';
                         }
                         // La couleur suit le signe : une baisse doit sauter aux yeux.
                         var couleur = valeur > 0 ? '#177a17' : (valeur < 0 ? '#a00' : '#666');
-                        var signe = valeur > 0 ? '+' : '';
-                        return '<span style="color:' + couleur + '">' + signe
-                                + Ext.util.Format.number(valeur, '0,000') + '</span>';
+                        return '<span style="color:' + couleur + '">' + (valeur > 0 ? '+' : '')
+                                + Ext.util.Format.number(valeur, '0.00') + ' %</span>';
                     }
                 },
                 {
-                    header: 'Ecart %', dataIndex: 'ecartPourcentage', width: 80, align: 'right',
-                    renderer: function (valeur) {
-                        if (!valeur) {
+                    header: 'Marge', dataIndex: 'marge', width: 95, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Taux marge %', dataIndex: 'tauxMarge', width: 90, align: 'right',
+                    xtype: 'numbercolumn', format: '0.00'
+                },
+                {header: 'Rat&eacute;s', dataIndex: 'rates', width: 60, align: 'right',
+                    tooltip: 'Ventes rat&eacute;es enregistr&eacute;es pendant la garde'},
+                {header: 'Clients cr&eacute;dit', dataIndex: 'clientsCredit', width: 90, align: 'right'},
+                {
+                    header: 'Montant cr&eacute;dit', dataIndex: 'montantCredit', width: 105, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Esp&egrave;ces', dataIndex: 'caEspeces', width: 95, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Mobile', dataIndex: 'caMobile', width: 95, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Ch&egrave;que', dataIndex: 'caCheque', width: 90, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'CB', dataIndex: 'caCarte', width: 85, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Par heure', dataIndex: 'montantParHeure', width: 90, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Ecart / h', dataIndex: 'ecartParHeure', width: 85, align: 'right',
+                    renderer: function (valeur, meta, ligne) {
+                        if (valeur === null || valeur === undefined || ligne.get('evolutionPourcentage') === null) {
                             return '';
                         }
-                        var couleur = valeur > 0 ? '#177a17' : '#a00';
+                        var couleur = valeur > 0 ? '#177a17' : (valeur < 0 ? '#a00' : '#666');
                         return '<span style="color:' + couleur + '">' + (valeur > 0 ? '+' : '')
-                                + Ext.util.Format.number(valeur, '0.00') + ' %</span>';
+                                + Ext.util.Format.number(valeur, '0,000') + '</span>';
                     }
                 }
             ]

@@ -18,13 +18,43 @@ public class GardeTrancheDTO implements Serializable {
     private long quantite;
     private long montant;
     private final Set<String> ventes = new HashSet<>();
+    private final Set<String> clients = new HashSet<>();
+    /**
+     * Nombre d'heures de la periode de la garde qui tombent dans cette tranche (H2) ; 0 si la garde ne la couvre pas.
+     */
+    private int heuresCouvertes;
 
     public void ajouter(String venteId, long quantiteLigne, long montantLigne) {
+        ajouter(venteId, venteId == null ? null : "vente:" + venteId, quantiteLigne, montantLigne);
+    }
+
+    public void ajouter(String venteId, String cleClient, long quantiteLigne, long montantLigne) {
         if (venteId != null) {
             ventes.add(venteId);
         }
+        if (cleClient != null) {
+            clients.add(cleClient);
+        }
         quantite += quantiteLigne;
         montant += montantLigne;
+    }
+
+    /** Clients distincts de la tranche : le client rattache, ou la vente elle-meme quand elle est anonyme. */
+    public int getClients() {
+        return clients.size();
+    }
+
+    public int getHeuresCouvertes() {
+        return heuresCouvertes;
+    }
+
+    public void setHeuresCouvertes(int heuresCouvertes) {
+        this.heuresCouvertes = heuresCouvertes;
+    }
+
+    /** Clients par heure reellement tenue dans cette tranche ; 0 quand la garde ne la couvre pas. */
+    public double getClientsParHeure() {
+        return heuresCouvertes > 0 ? clients.size() / (double) heuresCouvertes : 0D;
     }
 
     public LocalDateTime getDebut() {

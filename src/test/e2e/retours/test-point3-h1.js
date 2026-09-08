@@ -192,7 +192,7 @@ function semer() {
       && !analyse.entetesTranches.some(e => /Qt/.test(e)), analyse.entetesTranches.join(' | '));
     ok('Vingt-quatre heures en tranches de deux : douze lignes', analyse.tranches.length === 12, analyse.tranches.length);
     ok('20h30 le 5 et 21h00 le 6 se cumulent dans la tranche 20h - 22h : 2 clients, 1 500',
-      analyse.t20 && analyse.t20.ventes === 2 && analyse.t20.montant === 1500, JSON.stringify(analyse.t20));
+      analyse.t20 && analyse.t20.clients === 2 && analyse.t20.montant === 1500 && analyse.t20.heuresCouvertes === 4, JSON.stringify(analyse.t20));
     ok('La barre d\'indicateurs annonce la marge et son taux',
       /marge\s+1[\s .,]?300/.test(analyse.indicateurs) && /21[.,]31\s*%/.test(analyse.indicateurs),
       analyse.indicateurs);

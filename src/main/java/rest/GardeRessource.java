@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import commonTasks.dto.GardeKpiDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeTrancheDTO;
 import dal.Garde;
@@ -274,8 +275,7 @@ public class GardeRessource {
         }
         JSONArray tranches = new JSONArray();
         for (GardeTrancheDTO t : gardeService.tranches(garde, heures)) {
-            tranches.put(new JSONObject().put("libelle", t.getLibelle()).put("heureDuJour", t.getHeureDuJour())
-                    .put("ventes", t.getVentes()).put("quantite", t.getQuantite()).put("montant", t.getMontant()));
+            tranches.put(trancheJson(t));
         }
         // Le classement est calcule une fois sur tous les produits ; le resume porte sur l'ensemble,
         // la liste rendue est la vue filtree et triee demandee par l'ecran.
@@ -285,10 +285,30 @@ public class GardeRessource {
                 limite)) {
             abc.put(produitJson(p));
         }
-        return Response.ok().entity(new JSONObject().put("success", true).put("garde", json(garde))
-                .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
-                .put("abc", abc).put("totalAbc", classement.size()).put("resumeAbc", resumeAbc(classement)).toString())
+        return Response.ok()
+                .entity(new JSONObject().put("success", true).put("garde", json(garde))
+                        .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
+                        .put("kpi", kpiJson(gardeService.kpi(garde))).put("abc", abc).put("totalAbc", classement.size())
+                        .put("resumeAbc", resumeAbc(classement)).toString())
                 .build();
+    }
+
+    private static JSONObject trancheJson(GardeTrancheDTO t) {
+        return new JSONObject().put("libelle", t.getLibelle()).put("heureDuJour", t.getHeureDuJour())
+                .put("ventes", t.getVentes()).put("clients", t.getClients()).put("quantite", t.getQuantite())
+                .put("montant", t.getMontant()).put("heuresCouvertes", t.getHeuresCouvertes())
+                .put("clientsParHeure", arrondi(t.getClientsParHeure()));
+    }
+
+    /** Les indicateurs reels (H2), a plat : la grille de comparaison les lit tels quels. */
+    private static JSONObject kpiJson(GardeKpiDTO k) {
+        return new JSONObject().put("ventes", k.getVentes()).put("clients", k.getClients())
+                .put("montant", k.getMontant()).put("marge", k.getMarge()).put("tauxMarge", arrondi(k.getTauxMarge()))
+                .put("montantParHeure", k.getMontantParHeure()).put("dureeMinutes", k.getDureeMinutes())
+                .put("rates", k.getRates()).put("clientsCredit", k.getClientsCredit())
+                .put("montantCredit", k.getMontantCredit()).put("caEspeces", k.getCaEspeces())
+                .put("caMobile", k.getCaMobile()).put("caCheque", k.getCaCheque()).put("caCarte", k.getCaCarte())
+                .put("caDiffere", k.getCaDiffere()).put("caAutres", k.getCaAutres());
     }
 
     private static JSONObject produitJson(GardeProduitDTO p) {
@@ -359,22 +379,30 @@ public class GardeRessource {
         // De la plus ancienne a la plus recente : les ecarts se lisent alors dans le sens du temps.
         gardes.sort(java.util.Comparator.comparing(Garde::getDateDebut));
         JSONArray data = new JSONArray();
-        AnalyseGarde.Indicateurs precedente = null;
+        GardeKpiDTO precedente = null;
         for (Garde g : gardes) {
-            AnalyseGarde.Indicateurs i = gardeService.indicateurs(g);
+            // H2 : la comparaison porte sur les indicateurs REELS de la garde, a plat dans la ligne.
+            GardeKpiDTO k = gardeService.kpi(g);
             JSONObject ligne = json(g);
-            ligne.put("indicateurs", indicateursJson(i));
-            // L'ecart est calcule sur le chiffre PAR HEURE, jamais sur le montant brut : une garde
-            // de week-end de 36 h fera toujours plus qu'une nuit de 12 h, sans rien dire de son
-            // intensite. Comparer les bruts ferait conclure a une progression qui n'existe pas.
+            JSONObject kpi = kpiJson(k);
+            for (String cle : kpi.keySet()) {
+                ligne.put(cle, kpi.get(cle));
+            }
+            ligne.put("indicateurs", kpi);
             if (precedente != null) {
-                long ecart = i.getMontantParHeure() - precedente.getMontantParHeure();
+                // Taux d'evolution : le chiffre d'affaires de la garde rapporte a celui de la precedente.
+                long evolution = k.getMontant() - precedente.getMontant();
+                ligne.put("evolutionMontant", evolution);
+                ligne.put("evolutionPourcentage",
+                        precedente.getMontant() > 0 ? arrondi(evolution * 100D / precedente.getMontant()) : 0D);
+                // Et l'ecart PAR HEURE, seule base comparable entre gardes de durees differentes.
+                long ecart = k.getMontantParHeure() - precedente.getMontantParHeure();
                 ligne.put("ecartParHeure", ecart);
                 ligne.put("ecartPourcentage", precedente.getMontantParHeure() > 0
                         ? arrondi(ecart * 100D / precedente.getMontantParHeure()) : 0D);
             }
             data.put(ligne);
-            precedente = i;
+            precedente = k;
         }
         return Response.ok().entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
                 // Une seule garde ne fait pas une comparaison : ce sont ses chiffres bruts.
@@ -419,7 +447,7 @@ public class GardeRessource {
             commonTasks.dto.AnalyseOrdonnancierLigneDTO l = new commonTasks.dto.AnalyseOrdonnancierLigneDTO();
             l.setSection("Tranche horaire");
             l.setLibelle(t.getLibelle());
-            l.setComplement(t.getVentes() + " client(s)");
+            l.setComplement(t.getClients() + " client(s)");
             l.setDelivrances(t.getVentes());
             l.setQuantite(t.getQuantite());
             l.setMontant(t.getMontant());
@@ -486,7 +514,7 @@ public class GardeRessource {
                 gardeService.tranches(garde, heures), (row, t) -> {
                     int col = 0;
                     row.createCell(col++).setCellValue(t.getLibelle());
-                    row.createCell(col++).setCellValue(t.getVentes());
+                    row.createCell(col++).setCellValue(t.getClients());
                     row.createCell(col++).setCellValue(t.getMontant());
                 });
         String nomFichier = "garde_tranches_"
