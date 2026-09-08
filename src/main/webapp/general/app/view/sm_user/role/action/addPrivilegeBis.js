@@ -245,6 +245,11 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
 
         var win = new Ext.window.Window({
             autoShow: true,
+            // Attribution des privileges : fenetre modale. On y coche des droits pour un
+            // profil ; laisser l'ecran des profils accessible derriere permettait de changer
+            // de ligne pendant la saisie, et d'enregistrer les privileges sur le role affiche
+            // a l'ouverture plutot que sur celui qu'on croit modifier.
+            modal: true,
             id: 'cltwinID',
             title: this.getTitre(),
             width: 1150,

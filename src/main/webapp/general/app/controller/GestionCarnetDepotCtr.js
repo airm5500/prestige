@@ -142,6 +142,37 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         me.getAccountReglement().setValue(record.get('account'));
          me.getAccount().setValue(record.get('account'));
     },
+    /**
+     * Relit le solde du deposant depuis le serveur et le reaffiche.
+     *
+     * Le solde n'etait ecrit qu'ici, a la selection du tiers payant, a partir de l'enregistrement
+     * charge a l'ouverture de l'ecran. Un reglement ou une depense rechargeait bien la grille,
+     * mais pas le solde : il gardait la valeur d'ouverture, et il fallait sortir de l'ecran et y
+     * revenir pour voir la nouvelle. On recharge donc la liste des deposants, seule source de
+     * cette valeur, et on repose le solde du deposant selectionne.
+     */
+    rafraichirSolde: function () {
+        let me = this,
+                combo = me.getTiersPayantsExclus();
+        if (!combo || !combo.getStore()) {
+            return;
+        }
+        let value = combo.getValue();
+        combo.getStore().reload({
+            callback: function () {
+                let record = combo.findRecord("id" || "nomComplet", value);
+                if (!record) {
+                    return;
+                }
+                if (me.getAccountReglement()) {
+                    me.getAccountReglement().setValue(record.get('account'));
+                }
+                if (me.getAccount()) {
+                    me.getAccount().setValue(record.get('account'));
+                }
+            }
+        });
+    },
     printTicket: function (view, rowIndex, colIndex, item, e, rec, row) {
         const me = this;
         me.onPrintTicket(rec.get('idDossier'));
@@ -415,6 +446,9 @@ me.doSearchProduits();
                                                                     });
 
                                                             me.getReglementGrid().getStore().reload();
+                                                            // le solde bouge avec
+                                                            // l'operation : on le relit
+                                                            me.rafraichirSolde();
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',
@@ -634,6 +668,9 @@ me.doSearchProduits();
                                                                     });
 
                                                             me.getDepenseGrid().getStore().reload();
+                                                            // le solde bouge avec
+                                                            // l'operation : on le relit
+                                                            me.rafraichirSolde();
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',

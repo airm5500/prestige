@@ -87,6 +87,10 @@ Ext.getCmp('str_TYPE').setValue(this.getOdatasource().str_TYPE);
 
         var win = new Ext.window.Window({
             autoShow: true,
+            // Creation et modification d'un profil : fenetre modale, comme l'attribution des
+            // privileges. Sans cela on pouvait changer de ligne dans la grille pendant la
+            // saisie, et enregistrer sur un autre profil que celui affiche dans le formulaire.
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 250,
