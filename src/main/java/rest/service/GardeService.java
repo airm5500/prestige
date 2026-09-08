@@ -25,6 +25,15 @@ public interface GardeService {
 
     List<Garde> lister();
 
+    /** Les gardes d'une annee (retour du 08/09) ; nulle : toutes. */
+    List<Garde> lister(Integer annee);
+
+    /** Les annees pour lesquelles au moins une garde existe, de la plus recente a la plus ancienne. */
+    List<Integer> annees();
+
+    /** Suppression de plusieurs gardes d'un coup ; rend le nombre reellement supprime. */
+    int supprimer(List<String> ids);
+
     Garde parId(String id);
 
     /**

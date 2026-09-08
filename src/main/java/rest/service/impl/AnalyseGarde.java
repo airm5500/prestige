@@ -93,6 +93,105 @@ public final class AnalyseGarde {
     }
 
     /**
+     * Repartition de l'activite par tranche d'HEURE DU JOUR, agregee sur toute la periode (retour du 08/09).
+     *
+     * <p>
+     * Une garde d'une semaine decoupee en tranches consecutives donnait sept fois les memes heures, et personne ne
+     * lisait plus rien. Ici chaque tranche est une heure du jour - 20 h a 22 h, par exemple - et cumule TOUS les jours
+     * de la periode : c'est bien la question posee, « a quelle heure l'activite se concentre-t-elle ? ». Les tranches
+     * partent de minuit, sur des heures rondes, pour etre les memes d'une garde a l'autre et donc comparables.
+     * </p>
+     *
+     * <p>
+     * Les 24 heures sont rendues, y compris celles hors de la fenetre de la garde : une tranche vide est une
+     * information. Le nombre de « clients » d'une tranche est le nombre de ventes distinctes, comme au recapitulatif
+     * caisse / recette.
+     * </p>
+     */
+    public static List<GardeTrancheDTO> tranchesParHeureDuJour(List<GardeVenteLigneDTO> lignes, int heuresParTranche) {
+        List<GardeTrancheDTO> tranches = new ArrayList<>();
+        int largeur = heuresParTranche > 0 && heuresParTranche <= 24 && 24 % heuresParTranche == 0 ? heuresParTranche
+                : 1;
+        for (int h = 0; h < 24; h += largeur) {
+            GardeTrancheDTO tranche = new GardeTrancheDTO();
+            tranche.setHeureDuJour(h, h + largeur);
+            tranches.add(tranche);
+        }
+        if (lignes != null) {
+            for (GardeVenteLigneDTO ligne : lignes) {
+                if (ligne.getDateOperation() == null) {
+                    continue;
+                }
+                int indice = ligne.getDateOperation().getHour() / largeur;
+                if (indice >= 0 && indice < tranches.size()) {
+                    tranches.get(indice).ajouter(ligne.getVenteId(), ligne.getQuantite(), ligne.getMontant());
+                }
+            }
+        }
+        return tranches;
+    }
+
+    /** Cle de tri des produits classes : chiffre d'affaires (defaut), quantite ou marge. */
+    public enum TriProduits {
+        MONTANT, QUANTITE, MARGE;
+
+        public static TriProduits depuis(String valeur) {
+            if (valeur == null) {
+                return MONTANT;
+            }
+            switch (valeur.trim().toLowerCase()) {
+            case "quantite":
+                return QUANTITE;
+            case "marge":
+                return MARGE;
+            default:
+                return MONTANT;
+            }
+        }
+    }
+
+    /**
+     * Vue filtree et triee du classement (retour du 08/09) : une classe (ou toutes), un ordre, et les N premiers.
+     *
+     * <p>
+     * Le classement lui-meme reste calcule sur TOUS les produits, par chiffre d'affaires : la classe d'un produit ne
+     * change pas parce qu'on regarde les cent premiers ou parce qu'on trie par marge. Seule la lecture change.
+     * </p>
+     *
+     * @param classe
+     *            A, B ou C ; vide pour toutes
+     * @param limite
+     *            nombre de lignes rendues ; zero ou negatif pour toutes
+     */
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite) {
+        List<GardeProduitDTO> vue = new ArrayList<>();
+        String voulue = classe == null ? "" : classe.trim().toUpperCase();
+        for (GardeProduitDTO p : classes) {
+            if (voulue.isEmpty() || voulue.equals(p.getClasse())) {
+                vue.add(p);
+            }
+        }
+        Comparator<GardeProduitDTO> ordre;
+        switch (tri == null ? TriProduits.MONTANT : tri) {
+        case QUANTITE:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getQuantite).reversed();
+            break;
+        case MARGE:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getMarge).reversed();
+            break;
+        default:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getMontant).reversed();
+            break;
+        }
+        vue.sort(ordre.thenComparing(GardeProduitDTO::getLibelle));
+        if (limite > 0 && vue.size() > limite) {
+            return new ArrayList<>(vue.subList(0, limite));
+        }
+        return vue;
+    }
+
+    /**
      * La tranche contenant cet instant.
      *
      * <p>
@@ -175,6 +274,7 @@ public final class AnalyseGarde {
             });
             produit.setQuantite(produit.getQuantite() + ligne.getQuantite());
             produit.setMontant(produit.getMontant() + ligne.getMontant());
+            produit.setMarge(produit.getMarge() + ligne.getMarge());
             produit.setLignes(produit.getLignes() + 1);
         }
         return new ArrayList<>(table.values());
@@ -188,7 +288,17 @@ public final class AnalyseGarde {
         private int produitsDistincts;
         private long quantite;
         private long montant;
+        private long marge;
         private long dureeMinutes;
+
+        public long getMarge() {
+            return marge;
+        }
+
+        /** Taux de marge d'ensemble, en pourcentage du chiffre. */
+        public double getTauxMarge() {
+            return montant > 0 ? marge * 100D / montant : 0D;
+        }
 
         public int getVentes() {
             return ventes;
@@ -241,6 +351,7 @@ public final class AnalyseGarde {
             i.lignes++;
             i.quantite += ligne.getQuantite();
             i.montant += ligne.getMontant();
+            i.marge += ligne.getMarge();
             ventes.add(String.valueOf(ligne.getVenteId()));
             produits.add(String.valueOf(ligne.getProduitId()));
         }

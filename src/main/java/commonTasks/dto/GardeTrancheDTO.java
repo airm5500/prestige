@@ -43,8 +43,24 @@ public class GardeTrancheDTO implements Serializable {
         this.fin = fin;
     }
 
-    /** L'intitule affiche, par exemple « 20h30 - 22h30 ». */
+    /** Tranche d'heure du jour (0 a 23), quand la repartition est agregee sur la periode. */
+    private Integer heureDuJour;
+    private Integer heureFinDuJour;
+
+    public void setHeureDuJour(int debut, int fin) {
+        this.heureDuJour = debut;
+        this.heureFinDuJour = fin;
+    }
+
+    public Integer getHeureDuJour() {
+        return heureDuJour;
+    }
+
+    /** L'intitule affiche, par exemple « 20h30 - 22h30 », ou « 20h - 22h » pour une tranche du jour. */
     public String getLibelle() {
+        if (heureDuJour != null) {
+            return String.format("%02dh - %02dh", heureDuJour, heureFinDuJour == null ? 0 : heureFinDuJour % 24);
+        }
         if (debut == null || fin == null) {
             return "";
         }

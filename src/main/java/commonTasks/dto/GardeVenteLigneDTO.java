@@ -15,6 +15,13 @@ public class GardeVenteLigneDTO implements Serializable {
     private LocalDateTime dateOperation;
     private long quantite;
     private long montant;
+    /*
+     * Retour du 08/09 (gardes, H1) : ce qu'il faut pour la MARGE, avec la formule de l'analyse ABC de l'application :
+     * (montant - remise - tva) - prix d'achat unitaire x quantite.
+     */
+    private long remise;
+    private long tva;
+    private long prixAchat;
 
     public GardeVenteLigneDTO() {
     }
@@ -28,6 +35,31 @@ public class GardeVenteLigneDTO implements Serializable {
         this.dateOperation = dateOperation;
         this.quantite = quantite;
         this.montant = montant;
+    }
+
+    public GardeVenteLigneDTO(String venteId, String produitId, String cip, String libelle, LocalDateTime dateOperation,
+            long quantite, long montant, long remise, long tva, long prixAchat) {
+        this(venteId, produitId, cip, libelle, dateOperation, quantite, montant);
+        this.remise = remise;
+        this.tva = tva;
+        this.prixAchat = prixAchat;
+    }
+
+    public long getRemise() {
+        return remise;
+    }
+
+    public long getTva() {
+        return tva;
+    }
+
+    public long getPrixAchat() {
+        return prixAchat;
+    }
+
+    /** Marge de la ligne, formule de l'analyse ABC de l'application. */
+    public long getMarge() {
+        return (montant - remise - tva) - prixAchat * quantite;
     }
 
     public String getVenteId() {

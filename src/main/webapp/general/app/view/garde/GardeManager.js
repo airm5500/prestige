@@ -50,20 +50,39 @@ Ext.define('testextjs.view.garde.GardeManager', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/gardes',
+                // Filtre par annee (retour du 08/09) : vide = toutes les gardes.
+                extraParams: {annee: ''},
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}
             }
         });
+        // Les annees pour lesquelles au moins une garde existe, precedees de « Toutes ».
+        me.anneeStore = Ext.create('Ext.data.Store', {
+            fields: ['annee', 'libelle'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/gardes/annees',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            },
+            listeners: {
+                load: function (store) {
+                    store.insert(0, {annee: '', libelle: 'Toutes les ann\u00e9es'});
+                }
+            }
+        });
         me.trancheStore = Ext.create('Ext.data.Store', {
-            fields: ['libelle', {name: 'ventes', type: 'int'}, {name: 'quantite', type: 'int'},
-                {name: 'montant', type: 'int'}]
+            fields: ['libelle', {name: 'heureDuJour', type: 'int'}, {name: 'ventes', type: 'int'},
+                {name: 'quantite', type: 'int'}, {name: 'montant', type: 'int'}]
         });
         me.abcStore = Ext.create('Ext.data.Store', {
             fields: ['classe', 'cip', 'libelle', {name: 'quantite', type: 'int'},
-                {name: 'montant', type: 'int'}, {name: 'part', type: 'float'},
+                {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'},
+                {name: 'tauxMarge', type: 'float'}, {name: 'part', type: 'float'},
                 {name: 'cumulPart', type: 'float'}]
         });
         me.resumeStore = Ext.create('Ext.data.Store', {
             fields: ['classe', {name: 'produits', type: 'int'}, {name: 'montant', type: 'int'},
+                {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'},
                 {name: 'part', type: 'float'}]
         });
         me.comparaisonStore = Ext.create('Ext.data.Store', {
@@ -89,18 +108,22 @@ Ext.define('testextjs.view.garde.GardeManager', {
             itemId: 'grilleGardes',
             title: 'Gardes enregistr&eacute;es',
             store: me.gardeStore,
-            // Selection multiple : « Comparer la selection » a besoin d'au moins deux gardes.
-            selModel: Ext.create('Ext.selection.RowModel', {mode: 'MULTI'}),
+            // Cases a cocher (retour du 08/09) : un clic sur la ligne choisit la garde a analyser,
+            // les cases cochees servent a la suppression massive et a « Comparer la selection ».
+            selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI', checkOnly: false}),
             viewConfig: {
                 columnLines: true,
                 deferEmptyText: false,
                 emptyText: '<div style="padding:12px">Aucune garde enregistr&eacute;e. '
                         + 'Utilisez « Nouvelle garde ».</div>'
             },
+            // Debut et fin, sans la duree : elle n'apportait rien a la lecture (retour du 08/09).
             columns: [
                 {header: 'Libell&eacute;', dataIndex: 'libelle', flex: 1},
-                {header: 'D&eacute;but', dataIndex: 'dateDebut', width: 130},
-                {header: 'Dur&eacute;e', dataIndex: 'duree', width: 70, align: 'right'}
+                {header: 'D&eacute;but', dataIndex: 'dateDebut', width: 118,
+                    renderer: function (v) { return (v || '').substr(0, 16); }},
+                {header: 'Fin', dataIndex: 'dateFin', width: 118,
+                    renderer: function (v) { return (v || '').substr(0, 16); }}
             ],
             dockedItems: [{
                     xtype: 'toolbar',
@@ -108,8 +131,27 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     items: [
                         {text: 'Nouvelle garde', itemId: 'gardeNouvelle', iconCls: 'addicon'},
                         {text: 'Modifier', itemId: 'gardeModifier'},
-                        {text: 'Supprimer', itemId: 'gardeSupprimer'}
+                        {
+                            text: 'Supprimer', itemId: 'gardeSupprimer',
+                            tooltip: 'Supprimer les gardes coch&eacute;es'
+                        }
                     ]
+                }, {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'combobox',
+                            itemId: 'gardeAnnee',
+                            fieldLabel: 'Ann&eacute;e',
+                            labelWidth: 45,
+                            width: 200,
+                            store: me.anneeStore,
+                            valueField: 'annee',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            value: ''
+                        }]
                 }]
         };
     },
@@ -185,71 +227,147 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                 deferEmptyText: false,
                                 emptyText: '<div style="padding:12px">Aucune vente sur cette garde.</div>'
                             },
+                            // Retour du 08/09 : les tranches sont les heures du jour, cumulees sur
+                            // toute la periode de la garde ; par tranche, le nombre de clients (ventes
+                            // distinctes) et le chiffre d'affaires. La quantite n'y disait rien.
                             columns: [
                                 {header: 'Tranche', dataIndex: 'libelle', flex: 1},
-                                {header: 'Ventes', dataIndex: 'ventes', width: 60, align: 'right'},
-                                {header: 'Qt&eacute;', dataIndex: 'quantite', width: 55, align: 'right'},
+                                {header: 'Clients', dataIndex: 'ventes', width: 70, align: 'right'},
                                 {
-                                    header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
-                                    xtype: 'numbercolumn', format: '0,000.'
+                                    header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 120,
+                                    align: 'right', xtype: 'numbercolumn', format: '0,000.'
                                 }
                             ]
                         }, {
-                            xtype: 'gridpanel',
-                            title: 'Classification ABC des produits vendus',
-                            itemId: 'grilleAbc',
+                            xtype: 'container',
                             flex: 1,
                             margin: '0 0 0 4',
-                            store: me.abcStore,
-                            viewConfig: {
-                                columnLines: true,
-                                deferEmptyText: false,
-                                emptyText: '<div style="padding:12px">Aucun produit vendu sur cette garde.</div>',
-                                getRowClass: function (ligne) {
-                                    return 'classe-abc-' + (ligne.get('classe') || 'x').toLowerCase();
-                                }
-                            },
-                            columns: [
-                                {
-                                    header: 'Cl.', dataIndex: 'classe', width: 40, align: 'center',
-                                    renderer: function (valeur) {
-                                        return valeur ? '<b>' + valeur + '</b>' : '';
-                                    }
-                                },
-                                {header: 'CIP', dataIndex: 'cip', width: 90},
-                                {header: 'Produit', dataIndex: 'libelle', flex: 1},
-                                {header: 'Qt&eacute;', dataIndex: 'quantite', width: 55, align: 'right'},
-                                {
-                                    header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
-                                    xtype: 'numbercolumn', format: '0,000.'
-                                },
-                                {
-                                    header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
-                                    xtype: 'numbercolumn', format: '0.00'
-                                },
-                                {
-                                    header: 'Cumul %', dataIndex: 'cumulPart', width: 65, align: 'right',
-                                    xtype: 'numbercolumn', format: '0.00'
-                                }
-                            ],
-                            bbar: {
-                                xtype: 'gridpanel',
-                                itemId: 'grilleResumeAbc',
-                                height: 92,
-                                store: me.resumeStore,
-                                columns: [
-                                    {header: 'Classe', dataIndex: 'classe', flex: 1},
-                                    {header: 'Produits', dataIndex: 'produits', width: 70, align: 'right'},
-                                    {
-                                        header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
-                                        xtype: 'numbercolumn', format: '0,000.'
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [{
+                                    xtype: 'toolbar',
+                                    itemId: 'filtresAbc',
+                                    items: [{
+                                            xtype: 'combobox',
+                                            itemId: 'abcClasse',
+                                            fieldLabel: 'Classe',
+                                            labelWidth: 45,
+                                            width: 130,
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [['', 'Toutes'], ['A', 'A'], ['B', 'B'], ['C', 'C']],
+                                                fields: ['value', 'libelle']
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            queryMode: 'local',
+                                            editable: false,
+                                            value: ''
+                                        }, {
+                                            xtype: 'numberfield',
+                                            itemId: 'abcLimite',
+                                            fieldLabel: 'N premiers',
+                                            labelWidth: 70,
+                                            width: 145,
+                                            minValue: 0,
+                                            allowDecimals: false,
+                                            value: 100,
+                                            emptyText: 'tous'
+                                        }, {
+                                            xtype: 'combobox',
+                                            itemId: 'abcTri',
+                                            fieldLabel: 'Tri',
+                                            labelWidth: 25,
+                                            width: 175,
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [['montant', 'Chiffre d\'affaires'], ['quantite', 'Quantit\u00e9'],
+                                                    ['marge', 'Marge']],
+                                                fields: ['value', 'libelle']
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            queryMode: 'local',
+                                            editable: false,
+                                            value: 'montant'
+                                        }, '->', {
+                                            xtype: 'tbtext',
+                                            itemId: 'abcCompte',
+                                            text: ''
+                                        }]
+                                }, {
+                                    // Le resume par classe est pose AU-DESSUS de la liste : en bas de la
+                                    // grille il n'etait pas visible (retour du 08/09).
+                                    xtype: 'gridpanel',
+                                    itemId: 'grilleResumeAbc',
+                                    title: 'R&eacute;sum&eacute; par classe',
+                                    height: 118,
+                                    store: me.resumeStore,
+                                    viewConfig: {columnLines: true},
+                                    columns: [
+                                        {header: 'Classe', dataIndex: 'classe', flex: 1,
+                                            renderer: function (v) { return '<b>' + v + '</b>'; }},
+                                        {header: 'Produits', dataIndex: 'produits', width: 70, align: 'right'},
+                                        {
+                                            header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 120,
+                                            align: 'right', xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Marge', dataIndex: 'marge', width: 100, align: 'right',
+                                            xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        },
+                                        {
+                                            header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        }
+                                    ]
+                                }, {
+                                    xtype: 'gridpanel',
+                                    title: 'Classification ABC des produits vendus',
+                                    itemId: 'grilleAbc',
+                                    flex: 1,
+                                    store: me.abcStore,
+                                    viewConfig: {
+                                        columnLines: true,
+                                        deferEmptyText: false,
+                                        emptyText: '<div style="padding:12px">Aucun produit vendu sur cette garde.</div>',
+                                        getRowClass: function (ligne) {
+                                            return 'classe-abc-' + (ligne.get('classe') || 'x').toLowerCase();
+                                        }
                                     },
-                                    {
-                                        header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
-                                        xtype: 'numbercolumn', format: '0.00'
-                                    }
-                                ]
-                            }
+                                    columns: [
+                                        {
+                                            header: 'Cl.', dataIndex: 'classe', width: 40, align: 'center',
+                                            renderer: function (valeur) {
+                                                return valeur ? '<b>' + valeur + '</b>' : '';
+                                            }
+                                        },
+                                        {header: 'CIP', dataIndex: 'cip', width: 90},
+                                        {header: 'Produit', dataIndex: 'libelle', flex: 1},
+                                        {header: 'Qt&eacute;', dataIndex: 'quantite', width: 55, align: 'right'},
+                                        {
+                                            header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
+                                            xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Marge', dataIndex: 'marge', width: 90, align: 'right',
+                                            xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        },
+                                        {
+                                            header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        },
+                                        {
+                                            header: 'Cumul %', dataIndex: 'cumulPart', width: 65, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        }
+                                    ]
+                                }]
                         }]
                 }]
         };

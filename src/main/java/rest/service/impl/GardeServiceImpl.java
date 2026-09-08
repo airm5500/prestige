@@ -41,7 +41,10 @@ public class GardeServiceImpl implements GardeService {
      * </p>
      */
     private static final String SQL_LIGNES = "SELECT p.lg_PREENREGISTREMENT_ID, f.lg_FAMILLE_ID,"
-            + " f.int_CIP, f.str_NAME, p.dt_UPDATED, pd.int_QUANTITY, pd.int_PRICE" + " FROM t_preenregistrement p"
+            + " f.int_CIP, f.str_NAME, p.dt_UPDATED, pd.int_QUANTITY, pd.int_PRICE,"
+            // Marge (retour du 08/09) : la formule de l'analyse ABC de l'application, pas une autre.
+            + " IFNULL(pd.int_PRICE_REMISE, 0), IFNULL(pd.montantTva, 0), IFNULL(pd.prixAchat, 0)"
+            + " FROM t_preenregistrement p"
             + " JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID"
             + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
@@ -131,7 +134,7 @@ public class GardeServiceImpl implements GardeService {
             for (Object ligne : q.getResultList()) {
                 Object[] c = (Object[]) ligne;
                 lignes.add(new GardeVenteLigneDTO(texte(c[0]), texte(c[1]), texte(c[2]), texte(c[3]), instant(c[4]),
-                        entier(c[5]), entier(c[6])));
+                        entier(c[5]), entier(c[6]), entier(c[7]), entier(c[8]), entier(c[9])));
             }
             return lignes;
         } catch (Exception e) {
@@ -145,8 +148,46 @@ public class GardeServiceImpl implements GardeService {
         if (garde == null) {
             return Collections.emptyList();
         }
-        return AnalyseGarde.tranches(garde.getDateDebut(), garde.getDateFin(),
-                lignesDeVente(garde.getDateDebut(), garde.getDateFin()), heuresParTranche);
+        /*
+         * Retour du 08/09 : les tranches sont des heures du jour, cumulees sur toute la periode. Les tranches
+         * consecutives repetaient sept fois les memes heures sur une garde d'une semaine, et ne servaient a rien.
+         */
+        return AnalyseGarde.tranchesParHeureDuJour(lignesDeVente(garde.getDateDebut(), garde.getDateFin()),
+                heuresParTranche);
+    }
+
+    @Override
+    public List<Garde> lister(Integer annee) {
+        if (annee == null) {
+            return lister();
+        }
+        TypedQuery<Garde> q = em.createQuery("SELECT g FROM Garde g WHERE g.dateDebut >= :debut"
+                + " AND g.dateDebut < :fin ORDER BY g.dateDebut DESC", Garde.class);
+        q.setParameter("debut", LocalDateTime.of(annee, 1, 1, 0, 0));
+        q.setParameter("fin", LocalDateTime.of(annee + 1, 1, 1, 0, 0));
+        return q.getResultList();
+    }
+
+    @Override
+    public List<Integer> annees() {
+        List<Integer> annees = new ArrayList<>();
+        for (Garde g : lister()) {
+            if (g.getDateDebut() != null && !annees.contains(g.getDateDebut().getYear())) {
+                annees.add(g.getDateDebut().getYear());
+            }
+        }
+        return annees;
+    }
+
+    @Override
+    public int supprimer(List<String> ids) {
+        int supprimees = 0;
+        for (String id : ids == null ? Collections.<String> emptyList() : ids) {
+            if (supprimer(id)) {
+                supprimees++;
+            }
+        }
+        return supprimees;
     }
 
     @Override

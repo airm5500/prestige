@@ -59,9 +59,11 @@ public class GardeRessource {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HEURE = DateTimeFormatter.ofPattern("HH:mm");
 
-    private static final String[] ENTETES_ABC = { "Classe", "CIP", "Produit", "Quantité", "Montant", "Part %",
-            "Cumul %" };
-    private static final String[] ENTETES_TRANCHES = { "Tranche", "Ventes", "Quantité", "Montant" };
+    private static final String[] ENTETES_ABC = { "Classe", "CIP", "Produit", "Quantité", "Montant", "Marge",
+            "Taux marge %", "Part %", "Cumul %" };
+    // Retour du 08/09 : par tranche, le nombre de clients (ventes distinctes) et le chiffre d'affaires ;
+    // la quantite d'unites n'y apporte rien.
+    private static final String[] ENTETES_TRANCHES = { "Tranche", "Clients", "Chiffre d'affaires" };
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -127,15 +129,73 @@ public class GardeRessource {
         return reste == 0 ? heures + " h" : heures + " h " + String.format("%02d", reste);
     }
 
+    /**
+     * Les gardes, de la plus recente a la plus ancienne.
+     *
+     * @param annee
+     *            filtre sur l'annee de debut (retour du 08/09) ; absent ou non numerique : toutes
+     */
     @GET
-    public Response lister() {
+    public Response lister(@QueryParam("annee") String annee) {
+        Integer an = null;
+        if (StringUtils.isNumeric(StringUtils.trimToEmpty(annee))) {
+            an = Integer.valueOf(annee.trim());
+        }
         JSONArray data = new JSONArray();
-        for (Garde g : gardeService.lister()) {
+        for (Garde g : gardeService.lister(an)) {
             data.put(json(g));
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data).toString())
                 .build();
+    }
+
+    /** Les annees pour lesquelles au moins une garde existe : alimente le filtre de l'ecran. */
+    @GET
+    @Path("annees")
+    public Response annees() {
+        JSONArray data = new JSONArray();
+        for (Integer an : gardeService.annees()) {
+            data.put(new JSONObject().put("annee", an).put("libelle", String.valueOf(an)));
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data).toString())
+                .build();
+    }
+
+    /**
+     * Suppression de plusieurs gardes cochees (retour du 08/09).
+     *
+     * @param ids
+     *            identifiants separes par des virgules
+     */
+    @POST
+    @Path("supprimer")
+    @Consumes("application/x-www-form-urlencoded")
+    public Response supprimerPlusieurs(@javax.ws.rs.FormParam("ids") String ids) {
+        if (utilisateur() == null) {
+            return echec(Constant.DECONNECTED_MESSAGE);
+        }
+        List<String> liste = new ArrayList<>();
+        for (String id : StringUtils.defaultString(ids).split(",")) {
+            if (StringUtils.isNotBlank(id)) {
+                liste.add(id.trim());
+            }
+        }
+        if (liste.isEmpty()) {
+            return echec("Cochez au moins une garde.");
+        }
+        try {
+            int nombre = gardeService.supprimer(liste);
+            if (nombre == 0) {
+                return echec("Ces gardes n'existent plus.");
+            }
+            return Response.ok().entity(new JSONObject().put("success", true).put("total", nombre)
+                    .put("msg", nombre + " garde(s) supprimée(s).").toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "suppression de plusieurs gardes", e);
+            return echec("Les gardes n'ont pas pu être supprimées.");
+        }
     }
 
     @POST
@@ -186,8 +246,8 @@ public class GardeRessource {
     private static JSONObject indicateursJson(AnalyseGarde.Indicateurs i) {
         return new JSONObject().put("ventes", i.getVentes()).put("lignes", i.getLignes())
                 .put("produitsDistincts", i.getProduitsDistincts()).put("quantite", i.getQuantite())
-                .put("montant", i.getMontant()).put("dureeMinutes", i.getDureeMinutes())
-                .put("montantParHeure", i.getMontantParHeure());
+                .put("montant", i.getMontant()).put("marge", i.getMarge()).put("tauxMarge", arrondi(i.getTauxMarge()))
+                .put("dureeMinutes", i.getDureeMinutes()).put("montantParHeure", i.getMontantParHeure());
     }
 
     /**
@@ -195,30 +255,47 @@ public class GardeRessource {
      *
      * @param heures
      *            largeur d'une tranche horaire
+     * @param classe
+     *            classe ABC affichee (A, B, C) ; vide : toutes
+     * @param tri
+     *            ordre des produits : montant (defaut), quantite ou marge
+     * @param limite
+     *            N premiers produits rendus ; zero ou negatif : tous
      */
     @GET
     @Path("{id}/rapport")
-    public Response rapport(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures) {
+    public Response rapport(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures,
+            @DefaultValue("") @QueryParam("classe") String classe,
+            @DefaultValue("montant") @QueryParam("tri") String tri,
+            @DefaultValue("0") @QueryParam("limite") int limite) {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
         JSONArray tranches = new JSONArray();
         for (GardeTrancheDTO t : gardeService.tranches(garde, heures)) {
-            tranches.put(new JSONObject().put("libelle", t.getLibelle()).put("ventes", t.getVentes())
-                    .put("quantite", t.getQuantite()).put("montant", t.getMontant()));
+            tranches.put(new JSONObject().put("libelle", t.getLibelle()).put("heureDuJour", t.getHeureDuJour())
+                    .put("ventes", t.getVentes()).put("quantite", t.getQuantite()).put("montant", t.getMontant()));
         }
+        // Le classement est calcule une fois sur tous les produits ; le resume porte sur l'ensemble,
+        // la liste rendue est la vue filtree et triee demandee par l'ecran.
+        List<GardeProduitDTO> classement = gardeService.abc(garde);
         JSONArray abc = new JSONArray();
-        for (GardeProduitDTO p : gardeService.abc(garde)) {
-            abc.put(new JSONObject().put("classe", p.getClasse()).put("cip", p.getCip()).put("libelle", p.getLibelle())
-                    .put("quantite", p.getQuantite()).put("montant", p.getMontant()).put("part", arrondi(p.getPart()))
-                    .put("cumulPart", arrondi(p.getCumulPart())));
+        for (GardeProduitDTO p : AnalyseGarde.filtrer(classement, classe, AnalyseGarde.TriProduits.depuis(tri),
+                limite)) {
+            abc.put(produitJson(p));
         }
-        return Response.ok()
-                .entity(new JSONObject().put("success", true).put("garde", json(garde))
-                        .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
-                        .put("abc", abc).put("resumeAbc", resumeAbc(gardeService.abc(garde))).toString())
+        return Response.ok().entity(new JSONObject().put("success", true).put("garde", json(garde))
+                .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
+                .put("abc", abc).put("totalAbc", classement.size()).put("resumeAbc", resumeAbc(classement)).toString())
                 .build();
+    }
+
+    private static JSONObject produitJson(GardeProduitDTO p) {
+        return new JSONObject().put("classe", p.getClasse()).put("cip", p.getCip()).put("libelle", p.getLibelle())
+                .put("quantite", p.getQuantite()).put("montant", p.getMontant()).put("marge", p.getMarge())
+                .put("tauxMarge", arrondi(p.getTauxMarge())).put("part", arrondi(p.getPart()))
+                .put("cumulPart", arrondi(p.getCumulPart()));
     }
 
     /** Combien de produits dans chaque classe, et quelle part du chiffre ils representent. */
@@ -227,15 +304,18 @@ public class GardeRessource {
         for (String classe : new String[] { "A", "B", "C" }) {
             int nombre = 0;
             long montant = 0L;
+            long marge = 0L;
             double part = 0D;
             for (GardeProduitDTO p : produits) {
                 if (classe.equals(p.getClasse())) {
                     nombre++;
                     montant += p.getMontant();
+                    marge += p.getMarge();
                     part += p.getPart();
                 }
             }
             resume.put(new JSONObject().put("classe", classe).put("produits", nombre).put("montant", montant)
+                    .put("marge", marge).put("tauxMarge", montant > 0 ? arrondi(marge * 100D / montant) : 0D)
                     .put("part", arrondi(part)));
         }
         return resume;
@@ -339,7 +419,7 @@ public class GardeRessource {
             commonTasks.dto.AnalyseOrdonnancierLigneDTO l = new commonTasks.dto.AnalyseOrdonnancierLigneDTO();
             l.setSection("Tranche horaire");
             l.setLibelle(t.getLibelle());
-            l.setComplement(t.getVentes() + " vente(s)");
+            l.setComplement(t.getVentes() + " client(s)");
             l.setDelivrances(t.getVentes());
             l.setQuantite(t.getQuantite());
             l.setMontant(t.getMontant());
@@ -361,13 +441,17 @@ public class GardeRessource {
     @GET
     @Path("{id}/excel")
     @Produces("application/vnd.ms-excel")
-    public Response exporter(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures)
+    public Response exporter(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures,
+            @DefaultValue("") @QueryParam("classe") String classe,
+            @DefaultValue("montant") @QueryParam("tri") String tri, @DefaultValue("0") @QueryParam("limite") int limite)
             throws IOException {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
-        List<GardeProduitDTO> abc = gardeService.abc(garde);
+        // L'export rend ce que l'ecran affiche : meme classe, meme ordre, memes N premiers.
+        List<GardeProduitDTO> abc = AnalyseGarde.filtrer(gardeService.abc(garde), classe,
+                AnalyseGarde.TriProduits.depuis(tri), limite);
         String titre = "GARDE " + StringUtils.defaultString(garde.getLibelle()) + " - du "
                 + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE);
         byte[] data = reportExcelExportService.createExcelReport(titre, ENTETES_ABC, abc, (row, p) -> {
@@ -377,6 +461,8 @@ public class GardeRessource {
             row.createCell(col++).setCellValue(p.getLibelle());
             row.createCell(col++).setCellValue(p.getQuantite());
             row.createCell(col++).setCellValue(p.getMontant());
+            row.createCell(col++).setCellValue(p.getMarge());
+            row.createCell(col++).setCellValue(arrondi(p.getTauxMarge()));
             row.createCell(col++).setCellValue(arrondi(p.getPart()));
             row.createCell(col++).setCellValue(arrondi(p.getCumulPart()));
         });
@@ -401,7 +487,6 @@ public class GardeRessource {
                     int col = 0;
                     row.createCell(col++).setCellValue(t.getLibelle());
                     row.createCell(col++).setCellValue(t.getVentes());
-                    row.createCell(col++).setCellValue(t.getQuantite());
                     row.createCell(col++).setCellValue(t.getMontant());
                 });
         String nomFichier = "garde_tranches_"

@@ -262,4 +262,133 @@ class AnalyseGardeTest {
         assertEquals(0, i.getMontant());
         assertEquals(720, i.getDureeMinutes(), "la duree reste celle de la garde");
     }
+
+    // ------------------------------------------------------------------ tranches sur la periode (08/09)
+
+    @Test
+    @DisplayName("Les tranches de la periode sont les heures du jour, cumulees sur tous les jours de la garde")
+    void tranchesCumuleesSurLaPeriode() {
+        List<GardeVenteLigneDTO> lignes = Arrays.asList(
+                ligne("V1", "P1", "X", LocalDateTime.of(2026, 9, 5, 20, 30), 1, 100),
+                ligne("V2", "P1", "X", LocalDateTime.of(2026, 9, 6, 21, 15), 2, 300),
+                ligne("V3", "P2", "Y", LocalDateTime.of(2026, 9, 7, 3, 0), 1, 50));
+
+        List<GardeTrancheDTO> tranches = AnalyseGarde.tranchesParHeureDuJour(lignes, 2);
+
+        assertEquals(12, tranches.size(), "24 heures en tranches de 2 heures, minuit compris");
+        assertEquals("00h - 02h", tranches.get(0).getLibelle());
+        assertEquals("20h - 22h", tranches.get(10).getLibelle());
+        assertEquals("22h - 00h", tranches.get(11).getLibelle(), "la derniere tranche boucle sur minuit");
+        assertEquals(400, tranches.get(10).getMontant(), "deux jours differents, meme heure : meme tranche");
+        assertEquals(2, tranches.get(10).getVentes(), "deux clients (ventes distinctes)");
+        assertEquals(50, tranches.get(1).getMontant(), "3 h du matin tombe dans 02h - 04h");
+        assertEquals(450, tranches.stream().mapToLong(GardeTrancheDTO::getMontant).sum());
+    }
+
+    @Test
+    @DisplayName("Une largeur qui ne divise pas 24 retombe sur une heure")
+    void largeurNonDiviseurDeVingtQuatre() {
+        assertEquals(24, AnalyseGarde.tranchesParHeureDuJour(Collections.emptyList(), 5).size());
+        assertEquals(24, AnalyseGarde.tranchesParHeureDuJour(Collections.emptyList(), 0).size());
+        assertEquals(4, AnalyseGarde.tranchesParHeureDuJour(null, 6).size());
+    }
+
+    // ------------------------------------------------------------------ marge (08/09)
+
+    private static GardeVenteLigneDTO ligneAvecCout(String vente, String produit, long quantite, long montant,
+            long remise, long tva, long prixAchat) {
+        return new GardeVenteLigneDTO(vente, produit, "CIP-" + produit, produit, DEBUT, quantite, montant, remise, tva,
+                prixAchat);
+    }
+
+    @Test
+    @DisplayName("La marge d'une ligne suit la formule de l'analyse ABC : (montant - remise - TVA) - achat x quantite")
+    void margeDeLigne() {
+        assertEquals(450, ligneAvecCout("V1", "P1", 5, 1000, 100, 150, 60).getMarge());
+        assertEquals(-200, ligneAvecCout("V1", "P1", 1, 100, 0, 0, 300).getMarge(), "une marge negative se voit");
+        assertEquals(100, ligne("V1", "P1", "X", DEBUT, 1, 100).getMarge(),
+                "sans prix d'achat connu, la marge vaut le chiffre : c'est la lecture de l'analyse ABC de l'application");
+    }
+
+    @Test
+    @DisplayName("La marge se cumule par produit et le taux se lit sur le chiffre")
+    void margeCumuleeParProduit() {
+        List<GardeProduitDTO> abc = AnalyseGarde.classifierAbc(
+                Arrays.asList(ligneAvecCout("V1", "P1", 1, 1000, 0, 0, 600),
+                        ligneAvecCout("V2", "P1", 1, 1000, 0, 0, 600)),
+                AnalyseGarde.SEUIL_A_DEFAUT, AnalyseGarde.SEUIL_B_DEFAUT);
+
+        assertEquals(800, abc.get(0).getMarge());
+        assertEquals(40D, abc.get(0).getTauxMarge(), 0.01);
+
+        AnalyseGarde.Indicateurs i = AnalyseGarde.indicateurs(DEBUT, FIN, Arrays
+                .asList(ligneAvecCout("V1", "P1", 1, 1000, 0, 0, 600), ligneAvecCout("V2", "P2", 1, 500, 0, 0, 500)));
+        assertEquals(400, i.getMarge());
+        assertEquals(400 * 100D / 1500, i.getTauxMarge(), 0.01);
+    }
+
+    @Test
+    @DisplayName("Sans chiffre, le taux de marge est nul plutot qu'une division par zero")
+    void tauxDeMargeSansChiffre() {
+        GardeProduitDTO p = new GardeProduitDTO();
+        p.setMarge(10);
+        assertEquals(0D, p.getTauxMarge(), 0.0);
+        assertEquals(0D, AnalyseGarde.indicateurs(DEBUT, FIN, Collections.emptyList()).getTauxMarge(), 0.0);
+    }
+
+    // ------------------------------------------------------------------ lecture filtree du classement (08/09)
+
+    private static List<GardeProduitDTO> classement() {
+        // Chiffre : GROS 800, MOYEN 150, PETIT 50 -> A, B, C. Quantites et marges dans un autre ordre.
+        return AnalyseGarde.classifierAbc(
+                Arrays.asList(ligneAvecCout("V1", "GROS", 1, 800, 0, 0, 700),
+                        ligneAvecCout("V2", "MOYEN", 10, 150, 0, 0, 5), ligneAvecCout("V3", "PETIT", 4, 50, 0, 0, 10)),
+                AnalyseGarde.SEUIL_A_DEFAUT, AnalyseGarde.SEUIL_B_DEFAUT);
+    }
+
+    @Test
+    @DisplayName("Le filtre par classe ne change pas la classe des produits")
+    void filtreParClasse() {
+        List<GardeProduitDTO> b = AnalyseGarde.filtrer(classement(), "b", AnalyseGarde.TriProduits.MONTANT, 0);
+        assertEquals(1, b.size());
+        assertEquals("MOYEN", b.get(0).getLibelle());
+        assertEquals("B", b.get(0).getClasse(), "la classe reste celle du classement complet");
+        assertEquals(3, AnalyseGarde.filtrer(classement(), "", null, 0).size(), "vide : toutes les classes");
+        assertEquals(3, AnalyseGarde.filtrer(classement(), null, null, 0).size());
+    }
+
+    @Test
+    @DisplayName("Le tri par quantite ou par marge change l'ordre, pas le classement")
+    void triParQuantiteOuMarge() {
+        List<GardeProduitDTO> parQuantite = AnalyseGarde.filtrer(classement(), "", AnalyseGarde.TriProduits.QUANTITE,
+                0);
+        assertEquals("MOYEN", parQuantite.get(0).getLibelle(), "10 unites d'abord");
+        assertEquals("A", parQuantite.get(2).getClasse(), "GROS reste en A, meme en dernier par quantite");
+
+        List<GardeProduitDTO> parMarge = AnalyseGarde.filtrer(classement(), "", AnalyseGarde.TriProduits.MARGE, 0);
+        // marges : GROS 100, MOYEN 150 - 50 = 100, PETIT 50 - 40 = 10 ; a egalite, l'ordre alphabetique
+        assertEquals("GROS", parMarge.get(0).getLibelle());
+        assertEquals("MOYEN", parMarge.get(1).getLibelle());
+        assertEquals("PETIT", parMarge.get(2).getLibelle());
+    }
+
+    @Test
+    @DisplayName("Les N premiers coupent la liste, jamais le classement")
+    void nPremiers() {
+        List<GardeProduitDTO> deux = AnalyseGarde.filtrer(classement(), "", AnalyseGarde.TriProduits.MONTANT, 2);
+        assertEquals(2, deux.size());
+        assertEquals("GROS", deux.get(0).getLibelle());
+        assertEquals(3, AnalyseGarde.filtrer(classement(), "", AnalyseGarde.TriProduits.MONTANT, 10).size(),
+                "une limite plus grande que la liste rend tout");
+        assertEquals(3, AnalyseGarde.filtrer(classement(), "", AnalyseGarde.TriProduits.MONTANT, -1).size());
+    }
+
+    @Test
+    @DisplayName("Le tri se lit depuis le parametre de l'ecran, sans casse ni surprise")
+    void triDepuisLaSaisie() {
+        assertEquals(AnalyseGarde.TriProduits.MARGE, AnalyseGarde.TriProduits.depuis(" Marge "));
+        assertEquals(AnalyseGarde.TriProduits.QUANTITE, AnalyseGarde.TriProduits.depuis("quantite"));
+        assertEquals(AnalyseGarde.TriProduits.MONTANT, AnalyseGarde.TriProduits.depuis("n'importe quoi"));
+        assertEquals(AnalyseGarde.TriProduits.MONTANT, AnalyseGarde.TriProduits.depuis(null));
+    }
 }

@@ -20,6 +20,11 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #gardeModifier': {click: this.doModifier},
             'gardemanager #gardeSupprimer': {click: this.doSupprimer},
             'gardemanager #gardeHeures': {select: this.doAnalyser},
+            'gardemanager #gardeAnnee': {select: this.doFiltrerAnnee},
+            'gardemanager #abcClasse': {select: this.doAnalyser},
+            'gardemanager #abcTri': {select: this.doAnalyser},
+            // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
+            'gardemanager #abcLimite': {change: {fn: this.doAnalyser, buffer: 600}},
             'gardemanager #gardeImprimer': {click: this.doImprimer},
             'gardemanager #gardeExporterAbc': {click: this.doExporterAbc},
             'gardemanager #gardeExporterTranches': {click: this.doExporterTranches},
@@ -38,6 +43,14 @@ Ext.define('testextjs.controller.GardeCtrl', {
 
     surSelection: function () {
         this.doAnalyser();
+    },
+
+    /** Filtre par annee (retour du 08/09) : la liste est rechargee, l'analyse videe. */
+    doFiltrerAnnee: function (combo) {
+        var ecran = this.getGardeManager();
+        ecran.gardeStore.getProxy().extraParams.annee = combo.getValue() || '';
+        ecran.gardeStore.load();
+        this.viderAnalyse();
     },
 
     doNouvelle: function () {
@@ -91,15 +104,22 @@ Ext.define('testextjs.controller.GardeCtrl', {
         });
     },
 
+    /** Suppression des gardes cochees (retour du 08/09) ; une seule ou plusieurs. */
     doSupprimer: function () {
         var me = this;
-        var garde = me.gardeCourante();
-        if (!garde) {
-            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+        var cochees = me.getGrilleGardes().getSelectionModel().getSelection();
+        if (!cochees.length) {
+            Ext.MessageBox.alert('Information', 'Cochez au moins une garde dans la liste.');
             return;
         }
+        var libelles = Ext.Array.map(cochees, function (g) {
+            return Ext.String.htmlEncode(g.get('libelle'));
+        });
         Ext.MessageBox.confirm('Confirmation',
-                'Supprimer la garde <b>' + garde.get('libelle') + '</b> ?<br/>'
+                (cochees.length === 1
+                        ? 'Supprimer la garde <b>' + libelles[0] + '</b> ?<br/>'
+                        : 'Supprimer les <b>' + cochees.length + '</b> gardes coch&eacute;es ?<br/>'
+                        + '<i>' + libelles.join(', ') + '</i><br/>')
                 + 'Aucune vente ne sera supprim&eacute;e : seule la d&eacute;finition de la '
                 + 'p&eacute;riode dispara&icirc;t.',
                 function (choix) {
@@ -107,19 +127,24 @@ Ext.define('testextjs.controller.GardeCtrl', {
                         return;
                     }
                     Ext.Ajax.request({
-                        url: '../api/v1/gardes/' + garde.get('id'),
-                        method: 'DELETE',
+                        url: '../api/v1/gardes/supprimer',
+                        method: 'POST',
+                        params: {ids: Ext.Array.map(cochees, function (g) {
+                                return g.get('id');
+                            }).join(',')},
                         success: function (reponse) {
                             var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                             if (!objet.success) {
                                 Ext.MessageBox.alert('Message', objet.msg || 'Suppression impossible.');
                                 return;
                             }
-                            me.getGardeManager().gardeStore.reload();
+                            var ecran = me.getGardeManager();
+                            ecran.gardeStore.reload();
+                            ecran.anneeStore.reload();
                             me.viderAnalyse();
                         },
                         failure: function () {
-                            Ext.MessageBox.alert('Message', 'La garde n\'a pas pu &ecirc;tre supprim&eacute;e.');
+                            Ext.MessageBox.alert('Message', 'Les gardes n\'ont pas pu &ecirc;tre supprim&eacute;es.');
                         }
                     });
                 });
@@ -130,17 +155,31 @@ Ext.define('testextjs.controller.GardeCtrl', {
         ecran.trancheStore.removeAll();
         ecran.abcStore.removeAll();
         ecran.resumeStore.removeAll();
+        ecran.down('#abcCompte').setText('');
         ecran.down('#gardeIndicateurs').update('<i>Choisissez une garde dans la liste de gauche.</i>');
     },
 
-    /** Largeur de tranche choisie, et identifiant de la garde : les deux parametres du rapport. */
+    /** Identifiant de la garde, largeur de tranche, et la lecture ABC voulue (classe, tri, N premiers). */
     parametres: function () {
         var garde = this.gardeCourante();
-        var champ = this.getGardeManager().down('#gardeHeures');
+        var ecran = this.getGardeManager();
+        var valeur = function (itemId, defaut) {
+            var champ = ecran.down('#' + itemId);
+            var v = champ ? champ.getValue() : null;
+            return (v === null || v === undefined || v === '') ? defaut : v;
+        };
         return {
             id: garde ? garde.get('id') : null,
-            heures: champ ? champ.getValue() : 2
+            heures: valeur('gardeHeures', 2),
+            classe: valeur('abcClasse', ''),
+            tri: valeur('abcTri', 'montant'),
+            limite: valeur('abcLimite', 0)
         };
+    },
+
+    /** Les parametres du rapport sans l'identifiant, tels qu'on les passe a l'URL. */
+    parametresRapport: function (params) {
+        return {heures: params.heures, classe: params.classe, tri: params.tri, limite: params.limite};
     },
 
     doAnalyser: function () {
@@ -156,7 +195,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
         Ext.Ajax.request({
             url: '../api/v1/gardes/' + params.id + '/rapport',
             method: 'GET',
-            params: {heures: params.heures},
+            params: me.parametresRapport(params),
             timeout: 600000,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
@@ -168,13 +207,20 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 ecran.trancheStore.loadData(objet.tranches || []);
                 ecran.abcStore.loadData(objet.abc || []);
                 ecran.resumeStore.loadData(objet.resumeAbc || []);
+                var affiches = (objet.abc || []).length;
+                var total = objet.totalAbc || affiches;
+                ecran.down('#abcCompte').setText(affiches < total
+                        ? '<b>' + affiches + '</b> produit(s) affich&eacute;(s) sur ' + total
+                        : '<b>' + total + '</b> produit(s)');
                 var i = objet.indicateurs || {};
                 indicateurs.update('<b>' + (objet.garde || {}).libelle + '</b> &middot; <b>' + (i.ventes || 0)
                         + '</b> vente(s) &middot; <b>' + (i.lignes || 0) + '</b> ligne(s) &middot; <b>'
                         + (i.produitsDistincts || 0) + '</b> produit(s) &middot; <b>' + (i.quantite || 0)
                         + '</b> unit&eacute;(s) &middot; <b>'
                         + Ext.util.Format.number(i.montant || 0, '0,000') + '</b> au total &middot; <b>'
-                        + Ext.util.Format.number(i.montantParHeure || 0, '0,000') + '</b> par heure');
+                        + Ext.util.Format.number(i.montantParHeure || 0, '0,000') + '</b> par heure &middot; marge <b>'
+                        + Ext.util.Format.number(i.marge || 0, '0,000') + '</b> (<b>'
+                        + Ext.util.Format.number(i.tauxMarge || 0, '0.00') + ' %</b>)');
             },
             failure: function () {
                 indicateurs.update('<span style="color:#a00">L\'analyse n\'a pas pu &ecirc;tre '
@@ -229,7 +275,8 @@ Ext.define('testextjs.controller.GardeCtrl', {
             return;
         }
         // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
-        window.open('../api/v1/gardes/' + params.id + chemin + '?heures=' + params.heures);
+        window.open('../api/v1/gardes/' + params.id + chemin + '?'
+                + Ext.Object.toQueryString(this.parametresRapport(params)));
     },
 
     doComparerDernieres: function () {
