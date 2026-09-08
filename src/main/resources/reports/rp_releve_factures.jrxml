@@ -151,7 +151,18 @@
 	     entetes de colonnes, en bleu nuit. Chaque type demarre sur une NOUVELLE PAGE
 	     (isStartNewPage) : un type ne se retrouve jamais a cheval sur deux feuilles. -->
 	<group name="grpup_by_type_tiers_payant" isStartNewPage="true">
-		<groupExpression><![CDATA[$F{typeTiersPayantId}]]></groupExpression>
+		<!-- On regroupe sur le LIBELLE normalise, pas sur l'identifiant du type.
+		     L'utilisateur raisonne en « assurance » et « carnet » : ce sont des libelles. Une
+		     base ancienne contient souvent plusieurs identifiants de type portant le meme
+		     libelle ; en regroupant sur l'identifiant, la section « Assurance » se refermait et
+		     se rouvrait a chaque bascule, au lieu de tenir d'un seul tenant. Constate au banc :
+		     six sections (ASSURANCE, ASSURANCE, ASSURANCE, ASSURANCE, CARNET, CARNET) la ou il
+		     n'en fallait que deux.
+		     La normalisation (sans accent, en majuscules, sans espaces de bord) est la meme que
+		     celle du tri applique cote application, sans quoi l'ordre et le regroupement ne
+		     porteraient pas sur la meme cle. -->
+		<groupExpression><![CDATA[$F{typeTiersPayantLibelle} == null ? ""
+	: java.text.Normalizer.normalize($F{typeTiersPayantLibelle}, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase().trim()]]></groupExpression>
 		<groupHeader>
 			<band height="24">
 				<staticText>

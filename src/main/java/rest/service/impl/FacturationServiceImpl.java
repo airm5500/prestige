@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -660,6 +661,16 @@ public class FacturationServiceImpl implements FacturationService {
             montantRestant = montantRestant.add(montantRestantTp);
         }
 
+        // L'etat ouvre une nouvelle section des que la valeur groupee change d'une ligne a la
+        // suivante : l'ordre de cette liste EST le decoupage du document. Le tri de la requete
+        // ne suffit pas a le garantir — il porte sur le libelle du type, alors que l'etat
+        // regroupait sur son identifiant. Deux identifiants portant le meme libelle (cas
+        // courant dans une base ancienne) faisaient donc rouvrir « Assurance » a chaque
+        // bascule, au lieu de terminer toutes les assurances avant de passer aux carnets.
+        // On trie donc explicitement ici, sur la meme cle que celle utilisee par l'etat.
+        tierspayants.sort(Comparator.comparing((ReportFactureDTO r) -> cleDeTriLibelle(r.getTypeTiersPayantLibelle()))
+                .thenComparing(r -> cleDeTriLibelle(r.getTiersPayantLibelle())));
+
         reportTypeTiersPayantFacture.setMontantFacture(montantFacture);
         reportTypeTiersPayantFacture.setTierspayants(tierspayants);
         reportTypeTiersPayantFacture.setMontantRegle(montantRegle);
@@ -710,6 +721,20 @@ public class FacturationServiceImpl implements FacturationService {
             }
         }
         return predicates;
+    }
+
+    /**
+     * Cle de tri d'un libelle : sans accent, en majuscules, sans espaces de bord.
+     *
+     * C'est exactement la cle sur laquelle l'etat regroupe. « Assurance », « ASSURANCE » et « Assurance » designent le
+     * meme type pour l'utilisateur : ils doivent former une seule section, pas trois.
+     */
+    static String cleDeTriLibelle(String libelle) {
+        if (libelle == null) {
+            return "";
+        }
+        return java.text.Normalizer.normalize(libelle, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toUpperCase().trim();
     }
 
     private List<TFacture> fetchFactures(String invoiceFilter, String tiersPayantId, String codeFacture,
