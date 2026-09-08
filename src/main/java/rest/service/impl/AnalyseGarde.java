@@ -7,7 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import commonTasks.dto.GardeCommandeDTO;
 import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeReglementDTO;
 import commonTasks.dto.GardeTrancheDTO;
@@ -163,6 +165,56 @@ public final class AnalyseGarde {
             }
         }
         return tranches;
+    }
+
+    /**
+     * Les vendeurs de la garde (H3), du plus gros chiffre au plus petit.
+     *
+     * <p>
+     * Le chiffre et la marge d'un vendeur sont ceux des lignes qu'il a vendues, avec la meme formule que l'ABC ; ses
+     * clients se comptent comme partout ailleurs (client rattache, ou la vente pour une vente anonyme).
+     * </p>
+     */
+    public static List<GardeVendeurDTO> vendeurs(List<GardeVenteLigneDTO> lignes) {
+        Map<String, GardeVendeurDTO> table = new LinkedHashMap<>();
+        for (GardeVenteLigneDTO ligne : lignes == null ? new ArrayList<GardeVenteLigneDTO>() : lignes) {
+            String id = ligne.getVendeurId() == null || ligne.getVendeurId().isEmpty() ? "?" : ligne.getVendeurId();
+            GardeVendeurDTO vendeur = table.computeIfAbsent(id,
+                    cle -> new GardeVendeurDTO(cle,
+                            ligne.getVendeurNom() == null || ligne.getVendeurNom().trim().isEmpty() ? "(sans vendeur)"
+                                    : ligne.getVendeurNom().trim()));
+            vendeur.ajouter(ligne.getVenteId(), ligne.getCleClient(), ligne.getMontant(), ligne.getMarge());
+        }
+        List<GardeVendeurDTO> vendeurs = new ArrayList<>(table.values());
+        vendeurs.sort(Comparator.comparingLong(GardeVendeurDTO::getMontant).reversed()
+                .thenComparing(GardeVendeurDTO::getNom));
+        return vendeurs;
+    }
+
+    /**
+     * Les produits commandes pendant la garde, rapproches de ce qui s'en est vendu pendant la meme garde (H3).
+     *
+     * <p>
+     * Les commandes sont deja cumulees par produit ; on y reporte la quantite vendue lue dans les lignes. Un produit
+     * commande sans une unite vendue est « non vendu ». Le classement met ces derniers en tete : c'est eux qu'on veut
+     * voir.
+     * </p>
+     */
+    public static List<GardeCommandeDTO> commandesRapprochees(List<GardeCommandeDTO> commandes,
+            List<GardeVenteLigneDTO> lignes) {
+        Map<String, Long> vendues = new LinkedHashMap<>();
+        for (GardeVenteLigneDTO ligne : lignes == null ? new ArrayList<GardeVenteLigneDTO>() : lignes) {
+            vendues.merge(ligne.getProduitId(), ligne.getQuantite(), Long::sum);
+        }
+        List<GardeCommandeDTO> resultat = new ArrayList<>();
+        for (GardeCommandeDTO c : commandes == null ? new ArrayList<GardeCommandeDTO>() : commandes) {
+            c.setQuantiteVendue(vendues.getOrDefault(c.getProduitId(), 0L));
+            resultat.add(c);
+        }
+        resultat.sort(Comparator.comparing(GardeCommandeDTO::isNonVendu).reversed()
+                .thenComparing(Comparator.comparingLong(GardeCommandeDTO::getQuantiteCommandee).reversed())
+                .thenComparing(GardeCommandeDTO::getLibelle));
+        return resultat;
     }
 
     /**

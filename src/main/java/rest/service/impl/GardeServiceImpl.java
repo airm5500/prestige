@@ -16,7 +16,9 @@ import javax.persistence.TypedQuery;
 
 import org.apache.commons.lang3.StringUtils;
 
+import commonTasks.dto.GardeCommandeDTO;
 import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeReglementDTO;
 import commonTasks.dto.GardeVenteDTO;
@@ -47,7 +49,9 @@ public class GardeServiceImpl implements GardeService {
             + " f.int_CIP, f.str_NAME, p.dt_UPDATED, pd.int_QUANTITY, pd.int_PRICE,"
             // Marge (retour du 08/09) : la formule de l'analyse ABC de l'application, pas une autre.
             + " IFNULL(pd.int_PRICE_REMISE, 0), IFNULL(pd.montantTva, 0), IFNULL(pd.prixAchat, 0),"
-            + " IFNULL(p.lg_CLIENT_ID, '')" + " FROM t_preenregistrement p"
+            + " IFNULL(p.lg_CLIENT_ID, ''), IFNULL(p.lg_USER_VENDEUR_ID, ''),"
+            + " IFNULL(CONCAT(TRIM(IFNULL(u.str_FIRST_NAME, '')), ' ', TRIM(IFNULL(u.str_LAST_NAME, ''))), '')"
+            + " FROM t_preenregistrement p" + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_VENDEUR_ID"
             + " JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID"
             + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
@@ -65,6 +69,13 @@ public class GardeServiceImpl implements GardeService {
     private static final String SQL_REGLEMENTS = "SELECT vr.vente_id, vr.type_regelement, IFNULL(vr.montant_attentu, 0)"
             + " FROM vente_reglement vr WHERE vr.vente_id IN (SELECT p.lg_PREENREGISTREMENT_ID" + PERIMETRE_VENTES
             + ")";
+    /**
+     * Les produits commandes pendant la garde (H3) : lignes de commande creees dans la fenetre, cumulees par produit.
+     */
+    private static final String SQL_COMMANDES = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, SUM(d.int_NUMBER)"
+            + " FROM t_order_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+            + " WHERE d.dt_CREATED >= ?1 AND d.dt_CREATED <= ?2 AND IFNULL(d.str_STATUT, '') <> 'delete'"
+            + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY f.str_NAME";
     /** Les ventes ratees enregistrees pendant la garde. */
     private static final String SQL_RATES = "SELECT COUNT(*) FROM t_vente_ratee v"
             + " WHERE v.dt_CREATED >= ?1 AND v.dt_CREATED <= ?2 AND v.str_STATUT = 'enable'";
@@ -154,6 +165,7 @@ public class GardeServiceImpl implements GardeService {
                 GardeVenteLigneDTO lue = new GardeVenteLigneDTO(texte(c[0]), texte(c[1]), texte(c[2]), texte(c[3]),
                         instant(c[4]), entier(c[5]), entier(c[6]), entier(c[7]), entier(c[8]), entier(c[9]));
                 lue.setClientId(texte(c[10]));
+                lue.setVendeur(texte(c[11]), texte(c[12]));
                 lignes.add(lue);
             }
             return lignes;
@@ -174,6 +186,74 @@ public class GardeServiceImpl implements GardeService {
          */
         return AnalyseGarde.tranchesParHeureDuJour(lignesDeVente(garde.getDateDebut(), garde.getDateFin()),
                 heuresParTranche, garde.getDateDebut(), garde.getDateFin());
+    }
+
+    @Override
+    public List<GardeVendeurDTO> vendeurs(Garde garde) {
+        if (garde == null) {
+            return Collections.emptyList();
+        }
+        return AnalyseGarde.vendeurs(lignesDeVente(garde.getDateDebut(), garde.getDateFin()));
+    }
+
+    @Override
+    public List<GardeVendeurDTO> vendeurs(List<Garde> gardes) {
+        return AnalyseGarde.vendeurs(lignesDe(gardes));
+    }
+
+    @Override
+    public List<GardeTrancheDTO> tranches(List<Garde> gardes, int heuresParTranche) {
+        List<GardeTrancheDTO> cumul = AnalyseGarde.tranchesParHeureDuJour(lignesDe(gardes), heuresParTranche);
+        // Les heures tenues s'additionnent garde par garde : c'est sur elles que les clients se repartissent.
+        for (Garde g : gardes == null ? Collections.<Garde> emptyList() : gardes) {
+            if (g == null) {
+                continue;
+            }
+            List<GardeTrancheDTO> seule = AnalyseGarde.tranchesParHeureDuJour(Collections.emptyList(), heuresParTranche,
+                    g.getDateDebut(), g.getDateFin());
+            for (int t = 0; t < cumul.size() && t < seule.size(); t++) {
+                cumul.get(t).setHeuresCouvertes(cumul.get(t).getHeuresCouvertes() + seule.get(t).getHeuresCouvertes());
+            }
+        }
+        return cumul;
+    }
+
+    private List<GardeVenteLigneDTO> lignesDe(List<Garde> gardes) {
+        List<GardeVenteLigneDTO> lignes = new ArrayList<>();
+        for (Garde g : gardes == null ? Collections.<Garde> emptyList() : gardes) {
+            if (g != null) {
+                lignes.addAll(lignesDeVente(g.getDateDebut(), g.getDateFin()));
+            }
+        }
+        return lignes;
+    }
+
+    @Override
+    public List<GardeCommandeDTO> commandes(Garde garde) {
+        if (garde == null || garde.getDateDebut() == null || garde.getDateFin() == null) {
+            return Collections.emptyList();
+        }
+        List<GardeCommandeDTO> commandes = new ArrayList<>();
+        try {
+            for (Object[] c : lignesBrutes(SQL_COMMANDES, garde.getDateDebut(), garde.getDateFin())) {
+                commandes.add(new GardeCommandeDTO(texte(c[0]), texte(c[1]), texte(c[2]), entier(c[3])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "commandes de la garde", e);
+        }
+        return AnalyseGarde.commandesRapprochees(commandes, lignesDeVente(garde.getDateDebut(), garde.getDateFin()));
+    }
+
+    @Override
+    public java.util.Map<String, Long> quantitesVendues(Garde garde) {
+        java.util.Map<String, Long> quantites = new java.util.LinkedHashMap<>();
+        if (garde == null) {
+            return quantites;
+        }
+        for (GardeVenteLigneDTO ligne : lignesDeVente(garde.getDateDebut(), garde.getDateFin())) {
+            quantites.merge(ligne.getProduitId(), ligne.getQuantite(), Long::sum);
+        }
+        return quantites;
     }
 
     @Override

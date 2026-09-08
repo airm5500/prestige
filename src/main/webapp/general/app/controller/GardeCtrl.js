@@ -25,6 +25,15 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #capacitePersonne': {change: {fn: this.doRafraichirEffectif, buffer: 400}},
             // La courbe est dessinee dans un onglet cache a la creation : on la redessine a l'ouverture.
             'gardemanager #ongletActivite': {activate: this.doRedessinerCourbe},
+            // H3 : historique sur les gardes cochees, vendeurs, commandes, inventaire, suggestion, courbe.
+            'gardemanager #activiteHistorique': {toggle: this.doChargerActivite},
+            'gardemanager #vendeursHistorique': {toggle: this.doChargerVendeurs},
+            'gardemanager #ongletVendeurs': {activate: this.doChargerVendeurs},
+            'gardemanager #ongletCommandes': {activate: this.doChargerCommandes},
+            'gardemanager #ongletComparaison': {activate: this.doRedessinerCourbeComparaison},
+            'gardemanager #gardeInventaire': {click: this.doInventaire},
+            'gardemanager #gardeSuggestion': {click: this.doSuggestion},
+            'gardemanager #grilleAbc': {selectionchange: this.doCompterCoches},
             'gardemanager #abcClasse': {select: this.doAnalyser},
             'gardemanager #abcTri': {select: this.doAnalyser},
             // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
@@ -57,7 +66,19 @@ Ext.define('testextjs.controller.GardeCtrl', {
     },
 
     doRedessinerCourbe: function () {
-        var courbe = this.getGardeManager().down('#courbeActivite');
+        this.redessiner('#courbeActivite');
+        // L'historique suit les cases cochees : on le recharge a chaque ouverture de l'onglet.
+        if (this.getGardeManager().down('#activiteHistorique').pressed) {
+            this.doChargerActivite();
+        }
+    },
+
+    doRedessinerCourbeComparaison: function () {
+        this.redessiner('#courbeComparaison');
+    },
+
+    redessiner: function (itemId) {
+        var courbe = this.getGardeManager().down(itemId);
         if (courbe && courbe.rendered) {
             try {
                 courbe.redraw();
@@ -65,6 +86,190 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 // Un redessin qui echoue ne doit jamais bloquer l'onglet : la grille reste lisible.
             }
         }
+    },
+
+    /** Les gardes cochees dans la liste, par identifiant. */
+    idsCoches: function () {
+        return Ext.Array.map(this.getGrilleGardes().getSelectionModel().getSelection(), function (g) {
+            return g.get('id');
+        });
+    },
+
+    /**
+     * Le suivi de l'activite : la garde choisie, ou - bouton enfonce - l'historique des gardes cochees,
+     * tranches et heures tenues additionnees.
+     */
+    doChargerActivite: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var historique = ecran.down('#activiteHistorique').pressed;
+        var source = ecran.down('#activiteSource');
+        if (!historique) {
+            source.setText('');
+            me.doAnalyser();
+            return;
+        }
+        var ids = me.idsCoches();
+        if (!ids.length) {
+            source.setText('<span style="color:#a00">Cochez des gardes dans la liste.</span>');
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/gardes/activite',
+            method: 'GET',
+            params: {ids: ids.join(','), heures: me.parametres().heures},
+            timeout: 600000,
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                ecran.trancheStore.loadData(objet.data || []);
+                source.setText('<b>' + (objet.gardes || 0) + '</b> garde(s) cumul&eacute;e(s)');
+                me.redessiner('#courbeActivite');
+            },
+            failure: function () {
+                source.setText('<span style="color:#a00">L\'historique n\'a pas pu &ecirc;tre lu.</span>');
+            }
+        });
+    },
+
+    /** Les vendeurs : de la garde choisie, ou - bouton enfonce - de toutes les gardes cochees. */
+    doChargerVendeurs: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var historique = ecran.down('#vendeursHistorique').pressed;
+        var source = ecran.down('#vendeursSource');
+        var garde = me.gardeCourante();
+        var url, params;
+        if (historique) {
+            var ids = me.idsCoches();
+            if (!ids.length) {
+                source.setText('<span style="color:#a00">Cochez des gardes dans la liste.</span>');
+                ecran.vendeurStore.removeAll();
+                return;
+            }
+            url = '../api/v1/gardes/vendeurs';
+            params = {ids: ids.join(',')};
+        } else {
+            if (!garde) {
+                ecran.vendeurStore.removeAll();
+                source.setText('Choisissez une garde dans la liste de gauche.');
+                return;
+            }
+            url = '../api/v1/gardes/' + garde.get('id') + '/vendeurs';
+            params = {};
+        }
+        Ext.Ajax.request({
+            url: url,
+            method: 'GET',
+            params: params,
+            timeout: 600000,
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                ecran.vendeurStore.loadData(objet.data || []);
+                source.setText(historique
+                        ? '<b>' + (objet.gardes || 0) + '</b> garde(s) cumul&eacute;e(s), du plus gros chiffre au plus petit.'
+                        : '<b>' + Ext.String.htmlEncode(garde.get('libelle')) + '</b> : du plus gros chiffre au plus petit.');
+            },
+            failure: function () {
+                source.setText('<span style="color:#a00">Les vendeurs n\'ont pas pu &ecirc;tre lus.</span>');
+            }
+        });
+    },
+
+    /** Les produits commandes pendant la garde choisie, et la proportion de non vendus. */
+    doChargerCommandes: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var resume = ecran.down('#commandesResume');
+        var garde = me.gardeCourante();
+        if (!garde) {
+            ecran.commandeStore.removeAll();
+            resume.setText('Choisissez une garde dans la liste de gauche.');
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/gardes/' + garde.get('id') + '/commandes',
+            method: 'GET',
+            timeout: 600000,
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                var r = objet.resume || {};
+                ecran.commandeStore.loadData(objet.data || []);
+                resume.setText('<b>' + (r.produitsCommandes || 0) + '</b> produit(s) command&eacute;(s) pendant la garde, '
+                        + 'dont <b style="color:#a00">' + (r.produitsNonVendus || 0) + '</b> non vendu(s) pendant la garde, '
+                        + 'soit <b>' + Ext.util.Format.number(r.proportionProduits || 0, '0.00') + ' %</b> des produits '
+                        + '(' + Ext.util.Format.number(r.proportionQuantites || 0, '0.00') + ' % des quantit&eacute;s).');
+            },
+            failure: function () {
+                resume.setText('<span style="color:#a00">Les commandes n\'ont pas pu &ecirc;tre lues.</span>');
+            }
+        });
+    },
+
+    doCompterCoches: function () {
+        var ecran = this.getGardeManager();
+        var n = ecran.down('#grilleAbc').getSelectionModel().getSelection().length;
+        ecran.down('#abcCoches').setText(n ? '<b>' + n + '</b> produit(s) coch&eacute;(s)' : '');
+    },
+
+    /** Les produits ABC coches, ou tous ceux affiches ; et le libelle qui le dit. */
+    produitsAbc: function () {
+        var grille = this.getGardeManager().down('#grilleAbc');
+        var coches = grille.getSelectionModel().getSelection();
+        var lignes = coches.length ? coches : grille.getStore().getRange();
+        return {
+            ids: Ext.Array.map(lignes, function (l) {
+                return l.get('produitId') || l.get('cip');
+            }),
+            libelle: coches.length ? coches.length + ' produit(s) coch&eacute;(s)'
+                    : 'les ' + lignes.length + ' produit(s) affich&eacute;(s)'
+        };
+    },
+
+    doInventaire: function () {
+        this.envoyerProduits('/inventaire', 'Cr&eacute;er un inventaire de ');
+    },
+
+    doSuggestion: function () {
+        this.envoyerProduits('/suggestion', 'Envoyer en suggestion de commande ');
+    },
+
+    envoyerProduits: function (chemin, question) {
+        var me = this;
+        var garde = me.gardeCourante();
+        if (!garde) {
+            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+            return;
+        }
+        var produits = me.produitsAbc();
+        if (!produits.ids.length) {
+            Ext.MessageBox.alert('Information', 'Aucun produit vendu sur cette garde.');
+            return;
+        }
+        Ext.MessageBox.confirm('Confirmation', question + '<b>' + produits.libelle + '</b> de la garde <b>'
+                + Ext.String.htmlEncode(garde.get('libelle')) + '</b> ?', function (choix) {
+            if (choix !== 'yes') {
+                return;
+            }
+            var attente = Ext.MessageBox.wait('Veuillez patienter . . .', 'Traitement en cours');
+            Ext.Ajax.request({
+                url: '../api/v1/gardes/' + garde.get('id') + chemin,
+                method: 'POST',
+                jsonData: {produits: produits.ids},
+                timeout: 600000,
+                /* L'attente est fermee AVANT d'afficher le resultat : la boite de message est unique,
+                   la fermer dans le rappel final aurait aussi ferme le resultat qu'on vient d'afficher. */
+                success: function (reponse) {
+                    attente.hide();
+                    var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                    Ext.MessageBox.alert(objet.success ? 'Information' : 'Message',
+                            objet.msg || (objet.success ? 'Op&eacute;ration effectu&eacute;e.' : 'Op&eacute;ration impossible.'));
+                },
+                failure: function () {
+                    attente.hide();
+                    Ext.MessageBox.alert('Message', 'L\'op&eacute;ration n\'a pas pu &ecirc;tre effectu&eacute;e.');
+                }
+            });
+        });
     },
 
     /** Filtre par annee (retour du 08/09) : la liste est rechargee, l'analyse videe. */
@@ -177,7 +382,10 @@ Ext.define('testextjs.controller.GardeCtrl', {
         ecran.trancheStore.removeAll();
         ecran.abcStore.removeAll();
         ecran.resumeStore.removeAll();
+        ecran.vendeurStore.removeAll();
+        ecran.commandeStore.removeAll();
         ecran.down('#abcCompte').setText('');
+        ecran.down('#abcCoches').setText('');
         ecran.down('#gardeIndicateurs').update('<i>Choisissez une garde dans la liste de gauche.</i>');
     },
 
@@ -229,6 +437,16 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 ecran.trancheStore.loadData(objet.tranches || []);
                 ecran.abcStore.loadData(objet.abc || []);
                 ecran.resumeStore.loadData(objet.resumeAbc || []);
+                ecran.down('#abcCoches').setText('');
+                // Les onglets vendeurs et commandes suivent la garde choisie, s'ils sont ouverts.
+                var actif = ecran.down('#ongletsGarde').getActiveTab();
+                if (actif && actif.itemId === 'ongletVendeurs') {
+                    me.doChargerVendeurs();
+                } else if (actif && actif.itemId === 'ongletCommandes') {
+                    me.doChargerCommandes();
+                } else if (actif && actif.itemId === 'ongletActivite') {
+                    me.redessiner('#courbeActivite');
+                }
                 var affiches = (objet.abc || []).length;
                 var total = objet.totalAbc || affiches;
                 ecran.down('#abcCompte').setText(affiches < total
@@ -263,10 +481,8 @@ Ext.define('testextjs.controller.GardeCtrl', {
             method: 'GET',
             params: {heures: params.heures},
             timeout: 600000,
-            callback: function () {
-                attente.hide();
-            },
             success: function (reponse) {
+                attente.hide();
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 if (objet.success && objet.url) {
                     window.open('..' + objet.url);
@@ -276,6 +492,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 }
             },
             failure: function () {
+                attente.hide();
                 Ext.MessageBox.alert('Message',
                         'L\'&eacute;dition n\'a pas pu &ecirc;tre g&eacute;n&eacute;r&eacute;e.');
             }
@@ -322,7 +539,8 @@ Ext.define('testextjs.controller.GardeCtrl', {
     },
 
     comparer: function (ids, nombre) {
-        var ecran = this.getGardeManager();
+        var me = this;
+        var ecran = me.getGardeManager();
         Ext.Ajax.request({
             url: '../api/v1/gardes/comparaison',
             method: 'GET',
@@ -348,6 +566,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
                             + 'Choisissez au moins deux gardes pour comparer.');
                 }
                 ecran.down('#ongletsGarde').setActiveTab(ecran.down('#ongletComparaison'));
+                me.redessiner('#courbeComparaison');
             },
             failure: function () {
                 Ext.MessageBox.alert('Message', 'La comparaison n\'a pas pu &ecirc;tre calcul&eacute;e.');

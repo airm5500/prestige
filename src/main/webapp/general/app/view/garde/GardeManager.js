@@ -76,7 +76,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {name: 'heuresCouvertes', type: 'int'}, {name: 'clientsParHeure', type: 'float'}]
         });
         me.abcStore = Ext.create('Ext.data.Store', {
-            fields: ['classe', 'cip', 'libelle', {name: 'quantite', type: 'int'},
+            fields: ['produitId', 'classe', 'cip', 'libelle', {name: 'quantite', type: 'int'},
                 {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'},
                 {name: 'tauxMarge', type: 'float'}, {name: 'part', type: 'float'},
                 {name: 'cumulPart', type: 'float'}]
@@ -85,6 +85,15 @@ Ext.define('testextjs.view.garde.GardeManager', {
             fields: ['classe', {name: 'produits', type: 'int'}, {name: 'montant', type: 'int'},
                 {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'},
                 {name: 'part', type: 'float'}]
+        });
+        // H3 : les vendeurs de la garde, et les produits commandes pendant la garde.
+        me.vendeurStore = Ext.create('Ext.data.Store', {
+            fields: ['vendeurId', 'nom', {name: 'ventes', type: 'int'}, {name: 'clients', type: 'int'},
+                {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'}]
+        });
+        me.commandeStore = Ext.create('Ext.data.Store', {
+            fields: ['produitId', 'cip', 'libelle', {name: 'quantiteCommandee', type: 'int'},
+                {name: 'quantiteVendue', type: 'int'}, {name: 'nonVendu', type: 'boolean'}]
         });
         // H2 : les indicateurs REELS d'une garde, a plat, tels que le serveur les rend.
         me.comparaisonStore = Ext.create('Ext.data.Store', {
@@ -170,7 +179,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
             region: 'center',
             xtype: 'tabpanel',
             itemId: 'ongletsGarde',
-            items: [me.ongletAnalyse(), me.ongletActivite(), me.ongletComparaison()]
+            items: [me.ongletAnalyse(), me.ongletActivite(), me.ongletVendeurs(), me.ongletCommandes(),
+                me.ongletComparaison()]
         };
     },
 
@@ -278,6 +288,28 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                             text: ''
                                         }]
                                 }, {
+                                    // H3 : les produits vendus pendant la garde partent en inventaire ou en
+                                    // suggestion de commande - ceux coches, ou tous ceux affiches.
+                                    xtype: 'toolbar',
+                                    itemId: 'actionsAbc',
+                                    items: [{
+                                            text: 'Cr&eacute;er un inventaire',
+                                            itemId: 'gardeInventaire',
+                                            iconCls: 'addicon',
+                                            tooltip: 'Un inventaire des produits coch&eacute;s (ou de tous les produits '
+                                                    + 'affich&eacute;s), &agrave; poursuivre dans l\'&eacute;cran des inventaires'
+                                        }, '-', {
+                                            text: 'Envoyer en suggestion',
+                                            itemId: 'gardeSuggestion',
+                                            iconCls: 'export_excel_icon',
+                                            tooltip: 'Une suggestion de commande des produits coch&eacute;s (ou de tous les '
+                                                    + 'produits affich&eacute;s), avec la quantit&eacute; vendue pendant la garde'
+                                        }, '->', {
+                                            xtype: 'tbtext',
+                                            itemId: 'abcCoches',
+                                            text: ''
+                                        }]
+                                }, {
                                     // Le resume par classe est pose AU-DESSUS de la liste : en bas de la
                                     // grille il n'etait pas visible (retour du 08/09).
                                     xtype: 'gridpanel',
@@ -313,6 +345,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                     itemId: 'grilleAbc',
                                     flex: 1,
                                     store: me.abcStore,
+                                    selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI', checkOnly: true}),
                                     viewConfig: {
                                         columnLines: true,
                                         deferEmptyText: false,
@@ -377,6 +410,17 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             text: 'Heures du jour cumul&eacute;es sur toute la p&eacute;riode de la garde ; '
                                     + 'les clients sont ramen&eacute;s &agrave; l\'heure r&eacute;ellement tenue.'
                         }, '->', {
+                            // H3 : la meme lecture sur l'HISTORIQUE des gardes cochees, heures tenues
+                            // additionnees : c'est ce qui dit ou il faut du monde, garde apres garde.
+                            text: 'Sur les gardes coch&eacute;es',
+                            itemId: 'activiteHistorique',
+                            enableToggle: true,
+                            tooltip: 'Cumuler les tranches de toutes les gardes coch&eacute;es dans la liste'
+                        }, {
+                            xtype: 'tbtext',
+                            itemId: 'activiteSource',
+                            text: ''
+                        }, '-', {
                             xtype: 'numberfield',
                             itemId: 'capacitePersonne',
                             fieldLabel: 'Clients / heure / personne',
@@ -506,12 +550,154 @@ Ext.define('testextjs.view.garde.GardeManager', {
         return valeur && valeur > 0 ? valeur : 10;
     },
 
+    /** Les meilleurs vendeurs de la garde (H3), ou des gardes cochees. */
+    ongletVendeurs: function () {
+        var me = this;
+        return {
+            title: 'Vendeurs',
+            itemId: 'ongletVendeurs',
+            xtype: 'gridpanel',
+            store: me.vendeurStore,
+            viewConfig: {
+                columnLines: true,
+                deferEmptyText: false,
+                emptyText: '<div style="padding:12px">Aucune vente sur cette garde.</div>'
+            },
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'tbtext',
+                            itemId: 'vendeursSource',
+                            text: 'Du plus gros chiffre au plus petit.'
+                        }, '->', {
+                            text: 'Sur les gardes coch&eacute;es',
+                            itemId: 'vendeursHistorique',
+                            enableToggle: true,
+                            tooltip: 'Cumuler les ventes de toutes les gardes coch&eacute;es dans la liste'
+                        }]
+                }],
+            columns: [
+                {xtype: 'rownumberer', width: 36},
+                {header: 'Vendeur', dataIndex: 'nom', flex: 1},
+                {header: 'Ventes', dataIndex: 'ventes', width: 70, align: 'right'},
+                {header: 'Clients', dataIndex: 'clients', width: 70, align: 'right'},
+                {
+                    header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 130, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Marge', dataIndex: 'marge', width: 110, align: 'right',
+                    xtype: 'numbercolumn', format: '0,000.'
+                },
+                {
+                    header: 'Taux marge %', dataIndex: 'tauxMarge', width: 100, align: 'right',
+                    xtype: 'numbercolumn', format: '0.00'
+                }
+            ]
+        };
+    },
+
+    /** Les produits commandes pendant la garde et non vendus pendant la garde (H3), avec la proportion. */
+    ongletCommandes: function () {
+        var me = this;
+        return {
+            title: 'Command&eacute;s non vendus',
+            itemId: 'ongletCommandes',
+            xtype: 'gridpanel',
+            store: me.commandeStore,
+            viewConfig: {
+                columnLines: true,
+                deferEmptyText: false,
+                emptyText: '<div style="padding:12px">Aucune commande pass&eacute;e pendant cette garde.</div>',
+                getRowClass: function (ligne) {
+                    return ligne.get('nonVendu') ? 'garde-non-vendu' : '';
+                }
+            },
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'tbtext',
+                            itemId: 'commandesResume',
+                            text: 'Produits command&eacute;s pendant la garde, rapproch&eacute;s de ce qui s\'en est '
+                                    + 'vendu pendant la m&ecirc;me garde.'
+                        }]
+                }],
+            columns: [
+                {xtype: 'rownumberer', width: 36},
+                {header: 'CIP', dataIndex: 'cip', width: 95},
+                {header: 'Produit', dataIndex: 'libelle', flex: 1},
+                {header: 'Qt&eacute; command&eacute;e', dataIndex: 'quantiteCommandee', width: 115, align: 'right'},
+                {header: 'Qt&eacute; vendue', dataIndex: 'quantiteVendue', width: 95, align: 'right'},
+                {
+                    header: 'Statut', dataIndex: 'nonVendu', width: 110, align: 'center',
+                    renderer: function (valeur) {
+                        return valeur ? '<b style="color:#a00">Non vendu</b>' : '<span style="color:#177a17">Vendu</span>';
+                    }
+                }
+            ]
+        };
+    },
+
     ongletComparaison: function () {
         var me = this;
         return {
             title: 'Comparaison',
             itemId: 'ongletComparaison',
+            xtype: 'panel',
+            layout: {type: 'vbox', align: 'stretch'},
+            items: [me.courbeComparaison(), me.grilleComparaison()]
+        };
+    },
+
+    /** La courbe d'evolution des gardes comparees (H3) : clients et chiffre, garde apres garde. */
+    courbeComparaison: function () {
+        var me = this;
+        return {
+            xtype: 'container',
+            itemId: 'zoneCourbeComparaison',
+            height: 210,
+            layout: 'fit',
+            items: [Ext.create('Ext.chart.Chart', {
+                    itemId: 'courbeComparaison',
+                    store: me.comparaisonStore,
+                    animate: false,
+                    insetPadding: 12,
+                    legend: {position: 'right'},
+                    axes: [{
+                            type: 'Numeric', position: 'left', fields: ['clients'], title: 'Clients',
+                            minimum: 0, grid: true
+                        }, {
+                            type: 'Numeric', position: 'right', fields: ['montant'], title: 'Chiffre d\'affaires',
+                            minimum: 0,
+                            label: {renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }}
+                        }, {
+                            type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes compar&eacute;es'
+                        }],
+                    series: [{
+                            type: 'line', title: 'Clients', axis: 'left', xField: 'libelle', yField: 'clients',
+                            markerConfig: {type: 'circle', size: 4, radius: 4},
+                            tips: {trackMouse: true, renderer: function (l) {
+                                    this.setTitle(l.get('libelle') + ' : ' + l.get('clients') + ' client(s)');
+                                }}
+                        }, {
+                            type: 'line', title: 'Chiffre d\'affaires', axis: 'right', xField: 'libelle', yField: 'montant',
+                            markerConfig: {type: 'cross', size: 4, radius: 4},
+                            tips: {trackMouse: true, renderer: function (l) {
+                                    this.setTitle(l.get('libelle') + ' : ' + Ext.util.Format.number(l.get('montant'), '0,000'));
+                                }}
+                        }]
+                })]
+        };
+    },
+
+    grilleComparaison: function () {
+        var me = this;
+        return {
+            itemId: 'grilleComparaison',
             xtype: 'gridpanel',
+            flex: 1,
             store: me.comparaisonStore,
             viewConfig: {
                 columnLines: true,

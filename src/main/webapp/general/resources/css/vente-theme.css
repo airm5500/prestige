@@ -1285,3 +1285,7 @@ body.x-body,
 .classe-abc-c .x-grid-cell {
     background-color: #fafafa;
 }
+/* Gardes (H3) : un produit commande pendant la garde et pas vendu pendant la garde. */
+.garde-non-vendu .x-grid-cell {
+    background-color: #fdecea;
+}

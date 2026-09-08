@@ -12,7 +12,9 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import commonTasks.dto.GardeCommandeDTO;
 import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeReglementDTO;
 import commonTasks.dto.GardeTrancheDTO;
@@ -516,5 +518,65 @@ class AnalyseGardeTest {
         assertEquals(0, k.getRates(), "un nombre negatif de rates n'existe pas");
         assertEquals(0D, k.getTauxMarge(), 0.0);
         assertEquals(0, k.getMontantParHeure());
+    }
+
+    // ------------------------------------------------------------------ vendeurs et commandes (H3)
+
+    @Test
+    @DisplayName("Les vendeurs sont classes par chiffre, avec leurs ventes, clients et marge")
+    void vendeursClasses() {
+        GardeVenteLigneDTO a1 = ligneAvecCout("V1", "P1", 1, 1000, 0, 0, 600);
+        GardeVenteLigneDTO a2 = ligneAvecCout("V1", "P2", 1, 500, 0, 0, 100);
+        GardeVenteLigneDTO b1 = ligneAvecCout("V2", "P1", 1, 4000, 0, 0, 2000);
+        a1.setVendeur("A", "Alice");
+        a2.setVendeur("A", "Alice");
+        b1.setVendeur("B", "Bob");
+        a1.setClientId("C1");
+        a2.setClientId("C1");
+
+        List<GardeVendeurDTO> vendeurs = AnalyseGarde.vendeurs(Arrays.asList(a1, a2, b1));
+
+        assertEquals(2, vendeurs.size());
+        assertEquals("Bob", vendeurs.get(0).getNom(), "4 000 avant 1 500");
+        assertEquals(2000, vendeurs.get(0).getMarge());
+        assertEquals(50D, vendeurs.get(0).getTauxMarge(), 0.01);
+        GardeVendeurDTO alice = vendeurs.get(1);
+        assertEquals(1, alice.getVentes(), "deux lignes, une seule vente");
+        assertEquals(1, alice.getClients());
+        assertEquals(1500, alice.getMontant());
+        assertEquals(800, alice.getMarge());
+    }
+
+    @Test
+    @DisplayName("Une ligne sans vendeur est rangee a part, jamais perdue")
+    void vendeurInconnu() {
+        List<GardeVendeurDTO> vendeurs = AnalyseGarde
+                .vendeurs(Collections.singletonList(ligne("V1", "P1", "X", DEBUT, 1, 100)));
+        assertEquals(1, vendeurs.size());
+        assertEquals("(sans vendeur)", vendeurs.get(0).getNom());
+        assertEquals(100, vendeurs.get(0).getMontant());
+        assertTrue(AnalyseGarde.vendeurs(null).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Les produits commandes sont rapproches des ventes de la garde, les non vendus en tete")
+    void commandesRapprochees() {
+        List<GardeCommandeDTO> commandes = Arrays.asList(new GardeCommandeDTO("P1", "C1", "VENDU", 5),
+                new GardeCommandeDTO("P2", "C2", "JAMAIS VENDU", 4),
+                new GardeCommandeDTO("P3", "C3", "AUTRE NON VENDU", 9));
+        List<GardeVenteLigneDTO> lignes = Arrays.asList(ligne("V1", "P1", "VENDU", DEBUT, 2, 100),
+                ligne("V2", "P1", "VENDU", DEBUT, 3, 100));
+
+        List<GardeCommandeDTO> resultat = AnalyseGarde.commandesRapprochees(commandes, lignes);
+
+        assertEquals(3, resultat.size());
+        assertTrue(resultat.get(0).isNonVendu());
+        assertEquals("AUTRE NON VENDU", resultat.get(0).getLibelle(),
+                "non vendus d'abord, la plus grosse commande en tete");
+        assertEquals("JAMAIS VENDU", resultat.get(1).getLibelle());
+        GardeCommandeDTO vendu = resultat.get(2);
+        assertEquals(5, vendu.getQuantiteVendue(), "2 + 3 unites vendues pendant la garde");
+        assertEquals(false, vendu.isNonVendu());
+        assertTrue(AnalyseGarde.commandesRapprochees(null, null).isEmpty());
     }
 }

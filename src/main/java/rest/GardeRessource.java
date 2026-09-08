@@ -27,13 +27,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import commonTasks.dto.GardeCommandeDTO;
 import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeTrancheDTO;
 import dal.Garde;
 import dal.TUser;
 import rest.report.ReportUtil;
 import rest.service.GardeService;
+import rest.service.InventaireService;
+import rest.service.SuggestionService;
 import rest.service.impl.AnalyseGarde;
 import rest.service.utils.ReportExcelExportService;
 import util.Constant;
@@ -74,6 +78,10 @@ public class GardeRessource {
     private ReportUtil reportUtil;
     @EJB
     private ReportExcelExportService reportExcelExportService;
+    @EJB
+    private InventaireService inventaireService;
+    @EJB
+    private SuggestionService suggestionService;
 
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -311,11 +319,217 @@ public class GardeRessource {
                 .put("caDiffere", k.getCaDiffere()).put("caAutres", k.getCaAutres());
     }
 
+    private static JSONObject vendeurJson(GardeVendeurDTO v) {
+        return new JSONObject().put("vendeurId", v.getVendeurId()).put("nom", v.getNom()).put("ventes", v.getVentes())
+                .put("clients", v.getClients()).put("montant", v.getMontant()).put("marge", v.getMarge())
+                .put("tauxMarge", arrondi(v.getTauxMarge()));
+    }
+
+    /** Les gardes designees par une liste d'identifiants separes par des virgules, sans les inconnues. */
+    private List<Garde> gardesDepuis(String ids) {
+        List<Garde> gardes = new ArrayList<>();
+        for (String id : StringUtils.defaultString(ids).split(",")) {
+            Garde g = gardeService.parId(StringUtils.trimToEmpty(id));
+            if (g != null) {
+                gardes.add(g);
+            }
+        }
+        return gardes;
+    }
+
+    private static Response liste(JSONArray data, JSONObject complement) {
+        JSONObject reponse = new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+        if (complement != null) {
+            for (String cle : complement.keySet()) {
+                reponse.put(cle, complement.get(cle));
+            }
+        }
+        return Response.ok().entity(reponse.toString()).build();
+    }
+
+    /** Les vendeurs d'une garde (H3), du plus gros chiffre au plus petit. */
+    @GET
+    @Path("{id}/vendeurs")
+    public Response vendeurs(@PathParam("id") String id) {
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        JSONArray data = new JSONArray();
+        for (GardeVendeurDTO v : gardeService.vendeurs(garde)) {
+            data.put(vendeurJson(v));
+        }
+        return liste(data, null);
+    }
+
+    /** Les vendeurs sur plusieurs gardes cumulees (H3). */
+    @GET
+    @Path("vendeurs")
+    public Response vendeursCumules(@DefaultValue("") @QueryParam("ids") String ids) {
+        List<Garde> gardes = gardesDepuis(ids);
+        JSONArray data = new JSONArray();
+        for (GardeVendeurDTO v : gardeService.vendeurs(gardes)) {
+            data.put(vendeurJson(v));
+        }
+        return liste(data, new JSONObject().put("gardes", gardes.size()));
+    }
+
+    /**
+     * Les produits commandes pendant la garde et ce qui s'en est vendu (H3) : les non vendus en tete, et la proportion
+     * en resume.
+     */
+    @GET
+    @Path("{id}/commandes")
+    public Response commandes(@PathParam("id") String id) {
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        JSONArray data = new JSONArray();
+        int nonVendus = 0;
+        long quantiteCommandee = 0L;
+        long quantiteNonVendue = 0L;
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        for (GardeCommandeDTO c : commandes) {
+            data.put(new JSONObject().put("produitId", c.getProduitId()).put("cip", c.getCip())
+                    .put("libelle", c.getLibelle()).put("quantiteCommandee", c.getQuantiteCommandee())
+                    .put("quantiteVendue", c.getQuantiteVendue()).put("nonVendu", c.isNonVendu()));
+            quantiteCommandee += c.getQuantiteCommandee();
+            if (c.isNonVendu()) {
+                nonVendus++;
+                quantiteNonVendue += c.getQuantiteCommandee();
+            }
+        }
+        JSONObject resume = new JSONObject().put("produitsCommandes", commandes.size())
+                .put("produitsNonVendus", nonVendus)
+                .put("proportionProduits", commandes.isEmpty() ? 0D : arrondi(nonVendus * 100D / commandes.size()))
+                .put("quantiteCommandee", quantiteCommandee).put("quantiteNonVendue", quantiteNonVendue)
+                .put("proportionQuantites",
+                        quantiteCommandee > 0 ? arrondi(quantiteNonVendue * 100D / quantiteCommandee) : 0D);
+        return liste(data, new JSONObject().put("resume", resume));
+    }
+
+    /**
+     * Le suivi de l'activite sur l'HISTORIQUE (H3) : les tranches horaires cumulees sur plusieurs gardes, avec les
+     * heures tenues additionnees. C'est ce qui dit, garde apres garde, a quelles heures il faut du monde.
+     */
+    @GET
+    @Path("activite")
+    public Response activite(@DefaultValue("") @QueryParam("ids") String ids,
+            @DefaultValue("2") @QueryParam("heures") int heures) {
+        List<Garde> gardes = gardesDepuis(ids);
+        JSONArray data = new JSONArray();
+        for (GardeTrancheDTO t : gardeService.tranches(gardes, heures)) {
+            data.put(trancheJson(t));
+        }
+        return liste(data, new JSONObject().put("gardes", gardes.size()));
+    }
+
+    /** Les produits demandes par l'ecran, ou tous ceux vendus pendant la garde quand rien n'est coche. */
+    private List<String> produitsVoulus(JSONObject corps, Garde garde) {
+        List<String> produits = new ArrayList<>();
+        JSONArray demandes = corps.optJSONArray("produits");
+        if (demandes != null) {
+            for (int i = 0; i < demandes.length(); i++) {
+                String id = StringUtils.trimToEmpty(demandes.optString(i));
+                if (!id.isEmpty() && !produits.contains(id)) {
+                    produits.add(id);
+                }
+            }
+        }
+        if (produits.isEmpty()) {
+            produits.addAll(gardeService.quantitesVendues(garde).keySet());
+        }
+        return produits;
+    }
+
+    private static JSONObject corpsJson(String corps) {
+        try {
+            return StringUtils.isBlank(corps) ? new JSONObject() : new JSONObject(corps);
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    /**
+     * Un inventaire des produits vendus pendant la garde (H3) : ceux coches, ou tous. L'inventaire est cree par le
+     * service d'inventaire habituel, avec le stock courant en quantite initiale, et se poursuit dans l'ecran des
+     * inventaires.
+     */
+    @POST
+    @Path("{id}/inventaire")
+    public Response inventaire(@PathParam("id") String id, String corps) {
+        if (utilisateur() == null) {
+            return echec(Constant.DECONNECTED_MESSAGE);
+        }
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        JSONObject json = corpsJson(corps);
+        List<String> produits = produitsVoulus(json, garde);
+        if (produits.isEmpty()) {
+            return echec("Aucun produit vendu pendant cette garde : rien à inventorier.");
+        }
+        String nom = StringUtils.defaultIfBlank(json.optString("nom"),
+                "INVENTAIRE GARDE " + StringUtils.defaultString(garde.getLibelle()));
+        try {
+            int nombre = inventaireService.create(new java.util.LinkedHashSet<>(produits), nom, nom + " - du "
+                    + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE));
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("count", nombre).put("nom", nom)
+                            .put("msg", "Inventaire « " + nom + " » créé avec " + nombre + " produit(s).").toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "inventaire depuis une garde", e);
+            return echec("L'inventaire n'a pas pu être créé.");
+        }
+    }
+
+    /**
+     * Une suggestion de commande depuis la garde (H3) : les produits coches, ou tous ceux vendus, avec la quantite
+     * vendue pendant la garde en quantite proposee. Elle suit ensuite le circuit habituel des suggestions.
+     */
+    @POST
+    @Path("{id}/suggestion")
+    public Response suggestion(@PathParam("id") String id, String corps) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return echec(Constant.DECONNECTED_MESSAGE);
+        }
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        List<String> produits = produitsVoulus(corpsJson(corps), garde);
+        java.util.Map<String, Long> vendues = gardeService.quantitesVendues(garde);
+        java.util.Map<String, Long> quantites = new java.util.LinkedHashMap<>();
+        for (String produit : produits) {
+            Long q = vendues.get(produit);
+            if (q != null && q > 0) {
+                quantites.put(produit, q);
+            }
+        }
+        if (quantites.isEmpty()) {
+            return echec("Aucun produit vendu pendant cette garde : rien à suggérer.");
+        }
+        JSONObject resultat = suggestionService.makeSuggestionDepuisGarde(quantites, user);
+        if (!resultat.optBoolean("success")) {
+            return echec(resultat.optString("msg", "La suggestion n'a pas pu être créée."));
+        }
+        int count = resultat.optInt("count");
+        int ignores = resultat.optInt("ignores");
+        resultat.put("msg",
+                count + " produit(s) envoyé(s) en suggestion (" + resultat.optInt("suggestions") + " suggestion(s))"
+                        + (ignores > 0 ? ", " + ignores + " ignoré(s) : sans grossiste ou déconditionné." : "."));
+        return Response.ok().entity(resultat.toString()).build();
+    }
+
     private static JSONObject produitJson(GardeProduitDTO p) {
-        return new JSONObject().put("classe", p.getClasse()).put("cip", p.getCip()).put("libelle", p.getLibelle())
-                .put("quantite", p.getQuantite()).put("montant", p.getMontant()).put("marge", p.getMarge())
-                .put("tauxMarge", arrondi(p.getTauxMarge())).put("part", arrondi(p.getPart()))
-                .put("cumulPart", arrondi(p.getCumulPart()));
+        return new JSONObject().put("produitId", p.getProduitId()).put("classe", p.getClasse()).put("cip", p.getCip())
+                .put("libelle", p.getLibelle()).put("quantite", p.getQuantite()).put("montant", p.getMontant())
+                .put("marge", p.getMarge()).put("tauxMarge", arrondi(p.getTauxMarge()))
+                .put("part", arrondi(p.getPart())).put("cumulPart", arrondi(p.getCumulPart()));
     }
 
     /** Combien de produits dans chaque classe, et quelle part du chiffre ils representent. */

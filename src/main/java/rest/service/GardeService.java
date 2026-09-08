@@ -5,7 +5,9 @@ import java.util.List;
 
 import javax.ejb.Local;
 
+import commonTasks.dto.GardeCommandeDTO;
 import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
 import commonTasks.dto.GardeTrancheDTO;
 import commonTasks.dto.GardeVenteLigneDTO;
@@ -68,4 +70,19 @@ public interface GardeService {
 
     /** Les indicateurs reels de la garde (H2) : ventes, clients, chiffre, marge, rates, credit, chiffre par mode. */
     GardeKpiDTO kpi(Garde garde);
+
+    /** Les vendeurs de la garde (H3), du plus gros chiffre au plus petit. */
+    List<GardeVendeurDTO> vendeurs(Garde garde);
+
+    /** Les vendeurs sur plusieurs gardes cumulees (H3). */
+    List<GardeVendeurDTO> vendeurs(List<Garde> gardes);
+
+    /** Les produits commandes pendant la garde et ce qui s'en est vendu (H3), les non vendus en tete. */
+    List<GardeCommandeDTO> commandes(Garde garde);
+
+    /** Les tranches horaires cumulees sur plusieurs gardes (H3) : l'historique qui dit quand il faut du monde. */
+    List<GardeTrancheDTO> tranches(List<Garde> gardes, int heuresParTranche);
+
+    /** Quantite vendue par produit pendant la garde : ce qui part en suggestion. */
+    java.util.Map<String, Long> quantitesVendues(Garde garde);
 }

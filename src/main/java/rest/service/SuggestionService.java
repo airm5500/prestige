@@ -36,6 +36,13 @@ public interface SuggestionService {
 
     JSONObject makeSuggestionFromArticleInvendus(List<ArticleDTO> datas, TUser tu) throws JSONException;
 
+    /**
+     * Suggestion de commande depuis une garde (retour du 08/09, H3) : une suggestion par grossiste du produit, la
+     * quantite proposee etant la quantite vendue pendant la garde. Les produits sans grossiste ou deconditionnes sont
+     * ignores et comptes.
+     */
+    JSONObject makeSuggestionDepuisGarde(java.util.Map<String, Long> quantitesParProduit, TUser tu);
+
     JSONObject makeSuggestion(Set<VenteDetailsDTO> datas) throws JSONException;
 
     JSONObject findCHDetailStock(String idProduit, String emplacement);

@@ -281,9 +281,10 @@ function semer() {
       vue.destroy();
       return resultat;
     });
-    ok('L\'ecran a ses trois onglets : analyse, suivi de l\'activite (H2), comparaison',
-      ecran.titres.length === 3 && ecran.titres[0] === 'Analyse de la garde' && /activit/i.test(ecran.titres[1])
-      && ecran.titres[2] === 'Comparaison', ecran.titres.join('|'));
+    ok('L\'ecran a ses onglets : analyse, suivi de l\'activite (H2), vendeurs et commandes (H3), comparaison',
+      ecran.titres.length === 5 && ecran.titres[0] === 'Analyse de la garde' && /activit/i.test(ecran.titres[1])
+      && ecran.titres[2] === 'Vendeurs' && /Command/.test(ecran.titres[3])
+      && ecran.titres[4] === 'Comparaison', ecran.titres.join('|'));
     ok('La liste des gardes est presente', ecran.listePresente);
     ok('Elle accepte une selection multiple, pour comparer', ecran.selectionMultiple);
     ok('Les gardes se cochent (retour du 08/09)', ecran.casesACocher);

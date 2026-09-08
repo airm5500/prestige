@@ -145,8 +145,8 @@ function semer() {
     await attendreStore("Ext.ComponentQuery.query('gardemanager')[0].gardeStore");
     await p.waitForTimeout(800);
     const titres = await p.evaluate(() => Ext.ComponentQuery.query('gardemanager #ongletsGarde')[0].items.getRange().map(o => o.title));
-    ok('L\'ecran a trois onglets : analyse, suivi de l\'activite, comparaison',
-      titres.length === 3 && /activit/i.test(titres[1]) && /Comparaison/.test(titres[2]), titres.join(' | '));
+    ok('L\'ecran a ses onglets : analyse, suivi de l\'activite, ..., comparaison',
+      titres.length >= 3 && /activit/i.test(titres[1]) && /Comparaison/.test(titres[titres.length - 1]), titres.join(' | '));
 
     await cocher([MARQUE + ' nuit A', MARQUE + ' nuit B']);
     await p.waitForTimeout(600);
@@ -159,7 +159,7 @@ function semer() {
     await p.waitForTimeout(500);
     const comparaison = await p.evaluate(() => {
       const v = Ext.ComponentQuery.query('gardemanager')[0];
-      const grille = v.down('#ongletComparaison');
+      const grille = v.down('#grilleComparaison');
       return {
         actif: v.down('#ongletsGarde').getActiveTab().itemId,
         entetes: grille.headerCt.getGridColumns().map(c => (c.text || '').replace(/&eacute;/g, 'é').replace(/&egrave;/g, 'è')),

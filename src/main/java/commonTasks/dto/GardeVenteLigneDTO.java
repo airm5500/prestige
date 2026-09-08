@@ -24,6 +24,22 @@ public class GardeVenteLigneDTO implements Serializable {
     private long prixAchat;
     /** Client rattache a la vente (H2) ; vide pour une vente anonyme. */
     private String clientId = "";
+    /** Vendeur de la vente (H3). */
+    private String vendeurId = "";
+    private String vendeurNom = "";
+
+    public String getVendeurId() {
+        return vendeurId;
+    }
+
+    public String getVendeurNom() {
+        return vendeurNom;
+    }
+
+    public void setVendeur(String vendeurId, String vendeurNom) {
+        this.vendeurId = vendeurId == null ? "" : vendeurId;
+        this.vendeurNom = vendeurNom == null ? "" : vendeurNom;
+    }
 
     public String getClientId() {
         return clientId;

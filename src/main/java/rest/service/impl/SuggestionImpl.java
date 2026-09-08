@@ -837,6 +837,45 @@ public class SuggestionImpl implements SuggestionService {
     }
 
     @Override
+    public JSONObject makeSuggestionDepuisGarde(Map<String, Long> quantitesParProduit, TUser u) {
+        try {
+            int count = 0;
+            int ignores = 0;
+            // Une suggestion par grossiste, comme pour les invendus : on regroupe d'abord.
+            Map<String, List<TFamille>> parGrossiste = new LinkedHashMap<>();
+            Map<String, Long> quantites = new LinkedHashMap<>();
+            for (Map.Entry<String, Long> e : quantitesParProduit.entrySet()) {
+                TFamille famille = getEmg().find(TFamille.class, e.getKey());
+                if (famille == null || famille.getLgGROSSISTEID() == null || e.getValue() == null || e.getValue() <= 0
+                        || (famille.getBoolDECONDITIONNE() != null
+                                && famille.getBoolDECONDITIONNE().compareTo(Short.valueOf("0")) != 0)) {
+                    ignores++;
+                    continue;
+                }
+                parGrossiste.computeIfAbsent(famille.getLgGROSSISTEID().getLgGROSSISTEID(), k -> new ArrayList<>())
+                        .add(famille);
+                quantites.put(famille.getLgFAMILLEID(), e.getValue());
+            }
+            List<String> references = new ArrayList<>();
+            for (Map.Entry<String, List<TFamille>> e : parGrossiste.entrySet()) {
+                TGrossiste grossiste = getEmg().find(TGrossiste.class, e.getKey());
+                TSuggestionOrder suggestionOrder = createSuggestionOrder(grossiste, STATUT_IS_PROGRESS);
+                references.add(suggestionOrder.getStrREF());
+                for (TFamille famille : e.getValue()) {
+                    initTSuggestionOrderDetail(suggestionOrder, famille, grossiste,
+                            quantites.get(famille.getLgFAMILLEID()).intValue());
+                    count++;
+                }
+            }
+            return new JSONObject().put("success", true).put("count", count).put("ignores", ignores)
+                    .put("suggestions", parGrossiste.size()).put("references", new JSONArray(references));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "suggestion depuis une garde", e);
+            return new JSONObject().put("success", false).put("msg", "La suggestion n'a pas pu être créée.");
+        }
+    }
+
+    @Override
     public JSONObject findCHDetailStock(String idProduit, String emplacement) {
         JSONObject json = new JSONObject();
         try {
