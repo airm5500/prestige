@@ -298,6 +298,16 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public List<TiersPayantDTO> findTiersPayants(String query, String type) {
+        return findTiersPayants(query, type, null);
+    }
+
+    /**
+     * @param carnetDepot
+     *            vrai : seulement les carnets depot ; faux : tout SAUF les carnets depot (facturation ordinaire, retour
+     *            du 08/09) ; nul : tous, comportement historique des autres appelants.
+     */
+    @Override
+    public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -311,6 +321,12 @@ public class ClientServiceImpl implements ClientService {
             if (type != null && !"".equals(type)) {
                 predicates.add(cb.equal(
                         root.get(TTiersPayant_.lgTYPETIERSPAYANTID).get(TTypeTiersPayant_.lgTYPETIERSPAYANTID), type));
+            }
+            if (Boolean.TRUE.equals(carnetDepot)) {
+                predicates.add(cb.isTrue(root.get(TTiersPayant_.isDepot)));
+            } else if (Boolean.FALSE.equals(carnetDepot)) {
+                predicates.add(
+                        cb.or(cb.isNull(root.get(TTiersPayant_.isDepot)), cb.isFalse(root.get(TTiersPayant_.isDepot))));
             }
 
             if (query != null && !query.equals("")) {

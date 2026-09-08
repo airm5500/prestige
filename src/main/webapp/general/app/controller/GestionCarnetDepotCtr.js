@@ -114,34 +114,20 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         grille.getStore().loadPage(1);
     },
 
-    /* Les deux boutons ne valent que sur une selection : grises tant que rien n'est coche. */
+    /* Le bouton du haut ne sert qu'a la suppression multiple : grise tant que rien n'est coche. */
     surSelectionFacturesDepot: function () {
         const ecran = this.getReglementdepot();
         const grille = ecran && ecran.down('#grilleFacturesDepot');
         if (!grille) {
             return;
         }
-        const selection = grille.getSelectionModel().getSelection();
         const supprimer = grille.down('#btnSupprimerFactureDepot');
-        const imprimer = grille.down('#btnImprimerFactureDepot');
-        if (imprimer) {
-            imprimer.setDisabled(selection.length === 0);
-        }
         if (supprimer) {
-            // Une facture definitive ne se supprime pas : le bouton reste gris tant que la
-            // selection en contient une, plutot que d'aller chercher un refus du serveur.
-            const toutesProvisoires = selection.length > 0
-                    && Ext.Array.every(selection, function (f) {
-                        return f.get('template') === true;
-                    });
-            supprimer.setDisabled(!toutesProvisoires);
+            supprimer.setDisabled(grille.getSelectionModel().getSelection().length === 0);
         }
     },
 
-    /**
-     * Suppression des factures cochees : meme geste que sur les factures provisoires, meme service.
-     * Le serveur refuse une par une celles qui ne sont plus provisoires.
-     */
+    /** Suppression des factures cochees (bouton du haut). */
     supprimerFacturesDepot: function () {
         const me = this;
         const ecran = me.getReglementdepot();
@@ -149,12 +135,31 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         if (!grille) {
             return;
         }
-        const selection = grille.getSelectionModel().getSelection();
-        if (!selection.length) {
+        me.supprimerCesFacturesDepot(grille.getSelectionModel().getSelection());
+    },
+
+    /** Suppression d'une facture depuis sa ligne. */
+    supprimerUneFactureDepot: function (enregistrement) {
+        if (enregistrement) {
+            this.supprimerCesFacturesDepot([enregistrement]);
+        }
+    },
+
+    /**
+     * Suppression simple, sans avoir FNE (retour du 08/09) : la facture et ses lignes disparaissent,
+     * ses bons redeviennent facturables. Le serveur refuse une facture qui a deja recu un reglement,
+     * et le compte rendu nomme chaque refus.
+     */
+    supprimerCesFacturesDepot: function (selection) {
+        const me = this;
+        if (!selection || !selection.length) {
             return;
         }
+        const libelle = selection.length === 1
+                ? 'la facture N° <b>' + Ext.String.htmlEncode(selection[0].get('strCODEFACTURE') || '') + '</b>'
+                : '<b>' + selection.length + '</b> factures';
         Ext.MessageBox.confirm('Confirmation',
-                'Supprimer <b>' + selection.length + '</b> facture(s) provisoire(s) ?',
+                'Supprimer ' + libelle + ' ? Les bons redeviendront facturables.',
                 function (choix) {
                     if (choix !== 'yes') {
                         return;
@@ -162,7 +167,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                     Ext.Ajax.request({
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        url: '../api/v1/facturation/provisoires/supprimer',
+                        url: '../api/v1/facturation/carnet-depot/supprimer',
                         jsonData: {ids: Ext.Array.map(selection, function (f) {
                                 return f.get('lgFACTUREID');
                             })},
@@ -172,9 +177,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                 json = Ext.decode(reponse.responseText);
                             } catch (e) {
                             }
-                            Ext.MessageBox.alert('Message',
-                                    json.msg || json.message || (json.success ? 'Suppression effectuée'
-                                            : 'La suppression a échoué'));
+                            let message = json.success
+                                    ? (json.supprimees || 0) + ' facture(s) supprimée(s)'
+                                    : (json.msg || json.message || 'La suppression a échoué');
+                            Ext.Array.each(json.refusees || [], function (r) {
+                                message += '<br/>Refusée' + (r.code ? ' (N° ' + Ext.String.htmlEncode(r.code) + ')' : '')
+                                        + ' : ' + Ext.String.htmlEncode(r.motif || '');
+                            });
+                            Ext.MessageBox.alert('Message', message);
                             me.chargerFacturesDepot();
                         }
                     });
@@ -191,23 +201,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
      * medicaments » est demande UNE FOIS pour tout le lot.
      * </p>
      */
-    imprimerFacturesDepot: function () {
+    imprimerFacturesDepot: function (enregistrement) {
         const me = this;
-        const ecran = me.getReglementdepot();
-        const grille = ecran && ecran.down('#grilleFacturesDepot');
-        if (!grille) {
+        if (!enregistrement) {
             return;
         }
-        const selection = grille.getSelectionModel().getSelection();
-        if (!selection.length) {
-            Ext.MessageBox.alert('Information', 'Cochez au moins une facture à imprimer.');
-            return;
-        }
-        const identifiants = Ext.Array.map(selection, function (f) {
-            return f.get('lgFACTUREID');
-        });
+        const identifiants = [enregistrement.get('lgFACTUREID')];
         const fenetre = Ext.create('Ext.window.Window', {
-            title: 'Impression de ' + identifiants.length + ' facture(s)',
+            title: 'Impression de la facture N° ' + (enregistrement.get('strCODEFACTURE') || ''),
             modal: true,
             width: 460,
             bodyPadding: 12,
@@ -294,6 +295,21 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         });
     },
 
+    /**
+     * Retour dans le menu du carnet depot, onglet FACTURES, apres une generation (retour du 08/09) :
+     * l'ecran de generation ne renvoie plus vers les factures provisoires.
+     */
+    revenirAuxFacturesDepot: function () {
+        testextjs.app.getController('App').onRedirectTo('reglementdepot', {});
+        Ext.defer(function () {
+            const vue = Ext.ComponentQuery.query('reglementdepot')[0];
+            const onglet = vue && vue.down('#facturesPanel');
+            if (vue && onglet) {
+                vue.setActiveTab(onglet);
+            }
+        }, 400);
+    },
+
     init: function (application) {
         this.control({
             'reglementdepot #btnVentePanel': {
@@ -319,8 +335,9 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             'reglementdepot #btnSupprimerFactureDepot': {
                 click: this.supprimerFacturesDepot
             },
-            'reglementdepot #btnImprimerFactureDepot': {
-                click: this.imprimerFacturesDepot
+            'reglementdepot': {
+                imprimerFactureDepot: this.imprimerFacturesDepot,
+                supprimerFactureDepot: this.supprimerUneFactureDepot
             },
             'reglementdepot #grilleFacturesDepot': {
                 selectionchange: this.surSelectionFacturesDepot

@@ -161,87 +161,10 @@ function retirerJeuDEssai() {
   ok('edition avec detail : une edition a bien ete ecrite',
      !!detail.url && /\.pdf$/i.test(detail.url), detail.url);
 
-  /* ------------------------------------------------------ ecran */
-  await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('reglementdepot', {}));
-  await p.waitForFunction(() => Ext.ComponentQuery.query('reglementdepot').length > 0, null, { timeout: 20000 });
-  await p.waitForTimeout(1000);
-  await p.evaluate(() => {
-    const vue = Ext.ComponentQuery.query('reglementdepot')[0];
-    vue.setActiveTab(vue.down('#facturesPanel'));
-  });
-  await p.waitForTimeout(2500);
-
-  const ecran = await p.evaluate(() => {
-    const vue = Ext.ComponentQuery.query('reglementdepot')[0];
-    const grille = vue.down('#grilleFacturesDepot');
-    return {
-      recherche: !!grille.down('#rechercheFactureDepot'),
-      boutonImprimer: !!grille.down('#btnImprimerFactureDepot'),
-      boutonSupprimer: !!grille.down('#btnSupprimerFactureDepot'),
-      imprimerGrise: grille.down('#btnImprimerFactureDepot').isDisabled(),
-      supprimerGrise: grille.down('#btnSupprimerFactureDepot').isDisabled(),
-      colonnesAction: grille.columns.filter(c => c.xtype === 'actioncolumn').length,
-      colonnes: grille.columns.map(c => c.text || c.header),
-      lignes: grille.getStore().getCount()
-    };
-  });
-  ok('ecran : un champ de recherche par numero de facture', ecran.recherche === true, JSON.stringify(ecran));
-  ok('ecran : UN SEUL bouton d impression, plus de colonne d icones',
-     ecran.boutonImprimer === true && ecran.colonnesAction === 0, JSON.stringify(ecran));
-  ok('ecran : un bouton de suppression', ecran.boutonSupprimer === true);
-  ok('ecran : les deux boutons sont grises sans selection',
-     ecran.imprimerGrise === true && ecran.supprimerGrise === true, JSON.stringify(ecran));
-  ok('ecran : le numero de facture est une colonne',
-     ecran.colonnes.some(c => /facture/i.test(c || '')), ecran.colonnes.join(' | '));
-  ok('ecran : la liste est chargee', ecran.lignes > 0, ecran.lignes);
-
-  // selection d'une facture DEFINITIVE : impression possible, suppression refusee
-  const surDefinitive = await p.evaluate(() => {
-    const grille = Ext.ComponentQuery.query('reglementdepot #grilleFacturesDepot')[0];
-    const definitive = grille.getStore().getRange().find(f => f.get('template') !== true);
-    if (!definitive) { return null; }
-    grille.getSelectionModel().select([definitive]);
-    return {
-      imprimer: grille.down('#btnImprimerFactureDepot').isDisabled(),
-      supprimer: grille.down('#btnSupprimerFactureDepot').isDisabled()
-    };
-  });
-  ok('ecran : une facture definitive s imprime mais ne se supprime pas',
-     surDefinitive && surDefinitive.imprimer === false && surDefinitive.supprimer === true,
-     JSON.stringify(surDefinitive));
-
-  const surProvisoire = await p.evaluate((code) => {
-    const grille = Ext.ComponentQuery.query('reglementdepot #grilleFacturesDepot')[0];
-    const provisoire = grille.getStore().getRange().find(f => f.get('strCODEFACTURE') === code);
-    if (!provisoire) { return null; }
-    grille.getSelectionModel().select([provisoire]);
-    return {
-      imprimer: grille.down('#btnImprimerFactureDepot').isDisabled(),
-      supprimer: grille.down('#btnSupprimerFactureDepot').isDisabled()
-    };
-  }, FACTURE_ESSAI);
-  ok('ecran : une facture provisoire s imprime ET se supprime',
-     surProvisoire && surProvisoire.imprimer === false && surProvisoire.supprimer === false,
-     JSON.stringify(surProvisoire));
-
-  // la fenetre d'impression propose les deux editions
-  await p.evaluate(() => Ext.ComponentQuery.query('reglementdepot #btnImprimerFactureDepot')[0].fireEvent('click',
-      Ext.ComponentQuery.query('reglementdepot #btnImprimerFactureDepot')[0]));
-  await p.waitForTimeout(900);
-  const fenetre = await p.evaluate(() => {
-    const w = Ext.ComponentQuery.query('window{isVisible()}').find(x => !!x.down('#choixEdition'));
-    if (!w) { return null; }
-    const choix = w.down('#choixEdition').query('radiofield').map(r => r.boxLabel);
-    const parDefaut = w.down('#choixEdition').getValue().edition;
-    w.destroy();
-    return { choix: choix, parDefaut: parDefaut };
-  });
-  ok('ecran : la fenetre d impression propose « sans » et « avec » le detail',
-     fenetre && fenetre.choix.length === 2
-     && fenetre.choix.some(l => /sans le d/i.test(l)) && fenetre.choix.some(l => /DETAIL_ARTICLE/.test(l)),
-     JSON.stringify(fenetre));
-  ok('ecran : l edition sans detail est proposee par defaut',
-     fenetre && fenetre.parDefaut === 'simple', JSON.stringify(fenetre));
+  /* ------------------------------------------------------ ecran
+     La disposition de l'onglet a change au retour du 08/09 (imprimer et supprimer sur la ligne,
+     suppression multiple en haut, plus de statut) : l'ecran est verifie par
+     retours/test-point2-depot.js. Ce test garde les filtres, les editions et la suppression. */
 
   /* ------------------------------------------------------ suppression reelle */
   const idEssai = q("SELECT lg_FACTURE_ID FROM t_facture WHERE str_CODE_FACTURE='" + FACTURE_ESSAI + "'");

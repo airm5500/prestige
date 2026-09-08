@@ -114,6 +114,12 @@ Ext.define('testextjs.controller.FactureCtr', {
         }
     },
     onCancel: function () {
+        // Depuis le menu du carnet depot, « Annuler » y ramene ; jamais vers les provisoires.
+        const vue = this.getOneditfacture();
+        if (vue && vue.enCarnetDepot) {
+            testextjs.app.getController('GestionCarnetDepotCtr').revenirAuxFacturesDepot();
+            return;
+        }
         const xtype = "factureprovisoire";
         testextjs.app.getController('App').onRedirectTo(xtype, {});
     },
@@ -501,6 +507,40 @@ Ext.define('testextjs.controller.FactureCtr', {
 
         };
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        /* Retour du 08/09 : depuis le menu du carnet depot, les factures sont creees DEFINITIVES et
+           numerotees d'un coup, sans provisoire, sans choix de modele, et l'on revient dans ce menu. */
+        var vue = me.getOneditfacture();
+        if (vue && vue.enCarnetDepot) {
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/facturation/carnet-depot/generer',
+                params: Ext.JSON.encode(data),
+                success: function (response) {
+                    progress.hide();
+                    var result = Ext.JSON.decode(response.responseText, true) || {};
+                    if (!result.success) {
+                        Ext.MessageBox.alert('Message', result.message || result.msg || 'Erreur de génération');
+                        return;
+                    }
+                    var codes = Ext.Array.map(result.factures || [], function (f) {
+                        return 'N° ' + f.code;
+                    });
+                    Ext.MessageBox.alert('Message', result.total
+                            ? result.total + ' facture(s) créée(s) : ' + codes.join(', ')
+                            : 'Aucun bon de carnet dépôt à facturer sur ces critères.');
+                    me.resetAll();
+                    if (result.total) {
+                        testextjs.app.getController('GestionCarnetDepotCtr').revenirAuxFacturesDepot();
+                    }
+                },
+                failure: function () {
+                    progress.hide();
+                    Ext.MessageBox.alert('Message', 'Erreur de serveur');
+                }
+            });
+            return;
+        }
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},

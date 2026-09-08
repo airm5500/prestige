@@ -956,21 +956,15 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                             itemId: 'btnRafraichirFacturesDepot',
                                             iconCls: 'searchicon'
                                         }, '->', {
-                                            /* Point 17 : suppression, meme geste que sur les factures
-                                               provisoires. Le serveur refuse celles qui ne le sont plus. */
-                                            text: 'Supprimer',
+                                            /* Retour du 08/09 : le bouton du haut ne sert qu'a la suppression
+                                               MULTIPLE des factures cochees ; l'impression et la suppression
+                                               d'une facture se font sur sa ligne. Une facture de carnet depot
+                                               est une vraie facture, numerotee : sa suppression est simple,
+                                               sans avoir FNE, et libere ses bons. */
+                                            text: 'Supprimer la sélection',
                                             itemId: 'btnSupprimerFactureDepot',
                                             iconCls: 'icon-delete',
-                                            tooltip: 'Supprimer les factures cochées (provisoires uniquement)',
-                                            disabled: true
-                                        }, {
-                                            /* Point 17 : UN SEUL bouton d'impression. Le choix « avec ou sans
-                                               le detail des medicaments » est pose dans la fenetre, au lieu de
-                                               deux icones voisines qu'on confondait. */
-                                            text: 'Imprimer',
-                                            itemId: 'btnImprimerFactureDepot',
-                                            iconCls: 'printable',
-                                            tooltip: 'Imprimer les factures cochées, ou la ligne sélectionnée',
+                                            tooltip: 'Supprimer d\'un coup les factures cochées',
                                             disabled: true
                                         }]
                                 }],
@@ -987,14 +981,34 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                         return '<b>' + Ext.util.Format.number(v || 0, '0,000') + '</b>';
                                     }},
                                 {header: 'Date facture', dataIndex: 'dtDATEFACTURE', flex: 0.9},
-                                {header: 'Statut', dataIndex: 'template', width: 90, align: 'center',
-                                    /* Seules les factures PROVISOIRES peuvent etre supprimees : le dire ici
-                                       evite d'essayer sur une definitive et de recevoir un refus. */
-                                    renderer: function (v) {
-                                        return v
-                                                ? '<span style="color:#b9770e;">Provisoire</span>'
-                                                : '<span style="color:#1e8449;">Définitive</span>';
-                                    }}
+                                {
+                                    /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE. Chaque icone a
+                                       son propre gestionnaire ; le choix « avec ou sans les produits » est
+                                       demande au clic sur l'imprimante. */
+                                    xtype: 'actioncolumn',
+                                    header: 'Actions',
+                                    width: 80,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
+                                            icon: 'resources/images/icons/fam/printer.png',
+                                            tooltip: 'Imprimer cette facture (avec ou sans les produits)',
+                                            altText: 'Imprimer',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
+                                                        grille.getStore().getAt(ligne));
+                                            }
+                                        }, {
+                                            icon: 'resources/images/icons/fam/delete.png',
+                                            tooltip: 'Supprimer cette facture',
+                                            altText: 'Supprimer',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('supprimerFactureDepot',
+                                                        grille.getStore().getAt(ligne));
+                                            }
+                                        }]
+                                }
                             ],
                             bbar: {
                                 xtype: 'pagingtoolbar',

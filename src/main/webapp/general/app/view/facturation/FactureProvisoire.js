@@ -65,6 +65,8 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/client/tiers-payants',
+                // Retour du 08/09 : les carnets depot ont leur propre menu, ils ne figurent pas ici.
+                extraParams: {carnetDepot: false},
                 reader: {
                     type: 'json',
                     root: 'data',

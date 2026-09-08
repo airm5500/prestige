@@ -70,6 +70,17 @@ public interface FacturationService {
      */
     JSONObject supprimerProvisoires(List<String> ids);
 
+    /**
+     * Suppression de factures de CARNET DEPOT (retour du 08/09) : une suppression simple, sans avoir FNE.
+     *
+     * <p>
+     * La facture et ses lignes disparaissent, et ses bons redeviennent facturables. Sont refusees : une facture dont le
+     * tiers payant n'est pas un carnet depot - ce n'est pas le bon menu - et une facture qui a deja recu un reglement,
+     * qu'on ne peut pas faire disparaitre sans laisser un paiement orphelin.
+     * </p>
+     */
+    JSONObject supprimerFacturesCarnetDepot(List<String> ids);
+
     /** Factures provisoires d'une periode, avec les filtres de l'ecran. Ne supprime rien. */
     List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,
             String dtStart, String dtEnd, boolean carnetDepot);

@@ -307,8 +307,10 @@ public class ClientRessource {
     @GET
     @Path("tiers-payants")
     public Response findAllTiersPayants(@QueryParam(value = "typetierspayant") String typeTierpayant,
-            @QueryParam(value = "query") String query) {
-        List<TiersPayantDTO> data = clientService.findTiersPayants(query, typeTierpayant);
+            @QueryParam(value = "query") String query, @QueryParam(value = "carnetDepot") Boolean carnetDepot) {
+        // carnetDepot absent : tous, comme toujours. La facturation ordinaire envoie « false », le
+        // menu du carnet depot « true » (retour du 08/09).
+        List<TiersPayantDTO> data = clientService.findTiersPayants(query, typeTierpayant, carnetDepot);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 

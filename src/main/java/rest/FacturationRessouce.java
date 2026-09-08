@@ -190,6 +190,50 @@ public class FacturationRessouce {
                 .build();
     }
 
+    /**
+     * Generation des factures de carnet depot (retour du 08/09) : definitives et numerotees d'un coup, sans passer par
+     * une provisoire ni par le choix d'un modele. Seuls les bons des carnets depot sont retenus.
+     */
+    @POST
+    @Path("carnet-depot/generer")
+    public Response genererFacturesCarnetDepot(GenererFactureDTO datas) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        java.util.LinkedHashSet<CodeFactureDTO> factures = genererFactureService
+                .genererFactureCarnetDepot(datas.setOperateur(tu));
+        JSONArray codes = new JSONArray();
+        for (CodeFactureDTO f : factures) {
+            codes.put(new JSONObject().put("id", f.getFactureId()).put("code", f.getCode()));
+        }
+        return Response.ok().entity(
+                new JSONObject().put("success", true).put("total", factures.size()).put("factures", codes).toString())
+                .build();
+    }
+
+    /** Suppression simple de factures de carnet depot : les bons redeviennent facturables (retour du 08/09). */
+    @POST
+    @Path("carnet-depot/supprimer")
+    public Response supprimerFacturesCarnetDepot(String body) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        JSONArray recus = in.optJSONArray("ids");
+        List<String> ids = new java.util.ArrayList<>();
+        for (int i = 0; recus != null && i < recus.length(); i++) {
+            ids.add(recus.optString(i));
+        }
+        return Response.ok().entity(facturationService.supprimerFacturesCarnetDepot(ids).toString()).build();
+    }
+
     @POST
     @Path("summary/generer")
     public Response genererFactureTemporaire(GenererFactureDTO datas) throws JSONException {

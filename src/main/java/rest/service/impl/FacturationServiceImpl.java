@@ -708,6 +708,76 @@ public class FacturationServiceImpl implements FacturationService {
         }
     }
 
+    @Override
+    public JSONObject supprimerFacturesCarnetDepot(List<String> ids) {
+        JSONObject reponse = new JSONObject();
+        if (ids == null || ids.isEmpty()) {
+            return reponse.put("success", false).put("message", "Aucune facture sélectionnée.");
+        }
+        int supprimees = 0;
+        JSONArray refusees = new JSONArray();
+        for (String id : ids) {
+            if (id == null || id.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                TFacture facture = getEntityManager().find(TFacture.class, id.trim());
+                if (facture == null) {
+                    refusees.put(new JSONObject().put("id", id).put("motif", "Facture introuvable"));
+                    continue;
+                }
+                String code = facture.getStrCODEFACTURE() == null ? "" : facture.getStrCODEFACTURE();
+                TTiersPayant tiersPayant = facture.getTiersPayant();
+                // Relu en base : le cache partage peut porter un marquage « depot » perime.
+                if (tiersPayant != null) {
+                    getEntityManager().refresh(tiersPayant);
+                }
+                if (tiersPayant == null || !Boolean.TRUE.equals(tiersPayant.getIsDepot())) {
+                    refusees.put(new JSONObject().put("id", id).put("code", code).put("motif",
+                            "Cette facture n'est pas une facture de carnet dépôt"));
+                    continue;
+                }
+                if (facture.getDblMONTANTPAYE() != null && facture.getDblMONTANTPAYE() > 0) {
+                    refusees.put(new JSONObject().put("id", id).put("code", code).put("motif",
+                            "Cette facture a déjà reçu un règlement : elle ne peut pas être supprimée"));
+                    continue;
+                }
+                // Les bons redeviennent facturables : c'est ce qui distingue cette suppression de celle
+                // d'une provisoire, qui ne les avait jamais marques.
+                for (TFactureDetail detail : findFactureDetails(facture)) {
+                    if (detail.getStrREF() == null) {
+                        continue;
+                    }
+                    TPreenregistrementCompteClientTiersPayent bon = getEntityManager()
+                            .find(TPreenregistrementCompteClientTiersPayent.class, detail.getStrREF());
+                    if (bon != null) {
+                        bon.setStrSTATUTFACTURE(DateConverter.STATUT_FACTURE_UNPAID);
+                        getEntityManager().merge(bon);
+                    }
+                }
+                deleteFactureDetails(facture);
+                getEntityManager().remove(facture);
+                supprimees++;
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "supprimerFacturesCarnetDepot " + id, e);
+                refusees.put(new JSONObject().put("id", id).put("motif", "Suppression impossible : " + e.getMessage()));
+            }
+        }
+        return reponse.put("success", true).put("supprimees", supprimees).put("refusees", refusees);
+    }
+
+    private List<TFactureDetail> findFactureDetails(TFacture facture) {
+        try {
+            TypedQuery<TFactureDetail> q = getEntityManager().createNamedQuery("TFactureDetail.findByFactureId",
+                    TFactureDetail.class);
+            q.setParameter("lgFACTUREID", facture.getLgFACTUREID());
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
     private void deleteFactureDetails(TFacture facture) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();

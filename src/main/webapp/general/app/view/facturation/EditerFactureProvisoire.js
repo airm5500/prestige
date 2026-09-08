@@ -26,9 +26,12 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
            transmet ses parametres. On le lit une fois, ici, plutot qu'a chaque usage. */
         var enCarnetDepot = !!(this.data && this.data.carnetDepot);
         if (enCarnetDepot) {
-            // Le titre doit dire sans ambiguite ce que l'on est en train de creer.
-            this.title = 'Edition factures provisoires — CARNET DÉPÔT';
+            /* Retour du 08/09 : depuis le menu du carnet depot on cree des factures REELLES,
+               numerotees, d'un coup - pas des provisoires. Le titre le dit, et le controleur
+               (FactureCtr.onGenerate) suit ce mode. */
+            this.title = 'Facturation des carnets dépôt';
         }
+        this.enCarnetDepot = enCarnetDepot;
         var typeTp = Ext.create('Ext.data.Store', {
             autoLoad: true,
             fields: ['value', 'name', "code"],
@@ -102,6 +105,9 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/client/tiers-payants',
+                /* Retour du 08/09 : les carnets depot ne sont proposes QUE depuis leur menu, et
+                   la facturation ordinaire ne les propose jamais. */
+                extraParams: {carnetDepot: enCarnetDepot},
                 reader: {
                     type: 'json',
                     root: 'data',
