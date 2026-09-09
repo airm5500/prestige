@@ -510,7 +510,12 @@ Ext.define('testextjs.controller.GardeCtrl', {
                         ? '<b>' + affiches + '</b> produit(s) affich&eacute;(s) sur ' + total
                         : '<b>' + total + '</b> produit(s)');
                 var i = objet.indicateurs || {};
-                indicateurs.update('<b>' + (objet.garde || {}).libelle + '</b> &middot; <b>' + (i.ventes || 0)
+                // Retour des tests du 09/09 : la periode REELLEMENT analysee est rappelee en tete, pour que
+                // des chiffres qui etonnent se lisent d'abord a l'aune des bornes de la garde.
+                var g = objet.garde || {};
+                var periode = g.jourDebut ? ' <span style="color:#555">(du ' + g.jourDebut + ' ' + (g.heureDebut || '')
+                        + ' au ' + g.jourFin + ' ' + (g.heureFin || '') + ')</span>' : '';
+                indicateurs.update('<b>' + g.libelle + '</b>' + periode + ' &middot; <b>' + (i.ventes || 0)
                         + '</b> vente(s) &middot; <b>' + (i.lignes || 0) + '</b> ligne(s) &middot; <b>'
                         + (i.produitsDistincts || 0) + '</b> produit(s) &middot; <b>' + (i.quantite || 0)
                         + '</b> unit&eacute;(s) &middot; <b>'
