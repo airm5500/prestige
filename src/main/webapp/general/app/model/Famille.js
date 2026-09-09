@@ -28,6 +28,11 @@ Ext.define('testextjs.model.Famille', {
             type: 'string'
         },
         {
+            /* Classe ABC (A, B, C) ; vide quand l'article n'est pas classe. */
+            name: 'classe',
+            type: 'string'
+        },
+        {
             name: 'int_PRICE',
             type: 'string'
         },

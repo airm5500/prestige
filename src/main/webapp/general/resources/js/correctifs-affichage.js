@@ -488,11 +488,43 @@ window.PrestigeAffichage.resynchroniserMiseEnPage = (function () {
         return compte;
     }
 
+    /**
+     * Une region repliee est-elle « flottante » (le volet de navigation glisse sur le contenu) ?
+     *
+     * Retour du 09/09 (point 3) : pendant ce glissement, ExtJS enveloppe le volet dans un element
+     * temporaire place AVANT le panneau de contenu. Une mise en page complete a ce moment-la
+     * remet le panneau de contenu a sa place dans le DOM, ce qui recharge l'iframe du tableau de
+     * bord a chaque clic sur la barre de navigation. Et c'est justement ce que provoquait la
+     * resynchronisation : le volet flottant n'a plus la largeur dont ExtJS se souvient, la purge
+     * le prenait pour un ecran rabattu. On ne resynchronise donc jamais pendant un glissement.
+     */
+    function regionFlottante() {
+        var panneaux, i;
+        try {
+            if (document.querySelector('[id*="-anim-wrap-for-"]')) {
+                return true;
+            }
+            panneaux = Ext.ComponentQuery.query('panel');
+            for (i = 0; i < panneaux.length; i++) {
+                if (panneaux[i].floatedFromCollapse) {
+                    return true;
+                }
+            }
+        } catch (e) {
+            // dans le doute, on ne resynchronise pas : rien ne casse, l'ecran reste tel quel
+            return true;
+        }
+        return false;
+    }
+
     function resynchroniser() {
         var viewport, purges;
         try {
             viewport = Ext.ComponentQuery.query('viewport')[0];
             if (!viewport || viewport.isDestroyed || !viewport.rendered) {
+                return 0;
+            }
+            if (regionFlottante()) {
                 return 0;
             }
             purges = purgerMemoiresPerimees(viewport, 0);
@@ -524,6 +556,7 @@ window.PrestigeAffichage.resynchroniserMiseEnPage = (function () {
     }
 
     resynchroniser.planifier = planifier;
+    resynchroniser.regionFlottante = regionFlottante;
     return resynchroniser;
 }());
 

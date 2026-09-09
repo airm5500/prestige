@@ -660,6 +660,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         json.put("str_NAME", t.getStrNAME());
         json.put("STATUS", t.getIntORERSTATUS());
         json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+        // Retour du 09/09 : la classe ABC, affichee en bleu apres la designation quand elle existe.
+        json.put("classe", abcLettre(t.getLgCLASSEABCID()));
         json.put("int_PRICE", t.getIntPRICE());
         json.put("int_EAN13", t.getIntEAN13());
         json.put("int_CIP", t.getIntCIP());
@@ -723,6 +725,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("str_NAME", t.getStrNAME());
             json.put("STATUS", t.getIntORERSTATUS());
             json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+            json.put("classe", abcLettre(t.getLgCLASSEABCID()));
             json.put("int_PRICE", t.getIntPRICE());
 
             json.put("int_CIP", t.getIntCIP());
@@ -870,6 +873,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("str_NAME", t.getStrNAME());
             json.put("STATUS", t.getIntORERSTATUS());
             json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+            json.put("classe", abcLettre(t.getLgCLASSEABCID()));
             json.put("int_PRICE", t.getIntPRICE());
             if (grossiste != null) {
                 json.put("lg_GROSSISTE_ID", grossiste.getStrLIBELLE());

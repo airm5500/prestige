@@ -9,6 +9,7 @@ package dal;
 import java.io.Serializable;
 import java.util.Date;
 import javax.persistence.Basic;
+import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -25,6 +26,12 @@ import javax.xml.bind.annotation.XmlRootElement;
  *
  * @author MKABOU
  */
+/*
+ * Retour du 09/09 : un parametre modifie en base (ou par un autre poste) doit se lire a jour sans redemarrer le
+ * serveur. L'unite DALPU (EclipseLink) garde par defaut les entites dans un cache partage : la valeur affichee etait
+ * celle du premier chargement. Les parametres sont peu nombreux et lus a l'unite : les relire coute rien.
+ */
+@Cacheable(false)
 @Entity
 @Table(name = "t_parameters", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_KEY" }) })
 @XmlRootElement

@@ -77,6 +77,13 @@
         if (!ecran) {
             return;
         }
+        /* Volet de navigation en train de glisser sur le contenu : aucune mise en page maintenant,
+           elle rechargerait l'iframe du tableau de bord (retour du 09/09, point 3). */
+        if (window.PrestigeAffichage && window.PrestigeAffichage.resynchroniserMiseEnPage
+                && window.PrestigeAffichage.resynchroniserMiseEnPage.regionFlottante
+                && window.PrestigeAffichage.resynchroniserMiseEnPage.regionFlottante()) {
+            return;
+        }
         /* Premiere passe : purger les memoires de mise en page (lastBox) qui contredisent la
            taille reelle des elements, du viewport jusqu'a l'ecran, puis relancer la mise en page.
            C'est LA cause mesuree du rabattement (cf. correctifs-affichage.js, section 5) : apres un

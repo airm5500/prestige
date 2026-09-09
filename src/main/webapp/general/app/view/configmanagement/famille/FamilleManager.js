@@ -389,7 +389,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return v;
+                        // Retour du 09/09 : la classe ABC en bleu apres la designation, quand elle existe.
+                        var classe = r.data.classe;
+                        return classe ? v + ' <span style="color:#1565c0;font-weight:bold">(' + classe + ')</span>' : v;
                     }
                 },
                 {

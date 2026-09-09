@@ -35,6 +35,8 @@
     <parameter name="P_FOOTER_RC" class="java.lang.String"/>
     <!-- Cle de tranche -> libelle affichable ; le tableau croise ne connait que les cles. -->
     <parameter name="P_LIBELLES" class="java.util.Map"/>
+    <!-- Retour du 09/09 : evolution par cellule, cle "ligne|tranche" (TOTAL pour les totaux), deja formatee. -->
+    <parameter name="P_EVOLUTIONS" class="java.util.Map"/>
 
     <field name="cleLigne" class="java.lang.String"/>
     <field name="cle" class="java.lang.String"/>
@@ -103,6 +105,9 @@
                 <crosstabParameter name="P_LIBELLES" class="java.util.Map">
                     <parameterValueExpression><![CDATA[$P{P_LIBELLES}]]></parameterValueExpression>
                 </crosstabParameter>
+                <crosstabParameter name="P_EVOLUTIONS" class="java.util.Map">
+                    <parameterValueExpression><![CDATA[$P{P_EVOLUTIONS}]]></parameterValueExpression>
+                </crosstabParameter>
                 <rowGroup name="LIGNE" width="240" totalPosition="End">
                     <bucket class="java.lang.String">
                         <bucketExpression><![CDATA[$F{cleLigne}]]></bucketExpression>
@@ -110,7 +115,7 @@
                     <crosstabRowHeader>
                         <cellContents mode="Opaque" backcolor="#FFFFFF">
                             <textField isStretchWithOverflow="true">
-                                <reportElement x="2" y="0" width="236" height="16"/>
+                                <reportElement x="2" y="0" width="236" height="28"/>
                                 <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
                                 <!-- Le numero d'ordre qui prefixe la cle ne concerne que le tri. -->
                                 <textFieldExpression><![CDATA[$V{LIGNE}.indexOf("|") >= 0 ? $V{LIGNE}.substring($V{LIGNE}.indexOf("|") + 1) : $V{LIGNE}]]></textFieldExpression>
@@ -120,7 +125,7 @@
                     <crosstabTotalRowHeader>
                         <cellContents mode="Opaque" backcolor="#DCE6F1">
                             <staticText>
-                                <reportElement x="2" y="0" width="236" height="16"/>
+                                <reportElement x="2" y="0" width="236" height="28"/>
                                 <textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                                 <text><![CDATA[TOTAL]]></text>
                             </staticText>
@@ -153,39 +158,59 @@
                 <measure name="CA" class="java.lang.Long" calculation="Sum">
                     <measureExpression><![CDATA[$F{montant}]]></measureExpression>
                 </measure>
-                <crosstabCell width="90" height="16">
+                <crosstabCell width="90" height="28">
                     <cellContents mode="Opaque" backcolor="#FFFFFF">
                         <textField pattern="#,##0" isBlankWhenNull="true">
-                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <reportElement x="0" y="0" width="88" height="15"/>
                             <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8"/></textElement>
                             <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
                         </textField>
+                        <textField isBlankWhenNull="true">
+                            <reportElement x="0" y="15" width="88" height="12" forecolor="#555555"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                            <textFieldExpression><![CDATA[$P{P_EVOLUTIONS} == null ? "" : (String) $P{P_EVOLUTIONS}.get($V{LIGNE} + "|" + $V{TRANCHE})]]></textFieldExpression>
+                        </textField>
                     </cellContents>
                 </crosstabCell>
-                <crosstabCell width="90" height="16" rowTotalGroup="LIGNE">
+                <crosstabCell width="90" height="28" rowTotalGroup="LIGNE">
                     <cellContents mode="Opaque" backcolor="#DCE6F1">
                         <textField pattern="#,##0" isBlankWhenNull="true">
-                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <reportElement x="0" y="0" width="88" height="15"/>
                             <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                             <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
                         </textField>
+                        <textField isBlankWhenNull="true">
+                            <reportElement x="0" y="15" width="88" height="12" forecolor="#555555"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                            <textFieldExpression><![CDATA[$P{P_EVOLUTIONS} == null ? "" : (String) $P{P_EVOLUTIONS}.get($V{LIGNE} + "|TOTAL")]]></textFieldExpression>
+                        </textField>
                     </cellContents>
                 </crosstabCell>
-                <crosstabCell width="90" height="16" columnTotalGroup="TRANCHE">
+                <crosstabCell width="90" height="28" columnTotalGroup="TRANCHE">
                     <cellContents mode="Opaque" backcolor="#EAF2EA">
                         <textField pattern="#,##0" isBlankWhenNull="true">
-                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <reportElement x="0" y="0" width="88" height="15"/>
                             <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                             <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
                         </textField>
+                        <textField isBlankWhenNull="true">
+                            <reportElement x="0" y="15" width="88" height="12" forecolor="#555555"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                            <textFieldExpression><![CDATA[$P{P_EVOLUTIONS} == null ? "" : (String) $P{P_EVOLUTIONS}.get("TOTAL|" + $V{TRANCHE})]]></textFieldExpression>
+                        </textField>
                     </cellContents>
                 </crosstabCell>
-                <crosstabCell width="90" height="16" rowTotalGroup="LIGNE" columnTotalGroup="TRANCHE">
+                <crosstabCell width="90" height="28" rowTotalGroup="LIGNE" columnTotalGroup="TRANCHE">
                     <cellContents mode="Opaque" backcolor="#C6D9EC">
                         <textField pattern="#,##0" isBlankWhenNull="true">
-                            <reportElement x="0" y="0" width="88" height="16"/>
+                            <reportElement x="0" y="0" width="88" height="15"/>
                             <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                             <textFieldExpression><![CDATA[$V{CA}]]></textFieldExpression>
+                        </textField>
+                        <textField isBlankWhenNull="true">
+                            <reportElement x="0" y="15" width="88" height="12" forecolor="#555555"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+                            <textFieldExpression><![CDATA[$P{P_EVOLUTIONS} == null ? "" : (String) $P{P_EVOLUTIONS}.get("TOTAL|TOTAL")]]></textFieldExpression>
                         </textField>
                     </cellContents>
                 </crosstabCell>

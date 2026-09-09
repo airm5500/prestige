@@ -204,15 +204,27 @@ public class CaZoneGeoRessource {
             libelles.put(t.getString("cle"), t.getString("libelle"));
         }
         // Tableau croise : toutes les cellules, y compris a zero, pour que chaque colonne existe.
+        // Retour du 09/09 : sous chaque montant, l'evolution par rapport a la tranche precedente,
+        // comme a l'ecran ; en colonne TOTAL, l'evolution de la premiere a la derniere tranche.
         List<CaZoneGeoPdfDTO.Ligne> lignes = new ArrayList<>();
+        java.util.Map<String, String> evolutions = new java.util.HashMap<>();
+        JSONObject evolutionsTranches = json.optJSONObject("evolutionsTranches");
         for (int i = 0; i < data.length(); i++) {
             JSONObject o = data.getJSONObject(i);
             String cleLigne = String.format("%03d|%s", i + 1, o.optString("libelle"));
             for (int j = 0; j < tranches.length(); j++) {
                 String cle = tranches.getJSONObject(j).getString("cle");
                 lignes.add(new CaZoneGeoPdfDTO.Ligne(cleLigne, cle, o.optLong("t_" + cle)));
+                evolutions.put(cleLigne + "|" + cle, j == 0 ? "" : evolutionTexte(o.opt("e_" + cle)));
             }
+            evolutions.put(cleLigne + "|TOTAL", evolutionTexte(o.opt("evolution")));
         }
+        for (int j = 0; j < tranches.length(); j++) {
+            String cle = tranches.getJSONObject(j).getString("cle");
+            evolutions.put("TOTAL|" + cle,
+                    j == 0 || evolutionsTranches == null ? "" : evolutionTexte(evolutionsTranches.opt(cle)));
+        }
+        evolutions.put("TOTAL|TOTAL", evolutionTexte(json.opt("evolutionGenerale")));
         // Courbe : les lignes les plus fortes puis le total, points dans l'ordre chronologique.
         List<CaZoneGeoPdfDTO.Point> courbe = new ArrayList<>();
         JSONObject totauxTranches = json.optJSONObject("totauxTranches");
@@ -243,6 +255,7 @@ public class CaZoneGeoRessource {
                                 ? String.format("%+.1f %%", ((Number) evolution).doubleValue()) : "-")
                         + "   |   " + data.length() + " ligne" + (data.length() > 1 ? "s" : ""));
         parametres.put("P_LIBELLES", libelles);
+        parametres.put("P_EVOLUTIONS", evolutions);
         parametres.put("P_COURBE", courbe);
         parametres.put("P_TITRE_COURBE",
                 "Courbe : " + Math.min(COURBES_MAX, data.length()) + " ligne(s) les plus fortes et le total");
@@ -256,6 +269,14 @@ public class CaZoneGeoRessource {
         }
         return Response.ok().entity(new JSONObject().put("success", true).put("msg", url).put("url", url).toString())
                 .build();
+    }
+
+    /** « +12,5 % », « -3,0 % », ou « - » quand la tranche precedente est a zero : la meme lecture qu'a l'ecran. */
+    static String evolutionTexte(Object valeur) {
+        if (!(valeur instanceof Number)) {
+            return "-";
+        }
+        return String.format(java.util.Locale.FRANCE, "%+.1f %%", ((Number) valeur).doubleValue());
     }
 
     private static String libelleGranularite(String granularite) {
