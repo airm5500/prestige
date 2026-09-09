@@ -88,6 +88,21 @@ public interface AbcAnalysisService {
     /** Detail achats d'un produit pour la vue feuille de match (memes donnees que l'impression). */
     JSONObject feuilleDeMatchProduitDetail(String produitId, Integer objectifAchat);
 
+    /**
+     * La feuille de match SIMPLE (retour du 09/09) : les produits du resultat filtre, classes par quantite achetee sur
+     * la periode (receptions cloturees), avec unites gratuites et frequence d'achat ; rangs ex aequo « 17-21 ».
+     */
+    java.util.List<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> feuilleDeMatchSimple(String dtStart, String dtEnd,
+            String type, String classe, String search, String codeFamille, String codeRayon, String codeGrossiste,
+            String stockFilter, Integer stockMin, Integer stockMax, Integer topN, Integer objectifAchat,
+            String objectifFilter);
+
+    /** La grille, avec un tri optionnel « par quantite achetee » sur la periode (tri = ACHATS). */
+    JSONObject feuilleDeMatchGrid(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, int start, int limit, Integer topN, Integer objectifAchat, String objectifFilter,
+            String tri);
+
     /** Cree un inventaire a partir de TOUT le resultat filtre courant. */
     JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,

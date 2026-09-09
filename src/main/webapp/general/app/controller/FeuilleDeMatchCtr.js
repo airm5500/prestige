@@ -26,7 +26,10 @@ Ext.define('testextjs.controller.FeuilleDeMatchCtr', {
             'feuilledematch #comboClasse': {select: this.doSearch},
             'feuilledematch #comboObjectif': {select: this.doSearch},
             'feuilledematch #searchField': {specialkey: this.onSearchKey},
-            'feuilledematch #imprimer': {click: this.onImprimer},
+            'feuilledematch #comboTri': {select: this.doSearch},
+            'feuilledematch #imprimerDetaillee': {click: this.onImprimer},
+            'feuilledematch #imprimerSimple': {click: this.onImprimerSimple},
+            'feuilledematch #exporterSimpleXlsx': {click: this.onExportSimpleXlsx},
             'feuilledematch #btnExporter': {click: this.onExportExcel},
             'feuilledematch #exporterExcel': {click: this.onExportExcel},
             'feuilledematch #exporterCsv': {click: this.onExportCsv},
@@ -51,6 +54,7 @@ Ext.define('testextjs.controller.FeuilleDeMatchCtr', {
             topN: v('topN'),
             objectifAchat: v('objectifAchat') || 3,
             objectifFilter: v('comboObjectif') || 'ALL',
+            tri: v('comboTri') || 'CLASSEMENT',
             search: v('searchField'),
             codeFamille: v('codeFamile'),
             codeRayon: v('rayons'),
@@ -74,6 +78,16 @@ Ext.define('testextjs.controller.FeuilleDeMatchCtr', {
     onImprimer: function () {
         if (!this.guardEmpty()) { return; }
         window.open('../api/v1/articles/abc/feuille-match/print?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onImprimerSimple: function () {
+        if (!this.guardEmpty()) { return; }
+        window.open('../api/v1/articles/abc/feuille-match/simple/pdf?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onExportSimpleXlsx: function () {
+        if (!this.guardEmpty()) { return; }
+        window.open('../api/v1/articles/abc/feuille-match/simple/xlsx?' + Ext.Object.toQueryString(this.buildExportParams()));
     },
 
     onExportExcel: function () {
