@@ -119,6 +119,9 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         rec.set('isChecked', suggCheckedIds.indexOf(rec.get('lg_SUGGESTION_ORDER_ID')) !== -1);
                     });
                     st.commitChanges();
+                    if (Me.majCompteurCoches) {
+                        Me.majCompteurCoches();
+                    }
                 }
             }
 
@@ -310,6 +313,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             } else if (!checked && idx !== -1) {
                                 suggCheckedIds.splice(idx, 1);
                             }
+                            Me.majCompteurCoches();
                         }
                     }
                 }
@@ -389,6 +393,27 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     scope: this,
                     handler: this.onViderSuggestion
                 },
+                /* Retour des tests du 09/09 (point 5) : cocher ou decocher TOUTES les pages de la
+                   recherche en cours, et un compteur des suggestions cochees. */
+                {
+                    text: 'Tout cocher (toutes les pages)',
+                    itemId: 'btnToutCocher',
+                    tooltip: 'Cocher toutes les suggestions de la recherche en cours, sur toutes les pages',
+                    scope: this,
+                    handler: this.onToutCocher
+                },
+                {
+                    text: 'Tout décocher',
+                    itemId: 'btnToutDecocher',
+                    tooltip: 'Décocher toutes les suggestions cochées, sur toutes les pages',
+                    scope: this,
+                    handler: this.onToutDecocher
+                },
+                {
+                    xtype: 'tbtext',
+                    itemId: 'compteurCoches',
+                    text: '<b>0</b> cochée(s)'
+                },
                 {
                     text: 'Diagnostic produit',
                     tooltip: 'Rechercher un produit (tous statuts) et voir pourquoi il n\'est pas suggéré en suggestion auto',
@@ -423,6 +448,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 }
             });
             st.commitChanges();
+            Me.majCompteurCoches();
             return false;
         });
 
@@ -436,6 +462,63 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     },
     loadStore: function () {
         this.getStore();
+    },
+
+    /** Le compteur des suggestions cochees, toutes pages confondues (retour des tests du 09/09). */
+    majCompteurCoches: function () {
+        var compteur = this.down('#compteurCoches');
+        if (compteur) {
+            compteur.setText('<b>' + suggCheckedIds.length + '</b> cochée(s)');
+        }
+    },
+
+    /** Coche toutes les suggestions de la recherche en cours, sur toutes les pages. */
+    onToutCocher: function () {
+        var Me = this;
+        var st = Me.getStore();
+        var params = Ext.apply({}, st.getProxy().extraParams || {}, (st.lastOptions || {}).params || {});
+        params.start = 0;
+        params.limit = 100000;
+        params.page = 1;
+        Me.setLoading('Lecture de toutes les pages...');
+        Ext.Ajax.request({
+            url: '../api/v1/suggestion/list',
+            method: 'GET',
+            params: params,
+            timeout: 600000,
+            callback: function () {
+                Me.setLoading(false);
+            },
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                Ext.each(objet.data || [], function (ligne) {
+                    var id = ligne.lg_SUGGESTION_ORDER_ID;
+                    if (id && suggCheckedIds.indexOf(id) === -1) {
+                        suggCheckedIds.push(id);
+                    }
+                });
+                st.each(function (rec) {
+                    rec.set('isChecked', true);
+                });
+                st.commitChanges();
+                suggHeaderChecked = true;
+                Me.majCompteurCoches();
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Erreur', 'La lecture des pages a échoué.');
+            }
+        });
+    },
+
+    /** Decoche tout, sur toutes les pages. */
+    onToutDecocher: function () {
+        suggCheckedIds = [];
+        suggHeaderChecked = false;
+        this.getStore().each(function (rec) {
+            rec.set('isChecked', false);
+        });
+        this.getStore().commitChanges();
+        this.majCompteurCoches();
     },
 
     onbtnprint: function (grid, rowIndex) {
@@ -629,6 +712,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result && result.success) {
                     suggCheckedIds = [];
+                    Me.majCompteurCoches();
                     Ext.MessageBox.alert('Info',
                             'Fusion effectuée avec succès dans la suggestion ' + (result.ref || ''));
                     me.getStore().load();
@@ -1068,6 +1152,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         if (remaining <= 0) {
                             progress.hide();
                             suggCheckedIds = [];
+                    Me.majCompteurCoches();
                             Me.getStore().reload();
                             Ext.Msg.alert('Vider suggestion', ids.length + ' suggestion(s) supprimée(s).');
                         }

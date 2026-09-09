@@ -154,6 +154,66 @@ public class FacturationRessouce {
     }
 
     /**
+     * Le recapitulatif des factures de carnet depot affichees dans l'onglet Factures (retour des tests du 09/09, point
+     * 7) : memes criteres que la liste (carnet, periode, numero), sur son propre modele
+     * facture_carnet_depot_recap.jrxml, rendu en flux dans l'onglet ouvert par le clic.
+     */
+    @GET
+    @Path("carnet-depot/recap/pdf")
+    @Produces("application/pdf")
+    public Response recapFacturesCarnetDepotPdf(@QueryParam(value = "tpid") String tpid,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) {
+        HttpSession hs = servletRequest.getSession();
+        TUser utilisateur = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (utilisateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject liste = facturationService.facturesCarnetDepot(tpid, dtStart, dtEnd, query, 0, 100000);
+        java.util.List<rest.service.dto.FactureCarnetDepotRecapLigneDTO> lignes = new java.util.ArrayList<>();
+        org.json.JSONArray data = liste.optJSONArray("data");
+        for (int i = 0; data != null && i < data.length(); i++) {
+            lignes.add(new rest.service.dto.FactureCarnetDepotRecapLigneDTO(data.getJSONObject(i)));
+        }
+        java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
+        StringBuilder criteres = new StringBuilder();
+        if (dtStart != null && !dtStart.trim().isEmpty() && dtEnd != null && !dtEnd.trim().isEmpty()) {
+            criteres.append("Période du ").append(dateLisible(dtStart)).append(" au ").append(dateLisible(dtEnd));
+        }
+        if (tpid != null && !tpid.trim().isEmpty() && !"TOUT".equals(tpid) && !lignes.isEmpty()) {
+            criteres.append(criteres.length() > 0 ? "  -  " : "").append("Carnet : ")
+                    .append(lignes.get(0).getTiersPayant());
+        } else {
+            criteres.append(criteres.length() > 0 ? "  -  " : "").append("Tous les carnets");
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            criteres.append("  -  Recherche : ").append(query.trim());
+        }
+        parametres.put("P_CRITERES", criteres.toString());
+        String url = reportUtil.buildReport(parametres, "facture_carnet_depot_recap", lignes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=recap_factures_carnet_depot.pdf").build();
+    }
+
+    private static String dateLisible(String iso) {
+        try {
+            return java.time.LocalDate.parse(iso.trim())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (RuntimeException e) {
+            return iso;
+        }
+    }
+
+    /**
      * Edition d'une facture de carnet depot, SANS le detail des medicaments (point 17).
      *
      * <p>

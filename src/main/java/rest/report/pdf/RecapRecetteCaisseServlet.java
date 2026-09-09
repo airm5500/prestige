@@ -89,8 +89,11 @@ public class RecapRecetteCaisseServlet extends HttpServlet {
         }
         List<StatCaisseRecetteDTO> datas = this.statCaisseRecetteService.fetchStatCaisseRecettes(dtStart, dtEnd,
                 typeRglementId, granularite, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        // Retour des tests du 09/09 : le recap des modes de reglement du bas de l'ecran, sur le PDF aussi.
+        String recapModes = RecapModesCa.texte(this.statCaisseRecetteService.suiviModesReglement(dtStart, dtEnd,
+                granularite == Granularite.ANNEE, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()));
         return RecapCaisseRecettePdf.construire(datas, String.valueOf(parameters.getOrDefault("P_H_INSTITUTION", "")),
-                "DU " + periode, String.valueOf(parameters.getOrDefault("P_PRINTED_BY", "")));
+                "DU " + periode, String.valueOf(parameters.getOrDefault("P_PRINTED_BY", "")), recapModes);
 
     }
 }

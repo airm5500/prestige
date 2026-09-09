@@ -142,13 +142,14 @@ function semer() {
     const texte = execSync('pdftotext -layout /tmp/claude-0/feuille_simple.pdf -', { encoding: 'utf8' });
     const attenduPdf = new RegExp('feuille_de_match_[A-Za-z0-9_]+_' + JOUR.replace(/-/g, '_') + '_' + JOUR.replace(/-/g, '_') + '\\.pdf');
     ok('Le PDF simple repond, sous le nom feuille_de_match_<officine>_<periode>.pdf', pdf.statut === 200 && /pdf/.test(pdf.type) && attenduPdf.test(pdf.disposition), pdf.disposition);
-    ok('Il porte les six colonnes du modele fourni', /Rang\s+Produit\s+CIP13\s+UG\s+Quantités\s+Fréquence/.test(texte) && /achetées\s+d'achat/.test(texte), texte.split('\n').find(l => /Rang/.test(l)));
+    // Retour des tests du 09/09 (lot O) : une septieme colonne, les quantites vendues, entre les achats et la frequence.
+    ok('Il porte les colonnes du modele fourni, plus les quantites vendues', /Rang\s+Produit\s+CIP13\s+UG\s+Quantités\s+Quantités\s+Fréquence/.test(texte) && /achetées\s+vendues\s+d'achat/.test(texte), texte.split('\n').find(l => /Rang/.test(l)));
     const lignesPdf = texte.split('\n').filter(l => /^\s*\d+(-\d+)?\s/.test(l)).map(l => l.trim());
     ok('Les deux produits a 100 unites partagent le rang « 1-2 », le troisieme est « 3 »',
       lignesPdf.length >= 3 && /^1-2\s/.test(lignesPdf[0]) && /^1-2\s/.test(lignesPdf[1]) && /^3\s/.test(lignesPdf[2]), lignesPdf.slice(0, 3).join(' || '));
     ok('Le produit a 5 UG et 2 receptions est en tete, avec ses valeurs',
-      new RegExp('^1-2\\s+.*' + libelles[0].slice(0, 12).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '.*\\s5\\s+100\\s+2\\s*$').test(lignesPdf[0]), lignesPdf[0]);
-    ok('Le troisieme : 2 UG, 30 unites, 1 reception', /\s2\s+30\s+1\s*$/.test(lignesPdf[2]), lignesPdf[2]);
+      new RegExp('^1-2\\s+.*' + libelles[0].slice(0, 12).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '.*\\s5\\s+100\\s+\\d+\\s+2\\s*$').test(lignesPdf[0]), lignesPdf[0]);
+    ok('Le troisieme : 2 UG, 30 unites, 1 reception', /\s2\s+30\s+\d+\s+1\s*$/.test(lignesPdf[2]), lignesPdf[2]);
     ok('Les CIP13 sont ceux des articles', texte.indexOf(q("SELECT int_EAN13 FROM t_famille WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "'")) >= 0);
 
     await cliquerMenu('feuilledematch #imprimer', 'feuilledematch #imprimerDetaillee');
@@ -169,8 +170,8 @@ function semer() {
     const feuilles = JSON.parse(contenu);
     const enTete = feuilles.find(r => r[0] === 'Rang') || [];
     const premiere = feuilles[feuilles.indexOf(enTete) + 1] || [];
-    ok('Le classeur porte les memes colonnes', enTete.join('|') === 'Rang|Produit|CIP13|UG|Quantités achetées|Fréquence d\'achat', enTete.join('|'));
-    ok('...et les memes rangs et valeurs', premiere[0] === '1-2' && parseFloat(premiere[3]) === 5 && parseFloat(premiere[4]) === 100 && parseFloat(premiere[5]) === 2, premiere.join('|'));
+    ok('Le classeur porte les memes colonnes', enTete.join('|') === 'Rang|Produit|CIP13|UG|Quantités achetées|Quantités vendues|Fréquence d\'achat', enTete.join('|'));
+    ok('...et les memes rangs et valeurs', premiere[0] === '1-2' && parseFloat(premiere[3]) === 5 && parseFloat(premiere[4]) === 100 && parseFloat(premiere[6]) === 2, premiere.join('|'));
 
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

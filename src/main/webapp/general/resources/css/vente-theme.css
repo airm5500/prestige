@@ -1325,3 +1325,6 @@ body.x-body,
 .ventilation-balance .vb-kpi-val { color: #1565c0; font-weight: bold; font-size: 13px; }
 .synthese-balance { padding-bottom: 0; }
 .x-grid-cell-inner .evolution { display: block; line-height: 12px; }
+
+/* Fiche article (retour des tests du 09/09) : prix d'achat et de vente agrandis, en gras. */
+.fa-prix { font-size: 13px; font-weight: bold; }

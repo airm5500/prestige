@@ -218,6 +218,7 @@ public class AbcArticleRessource {
                         .texte("Rang", l -> l.getRang()).texte("Produit", l -> l.getProduit())
                         .texte("CIP13", l -> l.getCip13()).nombre("UG", l -> l.getUg())
                         .nombre("Quantités achetées", l -> l.getQuantite())
+                        .nombre("Quantités vendues", l -> l.getQuantiteVendue())
                         .nombre("Fréquence d'achat", l -> l.getFrequence());
         try {
             byte[] contenu = classeur.construire(lignes);

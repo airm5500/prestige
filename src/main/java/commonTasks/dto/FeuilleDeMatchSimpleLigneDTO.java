@@ -17,6 +17,8 @@ public class FeuilleDeMatchSimpleLigneDTO implements Serializable {
     private long ug;
     private long quantite;
     private long frequence;
+    /** Quantite vendue sur la periode (retour des tests du 09/09, point 3). */
+    private long quantiteVendue;
 
     public FeuilleDeMatchSimpleLigneDTO() {
     }
@@ -29,6 +31,16 @@ public class FeuilleDeMatchSimpleLigneDTO implements Serializable {
         this.ug = ug;
         this.quantite = quantite;
         this.frequence = frequence;
+    }
+
+    public FeuilleDeMatchSimpleLigneDTO(String produitId, String produit, String cip13, long ug, long quantite,
+            long frequence, long quantiteVendue) {
+        this(produitId, produit, cip13, ug, quantite, frequence);
+        this.quantiteVendue = quantiteVendue;
+    }
+
+    public long getQuantiteVendue() {
+        return quantiteVendue;
     }
 
     public String getProduitId() {

@@ -1273,7 +1273,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                     ? d.getCodeGeoArticle().trim() + "-" + nz(d.getLibelle()) : nz(d.getLibelle());
             String cip13 = StringUtils.isNotBlank(d.getEan()) ? d.getEan().trim() : nz(d.getCip());
             lignes.add(new commonTasks.dto.FeuilleDeMatchSimpleLigneDTO(nz(d.getProduitId()), produit, cip13, a[2],
-                    a[1], a[0]));
+                    a[1], a[0], d.getQuantiteVendue()));
         }
         return FeuilleDeMatchSimple.classer(lignes);
     }

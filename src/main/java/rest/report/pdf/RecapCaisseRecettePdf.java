@@ -46,6 +46,15 @@ public final class RecapCaisseRecettePdf {
 
     public static byte[] construire(List<StatCaisseRecetteDTO> lignes, String entete, String periode,
             String imprimePar) {
+        return construire(lignes, entete, periode, imprimePar, null);
+    }
+
+    /**
+     * Meme edition, avec le recap « part de chaque mode de reglement dans le CA realise » sous le tableau (retour des
+     * tests du 09/09, point 2) : le meme texte qu'au bas de l'ecran.
+     */
+    public static byte[] construire(List<StatCaisseRecetteDTO> lignes, String entete, String periode, String imprimePar,
+            String recapModes) {
         Document document = new Document(PageSize.A4.rotate(), 24, 24, 24, 24);
         ByteArrayOutputStream sortie = new ByteArrayOutputStream();
         try {
@@ -135,6 +144,10 @@ public final class RecapCaisseRecettePdf {
             table.addCell(total(montant(totaux.solde), entetes, true));
 
             document.add(table);
+            if (recapModes != null && !recapModes.trim().isEmpty()) {
+                document.add(Chunk.NEWLINE);
+                document.add(new Paragraph(recapModes, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8)));
+            }
             document.close();
             return sortie.toByteArray();
         } catch (Exception e) {

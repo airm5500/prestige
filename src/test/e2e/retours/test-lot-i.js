@@ -116,10 +116,11 @@ semerVentes();
       const i = g.getStore().findBy(r => /PREPARATION MAGISTRALE/.test(r.get('str_DESCRIPTION')));
       const rec = g.getStore().getAt(i);
       const html = g.getView().getNode(i).innerHTML;
-      return { classe: rec.get('classe'), designation: rec.get('str_DESCRIPTION'), bleu: /\(A\)/.test(html) && /1565c0/.test(html) };
+      // Retour des tests du 09/09 (lot O) : la classe A est en VERT (B bleu, C rouge), en gras.
+      return { classe: rec.get('classe'), designation: rec.get('str_DESCRIPTION'), vert: /\(A\)/.test(html) && /177a17/.test(html) && /font-weight:bold/.test(html) };
     });
     ok('La ligne connait sa classe ABC', fiche.classe === 'A', JSON.stringify(fiche));
-    ok('La designation est suivie de « (A) » en bleu', fiche.bleu, fiche.designation);
+    ok('La designation est suivie de « (A) » en vert gras', fiche.vert, fiche.designation);
 
     // ---------------------------------------------------------------- 6. PDF analyse CA : evolutions
     const pdf = JSON.parse((await lire('../api/v1/ca-zone-geo/pdf?typePeriode=TROIS_MOIS&regroupement=FAMILLE')).corps);

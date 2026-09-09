@@ -32,9 +32,10 @@ public final class FeuilleDeMatchSimplePdf {
 
     private static final Logger LOG = Logger.getLogger(FeuilleDeMatchSimplePdf.class.getName());
 
+    // Retour des tests du 09/09 : les quantites vendues sur la periode, a cote des quantites achetees.
     private static final String[] COLONNES = { "Rang", "Produit", "CIP13", "UG", "Quantités achetées",
-            "Fréquence d'achat" };
-    private static final float[] LARGEURS = { 8f, 44f, 14f, 7f, 14f, 13f };
+            "Quantités vendues", "Fréquence d'achat" };
+    private static final float[] LARGEURS = { 7f, 38f, 13f, 6f, 13f, 12f, 11f };
 
     private FeuilleDeMatchSimplePdf() {
     }
@@ -71,14 +72,17 @@ public final class FeuilleDeMatchSimplePdf {
                 table.addCell(hc);
             }
             long totalQuantite = 0;
+            long totalVendu = 0;
             for (FeuilleDeMatchSimpleLigneDTO l : lignes == null ? List.<FeuilleDeMatchSimpleLigneDTO> of() : lignes) {
                 table.addCell(cellule(l.getRang(), gras, false));
                 table.addCell(cellule(l.getProduit(), cellule, false));
                 table.addCell(cellule(l.getCip13(), cellule, false));
                 table.addCell(cellule(String.valueOf(l.getUg()), cellule, true));
                 table.addCell(cellule(nombre(l.getQuantite()), gras, true));
+                table.addCell(cellule(nombre(l.getQuantiteVendue()), cellule, true));
                 table.addCell(cellule(String.valueOf(l.getFrequence()), cellule, true));
                 totalQuantite += l.getQuantite();
+                totalVendu += l.getQuantiteVendue();
             }
             PdfPCell pied = new PdfPCell(
                     new Phrase("TOTAL (" + (lignes == null ? 0 : lignes.size()) + " produit(s))", entetes));
@@ -93,6 +97,12 @@ public final class FeuilleDeMatchSimplePdf {
             total.setPadding(3f);
             total.setHorizontalAlignment(Element.ALIGN_RIGHT);
             table.addCell(total);
+            PdfPCell totalVente = new PdfPCell(new Phrase(nombre(totalVendu), entetes));
+            totalVente.setGrayFill(0.92f);
+            totalVente.setBorder(Rectangle.TOP);
+            totalVente.setPadding(3f);
+            totalVente.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            table.addCell(totalVente);
             PdfPCell vide = new PdfPCell(new Phrase("", entetes));
             vide.setGrayFill(0.92f);
             vide.setBorder(Rectangle.TOP);

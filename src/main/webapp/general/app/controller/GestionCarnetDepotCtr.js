@@ -566,6 +566,16 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         }else if(itemId === 'reglementPanel' || itemId === 'depensePanel'){
              linkUrl = '../TiersPayantExcludServlet?mode=REGLEMENTS_CARNET_DEPOT&dtStart=' + dtStart +
                     '&dtEnd=' + dtEnd + '&tiersPayantId=' + tiersPayantId;
+        } else if (itemId === 'facturesPanel') {
+            // Retour des tests du 09/09 : sur l'onglet Factures, le bouton ne donnait aucun PDF. Il
+            // imprime le recapitulatif des factures de la recherche affichee (memes criteres que la
+            // liste), sur son propre modele, en flux dans le clic.
+            const ecran = me.getReglementdepot();
+            const recherche = ecran ? ecran.down('#rechercheFactureDepot') : null;
+            linkUrl = '../api/v1/facturation/carnet-depot/recap/pdf?' + Ext.Object.toQueryString({
+                tpid: tiersPayantId, dtStart: dtStart, dtEnd: dtEnd,
+                query: (recherche && (recherche.getValue() || '').trim()) || ''
+            });
         }
         
        /* else if(itemId === 'depensePanel'){
@@ -673,16 +683,27 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     doInitVenteStore: function () {
         const me = this;
         me.getVenteGrid().getStore().addListener('metachange', this.doMetachange, this);
+        // Retour des tests du 09/09 : le bouton « actualiser » de la barre du bas recharge la liste
+        // sans passer par Rechercher ; le solde suit chaque rechargement.
+        me.getVenteGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchVente();
     },
     doInitReglementStore: function () {
         const me = this;
         me.getReglementGrid().getStore().addListener('metachange', this.doReglementMetachange, this);
+        me.getReglementGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchReglement();
+    },
+    /** Un rechargement de liste (bouton actualiser, changement de page) relit le solde du carnet. */
+    surRechargement: function () {
+        if (this.getReglementdepot()) {
+            this.rafraichirSolde();
+        }
     },
         doInitDepensesStore: function () {
         const me = this;
         me.getDepenseGrid().getStore().addListener('metachange', this.doDepensesMetachange, this);
+        me.getDepenseGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchReglement();
     },
      doDepensesMetachange: function (store, meta) {
@@ -817,6 +838,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         let me = this;
         let tiersPayantId = me.getTiersPayantsExclus().getValue();
         if (tiersPayantId) {
+            // Retour des tests du 09/09 : le solde est relu en base a l'ouverture du formulaire, et le
+            // rappel du formulaire suit ; sans cela, il portait le solde de l'affichage precedent.
+            me.rafraichirSolde(function (solde) {
+                const rappel = Ext.ComponentQuery.query('window[title="Nouveau règlement"] #rappelSolde')[0];
+                if (rappel && solde !== null && solde !== undefined) {
+                    rappel.setValue(Ext.util.Format.number(solde, '0,000'));
+                }
+            });
             const form = Ext.create('Ext.window.Window',
                     {
 
@@ -1047,6 +1076,12 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         let me = this;
         let tiersPayantId = me.getTiersPayantsExclus().getValue();
         if (tiersPayantId) {
+            me.rafraichirSolde(function (solde) {
+                const rappel = Ext.ComponentQuery.query('window[title="Nouvelle dépense"] #rappelSolde')[0];
+                if (rappel && solde !== null && solde !== undefined) {
+                    rappel.setValue(Ext.util.Format.number(solde, '0,000'));
+                }
+            });
             const form = Ext.create('Ext.window.Window',
                     {
 

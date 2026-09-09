@@ -389,9 +389,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        // Retour du 09/09 : la classe ABC en bleu apres la designation, quand elle existe.
+                        // Retour du 09/09, puis retour des tests : la classe ABC apres la designation, aux
+                        // couleurs de la classification - A vert, B bleu, C rouge - en gras.
                         var classe = r.data.classe;
-                        return classe ? v + ' <span style="color:#1565c0;font-weight:bold">(' + classe + ')</span>' : v;
+                        var couleurs = {A: '#177a17', B: '#1565c0', C: '#a00000'};
+                        return classe ? v + ' <span style="color:' + (couleurs[classe] || '#1565c0')
+                                + ';font-weight:bold">(' + classe + ')</span>' : v;
                     }
                 },
                 {
@@ -402,7 +405,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return amountformat(v);
+                        // Retour des tests du 09/09 : les deux prix, agrandis et en gras.
+                        return '<span class="fa-prix">' + amountformat(v) + '</span>';
                     }
                 },
 
@@ -414,7 +418,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return amountformat(v);
+                        return '<span class="fa-prix">' + amountformat(v) + '</span>';
                     }
                 },
                 {
