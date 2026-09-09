@@ -44,7 +44,9 @@ public class FactureCarnetDepotRecapJrxmlTest {
             assertTrue(texte.contains("RÉCAPITULATIF DES FACTURES DE CARNET DÉPÔT"), texte);
             assertTrue(texte.contains("F-001") && texte.contains("F-002"), texte);
             assertTrue(texte.contains("TOTAL GÉNÉRAL (2 facture(s), 5 bon(s))"), texte);
-            assertTrue(texte.contains("50,000"), texte);
+            // Le separateur de milliers depend de la locale de la machine (« 50,000 » ou « 50 000 ») :
+            // seuls les chiffres du total sont verifies.
+            assertTrue(java.util.regex.Pattern.compile("50[\\s\\u00a0\\u202f,.]?000").matcher(texte).find(), texte);
         }
     }
 
