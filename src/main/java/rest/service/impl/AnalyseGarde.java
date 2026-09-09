@@ -304,10 +304,25 @@ public final class AnalyseGarde {
      */
     public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
             int limite) {
+        return filtrer(classes, classe, tri, limite, "", "", "");
+    }
+
+    /**
+     * Le meme filtre, restreint a une famille, un rayon (emplacement) et un grossiste (retour des tests du 09/09). Un
+     * critere vide ne filtre pas.
+     */
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite, String familleId, String rayonId, String grossisteId) {
         List<GardeProduitDTO> vue = new ArrayList<>();
         String voulue = classe == null ? "" : classe.trim().toUpperCase();
+        String famille = familleId == null ? "" : familleId.trim();
+        String rayon = rayonId == null ? "" : rayonId.trim();
+        String grossiste = grossisteId == null ? "" : grossisteId.trim();
         for (GardeProduitDTO p : classes) {
-            if (voulue.isEmpty() || voulue.equals(p.getClasse())) {
+            if ((voulue.isEmpty() || voulue.equals(p.getClasse()))
+                    && (famille.isEmpty() || famille.equals(p.getFamilleId()))
+                    && (rayon.isEmpty() || rayon.equals(p.getRayonId()))
+                    && (grossiste.isEmpty() || grossiste.equals(p.getGrossisteId()))) {
                 vue.add(p);
             }
         }
@@ -409,6 +424,7 @@ public final class AnalyseGarde {
                 p.setProduitId(id);
                 p.setCip(ligne.getCip());
                 p.setLibelle(ligne.getLibelle());
+                p.setRattachements(ligne.getFamilleId(), ligne.getRayonId(), ligne.getGrossisteId());
                 return p;
             });
             produit.setQuantite(produit.getQuantite() + ligne.getQuantite());

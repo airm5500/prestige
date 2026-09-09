@@ -1311,3 +1311,8 @@ body.x-body,
 .recap-modes-ca .rm-mode { display: inline-block; margin-right: 12px; white-space: nowrap; }
 .recap-modes-ca .rm-mode b { color: #1565c0; }
 .recap-modes-ca .rm-operateur { color: #7f8c8d; }
+
+/* Gardes (retour des tests du 09/09) : la lettre de classe dans le resume, aux couleurs de la classification. */
+.classe-abc-lettre-a { color: #177a17; }
+.classe-abc-lettre-b { color: #1565c0; }
+.classe-abc-lettre-c { color: #a00000; }

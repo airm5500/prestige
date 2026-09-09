@@ -203,8 +203,9 @@ function semer() {
       p1.montant === 4000 && p1.marge === 1000 && Math.abs(p1.tauxMarge - 25) < 0.01, JSON.stringify(p1));
     ok('Une marge negative est rendue telle quelle',
       analyse.abc.some(l => l.montant === 600 && l.marge === -300), JSON.stringify(analyse.abc.map(l => [l.montant, l.marge])));
-    ok('Le resume par classe est VISIBLE, au-dessus de la liste',
-      analyse.resumeVisible && analyse.resumeY < analyse.abcY,
+    // Retour des tests du 09/09 : le resume est dans le volet GAUCHE, la liste des produits a droite.
+    ok('Le resume par classe est VISIBLE, dans le volet gauche a cote de la liste',
+      analyse.resumeVisible && analyse.resumeY <= analyse.abcY,
       'visible=' + analyse.resumeVisible + ' y=' + analyse.resumeY + ' liste y=' + analyse.abcY);
     ok('Le resume porte la marge et son taux par classe',
       analyse.entetesResume.includes('Marge') && analyse.resume.length === 3

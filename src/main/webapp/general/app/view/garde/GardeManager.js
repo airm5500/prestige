@@ -75,11 +75,16 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {name: 'clients', type: 'int'}, {name: 'quantite', type: 'int'}, {name: 'montant', type: 'int'},
                 {name: 'heuresCouvertes', type: 'int'}, {name: 'clientsParHeure', type: 'float'}]
         });
+        /* Retour des tests du 09/09 : les produits sont pagines (l'ecran ne coupe plus la liste). Le
+           serveur rend la vue filtree et triee ; le magasin la decoupe en pages localement. */
         me.abcStore = Ext.create('Ext.data.Store', {
             fields: ['produitId', 'classe', 'cip', 'libelle', {name: 'quantite', type: 'int'},
+                {name: 'stock', type: 'int'},
                 {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'},
                 {name: 'tauxMarge', type: 'float'}, {name: 'part', type: 'float'},
-                {name: 'cumulPart', type: 'float'}]
+                {name: 'cumulPart', type: 'float'}],
+            pageSize: 50,
+            proxy: {type: 'memory', enablePaging: true, reader: {type: 'json'}}
         });
         me.resumeStore = Ext.create('Ext.data.Store', {
             fields: ['classe', {name: 'produits', type: 'int'}, {name: 'montant', type: 'int'},
@@ -113,6 +118,17 @@ Ext.define('testextjs.view.garde.GardeManager', {
             items: [me.listeGardes(), me.detail()]
         });
         me.callParent(arguments);
+    },
+
+    /** L'infobulle d'un point de la courbe : TOUTES les valeurs de la tranche (retour des tests du 09/09). */
+    infobulleTranche: function (ligne) {
+        var n = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        return ligne.get('libelle') + ' : ' + n(ligne.get('clients')) + ' client(s), ' + n(ligne.get('ventes'))
+                + ' vente(s), ' + n(ligne.get('quantite')) + ' unit\u00e9(s), CA ' + n(ligne.get('montant'))
+                + ', ' + n(ligne.get('heuresCouvertes')) + ' h tenue(s), '
+                + Ext.util.Format.number(ligne.get('clientsParHeure') || 0, '0.0') + ' client(s)/h';
     },
 
     listeGardes: function () {
@@ -186,9 +202,256 @@ Ext.define('testextjs.view.garde.GardeManager', {
 
     ongletAnalyse: function () {
         var me = this;
+        /* Retour des tests du 09/09 : la vue est en deux volets. A gauche, le resume par classe (toutes
+           les classes visibles, sans defilement) et les filtres ; a droite, les produits de la classe
+           ou du filtre choisi, pagines, avec leur stock. Le selecteur de tranche horaire et l'export
+           des tranches sont partis sur l'onglet « Suivi de l'activite », qui est le leur. */
+        var filtreDistant = function (url) {
+            return Ext.create('Ext.data.Store', {
+                idProperty: 'id',
+                fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}],
+                autoLoad: false,
+                pageSize: 9999,
+                proxy: {type: 'ajax', url: url, reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+            });
+        };
+        var combo = function (itemId, libelle, store) {
+            return {
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: 80, anchor: '100%',
+                store: store, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true,
+                queryMode: 'remote', minChars: 2, emptyText: 'Tous', margin: '2 0 2 0'
+            };
+        };
         return {
             title: 'Analyse de la garde',
             itemId: 'ongletAnalyseGarde',
+            xtype: 'panel',
+            layout: {type: 'vbox', align: 'stretch'},
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
+                        {text: 'Imprimer', itemId: 'gardeImprimer', iconCls: 'printable'}, '-',
+                        {
+                            text: 'Exporter ABC', itemId: 'gardeExporterAbc',
+                            tooltip: 'Exporter la classification ABC de la garde (produits affich&eacute;s)',
+                            iconCls: 'export_excel_icon'
+                        }, '->', {
+                            xtype: 'tbtext',
+                            itemId: 'abcCompte',
+                            text: ''
+                        }]
+                }],
+            items: [{
+                    xtype: 'container',
+                    itemId: 'gardeIndicateurs',
+                    height: 34,
+                    padding: '6 8 6 8',
+                    style: 'background:#eef8ee;border-bottom:1px solid #cfe3cf',
+                    html: '<i>Choisissez une garde dans la liste de gauche.</i>'
+                }, {
+                    xtype: 'container',
+                    flex: 1,
+                    layout: {type: 'hbox', align: 'stretch'},
+                    items: [{
+                            // ---- volet gauche : classes et filtres
+                            xtype: 'panel',
+                            itemId: 'voletClasses',
+                            width: 430,
+                            border: false,
+                            autoScroll: true,
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [{
+                                    xtype: 'gridpanel',
+                                    itemId: 'grilleResumeAbc',
+                                    title: 'R&eacute;sum&eacute; par classe',
+                                    store: me.resumeStore,
+                                    // Pas de hauteur fixe : la grille prend celle de ses lignes, aucun
+                                    // defilement ne cache la classe C.
+                                    viewConfig: {columnLines: true, autoScroll: false},
+                                    scroll: false,
+                                    hideHeaders: false,
+                                    columns: [
+                                        {header: 'Classe', dataIndex: 'classe', width: 60, align: 'center',
+                                            renderer: function (v) {
+                                                return '<b class="classe-abc-lettre-' + String(v || 'x').toLowerCase() + '">' + v + '</b>';
+                                            }},
+                                        {header: 'Produits', dataIndex: 'produits', width: 65, align: 'right'},
+                                        {
+                                            header: 'Chiffre d\'affaires', dataIndex: 'montant', flex: 1,
+                                            align: 'right', xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Marge', dataIndex: 'marge', width: 85, align: 'right',
+                                            xtype: 'numbercolumn', format: '0,000.'
+                                        },
+                                        {
+                                            header: 'Taux %', dataIndex: 'tauxMarge', width: 58, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        },
+                                        {
+                                            header: 'Part %', dataIndex: 'part', width: 55, align: 'right',
+                                            xtype: 'numbercolumn', format: '0.00'
+                                        }
+                                    ]
+                                }, {
+                                    xtype: 'form',
+                                    itemId: 'filtresAbc',
+                                    title: 'Filtres',
+                                    bodyPadding: 8,
+                                    border: false,
+                                    items: [{
+                                            xtype: 'combobox',
+                                            itemId: 'abcClasse',
+                                            fieldLabel: 'Classe',
+                                            labelWidth: 80,
+                                            anchor: '100%',
+                                            margin: '2 0 2 0',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [['', 'Toutes'], ['A', 'A'], ['B', 'B'], ['C', 'C']],
+                                                fields: ['value', 'libelle']
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            queryMode: 'local',
+                                            editable: false,
+                                            value: ''
+                                        },
+                                        combo('abcRayon', 'Emplacement', filtreDistant('../api/v1/common/rayons')),
+                                        combo('abcFamille', 'Famille', filtreDistant('../api/v1/common/famillearticles')),
+                                        combo('abcGrossiste', 'Grossiste', filtreDistant('../api/v1/common/grossiste')),
+                                        {
+                                            xtype: 'combobox',
+                                            itemId: 'abcTri',
+                                            fieldLabel: 'Tri',
+                                            labelWidth: 80,
+                                            anchor: '100%',
+                                            margin: '2 0 2 0',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                data: [['montant', 'Chiffre d\'affaires'], ['quantite', 'Quantit\u00e9'],
+                                                    ['marge', 'Marge']],
+                                                fields: ['value', 'libelle']
+                                            }),
+                                            valueField: 'value',
+                                            displayField: 'libelle',
+                                            queryMode: 'local',
+                                            editable: false,
+                                            value: 'montant'
+                                        }, {
+                                            xtype: 'numberfield',
+                                            itemId: 'abcLimite',
+                                            fieldLabel: 'N premiers',
+                                            labelWidth: 80,
+                                            width: 200,
+                                            margin: '2 0 2 0',
+                                            minValue: 0,
+                                            allowDecimals: false,
+                                            value: 0,
+                                            emptyText: 'tous'
+                                        }, {
+                                            xtype: 'button',
+                                            text: 'Effacer les filtres',
+                                            itemId: 'abcEffacer',
+                                            margin: '4 0 0 0'
+                                        }]
+                                }]
+                        }, {
+                            // ---- volet droit : les produits, pagines
+                            xtype: 'gridpanel',
+                            title: 'Produits vendus pendant la garde',
+                            itemId: 'grilleAbc',
+                            flex: 1,
+                            margin: '0 0 0 6',
+                            store: me.abcStore,
+                            selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI', checkOnly: true}),
+                            viewConfig: {
+                                columnLines: true,
+                                deferEmptyText: false,
+                                emptyText: '<div style="padding:12px">Aucun produit vendu sur cette garde.</div>',
+                                getRowClass: function (ligne) {
+                                    return 'classe-abc-' + (ligne.get('classe') || 'x').toLowerCase();
+                                }
+                            },
+                            dockedItems: [{
+                                    // H3 : les produits vendus pendant la garde partent en inventaire ou en
+                                    // suggestion de commande - ceux coches, ou tous ceux affiches.
+                                    xtype: 'toolbar',
+                                    dock: 'top',
+                                    itemId: 'actionsAbc',
+                                    items: [{
+                                            text: 'Cr&eacute;er un inventaire',
+                                            itemId: 'gardeInventaire',
+                                            iconCls: 'addicon',
+                                            tooltip: 'Un inventaire des produits coch&eacute;s (ou de tous les produits '
+                                                    + 'affich&eacute;s), &agrave; poursuivre dans l\'&eacute;cran des inventaires'
+                                        }, '-', {
+                                            text: 'Cr&eacute;er une suggestion de garde',
+                                            itemId: 'gardeSuggestion',
+                                            iconCls: 'export_excel_icon',
+                                            tooltip: 'Une suggestion de commande des produits coch&eacute;s (ou de tous les '
+                                                    + 'produits affich&eacute;s), avec la quantit&eacute; vendue pendant la garde'
+                                        }, '->', {
+                                            xtype: 'tbtext',
+                                            itemId: 'abcCoches',
+                                            text: ''
+                                        }]
+                                }, {
+                                    xtype: 'pagingtoolbar',
+                                    dock: 'bottom',
+                                    store: me.abcStore,
+                                    displayInfo: true,
+                                    displayMsg: 'Produits {0} - {1} sur {2}',
+                                    emptyMsg: 'Aucun produit'
+                                }],
+                            columns: [
+                                {
+                                    header: 'Cl.', dataIndex: 'classe', width: 40, align: 'center',
+                                    renderer: function (valeur) {
+                                        return valeur ? '<b>' + valeur + '</b>' : '';
+                                    }
+                                },
+                                {header: 'CIP', dataIndex: 'cip', width: 90},
+                                {header: 'Produit', dataIndex: 'libelle', flex: 1},
+                                {header: 'Qt&eacute;', dataIndex: 'quantite', width: 55, align: 'right'},
+                                {header: 'Stock', dataIndex: 'stock', width: 60, align: 'right',
+                                    renderer: function (v) {
+                                        return v <= 0 ? '<b style="color:#a00">' + v + '</b>' : v;
+                                    }},
+                                {
+                                    header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
+                                    xtype: 'numbercolumn', format: '0,000.'
+                                },
+                                {
+                                    header: 'Marge', dataIndex: 'marge', width: 90, align: 'right',
+                                    xtype: 'numbercolumn', format: '0,000.'
+                                },
+                                {
+                                    header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right',
+                                    xtype: 'numbercolumn', format: '0.00'
+                                },
+                                {
+                                    header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
+                                    xtype: 'numbercolumn', format: '0.00'
+                                },
+                                {
+                                    header: 'Cumul %', dataIndex: 'cumulPart', width: 65, align: 'right',
+                                    xtype: 'numbercolumn', format: '0.00'
+                                }
+                            ]
+                        }]
+                }]
+        };
+    },
+
+    /**
+     * Suivi de l'activite par tranche horaire (H2) : la courbe des clients et du chiffre sur les
+     * heures du jour, cumulees sur la periode, et l'effectif conseille par tranche.
+     */
+    ongletActivite: function () {
+        var me = this;
+        return {
+            title: 'Suivi de l\'activit&eacute;',
+            itemId: 'ongletActivite',
             xtype: 'panel',
             layout: {type: 'vbox', align: 'stretch'},
             dockedItems: [{
@@ -210,205 +473,14 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             queryMode: 'local',
                             editable: false,
                             value: 2
-                        }, '-',
-                        {text: 'Imprimer', itemId: 'gardeImprimer', iconCls: 'printable'}, '-',
-                        {
-                            text: 'Exporter ABC', itemId: 'gardeExporterAbc',
-                            tooltip: 'Exporter la classification ABC de la garde',
-                            iconCls: 'export_excel_icon'
-                        }, '-',
-                        {
+                        }, '-', {
                             text: 'Exporter tranches', itemId: 'gardeExporterTranches',
                             tooltip: 'Exporter la r&eacute;partition horaire',
                             iconCls: 'export_excel_icon'
-                        }]
-                }],
-            items: [{
-                    xtype: 'container',
-                    itemId: 'gardeIndicateurs',
-                    height: 34,
-                    padding: '6 8 6 8',
-                    style: 'background:#eef8ee;border-bottom:1px solid #cfe3cf',
-                    html: '<i>Choisissez une garde dans la liste de gauche.</i>'
-                }, {
-                    xtype: 'container',
-                    flex: 1,
-                    layout: {type: 'hbox', align: 'stretch'},
-                    items: [{
-                            xtype: 'container',
-                            flex: 1,
-                            layout: {type: 'vbox', align: 'stretch'},
-                            items: [{
-                                    xtype: 'toolbar',
-                                    itemId: 'filtresAbc',
-                                    items: [{
-                                            xtype: 'combobox',
-                                            itemId: 'abcClasse',
-                                            fieldLabel: 'Classe',
-                                            labelWidth: 45,
-                                            width: 130,
-                                            store: Ext.create('Ext.data.ArrayStore', {
-                                                data: [['', 'Toutes'], ['A', 'A'], ['B', 'B'], ['C', 'C']],
-                                                fields: ['value', 'libelle']
-                                            }),
-                                            valueField: 'value',
-                                            displayField: 'libelle',
-                                            queryMode: 'local',
-                                            editable: false,
-                                            value: ''
-                                        }, {
-                                            xtype: 'numberfield',
-                                            itemId: 'abcLimite',
-                                            fieldLabel: 'N premiers',
-                                            labelWidth: 70,
-                                            width: 145,
-                                            minValue: 0,
-                                            allowDecimals: false,
-                                            value: 100,
-                                            emptyText: 'tous'
-                                        }, {
-                                            xtype: 'combobox',
-                                            itemId: 'abcTri',
-                                            fieldLabel: 'Tri',
-                                            labelWidth: 25,
-                                            width: 175,
-                                            store: Ext.create('Ext.data.ArrayStore', {
-                                                data: [['montant', 'Chiffre d\'affaires'], ['quantite', 'Quantit\u00e9'],
-                                                    ['marge', 'Marge']],
-                                                fields: ['value', 'libelle']
-                                            }),
-                                            valueField: 'value',
-                                            displayField: 'libelle',
-                                            queryMode: 'local',
-                                            editable: false,
-                                            value: 'montant'
-                                        }, '->', {
-                                            xtype: 'tbtext',
-                                            itemId: 'abcCompte',
-                                            text: ''
-                                        }]
-                                }, {
-                                    // H3 : les produits vendus pendant la garde partent en inventaire ou en
-                                    // suggestion de commande - ceux coches, ou tous ceux affiches.
-                                    xtype: 'toolbar',
-                                    itemId: 'actionsAbc',
-                                    items: [{
-                                            text: 'Cr&eacute;er un inventaire',
-                                            itemId: 'gardeInventaire',
-                                            iconCls: 'addicon',
-                                            tooltip: 'Un inventaire des produits coch&eacute;s (ou de tous les produits '
-                                                    + 'affich&eacute;s), &agrave; poursuivre dans l\'&eacute;cran des inventaires'
-                                        }, '-', {
-                                            text: 'Envoyer en suggestion',
-                                            itemId: 'gardeSuggestion',
-                                            iconCls: 'export_excel_icon',
-                                            tooltip: 'Une suggestion de commande des produits coch&eacute;s (ou de tous les '
-                                                    + 'produits affich&eacute;s), avec la quantit&eacute; vendue pendant la garde'
-                                        }, '->', {
-                                            xtype: 'tbtext',
-                                            itemId: 'abcCoches',
-                                            text: ''
-                                        }]
-                                }, {
-                                    // Le resume par classe est pose AU-DESSUS de la liste : en bas de la
-                                    // grille il n'etait pas visible (retour du 08/09).
-                                    xtype: 'gridpanel',
-                                    itemId: 'grilleResumeAbc',
-                                    title: 'R&eacute;sum&eacute; par classe',
-                                    height: 118,
-                                    store: me.resumeStore,
-                                    viewConfig: {columnLines: true},
-                                    columns: [
-                                        {header: 'Classe', dataIndex: 'classe', flex: 1,
-                                            renderer: function (v) { return '<b>' + v + '</b>'; }},
-                                        {header: 'Produits', dataIndex: 'produits', width: 70, align: 'right'},
-                                        {
-                                            header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 120,
-                                            align: 'right', xtype: 'numbercolumn', format: '0,000.'
-                                        },
-                                        {
-                                            header: 'Marge', dataIndex: 'marge', width: 100, align: 'right',
-                                            xtype: 'numbercolumn', format: '0,000.'
-                                        },
-                                        {
-                                            header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right',
-                                            xtype: 'numbercolumn', format: '0.00'
-                                        },
-                                        {
-                                            header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
-                                            xtype: 'numbercolumn', format: '0.00'
-                                        }
-                                    ]
-                                }, {
-                                    xtype: 'gridpanel',
-                                    title: 'Classification ABC des produits vendus',
-                                    itemId: 'grilleAbc',
-                                    flex: 1,
-                                    store: me.abcStore,
-                                    selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI', checkOnly: true}),
-                                    viewConfig: {
-                                        columnLines: true,
-                                        deferEmptyText: false,
-                                        emptyText: '<div style="padding:12px">Aucun produit vendu sur cette garde.</div>',
-                                        getRowClass: function (ligne) {
-                                            return 'classe-abc-' + (ligne.get('classe') || 'x').toLowerCase();
-                                        }
-                                    },
-                                    columns: [
-                                        {
-                                            header: 'Cl.', dataIndex: 'classe', width: 40, align: 'center',
-                                            renderer: function (valeur) {
-                                                return valeur ? '<b>' + valeur + '</b>' : '';
-                                            }
-                                        },
-                                        {header: 'CIP', dataIndex: 'cip', width: 90},
-                                        {header: 'Produit', dataIndex: 'libelle', flex: 1},
-                                        {header: 'Qt&eacute;', dataIndex: 'quantite', width: 55, align: 'right'},
-                                        {
-                                            header: 'Montant', dataIndex: 'montant', width: 95, align: 'right',
-                                            xtype: 'numbercolumn', format: '0,000.'
-                                        },
-                                        {
-                                            header: 'Marge', dataIndex: 'marge', width: 90, align: 'right',
-                                            xtype: 'numbercolumn', format: '0,000.'
-                                        },
-                                        {
-                                            header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right',
-                                            xtype: 'numbercolumn', format: '0.00'
-                                        },
-                                        {
-                                            header: 'Part %', dataIndex: 'part', width: 60, align: 'right',
-                                            xtype: 'numbercolumn', format: '0.00'
-                                        },
-                                        {
-                                            header: 'Cumul %', dataIndex: 'cumulPart', width: 65, align: 'right',
-                                            xtype: 'numbercolumn', format: '0.00'
-                                        }
-                                    ]
-                                }]
-                        }]
-                }]
-        };
-    },
-
-    /**
-     * Suivi de l'activite par tranche horaire (H2) : la courbe des clients et du chiffre sur les
-     * heures du jour, cumulees sur la periode, et l'effectif conseille par tranche.
-     */
-    ongletActivite: function () {
-        var me = this;
-        return {
-            title: 'Suivi de l\'activit&eacute;',
-            itemId: 'ongletActivite',
-            xtype: 'panel',
-            layout: {type: 'vbox', align: 'stretch'},
-            dockedItems: [{
-                    xtype: 'toolbar',
-                    dock: 'top',
-                    items: [{
+                        }, '-', {
                             xtype: 'tbtext',
-                            text: 'Heures du jour cumul&eacute;es sur toute la p&eacute;riode de la garde ; '
-                                    + 'les clients sont ramen&eacute;s &agrave; l\'heure r&eacute;ellement tenue.'
+                            text: 'Heures du jour cumul&eacute;es sur la p&eacute;riode ; '
+                                    + 'clients ramen&eacute;s &agrave; l\'heure tenue.'
                         }, '->', {
                             // H3 : la meme lecture sur l'HISTORIQUE des gardes cochees, heures tenues
                             // additionnees : c'est ce qui dit ou il faut du monde, garde apres garde.
@@ -473,9 +545,9 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                     markerConfig: {type: 'circle', size: 4, radius: 4},
                                     tips: {
                                         trackMouse: true,
+                                        width: 300,
                                         renderer: function (ligne) {
-                                            this.setTitle(ligne.get('libelle') + ' : ' + ligne.get('clients')
-                                                    + ' client(s)');
+                                            this.setTitle(me.infobulleTranche(ligne));
                                         }
                                     }
                                 }, {
@@ -488,9 +560,9 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                     markerConfig: {type: 'cross', size: 4, radius: 4},
                                     tips: {
                                         trackMouse: true,
+                                        width: 300,
                                         renderer: function (ligne) {
-                                            this.setTitle(ligne.get('libelle') + ' : '
-                                                    + Ext.util.Format.number(ligne.get('montant'), '0,000'));
+                                            this.setTitle(me.infobulleTranche(ligne));
                                         }
                                     }
                                 }]
@@ -622,6 +694,12 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             itemId: 'commandesResume',
                             text: 'Produits command&eacute;s pendant la garde, rapproch&eacute;s de ce qui s\'en est '
                                     + 'vendu pendant la m&ecirc;me garde.'
+                        }, '->', {
+                            text: 'Imprimer', itemId: 'commandesImprimer', iconCls: 'printable',
+                            tooltip: 'Imprimer les produits command&eacute;s non vendus (PDF)'
+                        }, {
+                            text: 'Exporter', itemId: 'commandesExporter', iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter au format Excel'
                         }]
                 }],
             columns: [
@@ -725,9 +803,10 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             labelWidth: 80,
                             width: 210,
                             store: Ext.create('Ext.data.ArrayStore', {
-                                data: [[1, '1 derni&egrave;re garde'], [2, '2 derni&egrave;res'],
-                                    [3, '3 derni&egrave;res'], [4, '4 derni&egrave;res'],
-                                    [5, '5 derni&egrave;res'], [10, '10 derni&egrave;res']],
+                                // Une liste deroulante n'interprete pas les entites HTML : caracteres reels.
+                                data: [[1, '1 derni\u00e8re garde'], [2, '2 derni\u00e8res'],
+                                    [3, '3 derni\u00e8res'], [4, '4 derni\u00e8res'],
+                                    [5, '5 derni\u00e8res'], [10, '10 derni\u00e8res']],
                                 fields: [{name: 'value', type: 'int'}, {name: 'libelle', type: 'string'}]
                             }),
                             valueField: 'value',

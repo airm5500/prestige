@@ -37,6 +37,16 @@ public class GardeServiceImpl implements GardeService {
     private static final int LONGUEUR_LIBELLE = 120;
 
     /**
+     * Retour des tests du 09/09 : la garde comptait TOUTES les ventes de la periode, quel que soit le site, y compris
+     * les ventes importees d'un autre systeme et les ventes exclues des etats. Sur une officine multi-sites, elle
+     * affichait trois fois le chiffre de la balance vente / caisse pour la meme semaine. Le perimetre est desormais
+     * celui de la balance et de l'ecran de classification ABC : les ventes de l'emplacement de l'utilisateur (?3), non
+     * importees, hors ventes exclues.
+     */
+    private static final String PERIMETRE_COMMUN = " AND up.lg_EMPLACEMENT_ID = ?3 AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)";
+
+    /**
      * Les lignes de vente de la periode.
      *
      * <p>
@@ -50,19 +60,22 @@ public class GardeServiceImpl implements GardeService {
             // Marge (retour du 08/09) : la formule de l'analyse ABC de l'application, pas une autre.
             + " IFNULL(pd.int_PRICE_REMISE, 0), IFNULL(pd.montantTva, 0), IFNULL(pd.prixAchat, 0),"
             + " IFNULL(p.lg_CLIENT_ID, ''), IFNULL(p.lg_USER_VENDEUR_ID, ''),"
-            + " IFNULL(CONCAT(TRIM(IFNULL(u.str_FIRST_NAME, '')), ' ', TRIM(IFNULL(u.str_LAST_NAME, ''))), '')"
+            + " IFNULL(CONCAT(TRIM(IFNULL(u.str_FIRST_NAME, '')), ' ', TRIM(IFNULL(u.str_LAST_NAME, ''))), ''),"
+            // Retour des tests du 09/09 : famille, rayon (emplacement) et grossiste du produit, pour les filtres.
+            + " IFNULL(f.lg_FAMILLEARTICLE_ID, ''), IFNULL(f.lg_ZONE_GEO_ID, ''), IFNULL(f.lg_GROSSISTE_ID, '')"
             + " FROM t_preenregistrement p" + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_VENDEUR_ID"
+            + " JOIN t_user up ON up.lg_USER_ID = p.lg_USER_ID"
             + " JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID"
             + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
             + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-            + " AND p.lg_TYPE_VENTE_ID <> '5'" + " ORDER BY p.dt_UPDATED";
+            + " AND p.lg_TYPE_VENTE_ID <> '5'" + PERIMETRE_COMMUN + " ORDER BY p.dt_UPDATED";
 
     /** Le meme perimetre de ventes que les lignes, au grain du ticket (H2) : client, type, montant, part client. */
     private static final String PERIMETRE_VENTES = " FROM t_preenregistrement p"
-            + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
+            + " JOIN t_user up ON up.lg_USER_ID = p.lg_USER_ID" + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
             + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-            + " AND p.lg_TYPE_VENTE_ID <> '5'";
+            + " AND p.lg_TYPE_VENTE_ID <> '5'" + PERIMETRE_COMMUN;
     private static final String SQL_VENTES = "SELECT p.lg_PREENREGISTREMENT_ID, IFNULL(p.lg_CLIENT_ID, ''),"
             + " p.lg_TYPE_VENTE_ID, p.int_PRICE, IFNULL(p.int_CUST_PART, 0)" + PERIMETRE_VENTES;
     /** Les reglements des ventes du perimetre : le mode et le montant attendu dans ce mode. */
@@ -79,6 +92,9 @@ public class GardeServiceImpl implements GardeService {
     /** Les ventes ratees enregistrees pendant la garde. */
     private static final String SQL_RATES = "SELECT COUNT(*) FROM t_vente_ratee v"
             + " WHERE v.dt_CREATED >= ?1 AND v.dt_CREATED <= ?2 AND v.str_STATUT = 'enable'";
+
+    @javax.ejb.EJB
+    private rest.service.SessionHelperService sessionHelperService;
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -159,6 +175,7 @@ public class GardeServiceImpl implements GardeService {
             Query q = em.createNativeQuery(SQL_LIGNES);
             q.setParameter(1, java.sql.Timestamp.valueOf(debut));
             q.setParameter(2, java.sql.Timestamp.valueOf(fin));
+            q.setParameter(3, emplacementCourant());
             List<GardeVenteLigneDTO> lignes = new ArrayList<>();
             for (Object ligne : q.getResultList()) {
                 Object[] c = (Object[]) ligne;
@@ -166,6 +183,7 @@ public class GardeServiceImpl implements GardeService {
                         instant(c[4]), entier(c[5]), entier(c[6]), entier(c[7]), entier(c[8]), entier(c[9]));
                 lue.setClientId(texte(c[10]));
                 lue.setVendeur(texte(c[11]), texte(c[12]));
+                lue.setRattachements(texte(c[13]), texte(c[14]), texte(c[15]));
                 lignes.add(lue);
             }
             return lignes;
@@ -289,7 +307,23 @@ public class GardeServiceImpl implements GardeService {
         Query q = em.createNativeQuery(sql);
         q.setParameter(1, java.sql.Timestamp.valueOf(debut));
         q.setParameter(2, java.sql.Timestamp.valueOf(fin));
+        if (sql.contains("?3")) {
+            q.setParameter(3, emplacementCourant());
+        }
         return q.getResultList();
+    }
+
+    /** L'emplacement de l'utilisateur connecte : le meme que celui de la balance et de l'ecran ABC. */
+    private String emplacementCourant() {
+        try {
+            dal.TUser utilisateur = sessionHelperService.getCurrentUser();
+            if (utilisateur != null && utilisateur.getLgEMPLACEMENTID() != null) {
+                return utilisateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "emplacement de l'utilisateur courant", e);
+        }
+        return "";
     }
 
     @Override
@@ -331,8 +365,44 @@ public class GardeServiceImpl implements GardeService {
         if (garde == null) {
             return Collections.emptyList();
         }
-        return AnalyseGarde.classifierAbc(lignesDeVente(garde.getDateDebut(), garde.getDateFin()),
-                seuil("A", AnalyseGarde.SEUIL_A_DEFAUT), seuil("B", AnalyseGarde.SEUIL_B_DEFAUT));
+        List<GardeProduitDTO> produits = AnalyseGarde.classifierAbc(
+                lignesDeVente(garde.getDateDebut(), garde.getDateFin()), seuil("A", AnalyseGarde.SEUIL_A_DEFAUT),
+                seuil("B", AnalyseGarde.SEUIL_B_DEFAUT));
+        renseignerStock(produits);
+        return produits;
+    }
+
+    /**
+     * Le stock actuel de chaque produit (retour des tests du 09/09), lu la ou l'ecran de classification ABC le lit : le
+     * stock de vente de l'emplacement de l'utilisateur.
+     */
+    private void renseignerStock(List<GardeProduitDTO> produits) {
+        if (produits == null || produits.isEmpty()) {
+            return;
+        }
+        try {
+            java.util.Map<String, Long> stocks = new java.util.HashMap<>();
+            List<String> ids = new ArrayList<>();
+            for (GardeProduitDTO p : produits) {
+                ids.add(p.getProduitId());
+            }
+            for (int debut = 0; debut < ids.size(); debut += 500) {
+                List<String> tranche = ids.subList(debut, Math.min(ids.size(), debut + 500));
+                Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER),0)"
+                        + " FROM t_type_stock_famille t WHERE t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'"
+                        + " AND t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids) GROUP BY t.lg_FAMILLE_ID");
+                q.setParameter("empl", emplacementCourant()).setParameter("ids", tranche);
+                for (Object ligne : q.getResultList()) {
+                    Object[] c = (Object[]) ligne;
+                    stocks.put(texte(c[0]), entier(c[1]));
+                }
+            }
+            for (GardeProduitDTO p : produits) {
+                p.setStock(stocks.getOrDefault(p.getProduitId(), 0L));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stock des produits de la garde", e);
+        }
     }
 
     /**

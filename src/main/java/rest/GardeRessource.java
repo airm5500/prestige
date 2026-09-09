@@ -64,7 +64,7 @@ public class GardeRessource {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HEURE = DateTimeFormatter.ofPattern("HH:mm");
 
-    private static final String[] ENTETES_ABC = { "Classe", "CIP", "Produit", "Quantité", "Montant", "Marge",
+    private static final String[] ENTETES_ABC = { "Classe", "CIP", "Produit", "Quantité", "Stock", "Montant", "Marge",
             "Taux marge %", "Part %", "Cumul %" };
     // Retour du 08/09 : par tranche, le nombre de clients (ventes distinctes) et le chiffre d'affaires ;
     // la quantite d'unites n'y apporte rien.
@@ -275,8 +275,12 @@ public class GardeRessource {
     @Path("{id}/rapport")
     public Response rapport(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures,
             @DefaultValue("") @QueryParam("classe") String classe,
-            @DefaultValue("montant") @QueryParam("tri") String tri,
-            @DefaultValue("0") @QueryParam("limite") int limite) {
+            @DefaultValue("montant") @QueryParam("tri") String tri, @DefaultValue("0") @QueryParam("limite") int limite,
+            // Retour des tests du 09/09 : filtres famille / rayon / grossiste et pagination des produits.
+            @DefaultValue("") @QueryParam("famille") String famille,
+            @DefaultValue("") @QueryParam("rayon") String rayon,
+            @DefaultValue("") @QueryParam("grossiste") String grossiste,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
@@ -288,16 +292,20 @@ public class GardeRessource {
         // Le classement est calcule une fois sur tous les produits ; le resume porte sur l'ensemble,
         // la liste rendue est la vue filtree et triee demandee par l'ecran.
         List<GardeProduitDTO> classement = gardeService.abc(garde);
+        List<GardeProduitDTO> filtres = AnalyseGarde.filtrer(classement, classe, AnalyseGarde.TriProduits.depuis(tri),
+                limite, famille, rayon, grossiste);
+        // La page demandee (start / limit) ; sans limite, toute la vue filtree.
+        int debut = Math.max(0, Math.min(start, filtres.size()));
+        int fin = limit > 0 ? Math.min(filtres.size(), debut + limit) : filtres.size();
         JSONArray abc = new JSONArray();
-        for (GardeProduitDTO p : AnalyseGarde.filtrer(classement, classe, AnalyseGarde.TriProduits.depuis(tri),
-                limite)) {
+        for (GardeProduitDTO p : filtres.subList(debut, fin)) {
             abc.put(produitJson(p));
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("garde", json(garde))
                         .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
                         .put("kpi", kpiJson(gardeService.kpi(garde))).put("abc", abc).put("totalAbc", classement.size())
-                        .put("resumeAbc", resumeAbc(classement)).toString())
+                        .put("totalFiltre", filtres.size()).put("resumeAbc", resumeAbc(classement)).toString())
                 .build();
     }
 
@@ -529,7 +537,8 @@ public class GardeRessource {
         return new JSONObject().put("produitId", p.getProduitId()).put("classe", p.getClasse()).put("cip", p.getCip())
                 .put("libelle", p.getLibelle()).put("quantite", p.getQuantite()).put("montant", p.getMontant())
                 .put("marge", p.getMarge()).put("tauxMarge", arrondi(p.getTauxMarge()))
-                .put("part", arrondi(p.getPart())).put("cumulPart", arrondi(p.getCumulPart()));
+                .put("part", arrondi(p.getPart())).put("cumulPart", arrondi(p.getCumulPart()))
+                .put("stock", p.getStock());
     }
 
     /** Combien de produits dans chaque classe, et quelle part du chiffre ils representent. */
@@ -685,15 +694,17 @@ public class GardeRessource {
     @Produces("application/vnd.ms-excel")
     public Response exporter(@PathParam("id") String id, @DefaultValue("2") @QueryParam("heures") int heures,
             @DefaultValue("") @QueryParam("classe") String classe,
-            @DefaultValue("montant") @QueryParam("tri") String tri, @DefaultValue("0") @QueryParam("limite") int limite)
-            throws IOException {
+            @DefaultValue("montant") @QueryParam("tri") String tri, @DefaultValue("0") @QueryParam("limite") int limite,
+            @DefaultValue("") @QueryParam("famille") String famille,
+            @DefaultValue("") @QueryParam("rayon") String rayon,
+            @DefaultValue("") @QueryParam("grossiste") String grossiste) throws IOException {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
-        // L'export rend ce que l'ecran affiche : meme classe, meme ordre, memes N premiers.
+        // L'export rend ce que l'ecran affiche : meme classe, memes filtres, meme ordre, memes N premiers.
         List<GardeProduitDTO> abc = AnalyseGarde.filtrer(gardeService.abc(garde), classe,
-                AnalyseGarde.TriProduits.depuis(tri), limite);
+                AnalyseGarde.TriProduits.depuis(tri), limite, famille, rayon, grossiste);
         String titre = "GARDE " + StringUtils.defaultString(garde.getLibelle()) + " - du "
                 + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE);
         byte[] data = reportExcelExportService.createExcelReport(titre, ENTETES_ABC, abc, (row, p) -> {
@@ -702,6 +713,7 @@ public class GardeRessource {
             row.createCell(col++).setCellValue(p.getCip());
             row.createCell(col++).setCellValue(p.getLibelle());
             row.createCell(col++).setCellValue(p.getQuantite());
+            row.createCell(col++).setCellValue(p.getStock());
             row.createCell(col++).setCellValue(p.getMontant());
             row.createCell(col++).setCellValue(p.getMarge());
             row.createCell(col++).setCellValue(arrondi(p.getTauxMarge()));
@@ -712,6 +724,69 @@ public class GardeRessource {
                 + ".xls";
         return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
                 .header("content-disposition", "attachment; filename = " + nomFichier).build();
+    }
+
+    /** Les commandes non vendues de la garde (retour des tests du 09/09) en classeur Excel. */
+    @GET
+    @Path("{id}/commandes/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exporterCommandes(@PathParam("id") String id) throws IOException {
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        byte[] data = new rest.report.excel.ClasseurExcel<GardeCommandeDTO>("Commandes non vendues")
+                .titre("GARDE " + StringUtils.defaultString(garde.getLibelle()) + " - COMMANDÉS NON VENDUS")
+                .critere("Période",
+                        "du " + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE))
+                .texte("CIP", GardeCommandeDTO::getCip).texte("Produit", GardeCommandeDTO::getLibelle)
+                .nombre("Qté commandée", GardeCommandeDTO::getQuantiteCommandee)
+                .nombre("Qté vendue", GardeCommandeDTO::getQuantiteVendue)
+                .texte("Statut", c -> c.isNonVendu() ? "Non vendu" : "Vendu").construire(commandes);
+        String nomFichier = "garde_commandes_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xlsx";
+        return Response.ok(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("content-disposition", "attachment; filename=" + nomFichier).build();
+    }
+
+    /** Les commandes non vendues de la garde en PDF, rendu en flux dans l'onglet ouvert par le clic. */
+    @GET
+    @Path("{id}/commandes/pdf")
+    @Produces("application/pdf")
+    public Response imprimerCommandes(@PathParam("id") String id) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        int nonVendus = 0;
+        for (GardeCommandeDTO c : commandes) {
+            if (c.isNonVendu()) {
+                nonVendus++;
+            }
+        }
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_GARDE", "GARDE : " + StringUtils.defaultString(garde.getLibelle()));
+        parametres.put("P_PERIODE",
+                "Du " + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE));
+        parametres.put("P_RESUME", commandes.size() + " produit(s) commandé(s) pendant la garde, dont " + nonVendus
+                + " non vendu(s) (" + arrondi(commandes.isEmpty() ? 0D : nonVendus * 100D / commandes.size()) + " %)");
+        String url = reportUtil.buildReport(parametres, "garde_commandes", commandes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=garde_commandes.pdf").build();
     }
 
     @GET

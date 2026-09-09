@@ -27,6 +27,10 @@ public class GardeVenteLigneDTO implements Serializable {
     /** Vendeur de la vente (H3). */
     private String vendeurId = "";
     private String vendeurNom = "";
+    /* Retour des tests du 09/09 : la famille, le rayon (emplacement) et le grossiste du produit, pour filtrer. */
+    private String familleId = "";
+    private String rayonId = "";
+    private String grossisteId = "";
 
     public String getVendeurId() {
         return vendeurId;
@@ -89,6 +93,24 @@ public class GardeVenteLigneDTO implements Serializable {
 
     public long getPrixAchat() {
         return prixAchat;
+    }
+
+    public String getFamilleId() {
+        return familleId;
+    }
+
+    public String getRayonId() {
+        return rayonId;
+    }
+
+    public String getGrossisteId() {
+        return grossisteId;
+    }
+
+    public void setRattachements(String familleId, String rayonId, String grossisteId) {
+        this.familleId = familleId == null ? "" : familleId;
+        this.rayonId = rayonId == null ? "" : rayonId;
+        this.grossisteId = grossisteId == null ? "" : grossisteId;
     }
 
     /** Marge de la ligne, formule de l'analyse ABC de l'application. */

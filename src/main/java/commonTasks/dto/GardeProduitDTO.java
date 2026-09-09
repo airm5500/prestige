@@ -21,6 +21,11 @@ public class GardeProduitDTO implements Serializable {
     private double cumulPart;
     /** Marge en valeur et en pourcentage du chiffre (retour du 08/09, gardes H1). */
     private long marge;
+    /* Retour des tests du 09/09 : filtres famille / rayon / grossiste et colonne stock. */
+    private String familleId = "";
+    private String rayonId = "";
+    private String grossisteId = "";
+    private long stock;
 
     public String getProduitId() {
         return produitId;
@@ -105,5 +110,31 @@ public class GardeProduitDTO implements Serializable {
     /** Taux de marge : marge rapportee au chiffre d'affaires du produit, en pourcentage. */
     public double getTauxMarge() {
         return montant > 0 ? marge * 100D / montant : 0D;
+    }
+
+    public String getFamilleId() {
+        return familleId;
+    }
+
+    public String getRayonId() {
+        return rayonId;
+    }
+
+    public String getGrossisteId() {
+        return grossisteId;
+    }
+
+    public void setRattachements(String familleId, String rayonId, String grossisteId) {
+        this.familleId = familleId == null ? "" : familleId;
+        this.rayonId = rayonId == null ? "" : rayonId;
+        this.grossisteId = grossisteId == null ? "" : grossisteId;
+    }
+
+    public long getStock() {
+        return stock;
+    }
+
+    public void setStock(long stock) {
+        this.stock = stock;
     }
 }

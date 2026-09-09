@@ -36,6 +36,15 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #grilleAbc': {selectionchange: this.doCompterCoches},
             'gardemanager #abcClasse': {select: this.doAnalyser},
             'gardemanager #abcTri': {select: this.doAnalyser},
+            // Retour des tests du 09/09 : filtres emplacement / famille / grossiste, clic sur une classe,
+            // exports des commandes non vendues.
+            'gardemanager #abcRayon': {select: this.doAnalyser},
+            'gardemanager #abcFamille': {select: this.doAnalyser},
+            'gardemanager #abcGrossiste': {select: this.doAnalyser},
+            'gardemanager #abcEffacer': {click: this.doEffacerFiltres},
+            'gardemanager #grilleResumeAbc': {itemclick: this.doChoisirClasse},
+            'gardemanager #commandesImprimer': {click: this.doImprimerCommandes},
+            'gardemanager #commandesExporter': {click: this.doExporterCommandes},
             // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
             'gardemanager #abcLimite': {change: {fn: this.doAnalyser, buffer: 600}},
             'gardemanager #gardeImprimer': {click: this.doImprimer},
@@ -380,6 +389,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
     viderAnalyse: function () {
         var ecran = this.getGardeManager();
         ecran.trancheStore.removeAll();
+        ecran.abcStore.getProxy().data = [];
         ecran.abcStore.removeAll();
         ecran.resumeStore.removeAll();
         ecran.vendeurStore.removeAll();
@@ -403,13 +413,58 @@ Ext.define('testextjs.controller.GardeCtrl', {
             heures: valeur('gardeHeures', 2),
             classe: valeur('abcClasse', ''),
             tri: valeur('abcTri', 'montant'),
-            limite: valeur('abcLimite', 0)
+            limite: valeur('abcLimite', 0),
+            famille: valeur('abcFamille', ''),
+            rayon: valeur('abcRayon', ''),
+            grossiste: valeur('abcGrossiste', '')
         };
     },
 
     /** Les parametres du rapport sans l'identifiant, tels qu'on les passe a l'URL. */
     parametresRapport: function (params) {
-        return {heures: params.heures, classe: params.classe, tri: params.tri, limite: params.limite};
+        return {heures: params.heures, classe: params.classe, tri: params.tri, limite: params.limite,
+            famille: params.famille, rayon: params.rayon, grossiste: params.grossiste};
+    },
+
+    /** Un clic sur une classe du resume filtre les produits de droite sur cette classe (bascule). */
+    doChoisirClasse: function (grille, ligne) {
+        var ecran = this.getGardeManager();
+        var combo = ecran.down('#abcClasse');
+        var classe = ligne.get('classe') || '';
+        combo.setValue(combo.getValue() === classe ? '' : classe);
+        this.doAnalyser();
+    },
+
+    doEffacerFiltres: function () {
+        var ecran = this.getGardeManager();
+        Ext.each(['abcRayon', 'abcFamille', 'abcGrossiste'], function (itemId) {
+            var champ = ecran.down('#' + itemId);
+            if (champ) {
+                champ.clearValue();
+            }
+        });
+        ecran.down('#abcClasse').setValue('');
+        ecran.down('#abcLimite').setValue(0);
+        this.doAnalyser();
+    },
+
+    doImprimerCommandes: function () {
+        var garde = this.gardeCourante();
+        if (!garde) {
+            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+            return;
+        }
+        // Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire.
+        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/pdf');
+    },
+
+    doExporterCommandes: function () {
+        var garde = this.gardeCourante();
+        if (!garde) {
+            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+            return;
+        }
+        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/excel');
     },
 
     doAnalyser: function () {
@@ -435,7 +490,9 @@ Ext.define('testextjs.controller.GardeCtrl', {
                     return;
                 }
                 ecran.trancheStore.loadData(objet.tranches || []);
-                ecran.abcStore.loadData(objet.abc || []);
+                // Pagination locale : le magasin decoupe la vue filtree rendue par le serveur.
+                ecran.abcStore.getProxy().data = objet.abc || [];
+                ecran.abcStore.loadPage(1);
                 ecran.resumeStore.loadData(objet.resumeAbc || []);
                 ecran.down('#abcCoches').setText('');
                 // Les onglets vendeurs et commandes suivent la garde choisie, s'ils sont ouverts.
@@ -447,7 +504,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 } else if (actif && actif.itemId === 'ongletActivite') {
                     me.redessiner('#courbeActivite');
                 }
-                var affiches = (objet.abc || []).length;
+                var affiches = objet.totalFiltre !== undefined ? objet.totalFiltre : (objet.abc || []).length;
                 var total = objet.totalAbc || affiches;
                 ecran.down('#abcCompte').setText(affiches < total
                         ? '<b>' + affiches + '</b> produit(s) affich&eacute;(s) sur ' + total
