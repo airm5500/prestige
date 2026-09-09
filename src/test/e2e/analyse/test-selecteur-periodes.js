@@ -76,6 +76,8 @@ function moisAttendus(nombre) {
       // une deuxieme application ne doit pas poser un second selecteur
       window.PrestigeAnalyse.appliquerSiConcerne(balance);
       resultat.nbSelecteurs = balance.query('#typePeriode').length;
+      // le selecteur n'est PAS sur l'onglet Balance (retour des tests du 09/09)
+      resultat.selecteurSurBalance = !!balance.down('#ongletBalance').down('#typePeriode');
       resultat.onglets = balance.down('#ongletsBalance').items.getRange().map(o => o.title);
       resultat.grilleAnalyse = !!balance.down('#ongletAnalyseBalance');
       balance.destroy();
@@ -98,10 +100,13 @@ function moisAttendus(nombre) {
       hors.destroy();
       return resultat;
     });
-    ok('La balance n\'avait pas de selecteur', pose.avantPose === false);
-    ok('Le selecteur lui est pose automatiquement', pose.apresPose === true);
+    // Retour des tests du 09/09 (lot N) : la balance porte son propre selecteur, sur l'onglet
+    // Analyse comparative (et un second sur l'evolution par mode) ; l'injecteur ne pose rien.
+    ok('La balance porte son propre selecteur (onglet Analyse)', pose.avantPose === true);
+    ok('L\'injecteur le laisse tel quel', pose.apresPose === true);
     ok('Il propose 3 derniers mois par defaut', pose.valeurDefaut === 'TROIS_MOIS', pose.valeurDefaut);
     ok('Une seconde application n\'en pose pas un deuxieme', pose.nbSelecteurs === 1, pose.nbSelecteurs);
+    ok('L\'onglet Balance n\'a pas de liste deroulante de periode', pose.selecteurSurBalance === false);
     // Retour du 09/09 (point 4) : un troisieme onglet, l'evolution par mode de paiement.
     ok('La balance a bien ses onglets (Balance, Analyse comparative, Evolution par mode)', pose.onglets.length === 3, pose.onglets.join(' | '));
     ok('Le second est l\'analyse comparative',

@@ -53,7 +53,7 @@ public class BalanceVenteRessource {
         }
 
         JSONObject json = balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
-                .dtEnd(dtEnd).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build());
+                .dtEnd(dtEnd).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).avecTva(true).build());
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -134,9 +134,27 @@ public class BalanceVenteRessource {
             data.put(ligne);
             precedentNet = net;
         }
+        java.util.List<JSONObject> modesOrdonnes = ordonnerModes(modesRencontres.values());
+        java.util.List<String> idsModes = new java.util.ArrayList<>();
+        for (JSONObject m : modesOrdonnes) {
+            idsModes.add(m.optString("modeId"));
+        }
+        // Retour des tests du 09/09 : taux d'evolution sur chaque indicateur, total general, et les
+        // series du graphique sous l'analyse (mois par annee, jours par semaine, ou une barre par periode).
+        JSONObject total = rest.service.impl.AnalyseBalance.evolutionsEtTotal(data,
+                java.util.Arrays.asList(CHAMPS_ANALYSE_BALANCE), idsModes);
+        util.PeriodesCa.Type type = util.PeriodesCa.Type.de(typePeriode);
+        JSONArray jours = null;
+        if (!tranches.isEmpty()
+                && (type == util.PeriodesCa.Type.TROIS_ANS || type == util.PeriodesCa.Type.TROIS_SEMAINES)) {
+            jours = balanceService.chiffreParJour(BalanceParamsDTO.builder()
+                    .dtStart(tranches.get(0).getDebut().toString())
+                    .dtEnd(tranches.get(tranches.size() - 1).getFin().toString()).emplacementId(emplacement).build());
+        }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
-                        .put("modes", new JSONArray(ordonnerModes(modesRencontres.values())))
+                        .put("modes", new JSONArray(modesOrdonnes)).put("totalGeneral", total)
+                        .put("graphique", rest.service.impl.AnalyseBalance.graphique(type, tranches, data, jours))
                         // Une seule tranche : l'ecran affiche les chiffres bruts, pas une comparaison.
                         .put("comparatif", data.length() >= 2).toString())
                 .build();

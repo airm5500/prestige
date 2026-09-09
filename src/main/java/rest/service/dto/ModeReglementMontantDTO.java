@@ -15,6 +15,7 @@ public class ModeReglementMontantDTO {
     private final String libelle;
     private final boolean mobile;
     private long montant;
+    private long ventes;
 
     public ModeReglementMontantDTO(String modeId, String libelle, boolean mobile, long montant) {
         this.modeId = modeId;
@@ -41,6 +42,14 @@ public class ModeReglementMontantDTO {
 
     public void ajouter(long valeur) {
         this.montant += valeur;
+    }
+
+    public long getVentes() {
+        return ventes;
+    }
+
+    public void ajouterVentes(long nombre) {
+        this.ventes += nombre;
     }
 
     @Override

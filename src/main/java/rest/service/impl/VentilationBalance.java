@@ -72,23 +72,34 @@ public final class VentilationBalance {
         JSONArray operateurs = new JSONArray();
         long montantMobile = 0;
         long montantEspeces = 0;
+        long ventesMobile = 0;
+        long ventesEspeces = 0;
         for (ModeReglementMontantDTO mode : tries) {
+            // Le nombre de ventes reglees dans ce mode et sa part du nombre total de ventes (retour des tests
+            // du 09/09). Une vente reglee moitie especes, moitie mobile compte dans les deux modes.
             JSONObject o = new JSONObject().put("modeId", mode.getModeId()).put("libelle", mode.getLibelle())
                     .put("mobile", mode.isMobile()).put("montant", mode.getMontant())
-                    .put("part", pourcentage(mode.getMontant(), chiffreAffaires));
+                    .put("part", pourcentage(mode.getMontant(), chiffreAffaires)).put("ventes", mode.getVentes())
+                    .put("partVentes", pourcentage(mode.getVentes(), totalVentes));
             listeModes.put(o);
             if (mode.isMobile()) {
                 montantMobile += mode.getMontant();
+                ventesMobile += mode.getVentes();
                 operateurs.put(o);
             } else if (Constant.MODE_ESP.equals(mode.getModeId())) {
                 montantEspeces += mode.getMontant();
+                ventesEspeces += mode.getVentes();
             }
         }
         json.put("modes", listeModes);
-        json.put("mobile", new JSONObject().put("montant", montantMobile)
-                .put("part", pourcentage(montantMobile, chiffreAffaires)).put("operateurs", operateurs));
-        json.put("especes", new JSONObject().put("montant", montantEspeces).put("part",
-                pourcentage(montantEspeces, chiffreAffaires)));
+        json.put("mobile",
+                new JSONObject().put("montant", montantMobile).put("part", pourcentage(montantMobile, chiffreAffaires))
+                        .put("ventes", ventesMobile).put("partVentes", pourcentage(ventesMobile, totalVentes))
+                        .put("operateurs", operateurs));
+        json.put("especes",
+                new JSONObject().put("montant", montantEspeces)
+                        .put("part", pourcentage(montantEspeces, chiffreAffaires)).put("ventes", ventesEspeces)
+                        .put("partVentes", pourcentage(ventesEspeces, totalVentes)));
         // La part a credit du chiffre d'affaires : ce que les organismes doivent, et non ce que les clients
         // ont verse au comptoir.
         long montantTp = summary == null ? 0 : summary.getMontantTp();
@@ -133,6 +144,26 @@ public final class VentilationBalance {
             }
         }
         return new JSONObject().put("nombre", nombre).put("montant", montant);
+    }
+
+    /**
+     * La repartition du chiffre par taux de TVA (retour des tests du 09/09) : une ligne par taux, avec le HT, la TVA,
+     * le TTC et la part du TTC total, du taux le plus represente au moins represente.
+     */
+    public static JSONArray tva(List<commonTasks.dto.TvaDTO> lignes) {
+        JSONArray resultat = new JSONArray();
+        List<commonTasks.dto.TvaDTO> triees = new ArrayList<>(lignes == null ? List.of() : lignes);
+        long totalTtc = 0;
+        for (commonTasks.dto.TvaDTO l : triees) {
+            totalTtc += l.getMontantTtc();
+        }
+        triees.sort(Comparator.comparingLong(commonTasks.dto.TvaDTO::getMontantTtc).reversed());
+        for (commonTasks.dto.TvaDTO l : triees) {
+            resultat.put(new JSONObject().put("taux", l.getTaux() == null ? 0 : l.getTaux())
+                    .put("montantHt", l.getMontantHt()).put("montantTva", l.getMontantTva())
+                    .put("montantTtc", l.getMontantTtc()).put("part", pourcentage(l.getMontantTtc(), totalTtc)));
+        }
+        return resultat;
     }
 
     /** Part en pourcentage, a une decimale ; zero quand le total est nul. */

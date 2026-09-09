@@ -118,9 +118,9 @@ public class BalanceServiceImpl implements BalanceService {
     private static final String STAT_LAST_THREE_YEARS = "SELECT YEAR(p.`dt_UPDATED`) AS annee, MONTH(p.`dt_UPDATED`) AS mois,SUM(d.int_PRICE) AS montantTTC FROM t_preenregistrement_detail d,t_preenregistrement p,t_user u ,mvttransaction m WHERE p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID AND p.`lg_PREENREGISTREMENT_ID`=m.pkey  AND  d.`bool_ACCOUNT` "
             + " AND p.lg_TYPE_VENTE_ID <> ?1 AND p.str_STATUT='is_Closed'  AND p.imported=0 AND YEAR(p.dt_UPDATED)  BETWEEN ?2 AND ?3 AND p.lg_USER_ID=u.lg_USER_ID AND u.lg_EMPLACEMENT_ID=?4 GROUP BY annee,mois ";
 
-    private static final String TYPE_REGELEMENT_QUERY = "SELECT SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY typeReglement,typeVente ";
+    private static final String TYPE_REGELEMENT_QUERY = "SELECT SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca,COUNT(DISTINCT vr.vente_id) AS ventes FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY typeReglement,typeVente ";
 
-    private static final String TYPE_REGELEMENT_QUERY_BY_DAY = "SELECT DATE_FORMAT(p.`dt_UPDATED`,'%Y-%m-%d') AS mvtDate, SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY mvtDate,typeReglement,typeVente ";
+    private static final String TYPE_REGELEMENT_QUERY_BY_DAY = "SELECT DATE_FORMAT(p.`dt_UPDATED`,'%Y-%m-%d') AS mvtDate, SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca,COUNT(DISTINCT vr.vente_id) AS ventes FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY mvtDate,typeReglement,typeVente ";
 
     private final Comparator<TableauBaordPhDTO> comparator = Comparator.comparing(TableauBaordPhDTO::getMvtDate);
 
@@ -198,9 +198,11 @@ public class BalanceServiceImpl implements BalanceService {
             long montant = ((r.getMontantAttentu() - r.getFlagedAmount()) - (checkUg ? r.getUgNetAmount() : 0))
                     - r.getAmountNonCa();
             String modeId = r.getTypeReglement();
-            parMode.computeIfAbsent(modeId,
-                    k -> new ModeReglementMontantDTO(k, libelleMode(k, r.getLibelle()), util.MobileMoney.est(k), 0))
-                    .ajouter(montant);
+            ModeReglementMontantDTO mode = parMode.computeIfAbsent(modeId,
+                    k -> new ModeReglementMontantDTO(k, libelleMode(k, r.getLibelle()), util.MobileMoney.est(k), 0));
+            mode.ajouter(montant);
+            // Retour des tests du 09/09 : le nombre de ventes reglees dans ce mode (comptant + credit).
+            mode.ajouterVentes(r.getVentes());
         }
         return new ArrayList<>(parMode.values());
     }
@@ -240,9 +242,51 @@ public class BalanceServiceImpl implements BalanceService {
         JSONObject json = FunctionUtils.returnData(balances, balances.size(), summary);
         // Retour du 09/09, point 4 : la ventilation voyage avec la balance, sous une cle a part. La grille
         // ne lit que data / metaData ; le document sous la grille lit « ventilation ».
-        json.put("ventilation", VentilationBalance.construire(balances, summary, generic.getModesReglement(),
-                generic.getMouvementsCaisse()));
+        JSONObject ventilation = VentilationBalance.construire(balances, summary, generic.getModesReglement(),
+                generic.getMouvementsCaisse());
+        if (balanceParams.isAvecTva()) {
+            // Retour des tests du 09/09 : la repartition du chiffre par taux de TVA, calculee par la statistique
+            // TVA existante (memes bornes, meme emplacement), jointe au document de la balance.
+            ventilation.put("tva", VentilationBalance.tva(statistiqueTvaPeriodique(balanceParams)));
+        }
+        json.put("ventilation", ventilation);
         return json;
+    }
+
+    /**
+     * Retour des tests du 09/09 : le net TTC et le nombre de ventes par jour, sur le perimetre de la balance (ventes
+     * cloturees, non importees, de l'emplacement, hors depot extension, hors exclues ; lignes comptees dans le CA,
+     * remise deduite). Sert aux graphiques de l'analyse comparative : un seul passage, quelle que soit la periode.
+     */
+    private static final String CA_PAR_JOUR_SQL = "SELECT DATE(p.dt_UPDATED) AS jour,"
+            + " SUM(CASE WHEN d.bool_ACCOUNT THEN d.int_PRICE ELSE 0 END) - SUM(IFNULL(d.int_PRICE_REMISE,0)) AS montantNet,"
+            + " COUNT(DISTINCT CASE WHEN p.int_PRICE < 0 OR p.b_IS_CANCEL = 1 THEN NULL ELSE p.lg_PREENREGISTREMENT_ID END) AS ventes"
+            + " FROM t_preenregistrement p JOIN mvttransaction m ON m.pkey = p.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.dt_UPDATED >= ?3 AND p.dt_UPDATED < DATE_ADD(?4, INTERVAL 1 DAY) AND p.str_STATUT = 'is_Closed'"
+            + " AND p.lg_TYPE_VENTE_ID <> ?1 AND m.lg_EMPLACEMENT_ID = ?2 AND p.imported = 0 {excludeStatement}"
+            + " GROUP BY jour ORDER BY jour";
+
+    @Override
+    public JSONArray chiffreParJour(BalanceParamsDTO balanceParams) {
+        JSONArray jours = new JSONArray();
+        try {
+            Query query = em.createNativeQuery(replacePlaceHolder(CA_PAR_JOUR_SQL, balanceParams), Tuple.class)
+                    .setParameter(1, Constant.DEPOT_EXTENSION).setParameter(2, balanceParams.getEmplacementId())
+                    .setParameter(3, java.sql.Date.valueOf(balanceParams.getDtStart()))
+                    .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
+            for (Object o : query.getResultList()) {
+                Tuple t = (Tuple) o;
+                Object montant = t.get("montantNet");
+                Object ventes = t.get("ventes");
+                jours.put(new JSONObject().put("jour", String.valueOf(t.get("jour")))
+                        .put("montantNet", montant instanceof Number ? ((Number) montant).longValue() : 0L)
+                        .put("ventes", ventes instanceof Number ? ((Number) ventes).longValue() : 0L));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "chiffre par jour", e);
+        }
+        return jours;
     }
 
     @Override
@@ -1305,6 +1349,8 @@ public class BalanceServiceImpl implements BalanceService {
         venteReglement.setUgNetAmount(tuple.get("ug_amount_net", BigDecimal.class).longValue());
         venteReglement.setUgTtcAmount(tuple.get("ug_amount", BigDecimal.class).longValue());
         venteReglement.setAmountNonCa(tuple.get("amount_non_ca", BigDecimal.class).longValue());
+        Object ventes = tuple.get("ventes");
+        venteReglement.setVentes(ventes instanceof Number ? ((Number) ventes).longValue() : 0L);
         return venteReglement;
     }
 

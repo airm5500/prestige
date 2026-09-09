@@ -38,4 +38,6 @@ public class BalanceParamsDTO {
     private int start;
     private int limi;
     private boolean all;
+    /** Retour des tests du 09/09 : joindre la repartition par taux de TVA a la vue de la balance. */
+    private boolean avecTva;
 }

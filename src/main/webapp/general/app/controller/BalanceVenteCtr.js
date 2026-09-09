@@ -1,155 +1,71 @@
 /* global Ext */
 
+/*
+ * Balance vente / caisse.
+ *
+ * Retour des tests du 09/09 : chaque onglet a sa propre recherche (dates, et selecteur de periode
+ * sur les deux onglets d'analyse) ; la grille Balance n'est plus paginee ; l'analyse comparative
+ * porte les taux d'evolution, un total general, un graphique ; l'evolution par mode porte ses taux ;
+ * les barres du bas (affichage historique) ne s'affichent que sur l'onglet Balance.
+ */
 Ext.define('testextjs.controller.BalanceVenteCtr', {
     extend: 'Ext.app.Controller',
     views: ['testextjs.view.caisseManager.balance.BalanceSaleCash'],
-    refs: [{
-            ref: 'balancesalecahs',
-            selector: 'balancesalecahs'
-        },
-        {
-            ref: 'imprimerBtn',
-            selector: 'balancesalecahs #imprimer'
-        },
-
-        {
-            ref: 'balanceGrid',
-            selector: 'balancesalecahs #balanceGrid'
-        },
-        {
-            ref: 'pagingtoolbar',
-            selector: 'balancesalecahs #balanceGrid pagingtoolbar'
-        }
-
-        , {
-            ref: 'dtStart',
-            selector: 'balancesalecahs #dtStart'
-        }, {
-            ref: 'dtEnd',
-            selector: 'balancesalecahs #dtEnd'
-        },
-        {ref: 'rechercherButton',
-            selector: 'balancesalecahs #rechercher'
-
-        }, {
-            ref: 'typePeriode',
-            // Le selecteur de periodes est pose par resources/js/selecteur-periodes.js, pas par la
-            // vue : il peut donc etre absent si l'ecran est retire de la liste. Tous les acces
-            // le testent.
-            selector: 'balancesalecahs #typePeriode'
-        }, {
-            ref: 'ongletsBalance',
-            selector: 'balancesalecahs #ongletsBalance'
-        },
-        {
-            ref: 'ventilationBalance',
-            selector: 'balancesalecahs #ventilationBalance'
-        },
-        {
-            ref: 'grilleModesBalance',
-            selector: 'balancesalecahs #ongletModesBalance'
-        }, {
-            ref: 'grilleAnalyse',
-            selector: 'balancesalecahs #ongletAnalyseBalance'
-        }, {
-            ref: 'montantTTC',
-            selector: 'balancesalecahs #montantTTC'
-        }, {
-            ref: 'montantAchat',
-            selector: 'balancesalecahs #montantAchat'
-        },
-        {
-            ref: 'ratioVA',
-            selector: 'balancesalecahs #ratioVA'
-        }, {
-            ref: 'fondCaisse',
-            selector: 'balancesalecahs #fondCaisse'
-        },
-        {
-            ref: 'montantMobilePayment',
-            selector: 'balancesalecahs #montantMobilePayment'
-        },
-        {
-            ref: 'montantRegDiff',
-            selector: 'balancesalecahs #montantRegDiff'
-        },
-        {
-            ref: 'montantRegleTp',
-            selector: 'balancesalecahs #montantRegleTp'
-        },
-        {
-            ref: 'montantSortie',
-            selector: 'balancesalecahs #montantSortie'
-        },
-        {
-            ref: 'montantEntre',
-            selector: 'balancesalecahs #montantEntre'
-        },
-        {
-            ref: 'montantEsp',
-            selector: 'balancesalecahs #montantEsp'
-        },
-        {
-            ref: 'panierMoyen',
-            selector: 'balancesalecahs #panierMoyen'
-        },
-        {
-            ref: 'nbreVente',
-            selector: 'balancesalecahs #nbreVente'
-        }, {
-            ref: 'montantCheque',
-            selector: 'balancesalecahs #montantCheque'
-        }, {
-            ref: 'montantVirement',
-            selector: 'balancesalecahs #montantVirement'
-        }
-        ,
-        {
-            ref: 'marge',
-            selector: 'balancesalecahs #marge'
-        }
+    refs: [
+        {ref: 'balancesalecahs', selector: 'balancesalecahs'},
+        {ref: 'imprimerBtn', selector: 'balancesalecahs #imprimer'},
+        {ref: 'balanceGrid', selector: 'balancesalecahs #balanceGrid'},
+        {ref: 'dtStart', selector: 'balancesalecahs #dtStart'},
+        {ref: 'dtEnd', selector: 'balancesalecahs #dtEnd'},
+        {ref: 'rechercherButton', selector: 'balancesalecahs #rechercher'},
+        {ref: 'typePeriode', selector: 'balancesalecahs #typePeriode'},
+        {ref: 'ongletsBalance', selector: 'balancesalecahs #ongletsBalance'},
+        {ref: 'ventilationBalance', selector: 'balancesalecahs #ventilationBalance'},
+        {ref: 'syntheseBalance', selector: 'balancesalecahs #syntheseBalance'},
+        {ref: 'grilleAnalyse', selector: 'balancesalecahs #grilleAnalyse'},
+        {ref: 'grilleModesBalance', selector: 'balancesalecahs #grilleModes'},
+        {ref: 'graphiqueAnalyse', selector: 'balancesalecahs #graphiqueAnalyse'},
+        {ref: 'montantTTC', selector: 'balancesalecahs #montantTTC'},
+        {ref: 'montantAchat', selector: 'balancesalecahs #montantAchat'},
+        {ref: 'ratioVA', selector: 'balancesalecahs #ratioVA'},
+        {ref: 'fondCaisse', selector: 'balancesalecahs #fondCaisse'},
+        {ref: 'montantMobilePayment', selector: 'balancesalecahs #montantMobilePayment'},
+        {ref: 'montantRegDiff', selector: 'balancesalecahs #montantRegDiff'},
+        {ref: 'montantRegleTp', selector: 'balancesalecahs #montantRegleTp'},
+        {ref: 'montantSortie', selector: 'balancesalecahs #montantSortie'},
+        {ref: 'montantEntre', selector: 'balancesalecahs #montantEntre'},
+        {ref: 'montantEsp', selector: 'balancesalecahs #montantEsp'},
+        {ref: 'panierMoyen', selector: 'balancesalecahs #panierMoyen'},
+        {ref: 'nbreVente', selector: 'balancesalecahs #nbreVente'},
+        {ref: 'montantCheque', selector: 'balancesalecahs #montantCheque'},
+        {ref: 'montantVirement', selector: 'balancesalecahs #montantVirement'},
+        {ref: 'marge', selector: 'balancesalecahs #marge'}
     ],
     config: {
         checkUg: false
-
     },
 
     init: function (application) {
         this.control({
-           /* 'balancesalecahs': {
-                render: this.onReady
-            },*/
-            'balancesalecahs #balanceGrid pagingtoolbar': {
-                beforechange: this.doBeforechange
-            },
-            'balancesalecahs #rechercher': {
-                click: this.doSearch
-            },
-            'balancesalecahs #typePeriode': {
-                select: this.surChangementPeriode
-            },
-            'balancesalecahs #analyseExporter': {
-                click: this.exporterAnalyse
-            },
-            'balancesalecahs #analyseImprimer': {
-                click: this.imprimerAnalyse
-            },
-            'balancesalecahs #modesImprimer': {
-                click: this.imprimerAnalyse
-            },
-            'balancesalecahs #modesExporter': {
-                click: this.exporterModes
-            },
-            'balancesalecahs #imprimer': {
-                click: this.onPdfClick
-            },
-
-            'balancesalecahs #balanceGrid': {
-                viewready: this.doInitStore
-            }
-
+            'balancesalecahs #rechercher': {click: this.doSearch},
+            'balancesalecahs #imprimer': {click: this.onPdfClick},
+            'balancesalecahs #balanceGrid': {viewready: this.doInitStore},
+            'balancesalecahs #ongletsBalance': {tabchange: this.surChangementOnglet},
+            // onglet Analyse comparative
+            'balancesalecahs #rechercherAnalyse': {click: this.chargerAnalyse},
+            'balancesalecahs #typePeriode': {select: this.chargerAnalyse},
+            'balancesalecahs #analyseExporter': {click: this.exporterAnalyse},
+            'balancesalecahs #analyseImprimer': {click: this.imprimerAnalyse},
+            // onglet Evolution par mode de paiement
+            'balancesalecahs #rechercherModes': {click: this.chargerModes},
+            'balancesalecahs #typePeriodeModes': {select: this.chargerModes},
+            'balancesalecahs #modesImprimer': {click: this.imprimerModes},
+            'balancesalecahs #modesExporter': {click: this.exporterModes}
         });
     },
+
+    /* ------------------------------------------------------------------ onglet Balance */
+
     onPdfClick: function () {
         let me = this;
         let dtStart = me.getDtStart().getSubmitValue();
@@ -158,37 +74,40 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         let linkUrl = '../BalancePdfServlet?mode=BALANCE&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug;
         window.open(linkUrl);
     },
+
     doMetachange: function (store, meta) {
-        const me = this;
-        me.buildSummary(meta);
-
-    },
-    doBeforechange: function (page, currentPage) {
-        const me = this;
-        const myProxy = me.getBalanceGrid().getStore().getProxy();
-        myProxy.params = {
-            dtEnd: null,
-            dtStart: null
-
-        };
-      
-        myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
-        myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
-
+        this.buildSummary(meta);
     },
 
     doInitStore: function () {
         const me = this;
-        me.getBalanceGrid().getStore().addListener('metachange', this.doMetachange, this);
-        // Retour du 09/09, point 4 : la ventilation voyage dans la meme reponse que la grille,
-        // sous la cle « ventilation » que le lecteur du magasin ignore. Elle est relue ici.
-        me.getBalanceGrid().getStore().addListener('load', this.afficherVentilation, this);
+        const store = me.getBalanceGrid().getStore();
+        store.addListener('metachange', this.doMetachange, this);
+        // La ventilation et la synthese voyagent dans la meme reponse que la grille, sous des cles
+        // que le lecteur du magasin ignore. Elles sont relues ici.
+        store.addListener('load', this.afficherVentilation, this);
         me.doSearch();
+    },
+
+    doSearch: function () {
+        const me = this;
+        // Un controleur ExtJS est global : ses « refs » ne designent un composant que tant qu'un
+        // ecran est ouvert. Ne rien faire quand il est ferme est la bonne reponse.
+        if (!me.getBalanceGrid() || !me.getDtStart() || !me.getDtEnd()) {
+            return;
+        }
+        me.getBalanceGrid().getStore().load({
+            params: {
+                dtStart: me.getDtStart().getSubmitValue(),
+                dtEnd: me.getDtEnd().getSubmitValue()
+            }
+        });
     },
 
     afficherVentilation: function (store) {
         const me = this;
         const panneau = me.getVentilationBalance();
+        const synthese = me.getSyntheseBalance();
         if (!panneau || panneau.isDestroyed) {
             return;
         }
@@ -196,99 +115,246 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         const ventilation = brut.ventilation;
         if (!ventilation || !ventilation.comptant) {
             panneau.update('<div style="padding:10px;color:#7f8c8d;">Aucune vente sur la p&eacute;riode.</div>');
+            if (synthese) {
+                synthese.update('');
+            }
             return;
         }
         panneau.update(ventilation);
+        if (synthese && !synthese.isDestroyed) {
+            synthese.update({lignes: brut.data || [], resume: brut.metaData || {}});
+        }
     },
 
-    doSearch: function () {
-        const me = this;
-        // Un controleur ExtJS est global : ses « refs » ne designent un composant que tant qu'un
-        // ecran est ouvert. Une recherche declenchee juste apres la fermeture -- rechargement d'un
-        // magasin, appel differe -- trouverait des refs vides. Ne rien faire est alors la bonne
-        // reponse ; sans ce test, la console se remplit d'erreurs sans consequence visible, ce qui
-        // finit par masquer les vraies.
-        if (!me.getBalanceGrid() || !me.getDtStart() || !me.getDtEnd()) {
+    /** Les barres du bas (affichage historique) ne concernent que l'onglet Balance. */
+    surChangementOnglet: function (onglets, nouvel) {
+        const ecran = this.getBalancesalecahs();
+        if (!ecran) {
             return;
         }
-        let store = me.getBalanceGrid().getStore();
-        store.load({
-            params: {
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue()
-
+        const surBalance = nouvel && nouvel.itemId === 'ongletBalance';
+        Ext.each(['recapBas1', 'recapBas2', 'recapBas3'], function (itemId) {
+            const barre = ecran.down('#' + itemId);
+            if (barre) {
+                barre.setVisible(!!surBalance);
             }
         });
-        me.chargerAnalyse();
+        // Un onglet d'analyse ouvert pour la premiere fois se charge de lui-meme.
+        if (nouvel && nouvel.itemId === 'ongletAnalyseBalance' && this.getGrilleAnalyse()
+                && this.getGrilleAnalyse().getStore().getCount() === 0) {
+            this.chargerAnalyse();
+        } else if (nouvel && nouvel.itemId === 'ongletModesBalance' && this.getGrilleModesBalance()
+                && this.getGrilleModesBalance().getStore().getCount() === 0) {
+            this.chargerModes();
+        }
     },
 
-    /**
-     * Alimente l'onglet d'analyse comparative.
-     *
-     * Les deux onglets sont charges par la MEME recherche : laisser l'analyse en arriere jusqu'a
-     * ce qu'on ouvre son onglet lui ferait afficher les chiffres de la recherche precedente, sans
-     * que rien ne l'indique.
-     */
-    chargerAnalyse: function () {
+    /* ------------------------------------------------------------------ recherche des onglets d'analyse */
+
+    /** Les criteres de l'onglet designe par son suffixe (« Analyse » ou « Modes »). */
+    criteres: function (suffixe) {
+        const ecran = this.getBalancesalecahs();
+        if (!ecran) {
+            return null;
+        }
+        const periode = ecran.down('#typePeriode' + (suffixe === 'Analyse' ? '' : suffixe));
+        const du = ecran.down('#dtStart' + suffixe);
+        const au = ecran.down('#dtEnd' + suffixe);
+        if (!du || !au) {
+            return null;
+        }
+        return {
+            typePeriode: periode ? periode.getValue() : 'LIBRE',
+            dtStart: du.getSubmitValue(),
+            dtEnd: au.getSubmitValue()
+        };
+    },
+
+    /** Un appel de l'analyse, avec l'indicateur « recherche en cours » sur l'onglet. */
+    appelerAnalyse: function (suffixe, onglet, succes) {
         const me = this;
-        const grille = me.getGrilleAnalyse();
-        const selecteur = me.getTypePeriode();
-        if (!grille || !me.getDtStart() || !me.getDtEnd()) {
+        const params = me.criteres(suffixe);
+        if (!params || !onglet) {
             return;
         }
+        onglet.setLoading('Recherche en cours...');
         Ext.Ajax.request({
             url: '../api/v1/balance/balancesalecash/analyse',
             method: 'GET',
-            params: {
-                typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue()
-            },
+            params: params,
             timeout: 600000,
+            callback: function () {
+                if (!onglet.isDestroyed) {
+                    onglet.setLoading(false);
+                }
+            },
             success: function (reponse) {
-                // L'ecran a pu etre ferme pendant le calcul : ecrire dans une grille detruite
-                // leverait une erreur pour un resultat que plus personne ne regarde.
-                if (grille.isDestroyed) {
+                if (onglet.isDestroyed) {
                     return;
                 }
-                const objet = Ext.JSON.decode(reponse.responseText, true) || {};
-                grille.getStore().loadData(objet.data || []);
-                const resume = grille.down('#analyseResume');
-                if (resume) {
-                    resume.setText(objet.comparatif ? me.MESSAGE_COMPARATIF : me.MESSAGE_PERIODE_UNIQUE);
-                }
-                me.construireEvolutionModes(objet);
+                succes(Ext.JSON.decode(reponse.responseText, true) || {}, params);
             },
             failure: function () {
-                if (!grille.isDestroyed) {
-                    grille.getStore().removeAll();
+                if (!onglet.isDestroyed) {
+                    Ext.MessageBox.alert('Erreur', 'L\'analyse n\'a pas pu &ecirc;tre calcul&eacute;e.');
                 }
             }
+        });
+    },
+
+    /* ------------------------------------------------------------------ onglet Analyse comparative */
+
+    chargerAnalyse: function () {
+        const me = this;
+        const grille = me.getGrilleAnalyse();
+        const ecran = me.getBalancesalecahs();
+        if (!grille || !ecran) {
+            return;
+        }
+        me.appelerAnalyse('Analyse', ecran.down('#ongletAnalyseBalance'), function (objet, params) {
+            ecran.totalAnalyse = objet.totalGeneral || {};
+            grille.getStore().loadData(objet.data || []);
+            const resume = grille.down('#analyseResume');
+            if (resume) {
+                resume.setText(objet.comparatif ? me.MESSAGE_COMPARATIF : me.MESSAGE_PERIODE_UNIQUE);
+            }
+            me.construireGraphiqueAnalyse(objet.graphique, params.typePeriode);
         });
     },
 
     /** Rappel affiche au-dessus de l'analyse quand plusieurs periodes sont comparees. */
     MESSAGE_COMPARATIF: 'Les p&eacute;riodes r&eacute;volues sont compl&egrave;tes ; celle en cours '
-            + 'est rappel&eacute;e &agrave; part et n&rsquo;est pas comparable telle quelle.',
+            + 'est rappel&eacute;e &agrave; part et n&rsquo;est pas comparable telle quelle. Sous chaque montant, '
+            + 'son &eacute;volution par rapport &agrave; la p&eacute;riode pr&eacute;c&eacute;dente.',
 
     /** Une seule periode ne fait pas une comparaison : on le dit plutot que d'afficher des ecarts vides. */
     MESSAGE_PERIODE_UNIQUE: 'Une seule p&eacute;riode : les chiffres bruts sont affich&eacute;s, sans '
-            + '&eacute;cart. Choisissez plusieurs p&eacute;riodes pour comparer.',
+            + '&eacute;volution. Choisissez plusieurs p&eacute;riodes pour comparer.',
 
-    /** Le changement de periode relance la recherche : les deux onglets restent d'accord. */
-    surChangementPeriode: function () {
-        this.doSearch();
+    /**
+     * Le graphique en barres sous l'analyse : mois en abscisse et une barre par annee (3 dernieres
+     * annees), jours de la semaine et une barre par semaine (3 dernieres semaines), ou une barre par
+     * periode. Avec sa legende.
+     */
+    construireGraphiqueAnalyse: function (graphique, typePeriode) {
+        const me = this;
+        const panneau = me.getGraphiqueAnalyse();
+        if (!panneau || panneau.isDestroyed) {
+            return;
+        }
+        panneau.removeAll(true);
+        panneau.update('');
+        const series = (graphique || {}).series || [];
+        const categories = (graphique || {}).categories || [];
+        if (!series.length || !categories.length) {
+            panneau.update('<div style="margin:20px;color:#666;">Aucune vente sur les p&eacute;riodes compar&eacute;es.</div>');
+            return;
+        }
+        const champs = ['categorie'].concat(series.map(function (s, i) {
+            return {name: 's' + i, type: 'number'};
+        }));
+        const donnees = categories.map(function (categorie, rang) {
+            const ligne = {categorie: categorie};
+            series.forEach(function (s, i) {
+                ligne['s' + i] = (s.valeurs || [])[rang] || 0;
+            });
+            return ligne;
+        });
+        const titres = series.map(function (s) {
+            return s.libelle;
+        });
+        panneau.add(Ext.create('Ext.chart.Chart', {
+            store: Ext.create('Ext.data.Store', {fields: champs, data: donnees}),
+            animate: false,
+            shadow: false,
+            legend: {position: 'bottom'},
+            insetPadding: 12,
+            axes: [{
+                    type: 'Numeric', position: 'left', fields: series.map(function (s, i) {
+                        return 's' + i;
+                    }),
+                    // Le titre de l'axe est court : un titre long se coupe a la hauteur du graphique ;
+                    // la lecture (mois par annee, jours par semaine) est dans l'axe du bas et la legende.
+                    title: 'Net TTC', grid: true, minimum: 0,
+                    label: {renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000');
+                        }}
+                }, {
+                    type: 'Category', position: 'bottom', fields: ['categorie'],
+                    title: graphique.type === 'ANNEES' ? 'Mois (une barre par année)'
+                            : (graphique.type === 'SEMAINES' ? 'Jour de la semaine (une barre par semaine)' : 'Période')
+                }],
+            series: [{
+                    type: 'column',
+                    axis: 'left',
+                    xField: 'categorie',
+                    yField: series.map(function (s, i) {
+                        return 's' + i;
+                    }),
+                    title: titres,
+                    gutter: 20,
+                    groupGutter: 4,
+                    tips: {
+                        trackMouse: true,
+                        width: 240,
+                        renderer: function (enregistrement, item) {
+                            const i = parseInt(String(item.yField).replace('s', ''), 10);
+                            this.setTitle(titres[i] + ' - ' + enregistrement.get('categorie') + ' : '
+                                    + Ext.util.Format.number(enregistrement.get(item.yField), '0,000'));
+                        }
+                    }
+                }]
+        }));
+        panneau.doLayout();
+    },
+
+    imprimerAnalyse: function () {
+        this.imprimer(this.criteres('Analyse'));
+    },
+
+    imprimerModes: function () {
+        this.imprimer(this.criteres('Modes'));
+    },
+
+    /** L'analyse comparative et l'evolution par mode en PDF, sur leur propre modele (jrxml), en flux. */
+    imprimer: function (params) {
+        if (!params) {
+            return;
+        }
+        window.open('../api/v1/balance/balancesalecash/analyse/pdf?' + Ext.Object.toQueryString(params));
+    },
+
+    exporterAnalyse: function () {
+        const params = this.criteres('Analyse');
+        if (params) {
+            // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
+            window.open('../api/v1/balance/balancesalecash/analyse/excel?' + Ext.Object.toQueryString(params));
+        }
+    },
+
+    /* ------------------------------------------------------------------ onglet Evolution par mode */
+
+    chargerModes: function () {
+        const me = this;
+        const grille = me.getGrilleModesBalance();
+        const ecran = me.getBalancesalecahs();
+        if (!grille || !ecran) {
+            return;
+        }
+        me.appelerAnalyse('Modes', ecran.down('#ongletModesBalance'), function (objet) {
+            me.construireEvolutionModes(objet);
+        });
     },
 
     /**
-     * L'onglet « evolution par mode de paiement » (retour du 09/09, point 4) : une ligne par
-     * periode, une colonne par mode rencontre. Les colonnes sont refaites a chaque recherche, car
-     * elles dependent des modes reellement encaisses sur les periodes comparees.
+     * Une ligne par periode, une colonne par mode rencontre ; sous chaque montant, son evolution
+     * par rapport a la periode precedente ; la ligne TOTAL en bas.
      */
     construireEvolutionModes: function (objet) {
         const me = this;
         const grille = me.getGrilleModesBalance();
-        if (!grille || grille.isDestroyed) {
+        const ecran = me.getBalancesalecahs();
+        if (!grille || grille.isDestroyed || !ecran) {
             return;
         }
         const modes = objet.modes || [];
@@ -296,11 +362,12 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         const montant = function (v) {
             return Ext.util.Format.number(v || 0, '0,000');
         };
-        const colonneMontant = function (entete, champ, mobile) {
+        const colonneMontant = function (entete, champ, cleEvolution) {
             return {
-                header: entete, dataIndex: champ, width: 105, align: 'right',
-                renderer: function (v) {
-                    return mobile ? '<span style="color:#2a4d69;">' + montant(v) + '</span>' : montant(v);
+                header: entete, dataIndex: champ, width: 110, align: 'right',
+                renderer: function (v, meta, ligne) {
+                    const evolutions = ligne.get('evolutions') || {};
+                    return ecran.montantAvecEvolution(v, cleEvolution ? evolutions[cleEvolution] : undefined);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -308,8 +375,9 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                 }
             };
         };
-        const champs = ['libelle', {name: 'enCours', type: 'boolean'}, {name: 'nbreVente', type: 'int'},
-            {name: 'montantNet', type: 'int'}, {name: 'montantMobile', type: 'int'}, {name: 'montantTp', type: 'int'}];
+        const champs = ['libelle', {name: 'enCours', type: 'boolean'}, {name: 'evolutions', type: 'auto'},
+            {name: 'nbreVente', type: 'int'}, {name: 'montantNet', type: 'int'}, {name: 'montantMobile', type: 'int'},
+            {name: 'montantTp', type: 'int'}];
         const colonnes = [{
                 header: 'P&eacute;riode', dataIndex: 'libelle', flex: 1, minWidth: 120,
                 renderer: function (valeur, meta, ligne) {
@@ -319,88 +387,76 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                     return '<b>TOTAL</b>';
                 }
             }, {
-                header: 'Ventes', dataIndex: 'nbreVente', width: 65, align: 'right', summaryType: 'sum',
+                header: 'Ventes', dataIndex: 'nbreVente', width: 70, align: 'right',
+                renderer: function (v, meta, ligne) {
+                    return ecran.montantAvecEvolution(v, (ligne.get('evolutions') || {}).nbreVente);
+                },
+                summaryType: 'sum',
                 summaryRenderer: function (v) {
                     return '<b>' + montant(v) + '</b>';
                 }
-            }, colonneMontant('Net TTC', 'montantNet')];
+            }, colonneMontant('Net TTC', 'montantNet', 'montantNet')];
         Ext.each(modes, function (mode, i) {
             champs.push({name: 'mode' + i, type: 'int'});
-            colonnes.push(colonneMontant(Ext.String.htmlEncode(mode.libelle)
-                    + (mode.mobile ? ' <span style="color:#7f8c8d;font-size:10px;">(mobile)</span>' : ''),
-                    'mode' + i, mode.mobile));
+            // Plus de mention « (mobile) » dans l'en-tete : le libelle du mode suffit.
+            colonnes.push(colonneMontant(Ext.String.htmlEncode(mode.libelle), 'mode' + i, 'mode' + i));
         });
-        colonnes.push(colonneMontant('Total mobile', 'montantMobile', true));
-        colonnes.push(colonneMontant('Tiers payant', 'montantTp'));
+        colonnes.push(colonneMontant('Total mobile', 'montantMobile', 'montantMobile'));
+        colonnes.push(colonneMontant('Tiers payant', 'montantTp', 'montantTp'));
         const donnees = lignes.map(function (ligne) {
+            const evolutions = Ext.apply({}, ligne.evolutions || {});
             const o = {libelle: ligne.libelle, enCours: ligne.enCours, nbreVente: ligne.nbreVente,
                 montantNet: ligne.montantNet, montantMobile: ligne.montantMobile, montantTp: ligne.montantTp};
             Ext.each(modes, function (mode, i) {
                 o['mode' + i] = (ligne.parModes || {})[mode.modeId] || 0;
+                evolutions['mode' + i] = ((ligne.evolutions || {}).parModes || {})[mode.modeId];
             });
+            o.evolutions = evolutions;
             return o;
         });
-        const magasin = Ext.create('Ext.data.Store', {fields: champs, data: donnees});
-        grille.reconfigure(magasin, colonnes);
+        grille.reconfigure(Ext.create('Ext.data.Store', {fields: champs, data: donnees}), colonnes);
         const resume = grille.down('#modesResume');
         if (resume) {
             resume.setText(modes.length
-                    ? modes.length + ' mode(s) de r&egrave;glement rencontr&eacute;(s) sur les p&eacute;riodes compar&eacute;es.'
+                    ? modes.length + ' mode(s) de r&egrave;glement rencontr&eacute;(s) ; sous chaque montant, son &eacute;volution par rapport &agrave; la p&eacute;riode pr&eacute;c&eacute;dente.'
                     : 'Aucun encaissement sur les p&eacute;riodes compar&eacute;es.');
         }
     },
 
-    /** L'analyse comparative et l'evolution par mode en PDF, sur leur propre modele (jrxml). */
-    imprimerAnalyse: function () {
-        const me = this;
-        const selecteur = me.getTypePeriode();
-        // Ouvert dans le clic, en flux : aucune fenetre surgissante intermediaire.
-        window.open('../api/v1/balance/balancesalecash/analyse/pdf?' + Ext.Object.toQueryString({
-            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
-            dtStart: me.getDtStart().getSubmitValue(),
-            dtEnd: me.getDtEnd().getSubmitValue()
-        }));
-    },
-
     exporterModes: function () {
-        const me = this;
-        const selecteur = me.getTypePeriode();
-        window.open('../api/v1/balance/balancesalecash/analyse/modes/excel?' + Ext.Object.toQueryString({
-            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
-            dtStart: me.getDtStart().getSubmitValue(),
-            dtEnd: me.getDtEnd().getSubmitValue()
-        }));
+        const params = this.criteres('Modes');
+        if (params) {
+            window.open('../api/v1/balance/balancesalecash/analyse/modes/excel?' + Ext.Object.toQueryString(params));
+        }
     },
 
-    exporterAnalyse: function () {
-        const me = this;
-        const selecteur = me.getTypePeriode();
-        // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
-        window.open('../api/v1/balance/balancesalecash/analyse/excel?' + Ext.Object.toQueryString({
-            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
-            dtStart: me.getDtStart().getSubmitValue(),
-            dtEnd: me.getDtEnd().getSubmitValue()
-        }));
-    },
+    /* ------------------------------------------------------------------ resume du bas (affichage historique) */
+
     buildSummary: function (rec) {
         const me = this;
-        me.getMontantTTC().setValue(rec.montantTTC);
-        me.getMontantAchat().setValue(rec.montantAchat);
-        me.getRatioVA().setValue(rec.ratioVA);
-        me.getFondCaisse().setValue(rec.fondCaisse);
-        me.getMontantRegDiff().setValue(rec.montantRegDiff);
-        me.getMontantRegleTp().setValue(rec.montantRegleTp);
-        me.getMontantSortie().setValue(rec.montantSortie);
-        me.getMontantEntre().setValue(rec.montantEntre);
-        me.getMontantEsp().setValue(rec.montantEsp);
-        me.getPanierMoyen().setValue(rec.panierMoyen);
-        me.getNbreVente().setValue(rec.nbreVente);
-        me.getMontantCheque().setValue(rec.montantCheque);
-        me.getMontantVirement().setValue(rec.montantVirement);
-        me.getMarge().setValue(rec.marge);
-        me.getMontantMobilePayment().setValue(rec.montantMobilePayment);
-
+        const poser = function (getter, valeur) {
+            const champ = me[getter] ? me[getter]() : null;
+            if (champ) {
+                champ.setValue(valeur);
+            }
+        };
+        poser('getMontantTTC', rec.montantTTC);
+        poser('getMontantAchat', rec.montantAchat);
+        poser('getRatioVA', rec.ratioVA);
+        poser('getFondCaisse', rec.fondCaisse);
+        poser('getMontantRegDiff', rec.montantRegDiff);
+        poser('getMontantRegleTp', rec.montantRegleTp);
+        poser('getMontantSortie', rec.montantSortie);
+        poser('getMontantEntre', rec.montantEntre);
+        poser('getMontantEsp', rec.montantEsp);
+        poser('getPanierMoyen', rec.panierMoyen);
+        poser('getNbreVente', rec.nbreVente);
+        poser('getMontantCheque', rec.montantCheque);
+        poser('getMontantVirement', rec.montantVirement);
+        poser('getMarge', rec.marge);
+        poser('getMontantMobilePayment', rec.montantMobilePayment);
     },
+
     oncheckUg: function () {
         const me = this;
         Ext.Ajax.request({
@@ -412,11 +468,10 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                     me.checkUg = result.data;
                 }
             }
-
         });
     },
+
     onReady: function () {
-        const me = this;
-        me.oncheckUg();
+        this.oncheckUg();
     }
 });

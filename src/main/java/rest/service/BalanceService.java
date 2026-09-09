@@ -40,6 +40,12 @@ public interface BalanceService {
 
     List<TvaDTO> statistiqueTvaPeriodique(BalanceParamsDTO balanceParams);
 
+    /**
+     * Le chiffre d'affaires net et le nombre de ventes de chaque JOUR de la periode, sur le perimetre de la balance
+     * (retour des tests du 09/09 : graphiques de l'analyse comparative). Chaque element : jour, montantNet, ventes.
+     */
+    org.json.JSONArray chiffreParJour(BalanceParamsDTO balanceParams);
+
     List<BalanceDTO> recapBalance(BalanceParamsDTO balanceParams);
 
     JSONObject etatLastThreeYears();

@@ -1316,3 +1316,12 @@ body.x-body,
 .classe-abc-lettre-a { color: #177a17; }
 .classe-abc-lettre-b { color: #1565c0; }
 .classe-abc-lettre-c { color: #a00000; }
+
+/* Retour des tests du 09/09 : balance modernisee (synthese, blocs larges, cartes du resume). */
+.ventilation-balance .vb-large { flex: 2 1 480px; }
+.ventilation-balance .vb-kpis { display: flex; flex-wrap: wrap; gap: 6px; }
+.ventilation-balance .vb-kpi { flex: 1 1 120px; background: #f3f6fa; border-radius: 3px; padding: 4px 8px; display: flex; flex-direction: column; }
+.ventilation-balance .vb-kpi-lib { color: #7f8c8d; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+.ventilation-balance .vb-kpi-val { color: #1565c0; font-weight: bold; font-size: 13px; }
+.synthese-balance { padding-bottom: 0; }
+.x-grid-cell-inner .evolution { display: block; line-height: 12px; }
