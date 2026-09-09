@@ -39,6 +39,8 @@ public class BalanceVenteRessource {
     private BalanceService balanceService;
     @EJB
     private rest.service.utils.ReportExcelExportService reportExcelExportService;
+    @EJB
+    private rest.report.ReportUtil reportUtil;
 
     @GET
     @Path("/balancesalecash")
@@ -90,6 +92,10 @@ public class BalanceVenteRessource {
 
         JSONArray data = new JSONArray();
         Long precedentNet = null;
+        // Retour du 09/09 : les modes de reglement rencontres sur l'ensemble des periodes, pour l'onglet
+        // « evolution par mode de paiement » (periodes en ligne, modes en colonne). Aucun mode n'est
+        // ecrit d'avance : un operateur mobile cree par l'officine y figure de lui-meme.
+        java.util.Map<String, JSONObject> modesRencontres = new java.util.LinkedHashMap<>();
         for (util.PeriodesCa.Tranche tranche : tranches) {
             JSONObject balance = balanceService
                     .getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(tranche.getDebut().toString())
@@ -106,6 +112,19 @@ public class BalanceVenteRessource {
             for (String champ : CHAMPS_ANALYSE_BALANCE) {
                 ligne.put(champ, resume != null ? resume.optLong(champ, 0L) : 0L);
             }
+            JSONObject ventilation = balance.optJSONObject("ventilation");
+            JSONObject parModes = new JSONObject();
+            JSONArray modes = ventilation == null ? null : ventilation.optJSONArray("modes");
+            for (int i = 0; modes != null && i < modes.length(); i++) {
+                JSONObject mode = modes.getJSONObject(i);
+                parModes.put(mode.optString("modeId"), mode.optLong("montant"));
+                modesRencontres.putIfAbsent(mode.optString("modeId"),
+                        new JSONObject().put("modeId", mode.optString("modeId"))
+                                .put("libelle", mode.optString("libelle")).put("mobile", mode.optBoolean("mobile")));
+            }
+            ligne.put("parModes", parModes);
+            ligne.put("montantMobile",
+                    ventilation == null ? 0L : ventilation.getJSONObject("mobile").optLong("montant"));
             long net = ligne.optLong("montantNet", 0L);
             // L'ecart se lit d'une tranche a la precedente : c'est ce que l'oeil cherche dans une
             // comparaison, et non l'ecart au premier mois de la serie.
@@ -115,9 +134,141 @@ public class BalanceVenteRessource {
             data.put(ligne);
             precedentNet = net;
         }
-        return Response.ok().entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
-                // Une seule tranche : l'ecran affiche les chiffres bruts, pas une comparaison.
-                .put("comparatif", data.length() >= 2).toString()).build();
+        return Response.ok()
+                .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
+                        .put("modes", new JSONArray(ordonnerModes(modesRencontres.values())))
+                        // Une seule tranche : l'ecran affiche les chiffres bruts, pas une comparaison.
+                        .put("comparatif", data.length() >= 2).toString())
+                .build();
+    }
+
+    /**
+     * L'ordre des colonnes de l'evolution par mode : especes, carte, cheque, virement, puis les autres modes
+     * classiques, puis les operateurs mobiles par ordre alphabetique. Le meme ordre sert a l'ecran, au classeur et au
+     * PDF.
+     */
+    private static java.util.List<JSONObject> ordonnerModes(java.util.Collection<JSONObject> modes) {
+        java.util.List<String> fixes = java.util.Arrays.asList(Constant.MODE_ESP, Constant.MODE_CB,
+                Constant.MODE_CHEQUE, Constant.MODE_VIREMENT);
+        java.util.List<JSONObject> liste = new java.util.ArrayList<>(modes);
+        liste.sort(java.util.Comparator.comparingInt((JSONObject m) -> m.optBoolean("mobile") ? 1 : 0)
+                .thenComparingInt(m -> {
+                    int rang = fixes.indexOf(m.optString("modeId"));
+                    return rang < 0 ? fixes.size() : rang;
+                }).thenComparing(m -> m.optString("libelle"), String.CASE_INSENSITIVE_ORDER));
+        return liste;
+    }
+
+    /**
+     * L'analyse comparative en PDF, sur son propre modele (retour du 09/09 : « l'analyse comparative doit avoir son
+     * fichier jrxml »). Deux tableaux : les indicateurs par periode, puis l'evolution par mode de paiement, periodes en
+     * ligne et modes en colonne. Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre surgissante.
+     */
+    @GET
+    @Path("/balancesalecash/analyse/pdf")
+    @Produces("application/pdf")
+    public Response imprimerAnalyseBalance(@QueryParam(value = "typePeriode") String typePeriode,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject analyse = new JSONObject(String.valueOf(analyseBalance(typePeriode, dtStart, dtEnd).getEntity()));
+        JSONArray lignes = analyse.optJSONArray("data");
+        JSONArray modes = analyse.optJSONArray("modes");
+        java.util.List<rest.service.dto.AnalyseBalanceLigneDTO> periodes = new java.util.ArrayList<>();
+        java.util.List<rest.service.dto.ModeParPeriodeDTO> cellules = new java.util.ArrayList<>();
+        for (int i = 0; lignes != null && i < lignes.length(); i++) {
+            JSONObject ligne = lignes.getJSONObject(i);
+            rest.service.dto.AnalyseBalanceLigneDTO periode = new rest.service.dto.AnalyseBalanceLigneDTO(ligne);
+            periodes.add(periode);
+            JSONObject parModes = ligne.optJSONObject("parModes");
+            for (int j = 0; modes != null && j < modes.length(); j++) {
+                JSONObject mode = modes.getJSONObject(j);
+                // Une cellule par periode ET par mode, meme a zero : le tableau croise garde ainsi
+                // toutes ses colonnes sur toutes ses lignes.
+                cellules.add(new rest.service.dto.ModeParPeriodeDTO(periode.getLibelleComplet(), i,
+                        mode.optString("libelle"), j,
+                        parModes == null ? 0L : parModes.optLong(mode.optString("modeId"), 0L)));
+            }
+        }
+        java.util.Map<String, Object> parametres = reportUtil.officineData(tu);
+        parametres.put("P_PERIODE", libellePeriode(typePeriode, lignes));
+        parametres.put("P_COMPARATIF", analyse.optBoolean("comparatif"));
+        parametres.put("P_MODES", new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(cellules));
+        parametres.put("P_NB_MODES", modes == null ? 0 : modes.length());
+        String url = reportUtil.buildReport(parametres, "balance_analyse_comparative", periodes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=analyse_balance_"
+                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".pdf")
+                .build();
+    }
+
+    /** « 3 derniers mois, du 01/06/2026 au 09/09/2026 » : le type de periode et les bornes reellement couvertes. */
+    private static String libellePeriode(String typePeriode, JSONArray lignes) {
+        String type = util.PeriodesCa.Type.de(typePeriode).name().replace('_', ' ').toLowerCase(java.util.Locale.ROOT);
+        if (lignes == null || lignes.length() == 0) {
+            return type;
+        }
+        java.time.format.DateTimeFormatter jj = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try {
+            String debut = java.time.LocalDate.parse(lignes.getJSONObject(0).optString("debut")).format(jj);
+            String fin = java.time.LocalDate.parse(lignes.getJSONObject(lignes.length() - 1).optString("fin"))
+                    .format(jj);
+            return type + ", du " + debut + " au " + fin;
+        } catch (RuntimeException e) {
+            return type;
+        }
+    }
+
+    /** L'evolution par mode de paiement en classeur Excel : une ligne par periode, une colonne par mode. */
+    @GET
+    @Path("/balancesalecash/analyse/modes/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exporterModesBalance(@QueryParam(value = "typePeriode") String typePeriode,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
+            throws java.io.IOException {
+        Response reponse = analyseBalance(typePeriode, dtStart, dtEnd);
+        JSONObject analyse = new JSONObject(String.valueOf(reponse.getEntity()));
+        if (!analyse.optBoolean("success")) {
+            return reponse;
+        }
+        JSONArray lignes = analyse.optJSONArray("data");
+        JSONArray modes = analyse.optJSONArray("modes");
+        java.util.List<JSONObject> donnees = new java.util.ArrayList<>();
+        for (int i = 0; lignes != null && i < lignes.length(); i++) {
+            donnees.add(lignes.getJSONObject(i));
+        }
+        rest.report.excel.ClasseurExcel<JSONObject> classeur = new rest.report.excel.ClasseurExcel<JSONObject>(
+                "Evolution par mode").titre("ÉVOLUTION PAR MODE DE PAIEMENT")
+                        .critere("Période", libellePeriode(typePeriode, lignes))
+                        .texte("Période", o -> o.optString("libelle") + (o.optBoolean("enCours") ? " (en cours)" : ""))
+                        .nombre("Ventes", o -> o.optLong("nbreVente")).nombre("Net TTC", o -> o.optLong("montantNet"));
+        for (int j = 0; modes != null && j < modes.length(); j++) {
+            JSONObject mode = modes.getJSONObject(j);
+            String modeId = mode.optString("modeId");
+            classeur.nombre(mode.optString("libelle"), o -> {
+                JSONObject parModes = o.optJSONObject("parModes");
+                return parModes == null ? 0L : parModes.optLong(modeId, 0L);
+            });
+        }
+        classeur.nombre("Total mobile", o -> o.optLong("montantMobile")).nombre("Tiers payant",
+                o -> o.optLong("montantTp"));
+        String nomFichier = "evolution_modes_balance_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xlsx";
+        return Response
+                .ok(classeur.construire(donnees), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("content-disposition", "attachment; filename=" + nomFichier).build();
     }
 
     /** Les indicateurs repris dans la comparaison, dans l'ordre des colonnes de l'ecran. */

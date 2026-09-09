@@ -119,10 +119,28 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
             + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
             + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, tr.str_NAME, tranche ORDER BY tranche";
 
+    /**
+     * Le chiffre d'affaires realise sur la periode (retour du 09/09, point 7) : le net TTC des memes ventes que le
+     * recapitulatif, et la part restee a credit (organismes). C'est le denominateur du « % de chaque mode de reglement
+     * dans le chiffre d'affaires ».
+     */
+    private static final String CA_QUERY = "SELECT COALESCE(SUM(m.montantNet),0) AS chiffreAffaires,"
+            + " COALESCE(SUM(m.montantCredit),0) AS montantCredit FROM mvttransaction m"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.vente_id"
+            + " WHERE DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND p.str_STATUT = 'is_Closed'"
+            + " AND m.lg_EMPLACEMENT_ID = ?3 AND p.lg_TYPE_VENTE_ID <> '5' AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)";
+
     @Override
     public JSONObject suiviModesReglement(String dateDebut, String dateFin, boolean groupByYear, String emplacementId) {
         JSONObject json = new JSONObject();
         try {
+            javax.persistence.Tuple ca = (javax.persistence.Tuple) em
+                    .createNativeQuery(CA_QUERY, javax.persistence.Tuple.class)
+                    .setParameter(1, java.sql.Date.valueOf(dateDebut)).setParameter(2, java.sql.Date.valueOf(dateFin))
+                    .setParameter(3, emplacementId).getSingleResult();
+            long chiffreAffaires = ((Number) ca.get("chiffreAffaires")).longValue();
+            long montantCredit = ((Number) ca.get("montantCredit")).longValue();
             String sql = MODES_QUERY.replace("{tranche}",
                     groupByYear ? "YEAR(vr.mvtDate)" : "DATE_FORMAT(vr.mvtDate, '%Y-%m-%d')");
             @SuppressWarnings("unchecked")
@@ -168,8 +186,16 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                                         .divide(java.math.BigDecimal.valueOf(totalGeneral), 1, RoundingMode.HALF_UP)
                                         .doubleValue());
                 m.put("montantMoyen", operations == 0 ? 0L : Math.round((double) montant / operations));
+                // Part dans le chiffre d'affaires realise (point 7), distincte de la part des encaissements.
+                m.put("partCa", VentilationBalance.pourcentage(montant, chiffreAffaires));
                 dataModes.put(m);
             }
+            long totalMobile = modes.stream().filter(m -> m.optBoolean("mobile")).mapToLong(m -> m.optLong("montant"))
+                    .sum();
+            json.put("chiffreAffaires", chiffreAffaires).put("totalMobile", totalMobile)
+                    .put("partMobileCa", VentilationBalance.pourcentage(totalMobile, chiffreAffaires))
+                    .put("montantCredit", montantCredit)
+                    .put("partCreditCa", VentilationBalance.pourcentage(montantCredit, chiffreAffaires));
 
             // Courbe : une serie par mode, une valeur par tranche, les tranches sans encaissement valant zero -
             // une courbe trouee se lit de travers.

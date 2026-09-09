@@ -251,39 +251,39 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     border: false,
                     items: [
                 {
-                    xtype: 'gridpanel',
+                    /* Retour du 09/09, point 7 : le tableau et, sous lui, le recap de la part de
+                       chaque mode de reglement dans le chiffre d'affaires realise. */
+                    xtype: 'panel',
                     title: 'Récapitulatif',
+                    itemId: 'ongletRecap',
                     border: false,
+                    layout: {type: 'vbox', align: 'stretch'},
+                    items: [{
+                    xtype: 'gridpanel',
+                    flex: 1,
+                    border: false,
+                    itemId: 'caisserecetterecapGrid',
+                    store: data,
+                    /* Sous-detail des paiements mobiles (point 22, puis retour du 09/09 point 7) :
+                       la repartition par mode que le serveur a rencontree ce jour-la s'affiche
+                       TOUJOURS, sur une ligne au pied de la journee - plus de « + » a cliquer.
+                       Rien n'est ecrit d'avance - un operateur cree par l'officine y figure de
+                       lui-meme - et le total du sous-detail vaut, par construction, le montant
+                       Mobile de la ligne : il est rappele au bout pour que cela se verifie a l'oeil.
+                       Une journee sans paiement mobile n'a pas de ligne de detail. */
                     features: [
                         {
                             ftype: 'summary'
-                        }],
-                    itemId: 'caisserecetterecapGrid',
-                    store: data,
-                    /* Sous-detail des paiements mobiles (point 22) : la ligne s'ouvre sur la
-                       repartition par mode que le serveur a rencontree ce jour-la. Rien n'est
-                       ecrit d'avance - un operateur cree par l'officine y figure de lui-meme -
-                       et le total du sous-detail vaut, par construction, le montant Mobile de la
-                       ligne : il est rappele en bas pour que cela se verifie a l'oeil. */
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                '<tpl if="this.vide(values.detailMobile)">',
-                                '<div style="padding:4px 12px;color:#7f8c8d;">Aucun paiement mobile ce jour-là.</div>',
-                                '<tpl else>',
-                                /* Point 16 : le detail tient sur UNE ligne, au pied de la journee.
-                                   Le total est rappele au bout : il vaut la somme des parts, par construction. */
-                                '<div style="padding:4px 12px;">',
+                        }, {
+                            ftype: 'rowbody',
+                            detailTpl: new Ext.XTemplate(
+                                '<div class="detail-mobile-jour" style="padding:2px 12px;">',
                                 '<span style="font-weight:bold;color:#2a4d69;">Mobile money :</span> ',
                                 '{[ this.ligne(values.detailMobile) ]}',
                                 '<span style="color:#7f8c8d;"> = </span>',
                                 '<span style="font-weight:bold;">{[ this.montant(values.montantMobile) ]}</span>',
                                 '</div>',
-                                '</tpl>',
                                 {
-                                    vide: function (detail) {
-                                        return !detail || Ext.Object.getKeys(detail).length === 0;
-                                    },
                                     montant: function (v) {
                                         return Ext.util.Format.number(v || 0, '0,000');
                                     },
@@ -293,7 +293,15 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                                             return Ext.String.htmlEncode(mode) + ' <b>' + format(detail[mode]) + '</b>';
                                         }).join('<span style="color:#b8c6d4;"> &middot; </span>');
                                     }
-                                })
+                                }),
+                            getAdditionalData: function (donnees, index, enregistrement) {
+                                const detail = donnees.detailMobile;
+                                const vide = !detail || Ext.Object.getKeys(detail).length === 0;
+                                return {
+                                    rowBody: vide ? '' : this.detailTpl.apply(donnees),
+                                    rowBodyCls: vide ? this.rowBodyHiddenCls : ''
+                                };
+                            }
                         }],
                     viewConfig: {
                         forceFit: true,
@@ -609,6 +617,18 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                         displayInfo: true
 
                     }
+                }, {
+                    /* Retour du 09/09, point 7 : la part de chaque mode de reglement dans le
+                       chiffre d'affaires realise sur la periode ; le mobile money en global, puis
+                       operateur par operateur. Alimente par la meme reponse que l'onglet « Suivi
+                       des modes de reglement ». */
+                    xtype: 'panel',
+                    itemId: 'recapModesCa',
+                    border: false,
+                    cls: 'recap-modes-ca',
+                    html: '<span class="rm-titre">Part des modes de r&egrave;glement dans le CA :</span> '
+                            + '<span style="color:#7f8c8d;">lancez une recherche.</span>'
+                }]
                 },
                 {
                     /* Suivi des modes de reglement : synthese d'aide a la decision par mode, et

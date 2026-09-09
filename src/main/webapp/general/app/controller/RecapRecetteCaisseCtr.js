@@ -62,6 +62,9 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         {ref: 'btnExcel',
             selector: 'caisserecetterecap #btnExcel'
 
+        },
+        {ref: 'recapModesCa',
+            selector: 'caisserecetterecap #recapModesCa'
         }
     ],
     init: function (application) {
@@ -209,10 +212,58 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
                 groupByYear: me.getGroupByYear().checked
             },
             callback: function (enregistrements, operation, succes) {
-                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true)) || {};
+                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true))
+                        || grille.getStore().getProxy().getReader().rawData || {};
                 me.construireCourbeModes(json);
+                me.afficherRecapModesCa(json);
             }
         });
+    },
+
+    /**
+     * Le recap sous le tableau (retour du 09/09, point 7) : la part de chaque mode de reglement dans
+     * le chiffre d'affaires realise. Le mobile money est donne en global, puis par operateur ; le
+     * credit (part restee due par les organismes) ferme la liste.
+     */
+    afficherRecapModesCa: function (json) {
+        const me = this;
+        const panneau = me.getRecapModesCa();
+        if (!panneau || panneau.isDestroyed) {
+            return;
+        }
+        const modes = json.data || [];
+        const ca = json.chiffreAffaires || 0;
+        const montant = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        const part = function (v) {
+            return Ext.util.Format.number(v || 0, '0.0') + ' %';
+        };
+        if (!ca && !modes.length) {
+            panneau.update('<span class="rm-titre">Part des modes de r&egrave;glement dans le CA :</span> '
+                    + '<span style="color:#7f8c8d;">aucune vente sur la p&eacute;riode.</span>');
+            return;
+        }
+        const morceaux = [];
+        Ext.each(modes, function (m) {
+            if (!m.mobile) {
+                morceaux.push('<span class="rm-mode">' + Ext.String.htmlEncode(m.mode) + ' <b>' + part(m.partCa)
+                        + '</b> <span class="rm-operateur">(' + montant(m.montant) + ')</span></span>');
+            }
+        });
+        const operateurs = modes.filter(function (m) {
+            return m.mobile;
+        }).map(function (m) {
+            return Ext.String.htmlEncode(m.mode) + ' ' + part(m.partCa);
+        });
+        morceaux.push('<span class="rm-mode">Mobile money <b>' + part(json.partMobileCa) + '</b> <span class="rm-operateur">('
+                + montant(json.totalMobile) + (operateurs.length ? ' : ' + operateurs.join(', ') : '') + ')</span></span>');
+        if (json.montantCredit) {
+            morceaux.push('<span class="rm-mode">Cr&eacute;dit <b>' + part(json.partCreditCa)
+                    + '</b> <span class="rm-operateur">(' + montant(json.montantCredit) + ')</span></span>');
+        }
+        panneau.update('<span class="rm-titre">Part des modes de r&egrave;glement dans le CA r&eacute;alis&eacute; ('
+                + montant(ca) + ') :</span> ' + morceaux.join(''));
     },
 
     construireCourbeModes: function (json) {

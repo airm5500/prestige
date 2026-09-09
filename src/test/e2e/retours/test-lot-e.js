@@ -231,9 +231,11 @@ function retirerJeuDEssai() {
   // le rendu du detail mobile, tel que la ligne l'affiche
   const rendu = await p.evaluate((donnees) => {
     const grille = Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0];
-    const plugin = grille.plugins[0];
+    /* Retour du 09/09 (point 7) : plus de plugin « + » ; le detail est rendu par la fonctionnalite
+       rowbody, toujours visible au pied de la journee. */
+    const corps = grille.features.filter(function (f) { return f.ftype === 'rowbody' || f.detailTpl; })[0];
     const modele = Ext.create(grille.getStore().model, donnees);
-    const html = plugin.rowBodyTpl.apply(modele.getData());
+    const html = corps.getAdditionalData(modele.getData(), 0, modele).rowBody;
     return { html: html, lignes: (html.match(/<div/g) || []).length };
   }, l1);
   ok('ecran : le detail mobile tient sur une seule ligne',

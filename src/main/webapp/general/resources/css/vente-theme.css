@@ -1289,3 +1289,25 @@ body.x-body,
 .garde-non-vendu .x-grid-cell {
     background-color: #fdecea;
 }
+
+/* Retour du 09/09, point 4 : ventilation affichee sous les lignes VO / VNO de la balance vente / caisse. */
+.ventilation-balance { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 10px; font-size: 11px; }
+.ventilation-balance .vb-col { flex: 1 1 260px; min-width: 240px; background: #fff; border: 1px solid #dfe6ee; border-radius: 3px; padding: 6px 8px; }
+.ventilation-balance .vb-titre { font-weight: bold; color: #2E75B6; text-transform: uppercase; font-size: 10px; letter-spacing: .4px; margin-bottom: 4px; border-bottom: 1px solid #dfe6ee; padding-bottom: 3px; }
+.ventilation-balance .vb-table { width: 100%; border-collapse: collapse; }
+.ventilation-balance .vb-table th { text-align: right; font-weight: normal; color: #7f8c8d; font-size: 10px; padding: 2px 4px; }
+.ventilation-balance .vb-table td { padding: 2px 4px; border-top: 1px solid #f0f3f6; }
+.ventilation-balance .vb-lib { text-align: left; color: #34495e; }
+.ventilation-balance .vb-n { text-align: right; font-weight: bold; }
+.ventilation-balance .vb-p { text-align: right; color: #1565c0; font-weight: bold; }
+.ventilation-balance .vb-total td { border-top: 2px solid #2E75B6; font-weight: bold; }
+.ventilation-balance .vb-operateur td { color: #7f8c8d; font-weight: normal; }
+.ventilation-balance .vb-operateur .vb-n, .ventilation-balance .vb-operateur .vb-p { font-weight: normal; }
+
+/* Retour du 09/09, point 7 : detail mobile money toujours visible au pied de chaque journee, et recap des modes. */
+.x-grid-row-body-hidden { display: none; }
+.recap-modes-ca { padding: 6px 10px; font-size: 11px; background: #fbfcfd; border-top: 1px solid #dfe6ee; line-height: 20px; }
+.recap-modes-ca .rm-titre { font-weight: bold; color: #2E75B6; margin-right: 8px; }
+.recap-modes-ca .rm-mode { display: inline-block; margin-right: 12px; white-space: nowrap; }
+.recap-modes-ca .rm-mode b { color: #1565c0; }
+.recap-modes-ca .rm-operateur { color: #7f8c8d; }

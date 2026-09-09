@@ -42,6 +42,8 @@ public class BalanceVenteItemDTO {
     private int totalVente;
     private BigDecimal montantAcc;
     private String typeMvtCaisse;
+    /** Nombre de mouvements regroupes sur cette ligne (fonds, entrees, sorties, reglements) - retour 09/09. */
+    private long nombre;
     private BigDecimal montantNetUg;
     private BigDecimal montantTvaUg;
     private BigDecimal margeUg;

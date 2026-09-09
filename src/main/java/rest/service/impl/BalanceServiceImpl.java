@@ -37,6 +37,7 @@ import rest.service.dto.BalanceParamsDTO;
 import rest.service.dto.BalanceVenteItemDTO;
 import rest.service.dto.EtatAnnuelDTO;
 import rest.service.dto.EtatAnnuelWrapperDTO;
+import rest.service.dto.ModeReglementMontantDTO;
 import util.Constant;
 import util.DateConverter;
 import dal.TEmplacement;
@@ -89,7 +90,7 @@ public class BalanceServiceImpl implements BalanceService {
             + " SUM(CASE WHEN d.`bool_ACCOUNT` IS FALSE THEN d.`int_PRICE` ELSE 0 END) AS montantTTCDetatilToRemove,SUM(CASE WHEN d.`bool_ACCOUNT` IS FALSE THEN (d.`prixAchat`*d.`int_QUANTITY`) ELSE 0 END) AS montantAchatDetatilToRemove "
             + " FROM t_preenregistrement_detail d  GROUP BY d.`lg_PREENREGISTREMENT_ID`  ) AS sqlQ  WHERE  sqlQ.idVente=p.`lg_PREENREGISTREMENT_ID` AND m.pkey=p.lg_PREENREGISTREMENT_ID AND  p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed' AND p.`lg_TYPE_VENTE_ID` <> ?1 AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement} GROUP BY typeVente,typeReglement ,typeMvtCaisse";
 
-    private static final String OTHER_MVT_SQL_QUERY = "SELECT m.`typeMvtCaisseId` AS typeMvtCaisse, SUM(m.montant) AS montantTTC FROM  mvttransaction m WHERE m.mvtdate BETWEEN ?1 AND ?2 AND m.`typeTransaction` >2  AND m.`lg_EMPLACEMENT_ID` =?3  GROUP BY m.`typeMvtCaisseId` ";
+    private static final String OTHER_MVT_SQL_QUERY = "SELECT m.`typeMvtCaisseId` AS typeMvtCaisse, SUM(m.montant) AS montantTTC, COUNT(*) AS nombre FROM  mvttransaction m WHERE m.mvtdate BETWEEN ?1 AND ?2 AND m.`typeTransaction` >2  AND m.`lg_EMPLACEMENT_ID` =?3  GROUP BY m.`typeMvtCaisseId` ";
 
     private static final String BONS_SQL_QUERY = "SELECT  SUM(m.montant) AS montant FROM  mvttransaction m WHERE m.mvtdate BETWEEN ?1 AND ?2 AND m.`typeTransaction` =2  AND m.`lg_EMPLACEMENT_ID` =?3 ";
     private static final String EXCLUDE_STATEMENT = " AND  p.`lg_PREENREGISTREMENT_ID`  NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v) ";
@@ -131,7 +132,16 @@ public class BalanceServiceImpl implements BalanceService {
 
     @Override
     public List<BalanceDTO> buildBalanceFromPreenregistrement(BalanceParamsDTO balanceParams) {
+        return construireBalances(balanceParams).getBalances();
+    }
 
+    /**
+     * Les lignes VNO / VO de la balance, ET ce qu'elles ont coute a calculer : les montants par mode de reglement
+     * (retour du 09/09, point 4). Les deux sortent du meme passage, pour que la ventilation affichee sous la grille
+     * soit exactement celle des lignes au-dessus.
+     */
+    private GenericDTO construireBalances(BalanceParamsDTO balanceParams) {
+        GenericDTO resultat = new GenericDTO();
         List<BalanceDTO> balances = new ArrayList<>();
         List<BalanceVenteItemDTO> dataVentes;
         if (!balanceParams.isToPrint()) {
@@ -144,11 +154,14 @@ public class BalanceServiceImpl implements BalanceService {
 
         Map<TypeTransaction, List<BalanceVenteItemDTO>> groupByTypeVente = dataVentes.stream()
                 .collect(Collectors.groupingBy(BalanceVenteItemDTO::getTypeTransaction));
-        Map<String, List<VenteReglementReportDTO>> venteRegelementMap = fetchByModeReglements(balanceParams).stream()
-                .map(this::buildVenteReglementReportDTO)
+        List<VenteReglementReportDTO> reglements = fetchByModeReglements(balanceParams).stream()
+                .map(this::buildVenteReglementReportDTO).collect(Collectors.toList());
+        boolean checkUgVno = checkUg() && !balanceParams.isShowAllAmount();
+        resultat.setModesReglement(montantsParMode(reglements, checkUgVno));
+        Map<String, List<VenteReglementReportDTO>> venteRegelementMap = reglements.stream()
                 .collect(Collectors.groupingBy(VenteReglementReportDTO::getTypeVente));
         if (groupByTypeVente.containsKey(TypeTransaction.VENTE_COMPTANT)) {
-            boolean checkUg = checkUg() && !balanceParams.isShowAllAmount();
+            boolean checkUg = checkUgVno;
             List<BalanceVenteItemDTO> vnoData = groupByTypeVente.remove(TypeTransaction.VENTE_COMPTANT);
             BalanceDTO balanceVno = buildVenteBalance(vnoData, checkUg, balanceParams.isShowAllAmount(),
                     venteRegelementMap.remove(Constant.VENTE_COMPTANT_ID));
@@ -168,15 +181,55 @@ public class BalanceServiceImpl implements BalanceService {
             balanceVo.setBalanceId(balanceVo.getTypeVente());
             balances.add(balanceVo);
         }
-        return updatePourcent(balances);
+        resultat.setBalances(updatePourcent(balances));
+        return resultat;
+    }
+
+    /**
+     * Le montant encaisse par mode de reglement, avec la MEME formule que les colonnes especes / cheque / carte de la
+     * balance (montant attendu, moins la part signalee, moins les UG quand ils sont exclus, moins le hors CA). La regle
+     * des UG ne s'applique qu'aux ventes comptant, comme dans {@link #buildVenteBalance}.
+     */
+    private List<ModeReglementMontantDTO> montantsParMode(List<VenteReglementReportDTO> reglements,
+            boolean checkUgVno) {
+        Map<String, ModeReglementMontantDTO> parMode = new java.util.LinkedHashMap<>();
+        for (VenteReglementReportDTO r : reglements) {
+            boolean checkUg = checkUgVno && Constant.VENTE_COMPTANT_ID.equals(r.getTypeVente());
+            long montant = ((r.getMontantAttentu() - r.getFlagedAmount()) - (checkUg ? r.getUgNetAmount() : 0))
+                    - r.getAmountNonCa();
+            String modeId = r.getTypeReglement();
+            parMode.computeIfAbsent(modeId,
+                    k -> new ModeReglementMontantDTO(k, libelleMode(k, r.getLibelle()), util.MobileMoney.est(k), 0))
+                    .ajouter(montant);
+        }
+        return new ArrayList<>(parMode.values());
+    }
+
+    /** Les quatre modes classiques gardent un libelle lisible quel que soit celui de la base ; les autres le leur. */
+    private static String libelleMode(String modeId, String libelleBase) {
+        switch (modeId == null ? "" : modeId) {
+        case Constant.MODE_ESP:
+            return "Espèces";
+        case Constant.MODE_CHEQUE:
+            return "Chèque";
+        case Constant.MODE_CB:
+            return "Carte bancaire";
+        case Constant.MODE_VIREMENT:
+            return "Virement";
+        default:
+            return StringUtils.isBlank(libelleBase) ? String.valueOf(modeId) : libelleBase.trim();
+        }
     }
 
     @Override
     public GenericDTO getBalanceVenteCaisseData(BalanceParamsDTO balanceParams) {
-        List<BalanceDTO> balances = buildBalanceFromPreenregistrement(balanceParams);
+        GenericDTO construit = construireBalances(balanceParams);
         long montantAchat = bonLivraisonsAmount(balanceParams);
         List<BalanceVenteItemDTO> othersTypeMvts = othersTypeMvts(balanceParams);
-        return buildBalance(balances, othersTypeMvts, montantAchat);
+        GenericDTO generic = buildBalance(construit.getBalances(), othersTypeMvts, montantAchat);
+        generic.setModesReglement(construit.getModesReglement());
+        generic.setMouvementsCaisse(othersTypeMvts);
+        return generic;
     }
 
     @Override
@@ -184,7 +237,12 @@ public class BalanceServiceImpl implements BalanceService {
         GenericDTO generic = this.getBalanceVenteCaisseData(balanceParams);
         SummaryDTO summary = generic.getSummary();
         List<BalanceDTO> balances = generic.getBalances();
-        return FunctionUtils.returnData(balances, balances.size(), summary);
+        JSONObject json = FunctionUtils.returnData(balances, balances.size(), summary);
+        // Retour du 09/09, point 4 : la ventilation voyage avec la balance, sous une cle a part. La grille
+        // ne lit que data / metaData ; le document sous la grille lit « ventilation ».
+        json.put("ventilation", VentilationBalance.construire(balances, summary, generic.getModesReglement(),
+                generic.getMouvementsCaisse()));
+        return json;
     }
 
     @Override
@@ -431,8 +489,10 @@ public class BalanceServiceImpl implements BalanceService {
     }
 
     private BalanceVenteItemDTO buildFromTupleOtherMvt(Tuple tuple) {
+        Object nombre = tuple.get("nombre");
         return BalanceVenteItemDTO.builder().typeMvtCaisse(tuple.get("typeMvtCaisse", String.class))
-                .montantTTC(tuple.get("montantTTC", BigDecimal.class)).build();
+                .montantTTC(tuple.get("montantTTC", BigDecimal.class))
+                .nombre(nombre instanceof Number ? ((Number) nombre).longValue() : 0L).build();
     }
 
     private int computePercent(long amount, long totalAmount) {

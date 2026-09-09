@@ -102,7 +102,8 @@ function moisAttendus(nombre) {
     ok('Le selecteur lui est pose automatiquement', pose.apresPose === true);
     ok('Il propose 3 derniers mois par defaut', pose.valeurDefaut === 'TROIS_MOIS', pose.valeurDefaut);
     ok('Une seconde application n\'en pose pas un deuxieme', pose.nbSelecteurs === 1, pose.nbSelecteurs);
-    ok('La balance a bien deux onglets', pose.onglets.length === 2, pose.onglets.join(' | '));
+    // Retour du 09/09 (point 4) : un troisieme onglet, l'evolution par mode de paiement.
+    ok('La balance a bien ses onglets (Balance, Analyse comparative, Evolution par mode)', pose.onglets.length === 3, pose.onglets.join(' | '));
     ok('Le second est l\'analyse comparative',
       /Analyse/.test(pose.onglets[1] || '') && pose.grilleAnalyse, pose.onglets.join(' | '));
     ok('L\'ecran qui avait deja son selecteur n\'en recoit pas un second',

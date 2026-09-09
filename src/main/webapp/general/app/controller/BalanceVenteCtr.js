@@ -40,6 +40,14 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         }, {
             ref: 'ongletsBalance',
             selector: 'balancesalecahs #ongletsBalance'
+        },
+        {
+            ref: 'ventilationBalance',
+            selector: 'balancesalecahs #ventilationBalance'
+        },
+        {
+            ref: 'grilleModesBalance',
+            selector: 'balancesalecahs #ongletModesBalance'
         }, {
             ref: 'grilleAnalyse',
             selector: 'balancesalecahs #ongletAnalyseBalance'
@@ -123,6 +131,15 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             'balancesalecahs #analyseExporter': {
                 click: this.exporterAnalyse
             },
+            'balancesalecahs #analyseImprimer': {
+                click: this.imprimerAnalyse
+            },
+            'balancesalecahs #modesImprimer': {
+                click: this.imprimerAnalyse
+            },
+            'balancesalecahs #modesExporter': {
+                click: this.exporterModes
+            },
             'balancesalecahs #imprimer': {
                 click: this.onPdfClick
             },
@@ -163,7 +180,25 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
     doInitStore: function () {
         const me = this;
         me.getBalanceGrid().getStore().addListener('metachange', this.doMetachange, this);
+        // Retour du 09/09, point 4 : la ventilation voyage dans la meme reponse que la grille,
+        // sous la cle « ventilation » que le lecteur du magasin ignore. Elle est relue ici.
+        me.getBalanceGrid().getStore().addListener('load', this.afficherVentilation, this);
         me.doSearch();
+    },
+
+    afficherVentilation: function (store) {
+        const me = this;
+        const panneau = me.getVentilationBalance();
+        if (!panneau || panneau.isDestroyed) {
+            return;
+        }
+        const brut = store.getProxy().getReader().rawData || {};
+        const ventilation = brut.ventilation;
+        if (!ventilation || !ventilation.comptant) {
+            panneau.update('<div style="padding:10px;color:#7f8c8d;">Aucune vente sur la p&eacute;riode.</div>');
+            return;
+        }
+        panneau.update(ventilation);
     },
 
     doSearch: function () {
@@ -222,6 +257,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                 if (resume) {
                     resume.setText(objet.comparatif ? me.MESSAGE_COMPARATIF : me.MESSAGE_PERIODE_UNIQUE);
                 }
+                me.construireEvolutionModes(objet);
             },
             failure: function () {
                 if (!grille.isDestroyed) {
@@ -242,6 +278,98 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
     /** Le changement de periode relance la recherche : les deux onglets restent d'accord. */
     surChangementPeriode: function () {
         this.doSearch();
+    },
+
+    /**
+     * L'onglet « evolution par mode de paiement » (retour du 09/09, point 4) : une ligne par
+     * periode, une colonne par mode rencontre. Les colonnes sont refaites a chaque recherche, car
+     * elles dependent des modes reellement encaisses sur les periodes comparees.
+     */
+    construireEvolutionModes: function (objet) {
+        const me = this;
+        const grille = me.getGrilleModesBalance();
+        if (!grille || grille.isDestroyed) {
+            return;
+        }
+        const modes = objet.modes || [];
+        const lignes = objet.data || [];
+        const montant = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        const colonneMontant = function (entete, champ, mobile) {
+            return {
+                header: entete, dataIndex: champ, width: 105, align: 'right',
+                renderer: function (v) {
+                    return mobile ? '<span style="color:#2a4d69;">' + montant(v) + '</span>' : montant(v);
+                },
+                summaryType: 'sum',
+                summaryRenderer: function (v) {
+                    return '<b>' + montant(v) + '</b>';
+                }
+            };
+        };
+        const champs = ['libelle', {name: 'enCours', type: 'boolean'}, {name: 'nbreVente', type: 'int'},
+            {name: 'montantNet', type: 'int'}, {name: 'montantMobile', type: 'int'}, {name: 'montantTp', type: 'int'}];
+        const colonnes = [{
+                header: 'P&eacute;riode', dataIndex: 'libelle', flex: 1, minWidth: 120,
+                renderer: function (valeur, meta, ligne) {
+                    return ligne.get('enCours') ? valeur + ' <i style="color:#888">(en cours)</i>' : valeur;
+                },
+                summaryRenderer: function () {
+                    return '<b>TOTAL</b>';
+                }
+            }, {
+                header: 'Ventes', dataIndex: 'nbreVente', width: 65, align: 'right', summaryType: 'sum',
+                summaryRenderer: function (v) {
+                    return '<b>' + montant(v) + '</b>';
+                }
+            }, colonneMontant('Net TTC', 'montantNet')];
+        Ext.each(modes, function (mode, i) {
+            champs.push({name: 'mode' + i, type: 'int'});
+            colonnes.push(colonneMontant(Ext.String.htmlEncode(mode.libelle)
+                    + (mode.mobile ? ' <span style="color:#7f8c8d;font-size:10px;">(mobile)</span>' : ''),
+                    'mode' + i, mode.mobile));
+        });
+        colonnes.push(colonneMontant('Total mobile', 'montantMobile', true));
+        colonnes.push(colonneMontant('Tiers payant', 'montantTp'));
+        const donnees = lignes.map(function (ligne) {
+            const o = {libelle: ligne.libelle, enCours: ligne.enCours, nbreVente: ligne.nbreVente,
+                montantNet: ligne.montantNet, montantMobile: ligne.montantMobile, montantTp: ligne.montantTp};
+            Ext.each(modes, function (mode, i) {
+                o['mode' + i] = (ligne.parModes || {})[mode.modeId] || 0;
+            });
+            return o;
+        });
+        const magasin = Ext.create('Ext.data.Store', {fields: champs, data: donnees});
+        grille.reconfigure(magasin, colonnes);
+        const resume = grille.down('#modesResume');
+        if (resume) {
+            resume.setText(modes.length
+                    ? modes.length + ' mode(s) de r&egrave;glement rencontr&eacute;(s) sur les p&eacute;riodes compar&eacute;es.'
+                    : 'Aucun encaissement sur les p&eacute;riodes compar&eacute;es.');
+        }
+    },
+
+    /** L'analyse comparative et l'evolution par mode en PDF, sur leur propre modele (jrxml). */
+    imprimerAnalyse: function () {
+        const me = this;
+        const selecteur = me.getTypePeriode();
+        // Ouvert dans le clic, en flux : aucune fenetre surgissante intermediaire.
+        window.open('../api/v1/balance/balancesalecash/analyse/pdf?' + Ext.Object.toQueryString({
+            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue()
+        }));
+    },
+
+    exporterModes: function () {
+        const me = this;
+        const selecteur = me.getTypePeriode();
+        window.open('../api/v1/balance/balancesalecash/analyse/modes/excel?' + Ext.Object.toQueryString({
+            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue()
+        }));
     },
 
     exporterAnalyse: function () {
