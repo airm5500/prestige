@@ -58,6 +58,86 @@ public class BalanceVenteRessource {
     }
 
     /**
+     * Les privileges de l'ecran (retour des tests du 09/09) : l'ancienne presentation complete est conservee dans un
+     * onglet cache, visible seulement avec P_BALANCE_ANCIENNE_PRESENTATION, pour depanner en cas de doute.
+     */
+    @GET
+    @Path("/balancesalecash/privileges")
+    public Response privileges() {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        dal.dataManager odm = new dal.dataManager();
+        odm.initEntityManager();
+        try {
+            // Verification par requete SQL (comme le privilege du stock d'inventaire) : la lecture par les
+            // collections de l'utilisateur de session, detache, ne voit pas ses roles.
+            boolean ancienne = new bll.userManagement.privilege(odm, tu)
+                    .isColonneStockMachineIsAuthorize(P_BALANCE_ANCIENNE);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("anciennePresentation", ancienne).toString())
+                    .build();
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(BalanceVenteRessource.class.getName())
+                    .log(java.util.logging.Level.WARNING, "privileges balance", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("anciennePresentation", false).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    private static final String P_BALANCE_ANCIENNE = "P_BALANCE_ANCIENNE_PRESENTATION";
+
+    /**
+     * L'edition de la balance dans sa nouvelle presentation (retour des tests du 09/09) : les memes blocs que l'ecran,
+     * sur son propre modele balance_vente_caisse.jrxml, en flux dans l'onglet ouvert par le clic.
+     */
+    @GET
+    @Path("/balancesalecash/pdf")
+    @Produces("application/pdf")
+    public Response imprimerBalance(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject vue = balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
+                .dtEnd(dtEnd).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).avecTva(true).build());
+        java.util.Map<String, Object> parametres = reportUtil.officineData(tu);
+        parametres.put("P_PERIODE", "Du " + dateLisible(dtStart) + " au " + dateLisible(dtEnd));
+        parametres.put("P_ENTETES", rest.service.impl.EditionBalance.entetes());
+        String url = reportUtil.buildReport(parametres, "balance_vente_caisse",
+                rest.service.impl.EditionBalance.lignes(vue));
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=balance_vente_caisse_"
+                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".pdf")
+                .build();
+    }
+
+    private static String dateLisible(String iso) {
+        try {
+            return java.time.LocalDate.parse(iso.trim())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (RuntimeException e) {
+            return iso == null ? "" : iso;
+        }
+    }
+
+    /**
      * L'analyse comparative de la balance vente / caisse sur plusieurs periodes.
      *
      * <p>

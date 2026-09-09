@@ -26,7 +26,7 @@ const TMP = '/tmp/claude-0/lot-m';
 const EMPL2 = MARQUE + '-EMPL';
 const USER2 = MARQUE + '-USER';
 
-let PRODUITS = [], USER = '', GROSSISTES = [], TP = '';
+let PRODUITS = [], USER = '', GROSSISTES = [], TP = '', STOCK_AVANT = null;
 const DEBUT = '2027-01-05 20:00', FIN = '2027-01-06 08:00';
 /* P0 et P2 partagent un grossiste, P1 en a un autre : le filtre grossiste doit separer les deux. */
 const VENTES = [
@@ -44,8 +44,12 @@ function purger() {
   exec("DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'");
   exec("DELETE FROM t_order_detail WHERE lg_ORDER_ID LIKE '" + MARQUE + "-%'");
   exec("DELETE FROM t_order WHERE lg_ORDER_ID LIKE '" + MARQUE + "-%'");
-  exec("DELETE FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID LIKE '" + MARQUE + "-%'");
+  if (PRODUITS[0] && STOCK_AVANT !== null) {
+    exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=" + STOCK_AVANT + " WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'");
+    STOCK_AVANT = null;
+  }
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");
+  exec("DELETE FROM t_famille_stock WHERE lg_FAMILLE_STOCK_ID='" + MARQUE + "-STOCK'");
   exec("DELETE FROM t_user WHERE lg_USER_ID='" + USER2 + "'");
   exec("DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID='" + EMPL2 + "'");
 }
@@ -92,9 +96,17 @@ function semer() {
         + " VALUES ('" + v.id + "',NOW(),NOW(),'enable',0,0,0,0," + v.montant + ",'" + v.quand.slice(0, 10) + "','" + v.id + "','ASSURANCE','" + v.id + "','" + TP + "','1')");
     }
   });
-  // un stock de 12 pour P0, en plus de ce qu'il a deja
-  exec("INSERT INTO t_type_stock_famille (lg_TYPE_STOCK_FAMILLE_ID, lg_FAMILLE_ID, lg_TYPE_STOCK_ID, lg_EMPLACEMENT_ID, str_NAME, str_DESCRIPTION, dt_CREATED, dt_UPDATED, str_STATUT, int_NUMBER)"
-    + " VALUES ('" + MARQUE + "-STOCK','" + PRODUITS[0] + "','2','1','E2E','E2E',NOW(),NOW(),'enable',12)");
+  // un stock disponible de 12 pour P0 (retour des tests 2 : le stock est celui de la fiche article,
+  // t_famille_stock, une ligne par produit et emplacement) ; la valeur d'origine est remise a la fin
+  STOCK_AVANT = q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1");
+  if (STOCK_AVANT === '') {
+    exec("INSERT INTO t_famille_stock (lg_FAMILLE_STOCK_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_AVAILABLE, dt_CREATED, dt_UPDATED, lg_EMPLACEMENT_ID)"
+      + " VALUES ('" + MARQUE + "-STOCK','" + PRODUITS[0] + "',12,12,NOW(),NOW(),'1')");
+    STOCK_AVANT = null;
+    exec("DELETE FROM t_famille_stock WHERE lg_FAMILLE_STOCK_ID='" + MARQUE + "-STOCK' AND 1=0");
+  } else {
+    exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=12 WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'");
+  }
   // une commande de P1 (vendu) et de P2 x 0 ? non : P2 commande et vendu, plus un produit jamais vendu (P0 commande 3)
   exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
     + " VALUES ('" + MARQUE + "-CMD','" + MARQUE + "-CMD',2,'" + GROSSISTES[0] + "','" + USER + "','is_Process','2027-01-05 22:30:00','2027-01-05 22:30:00',0,0,0)");
@@ -106,7 +118,7 @@ function semer() {
 (async () => {
   fs.mkdirSync(TMP, { recursive: true });
   if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); process.exit(1); }
-  const stockAttendu = parseInt(q("SELECT COALESCE(SUM(int_NUMBER),0) FROM t_type_stock_famille WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_TYPE_STOCK_ID='2' AND str_STATUT='enable' AND lg_EMPLACEMENT_ID='1'"), 10);
+  const stockAttendu = parseInt(q("SELECT COALESCE(SUM(int_NUMBER_AVAILABLE),0) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'"), 10);
   const libelleG2 = q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID='" + GROSSISTES[1] + "'");
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });

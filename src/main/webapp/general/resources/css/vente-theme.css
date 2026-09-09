@@ -1328,3 +1328,11 @@ body.x-body,
 
 /* Fiche article (retour des tests du 09/09) : prix d'achat et de vente agrandis, en gras. */
 .fa-prix { font-size: 13px; font-weight: bold; }
+
+/* Balance (retour des tests du 09/09) : les sorties de caisse en rouge dans le resume. */
+.ventilation-balance .vb-kpi-rouge .vb-kpi-val { color: #a00000; }
+
+/* Gardes (retour des tests du 09/09) : le resume par classe, chaque ligne entiere aux couleurs de sa classe. */
+.resume-classe-a .x-grid-cell { color: #177a17; font-weight: bold; }
+.resume-classe-b .x-grid-cell { color: #1565c0; font-weight: bold; }
+.resume-classe-c .x-grid-cell { color: #a00000; font-weight: bold; }

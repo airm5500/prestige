@@ -157,7 +157,8 @@ public final class VentilationBalance {
         for (commonTasks.dto.TvaDTO l : triees) {
             totalTtc += l.getMontantTtc();
         }
-        triees.sort(Comparator.comparingLong(commonTasks.dto.TvaDTO::getMontantTtc).reversed());
+        // Retour des tests du 09/09 : les taux dans l'ordre naturel (0, 9, 18...), pas par montant.
+        triees.sort(Comparator.comparingInt(l -> l.getTaux() == null ? 0 : l.getTaux()));
         for (commonTasks.dto.TvaDTO l : triees) {
             resultat.put(new JSONObject().put("taux", l.getTaux() == null ? 0 : l.getTaux())
                     .put("montantHt", l.getMontantHt()).put("montantTva", l.getMontantTva())

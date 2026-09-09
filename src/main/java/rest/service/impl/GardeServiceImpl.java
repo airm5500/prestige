@@ -373,8 +373,8 @@ public class GardeServiceImpl implements GardeService {
     }
 
     /**
-     * Le stock actuel de chaque produit (retour des tests du 09/09), lu la ou l'ecran de classification ABC le lit : le
-     * stock de vente de l'emplacement de l'utilisateur.
+     * Le stock actuel de chaque produit (retour des tests du 09/09), lu la ou la fiche article le lit : le stock
+     * disponible de l'emplacement de l'utilisateur (t_famille_stock).
      */
     private void renseignerStock(List<GardeProduitDTO> produits) {
         if (produits == null || produits.isEmpty()) {
@@ -388,9 +388,11 @@ public class GardeServiceImpl implements GardeService {
             }
             for (int debut = 0; debut < ids.size(); debut += 500) {
                 List<String> tranche = ids.subList(debut, Math.min(ids.size(), debut + 500));
-                Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER),0)"
-                        + " FROM t_type_stock_famille t WHERE t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'"
-                        + " AND t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids) GROUP BY t.lg_FAMILLE_ID");
+                // Retour des tests du 09/09 : le stock est celui de la fiche article (t_famille_stock, stock
+                // disponible de l'emplacement), pas le stock « type 2 » qui vaut zero chez l'officine.
+                Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER_AVAILABLE),0)"
+                        + " FROM t_famille_stock t WHERE t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids)"
+                        + " GROUP BY t.lg_FAMILLE_ID");
                 q.setParameter("empl", emplacementCourant()).setParameter("ids", tranche);
                 for (Object ligne : q.getResultList()) {
                     Object[] c = (Object[]) ligne;

@@ -108,7 +108,8 @@ const TMP = '/tmp/claude-0/lot-l';
         onglets: vue.down('#ongletsBalance').items.getRange().map(t => t.title) };
     });
     ok('ecran : le document de ventilation et l onglet « Evolution par mode de paiement » sont presents',
-      ids.ventilation && ids.ongletModes && ids.onglets.length === 3, ids.onglets.join(' | '));
+      // lot P : un quatrieme onglet cache, « Balance (ancienne) », sous privilege
+      ids.ventilation && ids.ongletModes && ids.onglets.length === 4, ids.onglets.join(' | '));
     // parcours reel : saisie des dates puis clic sur Rechercher
     await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
     await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
@@ -122,7 +123,7 @@ const TMP = '/tmp/claude-0/lot-l';
     await p.waitForTimeout(800);
     const doc = await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs #ventilationBalance')[0].el.dom.innerText);
     ok('ecran : VO -> CREDIT et VNO -> COMPTANT, avec les % clients et ventes',
-      /COMPTANT \(VNO\)/.test(doc) && /CRÉDIT \(VO\)/.test(doc) && /60,0 %/.test(doc) && /40,0 %/.test(doc) && /43,4 %/.test(doc) && /56,6 %/.test(doc), doc.replace(/\n/g, ' | ').slice(0, 400));
+      /COMPTANT\s/.test(doc) && /CRÉDIT\s/.test(doc) && /60,0 %/.test(doc) && /40,0 %/.test(doc) && /43,4 %/.test(doc) && /56,6 %/.test(doc), doc.replace(/\n/g, ' | ').slice(0, 400));
     ok('ecran : part des modes dans le CA : especes 41,5 %, mobile 17,0 %, ORANGE 7,5 %, WAVE 9,4 %, credit 41,5 %',
       /Espèces[\s\S]*41,5 %/.test(doc) && /Mobile money[\s\S]*17,0 %/.test(doc) && /ORANGE[\s\S]*7,5 %/.test(doc)
       && /WAVE[\s\S]*9,4 %/.test(doc) && /Part tiers payant[\s\S]*41,5 %/.test(doc), doc.replace(/\n/g, ' | ').slice(0, 600));

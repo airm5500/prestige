@@ -69,13 +69,16 @@ const TMP = '/tmp/claude-0/lot-n';
         datesAnalyse: !!onglet('ongletAnalyseBalance').down('#dtStartAnalyse') && !!onglet('ongletAnalyseBalance').down('#typePeriode') && !!onglet('ongletAnalyseBalance').down('#rechercherAnalyse'),
         datesModes: !!onglet('ongletModesBalance').down('#dtStartModes') && !!onglet('ongletModesBalance').down('#typePeriodeModes') && !!onglet('ongletModesBalance').down('#rechercherModes'),
         pagination: !!vue.down('#balanceGrid').down('pagingtoolbar'),
-        recapBasVisible: ['recapBas1', 'recapBas2', 'recapBas3'].map(id => vue.down('#' + id).isVisible()),
+        // lot P : les barres du bas vivent dans l'onglet cache « Balance (ancienne) »
+        recapBasVisible: ['recapBas1', 'recapBas2', 'recapBas3'].map(id => !!vue.down('#ongletBalanceAncienne').down('#' + id)),
+        ancienneCachee: !vue.down('#ongletBalanceAncienne').tab.isVisible(),
         du: vue.down('#dtStart').inputEl.id, au: vue.down('#dtEnd').inputEl.id, rechercher: vue.down('#rechercher').el.id
       };
     });
     ok('chaque onglet a sa recherche ; la liste de periode n est pas sur l onglet Balance',
       !structure.periodeSurBalance && structure.datesBalance && structure.datesAnalyse && structure.datesModes, JSON.stringify(structure));
-    ok('grille Balance sans pagination, barres du bas visibles sur Balance', !structure.pagination && structure.recapBasVisible.every(Boolean), JSON.stringify(structure.recapBasVisible));
+    ok('grille Balance sans pagination ; les barres du bas sont dans l onglet « Balance (ancienne) », cache sans privilege',
+      !structure.pagination && structure.recapBasVisible.every(Boolean) && structure.ancienneCachee, JSON.stringify(structure.recapBasVisible) + ' cachee=' + structure.ancienneCachee);
     await p.fill('#' + structure.du, fr(MOIS_A)); await p.keyboard.press('Tab');
     await p.fill('#' + structure.au, fr(FIN_B)); await p.keyboard.press('Tab');
     await p.click('#' + structure.rechercher);
@@ -97,12 +100,12 @@ const TMP = '/tmp/claude-0/lot-n';
         montantVenteBas: vue.down('#montantTTC').getValue(), especesBas: vue.down('#montantEsp').getValue()
       };
     });
-    ok('grille : les 2 lignes entieres, sans defilement, libellees COMPTANT et CREDIT',
-      balance.lignes === 2 && balance.lignesDom === 2 && !balance.scroll && balance.types.join(',') === 'COMPTANT,CRÉDIT', JSON.stringify(balance.types) + ' scroll=' + balance.scroll);
+    ok('la balance porte ses 2 lignes (COMPTANT et CREDIT) dans la synthese, l ancienne grille n est plus affichee',
+      balance.lignes === 2 && balance.lignesDom === 0 && /COMPTANT/.test(balance.synthese) && /CRÉDIT/.test(balance.synthese), JSON.stringify(balance.types) + ' dom=' + balance.lignesDom);
     ok('synthese modernisee : memes lignes (COMPTANT 23 000, CREDIT 30 000, TOTAL 53 000) et resume (montant vente = champ du bas)',
       /COMPTANT\s+3\s+23[\s .,]000/.test(balance.synthese) && /CRÉDIT\s+2\s+30[\s .,]000/.test(balance.synthese) && /TOTAL\s+5\s+53[\s .,]000/.test(balance.synthese)
-      && new RegExp('MONTANT VENTE\\s+' + String(balance.montantVenteBas).replace(/\B(?=(\d{3})+(?!\d))/g, '[\\s .,]?')).test(balance.synthese.replace(/\n/g, ' ')),
-      balance.synthese.replace(/\n/g, ' | ').slice(0, 500) + ' bas=' + balance.montantVenteBas);
+      && /MONTANT VENTE\s+53[\s .,]?000/.test(balance.synthese.replace(/\n/g, ' ')) && /SORTIES/.test(balance.synthese),
+      balance.synthese.replace(/\n/g, ' | ').slice(0, 500));
     ok('ventilation : ventes et % ventes par mode (especes 4 / 80,0 %), libelle « Part tiers payant », bloc TVA (0 % : 53 000, 100,0 %)',
       /% ventes/.test(balance.ventilation) && /Espèces\s+22[\s .,]000\s+41,5 %\s+4\s+80,0 %/.test(balance.ventilation)
       && /Part tiers payant \(sur ventes à crédit\)/.test(balance.ventilation) && /RÉPARTITION PAR TAUX DE TVA/.test(balance.ventilation)
@@ -204,8 +207,8 @@ const TMP = '/tmp/claude-0/lot-n';
     const ongletBalance = await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs #ongletBalance')[0].tab.el.id);
     await p.click('#' + ongletBalance);
     await p.waitForTimeout(800);
-    const retour = await p.evaluate(() => ['recapBas1', 'recapBas2', 'recapBas3'].map(id => Ext.ComponentQuery.query('balancesalecahs #' + id)[0].isVisible()));
-    ok('de retour sur Balance, les barres du bas sont a nouveau visibles', retour.every(Boolean), JSON.stringify(retour));
+    const retour = await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs #ongletsBalance')[0].getActiveTab().itemId);
+    ok('de retour sur l onglet Balance', retour === 'ongletBalance', retour);
 
     ok('aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

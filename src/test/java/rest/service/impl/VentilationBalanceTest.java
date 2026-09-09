@@ -86,6 +86,25 @@ public class VentilationBalanceTest {
     }
 
     @Test
+    public void tvaDansLOrdreDesTaux() {
+        commonTasks.dto.TvaDTO t18 = new commonTasks.dto.TvaDTO();
+        t18.setTaux(18);
+        t18.setMontantTtc(1000);
+        commonTasks.dto.TvaDTO t0 = new commonTasks.dto.TvaDTO();
+        t0.setTaux(0);
+        t0.setMontantTtc(50000);
+        commonTasks.dto.TvaDTO t9 = new commonTasks.dto.TvaDTO();
+        t9.setTaux(9);
+        t9.setMontantTtc(9000);
+        org.json.JSONArray tva = VentilationBalance.tva(List.of(t18, t0, t9));
+        // retour des tests du 09/09 : 0, 9 puis 18, quel que soit le montant
+        assertEquals(0, tva.getJSONObject(0).getInt("taux"));
+        assertEquals(9, tva.getJSONObject(1).getInt("taux"));
+        assertEquals(18, tva.getJSONObject(2).getInt("taux"));
+        assertEquals(83.3, tva.getJSONObject(0).getDouble("part"), 0.001);
+    }
+
+    @Test
     public void sansDonnees() {
         JSONObject v = VentilationBalance.construire(List.of(), null, null, null);
         assertEquals(0, v.getLong("totalVentes"));

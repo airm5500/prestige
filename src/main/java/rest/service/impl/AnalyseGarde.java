@@ -313,6 +313,80 @@ public final class AnalyseGarde {
      */
     public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
             int limite, String familleId, String rayonId, String grossisteId) {
+        return filtrer(classes, classe, tri, limite, familleId, rayonId, grossisteId, null);
+    }
+
+    /**
+     * Un critere numerique sur les produits (retour des tests du 09/09) : un champ (stock, quantite, tauxMarge), un
+     * operateur (<, <=, =, >=, >) et une valeur. Les criteres se combinent (ET).
+     */
+    public static final class CritereNumerique {
+        private final String champ;
+        private final String operateur;
+        private final double valeur;
+
+        public CritereNumerique(String champ, String operateur, double valeur) {
+            this.champ = champ == null ? "" : champ.trim();
+            this.operateur = operateur == null ? "" : operateur.trim();
+            this.valeur = valeur;
+        }
+
+        /** Lecture tolerante : un critere sans champ, sans operateur reconnu ou sans valeur ne filtre pas. */
+        public static CritereNumerique depuis(String champ, String operateur, String valeur) {
+            if (champ == null || champ.trim().isEmpty() || operateur == null || operateur.trim().isEmpty()
+                    || valeur == null || valeur.trim().isEmpty()) {
+                return null;
+            }
+            try {
+                return new CritereNumerique(champ, operateur, Double.parseDouble(valeur.trim().replace(',', '.')));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        boolean accepte(GardeProduitDTO p) {
+            double v;
+            switch (champ) {
+            case "stock":
+                v = p.getStock();
+                break;
+            case "quantite":
+                v = p.getQuantite();
+                break;
+            case "tauxMarge":
+                v = p.getTauxMarge();
+                break;
+            default:
+                return true;
+            }
+            switch (operateur) {
+            case "<":
+                return v < valeur;
+            case "<=":
+                return v <= valeur;
+            case "=":
+                return Math.abs(v - valeur) < 0.005;
+            case ">=":
+                return v >= valeur;
+            case ">":
+                return v > valeur;
+            default:
+                return true;
+            }
+        }
+    }
+
+    private static boolean accepte(GardeProduitDTO p, List<CritereNumerique> criteres) {
+        for (CritereNumerique c : criteres == null ? List.<CritereNumerique> of() : criteres) {
+            if (c != null && !c.accepte(p)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite, String familleId, String rayonId, String grossisteId, List<CritereNumerique> criteres) {
         List<GardeProduitDTO> vue = new ArrayList<>();
         String voulue = classe == null ? "" : classe.trim().toUpperCase();
         String famille = familleId == null ? "" : familleId.trim();
@@ -322,7 +396,7 @@ public final class AnalyseGarde {
             if ((voulue.isEmpty() || voulue.equals(p.getClasse()))
                     && (famille.isEmpty() || famille.equals(p.getFamilleId()))
                     && (rayon.isEmpty() || rayon.equals(p.getRayonId()))
-                    && (grossiste.isEmpty() || grossiste.equals(p.getGrossisteId()))) {
+                    && (grossiste.isEmpty() || grossiste.equals(p.getGrossisteId())) && accepte(p, criteres)) {
                 vue.add(p);
             }
         }

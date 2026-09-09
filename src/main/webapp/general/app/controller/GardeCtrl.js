@@ -42,6 +42,13 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #abcFamille': {select: this.doAnalyser},
             'gardemanager #abcGrossiste': {select: this.doAnalyser},
             'gardemanager #abcEffacer': {click: this.doEffacerFiltres},
+            'gardemanager #gardeActualiser': {click: this.doAnalyser},
+            'gardemanager #abcStockOp': {select: this.doAnalyser},
+            'gardemanager #abcQteOp': {select: this.doAnalyser},
+            'gardemanager #abcMargeOp': {select: this.doAnalyser},
+            'gardemanager #abcStockVal': {change: {fn: this.doAnalyser, buffer: 600}},
+            'gardemanager #abcQteVal': {change: {fn: this.doAnalyser, buffer: 600}},
+            'gardemanager #abcMargeVal': {change: {fn: this.doAnalyser, buffer: 600}},
             'gardemanager #grilleResumeAbc': {itemclick: this.doChoisirClasse},
             'gardemanager #commandesImprimer': {click: this.doImprimerCommandes},
             'gardemanager #commandesExporter': {click: this.doExporterCommandes},
@@ -310,11 +317,32 @@ Ext.define('testextjs.controller.GardeCtrl', {
             Ext.MessageBox.alert('Information', 'Renseignez le libell&eacute; et les deux bornes.');
             return;
         }
+        // Retour des tests du 09/09 : une garde ne depasse pas huit jours ; au-dela, on previent et
+        // on demande confirmation avant d'enregistrer.
+        var valeurs = fenetre.valeurs();
+        var debut = Ext.Date.parse(valeurs.dateDebut, 'Y-m-d H:i');
+        var fin = Ext.Date.parse(valeurs.dateFin, 'Y-m-d H:i');
+        var jours = debut && fin ? (fin.getTime() - debut.getTime()) / 86400000 : 0;
+        if (jours > 8) {
+            Ext.MessageBox.confirm('Confirmation', 'La p&eacute;riode de cette garde d&eacute;passe 8 jours ('
+                    + Ext.util.Format.number(jours, '0.0') + ' jours). Voulez-vous l\'enregistrer quand m&ecirc;me ?',
+                    function (choix) {
+                        if (choix === 'yes') {
+                            me.envoyerGarde(bouton, fenetre, valeurs);
+                        }
+                    });
+            return;
+        }
+        me.envoyerGarde(bouton, fenetre, valeurs);
+    },
+
+    envoyerGarde: function (bouton, fenetre, valeurs) {
+        var me = this;
         bouton.disable();
         Ext.Ajax.request({
             url: '../api/v1/gardes',
             method: 'POST',
-            params: fenetre.valeurs(),
+            params: valeurs,
             callback: function () {
                 /* Le rappel final passe APRES le succes, qui a ferme la fenetre et detruit le
                    bouton avec elle : le reactiver levait « removeCls, b is null ». On ne touche
@@ -416,14 +444,19 @@ Ext.define('testextjs.controller.GardeCtrl', {
             limite: valeur('abcLimite', 0),
             famille: valeur('abcFamille', ''),
             rayon: valeur('abcRayon', ''),
-            grossiste: valeur('abcGrossiste', '')
+            grossiste: valeur('abcGrossiste', ''),
+            stockOp: valeur('abcStockOp', ''), stockVal: valeur('abcStockVal', ''),
+            qteOp: valeur('abcQteOp', ''), qteVal: valeur('abcQteVal', ''),
+            margeOp: valeur('abcMargeOp', ''), margeVal: valeur('abcMargeVal', '')
         };
     },
 
     /** Les parametres du rapport sans l'identifiant, tels qu'on les passe a l'URL. */
     parametresRapport: function (params) {
         return {heures: params.heures, classe: params.classe, tri: params.tri, limite: params.limite,
-            famille: params.famille, rayon: params.rayon, grossiste: params.grossiste};
+            famille: params.famille, rayon: params.rayon, grossiste: params.grossiste,
+            stockOp: params.stockOp, stockVal: params.stockVal, qteOp: params.qteOp, qteVal: params.qteVal,
+            margeOp: params.margeOp, margeVal: params.margeVal};
     },
 
     /** Un clic sur une classe du resume filtre les produits de droite sur cette classe (bascule). */
@@ -445,6 +478,12 @@ Ext.define('testextjs.controller.GardeCtrl', {
         });
         ecran.down('#abcClasse').setValue('');
         ecran.down('#abcLimite').setValue(0);
+        Ext.each(['abcStockOp', 'abcQteOp', 'abcMargeOp'], function (itemId) {
+            ecran.down('#' + itemId).setValue('');
+        });
+        Ext.each(['abcStockVal', 'abcQteVal', 'abcMargeVal'], function (itemId) {
+            ecran.down('#' + itemId).setValue(null);
+        });
         this.doAnalyser();
     },
 

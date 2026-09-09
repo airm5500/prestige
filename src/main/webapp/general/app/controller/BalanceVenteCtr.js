@@ -15,6 +15,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         {ref: 'balancesalecahs', selector: 'balancesalecahs'},
         {ref: 'imprimerBtn', selector: 'balancesalecahs #imprimer'},
         {ref: 'balanceGrid', selector: 'balancesalecahs #balanceGrid'},
+        {ref: 'balanceGridAncienne', selector: 'balancesalecahs #balanceGridAncienne'},
         {ref: 'dtStart', selector: 'balancesalecahs #dtStart'},
         {ref: 'dtEnd', selector: 'balancesalecahs #dtEnd'},
         {ref: 'rechercherButton', selector: 'balancesalecahs #rechercher'},
@@ -47,10 +48,17 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     init: function (application) {
         this.control({
+            'balancesalecahs': {afterrender: this.chargerPrivileges},
             'balancesalecahs #rechercher': {click: this.doSearch},
-            'balancesalecahs #imprimer': {click: this.onPdfClick},
-            'balancesalecahs #balanceGrid': {viewready: this.doInitStore},
+            'balancesalecahs #imprimer': {click: this.imprimerBalance},
+            // La grille de la nouvelle presentation est cachee : c'est le document de ventilation, une
+            // fois rendu, qui declenche la premiere recherche.
+            'balancesalecahs #ventilationBalance': {afterrender: this.doInitStore},
             'balancesalecahs #ongletsBalance': {tabchange: this.surChangementOnglet},
+            // onglet cache « Balance (ancienne) » : l'ancienne presentation complete
+            'balancesalecahs #rechercherAncienne': {click: this.doSearchAncienne},
+            'balancesalecahs #imprimerAncienne': {click: this.onPdfClick},
+            'balancesalecahs #balanceGridAncienne': {viewready: this.doInitStoreAncienne},
             // onglet Analyse comparative
             'balancesalecahs #rechercherAnalyse': {click: this.chargerAnalyse},
             'balancesalecahs #typePeriode': {select: this.chargerAnalyse},
@@ -66,13 +74,45 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     /* ------------------------------------------------------------------ onglet Balance */
 
+    /** L'onglet « Balance (ancienne) » n'apparait qu'avec le privilege P_BALANCE_ANCIENNE_PRESENTATION. */
+    chargerPrivileges: function (ecran) {
+        Ext.Ajax.request({
+            url: '../api/v1/balance/balancesalecash/privileges',
+            method: 'GET',
+            success: function (reponse) {
+                const objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                const onglet = ecran && !ecran.isDestroyed ? ecran.down('#ongletBalanceAncienne') : null;
+                if (onglet && objet.anciennePresentation) {
+                    onglet.tab.show();
+                }
+            }
+        });
+    },
+
+    /** L'edition historique (ancien modele), depuis l'onglet « Balance (ancienne) ». */
     onPdfClick: function () {
         let me = this;
-        let dtStart = me.getDtStart().getSubmitValue();
-        let dtEnd = me.getDtEnd().getSubmitValue();
+        const ecran = me.getBalancesalecahs();
+        const du = ecran ? ecran.down('#dtStartAncienne') : null;
+        const au = ecran ? ecran.down('#dtEndAncienne') : null;
+        if (!du || !au) {
+            return;
+        }
         let checkug = me.getCheckUg();
-        let linkUrl = '../BalancePdfServlet?mode=BALANCE&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug;
-        window.open(linkUrl);
+        window.open('../BalancePdfServlet?mode=BALANCE&dtStart=' + du.getSubmitValue() + '&dtEnd=' + au.getSubmitValue()
+                + '&checkug=' + checkug);
+    },
+
+    /** L'edition de la nouvelle presentation, sur son propre modele, en flux dans le clic. */
+    imprimerBalance: function () {
+        const me = this;
+        if (!me.getDtStart() || !me.getDtEnd()) {
+            return;
+        }
+        window.open('../api/v1/balance/balancesalecash/pdf?' + Ext.Object.toQueryString({
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue()
+        }));
     },
 
     doMetachange: function (store, meta) {
@@ -81,12 +121,36 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     doInitStore: function () {
         const me = this;
+        if (!me.getBalanceGrid()) {
+            return;
+        }
         const store = me.getBalanceGrid().getStore();
-        store.addListener('metachange', this.doMetachange, this);
         // La ventilation et la synthese voyagent dans la meme reponse que la grille, sous des cles
         // que le lecteur du magasin ignore. Elles sont relues ici.
         store.addListener('load', this.afficherVentilation, this);
         me.doSearch();
+    },
+
+    doInitStoreAncienne: function () {
+        const me = this;
+        const grille = me.getBalanceGridAncienne();
+        if (!grille) {
+            return;
+        }
+        grille.getStore().addListener('metachange', this.doMetachange, this);
+        me.doSearchAncienne();
+    },
+
+    doSearchAncienne: function () {
+        const me = this;
+        const ecran = me.getBalancesalecahs();
+        const grille = me.getBalanceGridAncienne();
+        const du = ecran ? ecran.down('#dtStartAncienne') : null;
+        const au = ecran ? ecran.down('#dtEndAncienne') : null;
+        if (!grille || !du || !au) {
+            return;
+        }
+        grille.getStore().load({params: {dtStart: du.getSubmitValue(), dtEnd: au.getSubmitValue()}});
     },
 
     doSearch: function () {
@@ -126,19 +190,11 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         }
     },
 
-    /** Les barres du bas (affichage historique) ne concernent que l'onglet Balance. */
     surChangementOnglet: function (onglets, nouvel) {
         const ecran = this.getBalancesalecahs();
         if (!ecran) {
             return;
         }
-        const surBalance = nouvel && nouvel.itemId === 'ongletBalance';
-        Ext.each(['recapBas1', 'recapBas2', 'recapBas3'], function (itemId) {
-            const barre = ecran.down('#' + itemId);
-            if (barre) {
-                barre.setVisible(!!surBalance);
-            }
-        });
         // Un onglet d'analyse ouvert pour la premiere fois se charge de lui-meme.
         if (nouvel && nouvel.itemId === 'ongletAnalyseBalance' && this.getGrilleAnalyse()
                 && this.getGrilleAnalyse().getStore().getCount() === 0) {

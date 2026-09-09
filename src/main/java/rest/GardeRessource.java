@@ -280,7 +280,14 @@ public class GardeRessource {
             @DefaultValue("") @QueryParam("famille") String famille,
             @DefaultValue("") @QueryParam("rayon") String rayon,
             @DefaultValue("") @QueryParam("grossiste") String grossiste,
-            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit) {
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("0") @QueryParam("limit") int limit,
+            // Retour des tests du 09/09 : filtres numeriques combinables sur le stock, la quantite vendue, le % de
+            // marge.
+            @DefaultValue("") @QueryParam("stockOp") String stockOp,
+            @DefaultValue("") @QueryParam("stockVal") String stockVal,
+            @DefaultValue("") @QueryParam("qteOp") String qteOp, @DefaultValue("") @QueryParam("qteVal") String qteVal,
+            @DefaultValue("") @QueryParam("margeOp") String margeOp,
+            @DefaultValue("") @QueryParam("margeVal") String margeVal) {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
@@ -293,7 +300,7 @@ public class GardeRessource {
         // la liste rendue est la vue filtree et triee demandee par l'ecran.
         List<GardeProduitDTO> classement = gardeService.abc(garde);
         List<GardeProduitDTO> filtres = AnalyseGarde.filtrer(classement, classe, AnalyseGarde.TriProduits.depuis(tri),
-                limite, famille, rayon, grossiste);
+                limite, famille, rayon, grossiste, criteres(stockOp, stockVal, qteOp, qteVal, margeOp, margeVal));
         // La page demandee (start / limit) ; sans limite, toute la vue filtree.
         int debut = Math.max(0, Math.min(start, filtres.size()));
         int fin = limit > 0 ? Math.min(filtres.size(), debut + limit) : filtres.size();
@@ -325,6 +332,28 @@ public class GardeRessource {
                 .put("montantCredit", k.getMontantCredit()).put("caEspeces", k.getCaEspeces())
                 .put("caMobile", k.getCaMobile()).put("caCheque", k.getCaCheque()).put("caCarte", k.getCaCarte())
                 .put("caDiffere", k.getCaDiffere()).put("caAutres", k.getCaAutres());
+    }
+
+    private static List<AnalyseGarde.CritereNumerique> criteres(String stockOp, String stockVal, String qteOp,
+            String qteVal, String margeOp, String margeVal) {
+        List<AnalyseGarde.CritereNumerique> liste = new ArrayList<>();
+        liste.add(AnalyseGarde.CritereNumerique.depuis("stock", stockOp, stockVal));
+        liste.add(AnalyseGarde.CritereNumerique.depuis("quantite", qteOp, qteVal));
+        liste.add(AnalyseGarde.CritereNumerique.depuis("tauxMarge", margeOp, margeVal));
+        return liste;
+    }
+
+    /** Les vendeurs en JSON, avec la part de chacun dans le chiffre total (retour des tests du 09/09). */
+    private static JSONArray vendeursJson(List<GardeVendeurDTO> vendeurs) {
+        long total = 0L;
+        for (GardeVendeurDTO v : vendeurs) {
+            total += v.getMontant();
+        }
+        JSONArray data = new JSONArray();
+        for (GardeVendeurDTO v : vendeurs) {
+            data.put(vendeurJson(v).put("part", total == 0 ? 0D : arrondi(v.getMontant() * 100D / total)));
+        }
+        return data;
     }
 
     private static JSONObject vendeurJson(GardeVendeurDTO v) {
@@ -363,11 +392,7 @@ public class GardeRessource {
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
-        JSONArray data = new JSONArray();
-        for (GardeVendeurDTO v : gardeService.vendeurs(garde)) {
-            data.put(vendeurJson(v));
-        }
-        return liste(data, null);
+        return liste(vendeursJson(gardeService.vendeurs(garde)), null);
     }
 
     /** Les vendeurs sur plusieurs gardes cumulees (H3). */
@@ -375,11 +400,7 @@ public class GardeRessource {
     @Path("vendeurs")
     public Response vendeursCumules(@DefaultValue("") @QueryParam("ids") String ids) {
         List<Garde> gardes = gardesDepuis(ids);
-        JSONArray data = new JSONArray();
-        for (GardeVendeurDTO v : gardeService.vendeurs(gardes)) {
-            data.put(vendeurJson(v));
-        }
-        return liste(data, new JSONObject().put("gardes", gardes.size()));
+        return liste(vendeursJson(gardeService.vendeurs(gardes)), new JSONObject().put("gardes", gardes.size()));
     }
 
     /**
@@ -697,14 +718,20 @@ public class GardeRessource {
             @DefaultValue("montant") @QueryParam("tri") String tri, @DefaultValue("0") @QueryParam("limite") int limite,
             @DefaultValue("") @QueryParam("famille") String famille,
             @DefaultValue("") @QueryParam("rayon") String rayon,
-            @DefaultValue("") @QueryParam("grossiste") String grossiste) throws IOException {
+            @DefaultValue("") @QueryParam("grossiste") String grossiste,
+            @DefaultValue("") @QueryParam("stockOp") String stockOp,
+            @DefaultValue("") @QueryParam("stockVal") String stockVal,
+            @DefaultValue("") @QueryParam("qteOp") String qteOp, @DefaultValue("") @QueryParam("qteVal") String qteVal,
+            @DefaultValue("") @QueryParam("margeOp") String margeOp,
+            @DefaultValue("") @QueryParam("margeVal") String margeVal) throws IOException {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
         // L'export rend ce que l'ecran affiche : meme classe, memes filtres, meme ordre, memes N premiers.
         List<GardeProduitDTO> abc = AnalyseGarde.filtrer(gardeService.abc(garde), classe,
-                AnalyseGarde.TriProduits.depuis(tri), limite, famille, rayon, grossiste);
+                AnalyseGarde.TriProduits.depuis(tri), limite, famille, rayon, grossiste,
+                criteres(stockOp, stockVal, qteOp, qteVal, margeOp, margeVal));
         String titre = "GARDE " + StringUtils.defaultString(garde.getLibelle()) + " - du "
                 + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE);
         byte[] data = reportExcelExportService.createExcelReport(titre, ENTETES_ABC, abc, (row, p) -> {

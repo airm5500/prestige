@@ -94,7 +94,9 @@ Ext.define('testextjs.view.garde.GardeManager', {
         // H3 : les vendeurs de la garde, et les produits commandes pendant la garde.
         me.vendeurStore = Ext.create('Ext.data.Store', {
             fields: ['vendeurId', 'nom', {name: 'ventes', type: 'int'}, {name: 'clients', type: 'int'},
-                {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'}]
+                {name: 'montant', type: 'int'}, {name: 'marge', type: 'int'}, {name: 'tauxMarge', type: 'float'},
+                // Retour des tests du 09/09 : la part de chaque vendeur dans le chiffre total.
+                {name: 'part', type: 'float'}]
         });
         me.commandeStore = Ext.create('Ext.data.Store', {
             fields: ['produitId', 'cip', 'libelle', {name: 'quantiteCommandee', type: 'int'},
@@ -118,6 +120,40 @@ Ext.define('testextjs.view.garde.GardeManager', {
             items: [me.listeGardes(), me.detail()]
         });
         me.callParent(arguments);
+    },
+
+    /** Un filtre numerique : l'operateur (<, <=, =, >=, >) et la valeur, sur une ligne. */
+    filtreNumerique: function (prefixe, libelle) {
+        return {
+            xtype: 'fieldcontainer',
+            fieldLabel: libelle,
+            labelWidth: 80,
+            anchor: '100%',
+            margin: '2 0 2 0',
+            layout: 'hbox',
+            items: [{
+                    xtype: 'combobox',
+                    itemId: prefixe + 'Op',
+                    width: 60,
+                    store: Ext.create('Ext.data.ArrayStore', {
+                        data: [['', ''], ['<', '<'], ['<=', '<='], ['=', '='], ['>=', '>='], ['>', '>']],
+                        fields: ['value', 'libelle']
+                    }),
+                    valueField: 'value',
+                    displayField: 'libelle',
+                    queryMode: 'local',
+                    editable: false,
+                    value: ''
+                }, {
+                    xtype: 'numberfield',
+                    itemId: prefixe + 'Val',
+                    flex: 1,
+                    margin: '0 0 0 4',
+                    allowDecimals: true,
+                    decimalSeparator: '.',
+                    emptyText: 'valeur'
+                }]
+        };
     },
 
     /** L'infobulle d'un point de la courbe : TOUTES les valeurs de la tranche (retour des tests du 09/09). */
@@ -231,6 +267,11 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     xtype: 'toolbar',
                     dock: 'top',
                     items: [
+                        {
+                            // Retour des tests du 09/09 : relancer l'analyse apres une modification de la garde.
+                            text: 'Actualiser l\'analyse', itemId: 'gardeActualiser', iconCls: 'x-tbar-loading',
+                            tooltip: 'Recalculer l\'analyse de la garde choisie'
+                        }, '-',
                         {text: 'Imprimer', itemId: 'gardeImprimer', iconCls: 'printable'}, '-',
                         {
                             text: 'Exporter ABC', itemId: 'gardeExporterAbc',
@@ -268,7 +309,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                     store: me.resumeStore,
                                     // Pas de hauteur fixe : la grille prend celle de ses lignes, aucun
                                     // defilement ne cache la classe C.
-                                    viewConfig: {columnLines: true, autoScroll: false},
+                                    viewConfig: {
+                                        columnLines: true, autoScroll: false,
+                                        // Retour des tests du 09/09 : toute la ligne aux couleurs de sa classe.
+                                        getRowClass: function (ligne) {
+                                            return 'resume-classe-' + String(ligne.get('classe') || 'x').toLowerCase();
+                                        }
+                                    },
                                     scroll: false,
                                     hideHeaders: false,
                                     columns: [
@@ -337,7 +384,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                                             queryMode: 'local',
                                             editable: false,
                                             value: 'montant'
-                                        }, {
+                                        },
+                                        // Retour des tests du 09/09 : filtres numeriques combinables (ET) sur le
+                                        // stock, la quantite vendue et le % de marge, chacun avec son operateur.
+                                        me.filtreNumerique('abcStock', 'Stock'),
+                                        me.filtreNumerique('abcQte', 'Qt\u00e9 vendue'),
+                                        me.filtreNumerique('abcMarge', '% marge'),
+                                        {
                                             xtype: 'numberfield',
                                             itemId: 'abcLimite',
                                             fieldLabel: 'N premiers',
@@ -655,6 +708,11 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {header: 'Ventes', dataIndex: 'ventes', width: 70, align: 'right'},
                 {header: 'Clients', dataIndex: 'clients', width: 70, align: 'right'},
                 {
+                    header: '% du chiffre', dataIndex: 'part', width: 90, align: 'right',
+                    tooltip: 'Part du vendeur dans le chiffre d\'affaires de la garde',
+                    xtype: 'numbercolumn', format: '0.00'
+                },
+                {
                     header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 130, align: 'right',
                     xtype: 'numbercolumn', format: '0,000.'
                 },
@@ -751,7 +809,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             minimum: 0,
                             label: {renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }}
                         }, {
-                            type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes compar&eacute;es'
+                            type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes compar\u00e9es'
                         }],
                     series: [{
                             type: 'line', title: 'Clients', axis: 'left', xField: 'libelle', yField: 'clients',

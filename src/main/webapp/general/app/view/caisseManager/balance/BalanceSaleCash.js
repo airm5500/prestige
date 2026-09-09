@@ -117,8 +117,24 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
         // Retour des tests du 09/09 : les trois barres du bas (l'affichage historique) restent, pour
         // comparer avec la presentation modernisee de l'onglet Balance ; elles sont masquees sur les
         // onglets d'analyse, qui n'en ont pas besoin.
-        Ext.applyIf(me, {
-            dockedItems: [
+        // Retour des tests du 09/09 : la nouvelle presentation est validee. L'ancienne presentation
+        // complete (grille historique et ses trois barres de resume) est conservee dans un onglet
+        // cache « Balance (ancienne) », affiche seulement avec le privilege
+        // P_BALANCE_ANCIENNE_PRESENTATION, pour depanner en cas de doute sur un chiffre.
+        me.storeAncienne = Ext.create('Ext.data.Store', {
+            fields: store.model.prototype.fields.getRange().map(function (f) {
+                return {name: f.name, type: f.type.type};
+            }),
+            autoLoad: false,
+            pageSize: 2,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/balance/balancesalecash',
+                reader: {type: 'json', root: 'data', totalProperty: 'total', metaProperty: 'metaData'},
+                timeout: 2400000
+            }
+        });
+        me.barresAnciennes = [
                 {
                     xtype: 'toolbar',
                     dock: 'bottom',
@@ -334,11 +350,13 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                     ]
                 }
 
-            ],
+        ];
+        Ext.applyIf(me, {
             items: [{
                     xtype: 'tabpanel',
                     itemId: 'ongletsBalance',
-                    items: [me.ongletBalance(store), me.ongletAnalyse(analyseStore), me.ongletModes()]
+                    items: [me.ongletBalance(store), me.ongletAnalyse(analyseStore), me.ongletModes(),
+                        me.ongletAncienne(me.storeAncienne)]
                 }]
         });
         this.callParent();
@@ -400,9 +418,6 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
      */
     ongletBalance: function (store) {
         var me = this;
-        var montant = function (entete, champ, flex) {
-            return {header: entete, dataIndex: champ, flex: flex || 1, align: 'right', xtype: 'numbercolumn', format: '0,000.'};
-        };
         return {
             title: 'Balance',
             xtype: 'panel',
@@ -411,22 +426,55 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
             border: false,
             dockedItems: [me.barreRecherche('', false, [{
                         text: 'imprimer', itemId: 'imprimer', iconCls: 'printable',
-                        tooltip: 'Imprimer la balance vente/caisse'
+                        tooltip: 'Imprimer la balance vente/caisse (nouvelle pr&eacute;sentation)'
                     }])],
             items: [{
+                    // La grille sert de porteur au magasin (chargement, resume) : elle n'est plus
+                    // affichee, la synthese en tient lieu.
                     xtype: 'gridpanel',
                     itemId: 'balanceGrid',
                     store: store,
-                    // Deux lignes connues d'avance : la grille prend la hauteur de ses lignes, sans
-                    // pagination ni defilement.
+                    hidden: true,
+                    height: 0,
+                    columns: [{header: 'Type vente', dataIndex: 'typeVente'}]
+                }, {
+                    xtype: 'panel',
+                    itemId: 'syntheseBalance',
+                    border: false,
+                    bodyStyle: 'background:#fbfcfd;',
+                    tpl: me.tplSynthese(),
+                    html: ''
+                }, me.panneauVentilation()]
+        };
+    },
+
+    /**
+     * L'ancienne presentation complete, conservee telle quelle dans un onglet cache : sa propre
+     * recherche, la grille historique et ses trois barres de resume, son edition historique.
+     */
+    ongletAncienne: function (store) {
+        var me = this;
+        var montant = function (entete, champ, flex) {
+            return {header: entete, dataIndex: champ, flex: flex || 1, align: 'right', xtype: 'numbercolumn', format: '0,000.'};
+        };
+        return {
+            title: 'Balance (ancienne)',
+            xtype: 'panel',
+            itemId: 'ongletBalanceAncienne',
+            hidden: true,
+            layout: 'fit',
+            border: false,
+            dockedItems: [me.barreRecherche('Ancienne', false, [{
+                        text: 'imprimer', itemId: 'imprimerAncienne', iconCls: 'printable',
+                        tooltip: 'Imprimer la balance vente/caisse (ancien mod&egrave;le)'
+                    }])].concat(me.barresAnciennes),
+            items: [{
+                    xtype: 'gridpanel',
+                    itemId: 'balanceGridAncienne',
+                    store: store,
                     viewConfig: {forceFit: true, columnLines: true},
                     columns: [
-                        {
-                            header: 'Type vente', dataIndex: 'typeVente', flex: 0.7,
-                            renderer: function (v) {
-                                return me.libelleTypeVente(v);
-                            }
-                        },
+                        {header: 'Type vente', dataIndex: 'typeVente', flex: 0.7},
                         {header: 'Nbre Vente', dataIndex: 'nbreVente', flex: 0.6, align: 'right'},
                         {
                             text: 'Montant',
@@ -441,15 +489,9 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                         montant('P.Mobile', 'montantMobilePayment', 0.8),
                         montant('Tiers payant', 'montantTp', 0.8)
                     ],
-                    selModel: {selType: 'cellmodel'}
-                }, {
-                    xtype: 'panel',
-                    itemId: 'syntheseBalance',
-                    border: false,
-                    bodyStyle: 'background:#fbfcfd;',
-                    tpl: me.tplSynthese(),
-                    html: ''
-                }, me.panneauVentilation()]
+                    selModel: {selType: 'cellmodel'},
+                    bbar: {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
+                }]
         };
     },
 
@@ -500,7 +542,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
             '{[this.kpi("Marge", values.resume.marge)]}{[this.kpi("Ratio V/A", values.resume.ratioVA, true)]}',
             '{[this.kpi("Fonds de caisse", values.resume.fondCaisse)]}{[this.kpi("R&egrave;gl. diff&eacute;r&eacute;s", values.resume.montantRegDiff)]}',
             '{[this.kpi("R&egrave;gl. tiers payant", values.resume.montantRegleTp)]}{[this.kpi("Entr&eacute;es", values.resume.montantEntre)]}',
-            '{[this.kpi("Sorties", values.resume.montantSortie)]}{[this.kpi("Esp&egrave;ces", values.resume.montantEsp)]}',
+            '{[this.kpi("Sorties", values.resume.montantSortie, false, "rouge")]}{[this.kpi("Esp&egrave;ces", values.resume.montantEsp)]}',
             '{[this.kpi("Mobile", values.resume.montantMobilePayment)]}{[this.kpi("Panier moyen", values.resume.panierMoyen)]}',
             '{[this.kpi("Nb ventes", values.resume.nbreVente)]}{[this.kpi("Ch&egrave;ques", values.resume.montantCheque)]}',
             '{[this.kpi("Virements", values.resume.montantVirement)]}',
@@ -512,9 +554,13 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 type: function (v) {
                     return v === 'VNO' ? 'COMPTANT' : (v === 'VO' ? 'CR\u00c9DIT' : Ext.String.htmlEncode(v || ''));
                 },
-                kpi: function (libelle, valeur, brut) {
-                    return '<div class="vb-kpi"><span class="vb-kpi-lib">' + libelle + '</span><span class="vb-kpi-val">'
-                            + (brut ? (valeur || 0) : Ext.util.Format.number(valeur || 0, '0,000')) + '</span></div>';
+                kpi: function (libelle, valeur, brut, teinte) {
+                    // Les sorties de caisse en rouge (retour des tests du 09/09) ; le separateur de
+                    // milliers s'applique aussi aux valeurs negatives.
+                    var texte = brut ? String(valeur || 0)
+                            : ((valeur || 0) < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(valeur || 0), '0,000');
+                    return '<div class="vb-kpi' + (teinte === 'rouge' ? ' vb-kpi-rouge' : '') + '"><span class="vb-kpi-lib">'
+                            + libelle + '</span><span class="vb-kpi-val">' + texte + '</span></div>';
                 }
             });
     },
@@ -537,10 +583,10 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 '<div class="vb-titre">Clients et ventes</div>',
                 '<table class="vb-table">',
                 '<tr><th></th><th>Clients</th><th>% clients</th><th>Montant net</th><th>% ventes</th></tr>',
-                '<tr><td class="vb-lib">COMPTANT (VNO)</td><td class="vb-n">{[this.n(values.comptant.ventes)]}</td>',
+                '<tr><td class="vb-lib">COMPTANT</td><td class="vb-n">{[this.n(values.comptant.ventes)]}</td>',
                 '<td class="vb-p">{[this.p(values.comptant.partVentes)]}</td><td class="vb-n">{[this.n(values.comptant.montant)]}</td>',
                 '<td class="vb-p">{[this.p(values.comptant.partMontant)]}</td></tr>',
-                '<tr><td class="vb-lib">CR&Eacute;DIT (VO)</td><td class="vb-n">{[this.n(values.credit.ventes)]}</td>',
+                '<tr><td class="vb-lib">CR&Eacute;DIT</td><td class="vb-n">{[this.n(values.credit.ventes)]}</td>',
                 '<td class="vb-p">{[this.p(values.credit.partVentes)]}</td><td class="vb-n">{[this.n(values.credit.montant)]}</td>',
                 '<td class="vb-p">{[this.p(values.credit.partMontant)]}</td></tr>',
                 '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.totalVentes)]}</td><td class="vb-p">100 %</td>',
