@@ -180,6 +180,21 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     }
 
     @Override
+    public Long solde(String tiersPayantId) {
+        TTiersPayant payant = getEntityManager().find(TTiersPayant.class, tiersPayantId);
+        if (payant == null) {
+            return null;
+        }
+        // Relu en base : une vente modifiee ou annulee depuis un autre ecran a deja touche le compte.
+        try {
+            getEntityManager().refresh(payant);
+        } catch (Exception e) {
+            // entite non geree : la valeur lue par find suffit
+        }
+        return payant.getAccount() == null ? 0L : payant.getAccount().longValue();
+    }
+
+    @Override
     public JSONObject all(int start, int size, String query, Boolean exclude) {
         return all(start, size, query, exclude, null);
     }

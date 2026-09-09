@@ -177,16 +177,97 @@ public class FacturationRessouce {
         }
         java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy");
         java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
-        byte[] pdf = rest.report.pdf.FactureCarnetDepotPdf.construire(
-                facturationService.findFacturesDetailsByFactureId(factureId),
-                String.valueOf(parametres.getOrDefault("P_H_INSTITUTION", "")),
-                "FACTURE N° " + facture.getStrCODEFACTURE(),
-                facture.getTiersPayant() == null ? "" : facture.getTiersPayant().getStrFULLNAME(),
-                "PERIODE DU " + jour.format(facture.getDtDEBUTFACTURE()) + " AU "
-                        + jour.format(facture.getDtFINFACTURE()),
-                String.valueOf(parametres.getOrDefault("P_PRINTED_BY", "")));
-        return Response.ok(pdf)
+        /*
+         * Retour du 09/09 : le meme modele que l'edition detaillee (facture_carnet_depot_simple.jrxml, derive de
+         * facture_detail_articles.jrxml), une ligne par vente avec la reference de la vente et le numero de bon, plus
+         * l'identifiant technique de la ligne. Le PDF est rendu en flux, dans l'onglet ouvert par le clic : aucune
+         * fenetre surgissante.
+         */
+        parametres.put("P_CODE_FACTURE", "FACTURE N° " + facture.getStrCODEFACTURE());
+        parametres.put("P_TIERS_PAYANT_NAME",
+                facture.getTiersPayant() == null ? "" : facture.getTiersPayant().getStrFULLNAME());
+        parametres.put("P_H_CLT_INFOS", "PERIODE DU " + jour.format(facture.getDtDEBUTFACTURE()) + " AU "
+                + jour.format(facture.getDtFINFACTURE()));
+        java.util.List<commonTasks.dto.FactureDetailDTO> lignes = facturationService
+                .findFacturesDetailsByFactureId(factureId);
+        lignes.sort(java.util.Comparator
+                .comparing((commonTasks.dto.FactureDetailDTO l) -> l.getDateVente() == null ? "" : l.getDateVente())
+                .thenComparing(l -> l.getStrREFVENTE() == null ? "" : l.getStrREFVENTE()));
+        String url = reportUtil.buildReport(parametres, "facture_carnet_depot_simple", lignes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
                 .header("Content-Disposition", "inline; filename=facture_" + facture.getStrCODEFACTURE() + ".pdf")
+                .build();
+    }
+
+    /**
+     * Les ventes (bons) d'une facture, paginees, avec le beneficiaire (retour du 09/09 : visualisation du contenu).
+     */
+    @GET
+    @Path("facture/{id}/bons")
+    public Response bonsDeFacture(@PathParam("id") String factureId,
+            @DefaultValue("") @QueryParam("query") String query, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("25") @QueryParam("limit") int limit) {
+        java.util.List<commonTasks.dto.FactureDetailDTO> lignes = facturationService
+                .findFacturesDetailsByFactureId(factureId);
+        String motif = query == null ? "" : query.trim().toLowerCase();
+        java.util.List<commonTasks.dto.FactureDetailDTO> retenues = new java.util.ArrayList<>();
+        for (commonTasks.dto.FactureDetailDTO l : lignes) {
+            String texte = (l.getStrREFVENTE() + " " + l.getStrREFBON() + " " + l.getClientFirstName() + " "
+                    + l.getClientLastName() + " " + l.getClientNumAssurance()).toLowerCase();
+            if (motif.isEmpty() || texte.contains(motif)) {
+                retenues.add(l);
+            }
+        }
+        retenues.sort(java.util.Comparator
+                .comparing((commonTasks.dto.FactureDetailDTO l) -> l.getDateVente() == null ? "" : l.getDateVente())
+                .thenComparing(l -> l.getStrREFVENTE() == null ? "" : l.getStrREFVENTE()));
+        JSONArray data = new JSONArray();
+        int fin = limit > 0 ? Math.min(retenues.size(), Math.max(0, start) + limit) : retenues.size();
+        for (int i = Math.max(0, start); i < fin; i++) {
+            commonTasks.dto.FactureDetailDTO l = retenues.get(i);
+            data.put(new JSONObject().put("id", l.getLgFACTUREDETAILID()).put("venteId", l.getVenteId())
+                    .put("strREFVENTE", l.getStrREFVENTE()).put("strREFBON", l.getStrREFBON())
+                    .put("dateVente", l.getDateVente())
+                    .put("client",
+                            ((l.getClientFirstName() == null ? "" : l.getClientFirstName()) + " "
+                                    + (l.getClientLastName() == null ? "" : l.getClientLastName())).trim())
+                    .put("matricule", l.getClientNumAssurance() == null ? "" : l.getClientNumAssurance())
+                    .put("montant", l.getDblMONTANT() == null ? 0 : l.getDblMONTANT()));
+        }
+        long total = 0L;
+        for (commonTasks.dto.FactureDetailDTO l : retenues) {
+            total += l.getDblMONTANT() == null ? 0 : l.getDblMONTANT();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", retenues.size())
+                .put("montantTotal", total).put("data", data).toString()).build();
+    }
+
+    /** Les medicaments d'une vente d'une facture, pagines (retour du 09/09 : visualisation du contenu). */
+    @GET
+    @Path("facture/{id}/bons/{venteId}/articles")
+    public Response articlesDeBon(@PathParam("id") String factureId, @PathParam("venteId") String venteId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("25") @QueryParam("limit") int limit) {
+        java.util.List<commonTasks.dto.VenteDetailsDTO> articles = facturationService
+                .findArticleByFactureDetailsId(venteId);
+        JSONArray data = new JSONArray();
+        int fin = limit > 0 ? Math.min(articles.size(), Math.max(0, start) + limit) : articles.size();
+        for (int i = Math.max(0, start); i < fin; i++) {
+            commonTasks.dto.VenteDetailsDTO a = articles.get(i);
+            data.put(new JSONObject().put("intCIP", a.getIntCIP()).put("strNAME", a.getStrNAME())
+                    .put("intQUANTITY", a.getIntQUANTITY()).put("intPRICEUNITAIR", a.getIntPRICEUNITAIR())
+                    .put("intPRICE", a.getIntPRICE()));
+        }
+        return Response.ok().entity(
+                new JSONObject().put("success", true).put("total", articles.size()).put("data", data).toString())
                 .build();
     }
 

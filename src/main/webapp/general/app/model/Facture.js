@@ -205,6 +205,11 @@ Ext.define('testextjs.model.Facture', {
             type: 'boolean'
         },
          {
+            /* Facture d'un carnet depot : pas de reglement depuis la facturation ordinaire (retour du 09/09). */
+            name: 'carnetDepot',
+            type: 'boolean'
+        },
+        {
             name: 'ACTION_REGLER_FACTURE',
             type: 'boolean'
         }

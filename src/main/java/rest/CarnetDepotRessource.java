@@ -87,6 +87,18 @@ public class CarnetDepotRessource {
 
     }
 
+    /** Le solde actuel du carnet, relu en base : chaque onglet le redemande a son ouverture (retour du 09/09). */
+    @GET
+    @Path("solde/{tiersPayantId}")
+    public Response solde(@PathParam("tiersPayantId") String id) {
+        Long solde = carnetAsDepotService.solde(id);
+        if (solde == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", "Carnet introuvable").toString()).build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("solde", solde).toString()).build();
+    }
+
     @GET
     @Path("ventes")
     public Response fetchVenteByTiersPayant(@QueryParam(value = "tiersPayantId") String tiersPayantId,

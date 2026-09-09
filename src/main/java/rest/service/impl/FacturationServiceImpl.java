@@ -796,11 +796,56 @@ public class FacturationServiceImpl implements FacturationService {
             TypedQuery<TFactureDetail> q = getEntityManager().createNamedQuery("TFactureDetail.findByFactureId",
                     TFactureDetail.class);
             q.setParameter("lgFACTUREID", id);
-            return q.getResultList().stream().map(FactureDetailDTO::new).collect(Collectors.toList());
+            return completerAvecLesVentes(
+                    q.getResultList().stream().map(FactureDetailDTO::new).collect(Collectors.toList()));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Retour du 09/09 : la ligne de facture ne porte que l'identifiant technique du bon. On y rapporte la reference de
+     * la vente (celle des editions detaillees), le numero de bon saisi et l'identifiant de la vente, par paquets pour
+     * ne pas faire une requete par ligne.
+     */
+    private List<FactureDetailDTO> completerAvecLesVentes(List<FactureDetailDTO> lignes) {
+        if (lignes == null || lignes.isEmpty()) {
+            return lignes == null ? Collections.emptyList() : lignes;
+        }
+        Map<String, FactureDetailDTO> parBon = new LinkedHashMap<>();
+        for (FactureDetailDTO l : lignes) {
+            if (l.getStrREF() != null && !l.getStrREF().isEmpty()) {
+                parBon.put(l.getStrREF(), l);
+            }
+        }
+        List<String> ids = new ArrayList<>(parBon.keySet());
+        int taille = 500;
+        for (int i = 0; i < ids.size(); i += taille) {
+            List<String> paquet = ids.subList(i, Math.min(ids.size(), i + taille));
+            try {
+                TypedQuery<TPreenregistrementCompteClientTiersPayent> q = getEntityManager().createQuery(
+                        "SELECT b FROM TPreenregistrementCompteClientTiersPayent b"
+                                + " WHERE b.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID IN :ids",
+                        TPreenregistrementCompteClientTiersPayent.class);
+                q.setParameter("ids", paquet);
+                for (TPreenregistrementCompteClientTiersPayent bon : q.getResultList()) {
+                    FactureDetailDTO l = parBon.get(bon.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID());
+                    if (l == null) {
+                        continue;
+                    }
+                    l.setStrREFBON(bon.getStrREFBON());
+                    TPreenregistrement vente = bon.getLgPREENREGISTREMENTID();
+                    if (vente != null) {
+                        l.setStrREFVENTE(vente.getStrREF());
+                        l.setVenteId(vente.getLgPREENREGISTREMENTID());
+                    }
+                }
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "references de vente des lignes de facture", e);
+            }
+        }
+        return lignes;
     }
 
     @Override

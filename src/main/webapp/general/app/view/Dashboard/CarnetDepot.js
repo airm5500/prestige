@@ -45,8 +45,22 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     totalProperty: 'total'
                 },
                 timeout: 2400000
+            },
+            listeners: {
+                /* Retour du 09/09 : « Tout » en tete de liste, pour reafficher l'ensemble des carnets
+                   apres en avoir choisi un. Le filtre est alors vide cote serveur. */
+                load: function (store) {
+                    if (!store.findRecord('id', 'TOUT', 0, false, true, true)) {
+                        store.insert(0, {id: 'TOUT', code: '', nom: 'Tout', nomComplet: 'Tout', account: 0});
+                    }
+                }
             }
         });
+        /* Onglet a ouvrir, transmis par le routeur (retour du 09/09) : apres la creation d'une facture,
+           on revient DIRECTEMENT dans l'onglet FACTURES, sans passer par les ventes. */
+        if (this.data && this.data.ongletActif) {
+            this.ongletDemande = this.data.ongletActif;
+        }
         let ventes = new Ext.data.Store({
             fields: [
                 {
@@ -982,12 +996,29 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                     }},
                                 {header: 'Date facture', dataIndex: 'dtDATEFACTURE', flex: 0.9},
                                 {
-                                    /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE. Chaque icone a
-                                       son propre gestionnaire ; le choix « avec ou sans les produits » est
-                                       demande au clic sur l'imprimante. */
+                                    /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE. Retour du 09/09 :
+                                       les deux icones etaient trop proches, on se trompait au clic. Chacune a
+                                       sa colonne, avec son titre, et « Voir » ouvre le contenu de la facture
+                                       (beneficiaires, puis medicaments d'une vente), pagine. */
                                     xtype: 'actioncolumn',
-                                    header: 'Actions',
-                                    width: 80,
+                                    header: 'Voir',
+                                    width: 50,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
+                                            icon: 'resources/images/icons/fam/application_view_list.png',
+                                            tooltip: 'Voir le contenu : bénéficiaires et médicaments',
+                                            altText: 'Voir',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('voirFactureDepot',
+                                                        grille.getStore().getAt(ligne));
+                                            }
+                                        }]
+                                }, {
+                                    xtype: 'actioncolumn',
+                                    header: 'Imprimer',
+                                    width: 70,
                                     align: 'center',
                                     menuDisabled: true,
                                     sortable: false,
@@ -999,7 +1030,15 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                                 grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
                                                         grille.getStore().getAt(ligne));
                                             }
-                                        }, {
+                                        }]
+                                }, {
+                                    xtype: 'actioncolumn',
+                                    header: 'Supprimer',
+                                    width: 80,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
                                             icon: 'resources/images/icons/fam/delete.png',
                                             tooltip: 'Supprimer cette facture',
                                             altText: 'Supprimer',
@@ -1022,5 +1061,11 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
             ]
         });
         me.callParent(arguments);
+        if (me.ongletDemande) {
+            var onglet = me.down('#' + me.ongletDemande);
+            if (onglet) {
+                me.setActiveTab(onglet);
+            }
+        }
     }
 });

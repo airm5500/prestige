@@ -153,17 +153,20 @@ function retirerJeuDEssai() {
   await p.waitForTimeout(2500);
   const ecran = await p.evaluate(() => {
     const grille = Ext.ComponentQuery.query('reglementdepot #grilleFacturesDepot')[0];
-    const action = grille.columns.find(c => c.xtype === 'actioncolumn');
+    const actions = grille.columns.filter(c => c.xtype === 'actioncolumn');
     return {
       colonnes: grille.columns.map(c => c.text || c.header),
       statut: grille.columns.some(c => /statut/i.test(c.text || '')),
-      iconesLigne: action ? action.items.length : 0,
+      /* Retour du 09/09 : une colonne par action (Voir, Imprimer, Supprimer), les icones ne se touchent plus. */
+      iconesLigne: actions.reduce((n, c) => n + c.items.length, 0),
+      colonnesAction: actions.map(c => c.text),
       boutonHaut: (grille.down('#btnSupprimerFactureDepot') || {}).text,
       ancienBoutonImprimer: !!grille.down('#btnImprimerFactureDepot')
     };
   });
   ok('ecran : plus de colonne « Statut »', ecran.statut === false, ecran.colonnes.join(' | '));
-  ok('ecran : imprimer et supprimer sur la ligne (deux icones)', ecran.iconesLigne === 2, JSON.stringify(ecran));
+  ok('ecran : voir, imprimer et supprimer sur la ligne, chacun dans sa colonne',
+     ecran.iconesLigne === 3 && ecran.colonnesAction.join('|') === 'Voir|Imprimer|Supprimer', JSON.stringify(ecran));
   ok('ecran : le bouton du haut ne sert qu a la suppression multiple',
      /s[eé]lection/i.test(ecran.boutonHaut || '') && ecran.ancienBoutonImprimer === false, JSON.stringify(ecran));
 

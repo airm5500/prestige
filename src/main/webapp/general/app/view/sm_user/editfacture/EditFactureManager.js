@@ -824,7 +824,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 menuDisabled: true,
                 items: [{
                         getClass: function (v, meta, rec) {
-
+                            /* Retour du 09/09 : une facture de carnet depot se regle depuis le menu du carnet. */
+                            if (rec.get('carnetDepot')) {
+                                return 'x-hide-display';
+                            }
                             if ((rec.get('str_STATUT') === "enable" || rec.get('str_STATUT') === "is_Process") && rec.get('ACTION_REGLER_FACTURE')) {
                                 return 'nonregle';
                             } else if (rec.get('str_STATUT') === "group") {
@@ -1114,6 +1117,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     },
     onPaidFactureClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
+        if (rec.get('carnetDepot')) {
+            Ext.MessageBox.alert('Information', 'Cette facture est celle d\'un carnet dépôt : elle se règle depuis le menu Gestion carnet dépôt.');
+            return;
+        }
 
         if ((rec.get('str_STATUT') === "enable" || rec.get('str_STATUT') === "is_Process") && rec.get('ACTION_REGLER_FACTURE')) {
             // Reglement en fenetre modale (comme Detail Bordereau) : la liste des factures

@@ -43,7 +43,14 @@ Ext.define('testextjs.view.facturation.EditerFactureProvisoire', {
         var store_type_filter = Ext.create('Ext.data.Store', {
             autoLoad: true,
             fields: ['value', 'name'],
-            data: [
+            /* Retour du 09/09 : depuis le menu du carnet depot, trois lectures seulement - la selection
+               massive, par tiers payant, par selection de bons. Les regroupements d'assurances n'y ont
+               pas de sens. */
+            data: enCarnetDepot ? [
+                {"value": "SELECT", "name": "Sélection massive"},
+                {"value": "TP", "name": "Par tiers payant"},
+                {"value": "BONS", "name": "Par Sélection de bons"}
+            ] : [
                 {"value": "ALL", "name": "Tous"},
                 {"value": "SELECT", "name": "Sélection massive"},
                 {"value": "TYPETP", "name": "Type tiers payant"},

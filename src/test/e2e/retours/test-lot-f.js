@@ -112,14 +112,15 @@ function retirerJeuDEssai() {
   ok('edition sans detail : le serveur repond 200', pdf.statut === 200, pdf.statut);
   ok('edition sans detail : le contenu est un PDF', fs.readFileSync(f).slice(0, 5).toString('latin1') === '%PDF-');
 
-  const texte = execSync('pdftotext -layout ' + f + ' -', { encoding: 'latin1' });
+  /* Retour du 09/09 : l'edition simple suit le modele du detail (JasperReports, UTF-8). */
+  const texte = execSync('pdftotext -layout ' + f + ' -', { encoding: 'utf8' });
   fs.writeFileSync(f + '.txt', texte);
   const lignesTexte = texte.split('\n').map(l => l.trim()).filter(Boolean);
 
   ok('edition sans detail : le numero de facture est en tete',
      lignesTexte.slice(0, 5).some(l => /FACTURE N/.test(l)), lignesTexte.slice(0, 6).join(' | '));
-  ok('edition sans detail : la colonne Date ouvre le tableau',
-     /^Date\s+N/.test(lignesTexte.find(l => /^Date/.test(l)) || ''),
+  ok('edition sans detail : la colonne Date ouvre le tableau, suivie de la reference de vente et du numero de bon',
+     /^Date\s+Vente n°\s+N° bon/.test(lignesTexte.find(l => /^Date/.test(l)) || ''),
      lignesTexte.find(l => /^Date/.test(l)));
   ok('edition sans detail : plus de colonne M.TOTAL', !/M\.?\s?TOTAL/i.test(texte));
   ok('edition sans detail : plus de colonne M.ADHER', !/M\.?\s?ADHER/i.test(texte));
@@ -135,8 +136,8 @@ function retirerJeuDEssai() {
   const dates = corps.join('\n').match(/\d{2}\/\d{2}\/\d{4}/g) || [];
   ok('edition sans detail : une ligne de bon par bon, ni plus ni moins', dates.length === nbBons,
      dates.length + ' date(s) pour ' + nbBons + ' bon(s) : ' + dates.join(','));
-  ok('edition sans detail : le total annonce le nombre de bons',
-     texte.indexOf('TOTAL (' + nbBons + ' bon(s))') !== -1,
+  ok('edition sans detail : le total annonce le nombre de ventes',
+     texte.indexOf('TOTAL GÉNÉRAL (' + nbBons + ' vente(s))') !== -1,
      (texte.match(/TOTAL.*/g) || []).join(' // '));
 
   // tri par date : les dates du tableau sont croissantes
@@ -148,9 +149,9 @@ function retirerJeuDEssai() {
   // le total edite vaut la somme des bons
   const somme = parseInt(q("SELECT ROUND(SUM(dbl_MONTANT)) FROM t_facture_detail WHERE lg_FACTURE_ID='"
     + essai.factureId + "'"), 10);
-  const totalEdite = (texte.match(/TOTAL \([0-9]+ bon\(s\)\)\s+([0-9 ]+)/) || [])[1];
+  const totalEdite = (texte.match(/TOTAL GÉNÉRAL \([0-9]+ vente\(s\)\)\s+([0-9 ,.]+)/) || [])[1];
   ok('edition sans detail : le total vaut la somme des bons',
-     !!totalEdite && parseInt(totalEdite.replace(/\s/g, ''), 10) === somme,
+     !!totalEdite && parseInt(totalEdite.replace(/[\s,.]/g, ''), 10) === somme,
      'edite=' + totalEdite + ' base=' + somme);
 
   /* ------------------------------------------------------ edition AVEC detail */

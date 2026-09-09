@@ -247,24 +247,142 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         fenetre.show();
     },
 
-    /* Les editions sont espacees : ouvertes dans la meme milliseconde, le navigateur bloque toutes
-       les fenetres sauf la premiere. */
+    /* Retour du 09/09 : AUCUNE fenetre surgissante. L'edition s'ouvre dans le clic de l'utilisateur,
+       sur un service qui rend le PDF en flux ; une ouverture differee ou depuis un rappel reseau est
+       bloquee par le navigateur. Les deux editions (avec ou sans les medicaments) suivent le meme modele. */
     lancerImpressionsDepot: function (identifiants, avecDetails) {
-        const me = this;
-        Ext.Array.each(identifiants, function (id, rang) {
-            Ext.defer(function () {
-                if (!avecDetails) {
-                    window.open('../api/v1/facturation/facture/' + encodeURIComponent(id) + '/carnet-depot/pdf');
-                    return;
-                }
-                /* Avec le detail des medicaments : le service REST directement, et non la page
-                   d'impression historique. Cette page lit le modele de facture du tiers payant
-                   avant tout - un carnet depot n'en a pas, et elle plantait (retour du 08/09). */
-                me.editionAvecDetails(id);
-            }, rang * 400);
-        });
+        const id = identifiants[0];
+        window.open('../api/v1/facturation/facture/' + encodeURIComponent(id)
+                + (avecDetails ? '/detail-articles/pdf' : '/carnet-depot/pdf'));
     },
 
+    /**
+     * Le contenu d'une facture (retour du 09/09) : les beneficiaires (une ligne par vente) pagines, et,
+     * pour la vente choisie, ses medicaments pagines. Deux grilles, deux appels legers : une facture
+     * de plusieurs milliers de lignes reste consultable.
+     */
+    voirFactureDepot: function (enregistrement) {
+        if (!enregistrement) {
+            return;
+        }
+        const factureId = enregistrement.get('lgFACTUREID');
+        const bons = Ext.create('Ext.data.Store', {
+            fields: ['id', 'venteId', 'strREFVENTE', 'strREFBON', 'dateVente', 'client', 'matricule',
+                {name: 'montant', type: 'int'}],
+            pageSize: 25,
+            remoteSort: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/facture/' + encodeURIComponent(factureId) + '/bons',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        const articles = Ext.create('Ext.data.Store', {
+            fields: ['intCIP', 'strNAME', {name: 'intQUANTITY', type: 'int'}, {name: 'intPRICEUNITAIR', type: 'int'},
+                {name: 'intPRICE', type: 'int'}],
+            pageSize: 25,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/facture/' + encodeURIComponent(factureId) + '/bons/-/articles',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Contenu de la facture N° ' + Ext.String.htmlEncode(enregistrement.get('strCODEFACTURE') || '')
+                    + ' - ' + Ext.String.htmlEncode(enregistrement.get('strFULLNAME') || ''),
+            modal: true,
+            width: '85%',
+            height: 560,
+            layout: {type: 'hbox', align: 'stretch'},
+            items: [{
+                    xtype: 'gridpanel',
+                    itemId: 'grilleBonsFacture',
+                    title: 'Bénéficiaires (une ligne par vente)',
+                    flex: 1.3,
+                    store: bons,
+                    viewConfig: {emptyText: '<div style="margin:16px">Aucune vente</div>', deferEmptyText: false},
+                    dockedItems: [{
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            items: [{
+                                    xtype: 'textfield',
+                                    itemId: 'rechercheBon',
+                                    emptyText: 'Bénéficiaire, matricule, vente, bon',
+                                    flex: 1,
+                                    enableKeyEvents: true,
+                                    listeners: {
+                                        specialkey: function (champ, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                bons.getProxy().setExtraParam('query', champ.getValue() || '');
+                                                bons.loadPage(1);
+                                            }
+                                        }
+                                    }
+                                }, {
+                                    xtype: 'tbtext',
+                                    itemId: 'totalBons',
+                                    text: ''
+                                }]
+                        }],
+                    columns: [
+                        {header: 'Date', dataIndex: 'dateVente', width: 80},
+                        {header: 'Vente n°', dataIndex: 'strREFVENTE', width: 110},
+                        {header: 'N° bon', dataIndex: 'strREFBON', width: 80},
+                        {header: 'Bénéficiaire', dataIndex: 'client', flex: 1},
+                        {header: 'Matricule', dataIndex: 'matricule', width: 90},
+                        {header: 'Montant', dataIndex: 'montant', width: 90, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'}
+                    ],
+                    bbar: {xtype: 'pagingtoolbar', store: bons, displayInfo: true,
+                        displayMsg: 'Ventes {0} - {1} sur {2}', emptyMsg: 'Aucune vente'}
+                }, {
+                    xtype: 'gridpanel',
+                    itemId: 'grilleArticlesFacture',
+                    title: 'Médicaments de la vente choisie',
+                    flex: 1,
+                    margin: '0 0 0 4',
+                    store: articles,
+                    viewConfig: {emptyText: '<div style="margin:16px">Choisissez une vente à gauche</div>',
+                        deferEmptyText: false},
+                    columns: [
+                        {header: 'CIP', dataIndex: 'intCIP', width: 80},
+                        {header: 'Médicament', dataIndex: 'strNAME', flex: 1},
+                        {header: 'Qté', dataIndex: 'intQUANTITY', width: 50, align: 'right'},
+                        {header: 'P.U.', dataIndex: 'intPRICEUNITAIR', width: 70, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'},
+                        {header: 'Montant', dataIndex: 'intPRICE', width: 80, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'}
+                    ],
+                    bbar: {xtype: 'pagingtoolbar', store: articles, displayInfo: true,
+                        displayMsg: 'Médicaments {0} - {1} sur {2}', emptyMsg: 'Aucun médicament'}
+                }],
+            buttons: [{
+                    text: 'Fermer',
+                    handler: function () {
+                        fenetre.destroy();
+                    }
+                }]
+        });
+        fenetre.down('#grilleBonsFacture').on('selectionchange', function (sm, selection) {
+            if (!selection.length) {
+                articles.removeAll();
+                return;
+            }
+            articles.getProxy().url = '../api/v1/facturation/facture/' + encodeURIComponent(factureId)
+                    + '/bons/' + encodeURIComponent(selection[0].get('venteId') || '-') + '/articles';
+            articles.loadPage(1);
+        });
+        bons.on('load', function (store) {
+            const total = fenetre.down('#totalBons');
+            const json = store.getProxy().getReader().rawData;
+            if (total && json) {
+                total.setText('<b>' + Ext.util.Format.number(json.total || 0, '0,000') + '</b> vente(s), '
+                        + '<b>' + Ext.util.Format.number(json.montantTotal || 0, '0,000') + '</b>');
+            }
+        });
+        fenetre.show();
+        bons.loadPage(1);
+    },
     editionAvecDetails: function (id) {
         Ext.Ajax.request({
             method: 'GET',
@@ -300,14 +418,9 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
      * l'ecran de generation ne renvoie plus vers les factures provisoires.
      */
     revenirAuxFacturesDepot: function () {
-        testextjs.app.getController('App').onRedirectTo('reglementdepot', {});
-        Ext.defer(function () {
-            const vue = Ext.ComponentQuery.query('reglementdepot')[0];
-            const onglet = vue && vue.down('#facturesPanel');
-            if (vue && onglet) {
-                vue.setActiveTab(onglet);
-            }
-        }, 400);
+        /* Retour du 09/09 : l'onglet FACTURES est demande AVANT le rendu, l'ecran ne passe plus par
+           l'onglet des ventes. */
+        testextjs.app.getController('App').onRedirectTo('reglementdepot', {ongletActif: 'facturesPanel'});
     },
 
     init: function (application) {
@@ -321,7 +434,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                 // rechargeait donc rien : il fallait sortir du menu et y revenir pour voir les
                 // donnees a jour -- et entre-temps l'ecran affichait des chiffres perimes sans
                 // que rien ne l'indique.
-                tabchange: this.surChangementOnglet
+                // Retour du 09/09 : cette cle figurait DEUX FOIS dans la table ; la seconde
+                // (evenements des factures) effacait la premiere, et « tabchange » n'etait jamais
+                // branche. C'est pour cela que le solde ne bougeait pas d'un onglet a l'autre.
+                // Tous les evenements de l'ecran sont desormais ici, une seule fois.
+                tabchange: this.surChangementOnglet,
+                imprimerFactureDepot: this.imprimerFacturesDepot,
+                supprimerFactureDepot: this.supprimerUneFactureDepot,
+                voirFactureDepot: this.voirFactureDepot
             },
             'reglementdepot #facturesPanel [xtype=gridpanel]': {
                 viewready: this.chargerFacturesDepot
@@ -334,10 +454,6 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             },
             'reglementdepot #btnSupprimerFactureDepot': {
                 click: this.supprimerFacturesDepot
-            },
-            'reglementdepot': {
-                imprimerFactureDepot: this.imprimerFacturesDepot,
-                supprimerFactureDepot: this.supprimerUneFactureDepot
             },
             'reglementdepot #grilleFacturesDepot': {
                 selectionchange: this.surSelectionFacturesDepot
@@ -423,7 +539,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             me.getAccountReglement().setValue(record.get('account'));
             me.getAccount().setValue(record.get('account'));
         }
-        // Choisir un carnet lance directement la recherche de l'onglet ouvert
+        // Choisir un carnet lance directement la recherche de l'onglet ouvert (et le solde y est relu)
         // (ventes, reglements, depenses ou produits) : l'utilisateur n'a plus a
         // cliquer sur Rechercher apres avoir choisi son tiers payant.
         me.searchAll();
@@ -435,10 +551,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     onPdfClick: function () {
         let me = this;
         let itemId = me.getReglementdepot().getLayout().getActiveItem().getItemId();
-        let tiersPayantId = me.getTiersPayantsExclus().getValue();
-        if (tiersPayantId === null || tiersPayantId === undefined) {
-            tiersPayantId = '';
-        }
+        let tiersPayantId = me.tiersPayantChoisi();
         let dtStart = me.getDtStart().getSubmitValue();
         let dtEnd = me.getDtEnd().getSubmitValue();
         let linkUrl = ""; 
@@ -489,12 +602,49 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         this.searchAll();
     },
 
+    /** Le tiers payant choisi, ou vide quand « Tout » est selectionne (retour du 09/09). */
+    tiersPayantChoisi: function () {
+        const combo = this.getTiersPayantsExclus();
+        const valeur = combo ? combo.getValue() : null;
+        return valeur === null || valeur === undefined || valeur === 'TOUT' ? '' : valeur;
+    },
+    /**
+     * Le solde est RELU en base a chaque ouverture d'onglet et a chaque recherche (retour du 09/09) :
+     * une vente modifiee ou annulee depuis un autre menu a deja touche le compte, l'ecran ne le
+     * voyait pas tant qu'on ne le quittait pas. Les quantites de l'onglet Produits, elles, etaient
+     * rechargees a chaque fois ; le solde, lui, venait du selecteur, charge une seule fois.
+     */
+    rafraichirSolde: function (suite) {
+        const me = this;
+        const id = me.tiersPayantChoisi();
+        if (!id) {
+            me.afficherSolde(0);
+            if (suite) {
+                suite(null);
+            }
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v2/carnet-depot/solde/' + encodeURIComponent(id),
+            method: 'GET',
+            callback: function (opts, succes, reponse) {
+                const json = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (json.success) {
+                    me.afficherSolde(json.solde);
+                }
+                if (suite) {
+                    suite(json.success ? json.solde : null);
+                }
+            }
+        });
+    },
     searchAll: function () {
         let me = this;
         const actif = me.getReglementdepot() ? me.getReglementdepot().getLayout().getActiveItem() : null;
         if (!actif) {
             return;
         }
+        me.rafraichirSolde();
         const itemId = actif.getItemId();
         if (itemId === 'ventePanel') {
             me.doSearchVente();
@@ -516,7 +666,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue()
+                tiersPayantId: me.tiersPayantChoisi()
             }
         });
     },
@@ -571,7 +721,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue(),
+                tiersPayantId: me.tiersPayantChoisi(),
                 "typeReglementCarnet":'REGLEMENT'
             }
         });
@@ -582,7 +732,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue(),
+                tiersPayantId: me.tiersPayantChoisi(),
                 "typeReglementCarnet":'DEPENSE'
             }
         });
@@ -606,7 +756,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             tiersPayantId: null,
              "typeReglementCarnet":type
         };
-        myProxy.setExtraParam('tiersPayantId', me.getTiersPayantsExclus().getValue());
+        myProxy.setExtraParam('tiersPayantId', me.tiersPayantChoisi());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
          myProxy.setExtraParam('typeReglementCarnet', type);
@@ -623,7 +773,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue()
+                tiersPayantId: me.tiersPayantChoisi()
             }
         });
     },
@@ -772,6 +922,14 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                         },
                                         items: [
                                             {
+                                                /* Retour du 09/09 : le solde du carnet, rappele dans le formulaire. */
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Solde du carnet',
+                                                itemId: 'rappelSolde',
+                                                fieldStyle: 'font-weight:bold;color:#c0392b;font-size:1.2em',
+                                                value: Ext.util.Format.number(me.getAccountReglement() ? (me.getAccountReglement().getValue() || 0) : 0, '0,000')
+                                            },
+                                            {
                                                 xtype: 'textfield',
                                                 fieldLabel: 'Montant',
                                                 emptyText: 'Montant',
@@ -823,6 +981,8 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                             xtype: 'datefield',
                             fieldLabel: 'Date',
                             name: 'dateReglement',
+                            /* Retour du 09/09 : la date du jour par defaut. */
+                            value: new Date(),
                           
                             submitFormat: 'Y-m-d',
                             height: 30, flex: 1,
@@ -992,6 +1152,13 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                         },
                                         items: [
                                             {
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Solde du carnet',
+                                                itemId: 'rappelSolde',
+                                                fieldStyle: 'font-weight:bold;color:#c0392b;font-size:1.2em',
+                                                value: Ext.util.Format.number(me.getAccount() ? (me.getAccount().getValue() || 0) : 0, '0,000')
+                                            },
+                                            {
                                                 xtype: 'textfield',
                                                 fieldLabel: 'Montant',
                                                 emptyText: 'Montant',
@@ -1043,6 +1210,8 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                             xtype: 'datefield',
                             fieldLabel: 'Date',
                             name: 'dateReglement',
+                            /* Retour du 09/09 : la date du jour par defaut. */
+                            value: new Date(),
                            
                             submitFormat: 'Y-m-d',
                             height: 30, flex: 1,
