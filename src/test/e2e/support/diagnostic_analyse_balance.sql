@@ -4,7 +4,9 @@
 -- Chaque requete est jouee telle que l'application l'ecrit (« ACTUEL »), puis avec l'ordre de jointure
 -- force a partir des ventes bornees par date (« CANDIDAT ») : memes lignes, meme resultat, plan different.
 
-SET @empl := (SELECT u.lg_EMPLACEMENT_ID FROM t_user u WHERE u.str_LOGIN = 'KGA3' LIMIT 1);
+-- L'emplacement de l'officine : celui de ses utilisateurs actifs (le plus frequent), sinon le premier de t_emplacement.
+SET @empl := COALESCE((SELECT u.lg_EMPLACEMENT_ID FROM t_user u WHERE u.str_STATUT = 'enable' AND u.lg_EMPLACEMENT_ID IS NOT NULL GROUP BY u.lg_EMPLACEMENT_ID ORDER BY COUNT(*) DESC LIMIT 1),
+                      (SELECT e.lg_EMPLACEMENT_ID FROM t_emplacement e LIMIT 1));
 SET @depot := '5';
 SET @d1 := '2025-01-01'; SET @d2 := '2025-12-31';   -- une annee
 SET @a1 := '2023-01-01'; SET @a2 := '2026-12-31';   -- l'etendue des 3 dernieres annees + en cours
