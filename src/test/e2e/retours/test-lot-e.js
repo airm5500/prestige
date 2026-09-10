@@ -26,7 +26,11 @@ const TMP = '/tmp/lot-e';
 /* Deux journees, montants choisis :
    J1 : especes 10 000, ORANGE 3 000, MTN 2 000, cheque 1 000 ; billetage 9 000 -> ecart +1 000 (vert)
    J2 : especes  4 000, WAVE   1 500                          ; billetage 6 000 -> ecart -2 000 (rouge)
-   Solde attendu = especes + mobile (aucun reglement TP ni differe pose). */
+   Solde attendu = especes + mobile (aucun reglement TP ni differe pose).
+   Retours des tests 4 : J1 porte aussi une entree de caisse de 3 000 et une sortie de 500 (mouvements de caisse) :
+   le solde de J1 vaut 15 000 + 3 000 - 500 = 17 500, et la journee porte une rubrique « Mouvements de caisse ». */
+const ENTREE = '5', SORTIE = '4';
+const MOUVEMENTS_J1 = [[ENTREE, 3000], [SORTIE, 500]];
 const ESP = '1', ORANGE = '7', MTN = '9', WAVE = '10', CHEQUE = '2';
 const JOURS = [
   { rang: 0, especes: 10000, mobiles: [[ORANGE, 3000], [MTN, 2000]], cheque: 1000, billetage: 9000 },
@@ -67,6 +71,14 @@ function poserJeuDEssai(dates) {
       + MARQUE + "',1,'1','1','" + user + "',0,'" + venteId + "',0," + total + ",0,0);");
     exec("UPDATE t_preenregistrement SET dt_UPDATED='" + date + " 10:00:00' WHERE lg_PREENREGISTREMENT_ID='"
       + venteId + "';");
+    if (i === 0) {
+      MOUVEMENTS_J1.forEach(function (m, k) {
+        exec("INSERT INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
+          + "lg_EMPLACEMENT_ID,lg_USER_ID,montant,typeMvtCaisseId,typeReglementId)"
+          + " VALUES ('" + MARQUE + '-MV-' + k + "',3,'" + date + " 11:00:00','" + date + "','" + MARQUE + '-MV-' + k + "','"
+          + MARQUE + "',3,'1','1','" + user + "'," + m[1] + ",'" + m[0] + "','1');");
+      });
+    }
     exec("INSERT INTO t_billetage (lg_BILLETAGE_ID,ld_CAISSE_ID,int_AMOUNT,lg_USER_ID,dt_CREATED,dt_UPDATED)"
       + " VALUES ('" + MARQUE + '-B-' + i + "','1'," + jour.billetage + ",'" + user + "','" + date
       + " 20:00:00','" + date + " 20:00:00');");
@@ -123,14 +135,16 @@ function retirerJeuDEssai() {
   ok('journee 1 : ecart = +1 000 (comptant superieur au billetage)', l1.montantEcart === 1000, l1.montantEcart);
   ok('journee 1 : le billetage est signale comme saisi', l1.billetageSaisi === true);
   // solde = comptant + mobile + reglement TP + reglement differe ; le cheque n'y entre PAS
-  ok('journee 1 : solde = 15 000 (comptant + mobile, sans le cheque)', l1.montantSolde === 15000,
+  ok('journee 1 : entree de caisse 3 000 et sortie 500 lues', l1.montantEntre === 3000 && l1.montantSortie === 500,
+     'entree=' + l1.montantEntre + ' sortie=' + l1.montantSortie);
+  ok('journee 1 : solde = 17 500 (comptant + mobile + entrees - sorties, sans le cheque)', l1.montantSolde === 17500,
      'solde=' + l1.montantSolde + ' cheque=' + l1.montantCheque);
   ok('journee 1 : le cheque est bien encaisse par ailleurs', l1.montantCheque === 1000);
 
   ok('journee 2 : comptant = 4 000', l2.montantEspece === 4000, JSON.stringify(l2));
   ok('journee 2 : mobile = 1 500', l2.montantMobile === 1500);
   ok('journee 2 : ecart = -2 000 (comptant inferieur au billetage)', l2.montantEcart === -2000, l2.montantEcart);
-  ok('journee 2 : solde = 5 500', l2.montantSolde === 5500, l2.montantSolde);
+  ok('journee 2 : solde = 5 500 (aucun mouvement de caisse)', l2.montantSolde === 5500 && !l2.montantEntre && !l2.montantSortie, l2.montantSolde);
 
   /* ------------------------------------------------- regroupement mensuel */
   const mensuel = JSON.parse((await appel('../api/v1/stats-recette-caisse/data?granularite=mois' + periode)).corps);
@@ -142,7 +156,7 @@ function retirerJeuDEssai() {
   ok('regroupement mensuel : mobile = 6 500', (lm[0] || {}).montantMobile === 6500);
   ok('regroupement mensuel : les trois operateurs sont dans le detail',
      Object.keys((lm[0] || {}).detailMobile || {}).length === 3, JSON.stringify((lm[0] || {}).detailMobile));
-  ok('regroupement mensuel : solde = 20 500', (lm[0] || {}).montantSolde === 20500, (lm[0] || {}).montantSolde);
+  ok('regroupement mensuel : solde = 23 000 (20 500 + 3 000 - 500)', (lm[0] || {}).montantSolde === 23000, (lm[0] || {}).montantSolde);
 
   const annuel = JSON.parse((await appel('../api/v1/stats-recette-caisse/data?granularite=annee' + periode)).corps);
   ok('regroupement annuel : une seule ligne, libelle = annee',
@@ -168,7 +182,10 @@ function retirerJeuDEssai() {
   ok('PDF : le detail mobile tient sur une ligne, operateurs et montants',
      /Mobile money :.*ORANGE.*MTN/.test(texte) || /Mobile money :.*MTN.*ORANGE/.test(texte),
      (texte.match(/Mobile money :.*/g) || []).join(' // '));
-  ok('PDF : le tiret remplace l ecart quand il n y a pas de billetage (aucune journee ici)', true);
+  ok('PDF : la rubrique « Mouvements de caisse » n est editee que pour J1, avec entrees 3 000 et sorties 500',
+     (texte.match(/Mouvements de caisse :/g) || []).length === 1 && /Mouvements de caisse :\s*entr.{1,2}es 3\s?000.*sorties 500/.test(texte),
+     (texte.match(/Mouvements de caisse :.*/g) || []).join(' // '));
+  ok('PDF : le solde de J1 edite vaut 17 500', /17\s?500/.test(texte), texte.split('\n').filter(l => /17\s?500/.test(l)).join(' | ').slice(0, 200));
   ok('PDF : le total general est edite', /TOTAL/.test(texte));
 
   /* ------------------------------------------------- Excel */
@@ -187,6 +204,7 @@ function retirerJeuDEssai() {
   const feuille = execSync("cd " + TMP + " && unzip -p recap.xlsx xl/sharedStrings.xml", { encoding: 'utf8' });
   ok('Excel : la colonne Ecart figure dans l en-tete', /crit|Écart|cart/.test(feuille));
   ok('Excel : le detail mobile money est present', /Mobile money|ORANGE/.test(feuille), feuille.slice(0, 200));
+  ok('Excel : la rubrique des mouvements de caisse est presente', /Mouvements de caisse/.test(feuille), feuille.slice(0, 200));
 
   /* ------------------------------------------------- ecran */
   await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('caisserecetterecap', {}));
@@ -238,11 +256,24 @@ function retirerJeuDEssai() {
     const html = corps.getAdditionalData(modele.getData(), 0, modele).rowBody;
     return { html: html, lignes: (html.match(/<div/g) || []).length };
   }, l1);
-  ok('ecran : le detail mobile tient sur une seule ligne',
-     rendu.lignes === 1 && /ORANGE/.test(rendu.html) && /MTN/.test(rendu.html), rendu.html);
-  // le total est rappele apres le signe « = », en gras (le separateur de milliers est celui d'ExtJS)
-  ok('ecran : le total mobile est rappele au bout de la ligne',
-     rendu.html.indexOf(' = ') !== -1 && /5[\s.,]?000<\/span>\s*<\/div>$/.test(rendu.html.trim()), rendu.html);
+  ok('ecran : le detail mobile tient sur une ligne, suivi de la rubrique « Mouvements de caisse » (J1)',
+     rendu.lignes === 2 && /ORANGE/.test(rendu.html) && /MTN/.test(rendu.html) && /Mouvements de caisse/.test(rendu.html)
+     && /entr\u00e9es <b[^>]*>3[\s.,]?000/.test(rendu.html) && /sorties <b[^>]*>500/.test(rendu.html), rendu.html);
+  // le total mobile est rappele apres le signe « = », en gras, avant la rubrique des mouvements
+  ok('ecran : le total mobile est rappele au bout de sa ligne',
+     rendu.html.indexOf(' = ') !== -1 && /5[\s.,]?000<\/span>\s*<\/div>/.test(rendu.html), rendu.html);
+  const renduJ2 = await p.evaluate((donnees) => {
+    const grille = Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0];
+    const corps = grille.features.filter(function (f) { return f.ftype === 'rowbody' || f.detailTpl; })[0];
+    const modele = Ext.create(grille.getStore().model, donnees);
+    return corps.getAdditionalData(modele.getData(), 0, modele).rowBody;
+  }, l2);
+  ok('ecran : sans mouvement de caisse (J2), la rubrique n apparait pas', /WAVE/.test(renduJ2) && !/Mouvements de caisse/.test(renduJ2), renduJ2);
+  const soldeTooltip = await p.evaluate(() => {
+    const grille = Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0];
+    return (grille.columns.find(c => /Solde/.test(c.text || '')) || {}).tooltip || '';
+  });
+  ok('ecran : l infobulle du solde dit que les entrees et sorties de caisse y entrent', /entr\u00e9es de caisse/.test(soldeTooltip) && /sorties de caisse/.test(soldeTooltip), soldeTooltip);
 
   ok('aucune erreur javascript', err.length === 0, err.join(' | '));
   await b.close();

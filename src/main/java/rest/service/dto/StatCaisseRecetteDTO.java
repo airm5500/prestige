@@ -232,8 +232,18 @@ public class StatCaisseRecetteDTO {
      * Cheque, carte bancaire et virement n'entrent PAS dans ce solde : ils ne passent pas par la caisse.
      * </p>
      */
+    /**
+     * Le solde de la journee : comptant + mobile + reglement tiers payant + reglement differe, puis (retours des tests
+     * 4) les entrees de caisse en plus et les sorties de caisse en moins. Le fonds de caisse n'y entre pas.
+     */
     public void calculerSolde() {
-        this.montantSolde = montantEspece + montantMobile + montantReglementFacture + montantReglementDiff;
+        this.montantSolde = montantEspece + montantMobile + montantReglementFacture + montantReglementDiff
+                + montantEntre - montantSortie;
+    }
+
+    /** Vrai des qu'une entree ou une sortie de caisse a ete enregistree sur la journee. */
+    public boolean aDesMouvementsDeCaisse() {
+        return montantEntre != 0 || montantSortie != 0;
     }
 
     /** Ajoute la part d'un mode mobile money a la journee, et au total mobile. */

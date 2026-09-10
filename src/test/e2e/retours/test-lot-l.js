@@ -245,10 +245,13 @@ const TMP = '/tmp/claude-0/lot-l';
     ok('caisse/recette : plus aucun « + » (ni plugin rowexpander, ni icone) sur le tableau',
       recap.expanders === 0 && recap.pluginExpander === false, JSON.stringify({ e: recap.expanders, p: recap.pluginExpander }));
     // le tableau a une ligne par journee (ventes ET mouvements) ; seule la journee de ventes du
-    // mois A porte des paiements mobiles : elle seule montre la ligne de detail.
-    ok('caisse/recette : le detail mobile s affiche de lui-meme au pied du jour concerne (mois A), et pas ailleurs',
-      recap.lignes >= 2 && recap.corps === recap.lignes && recap.visibles === 1
-      && /Mobile money : (WAVE 5[\s .,]000 · ORANGE 4[\s .,]000|ORANGE 4[\s .,]000 · WAVE 5[\s .,]000) = 9[\s .,]000/.test(recap.texteVisibles[0] || ''),
+    // mois A porte des paiements mobiles : elle seule montre la ligne de detail mobile. Retours des tests 4 :
+    // la journee des mouvements du mois A (entrees 3 000, sortie 500) montre la rubrique « Mouvements de caisse ».
+    const texteVisible = recap.texteVisibles.join(' || ');
+    ok('caisse/recette : le detail mobile s affiche de lui-meme au pied du jour concerne (mois A), et la rubrique des mouvements de caisse sur la journee qui en a',
+      recap.lignes >= 2 && recap.corps === recap.lignes && recap.visibles === 2
+      && /Mobile money : (WAVE 5[\s .,]000 · ORANGE 4[\s .,]000|ORANGE 4[\s .,]000 · WAVE 5[\s .,]000) = 9[\s .,]000/.test(texteVisible)
+      && /Mouvements de caisse : entrées 3[\s .,]000 · sorties 500/.test(texteVisible),
       JSON.stringify(recap.texteVisibles) + ' lignes=' + recap.lignes + ' corps=' + recap.corps);
     ok('caisse/recette : le recap donne le % de chaque mode dans le CA realise, mobile global puis par operateur',
       /CA réalisé \(53[\s .,]000\)/.test(recap.recap) && /Especes 41,5 %/.test(recap.recap)

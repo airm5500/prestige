@@ -124,6 +124,14 @@ public final class RecapCaisseRecettePdf {
                     dc.setPaddingBottom(4f);
                     table.addCell(dc);
                 }
+                // Retours des tests 4 : les entrees et sorties de caisse, a la suite du mobile money, quand il y en a.
+                String mouvements = detailMouvements(ligne.getMontantEntre(), ligne.getMontantSortie());
+                if (!mouvements.isEmpty()) {
+                    PdfPCell mc = cellule(mouvements, mobile, false);
+                    mc.setColspan(COLONNES.length);
+                    mc.setPaddingBottom(4f);
+                    table.addCell(mc);
+                }
                 totaux.ajouter(ligne);
             }
 
@@ -172,6 +180,14 @@ public final class RecapCaisseRecettePdf {
             sb.append(mode).append(" ").append(montant(part));
         });
         return sb.toString();
+    }
+
+    /** Entrees et sorties de caisse d'une journee, sur une ligne ; vide quand il n'y en a pas. */
+    public static String detailMouvements(long entrees, long sorties) {
+        if (entrees == 0 && sorties == 0) {
+            return "";
+        }
+        return "Mouvements de caisse : entrées " + montant(entrees) + "   -   sorties " + montant(sorties);
     }
 
     public static String montant(long valeur) {

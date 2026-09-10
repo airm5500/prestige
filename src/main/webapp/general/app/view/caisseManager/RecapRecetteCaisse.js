@@ -284,6 +284,20 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                                 '<span style="font-weight:bold;">{[ this.montant(values.montantMobile) ]}</span>',
                                 '</div>',
                                 {
+                                    /* Retours des tests 4 : les entrees et sorties de caisse, a la suite du mobile
+                                       money, seulement quand la journee en a. Elles entrent dans le solde. */
+                                    mouvements: function (values) {
+                                        const entrees = values.montantEntre || 0, sorties = values.montantSortie || 0;
+                                        if (!entrees && !sorties) {
+                                            return '';
+                                        }
+                                        return '<div class="detail-mouvements-jour" style="padding:2px 12px;">'
+                                                + '<span style="font-weight:bold;color:#2a4d69;">Mouvements de caisse :</span> '
+                                                + 'entr\u00e9es <b style="color:#1e8449;">' + this.montant(entrees) + '</b>'
+                                                + '<span style="color:#b8c6d4;"> &middot; </span>'
+                                                + 'sorties <b style="color:#c0392b;">' + this.montant(sorties) + '</b>'
+                                                + '</div>';
+                                    },
                                     montant: function (v) {
                                         return Ext.util.Format.number(v || 0, '0,000');
                                     },
@@ -296,9 +310,11 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                                 }),
                             getAdditionalData: function (donnees, index, enregistrement) {
                                 const detail = donnees.detailMobile;
-                                const vide = !detail || Ext.Object.getKeys(detail).length === 0;
+                                const sansMobile = !detail || Ext.Object.getKeys(detail).length === 0;
+                                const mouvements = this.detailTpl.mouvements(donnees);
+                                const vide = sansMobile && !mouvements;
                                 return {
-                                    rowBody: vide ? '' : this.detailTpl.apply(donnees),
+                                    rowBody: vide ? '' : (sansMobile ? '' : this.detailTpl.apply(donnees)) + mouvements,
                                     rowBodyCls: vide ? this.rowBodyHiddenCls : ''
                                 };
                             }
@@ -580,7 +596,7 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                         },
                         {
                             header: 'Solde',
-                            tooltip: 'Comptant + mobile + règlement tiers payant + règlement différé',
+                            tooltip: 'Comptant + mobile + règlement tiers payant + règlement différé + entrées de caisse − sorties de caisse',
                             /* Point 22 : couleur imposee en recette, sur la ligne comme sur le total.
                                Ces trois colonnes se lisent d'un coup d'oeil au moment de fermer la caisse. */
                             renderer: function (valeur) {

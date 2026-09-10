@@ -102,6 +102,12 @@ public class StatCaisseRecetteResource {
             if (!detail.isEmpty()) {
                 lignes.add(LigneRecap.mobile(detail));
             }
+            // Retours des tests 4 : les entrees et sorties de caisse, a la suite, quand il y en a.
+            String mouvements = rest.report.pdf.RecapCaisseRecettePdf.detailMouvements(d.getMontantEntre(),
+                    d.getMontantSortie());
+            if (!mouvements.isEmpty()) {
+                lignes.add(LigneRecap.mobile(mouvements));
+            }
         }
 
         ClasseurExcel<LigneRecap> classeur = new ClasseurExcel<LigneRecap>("Caisse recette")
@@ -115,7 +121,8 @@ public class StatCaisseRecetteResource {
                 .nombre("Règlement TP", l -> l.nombre(l.reglementTp))
                 .nombre("Règlement différé", l -> l.nombre(l.reglementDiff))
                 .nombre("Billetage", l -> l.nombre(l.billetage)).texte("Écart", l -> l.ecart)
-                .nombre("Solde", l -> l.nombre(l.solde)).texte("Détail mobile money", l -> l.detailMobile);
+                .nombre("Solde", l -> l.nombre(l.solde))
+                .texte("Détail (mobile money, mouvements de caisse)", l -> l.detailMobile);
         try {
             byte[] contenu = classeur.construire(lignes);
             String nom = "caisse_recette_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
