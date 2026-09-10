@@ -32,6 +32,18 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             selector: 'balancesalecahs #rechercher'
 
         }, {
+            ref: 'typePeriode',
+            // Le selecteur de periodes est pose par resources/js/selecteur-periodes.js, pas par la
+            // vue : il peut donc etre absent si l'ecran est retire de la liste. Tous les acces
+            // le testent.
+            selector: 'balancesalecahs #typePeriode'
+        }, {
+            ref: 'ongletsBalance',
+            selector: 'balancesalecahs #ongletsBalance'
+        }, {
+            ref: 'grilleAnalyse',
+            selector: 'balancesalecahs #ongletAnalyseBalance'
+        }, {
             ref: 'montantTTC',
             selector: 'balancesalecahs #montantTTC'
         }, {
@@ -105,6 +117,12 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             'balancesalecahs #rechercher': {
                 click: this.doSearch
             },
+            'balancesalecahs #typePeriode': {
+                select: this.surChangementPeriode
+            },
+            'balancesalecahs #analyseExporter': {
+                click: this.exporterAnalyse
+            },
             'balancesalecahs #imprimer': {
                 click: this.onPdfClick
             },
@@ -150,6 +168,14 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     doSearch: function () {
         const me = this;
+        // Un controleur ExtJS est global : ses « refs » ne designent un composant que tant qu'un
+        // ecran est ouvert. Une recherche declenchee juste apres la fermeture -- rechargement d'un
+        // magasin, appel differe -- trouverait des refs vides. Ne rien faire est alors la bonne
+        // reponse ; sans ce test, la console se remplit d'erreurs sans consequence visible, ce qui
+        // finit par masquer les vraies.
+        if (!me.getBalanceGrid() || !me.getDtStart() || !me.getDtEnd()) {
+            return;
+        }
         let store = me.getBalanceGrid().getStore();
         store.load({
             params: {
@@ -158,6 +184,75 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
             }
         });
+        me.chargerAnalyse();
+    },
+
+    /**
+     * Alimente l'onglet d'analyse comparative.
+     *
+     * Les deux onglets sont charges par la MEME recherche : laisser l'analyse en arriere jusqu'a
+     * ce qu'on ouvre son onglet lui ferait afficher les chiffres de la recherche precedente, sans
+     * que rien ne l'indique.
+     */
+    chargerAnalyse: function () {
+        const me = this;
+        const grille = me.getGrilleAnalyse();
+        const selecteur = me.getTypePeriode();
+        if (!grille || !me.getDtStart() || !me.getDtEnd()) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/balance/balancesalecash/analyse',
+            method: 'GET',
+            params: {
+                typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
+                dtStart: me.getDtStart().getSubmitValue(),
+                dtEnd: me.getDtEnd().getSubmitValue()
+            },
+            timeout: 600000,
+            success: function (reponse) {
+                // L'ecran a pu etre ferme pendant le calcul : ecrire dans une grille detruite
+                // leverait une erreur pour un resultat que plus personne ne regarde.
+                if (grille.isDestroyed) {
+                    return;
+                }
+                const objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                grille.getStore().loadData(objet.data || []);
+                const resume = grille.down('#analyseResume');
+                if (resume) {
+                    resume.setText(objet.comparatif ? me.MESSAGE_COMPARATIF : me.MESSAGE_PERIODE_UNIQUE);
+                }
+            },
+            failure: function () {
+                if (!grille.isDestroyed) {
+                    grille.getStore().removeAll();
+                }
+            }
+        });
+    },
+
+    /** Rappel affiche au-dessus de l'analyse quand plusieurs periodes sont comparees. */
+    MESSAGE_COMPARATIF: 'Les p&eacute;riodes r&eacute;volues sont compl&egrave;tes ; celle en cours '
+            + 'est rappel&eacute;e &agrave; part et n&rsquo;est pas comparable telle quelle.',
+
+    /** Une seule periode ne fait pas une comparaison : on le dit plutot que d'afficher des ecarts vides. */
+    MESSAGE_PERIODE_UNIQUE: 'Une seule p&eacute;riode : les chiffres bruts sont affich&eacute;s, sans '
+            + '&eacute;cart. Choisissez plusieurs p&eacute;riodes pour comparer.',
+
+    /** Le changement de periode relance la recherche : les deux onglets restent d'accord. */
+    surChangementPeriode: function () {
+        this.doSearch();
+    },
+
+    exporterAnalyse: function () {
+        const me = this;
+        const selecteur = me.getTypePeriode();
+        // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
+        window.open('../api/v1/balance/balancesalecash/analyse/excel?' + Ext.Object.toQueryString({
+            typePeriode: selecteur ? selecteur.getValue() : 'LIBRE',
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue()
+        }));
     },
     buildSummary: function (rec) {
         const me = this;

@@ -4,7 +4,7 @@ Ext.define('testextjs.view.vente.Removed', {
     extend: 'Ext.panel.Panel',
     xtype: 'venteannuler',
     requires: [
-        'Ext.grid.plugin.RowExpander'
+        'testextjs.view.vente.DetailProduitsVente'
     ],
 
     frame: true,
@@ -153,14 +153,6 @@ Ext.define('testextjs.view.vente.Removed', {
                 {
                     xtype: 'gridpanel',
 
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-
-                                    )
-                        }
-                    ],
                     store: vente,
                     selModel: selModel,
 
@@ -259,8 +251,17 @@ Ext.define('testextjs.view.vente.Removed', {
                             sortable: false,
                             menuDisabled: true,
                             items: [{
+                                    // « action » distingue les deux icones : la colonne emet un
+                                    // seul evenement « click » pour toutes, et sans ce marqueur
+                                    // ouvrir le detail declencherait une impression de ticket.
+                                    action: 'imprimer',
                                     icon: 'resources/images/icons/fam/printer.png',
                                     tooltip: 'Réimprimer le ticket',
+                                    scope: me
+                                }, {
+                                    action: 'detail',
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
+                                    tooltip: 'Voir le détail des produits',
                                     scope: me
                                 }]
                         }

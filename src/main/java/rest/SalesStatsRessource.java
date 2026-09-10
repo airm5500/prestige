@@ -47,6 +47,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.GenerateTicketService;
 import rest.service.SalesStatsService;
@@ -654,6 +655,297 @@ public class SalesStatsRessource {
 
         JSONObject jsono = salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, start, limit);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    // =============================================================================================
+    // Ordonnancier : editions, export et creation d'inventaire.
+    //
+    // Les trois s'appuient sur EXACTEMENT la meme recherche que la grille (memes dates, meme
+    // medecin, meme mot cherche). Un etat qui ne dirait pas la meme chose que l'ecran d'ou il sort
+    // serait pire que pas d'etat du tout.
+    // =============================================================================================
+
+    /** En-tetes du registre, partages par l'edition PDF et l'export Excel. */
+    private static final String[] ENTETES_ORDONNANCIER = { "Date", "Heure", "Référence", "Client", "Médecin",
+            "N° ordre", "CIP", "Produit", "Tableau", "Qté", "Montant", "Vendeur" };
+
+    /**
+     * Le registre mis a plat : une ligne par produit delivre, et non par vente.
+     *
+     * <p>
+     * L'ecran groupe par vente parce que c'est ainsi qu'on retrouve une delivrance. Le registre, lui, se lit produit
+     * par produit : c'est la delivrance du produit reglemente qui doit etre tracable.
+     * </p>
+     */
+    private List<commonTasks.dto.OrdonnancierLigneDTO> lignesOrdonnancier(String medecinId, String dtStart,
+            String dtEnd, String query) {
+        List<commonTasks.dto.OrdonnancierLigneDTO> lignes = new java.util.ArrayList<>();
+        for (commonTasks.dto.VenteDTO vente : salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query)) {
+            if (vente.getItems() == null) {
+                continue;
+            }
+            for (commonTasks.dto.VenteDetailsDTO detail : vente.getItems()) {
+                commonTasks.dto.OrdonnancierLigneDTO ligne = new commonTasks.dto.OrdonnancierLigneDTO();
+                ligne.setDate(StringUtils.defaultString(vente.getDtUPDATED()));
+                ligne.setHeure(StringUtils.defaultString(vente.getHeure()));
+                ligne.setReference(StringUtils.defaultString(vente.getStrREF()));
+                ligne.setClient(StringUtils.defaultString(vente.getClientFullName()));
+                ligne.setMedecin(StringUtils.defaultString(vente.getNom()));
+                ligne.setNumeroOrdre(StringUtils.defaultString(vente.getNumOrder()));
+                ligne.setCip(StringUtils.defaultString(detail.getIntCIP()));
+                ligne.setProduit(StringUtils.defaultString(detail.getStrNAME()));
+                ligne.setCodeTableau(StringUtils.defaultString(detail.getCodeTableau()));
+                ligne.setQuantite(detail.getIntQUANTITY() != null ? detail.getIntQUANTITY() : 0);
+                ligne.setMontant(detail.getIntPRICE() != null ? detail.getIntPRICE() : 0);
+                ligne.setVendeur(StringUtils.defaultString(vente.getUserVendeurName()));
+                lignes.add(ligne);
+            }
+        }
+        return lignes;
+    }
+
+    /** Sous-titre de l'edition : la periode et ce sur quoi elle a ete filtree. */
+    private static String sousTitreOrdonnancier(String dtStart, String dtEnd, String query, int nbLignes,
+            int nbVentes) {
+        StringBuilder sb = new StringBuilder("Du ").append(StringUtils.defaultString(dtStart)).append(" au ")
+                .append(StringUtils.defaultString(dtEnd));
+        if (StringUtils.isNotBlank(query)) {
+            sb.append(" - recherche : ").append(query.trim());
+        }
+        return sb.append(" - ").append(nbVentes).append(" délivrance(s), ").append(nbLignes)
+                .append(" ligne(s) de produit").toString();
+    }
+
+    /**
+     * Les produits soumis a ordonnance d'UNE vente, charges a la demande.
+     *
+     * <p>
+     * L'ecran ne les descend pas avec la liste : sur un mois de registre, cela ferait des centaines de lignes
+     * transportees pour celles que l'utilisateur consulte reellement, c'est-a-dire une a la fois.
+     * </p>
+     */
+    @GET
+    @Path("ventesordonnanciers/detail/{venteId}")
+    public Response detailOrdonnancier(@PathParam("venteId") String venteId) throws JSONException {
+        List<commonTasks.dto.VenteDetailsDTO> produits = salesService.produitsOrdonnancier(venteId);
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", produits.size())
+                .put("data", new org.json.JSONArray(produits)).toString()).build();
+    }
+
+    /**
+     * TOUS les produits d'une vente, charges a la demande.
+     *
+     * <p>
+     * Meme raison que pour l'ordonnancier : l'ecran des suppressions de vente ouvrait un (+) par ligne, alimente par un
+     * champ que le serveur ne remplit jamais. Le detail se demande desormais vente par vente, et seulement quand on le
+     * regarde.
+     * </p>
+     */
+    @GET
+    @Path("vente/detail/{venteId}")
+    public Response detailProduitsVente(@PathParam("venteId") String venteId) throws JSONException {
+        List<commonTasks.dto.VenteDetailsDTO> produits = salesService.venteDetailsByVenteId(venteId);
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", produits.size())
+                .put("data", new org.json.JSONArray(produits)).toString()).build();
+    }
+
+    /** Nombre de lignes gardees dans chaque palmares quand l'ecran n'en demande pas d'autre. */
+    private static final int TOP_ORDONNANCIER_DEFAUT = 20;
+
+    /** En-tetes de l'analyse, partages par l'edition PDF et l'export Excel. */
+    private static final String[] ENTETES_ANALYSE_ORDONNANCIER = { "Section", "Libellé", "Complément", "Délivrances",
+            "Quantité", "Montant" };
+
+    private rest.service.impl.AnalyseOrdonnancier.Resultat analyseOrdonnancier(String medecinId, String dtStart,
+            String dtEnd, String query, int top) {
+        // L'analyse porte sur EXACTEMENT la population du registre : meme appel, memes criteres.
+        // Deux chemins de lecture differents donneraient deux verites, sans qu'on sache laquelle croire.
+        return rest.service.impl.AnalyseOrdonnancier.analyser(
+                salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, true),
+                top > 0 ? top : TOP_ORDONNANCIER_DEFAUT);
+    }
+
+    private static JSONArray palmaresJson(List<rest.service.impl.AnalyseOrdonnancier.Cumul> cumuls) {
+        JSONArray tableau = new JSONArray();
+        for (rest.service.impl.AnalyseOrdonnancier.Cumul cumul : cumuls) {
+            tableau.put(new JSONObject().put("libelle", cumul.getLibelle()).put("complement", cumul.getComplement())
+                    .put("delivrances", cumul.getDelivrances()).put("quantite", cumul.getQuantite())
+                    .put("montant", cumul.getMontant()));
+        }
+        return tableau;
+    }
+
+    /**
+     * L'analyse du registre : ce qui sort le plus, pour qui, et sur prescription de qui.
+     *
+     * @param top
+     *            nombre de lignes gardees dans chaque palmares
+     */
+    @GET
+    @Path("ventesordonnanciers/analyse")
+    public Response analyseOrdonnancierJson(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) throws JSONException {
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        JSONObject indicateurs = new JSONObject().put("delivrances", r.getDelivrances()).put("lignes", r.getLignes())
+                .put("produitsDistincts", r.getProduitsDistincts()).put("clientsDistincts", r.getClientsDistincts())
+                .put("medecinsDistincts", r.getMedecinsDistincts()).put("quantiteTotale", r.getQuantiteTotale())
+                .put("montantTotal", r.getMontantTotal());
+        return Response.ok().entity(new JSONObject().put("success", true).put("indicateurs", indicateurs)
+                .put("topProduits", palmaresJson(r.getTopProduits())).put("topClients", palmaresJson(r.getTopClients()))
+                .put("topMedecins", palmaresJson(r.getTopMedecins())).toString()).build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/analyse/pdf")
+    public Response imprimerAnalyseOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_H_CLT_INFOS", "ANALYSE DE L'ORDONNANCIER");
+        parametres.put("P_PERIODE", sousTitreOrdonnancier(dtStart, dtEnd, query, r.getLignes(), r.getDelivrances()));
+        parametres.put("P_INDICATEURS", rest.service.impl.AnalyseOrdonnancier.indicateursTexte(r));
+        String url = reportUtil.buildReport(parametres, "analyse_ordonnancier",
+                rest.service.impl.AnalyseOrdonnancier.aPlat(r));
+        // Meme precaution que pour le registre : buildReport rend l'URL attendue meme quand
+        // l'edition a echoue. On verifie que le PDF existe avant d'annoncer un succes.
+        if (StringUtils.isBlank(url)
+                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
+                    .build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).put("msg", url).toString())
+                .build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/analyse/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exporterAnalyseOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "top") int top) throws IOException {
+        rest.service.impl.AnalyseOrdonnancier.Resultat r = analyseOrdonnancier(medecinId, dtStart, dtEnd, query, top);
+        String titre = "ANALYSE DE L'ORDONNANCIER - du " + StringUtils.defaultString(dtStart) + " au "
+                + StringUtils.defaultString(dtEnd) + " - " + rest.service.impl.AnalyseOrdonnancier.indicateursTexte(r);
+        byte[] data = excelExportService.createExcelReport(titre, ENTETES_ANALYSE_ORDONNANCIER,
+                rest.service.impl.AnalyseOrdonnancier.aPlat(r), (row, ligne) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(ligne.getSection());
+                    row.createCell(col++).setCellValue(ligne.getLibelle());
+                    row.createCell(col++).setCellValue(ligne.getComplement());
+                    row.createCell(col++).setCellValue(ligne.getDelivrances());
+                    row.createCell(col++).setCellValue(ligne.getQuantite());
+                    row.createCell(col++).setCellValue(ligne.getMontant());
+                });
+        String nomFichier = "analyse_ordonnancier_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename = " + nomFichier).build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/pdf")
+    public Response imprimerOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        List<commonTasks.dto.OrdonnancierLigneDTO> lignes = lignesOrdonnancier(medecinId, dtStart, dtEnd, query);
+        int nbVentes = salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query).size();
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_H_CLT_INFOS", "ORDONNANCIER");
+        parametres.put("P_PERIODE", sousTitreOrdonnancier(dtStart, dtEnd, query, lignes.size(), nbVentes));
+        String url = reportUtil.buildReport(parametres, "ordonnancier", lignes);
+        // buildReport rend l'URL attendue meme quand l'edition a echoue : il journalise l'erreur et
+        // continue. Annoncer un succes sur cette seule foi enverrait l'utilisateur ouvrir un fichier
+        // qui n'existe pas. On verifie donc que le PDF a bien ete ecrit.
+        if (StringUtils.isBlank(url)
+                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
+                    .build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).put("msg", url).toString())
+                .build();
+    }
+
+    @GET
+    @Path("ventesordonnanciers/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exporterOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query) throws IOException {
+        List<commonTasks.dto.OrdonnancierLigneDTO> lignes = lignesOrdonnancier(medecinId, dtStart, dtEnd, query);
+        String titre = "ORDONNANCIER - du " + StringUtils.defaultString(dtStart) + " au "
+                + StringUtils.defaultString(dtEnd);
+        byte[] data = excelExportService.createExcelReport(titre, ENTETES_ORDONNANCIER, lignes, (row, ligne) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(ligne.getDate());
+            row.createCell(col++).setCellValue(ligne.getHeure());
+            row.createCell(col++).setCellValue(ligne.getReference());
+            row.createCell(col++).setCellValue(ligne.getClient());
+            row.createCell(col++).setCellValue(ligne.getMedecin());
+            row.createCell(col++).setCellValue(ligne.getNumeroOrdre());
+            row.createCell(col++).setCellValue(ligne.getCip());
+            row.createCell(col++).setCellValue(ligne.getProduit());
+            row.createCell(col++).setCellValue(ligne.getCodeTableau());
+            row.createCell(col++).setCellValue(ligne.getQuantite());
+            row.createCell(col++).setCellValue(ligne.getMontant());
+            row.createCell(col++).setCellValue(ligne.getVendeur());
+        });
+        String nomFichier = "ordonnancier_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename = " + nomFichier).build();
+    }
+
+    /**
+     * Cree un inventaire des produits delivres sur la periode affichee.
+     *
+     * <p>
+     * Compter d'abord, creer ensuite, dans le meme appel : l'ecran affiche le nombre avant de demander confirmation, et
+     * {@code controle=true} lui donne ce nombre sans rien creer.
+     * </p>
+     */
+    @POST
+    @Path("ventesordonnanciers/inventaire")
+    public Response inventaireOrdonnancier(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "medecinId") String medecinId,
+            @QueryParam(value = "query") String query,
+            @DefaultValue("false") @QueryParam(value = "controle") boolean controle) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        List<String> venteIds = salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query).stream()
+                .map(commonTasks.dto.VenteDTO::getLgPREENREGISTREMENTID).collect(java.util.stream.Collectors.toList());
+        java.util.Set<String> produitIds = inventaireService.produitIdsFromVentes(venteIds);
+        if (controle) {
+            return Response.ok().entity(new JSONObject().put("success", true).put("count", produitIds.size())
+                    .put("ventes", venteIds.size()).toString()).build();
+        }
+        if (produitIds.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Aucun produit sur la période affichée.").toString()).build();
+        }
+        String nom = "INVENTAIRE ORDONNANCIER "
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int compte = inventaireService.create(produitIds, nom, nom);
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", compte).toString()).build();
     }
 
     @GET

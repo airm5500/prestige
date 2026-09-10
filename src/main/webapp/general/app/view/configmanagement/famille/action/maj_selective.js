@@ -25,8 +25,16 @@ var SEL_CHAMPS = [
     {champ: 'CODE_REMISE', libelle: 'Code remise', saisie: 'selValRemise'},
     {champ: 'CODE_TABLEAU', libelle: 'Code tableau', saisie: 'selValTableau'},
     {champ: 'LABORATOIRE', libelle: 'Laboratoire', saisie: 'selValLabo'},
-    {champ: 'GAMME', libelle: 'Gamme', saisie: 'selValGamme'}
+    {champ: 'GAMME', libelle: 'Gamme', saisie: 'selValGamme'},
+    // Deux reglages OUI / NON. Ils passent par une liste et non par une case a cocher : une case
+    // decochee ne se distingue pas d'une case a laquelle on n'a pas touche, et l'ecran refuse
+    // justement d'appliquer une valeur vide.
+    {champ: 'ORDONNANCIER', libelle: 'Soumis à ordonnance', saisie: 'selValOrdonnancier'},
+    {champ: 'REMISE', libelle: 'Remise autorisée', saisie: 'selValRemise2'}
 ];
+
+/** Valeurs d'un reglage oui / non. La valeur transmise est « 1 » ou « 0 », jamais une chaine vide. */
+var SEL_OUI_NON = [{id: '1', libelle: 'Oui'}, {id: '0', libelle: 'Non'}];
 
 Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
     extend: 'Ext.window.Window',
@@ -275,6 +283,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
                         Ext.apply({xtype: 'combobox', id: 'selValGamme', store: gammeStore,
                             valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'local',
                             emptyText: 'Choisir une gamme...'}, valeurCommune),
+                        Ext.apply({xtype: 'combobox', id: 'selValOrdonnancier',
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], data: SEL_OUI_NON}),
+                            valueField: 'id', displayField: 'libelle', queryMode: 'local', editable: false,
+                            emptyText: 'Soumis à ordonnance ?'}, valeurCommune),
+                        Ext.apply({xtype: 'combobox', id: 'selValRemise2',
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], data: SEL_OUI_NON}),
+                            valueField: 'id', displayField: 'libelle', queryMode: 'local', editable: false,
+                            emptyText: 'Remise autorisée ?'}, valeurCommune),
                         {xtype: 'splitter'},
                         {xtype: 'displayfield', id: 'selCompteur', width: 220, value: ''}
                     ]

@@ -1254,3 +1254,34 @@ body.x-body,
 .vp-fiche-article .x-grid-cell-int_QTE_REAPPROVISIONNEMENT .x-grid-cell-inner {
     font-variant-numeric: tabular-nums;
 }
+
+/* =====================================================================================
+   Lignes de grille des ecrans d'analyse.
+   ===================================================================================== */
+
+/*
+   Une periode ENCORE EN COURS, posee a cote de periodes revolues.
+
+   Le mois entame n'a pas ses trente jours : le laisser se confondre avec les mois complets
+   ferait lire un effondrement du chiffre d'affaires le 2 du mois. La ligne est donc tramee
+   et sa mention « (en cours) » est portee dans le libelle -- le fond seul ne suffirait pas
+   a l'impression en noir et blanc, ni pour qui distingue mal les couleurs.
+*/
+.periode-en-cours .x-grid-cell {
+    background-color: #fbf7e6;
+    font-style: italic;
+}
+
+/*
+   Classification ABC : la classe A porte l'essentiel du chiffre, la C la queue de liste.
+   La couleur ne fait que doubler la colonne « Classe », qui reste lisible sans elle.
+*/
+.classe-abc-a .x-grid-cell {
+    background-color: #eaf6ea;
+}
+.classe-abc-b .x-grid-cell {
+    background-color: #f7f7ef;
+}
+.classe-abc-c .x-grid-cell {
+    background-color: #fafafa;
+}

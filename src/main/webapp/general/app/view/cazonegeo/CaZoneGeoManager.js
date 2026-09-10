@@ -41,9 +41,16 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}
             }
         });
+        /*
+         * Les choix viennent de resources/js/selecteur-periodes.js, qui est aussi ce qui pose le
+         * selecteur sur les autres ecrans d'analyse. Cet ecran avait le sien avant l'existence de
+         * ce fichier et le garde -- l'injection automatique l'ignore quand « #typePeriode » est
+         * deja la -- mais la LISTE, elle, doit rester unique : deux listes finiraient par
+         * diverger, et deux menus d'analyse ne proposeraient plus les memes periodes.
+         */
         const periodes = Ext.create('Ext.data.Store', {
             fields: ['id', 'libelle'],
-            data: [
+            data: (window.PrestigeAnalyse && window.PrestigeAnalyse.CHOIX) || [
                 {id: 'TROIS_SEMAINES', libelle: '3 dernières semaines'},
                 {id: 'TROIS_MOIS', libelle: '3 derniers mois'},
                 {id: 'SIX_MOIS', libelle: '6 derniers mois'},

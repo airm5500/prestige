@@ -62,12 +62,18 @@ public final class PeriodesCa {
         private final String libelle;
         private final LocalDate debut;
         private final LocalDate fin;
+        private final boolean enCours;
 
         Tranche(String cle, String libelle, LocalDate debut, LocalDate fin) {
+            this(cle, libelle, debut, fin, false);
+        }
+
+        Tranche(String cle, String libelle, LocalDate debut, LocalDate fin, boolean enCours) {
             this.cle = cle;
             this.libelle = libelle;
             this.debut = debut;
             this.fin = fin;
+            this.enCours = enCours;
         }
 
         public String getCle() {
@@ -86,9 +92,22 @@ public final class PeriodesCa {
             return fin;
         }
 
+        /**
+         * La tranche est-elle encore en cours ?
+         *
+         * <p>
+         * Le mois en cours est rappele a cote des mois complets, mais il n'a pas encore ses trente jours : le comparer
+         * aux autres sans le signaler ferait conclure a un effondrement du chiffre d'affaires le 2 du mois. L'ecran
+         * doit donc pouvoir le marquer.
+         * </p>
+         */
+        public boolean isEnCours() {
+            return enCours;
+        }
+
         @Override
         public String toString() {
-            return cle + " " + libelle + " [" + debut + ".." + fin + "]";
+            return cle + " " + libelle + " [" + debut + ".." + fin + "]" + (enCours ? " (en cours)" : "");
         }
     }
 
@@ -124,34 +143,71 @@ public final class PeriodesCa {
         }
     }
 
-    /** Les tranches, dans l'ordre chronologique, bornees a aujourd'hui. */
+    /**
+     * Les tranches de la comparaison, dans l'ordre chronologique.
+     *
+     * <p>
+     * « 3 derniers mois » designe les trois mois <b>revolus</b> : en septembre, juin, juillet et aout. Le mois en cours
+     * est rappele EN PLUS, marque comme tel : l'officine veut voir ou elle en est, mais septembre n'a pas encore ses
+     * trente jours, et le comparer aux autres sans le signaler ferait conclure a un effondrement du chiffre le 2 du
+     * mois. Le meme raisonnement vaut pour les semaines et les annees.
+     * </p>
+     *
+     * <p>
+     * Le premier jour d'un mois -- ou le lundi, ou le 1er janvier -- il n'y a rien a rappeler : la periode en cours n'a
+     * pas commence, et une colonne a zero ne dirait rien de plus qu'une colonne absente.
+     * </p>
+     */
     public static List<Tranche> tranches(Type type, LocalDate debutLibre, LocalDate finLibre, LocalDate aujourdhui) {
-        LocalDate debut;
-        LocalDate fin;
-        switch (type) {
-        case TROIS_SEMAINES:
-            debut = aujourdhui.minusWeeks(2).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            fin = aujourdhui;
-            break;
-        case TROIS_MOIS:
-            debut = aujourdhui.minusMonths(2).withDayOfMonth(1);
-            fin = aujourdhui;
-            break;
-        case SIX_MOIS:
-            debut = aujourdhui.minusMonths(5).withDayOfMonth(1);
-            fin = aujourdhui;
-            break;
-        case TROIS_ANS:
-            debut = aujourdhui.minusYears(2).withDayOfYear(1);
-            fin = aujourdhui;
-            break;
-        default:
+        if (type == Type.LIBRE) {
             LocalDate[] bornes = bornesOrdonnees(debutLibre, finLibre);
-            debut = bornes[0];
-            fin = bornes[1];
-            break;
+            return decouper(bornes[0], bornes[1], granularite(type, debutLibre, finLibre));
         }
-        return decouper(debut, fin, granularite(type, debutLibre, finLibre));
+        Granularite granularite = granularite(type, debutLibre, finLibre);
+        LocalDate debutEnCours = debutPeriodeEnCours(aujourdhui, granularite);
+        // La derniere periode COMPLETE est celle qui precede immediatement celle en cours.
+        LocalDate finDerniereComplete = debutEnCours.minusDays(1);
+        LocalDate debutPremiereComplete = reculer(debutEnCours, granularite, nombreDePeriodes(type));
+
+        List<Tranche> tranches = decouper(debutPremiereComplete, finDerniereComplete, granularite);
+        // La periode en cours, rappelee a part et marquee. Elle figure TOUJOURS, meme le premier
+        // jour du mois : on y est, et c'est precisement ce que l'officine veut voir. Le marquage
+        // suffit a dire qu'elle n'est pas comparable telle quelle aux periodes completes.
+        tranches.add(new Tranche(cle(debutEnCours, granularite), libelle(debutEnCours, aujourdhui, granularite),
+                debutEnCours, aujourdhui, true));
+        return tranches;
+    }
+
+    /** Combien de periodes COMPLETES le type demande. */
+    private static int nombreDePeriodes(Type type) {
+        return type == Type.SIX_MOIS ? 6 : 3;
+    }
+
+    /** Le premier jour de la periode en cours : lundi, 1er du mois, ou 1er janvier. */
+    private static LocalDate debutPeriodeEnCours(LocalDate aujourdhui, Granularite granularite) {
+        switch (granularite) {
+        case JOUR:
+            return aujourdhui;
+        case SEMAINE:
+            return aujourdhui.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        case MOIS:
+            return aujourdhui.withDayOfMonth(1);
+        default:
+            return aujourdhui.withDayOfYear(1);
+        }
+    }
+
+    private static LocalDate reculer(LocalDate date, Granularite granularite, int nombre) {
+        switch (granularite) {
+        case JOUR:
+            return date.minusDays(nombre);
+        case SEMAINE:
+            return date.minusWeeks(nombre);
+        case MOIS:
+            return date.minusMonths(nombre);
+        default:
+            return date.minusYears(nombre);
+        }
     }
 
     /** Decoupe [debut, fin] en tranches de la granularite donnee ; la premiere et la derniere sont bornees. */

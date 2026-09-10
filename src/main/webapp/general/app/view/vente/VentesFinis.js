@@ -3,6 +3,9 @@
 Ext.define('testextjs.view.vente.VentesFinis', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventemanager',
+    requires: [
+        'testextjs.view.garde.SelecteurGarde'
+    ],
     frame: true,
     title: 'Liste des Ventes terminées',
     iconCls: 'icon-grid',
@@ -181,6 +184,9 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             emptyText: 'Recherche'
                         }, '-',
 
+                        // Applique en un geste les bornes d'une garde enregistree. Cet ecran
+                        // gere les heures : la garde y est donc rendue EXACTEMENT, nuit comprise.
+                        {xtype: 'selecteurgarde'}, '-',
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
@@ -457,7 +463,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     getClass: function (value, metadata, record) {
 
                                         if (record.get('lgTYPEVENTEID') === "5") {
-                                            return ''; //affiche l'icone
+                                            return '';
                                         } else {
                                             return 'x-hide-display'; //cache l'icone
                                         }

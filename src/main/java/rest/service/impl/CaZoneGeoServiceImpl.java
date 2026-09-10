@@ -187,8 +187,12 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             }
             JSONArray tranchesJson = new JSONArray();
             for (Tranche t : tranches) {
+                // « enCours » dit que la tranche n'est pas terminee. Sans lui, l'ecran presenterait
+                // septembre entame a cote d'aout complet comme deux mois comparables, et l'officine
+                // lirait un effondrement du chiffre d'affaires le 2 du mois.
                 tranchesJson.put(new JSONObject().put("cle", t.getCle()).put("libelle", t.getLibelle())
-                        .put("debut", t.getDebut().toString()).put("fin", t.getFin().toString()));
+                        .put("debut", t.getDebut().toString()).put("fin", t.getFin().toString())
+                        .put("enCours", t.isEnCours()));
             }
             JSONObject totaux = new JSONObject();
             totauxTranches.forEach(totaux::put);
@@ -229,8 +233,7 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
      * </p>
      */
     @Override
-    public JSONObject produitsDeLaLigne(TUser utilisateur, CaZoneGeoService.Filtres filtres, String zoneId,
-            String familleId) {
+    public JSONObject produitsDeLaLigne(TUser utilisateur, CaZoneGeoService.Filtres filtres, String zoneId, String familleId) {
         JSONObject json = new JSONObject();
         try {
             List<Tranche> tranches = PeriodesCa.tranches(filtres.getTypePeriode(), filtres.getDebut(), filtres.getFin(),
@@ -380,8 +383,7 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             return util.CalculMarge.pourcentage(marge(), montantHt());
         }
 
-        Ligne(CaZoneGeoService.Regroupement regroupement, String zoneId, String zone, String familleId,
-                String famille) {
+        Ligne(CaZoneGeoService.Regroupement regroupement, String zoneId, String zone, String familleId, String famille) {
             this.regroupement = regroupement;
             this.zoneId = zoneId;
             this.zone = zone;

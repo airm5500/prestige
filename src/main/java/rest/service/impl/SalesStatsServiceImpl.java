@@ -23,6 +23,7 @@ import dal.MvtTransaction;
 import dal.MvtTransaction_;
 import dal.TAyantDroit;
 import dal.TClient;
+import dal.TClient_;
 import dal.TCompteClientTiersPayant;
 import dal.TCompteClientTiersPayant_;
 import dal.TEmplacement;
@@ -1265,7 +1266,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     public JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start,
             int limit) throws JSONException {
         try {
-            List<VenteDTO> l = findAllVenteOrdonnancier(medecinId, dtStart, dtEnd);
+            // La grille n'affiche pas les produits : elle les demande vente par vente, au clic sur
+            // « Voir detail ». Les embarquer ici alourdirait chaque chargement de periode pour rien.
+            List<VenteDTO> l = findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, false);
             return new JSONObject().put("total", l.size()).put("data", new JSONArray(l));
         } catch (Exception e) {
             return new JSONObject().put("total", 0).put("data", new JSONArray());
@@ -1274,6 +1277,17 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
     @Override
     public List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd) {
+        return findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, null);
+    }
+
+    @Override
+    public List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query) {
+        return findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, true);
+    }
+
+    @Override
+    public List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query,
+            boolean avecProduits) {
         try {
 
             List<Predicate> predicates = new ArrayList<>();
@@ -1290,20 +1304,52 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             if (!StringUtils.isEmpty(medecinId)) {
                 predicates.add(cb.equal(root.get(TPreenregistrement_.medecin).get(Medecin_.id), medecinId));
             }
+            // Recherche par nom de client. Retrouver une delivrance quand on a le nom du patient et
+            // pas la reference etait impossible : il fallait derouler la periode entiere a l'oeil.
+            // La reference est cherchee en meme temps, parce qu'un utilisateur qui l'a sous les yeux
+            // la tape naturellement dans le meme champ.
+            if (StringUtils.isNotBlank(query)) {
+                String recherche = "%" + query.trim().toUpperCase() + "%";
+                // LEFT : une vente sans client rattache ne doit pas disparaitre de la recherche par
+                // reference simplement parce qu'elle n'a pas de nom a comparer.
+                Join<TPreenregistrement, TClient> client = root.join(TPreenregistrement_.client, JoinType.LEFT);
+                predicates.add(cb.or(cb.like(cb.upper(client.get(TClient_.strFIRSTNAME)), recherche),
+                        cb.like(cb.upper(client.get(TClient_.strLASTNAME)), recherche),
+                        cb.like(cb.upper(cb.concat(cb.concat(cb.coalesce(client.get(TClient_.strFIRSTNAME), ""), " "),
+                                cb.coalesce(client.get(TClient_.strLASTNAME), ""))), recherche),
+                        cb.like(cb.upper(root.get(TPreenregistrement_.strREF)), recherche)));
+            }
 
             cq.where(cb.and(predicates.toArray(new Predicate[0])));
             Query q = getEntityManager().createQuery(cq);
 
             List<TPreenregistrement> list = q.getResultList();
-            return list.stream().map(v -> new VenteDTO().buildOrdonnanciers(v,
-                    findByParent(v.getLgPREENREGISTREMENTID()).stream().filter(el -> {
-                        return (el.getLgFAMILLEID().isScheduled() && !el.getLgFAMILLEID().getIntT().trim().isEmpty());
-                    }).map(VenteDetailsDTO::new).collect(Collectors.toList()))).collect(Collectors.toList());
+            // Sans produits, on evite une requete de detail PAR VENTE : sur un mois de registre cela
+            // fait des centaines d'aller-retour pour des lignes que la grille n'affiche meme pas.
+            return list.stream()
+                    .map(v -> new VenteDTO().buildOrdonnanciers(v, avecProduits
+                            ? produitsOrdonnancier(v.getLgPREENREGISTREMENTID()) : Collections.emptyList()))
+                    .collect(Collectors.toList());
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau.
+     *
+     * <p>
+     * Les deux conditions comptent. Un produit soumis a ordonnance sans code tableau n'a pas de rubrique ou figurer
+     * dans le registre ; un code tableau sur un produit libre de prescription n'y a rien a faire non plus.
+     * </p>
+     */
+    @Override
+    public List<VenteDetailsDTO> produitsOrdonnancier(String venteId) {
+        return findByParent(venteId).stream().filter(
+                el -> el.getLgFAMILLEID().isScheduled() && StringUtils.isNotBlank(el.getLgFAMILLEID().getIntT()))
+                .map(VenteDetailsDTO::new).collect(Collectors.toList());
     }
 
     @Override

@@ -77,9 +77,35 @@ Ext.define('testextjs.controller.AnnulationCtr', {
         var me = this;
         var store = me.getVenteannulerGrid().getStore(),
                 rec = store.getAt(colIndex);
+        if (!rec) {
+            return;
+        }
+        // La colonne d'action emet un seul evenement pour toutes ses icones : c'est « action »
+        // qui dit laquelle a ete cliquee. Sans ce test, ouvrir le detail imprimerait un ticket.
+        if (item && item.action === 'detail') {
+            me.voirDetail(rec);
+            return;
+        }
         me.onPrintTicket(rec.get('lgPREENREGISTREMENTID'), rec.get('lgTYPEVENTEID'));
 
 
+    },
+
+    /**
+     * Les produits de la vente choisie, charges A LA DEMANDE.
+     *
+     * L'ecran ouvrait auparavant un (+) par ligne, alimente par un champ que le serveur ne
+     * remplit jamais : la zone restait vide. Le detail se demande desormais vente par vente,
+     * et seulement quand on le regarde, sans rien alourdir au chargement de la liste.
+     */
+    voirDetail: function (rec) {
+        Ext.create('testextjs.view.vente.DetailProduitsVente', {
+            venteId: rec.get('lgPREENREGISTREMENTID'),
+            reference: rec.get('strREF'),
+            urlDetail: '../api/v1/ventestats/vente/detail/',
+            // Le code tableau ne concerne que l'ordonnancier : ici la colonne serait vide.
+            avecTableau: false
+        });
     },
     onPrintTicket: function (id, lgTYPEVENTEID) {
         var url = (lgTYPEVENTEID === '1') ? '../api/v1/vente/ticket/vno/' + id : '../api/v1/vente/ticket/vo/' + id;
