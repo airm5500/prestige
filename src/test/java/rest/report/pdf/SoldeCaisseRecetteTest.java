@@ -38,13 +38,18 @@ public class SoldeCaisseRecetteTest {
         assertTrue(journee(10000, 0, 0, 0, 0, 500).aDesMouvementsDeCaisse());
     }
 
+    /** Le separateur de milliers depend de la locale de la machine (espace, insecable ou fine) : on l'efface. */
+    private static String sansSeparateur(String texte) {
+        return texte.replaceAll("(?<=\\d)[\\s\\u00a0\\u202f,.](?=\\d{3})", "");
+    }
+
     @Test
     public void laRubriqueNeSEditeQueSIlYADesMouvements() {
         assertEquals("", RecapCaisseRecettePdf.detailMouvements(0, 0));
-        String texte = RecapCaisseRecettePdf.detailMouvements(3000, 500);
-        assertTrue(texte.startsWith("Mouvements de caisse : entrées 3 000"), texte);
+        String texte = sansSeparateur(RecapCaisseRecettePdf.detailMouvements(3000, 500));
+        assertTrue(texte.startsWith("Mouvements de caisse : entrées 3000"), texte);
         assertTrue(texte.endsWith("sorties 500"), texte);
-        assertEquals("Mouvements de caisse : entrées 0   -   sorties 1 500",
-                RecapCaisseRecettePdf.detailMouvements(0, 1500));
+        assertEquals("Mouvements de caisse : entrées 0   -   sorties 1500",
+                sansSeparateur(RecapCaisseRecettePdf.detailMouvements(0, 1500)));
     }
 }
