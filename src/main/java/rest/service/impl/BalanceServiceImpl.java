@@ -291,10 +291,35 @@ public class BalanceServiceImpl implements BalanceService {
 
     /**
      * Retour des tests 3 : chaque jour porte aussi les achats, les especes, le mobile et la part tiers payant, pour que
-     * le graphique de l'analyse puisse montrer chaque indicateur mois par mois ou jour par jour.
+     * le graphique de l'analyse puisse montrer chaque indicateur mois par mois ou jour par jour. Les trois series sont
+     * calculees separement (et, pour l'analyse, en parallele) puis fusionnees jour par jour.
      */
     @Override
     public JSONArray chiffreParJour(BalanceParamsDTO balanceParams) {
+        return fusionnerJours(java.util.Arrays.asList(serieCaParJour(balanceParams),
+                serieCreditEtAchatsParJour(balanceParams), serieModesParJour(balanceParams)));
+    }
+
+    /** Fusion des series par jour : chaque serie apporte ses propres indicateurs, les jours sont tries. */
+    public static JSONArray fusionnerJours(List<Map<String, JSONObject>> series) {
+        Map<String, JSONObject> parJour = new java.util.TreeMap<>();
+        for (Map<String, JSONObject> serie : series) {
+            if (serie == null) {
+                continue;
+            }
+            for (Map.Entry<String, JSONObject> e : serie.entrySet()) {
+                JSONObject jour = parJour.computeIfAbsent(e.getKey(), k -> nouveauJour(k));
+                for (String cle : e.getValue().keySet()) {
+                    jour.put(cle, e.getValue().get(cle));
+                }
+            }
+        }
+        return new JSONArray(new ArrayList<>(parJour.values()));
+    }
+
+    /** Net TTC et nombre de ventes par jour. */
+    @Override
+    public Map<String, JSONObject> serieCaParJour(BalanceParamsDTO balanceParams) {
         Map<String, JSONObject> parJour = new java.util.TreeMap<>();
         try {
             Query query = em.createNativeQuery(replacePlaceHolder(CA_PAR_JOUR_SQL, balanceParams), Tuple.class)
@@ -304,16 +329,27 @@ public class BalanceServiceImpl implements BalanceService {
             for (Object o : query.getResultList()) {
                 Tuple t = (Tuple) o;
                 String jour = String.valueOf(t.get("jour"));
-                parJour.computeIfAbsent(jour, k -> nouveauJour(k)).put("montantNet", nombre(t.get("montantNet")))
+                parJour.computeIfAbsent(jour, k -> new JSONObject()).put("montantNet", nombre(t.get("montantNet")))
                         .put("ventes", nombre(t.get("ventes")));
             }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "chiffre par jour", e);
+        }
+        return parJour;
+    }
+
+    /** Part tiers payant (credit) et achats par jour. */
+    @Override
+    public Map<String, JSONObject> serieCreditEtAchatsParJour(BalanceParamsDTO balanceParams) {
+        Map<String, JSONObject> parJour = new java.util.TreeMap<>();
+        try {
             Query credit = em.createNativeQuery(replacePlaceHolder(CREDIT_PAR_JOUR_SQL, balanceParams), Tuple.class)
                     .setParameter(1, Constant.DEPOT_EXTENSION).setParameter(2, balanceParams.getEmplacementId())
                     .setParameter(3, java.sql.Date.valueOf(balanceParams.getDtStart()))
                     .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
             for (Object o : credit.getResultList()) {
                 Tuple t = (Tuple) o;
-                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> nouveauJour(k)).put("montantTp",
+                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> new JSONObject()).put("montantTp",
                         nombre(t.get("montant")));
             }
             Query achats = em.createNativeQuery(ACHATS_PAR_JOUR_SQL, Tuple.class)
@@ -322,9 +358,20 @@ public class BalanceServiceImpl implements BalanceService {
                     .setParameter(3, balanceParams.getEmplacementId());
             for (Object o : achats.getResultList()) {
                 Tuple t = (Tuple) o;
-                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> nouveauJour(k)).put("montantAchat",
+                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> new JSONObject()).put("montantAchat",
                         nombre(t.get("montant")));
             }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "credit et achats par jour", e);
+        }
+        return parJour;
+    }
+
+    /** Especes et mobile money par jour, avec la formule des colonnes de la balance. */
+    @Override
+    public Map<String, JSONObject> serieModesParJour(BalanceParamsDTO balanceParams) {
+        Map<String, JSONObject> parJour = new java.util.TreeMap<>();
+        try {
             for (Map.Entry<String, List<VenteReglementReportDTO>> e : fetchByModeReglementsGroupByDay(balanceParams)
                     .entrySet()) {
                 long especes = 0;
@@ -337,13 +384,43 @@ public class BalanceServiceImpl implements BalanceService {
                         mobile += montant;
                     }
                 }
-                parJour.computeIfAbsent(e.getKey(), k -> nouveauJour(k)).put("montantEsp", especes).put("montantMobile",
-                        mobile);
+                parJour.computeIfAbsent(e.getKey(), k -> new JSONObject()).put("montantEsp", especes)
+                        .put("montantMobile", mobile);
             }
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "chiffre par jour", e);
+            LOG.log(Level.SEVERE, "modes par jour", e);
         }
-        return new JSONArray(new ArrayList<>(parJour.values()));
+        return parJour;
+    }
+
+    /*
+     * Retours des tests 3 : l'analyse comparative sur trois ans enchainait huit passages annuels puis les series du
+     * graphique, l'un apres l'autre (1,65 min chez l'officine). Les memes calculs, strictement identiques, sont lances
+     * en parallele : chaque appel asynchrone tourne sur son propre fil et sa propre connexion.
+     */
+    @javax.ejb.Asynchronous
+    @Override
+    public java.util.concurrent.Future<JSONObject> getBalanceVenteCaisseDataViewAsync(BalanceParamsDTO balanceParams) {
+        return new javax.ejb.AsyncResult<>(getBalanceVenteCaisseDataView(balanceParams));
+    }
+
+    @javax.ejb.Asynchronous
+    @Override
+    public java.util.concurrent.Future<Map<String, JSONObject>> serieCaParJourAsync(BalanceParamsDTO balanceParams) {
+        return new javax.ejb.AsyncResult<>(serieCaParJour(balanceParams));
+    }
+
+    @javax.ejb.Asynchronous
+    @Override
+    public java.util.concurrent.Future<Map<String, JSONObject>> serieCreditEtAchatsParJourAsync(
+            BalanceParamsDTO balanceParams) {
+        return new javax.ejb.AsyncResult<>(serieCreditEtAchatsParJour(balanceParams));
+    }
+
+    @javax.ejb.Asynchronous
+    @Override
+    public java.util.concurrent.Future<Map<String, JSONObject>> serieModesParJourAsync(BalanceParamsDTO balanceParams) {
+        return new javax.ejb.AsyncResult<>(serieModesParJour(balanceParams));
     }
 
     private static JSONObject nouveauJour(String jour) {

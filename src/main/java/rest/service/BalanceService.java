@@ -46,6 +46,26 @@ public interface BalanceService {
      */
     org.json.JSONArray chiffreParJour(BalanceParamsDTO balanceParams);
 
+    /** Les trois series par jour prises separement (net TTC et ventes ; credit et achats ; especes et mobile). */
+    Map<String, JSONObject> serieCaParJour(BalanceParamsDTO balanceParams);
+
+    Map<String, JSONObject> serieCreditEtAchatsParJour(BalanceParamsDTO balanceParams);
+
+    Map<String, JSONObject> serieModesParJour(BalanceParamsDTO balanceParams);
+
+    /**
+     * Retours des tests 3 : les memes calculs, lances en parallele pour l'analyse comparative (chaque appel sur son
+     * propre fil et sa propre connexion). Les resultats sont strictement ceux des methodes synchrones.
+     */
+    java.util.concurrent.Future<JSONObject> getBalanceVenteCaisseDataViewAsync(BalanceParamsDTO balanceParams);
+
+    java.util.concurrent.Future<Map<String, JSONObject>> serieCaParJourAsync(BalanceParamsDTO balanceParams);
+
+    java.util.concurrent.Future<Map<String, JSONObject>> serieCreditEtAchatsParJourAsync(
+            BalanceParamsDTO balanceParams);
+
+    java.util.concurrent.Future<Map<String, JSONObject>> serieModesParJourAsync(BalanceParamsDTO balanceParams);
+
     List<BalanceDTO> recapBalance(BalanceParamsDTO balanceParams);
 
     JSONObject etatLastThreeYears();

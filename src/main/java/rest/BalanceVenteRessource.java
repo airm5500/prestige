@@ -176,10 +176,32 @@ public class BalanceVenteRessource {
         // « evolution par mode de paiement » (periodes en ligne, modes en colonne). Aucun mode n'est
         // ecrit d'avance : un operateur mobile cree par l'officine y figure de lui-meme.
         java.util.Map<String, JSONObject> modesRencontres = new java.util.LinkedHashMap<>();
+        long depart = System.currentTimeMillis();
+        util.PeriodesCa.Type type = util.PeriodesCa.Type.de(typePeriode);
+        boolean avecJours = !tranches.isEmpty()
+                && (type == util.PeriodesCa.Type.TROIS_ANS || type == util.PeriodesCa.Type.TROIS_SEMAINES);
+        // Retours des tests 3 : toutes les tranches et les series du graphique sont lancees EN MEME TEMPS
+        // (chacune sur son propre fil et sa propre connexion), puis relues dans l'ordre. Les calculs sont
+        // strictement ceux d'avant : seul l'enchainement change (1,65 min -> le temps du plus long).
+        java.util.List<java.util.concurrent.Future<JSONObject>> attentes = new java.util.ArrayList<>();
         for (util.PeriodesCa.Tranche tranche : tranches) {
-            JSONObject balance = balanceService
-                    .getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(tranche.getDebut().toString())
-                            .dtEnd(tranche.getFin().toString()).emplacementId(emplacement).build());
+            attentes.add(
+                    lancer(() -> balanceService.getBalanceVenteCaisseDataViewAsync(parametres(tranche, emplacement))));
+        }
+        BalanceParamsDTO etendue = tranches.isEmpty() ? null
+                : BalanceParamsDTO.builder().dtStart(tranches.get(0).getDebut().toString())
+                        .dtEnd(tranches.get(tranches.size() - 1).getFin().toString()).emplacementId(emplacement)
+                        .build();
+        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieCa = avecJours
+                ? lancer(() -> balanceService.serieCaParJourAsync(etendue)) : null;
+        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieCredit = avecJours
+                ? lancer(() -> balanceService.serieCreditEtAchatsParJourAsync(etendue)) : null;
+        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieModes = avecJours
+                ? lancer(() -> balanceService.serieModesParJourAsync(etendue)) : null;
+        for (int rang = 0; rang < tranches.size(); rang++) {
+            util.PeriodesCa.Tranche tranche = tranches.get(rang);
+            JSONObject balance = obtenir(attentes.get(rang),
+                    () -> balanceService.getBalanceVenteCaisseDataView(parametres(tranche, emplacement)));
             // « metaData » est la cle sous laquelle FunctionUtils.returnData range le resume. Se
             // tromper de cle ne leve aucune erreur : toutes les colonnes seraient simplement a
             // zero, ce qui passerait pour une periode sans activite.
@@ -223,14 +245,16 @@ public class BalanceVenteRessource {
         // series du graphique sous l'analyse (mois par annee, jours par semaine, ou une barre par periode).
         JSONObject total = rest.service.impl.AnalyseBalance.evolutionsEtTotal(data,
                 java.util.Arrays.asList(CHAMPS_ANALYSE_BALANCE), idsModes);
-        util.PeriodesCa.Type type = util.PeriodesCa.Type.de(typePeriode);
         JSONArray jours = null;
-        if (!tranches.isEmpty()
-                && (type == util.PeriodesCa.Type.TROIS_ANS || type == util.PeriodesCa.Type.TROIS_SEMAINES)) {
-            jours = balanceService.chiffreParJour(BalanceParamsDTO.builder()
-                    .dtStart(tranches.get(0).getDebut().toString())
-                    .dtEnd(tranches.get(tranches.size() - 1).getFin().toString()).emplacementId(emplacement).build());
+        if (avecJours) {
+            jours = rest.service.impl.BalanceServiceImpl.fusionnerJours(
+                    java.util.Arrays.asList(obtenir(serieCa, () -> balanceService.serieCaParJour(etendue)),
+                            obtenir(serieCredit, () -> balanceService.serieCreditEtAchatsParJour(etendue)),
+                            obtenir(serieModes, () -> balanceService.serieModesParJour(etendue))));
         }
+        java.util.logging.Logger.getLogger(BalanceVenteRessource.class.getName()).log(java.util.logging.Level.INFO,
+                "[PERF] analyse balance {0} : {1} tranche(s) en {2} ms",
+                new Object[] { typePeriode, tranches.size(), System.currentTimeMillis() - depart });
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("total", data.length()).put("data", data)
                         .put("modes", new JSONArray(modesOrdonnes)).put("totalGeneral", total)
@@ -255,6 +279,38 @@ public class BalanceVenteRessource {
                     return rang < 0 ? fixes.size() : rang;
                 }).thenComparing(m -> m.optString("libelle"), String.CASE_INSENSITIVE_ORDER));
         return liste;
+    }
+
+    private static BalanceParamsDTO parametres(util.PeriodesCa.Tranche tranche, String emplacement) {
+        return BalanceParamsDTO.builder().dtStart(tranche.getDebut().toString()).dtEnd(tranche.getFin().toString())
+                .emplacementId(emplacement).build();
+    }
+
+    /** Lance un calcul asynchrone ; s'il ne peut pas etre lance, rend null et le calcul se fera en synchrone. */
+    private static <T> java.util.concurrent.Future<T> lancer(
+            java.util.function.Supplier<java.util.concurrent.Future<T>> lancement) {
+        try {
+            return lancement.get();
+        } catch (RuntimeException e) {
+            java.util.logging.Logger.getLogger(BalanceVenteRessource.class.getName())
+                    .log(java.util.logging.Level.WARNING, "lancement asynchrone impossible, calcul synchrone", e);
+            return null;
+        }
+    }
+
+    /** Le resultat d'un calcul asynchrone ; en cas d'echec, le meme calcul est refait en synchrone. */
+    private static <T> T obtenir(java.util.concurrent.Future<T> attente, java.util.function.Supplier<T> secours) {
+        if (attente != null) {
+            try {
+                return attente.get(30, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                java.util.logging.Logger.getLogger(BalanceVenteRessource.class.getName())
+                        .log(java.util.logging.Level.WARNING, "calcul asynchrone en echec, repris en synchrone", e);
+            }
+        }
+        return secours.get();
     }
 
     /**
