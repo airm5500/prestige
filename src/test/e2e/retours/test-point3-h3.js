@@ -124,6 +124,12 @@ function semer() {
     const cases = await p.evaluate((libelles) => {
       const g = Ext.ComponentQuery.query('gardemanager #grilleGardes')[0];
       g.getSelectionModel().deselectAll();
+      // Retours des tests 3 : l'onglet Analyse n'accepte qu'une garde cochee ; pour en cocher plusieurs,
+      // on se place d'abord sur l'onglet Comparaison (les autres onglets cumulent).
+      const onglets = Ext.ComponentQuery.query('gardemanager #ongletsGarde')[0];
+      if (onglets.getActiveTab() && onglets.getActiveTab().itemId === 'ongletAnalyseGarde') {
+        onglets.setActiveTab(Ext.ComponentQuery.query('gardemanager #ongletComparaison')[0]);
+      }
       return libelles.map(l => {
         const n = g.getView().getNode(g.getStore().findExact('libelle', l)).querySelector('.x-grid-row-checker');
         n.scrollIntoView();
@@ -257,6 +263,10 @@ function semer() {
 
     // ---------------------------------------------------------------- inventaire des produits coches
     await ouvrirOnglet('ongletAnalyseGarde');
+    // Retours des tests 3 : deux gardes etaient cochees, l'onglet Analyse previent et n'en garde qu'une.
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { if (Ext.MessageBox.isVisible()) { Ext.MessageBox.hide(); } });
+    await p.waitForFunction(() => !/Analyse en cours/.test(Ext.ComponentQuery.query('gardemanager #gardeIndicateurs')[0].el.dom.innerHTML), null, { timeout: 20000 });
     await cliquerGarde(MARQUE + ' nuit');
     const caseP0 = await p.evaluate((produit) => {
       const g = Ext.ComponentQuery.query('gardemanager #grilleAbc')[0];

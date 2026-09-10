@@ -52,6 +52,11 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #grilleResumeAbc': {itemclick: this.doChoisirClasse},
             'gardemanager #commandesImprimer': {click: this.doImprimerCommandes},
             'gardemanager #commandesExporter': {click: this.doExporterCommandes},
+            // Retours des tests 3 : exports des vendeurs, filtre vendu / non vendu, une seule garde sur Analyse.
+            'gardemanager #vendeursImprimer': {click: this.doImprimerVendeurs},
+            'gardemanager #vendeursExporter': {click: this.doExporterVendeurs},
+            'gardemanager #commandesFiltre': {select: this.doFiltrerCommandes},
+            'gardemanager #ongletAnalyseGarde': {activate: this.surOngletAnalyse},
             // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
             'gardemanager #abcLimite': {change: {fn: this.doAnalyser, buffer: 600}},
             'gardemanager #gardeImprimer': {click: this.doImprimer},
@@ -70,8 +75,57 @@ Ext.define('testextjs.controller.GardeCtrl', {
         return selection.length ? selection[0] : null;
     },
 
-    surSelection: function () {
+    surSelection: function (sm, selection) {
+        if (this.limiterAUneGarde(sm, selection)) {
+            return;
+        }
         this.doAnalyser();
+    },
+
+    /** A l'ouverture de l'onglet Analyse avec plusieurs gardes cochees : on n'en garde qu'une. */
+    surOngletAnalyse: function () {
+        var sm = this.getGrilleGardes().getSelectionModel();
+        this.limiterAUneGarde(sm, sm.getSelection());
+    },
+
+    /**
+     * Retours des tests 3 : l'analyse porte sur UNE garde. Sur cet onglet seulement, cocher une
+     * deuxieme garde previent et ne garde que la derniere cochee (les autres onglets cumulent).
+     * Rend vrai quand la selection a ete reduite : le changement de selection qui suit relance l'analyse.
+     */
+    limiterAUneGarde: function (sm, selection) {
+        var ecran = this.getGardeManager();
+        var onglets = ecran ? ecran.down('#ongletsGarde') : null;
+        var actif = onglets ? onglets.getActiveTab() : null;
+        if (!actif || actif.itemId !== 'ongletAnalyseGarde' || !selection || selection.length <= 1) {
+            return false;
+        }
+        var derniere = selection[selection.length - 1];
+        Ext.MessageBox.alert('Information', 'L\'analyse porte sur une seule garde : seule <b>'
+                + Ext.String.htmlEncode(derniere.get('libelle')) + '</b> reste coch&eacute;e. '
+                + 'Pour cumuler plusieurs gardes, utilisez les autres onglets.');
+        // Sans evenement : le changement de selection imbrique ne relance pas l'analyse a coup sur,
+        // on la relance explicitement sur la garde conservee.
+        sm.select([derniere], false, true);
+        this.doAnalyser();
+        return true;
+    },
+
+    /**
+     * Retours des tests 3 : chaque appel du serveur pose un indicateur de chargement (le rond qui
+     * tourne) sur l'onglet concerne, et le retire a la reponse, bonne ou mauvaise.
+     */
+    masquer: function (itemId, message) {
+        var ecran = this.getGardeManager();
+        var cible = ecran ? ecran.down('#' + itemId) : null;
+        if (cible && cible.rendered) {
+            cible.setLoading(message || 'Chargement en cours...');
+        }
+        return function () {
+            if (cible && !cible.isDestroyed) {
+                cible.setLoading(false);
+            }
+        };
     },
 
     doRafraichirEffectif: function () {
@@ -130,11 +184,13 @@ Ext.define('testextjs.controller.GardeCtrl', {
             source.setText('<span style="color:#a00">Cochez des gardes dans la liste.</span>');
             return;
         }
+        var demasquer = me.masquer('ongletActivite', 'Cumul des gardes coch&eacute;es...');
         Ext.Ajax.request({
             url: '../api/v1/gardes/activite',
             method: 'GET',
             params: {ids: ids.join(','), heures: me.parametres().heures},
             timeout: 600000,
+            callback: demasquer,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 ecran.trancheStore.loadData(objet.data || []);
@@ -173,11 +229,13 @@ Ext.define('testextjs.controller.GardeCtrl', {
             url = '../api/v1/gardes/' + garde.get('id') + '/vendeurs';
             params = {};
         }
+        var demasquer = me.masquer('ongletVendeurs', 'Lecture des vendeurs...');
         Ext.Ajax.request({
             url: url,
             method: 'GET',
             params: params,
             timeout: 600000,
+            callback: demasquer,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 ecran.vendeurStore.loadData(objet.data || []);
@@ -202,14 +260,17 @@ Ext.define('testextjs.controller.GardeCtrl', {
             resume.setText('Choisissez une garde dans la liste de gauche.');
             return;
         }
+        var demasquer = me.masquer('ongletCommandes', 'Lecture des commandes...');
         Ext.Ajax.request({
             url: '../api/v1/gardes/' + garde.get('id') + '/commandes',
             method: 'GET',
             timeout: 600000,
+            callback: demasquer,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 var r = objet.resume || {};
                 ecran.commandeStore.loadData(objet.data || []);
+                me.doFiltrerCommandes();
                 resume.setText('<b>' + (r.produitsCommandes || 0) + '</b> produit(s) command&eacute;(s) pendant la garde, '
                         + 'dont <b style="color:#a00">' + (r.produitsNonVendus || 0) + '</b> non vendu(s) pendant la garde, '
                         + 'soit <b>' + Ext.util.Format.number(r.proportionProduits || 0, '0.00') + ' %</b> des produits '
@@ -219,6 +280,53 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 resume.setText('<span style="color:#a00">Les commandes n\'ont pas pu &ecirc;tre lues.</span>');
             }
         });
+    },
+
+    /** Retours des tests 3 : le filtre vendu / non vendu s'applique sur place, sans rappeler le serveur. */
+    doFiltrerCommandes: function () {
+        var ecran = this.getGardeManager();
+        var combo = ecran.down('#commandesFiltre');
+        var choix = combo ? combo.getValue() : '';
+        var store = ecran.commandeStore;
+        var filtre = choix === 'vendu' || choix === 'non';
+        // Sans filtre, l'effacement rafraichit la grille ; avec, c'est le filtre qui le fait.
+        store.clearFilter(filtre);
+        if (filtre) {
+            var nonVendu = choix === 'non';
+            store.filterBy(function (ligne) {
+                return !!ligne.get('nonVendu') === nonVendu;
+            });
+        }
+    },
+
+    /** L'adresse des editions des vendeurs : la garde choisie, ou les gardes cochees (bouton enfonce). */
+    urlVendeurs: function (chemin) {
+        var ecran = this.getGardeManager();
+        var historique = ecran.down('#vendeursHistorique').pressed;
+        var ids = historique ? this.idsCoches() : [];
+        var garde = this.gardeCourante();
+        var id = garde ? garde.get('id') : (ids.length ? ids[0] : null);
+        if (!id) {
+            Ext.MessageBox.alert('Information', historique ? 'Cochez des gardes dans la liste.'
+                    : 'Choisissez une garde dans la liste.');
+            return null;
+        }
+        return '../api/v1/gardes/' + id + '/vendeurs' + chemin + (ids.length > 1 ? '?ids=' + ids.join(',') : '');
+    },
+
+    doImprimerVendeurs: function () {
+        var url = this.urlVendeurs('/pdf');
+        if (url) {
+            // Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire.
+            window.open(url);
+        }
+    },
+
+    doExporterVendeurs: function () {
+        var url = this.urlVendeurs('/excel');
+        if (url) {
+            window.open(url);
+        }
     },
 
     doCompterCoches: function () {
@@ -516,11 +624,13 @@ Ext.define('testextjs.controller.GardeCtrl', {
         var ecran = me.getGardeManager();
         var indicateurs = ecran.down('#gardeIndicateurs');
         indicateurs.update('<i>Analyse en cours...</i>');
+        var demasquer = me.masquer('ongletAnalyseGarde', 'Analyse en cours...');
         Ext.Ajax.request({
             url: '../api/v1/gardes/' + params.id + '/rapport',
             method: 'GET',
             params: me.parametresRapport(params),
             timeout: 600000,
+            callback: demasquer,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 if (!objet.success) {
@@ -554,10 +664,10 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 var g = objet.garde || {};
                 var periode = g.jourDebut ? ' <span style="color:#555">(du ' + g.jourDebut + ' ' + (g.heureDebut || '')
                         + ' au ' + g.jourFin + ' ' + (g.heureFin || '') + ')</span>' : '';
+                // Retours des tests 3 : ni les lignes ni les unites, qui n'aidaient pas la lecture.
                 indicateurs.update('<b>' + g.libelle + '</b>' + periode + ' &middot; <b>' + (i.ventes || 0)
-                        + '</b> vente(s) &middot; <b>' + (i.lignes || 0) + '</b> ligne(s) &middot; <b>'
-                        + (i.produitsDistincts || 0) + '</b> produit(s) &middot; <b>' + (i.quantite || 0)
-                        + '</b> unit&eacute;(s) &middot; <b>'
+                        + '</b> vente(s) &middot; <b>'
+                        + (i.produitsDistincts || 0) + '</b> produit(s) &middot; <b>'
                         + Ext.util.Format.number(i.montant || 0, '0,000') + '</b> au total &middot; <b>'
                         + Ext.util.Format.number(i.montantParHeure || 0, '0,000') + '</b> par heure &middot; marge <b>'
                         + Ext.util.Format.number(i.marge || 0, '0,000') + '</b> (<b>'
@@ -642,11 +752,13 @@ Ext.define('testextjs.controller.GardeCtrl', {
     comparer: function (ids, nombre) {
         var me = this;
         var ecran = me.getGardeManager();
+        var demasquer = me.masquer('ongletComparaison', 'Comparaison en cours...');
         Ext.Ajax.request({
             url: '../api/v1/gardes/comparaison',
             method: 'GET',
             params: {ids: ids, nombre: nombre || 3},
             timeout: 600000,
+            callback: demasquer,
             success: function (reponse) {
                 var objet = Ext.JSON.decode(reponse.responseText, true) || {};
                 // Le serveur imbrique les indicateurs : on les remonte d'un cran pour que la

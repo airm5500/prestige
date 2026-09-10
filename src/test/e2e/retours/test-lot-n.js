@@ -47,7 +47,7 @@ const TMP = '/tmp/claude-0/lot-n';
     const moisA = parseInt(MOIS_A.slice(5, 7), 10) - 1, moisB = parseInt(MOIS_B.slice(5, 7), 10) - 1;
     ok('API : 3 dernieres annees -> graphique mois par mois, une serie par annee, avec le jeu d essai sur ses deux mois (35 000 puis 18 000)',
       gAns.type === 'ANNEES' && (gAns.categories || []).length === 12 && (gAns.series || []).length >= 3
-      && serieFixture.valeurs && serieFixture.valeurs[moisA] === 35000 && serieFixture.valeurs[moisB] === 18000,
+      && serieFixture.valeurs && serieFixture.valeurs.montantNet && serieFixture.valeurs.montantNet[moisA] === 35000 && serieFixture.valeurs.montantNet[moisB] === 18000, // lot R : une serie de valeurs par indicateur
       JSON.stringify({ type: gAns.type, series: (gAns.series || []).map(s => s.libelle), valeurs: serieFixture.valeurs }));
     ok('API : l analyse porte les evolutions et le TOTAL GENERAL', (ans.data || []).every(l => l.evolutions) && ans.totalGeneral && ans.totalGeneral.libelle === 'TOTAL GÉNÉRAL',
       JSON.stringify(ans.totalGeneral).slice(0, 200));
@@ -83,7 +83,7 @@ const TMP = '/tmp/claude-0/lot-n';
     await p.fill('#' + structure.au, fr(FIN_B)); await p.keyboard.press('Tab');
     await p.click('#' + structure.rechercher);
     await p.waitForFunction(() => {
-      const c = Ext.ComponentQuery.query('balancesalecahs #syntheseBalance')[0];
+      const c = Ext.ComponentQuery.query('balancesalecahs #ventilationBalance')[0];
       return c && c.el && /TOTAL/.test(c.el.dom.innerText);
     }, null, { timeout: 20000 });
     await p.waitForTimeout(800);
@@ -95,7 +95,7 @@ const TMP = '/tmp/claude-0/lot-n';
         lignes: g.getStore().getCount(), lignesDom: vueEl.querySelectorAll('tr.x-grid-row').length,
         scroll: vueEl.scrollHeight > vueEl.clientHeight + 2,
         types: Array.from(vueEl.querySelectorAll('tr.x-grid-row td:first-child')).map(td => td.innerText.trim()),
-        synthese: vue.down('#syntheseBalance').el.dom.innerText,
+        synthese: vue.down('#ventilationBalance').el.dom.innerText, // lot R : synthese et ventilation ne font plus qu'un bloc en 3 rangees
         ventilation: vue.down('#ventilationBalance').el.dom.innerText,
         montantVenteBas: vue.down('#montantTTC').getValue(), especesBas: vue.down('#montantEsp').getValue()
       };

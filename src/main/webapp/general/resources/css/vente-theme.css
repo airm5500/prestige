@@ -1336,3 +1336,18 @@ body.x-body,
 .resume-classe-a .x-grid-cell { color: #177a17; font-weight: bold; }
 .resume-classe-b .x-grid-cell { color: #1565c0; font-weight: bold; }
 .resume-classe-c .x-grid-cell { color: #a00000; font-weight: bold; }
+
+/* Balance, retours des tests 3 : trois rangees, en-tetes de meme couleur, chiffres agrandis. */
+.ventilation-balance.vb-v2 { display: block; padding: 8px 10px; font-size: 12px; }
+.ventilation-balance.vb-v2 .vb-rangee { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.ventilation-balance.vb-v2 .vb-col { padding: 0 0 6px 0; overflow: hidden; }
+.ventilation-balance.vb-v2 .vb-titre { background: #2E75B6; color: #fff; font-size: 12px; letter-spacing: .5px; padding: 6px 10px; margin: 0 0 6px 0; border-bottom: none; border-radius: 3px 3px 0 0; }
+.ventilation-balance.vb-v2 .vb-table th { font-size: 11px; padding: 3px 8px; }
+.ventilation-balance.vb-v2 .vb-table td { padding: 4px 8px; font-size: 12.5px; }
+.ventilation-balance.vb-v2 .vb-n, .ventilation-balance.vb-v2 .vb-p { font-size: 13px; }
+.ventilation-balance.vb-v2 .vb-lib { padding-left: 10px; }
+.ventilation-balance.vb-v2 .vb-rouge { color: #a00000; }
+.ventilation-balance.vb-v2 .vb-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 0 8px; }
+.ventilation-balance.vb-v2 .vb-kpi { padding: 6px 10px; }
+.ventilation-balance.vb-v2 .vb-kpi-lib { font-size: 10.5px; }
+.ventilation-balance.vb-v2 .vb-kpi-val { font-size: 16px; }

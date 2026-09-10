@@ -13,6 +13,17 @@ public class GardeVendeurDTO implements Serializable {
     private String nom = "";
     private long montant;
     private long marge;
+    /** Part du vendeur dans le chiffre de la garde, en % (retours des tests). */
+    private double part;
+
+    public double getPart() {
+        return part;
+    }
+
+    public void setPart(double part) {
+        this.part = part;
+    }
+
     private final Set<String> ventes = new HashSet<>();
     private final Set<String> clients = new HashSet<>();
 

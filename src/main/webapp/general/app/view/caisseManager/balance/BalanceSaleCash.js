@@ -437,13 +437,6 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                     hidden: true,
                     height: 0,
                     columns: [{header: 'Type vente', dataIndex: 'typeVente'}]
-                }, {
-                    xtype: 'panel',
-                    itemId: 'syntheseBalance',
-                    border: false,
-                    bodyStyle: 'background:#fbfcfd;',
-                    tpl: me.tplSynthese(),
-                    html: ''
                 }, me.panneauVentilation()]
         };
     },
@@ -506,146 +499,141 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
     },
 
     /**
-     * La balance et son resume presentes comme le document du milieu (retour des tests du 09/09 :
-     * modernisation, l'affichage historique restant visible pour comparer).
-     */
-    tplSynthese: function () {
-        return new Ext.XTemplate(
-            '<div class="ventilation-balance synthese-balance">',
-            '<div class="vb-col vb-large">',
-            '<div class="vb-titre">Balance vente / caisse</div>',
-            '<table class="vb-table">',
-            '<tr><th></th><th>Ventes</th><th>Brut TTC</th><th>Remise</th><th>Net TTC</th><th>%</th><th>Panier</th>',
-            '<th>Esp&egrave;ces</th><th>Ch&egrave;ques</th><th>Carte</th><th>Diff&eacute;r&eacute;</th><th>Mobile</th><th>Tiers payant</th></tr>',
-            '<tpl for="lignes">',
-            '<tr><td class="vb-lib">{[this.type(values.typeVente)]}</td><td class="vb-n">{[this.n(values.nbreVente)]}</td>',
-            '<td class="vb-n">{[this.n(values.montantTTC)]}</td><td class="vb-n">{[this.n(values.montantRemise)]}</td>',
-            '<td class="vb-n">{[this.n(values.montantNet)]}</td><td class="vb-p">{[this.n(values.pourcentage)]} %</td>',
-            '<td class="vb-n">{[this.n(values.panierMoyen)]}</td><td class="vb-n">{[this.n(values.montantEsp)]}</td>',
-            '<td class="vb-n">{[this.n(values.montantCheque)]}</td><td class="vb-n">{[this.n(values.montantCB)]}</td>',
-            '<td class="vb-n">{[this.n(values.montantDiff)]}</td><td class="vb-n">{[this.n(values.montantMobilePayment)]}</td>',
-            '<td class="vb-n">{[this.n(values.montantTp)]}</td></tr>',
-            '</tpl>',
-            '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.resume.nbreVente)]}</td>',
-            '<td class="vb-n">{[this.n(values.resume.montantTTC)]}</td><td class="vb-n">{[this.n(values.resume.montantRemise)]}</td>',
-            '<td class="vb-n">{[this.n(values.resume.montantNet)]}</td><td class="vb-p">100 %</td>',
-            '<td class="vb-n">{[this.n(values.resume.panierMoyen)]}</td><td class="vb-n">{[this.n(values.resume.montantEsp)]}</td>',
-            '<td class="vb-n">{[this.n(values.resume.montantCheque)]}</td><td class="vb-n">{[this.n(values.resume.montantCB)]}</td>',
-            '<td class="vb-n">{[this.n(values.resume.montantDiff)]}</td><td class="vb-n">{[this.n(values.resume.montantMobilePayment)]}</td>',
-            '<td class="vb-n">{[this.n(values.resume.montantTp)]}</td></tr>',
-            '</table>',
-            '</div>',
-            '<div class="vb-col">',
-            '<div class="vb-titre">R&eacute;sum&eacute;</div>',
-            '<div class="vb-kpis">',
-            '{[this.kpi("Montant vente", values.resume.montantTTC)]}{[this.kpi("Montant achat", values.resume.montantAchat)]}',
-            '{[this.kpi("Marge", values.resume.marge)]}{[this.kpi("Ratio V/A", values.resume.ratioVA, true)]}',
-            '{[this.kpi("Fonds de caisse", values.resume.fondCaisse)]}{[this.kpi("R&egrave;gl. diff&eacute;r&eacute;s", values.resume.montantRegDiff)]}',
-            '{[this.kpi("R&egrave;gl. tiers payant", values.resume.montantRegleTp)]}{[this.kpi("Entr&eacute;es", values.resume.montantEntre)]}',
-            '{[this.kpi("Sorties", values.resume.montantSortie, false, "rouge")]}{[this.kpi("Esp&egrave;ces", values.resume.montantEsp)]}',
-            '{[this.kpi("Mobile", values.resume.montantMobilePayment)]}{[this.kpi("Panier moyen", values.resume.panierMoyen)]}',
-            '{[this.kpi("Nb ventes", values.resume.nbreVente)]}{[this.kpi("Ch&egrave;ques", values.resume.montantCheque)]}',
-            '{[this.kpi("Virements", values.resume.montantVirement)]}',
-            '</div></div></div>',
-            {
-                n: function (v) {
-                    return Ext.util.Format.number(v || 0, '0,000');
-                },
-                type: function (v) {
-                    return v === 'VNO' ? 'COMPTANT' : (v === 'VO' ? 'CR\u00c9DIT' : Ext.String.htmlEncode(v || ''));
-                },
-                kpi: function (libelle, valeur, brut, teinte) {
-                    // Les sorties de caisse en rouge (retour des tests du 09/09) ; le separateur de
-                    // milliers s'applique aussi aux valeurs negatives.
-                    var texte = brut ? String(valeur || 0)
-                            : ((valeur || 0) < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(valeur || 0), '0,000');
-                    return '<div class="vb-kpi' + (teinte === 'rouge' ? ' vb-kpi-rouge' : '') + '"><span class="vb-kpi-lib">'
-                            + libelle + '</span><span class="vb-kpi-val">' + texte + '</span></div>';
-                }
-            });
-    },
-
-    /**
      * Le document de ventilation affiche sous la balance (retour du 09/09, point 4 ; retour des tests :
      * nombre de ventes et part par mode, libelle de la part tiers payant, repartition par taux de TVA).
      */
     panneauVentilation: function () {
+        /* Retours des tests 3 : trois rangees, en-tetes de meme couleur, chiffres agrandis.
+             1. Balance vente / caisse (COMPTANT, CREDIT, TOTAL)  |  Caisse
+             2. Clients et ventes  |  Part dans le chiffre d'affaires  |  Repartition par taux de TVA
+             3. Resume : douze indicateurs sur deux lignes de six.
+           Tout vient de la meme reponse que la grille (lignes, resume, ventilation). */
         return {
             xtype: 'panel',
             itemId: 'ventilationBalance',
             flex: 1,
             autoScroll: true,
             border: false,
-            bodyStyle: 'background:#fbfcfd;',
+            bodyStyle: 'background:#f4f7fa;',
             tpl: new Ext.XTemplate(
-                '<div class="ventilation-balance">',
-                '<div class="vb-col">',
-                '<div class="vb-titre">Clients et ventes</div>',
-                '<table class="vb-table">',
-                '<tr><th></th><th>Clients</th><th>% clients</th><th>Montant net</th><th>% ventes</th></tr>',
-                '<tr><td class="vb-lib">COMPTANT</td><td class="vb-n">{[this.n(values.comptant.ventes)]}</td>',
-                '<td class="vb-p">{[this.p(values.comptant.partVentes)]}</td><td class="vb-n">{[this.n(values.comptant.montant)]}</td>',
-                '<td class="vb-p">{[this.p(values.comptant.partMontant)]}</td></tr>',
-                '<tr><td class="vb-lib">CR&Eacute;DIT</td><td class="vb-n">{[this.n(values.credit.ventes)]}</td>',
-                '<td class="vb-p">{[this.p(values.credit.partVentes)]}</td><td class="vb-n">{[this.n(values.credit.montant)]}</td>',
-                '<td class="vb-p">{[this.p(values.credit.partMontant)]}</td></tr>',
-                '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.totalVentes)]}</td><td class="vb-p">100 %</td>',
-                '<td class="vb-n">{[this.n(values.chiffreAffaires)]}</td><td class="vb-p">100 %</td></tr>',
-                '</table>',
-                '</div>',
+                '<div class="ventilation-balance vb-v2">',
+                // ---------------------------------------------------------------- rangee 1
+                '<div class="vb-rangee">',
                 '<div class="vb-col vb-large">',
-                '<div class="vb-titre">Part dans le chiffre d\'affaires</div>',
+                '<div class="vb-titre">Balance vente / caisse</div>',
                 '<table class="vb-table">',
-                '<tr><th></th><th>Montant</th><th>% du CA</th><th>Ventes</th><th>% ventes</th></tr>',
-                '<tr><td class="vb-lib">Esp&egrave;ces</td><td class="vb-n">{[this.n(values.especes.montant)]}</td><td class="vb-p">{[this.p(values.especes.part)]}</td>',
-                '<td class="vb-n">{[this.n(values.especes.ventes)]}</td><td class="vb-p">{[this.p(values.especes.partVentes)]}</td></tr>',
-                '<tr><td class="vb-lib">Mobile money</td><td class="vb-n">{[this.n(values.mobile.montant)]}</td><td class="vb-p">{[this.p(values.mobile.part)]}</td>',
-                '<td class="vb-n">{[this.n(values.mobile.ventes)]}</td><td class="vb-p">{[this.p(values.mobile.partVentes)]}</td></tr>',
-                '<tpl for="mobile.operateurs">',
-                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;{[Ext.String.htmlEncode(values.libelle)]}</td><td class="vb-n">{[this.n(values.montant)]}</td><td class="vb-p">{[this.p(values.part)]}</td>',
-                '<td class="vb-n">{[this.n(values.ventes)]}</td><td class="vb-p">{[this.p(values.partVentes)]}</td></tr>',
+                '<tr><th></th><th>Ventes</th><th>Brut TTC</th><th>Remise</th><th>Net TTC</th><th>%</th><th>Panier</th>',
+                '<th>Esp&egrave;ces</th><th>Ch&egrave;ques</th><th>Carte</th><th>Diff&eacute;r&eacute;</th><th>Mobile</th><th>Tiers payant</th></tr>',
+                '<tpl for="lignes">',
+                '<tr><td class="vb-lib">{[this.type(values.typeVente)]}</td><td class="vb-n">{[this.n(values.nbreVente)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantTTC)]}</td><td class="vb-n">{[this.n(values.montantRemise)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantNet)]}</td><td class="vb-p">{[this.n(values.pourcentage)]} %</td>',
+                '<td class="vb-n">{[this.n(values.panierMoyen)]}</td><td class="vb-n">{[this.n(values.montantEsp)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantCheque)]}</td><td class="vb-n">{[this.n(values.montantCB)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantDiff)]}</td><td class="vb-n">{[this.n(values.montantMobilePayment)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantTp)]}</td></tr>',
                 '</tpl>',
-                '<tpl for="modes"><tpl if="!values.mobile && values.modeId != \'1\'">',
-                '<tr><td class="vb-lib">{[Ext.String.htmlEncode(values.libelle)]}</td><td class="vb-n">{[this.n(values.montant)]}</td><td class="vb-p">{[this.p(values.part)]}</td>',
-                '<td class="vb-n">{[this.n(values.ventes)]}</td><td class="vb-p">{[this.p(values.partVentes)]}</td></tr>',
-                '</tpl></tpl>',
-                '<tr><td class="vb-lib">Part tiers payant (sur ventes &agrave; cr&eacute;dit)</td><td class="vb-n">{[this.n(values.creditCa.montant)]}</td><td class="vb-p">{[this.p(values.creditCa.part)]}</td>',
-                '<td class="vb-n">{[this.n(values.credit.ventes)]}</td><td class="vb-p">{[this.p(values.credit.partVentes)]}</td></tr>',
+                '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.resume.nbreVente)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantTTC)]}</td><td class="vb-n">{[this.n(values.resume.montantRemise)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantNet)]}</td><td class="vb-p">100 %</td>',
+                '<td class="vb-n">{[this.n(values.resume.panierMoyen)]}</td><td class="vb-n">{[this.n(values.resume.montantEsp)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantCheque)]}</td><td class="vb-n">{[this.n(values.resume.montantCB)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantDiff)]}</td><td class="vb-n">{[this.n(values.resume.montantMobilePayment)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantTp)]}</td></tr>',
                 '</table>',
                 '</div>',
                 '<div class="vb-col">',
                 '<div class="vb-titre">Caisse</div>',
                 '<table class="vb-table">',
                 '<tr><th></th><th>Nombre</th><th>Montant</th></tr>',
-                '<tr><td class="vb-lib">Mouvements de caisse</td><td class="vb-n">{[this.n(values.caisse.mouvements.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.mouvements.montant)]}</td></tr>',
-                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;Entr&eacute;es</td><td class="vb-n">{[this.n(values.caisse.entrees.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.entrees.montant)]}</td></tr>',
-                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;Sorties</td><td class="vb-n">{[this.n(values.caisse.sorties.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.sorties.montant)]}</td></tr>',
-                '<tr><td class="vb-lib">R&egrave;glements tiers payant</td><td class="vb-n">{[this.n(values.caisse.reglementsTp.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.reglementsTp.montant)]}</td></tr>',
-                '<tr><td class="vb-lib">R&egrave;glements diff&eacute;r&eacute;s</td><td class="vb-n">{[this.n(values.caisse.reglementsDifferes.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.reglementsDifferes.montant)]}</td></tr>',
-                '<tr><td class="vb-lib">Ventes &agrave; cr&eacute;dit</td><td class="vb-n">{[this.n(values.caisse.ventesCredit.nombre)]}</td><td class="vb-n">{[this.n(values.caisse.ventesCredit.montant)]}</td></tr>',
+                '<tr><td class="vb-lib">Mouvements de caisse</td><td class="vb-n">{[this.n(values.v.caisse.mouvements.nombre)]}</td><td class="vb-n">{[this.n(values.v.caisse.mouvements.montant)]}</td></tr>',
+                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;Entr&eacute;es</td><td class="vb-n">{[this.n(values.v.caisse.entrees.nombre)]}</td><td class="vb-n">{[this.n(values.v.caisse.entrees.montant)]}</td></tr>',
+                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;Sorties</td><td class="vb-n">{[this.n(values.v.caisse.sorties.nombre)]}</td><td class="vb-n vb-rouge">{[this.n(values.v.caisse.sorties.montant)]}</td></tr>',
+                '<tr><td class="vb-lib">R&egrave;glements tiers payant</td><td class="vb-n">{[this.n(values.v.caisse.reglementsTp.nombre)]}</td><td class="vb-n">{[this.n(values.v.caisse.reglementsTp.montant)]}</td></tr>',
+                '<tr><td class="vb-lib">R&egrave;glements diff&eacute;r&eacute;s</td><td class="vb-n">{[this.n(values.v.caisse.reglementsDifferes.nombre)]}</td><td class="vb-n">{[this.n(values.v.caisse.reglementsDifferes.montant)]}</td></tr>',
+                '<tr><td class="vb-lib">Ventes &agrave; cr&eacute;dit</td><td class="vb-n">{[this.n(values.v.caisse.ventesCredit.nombre)]}</td><td class="vb-n">{[this.n(values.v.caisse.ventesCredit.montant)]}</td></tr>',
+                '</table>',
+                '</div>',
+                '</div>',
+                // ---------------------------------------------------------------- rangee 2
+                '<div class="vb-rangee">',
+                '<div class="vb-col">',
+                '<div class="vb-titre">Clients et ventes</div>',
+                '<table class="vb-table">',
+                '<tr><th></th><th>Clients</th><th>% clients</th><th>Montant net</th><th>% ventes</th></tr>',
+                '<tr><td class="vb-lib">COMPTANT</td><td class="vb-n">{[this.n(values.v.comptant.ventes)]}</td>',
+                '<td class="vb-p">{[this.p(values.v.comptant.partVentes)]}</td><td class="vb-n">{[this.n(values.v.comptant.montant)]}</td>',
+                '<td class="vb-p">{[this.p(values.v.comptant.partMontant)]}</td></tr>',
+                '<tr><td class="vb-lib">CR&Eacute;DIT</td><td class="vb-n">{[this.n(values.v.credit.ventes)]}</td>',
+                '<td class="vb-p">{[this.p(values.v.credit.partVentes)]}</td><td class="vb-n">{[this.n(values.v.credit.montant)]}</td>',
+                '<td class="vb-p">{[this.p(values.v.credit.partMontant)]}</td></tr>',
+                '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.v.totalVentes)]}</td><td class="vb-p">100 %</td>',
+                '<td class="vb-n">{[this.n(values.v.chiffreAffaires)]}</td><td class="vb-p">100 %</td></tr>',
+                '</table>',
+                '</div>',
+                '<div class="vb-col vb-large">',
+                '<div class="vb-titre">Part dans le chiffre d\'affaires</div>',
+                '<table class="vb-table">',
+                '<tr><th></th><th>Montant</th><th>% du CA</th><th>Ventes</th><th>% ventes</th></tr>',
+                '<tr><td class="vb-lib">Esp&egrave;ces</td><td class="vb-n">{[this.n(values.v.especes.montant)]}</td><td class="vb-p">{[this.p(values.v.especes.part)]}</td>',
+                '<td class="vb-n">{[this.n(values.v.especes.ventes)]}</td><td class="vb-p">{[this.p(values.v.especes.partVentes)]}</td></tr>',
+                '<tr><td class="vb-lib">Mobile money</td><td class="vb-n">{[this.n(values.v.mobile.montant)]}</td><td class="vb-p">{[this.p(values.v.mobile.part)]}</td>',
+                '<td class="vb-n">{[this.n(values.v.mobile.ventes)]}</td><td class="vb-p">{[this.p(values.v.mobile.partVentes)]}</td></tr>',
+                '<tpl for="v.mobile.operateurs">',
+                '<tr class="vb-operateur"><td class="vb-lib">&nbsp;&nbsp;&nbsp;{[Ext.String.htmlEncode(values.libelle)]}</td><td class="vb-n">{[this.n(values.montant)]}</td><td class="vb-p">{[this.p(values.part)]}</td>',
+                '<td class="vb-n">{[this.n(values.ventes)]}</td><td class="vb-p">{[this.p(values.partVentes)]}</td></tr>',
+                '</tpl>',
+                '<tpl for="v.modes"><tpl if="!values.mobile && values.modeId != \'1\'">',
+                '<tr><td class="vb-lib">{[Ext.String.htmlEncode(values.libelle)]}</td><td class="vb-n">{[this.n(values.montant)]}</td><td class="vb-p">{[this.p(values.part)]}</td>',
+                '<td class="vb-n">{[this.n(values.ventes)]}</td><td class="vb-p">{[this.p(values.partVentes)]}</td></tr>',
+                '</tpl></tpl>',
+                '<tr><td class="vb-lib">Part tiers payant (sur ventes &agrave; cr&eacute;dit)</td><td class="vb-n">{[this.n(values.v.creditCa.montant)]}</td><td class="vb-p">{[this.p(values.v.creditCa.part)]}</td>',
+                '<td class="vb-n">{[this.n(values.v.credit.ventes)]}</td><td class="vb-p">{[this.p(values.v.credit.partVentes)]}</td></tr>',
                 '</table>',
                 '</div>',
                 '<div class="vb-col">',
                 '<div class="vb-titre">R&eacute;partition par taux de TVA</div>',
                 '<table class="vb-table">',
                 '<tr><th>Taux</th><th>HT</th><th>TVA</th><th>TTC</th><th>% TTC</th></tr>',
-                '<tpl for="tva">',
+                '<tpl for="v.tva">',
                 '<tr><td class="vb-lib">{taux} %</td><td class="vb-n">{[this.n(values.montantHt)]}</td><td class="vb-n">{[this.n(values.montantTva)]}</td>',
                 '<td class="vb-n">{[this.n(values.montantTtc)]}</td><td class="vb-p">{[this.p(values.part)]}</td></tr>',
                 '</tpl>',
-                '<tpl if="!values.tva || !values.tva.length"><tr><td class="vb-lib" colspan="5" style="color:#7f8c8d">Aucune vente sur la p&eacute;riode.</td></tr></tpl>',
+                '<tpl if="!values.v.tva || !values.v.tva.length"><tr><td class="vb-lib" colspan="5" style="color:#7f8c8d">Aucune vente sur la p&eacute;riode.</td></tr></tpl>',
                 '</table>',
                 '</div>',
                 '</div>',
+                // ---------------------------------------------------------------- rangee 3 : resume
+                '<div class="vb-rangee">',
+                '<div class="vb-col vb-large">',
+                '<div class="vb-titre">R&eacute;sum&eacute;</div>',
+                '<div class="vb-kpis">',
+                '{[this.kpi("Montant vente", values.resume.montantTTC)]}{[this.kpi("Montant achat", values.resume.montantAchat)]}',
+                '{[this.kpi("Marge", values.resume.marge)]}{[this.kpi("Ratio V/A", values.resume.ratioVA, true)]}',
+                '{[this.kpi("Panier moyen", values.resume.panierMoyen)]}{[this.kpi("Nb ventes", values.resume.nbreVente)]}',
+                '{[this.kpi("Fonds de caisse", values.resume.fondCaisse)]}{[this.kpi("Entr&eacute;es", values.resume.montantEntre)]}',
+                '{[this.kpi("Sorties", values.resume.montantSortie, false, "rouge")]}{[this.kpi("R&egrave;gl. diff&eacute;r&eacute;s", values.resume.montantRegDiff)]}',
+                '{[this.kpi("R&egrave;gl. tiers payant", values.resume.montantRegleTp)]}{[this.kpi("Esp&egrave;ces", values.resume.montantEsp)]}',
+                '</div></div></div>',
+                '</div>',
                 {
                     n: function (v) {
-                        return Ext.util.Format.number(v || 0, '0,000');
+                        return ((v || 0) < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(v || 0), '0,000');
                     },
                     p: function (v) {
                         return Ext.util.Format.number(v || 0, '0.0') + ' %';
+                    },
+                    type: function (v) {
+                        return v === 'VNO' ? 'COMPTANT' : (v === 'VO' ? 'CR\u00c9DIT' : Ext.String.htmlEncode(v || ''));
+                    },
+                    kpi: function (libelle, valeur, brut, teinte) {
+                        var texte = brut ? String(valeur || 0)
+                                : ((valeur || 0) < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(valeur || 0), '0,000');
+                        return '<div class="vb-kpi' + (teinte === 'rouge' ? ' vb-kpi-rouge' : '') + '"><span class="vb-kpi-lib">'
+                                + libelle + '</span><span class="vb-kpi-val">' + texte + '</span></div>';
                     }
                 }),
-            html: '<div style="padding:10px;color:#7f8c8d;">Lancez une recherche pour afficher la ventilation.</div>'
+            html: '<div style="padding:10px;color:#7f8c8d;">Lancez une recherche pour afficher la balance.</div>'
         };
     },
 
@@ -690,7 +678,24 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
             xtype: 'panel',
             layout: {type: 'vbox', align: 'stretch'},
             border: false,
-            dockedItems: [me.barreRecherche('Analyse', true, ['->', {
+            dockedItems: [me.barreRecherche('Analyse', true, ['-', {
+                        // Retours des tests 3 : l'indicateur trace par le graphique, au choix.
+                        xtype: 'combobox',
+                        itemId: 'indicateurGraphique',
+                        fieldLabel: 'Graphique',
+                        labelWidth: 60,
+                        width: 210,
+                        store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], data: [
+                                {id: 'montantNet', libelle: 'Net TTC'}, {id: 'nbreVente', libelle: 'Nombre de ventes'},
+                                {id: 'montantAchat', libelle: 'Achat'}, {id: 'panierMoyen', libelle: 'Panier moyen'},
+                                {id: 'montantEsp', libelle: 'Esp\u00e8ces'}, {id: 'montantMobilePayment', libelle: 'Mobile'},
+                                {id: 'montantTp', libelle: 'Tiers payant'}]}),
+                        valueField: 'id',
+                        displayField: 'libelle',
+                        queryMode: 'local',
+                        editable: false,
+                        value: 'montantNet'
+                    }, '->', {
                         text: 'Imprimer', itemId: 'analyseImprimer',
                         tooltip: 'Imprimer l\'analyse comparative et l\'&eacute;volution par mode (PDF)',
                         iconCls: 'printable'
@@ -763,7 +768,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 }, {
                     xtype: 'panel',
                     itemId: 'graphiqueAnalyse',
-                    height: 250,
+                    height: 230,
                     border: false,
                     layout: 'fit',
                     html: '<div style="margin:20px;color:#666;">Lancez une recherche pour afficher le graphique.</div>'

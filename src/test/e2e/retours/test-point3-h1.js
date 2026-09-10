@@ -257,6 +257,12 @@ function semer() {
     const cases = await p.evaluate((libelles) => {
       const g = Ext.ComponentQuery.query('gardemanager #grilleGardes')[0];
       g.getSelectionModel().deselectAll();
+      // Retours des tests 3 : l'onglet Analyse n'accepte qu'une garde cochee ; pour en cocher plusieurs,
+      // on se place d'abord sur l'onglet Comparaison (les autres onglets cumulent).
+      const onglets = Ext.ComponentQuery.query('gardemanager #ongletsGarde')[0];
+      if (onglets.getActiveTab() && onglets.getActiveTab().itemId === 'ongletAnalyseGarde') {
+        onglets.setActiveTab(Ext.ComponentQuery.query('gardemanager #ongletComparaison')[0]);
+      }
       return libelles.map(l => {
         const n = g.getView().getNode(g.getStore().findExact('libelle', l)).querySelector('.x-grid-row-checker');
         n.scrollIntoView();

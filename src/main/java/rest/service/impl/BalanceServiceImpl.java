@@ -277,9 +277,25 @@ public class BalanceServiceImpl implements BalanceService {
             + " AND p.lg_TYPE_VENTE_ID <> ?1 AND m.lg_EMPLACEMENT_ID = ?2 AND p.imported = 0 {excludeStatement}"
             + " GROUP BY jour ORDER BY jour";
 
+    /** Les achats (bons de livraison) par jour, et la part tiers payant (credit) des ventes par jour. */
+    private static final String ACHATS_PAR_JOUR_SQL = "SELECT m.mvtdate AS jour, SUM(m.montant) AS montant FROM mvttransaction m"
+            + " WHERE m.mvtdate BETWEEN ?1 AND ?2 AND m.typeTransaction = 2 AND m.lg_EMPLACEMENT_ID = ?3 GROUP BY m.mvtdate";
+    private static final String CREDIT_PAR_JOUR_SQL = "SELECT DATE(p.dt_UPDATED) AS jour, SUM(m.montantCredit) AS montant"
+            + " FROM t_preenregistrement p JOIN mvttransaction m ON m.pkey = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.dt_UPDATED >= ?3 AND p.dt_UPDATED < DATE_ADD(?4, INTERVAL 1 DAY) AND p.str_STATUT = 'is_Closed'"
+            + " AND p.lg_TYPE_VENTE_ID <> ?1 AND m.lg_EMPLACEMENT_ID = ?2 AND p.imported = 0 {excludeStatement} GROUP BY jour";
+
+    private static long nombre(Object o) {
+        return o instanceof Number ? ((Number) o).longValue() : 0L;
+    }
+
+    /**
+     * Retour des tests 3 : chaque jour porte aussi les achats, les especes, le mobile et la part tiers payant, pour que
+     * le graphique de l'analyse puisse montrer chaque indicateur mois par mois ou jour par jour.
+     */
     @Override
     public JSONArray chiffreParJour(BalanceParamsDTO balanceParams) {
-        JSONArray jours = new JSONArray();
+        Map<String, JSONObject> parJour = new java.util.TreeMap<>();
         try {
             Query query = em.createNativeQuery(replacePlaceHolder(CA_PAR_JOUR_SQL, balanceParams), Tuple.class)
                     .setParameter(1, Constant.DEPOT_EXTENSION).setParameter(2, balanceParams.getEmplacementId())
@@ -287,16 +303,52 @@ public class BalanceServiceImpl implements BalanceService {
                     .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
             for (Object o : query.getResultList()) {
                 Tuple t = (Tuple) o;
-                Object montant = t.get("montantNet");
-                Object ventes = t.get("ventes");
-                jours.put(new JSONObject().put("jour", String.valueOf(t.get("jour")))
-                        .put("montantNet", montant instanceof Number ? ((Number) montant).longValue() : 0L)
-                        .put("ventes", ventes instanceof Number ? ((Number) ventes).longValue() : 0L));
+                String jour = String.valueOf(t.get("jour"));
+                parJour.computeIfAbsent(jour, k -> nouveauJour(k)).put("montantNet", nombre(t.get("montantNet")))
+                        .put("ventes", nombre(t.get("ventes")));
+            }
+            Query credit = em.createNativeQuery(replacePlaceHolder(CREDIT_PAR_JOUR_SQL, balanceParams), Tuple.class)
+                    .setParameter(1, Constant.DEPOT_EXTENSION).setParameter(2, balanceParams.getEmplacementId())
+                    .setParameter(3, java.sql.Date.valueOf(balanceParams.getDtStart()))
+                    .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
+            for (Object o : credit.getResultList()) {
+                Tuple t = (Tuple) o;
+                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> nouveauJour(k)).put("montantTp",
+                        nombre(t.get("montant")));
+            }
+            Query achats = em.createNativeQuery(ACHATS_PAR_JOUR_SQL, Tuple.class)
+                    .setParameter(1, java.sql.Date.valueOf(balanceParams.getDtStart()))
+                    .setParameter(2, java.sql.Date.valueOf(balanceParams.getDtEnd()))
+                    .setParameter(3, balanceParams.getEmplacementId());
+            for (Object o : achats.getResultList()) {
+                Tuple t = (Tuple) o;
+                parJour.computeIfAbsent(String.valueOf(t.get("jour")), k -> nouveauJour(k)).put("montantAchat",
+                        nombre(t.get("montant")));
+            }
+            for (Map.Entry<String, List<VenteReglementReportDTO>> e : fetchByModeReglementsGroupByDay(balanceParams)
+                    .entrySet()) {
+                long especes = 0;
+                long mobile = 0;
+                for (VenteReglementReportDTO r : e.getValue()) {
+                    long montant = (r.getMontantAttentu() - r.getFlagedAmount()) - r.getAmountNonCa();
+                    if (Constant.MODE_ESP.equals(r.getTypeReglement())) {
+                        especes += montant;
+                    } else if (util.MobileMoney.est(r.getTypeReglement())) {
+                        mobile += montant;
+                    }
+                }
+                parJour.computeIfAbsent(e.getKey(), k -> nouveauJour(k)).put("montantEsp", especes).put("montantMobile",
+                        mobile);
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "chiffre par jour", e);
         }
-        return jours;
+        return new JSONArray(new ArrayList<>(parJour.values()));
+    }
+
+    private static JSONObject nouveauJour(String jour) {
+        return new JSONObject().put("jour", jour).put("montantNet", 0L).put("ventes", 0L).put("montantTp", 0L)
+                .put("montantAchat", 0L).put("montantEsp", 0L).put("montantMobile", 0L);
     }
 
     @Override

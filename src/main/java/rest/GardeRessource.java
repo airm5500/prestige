@@ -351,9 +351,69 @@ public class GardeRessource {
         }
         JSONArray data = new JSONArray();
         for (GardeVendeurDTO v : vendeurs) {
-            data.put(vendeurJson(v).put("part", total == 0 ? 0D : arrondi(v.getMontant() * 100D / total)));
+            v.setPart(total == 0 ? 0D : arrondi(v.getMontant() * 100D / total));
+            data.put(vendeurJson(v).put("part", v.getPart()));
         }
         return data;
+    }
+
+    /** Les vendeurs d'une garde, ou de plusieurs (ids), avec leur part ; pour les exports (retours des tests 3). */
+    private List<GardeVendeurDTO> vendeursPourExport(String id, String ids) {
+        List<GardeVendeurDTO> vendeurs;
+        if (ids != null && !ids.trim().isEmpty()) {
+            vendeurs = gardeService.vendeurs(gardesDepuis(ids));
+        } else {
+            Garde garde = gardeService.parId(id);
+            vendeurs = garde == null ? new ArrayList<>() : gardeService.vendeurs(garde);
+        }
+        vendeursJson(vendeurs);
+        return vendeurs;
+    }
+
+    @GET
+    @Path("{id}/vendeurs/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response exporterVendeurs(@PathParam("id") String id, @DefaultValue("") @QueryParam("ids") String ids)
+            throws IOException {
+        Garde garde = gardeService.parId(id);
+        String titre = "GARDE " + (garde == null ? "" : StringUtils.defaultString(garde.getLibelle())) + " - VENDEURS"
+                + (ids != null && !ids.trim().isEmpty() ? " (gardes cumulées)" : "");
+        byte[] data = new rest.report.excel.ClasseurExcel<GardeVendeurDTO>("Vendeurs").titre(titre)
+                .texte("Vendeur", GardeVendeurDTO::getNom).nombre("Ventes", GardeVendeurDTO::getVentes)
+                .nombre("Clients", GardeVendeurDTO::getClients).nombre("% du chiffre", GardeVendeurDTO::getPart)
+                .nombre("Chiffre d'affaires", GardeVendeurDTO::getMontant).nombre("Marge", GardeVendeurDTO::getMarge)
+                .nombre("Taux marge %", v -> arrondi(v.getTauxMarge())).construire(vendeursPourExport(id, ids));
+        String nomFichier = "garde_vendeurs_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xlsx";
+        return Response.ok(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("content-disposition", "attachment; filename=" + nomFichier).build();
+    }
+
+    @GET
+    @Path("{id}/vendeurs/pdf")
+    @Produces("application/pdf")
+    public Response imprimerVendeurs(@PathParam("id") String id, @DefaultValue("") @QueryParam("ids") String ids) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        Garde garde = gardeService.parId(id);
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        parametres.put("P_GARDE", "GARDE : " + (garde == null ? "" : StringUtils.defaultString(garde.getLibelle()))
+                + (ids != null && !ids.trim().isEmpty() ? " (gardes cumulées)" : ""));
+        parametres.put("P_PERIODE", garde == null ? ""
+                : "Du " + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE));
+        String url = reportUtil.buildReport(parametres, "garde_vendeurs", vendeursPourExport(id, ids));
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=garde_vendeurs.pdf").build();
     }
 
     private static JSONObject vendeurJson(GardeVendeurDTO v) {

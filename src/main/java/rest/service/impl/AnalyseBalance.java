@@ -98,6 +98,10 @@ public final class AnalyseBalance {
      * @param jours
      *            le chiffre de chaque jour (jour, montantNet), pour les decoupages plus fins que la periode
      */
+    /** Les indicateurs du graphique, et le champ du jour ou de la ligne qui les porte. */
+    public static final String[] INDICATEURS = { "montantNet", "nbreVente", "montantAchat", "panierMoyen", "montantEsp",
+            "montantMobilePayment", "montantTp" };
+
     public static JSONObject graphique(PeriodesCa.Type type, List<PeriodesCa.Tranche> tranches, JSONArray lignes,
             JSONArray jours) {
         JSONObject graphique = new JSONObject();
@@ -109,9 +113,14 @@ public final class AnalyseBalance {
             for (int i = 1; i <= nbCategories; i++) {
                 categories.add(parMois ? libelleMois(i) : libelleJour(i));
             }
-            Map<Integer, long[]> valeursParTranche = new LinkedHashMap<>();
+            // par tranche puis par indicateur, une valeur par categorie
+            Map<Integer, Map<String, long[]>> valeurs = new LinkedHashMap<>();
             for (int t = 0; t < tranches.size(); t++) {
-                valeursParTranche.put(t, new long[nbCategories]);
+                Map<String, long[]> parIndicateur = new LinkedHashMap<>();
+                for (String indicateur : INDICATEURS) {
+                    parIndicateur.put(indicateur, new long[nbCategories]);
+                }
+                valeurs.put(t, parIndicateur);
             }
             for (int j = 0; jours != null && j < jours.length(); j++) {
                 JSONObject jour = jours.getJSONObject(j);
@@ -125,30 +134,51 @@ public final class AnalyseBalance {
                     PeriodesCa.Tranche tranche = tranches.get(t);
                     if (!date.isBefore(tranche.getDebut()) && !date.isAfter(tranche.getFin())) {
                         int categorie = parMois ? date.getMonthValue() - 1 : date.getDayOfWeek().getValue() - 1;
-                        valeursParTranche.get(t)[categorie] += jour.optLong("montantNet", 0L);
+                        Map<String, long[]> v = valeurs.get(t);
+                        v.get("montantNet")[categorie] += jour.optLong("montantNet", 0L);
+                        v.get("nbreVente")[categorie] += jour.optLong("ventes", 0L);
+                        v.get("montantAchat")[categorie] += jour.optLong("montantAchat", 0L);
+                        v.get("montantEsp")[categorie] += jour.optLong("montantEsp", 0L);
+                        v.get("montantMobilePayment")[categorie] += jour.optLong("montantMobile", 0L);
+                        v.get("montantTp")[categorie] += jour.optLong("montantTp", 0L);
                         break;
                     }
                 }
             }
             for (int t = 0; t < tranches.size(); t++) {
                 PeriodesCa.Tranche tranche = tranches.get(t);
+                Map<String, long[]> v = valeurs.get(t);
+                // le panier moyen d'une categorie : le net sur le nombre de ventes de cette categorie
+                for (int c = 0; c < nbCategories; c++) {
+                    long ventes = v.get("nbreVente")[c];
+                    v.get("panierMoyen")[c] = ventes == 0 ? 0 : Math.round((double) v.get("montantNet")[c] / ventes);
+                }
+                JSONObject parIndicateur = new JSONObject();
+                for (String indicateur : INDICATEURS) {
+                    parIndicateur.put(indicateur, new JSONArray(v.get(indicateur)));
+                }
                 series.put(new JSONObject()
                         .put("libelle", tranche.getLibelle() + (tranche.isEnCours() ? " (en cours)" : ""))
-                        .put("enCours", tranche.isEnCours()).put("valeurs", new JSONArray(valeursParTranche.get(t))));
+                        .put("enCours", tranche.isEnCours()).put("valeurs", parIndicateur));
             }
             graphique.put("type", parMois ? "ANNEES" : "SEMAINES").put("categories", new JSONArray(categories));
         } else {
             List<String> categories = new ArrayList<>();
-            JSONArray valeurs = new JSONArray();
+            JSONObject parIndicateur = new JSONObject();
+            for (String indicateur : INDICATEURS) {
+                parIndicateur.put(indicateur, new JSONArray());
+            }
             for (int i = 0; lignes != null && i < lignes.length(); i++) {
                 JSONObject ligne = lignes.getJSONObject(i);
                 categories.add(ligne.optString("libelle") + (ligne.optBoolean("enCours") ? " (en cours)" : ""));
-                valeurs.put(ligne.optLong("montantNet", 0L));
+                for (String indicateur : INDICATEURS) {
+                    parIndicateur.getJSONArray(indicateur).put(ligne.optLong(indicateur, 0L));
+                }
             }
-            series.put(new JSONObject().put("libelle", "Net TTC").put("valeurs", valeurs));
+            series.put(new JSONObject().put("libelle", "Valeur").put("valeurs", parIndicateur));
             graphique.put("type", "PERIODES").put("categories", new JSONArray(categories));
         }
-        return graphique.put("series", series);
+        return graphique.put("indicateurs", new JSONArray(INDICATEURS)).put("series", series);
     }
 
     private static String libelleMois(int mois) {

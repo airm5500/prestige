@@ -643,7 +643,9 @@ Ext.define('testextjs.view.garde.GardeManager', {
                         },
                         {
                             header: 'Heures tenues', dataIndex: 'heuresCouvertes', width: 95, align: 'right',
-                            tooltip: 'Nombre d\'heures de la garde tombant dans cette tranche'
+                            tooltip: 'Nombre d\'heures de la garde tombant dans cette tranche',
+                            // Retours des tests 3 : colonne technique, cachee par defaut (menu de colonne pour la revoir).
+                            hidden: true
                         },
                         {
                             header: 'Clients / heure', dataIndex: 'clientsParHeure', width: 100, align: 'right',
@@ -700,6 +702,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             itemId: 'vendeursHistorique',
                             enableToggle: true,
                             tooltip: 'Cumuler les ventes de toutes les gardes coch&eacute;es dans la liste'
+                        }, '-', {
+                            // Retours des tests 3 : les vendeurs s'impriment et s'exportent, en flux.
+                            text: 'Imprimer', itemId: 'vendeursImprimer', iconCls: 'printable',
+                            tooltip: 'Imprimer les vendeurs de la garde (PDF)'
+                        }, {
+                            text: 'Exporter', itemId: 'vendeursExporter', iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter les vendeurs au format Excel'
                         }]
                 }],
             columns: [
@@ -753,6 +762,22 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             text: 'Produits command&eacute;s pendant la garde, rapproch&eacute;s de ce qui s\'en est '
                                     + 'vendu pendant la m&ecirc;me garde.'
                         }, '->', {
+                            // Retours des tests 3 : filtre vendu / non vendu, applique sur place.
+                            xtype: 'combobox',
+                            itemId: 'commandesFiltre',
+                            fieldLabel: 'Afficher',
+                            labelWidth: 55,
+                            width: 190,
+                            store: Ext.create('Ext.data.ArrayStore', {
+                                data: [['', 'Tous'], ['vendu', 'Vendus'], ['non', 'Non vendus']],
+                                fields: ['value', 'libelle']
+                            }),
+                            valueField: 'value',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            value: ''
+                        }, '-', {
                             text: 'Imprimer', itemId: 'commandesImprimer', iconCls: 'printable',
                             tooltip: 'Imprimer les produits command&eacute;s non vendus (PDF)'
                         }, {
@@ -767,6 +792,14 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {header: 'Qt&eacute; command&eacute;e', dataIndex: 'quantiteCommandee', width: 115, align: 'right'},
                 {header: 'Qt&eacute; vendue', dataIndex: 'quantiteVendue', width: 95, align: 'right'},
                 {
+                    // Retours des tests 3 : la part vendue de la quantite commandee ; 0 pour les non vendus.
+                    header: '% de vente', dataIndex: 'quantiteVendue', width: 90, align: 'right',
+                    itemId: 'colonnePourcentageVente',
+                    renderer: function (valeur, meta, ligne) {
+                        return Ext.util.Format.number(me.pourcentageVente(ligne), '0.00');
+                    }
+                },
+                {
                     header: 'Statut', dataIndex: 'nonVendu', width: 110, align: 'center',
                     renderer: function (valeur) {
                         return valeur ? '<b style="color:#a00">Non vendu</b>' : '<span style="color:#177a17">Vendu</span>';
@@ -774,6 +807,16 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 }
             ]
         };
+    },
+
+    /** Quantite vendue rapportee a la quantite commandee, en % ; un produit non vendu reste a 0. */
+    pourcentageVente: function (ligne) {
+        var commandee = ligne.get('quantiteCommandee') || 0;
+        var vendue = ligne.get('quantiteVendue') || 0;
+        if (ligne.get('nonVendu') || !commandee || !vendue) {
+            return 0;
+        }
+        return vendue * 100 / commandee;
     },
 
     ongletComparaison: function () {

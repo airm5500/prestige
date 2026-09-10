@@ -109,11 +109,11 @@ function semerGarde() {
     await p.fill('#' + ids.du, fr(MOIS_A)); await p.keyboard.press('Tab');
     await p.fill('#' + ids.au, fr(FIN_B)); await p.keyboard.press('Tab');
     await p.click('#' + ids.rechercher);
-    await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('balancesalecahs #syntheseBalance')[0]; return c && c.el && /TOTAL/.test(c.el.dom.innerText); }, null, { timeout: 20000 });
+    await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('balancesalecahs #ventilationBalance')[0]; return c && c.el && /TOTAL/.test(c.el.dom.innerText); }, null, { timeout: 20000 });
     await p.waitForTimeout(800);
     const balance = await p.evaluate(() => {
       const vue = Ext.ComponentQuery.query('balancesalecahs')[0];
-      const rouge = vue.down('#syntheseBalance').el.dom.querySelector('.vb-kpi-rouge .vb-kpi-val');
+      const rouge = vue.down('#ventilationBalance').el.dom.querySelector('.vb-kpi-rouge .vb-kpi-val');
       return { sortiesRouge: rouge ? getComputedStyle(rouge).color : null, sortiesTexte: rouge ? rouge.innerText : null,
         ventilation: vue.down('#ventilationBalance').el.dom.innerText };
     });

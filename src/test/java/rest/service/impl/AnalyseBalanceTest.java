@@ -51,8 +51,9 @@ public class AnalyseBalanceTest {
     public void graphiqueTroisAnnees() {
         List<PeriodesCa.Tranche> tranches = PeriodesCa.tranches(PeriodesCa.Type.TROIS_ANS, null, null,
                 LocalDate.of(2026, 9, 9));
-        JSONArray jours = new JSONArray().put(new JSONObject().put("jour", "2024-03-10").put("montantNet", 1000))
-                .put(new JSONObject().put("jour", "2024-03-20").put("montantNet", 500))
+        JSONArray jours = new JSONArray()
+                .put(new JSONObject().put("jour", "2024-03-10").put("montantNet", 1000).put("ventes", 2))
+                .put(new JSONObject().put("jour", "2024-03-20").put("montantNet", 500).put("ventes", 1))
                 .put(new JSONObject().put("jour", "2025-12-31").put("montantNet", 700))
                 .put(new JSONObject().put("jour", "2026-01-02").put("montantNet", 300));
         JSONObject g = AnalyseBalance.graphique(PeriodesCa.Type.TROIS_ANS, tranches, new JSONArray(), jours);
@@ -63,11 +64,15 @@ public class AnalyseBalanceTest {
         assertEquals(4, g.getJSONArray("series").length());
         JSONObject s2024 = g.getJSONArray("series").getJSONObject(1);
         assertTrue(s2024.getString("libelle").contains("2024"));
-        assertEquals(1500, s2024.getJSONArray("valeurs").getLong(2)); // mars
-        assertEquals(700, g.getJSONArray("series").getJSONObject(2).getJSONArray("valeurs").getLong(11));
+        assertEquals(1500, s2024.getJSONObject("valeurs").getJSONArray("montantNet").getLong(2)); // mars
+        assertEquals(700, g.getJSONArray("series").getJSONObject(2).getJSONObject("valeurs").getJSONArray("montantNet")
+                .getLong(11));
         JSONObject s2026 = g.getJSONArray("series").getJSONObject(3);
         assertTrue(s2026.getBoolean("enCours"));
-        assertEquals(300, s2026.getJSONArray("valeurs").getLong(0));
+        assertEquals(300, s2026.getJSONObject("valeurs").getJSONArray("montantNet").getLong(0));
+        // les autres indicateurs sont portes, avec le panier moyen calcule par categorie
+        assertEquals(7, g.getJSONArray("indicateurs").length());
+        assertEquals(500, s2024.getJSONObject("valeurs").getJSONArray("panierMoyen").getLong(2)); // 1 500 / 3 ventes
     }
 
     @Test
@@ -83,8 +88,10 @@ public class AnalyseBalanceTest {
         assertEquals(7, g.getJSONArray("categories").length());
         assertEquals("Lun", g.getJSONArray("categories").getString(0));
         assertEquals(4, g.getJSONArray("series").length());
-        assertEquals(900, g.getJSONArray("series").getJSONObject(0).getJSONArray("valeurs").getLong(1));
-        assertEquals(400, g.getJSONArray("series").getJSONObject(3).getJSONArray("valeurs").getLong(1));
+        assertEquals(900, g.getJSONArray("series").getJSONObject(0).getJSONObject("valeurs").getJSONArray("montantNet")
+                .getLong(1));
+        assertEquals(400, g.getJSONArray("series").getJSONObject(3).getJSONObject("valeurs").getJSONArray("montantNet")
+                .getLong(1));
     }
 
     @Test
@@ -95,6 +102,9 @@ public class AnalyseBalanceTest {
         assertEquals("PERIODES", g.getString("type"));
         assertEquals(List.of("06/2026", "07/2026"), g.getJSONArray("categories").toList());
         assertEquals(1, g.getJSONArray("series").length());
-        assertEquals(250000, g.getJSONArray("series").getJSONObject(0).getJSONArray("valeurs").getLong(1));
+        assertEquals(250000, g.getJSONArray("series").getJSONObject(0).getJSONObject("valeurs")
+                .getJSONArray("montantNet").getLong(1));
+        assertEquals(1, g.getJSONArray("series").getJSONObject(0).getJSONObject("valeurs").getJSONArray("nbreVente")
+                .getLong(1));
     }
 }

@@ -22,7 +22,6 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         {ref: 'typePeriode', selector: 'balancesalecahs #typePeriode'},
         {ref: 'ongletsBalance', selector: 'balancesalecahs #ongletsBalance'},
         {ref: 'ventilationBalance', selector: 'balancesalecahs #ventilationBalance'},
-        {ref: 'syntheseBalance', selector: 'balancesalecahs #syntheseBalance'},
         {ref: 'grilleAnalyse', selector: 'balancesalecahs #grilleAnalyse'},
         {ref: 'grilleModesBalance', selector: 'balancesalecahs #grilleModes'},
         {ref: 'graphiqueAnalyse', selector: 'balancesalecahs #graphiqueAnalyse'},
@@ -64,6 +63,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             'balancesalecahs #typePeriode': {select: this.chargerAnalyse},
             'balancesalecahs #analyseExporter': {click: this.exporterAnalyse},
             'balancesalecahs #analyseImprimer': {click: this.imprimerAnalyse},
+            'balancesalecahs #indicateurGraphique': {select: this.surChangementIndicateur},
             // onglet Evolution par mode de paiement
             'balancesalecahs #rechercherModes': {click: this.chargerModes},
             'balancesalecahs #typePeriodeModes': {select: this.chargerModes},
@@ -171,7 +171,6 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
     afficherVentilation: function (store) {
         const me = this;
         const panneau = me.getVentilationBalance();
-        const synthese = me.getSyntheseBalance();
         if (!panneau || panneau.isDestroyed) {
             return;
         }
@@ -179,15 +178,9 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         const ventilation = brut.ventilation;
         if (!ventilation || !ventilation.comptant) {
             panneau.update('<div style="padding:10px;color:#7f8c8d;">Aucune vente sur la p&eacute;riode.</div>');
-            if (synthese) {
-                synthese.update('');
-            }
             return;
         }
-        panneau.update(ventilation);
-        if (synthese && !synthese.isDestroyed) {
-            synthese.update({lignes: brut.data || [], resume: brut.metaData || {}});
-        }
+        panneau.update({lignes: brut.data || [], resume: brut.metaData || {}, v: ventilation});
     },
 
     surChangementOnglet: function (onglets, nouvel) {
@@ -274,8 +267,17 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             if (resume) {
                 resume.setText(objet.comparatif ? me.MESSAGE_COMPARATIF : me.MESSAGE_PERIODE_UNIQUE);
             }
+            ecran.graphiqueCourant = objet.graphique;
             me.construireGraphiqueAnalyse(objet.graphique, params.typePeriode);
         });
+    },
+
+    /** Le changement d'indicateur redessine le graphique sans rappeler le serveur. */
+    surChangementIndicateur: function () {
+        const ecran = this.getBalancesalecahs();
+        if (ecran && ecran.graphiqueCourant) {
+            this.construireGraphiqueAnalyse(ecran.graphiqueCourant);
+        }
     },
 
     /** Rappel affiche au-dessus de l'analyse quand plusieurs periodes sont comparees. */
@@ -306,36 +308,55 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             panneau.update('<div style="margin:20px;color:#666;">Aucune vente sur les p&eacute;riodes compar&eacute;es.</div>');
             return;
         }
+        // Retours des tests 3 : l'indicateur trace est au choix (net TTC par defaut).
+        const ecran = me.getBalancesalecahs();
+        const selecteur = ecran ? ecran.down('#indicateurGraphique') : null;
+        const indicateur = (selecteur && selecteur.getValue()) || 'montantNet';
+        const libelleIndicateur = selecteur && selecteur.getRawValue ? selecteur.getRawValue() : 'Net TTC';
         const champs = ['categorie'].concat(series.map(function (s, i) {
             return {name: 's' + i, type: 'number'};
         }));
         const donnees = categories.map(function (categorie, rang) {
             const ligne = {categorie: categorie};
             series.forEach(function (s, i) {
-                ligne['s' + i] = (s.valeurs || [])[rang] || 0;
+                const valeurs = (s.valeurs && s.valeurs[indicateur]) || [];
+                ligne['s' + i] = valeurs[rang] || 0;
             });
             return ligne;
         });
         const titres = series.map(function (s) {
-            return s.libelle;
+            return s.libelle === 'Valeur' ? libelleIndicateur : s.libelle;
         });
+        // Petites valeurs entieres (nombre de ventes) : une graduation par unite, sans doublon d'arrondi.
+        let maximum = 0;
+        donnees.forEach(function (ligne) {
+            series.forEach(function (s, i) {
+                maximum = Math.max(maximum, ligne['s' + i] || 0);
+            });
+        });
+        const axeGauche = {
+            type: 'Numeric', position: 'left', fields: series.map(function (s, i) {
+                return 's' + i;
+            }),
+            // Le titre de l'axe est court : un titre long se coupe a la hauteur du graphique ;
+            // la lecture (mois par annee, jours par semaine) est dans l'axe du bas et la legende.
+            title: libelleIndicateur, grid: true, minimum: 0, decimals: 0,
+            label: {renderer: function (v) {
+                    return Ext.util.Format.number(v, '0,000');
+                }}
+        };
+        if (maximum > 0 && maximum <= 10) {
+            axeGauche.maximum = Math.ceil(maximum);
+            // Ext compte (majorTickSteps + 1) intervalles : autant d'intervalles que d'unites.
+            axeGauche.majorTickSteps = Math.max(1, Math.ceil(maximum) - 1);
+        }
         panneau.add(Ext.create('Ext.chart.Chart', {
             store: Ext.create('Ext.data.Store', {fields: champs, data: donnees}),
             animate: false,
             shadow: false,
             legend: {position: 'bottom'},
             insetPadding: 12,
-            axes: [{
-                    type: 'Numeric', position: 'left', fields: series.map(function (s, i) {
-                        return 's' + i;
-                    }),
-                    // Le titre de l'axe est court : un titre long se coupe a la hauteur du graphique ;
-                    // la lecture (mois par annee, jours par semaine) est dans l'axe du bas et la legende.
-                    title: 'Net TTC', grid: true, minimum: 0,
-                    label: {renderer: function (v) {
-                            return Ext.util.Format.number(v, '0,000');
-                        }}
-                }, {
+            axes: [axeGauche, {
                     type: 'Category', position: 'bottom', fields: ['categorie'],
                     title: graphique.type === 'ANNEES' ? 'Mois (une barre par année)'
                             : (graphique.type === 'SEMAINES' ? 'Jour de la semaine (une barre par semaine)' : 'Période')
@@ -348,8 +369,9 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                         return 's' + i;
                     }),
                     title: titres,
-                    gutter: 20,
-                    groupGutter: 4,
+                    // Retours des tests 3 : des barres plus fines (l'espace entre groupes est en % de la largeur).
+                    gutter: 60,
+                    groupGutter: 10,
                     tips: {
                         trackMouse: true,
                         width: 240,
