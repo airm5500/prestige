@@ -188,16 +188,16 @@ public class BalanceVenteRessource {
             attentes.add(
                     lancer(() -> balanceService.getBalanceVenteCaisseDataViewAsync(parametres(tranche, emplacement))));
         }
-        BalanceParamsDTO etendue = tranches.isEmpty() ? null
-                : BalanceParamsDTO.builder().dtStart(tranches.get(0).getDebut().toString())
-                        .dtEnd(tranches.get(tranches.size() - 1).getFin().toString()).emplacementId(emplacement)
-                        .build();
-        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieCa = avecJours
-                ? lancer(() -> balanceService.serieCaParJourAsync(etendue)) : null;
-        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieCredit = avecJours
-                ? lancer(() -> balanceService.serieCreditEtAchatsParJourAsync(etendue)) : null;
-        java.util.concurrent.Future<java.util.Map<String, JSONObject>> serieModes = avecJours
-                ? lancer(() -> balanceService.serieModesParJourAsync(etendue)) : null;
+        // Les barres du graphique : une balance par mois (trois ans) ou par jour (trois semaines), elles aussi en
+        // parallele, plutot que des series par jour sur toute l'etendue (20 a 25 s chacune chez l'officine).
+        java.util.List<java.time.LocalDate[]> sousPeriodes = avecJours
+                ? rest.service.impl.AnalyseBalance.sousPeriodes(tranches, type == util.PeriodesCa.Type.TROIS_ANS)
+                : java.util.Collections.emptyList();
+        java.util.List<java.util.concurrent.Future<JSONObject>> attentesSous = new java.util.ArrayList<>();
+        for (java.time.LocalDate[] sous : sousPeriodes) {
+            attentesSous.add(
+                    lancer(() -> balanceService.getBalanceVenteCaisseDataViewAsync(parametres(sous, emplacement))));
+        }
         for (int rang = 0; rang < tranches.size(); rang++) {
             util.PeriodesCa.Tranche tranche = tranches.get(rang);
             JSONObject balance = obtenir(attentes.get(rang),
@@ -247,10 +247,13 @@ public class BalanceVenteRessource {
                 java.util.Arrays.asList(CHAMPS_ANALYSE_BALANCE), idsModes);
         JSONArray jours = null;
         if (avecJours) {
-            jours = rest.service.impl.BalanceServiceImpl.fusionnerJours(
-                    java.util.Arrays.asList(obtenir(serieCa, () -> balanceService.serieCaParJour(etendue)),
-                            obtenir(serieCredit, () -> balanceService.serieCreditEtAchatsParJour(etendue)),
-                            obtenir(serieModes, () -> balanceService.serieModesParJour(etendue))));
+            jours = new JSONArray();
+            for (int rang = 0; rang < sousPeriodes.size(); rang++) {
+                java.time.LocalDate[] sous = sousPeriodes.get(rang);
+                JSONObject balance = obtenir(attentesSous.get(rang),
+                        () -> balanceService.getBalanceVenteCaisseDataView(parametres(sous, emplacement)));
+                jours.put(rest.service.impl.AnalyseBalance.jourDepuisBalance(sous[0], balance));
+            }
         }
         java.util.logging.Logger.getLogger(BalanceVenteRessource.class.getName()).log(java.util.logging.Level.INFO,
                 "[PERF] analyse balance {0} : {1} tranche(s) en {2} ms",
@@ -283,6 +286,11 @@ public class BalanceVenteRessource {
 
     private static BalanceParamsDTO parametres(util.PeriodesCa.Tranche tranche, String emplacement) {
         return BalanceParamsDTO.builder().dtStart(tranche.getDebut().toString()).dtEnd(tranche.getFin().toString())
+                .emplacementId(emplacement).build();
+    }
+
+    private static BalanceParamsDTO parametres(java.time.LocalDate[] sous, String emplacement) {
+        return BalanceParamsDTO.builder().dtStart(sous[0].toString()).dtEnd(sous[1].toString())
                 .emplacementId(emplacement).build();
     }
 

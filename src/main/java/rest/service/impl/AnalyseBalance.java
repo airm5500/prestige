@@ -181,6 +181,47 @@ public final class AnalyseBalance {
         return graphique.put("indicateurs", new JSONArray(INDICATEURS)).put("series", series);
     }
 
+    /**
+     * Retours des tests 3 (diagnostic chez l'officine) : les series du graphique par jour sur toute l'etendue (trois
+     * ans) coutaient 20 a 25 s a elles seules. Elles sont remplacees par des sous-periodes (un mois par barre pour les
+     * trois annees, un jour par barre pour les trois semaines), chacune calculee par la balance elle-meme, en parallele
+     * : le graphique et le tableau lisent alors la MEME source, et la somme des barres d'une annee est exactement la
+     * ligne de cette annee. Chaque sous-periode : [debut, fin] bornee par sa tranche.
+     */
+    public static List<LocalDate[]> sousPeriodes(List<PeriodesCa.Tranche> tranches, boolean parMois) {
+        List<LocalDate[]> sous = new ArrayList<>();
+        for (PeriodesCa.Tranche tranche : tranches) {
+            LocalDate debut = tranche.getDebut();
+            while (!debut.isAfter(tranche.getFin())) {
+                LocalDate fin = parMois ? debut.withDayOfMonth(debut.lengthOfMonth()) : debut;
+                if (fin.isAfter(tranche.getFin())) {
+                    fin = tranche.getFin();
+                }
+                sous.add(new LocalDate[] { debut, fin });
+                debut = fin.plusDays(1);
+            }
+        }
+        return sous;
+    }
+
+    /**
+     * Une sous-periode calculee par la balance, au format des series par jour du graphique : la date de debut la range
+     * dans sa tranche et sa categorie (mois ou jour de la semaine), les indicateurs viennent du resume et de la
+     * ventilation de la balance (memes cles que le tableau de l'analyse).
+     */
+    public static JSONObject jourDepuisBalance(LocalDate debut, JSONObject balance) {
+        JSONObject resume = balance == null ? null : balance.optJSONObject("metaData");
+        JSONObject ventilation = balance == null ? null : balance.optJSONObject("ventilation");
+        JSONObject mobile = ventilation == null ? null : ventilation.optJSONObject("mobile");
+        return new JSONObject().put("jour", debut.toString())
+                .put("montantNet", resume == null ? 0L : resume.optLong("montantNet", 0L))
+                .put("ventes", resume == null ? 0L : resume.optLong("nbreVente", 0L))
+                .put("montantAchat", resume == null ? 0L : resume.optLong("montantAchat", 0L))
+                .put("montantEsp", resume == null ? 0L : resume.optLong("montantEsp", 0L))
+                .put("montantMobile", mobile == null ? 0L : mobile.optLong("montant", 0L))
+                .put("montantTp", resume == null ? 0L : resume.optLong("montantTp", 0L));
+    }
+
     private static String libelleMois(int mois) {
         String l = java.time.Month.of(mois).getDisplayName(TextStyle.SHORT, Locale.FRENCH).replace(".", "");
         return l.substring(0, 1).toUpperCase(Locale.FRENCH) + l.substring(1);
