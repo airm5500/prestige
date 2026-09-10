@@ -104,7 +104,7 @@ function moisAttendus(nombre) {
     // Analyse comparative (et un second sur l'evolution par mode) ; l'injecteur ne pose rien.
     ok('La balance porte son propre selecteur (onglet Analyse)', pose.avantPose === true);
     ok('L\'injecteur le laisse tel quel', pose.apresPose === true);
-    ok('Il propose 3 derniers mois par defaut', pose.valeurDefaut === 'TROIS_MOIS', pose.valeurDefaut);
+    ok('Il propose 3 dernieres semaines par defaut (retours des tests 4)', pose.valeurDefaut === 'TROIS_SEMAINES', pose.valeurDefaut);
     ok('Une seconde application n\'en pose pas un deuxieme', pose.nbSelecteurs === 1, pose.nbSelecteurs);
     ok('L\'onglet Balance n\'a pas de liste deroulante de periode', pose.selecteurSurBalance === false);
     // Retour du 09/09 (point 4) : un troisieme onglet, l'evolution par mode de paiement.

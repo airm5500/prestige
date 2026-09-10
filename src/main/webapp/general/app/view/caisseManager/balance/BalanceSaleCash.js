@@ -394,7 +394,8 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 displayField: 'libelle',
                 queryMode: 'local',
                 editable: false,
-                value: 'TROIS_MOIS'
+                // Retours des tests 4 : les 3 dernieres semaines a l'ouverture, pas les 3 derniers mois.
+                value: 'TROIS_SEMAINES'
             });
         }
         items.push({

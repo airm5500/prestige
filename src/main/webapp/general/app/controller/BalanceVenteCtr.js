@@ -311,6 +311,19 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         // Retours des tests 3 : l'indicateur trace est au choix (net TTC par defaut).
         const ecran = me.getBalancesalecahs();
         const selecteur = ecran ? ecran.down('#indicateurGraphique') : null;
+        if (graphique.type === 'PERIODES') {
+            // Une barre par periode (3 mois, 6 mois, libre) : TOUS les indicateurs a la fois, en barres fines,
+            // le nombre de ventes et le panier moyen sur leur propre axe (a droite). Le choix d'indicateur ne
+            // sert que quand une seule serie est tracee par annee ou par semaine.
+            if (selecteur) {
+                selecteur.setDisabled(true);
+            }
+            me.construireGraphiqueTousIndicateurs(panneau, series[0], categories);
+            return;
+        }
+        if (selecteur) {
+            selecteur.setDisabled(false);
+        }
         const indicateur = (selecteur && selecteur.getValue()) || 'montantNet';
         const libelleIndicateur = selecteur && selecteur.getRawValue ? selecteur.getRawValue() : 'Net TTC';
         const champs = ['categorie'].concat(series.map(function (s, i) {
@@ -382,6 +395,104 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
                         }
                     }
                 }]
+        }));
+        panneau.doLayout();
+    },
+
+    /** Les indicateurs du graphique et leurs libelles, dans l'ordre de la legende. */
+    INDICATEURS_GRAPHIQUE: [
+        {id: 'montantNet', libelle: 'Net TTC', axe: 'left'},
+        {id: 'montantAchat', libelle: 'Achat', axe: 'left'},
+        {id: 'montantEsp', libelle: 'Esp\u00e8ces', axe: 'left'},
+        {id: 'montantMobilePayment', libelle: 'Mobile', axe: 'left'},
+        {id: 'montantTp', libelle: 'Tiers payant', axe: 'left'},
+        {id: 'nbreVente', libelle: 'Nombre de ventes', axe: 'right'},
+        {id: 'panierMoyen', libelle: 'Panier moyen', axe: 'right'}
+    ],
+
+    /**
+     * Retours des tests 4 : sur 3 mois, 6 mois ou une periode libre, chaque periode porte un groupe de barres fines
+     * (les montants, axe de gauche) et deux courbes (nombre de ventes et panier moyen, axe de droite).
+     */
+    construireGraphiqueTousIndicateurs: function (panneau, serie, categories) {
+        const indicateurs = this.INDICATEURS_GRAPHIQUE;
+        const champs = ['categorie'].concat(indicateurs.map(function (i) {
+            return {name: i.id, type: 'number'};
+        }));
+        const donnees = categories.map(function (categorie, rang) {
+            const ligne = {categorie: categorie};
+            indicateurs.forEach(function (i) {
+                const valeurs = (serie.valeurs && serie.valeurs[i.id]) || [];
+                ligne[i.id] = valeurs[rang] || 0;
+            });
+            return ligne;
+        });
+        const montants = indicateurs.filter(function (i) {
+            return i.axe === 'left';
+        });
+        const unites = indicateurs.filter(function (i) {
+            return i.axe === 'right';
+        });
+        const libelleDe = function (id) {
+            const i = Ext.Array.findBy(indicateurs, function (x) {
+                return x.id === id;
+            });
+            return i ? i.libelle : id;
+        };
+        const infobulle = {
+            trackMouse: true,
+            width: 260,
+            renderer: function (enregistrement, item) {
+                this.setTitle(libelleDe(item.yField) + ' - ' + enregistrement.get('categorie') + ' : '
+                        + Ext.util.Format.number(enregistrement.get(item.yField), '0,000'));
+            }
+        };
+        const courbes = unites.map(function (i) {
+            return {
+                type: 'line', axis: 'right', xField: 'categorie', yField: i.id, title: i.libelle,
+                showMarkers: true, markerConfig: {type: 'circle', size: 4, radius: 4, 'stroke-width': 0},
+                style: {'stroke-width': 2}, tips: infobulle
+            };
+        });
+        panneau.add(Ext.create('Ext.chart.Chart', {
+            store: Ext.create('Ext.data.Store', {fields: champs, data: donnees}),
+            animate: false,
+            shadow: false,
+            legend: {position: 'bottom'},
+            insetPadding: 12,
+            axes: [{
+                    type: 'Numeric', position: 'left', fields: montants.map(function (i) {
+                        return i.id;
+                    }),
+                    title: 'Montants', grid: true, minimum: 0, decimals: 0,
+                    label: {renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000');
+                        }}
+                }, {
+                    type: 'Numeric', position: 'right', fields: unites.map(function (i) {
+                        return i.id;
+                    }),
+                    title: 'Ventes / panier', minimum: 0, decimals: 0,
+                    label: {renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000');
+                        }}
+                }, {
+                    type: 'Category', position: 'bottom', fields: ['categorie'], title: 'P\u00e9riode'
+                }],
+            series: [{
+                    type: 'column',
+                    axis: 'left',
+                    xField: 'categorie',
+                    yField: montants.map(function (i) {
+                        return i.id;
+                    }),
+                    title: montants.map(function (i) {
+                        return i.libelle;
+                    }),
+                    gutter: 40,
+                    groupGutter: 8,
+                    tips: infobulle
+                }].concat(courbes)
         }));
         panneau.doLayout();
     },

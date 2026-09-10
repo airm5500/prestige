@@ -198,6 +198,32 @@ function semer() {
       gVentes && gVentes.axe === 'Nombre de ventes' && valeursAnnee[moisA] === 3 && valeursAnnee[parseInt(MOIS_B.slice(5, 7), 10) - 1] === 2 && gVentes.max === 3 && gVentes.pas === 2,
       JSON.stringify({ axe: gVentes && gVentes.axe, valeurs: valeursAnnee, max: gVentes && gVentes.max, pas: gVentes && gVentes.pas }));
     await p.screenshot({ path: TMP + '/analyse.png' });
+    // retours des tests 4 : sur une periode libre (une barre par periode), TOUS les indicateurs a la fois
+    const idsLibre = await p.evaluate(() => {
+      const vue = Ext.ComponentQuery.query('balancesalecahs')[0];
+      vue.down('#typePeriode').setValue('LIBRE');
+      return { du: vue.down('#dtStartAnalyse').inputEl.id, au: vue.down('#dtEndAnalyse').inputEl.id, rechercher: vue.down('#rechercherAnalyse').el.id };
+    });
+    await p.fill('#' + idsLibre.du, fr(MOIS_A)); await p.keyboard.press('Tab');
+    await p.fill('#' + idsLibre.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    await p.click('#' + idsLibre.rechercher);
+    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('balancesalecahs')[0]; return e.graphiqueCourant && e.graphiqueCourant.type === 'PERIODES'; }, null, { timeout: 60000 });
+    await p.waitForTimeout(2000);
+    const tous = await p.evaluate(() => {
+      const c = Ext.ComponentQuery.query('balancesalecahs #graphiqueAnalyse chart')[0];
+      const col = c.series.getAt(0);
+      const ligne = c.store.getRange().find(r => r.get('montantNet') === 35000);
+      return { series: c.series.getCount(), types: c.series.getRange().map(s => s.type), axes: c.axes.getRange().map(a => a.position),
+        barres: col.yField, courbes: c.series.getRange().slice(1).map(s => s.yField), gutter: col.gutter,
+        selecteurDesactive: Ext.ComponentQuery.query('balancesalecahs #indicateurGraphique')[0].isDisabled(),
+        ligne: ligne ? { esp: ligne.get('montantEsp'), mobile: ligne.get('montantMobilePayment'), tp: ligne.get('montantTp'), ventes: ligne.get('nbreVente'), panier: ligne.get('panierMoyen') } : null };
+    });
+    ok('R4 : periode libre -> tous les indicateurs : 5 barres fines de montants (axe gauche) + 2 courbes ventes / panier (axe droit), liste « Graphique » desactivee',
+      tous.series === 3 && tous.types[0] === 'column' && tous.types[1] === 'line' && tous.axes.indexOf('right') >= 0 && tous.barres.length === 5 && tous.barres[0] === 'montantNet'
+      && tous.courbes.join() === 'nbreVente,panierMoyen' && tous.gutter === 40 && tous.selecteurDesactive
+      && tous.ligne && tous.ligne.esp === 11000 && tous.ligne.mobile === 9000 && tous.ligne.tp === 15000 && tous.ligne.ventes === 3 && Math.abs(tous.ligne.panier - 11666.67) < 1, JSON.stringify(tous));
+    const defaut = await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs #typePeriodeModes')[0].getValue());
+    ok('R4 : la periode par defaut des onglets d analyse est « 3 dernieres semaines »', defaut === 'TROIS_SEMAINES', defaut);
 
     /* =========================================================== S : gardes */
     const g1 = await poster({ libelle: MARQUE + ' nuit', dateDebut: DEBUT, dateFin: FIN });
