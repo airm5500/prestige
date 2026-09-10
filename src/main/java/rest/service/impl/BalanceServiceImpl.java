@@ -501,10 +501,18 @@ public class BalanceServiceImpl implements BalanceService {
         return sql;
     }
 
+    /**
+     * Retours des tests 3 (diagnostic chez l'officine) : MariaDB executait la sous-requete de detail UNE FOIS PAR VENTE
+     * (« split_materialized », 105 634 executions pour une annee, la moitie du temps de la balance). Ce prefixe la fait
+     * calculer une seule fois pour la periode, pour cette seule instruction : memes lignes, memes montants, deux fois
+     * plus vite. « SET STATEMENT ... FOR » ne change rien a la session ni aux autres requetes.
+     */
+    private static final String SANS_LATERAL = "SET STATEMENT optimizer_switch='split_materialized=off' FOR ";
+
     private List<Tuple> fetchPreenregistrements(BalanceParamsDTO balanceParams, String subQueryMvtDate,
             String subQueryGroupBy, String typeMvtCaisse, String typeMvtCaisseGroupBy) {
 
-        String sql = String.format(BALANCE_SQL_QUERY, subQueryMvtDate, typeMvtCaisse, subQueryGroupBy,
+        String sql = SANS_LATERAL + String.format(BALANCE_SQL_QUERY, subQueryMvtDate, typeMvtCaisse, subQueryGroupBy,
                 typeMvtCaisseGroupBy);
 
         sql = replacePlaceHolder(sql, balanceParams);
@@ -524,7 +532,7 @@ public class BalanceServiceImpl implements BalanceService {
 
     private List<Tuple> fetchRecapPreenregistrements(BalanceParamsDTO balanceParams) {
 
-        String sql = replacePlaceHolder(RAPPORT_SQL_QUERY, balanceParams);
+        String sql = replacePlaceHolder(SANS_LATERAL + RAPPORT_SQL_QUERY, balanceParams);
         LOG.log(Level.INFO, "sql--- RAPPORT_SQL_QUERY vente {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, Constant.DEPOT_EXTENSION)
