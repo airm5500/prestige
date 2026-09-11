@@ -577,7 +577,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'listecaissemanager', 'visualisercaissemanager', 'gestcaissemanager',
     'caisserecetterecap', 'cashmovements', 'balancesalecahs',
     // gardes (retour des tests du 09/09)
-    'gardemanager',
+    'gardemanager', 'analysearticle',
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
     'ugmanager', 'mouvementprixvente',

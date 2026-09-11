@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Analyse article : la matrice marge x rotation, ses decisions pratiques, et la liste des produits. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="analyse_article" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <style name="quadrant" forecolor="#333333" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{quadrant} == 1]]></conditionExpression>
+            <style forecolor="#177A17"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{quadrant} == 2]]></conditionExpression>
+            <style forecolor="#1565C0"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{quadrant} == 3]]></conditionExpression>
+            <style forecolor="#B26A00"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{quadrant} == 4]]></conditionExpression>
+            <style forecolor="#A00000"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_SEUILS" class="java.lang.String"/>
+    <parameter name="P_RESUME" class="java.lang.String"/>
+    <field name="quadrant" class="java.lang.Integer"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="libelle" class="java.lang.String"/>
+    <field name="quantite" class="java.lang.Long"/>
+    <field name="montant" class="java.lang.Long"/>
+    <field name="marge" class="java.lang.Long"/>
+    <field name="tauxMarge" class="java.lang.Double"/>
+    <field name="stock" class="java.lang.Long"/>
+    <field name="rotation" class="java.lang.Double"/>
+    <field name="couverture" class="java.lang.Double"/>
+    <field name="classe" class="java.lang.String"/>
+    <variable name="V_LIGNES" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{cip}]]></variableExpression>
+    </variable>
+    <variable name="V_MONTANT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+    </variable>
+    <variable name="V_MARGE" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{marge}]]></variableExpression>
+    </variable>
+    <title>
+        <band height="118">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="632" y="0" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="632" y="13" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="28" width="802" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[ANALYSE ARTICLE - MARGE × ROTATION]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="46" width="802" height="13"/>
+                <textElement textAlignment="Center"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="60" width="802" height="12"/>
+                <textElement textAlignment="Center"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_SEUILS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true">
+                <reportElement x="0" y="74" width="802" height="42"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_RESUME}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#2E75B6"/>
+                <staticText><reportElement x="4" y="0" width="110" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Quadrant]]></text></staticText>
+                <staticText><reportElement x="116" y="0" width="60" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="178" y="0" width="220" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Produit]]></text></staticText>
+                <staticText><reportElement x="400" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Qté]]></text></staticText>
+                <staticText><reportElement x="442" y="0" width="70" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Chiffre]]></text></staticText>
+                <staticText><reportElement x="514" y="0" width="65" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Marge]]></text></staticText>
+                <staticText><reportElement x="581" y="0" width="45" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Taux %]]></text></staticText>
+                <staticText><reportElement x="628" y="0" width="45" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Stock]]></text></staticText>
+                <staticText><reportElement x="675" y="0" width="50" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Rotation]]></text></staticText>
+                <staticText><reportElement x="727" y="0" width="45" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Couv. j]]></text></staticText>
+                <staticText><reportElement x="774" y="0" width="28" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[ABC]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="13">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="12" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true"><reportElement x="4" y="0" width="110" height="12" style="quadrant"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{quadrant} == 1 ? "Champions" : ($F{quadrant} == 2 ? "Rentables mais lents" : ($F{quadrant} == 3 ? "Volume fort, peu rentable" : "Produits à risque"))]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="116" y="0" width="60" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true"><reportElement x="178" y="0" width="220" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="400" y="0" width="40" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="442" y="0" width="70" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{montant}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="514" y="0" width="65" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{marge}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.0" isBlankWhenNull="true"><reportElement x="581" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{tauxMarge}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="628" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00" isBlankWhenNull="true"><reportElement x="675" y="0" width="50" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{rotation}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="727" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{couverture} < 0 ? "∞" : new java.text.DecimalFormat("#,##0.0").format($F{couverture})]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="774" y="0" width="28" height="12"/><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{classe}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14">
+            <textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="20">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="2" width="802" height="18" backcolor="#2E75B6"/>
+                <textField><reportElement x="4" y="0" width="390" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA["TOTAL : " + $V{V_LIGNES} + " produit(s)"]]></textFieldExpression></textField>
+                <textField pattern="#,##0"><reportElement x="442" y="0" width="70" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{V_MONTANT}]]></textFieldExpression></textField>
+                <textField pattern="#,##0"><reportElement x="514" y="0" width="65" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{V_MARGE}]]></textFieldExpression></textField>
+            </frame>
+        </band>
+    </summary>
+</jasperReport>
