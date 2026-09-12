@@ -389,273 +389,320 @@ Ext.define('testextjs.view.Dashboard.Recap', {
                     ]
                 },
                 {
-                    xtype: 'panel',
+                    /* Nouvelle presentation (proposition A retenue) : les cartes restent fixes en haut, les trois
+                       listes se partagent le reste de l'ecran en onglets ; chaque liste defile seule, et chaque onglet
+                       porte son total dans son titre et son propre bouton d'impression. */
+                    xtype: 'tabpanel',
+                    itemId: 'ongletsRecap',
                     margin: '5',
-                    id: 'achats',
                     flex: 1,
-                    title: "ACHATS",
-                    layout: 'fit',
+                    minHeight: 250,
+                    activeTab: 0,
+                    plain: true,
+                    deferredRender: false,
                     items: [
                         {
-                            xtype: 'grid',
-                            minHeight: 15,
-                            itemId: 'achatGrid',
-                            store: achats,
-                            columns: [{
-                                    header: 'Groupe grossiste',
-                                    dataIndex: 'libelleGroupeGrossiste',
-                                    flex: 1.5
-
-                                },
-
+                            xtype: 'panel',
+                            id: 'achats',
+                            itemId: 'ongletAchats',
+                            title: "ACHATS",
+                            layout: 'fit',
+                            items: [
                                 {
-                                    header: 'Montant HT',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'montantHT',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Montant TVA',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'montantTVA',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Montant TTC',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'montantTTC',
-                                    align: 'right',
-                                    flex: 1
-                                }
-                            ]
-                        }
-                    ]
+                                    xtype: 'grid',
+                                    minHeight: 15,
+                                    itemId: 'achatGrid',
+                                    store: achats,
+                                    columns: [{
+                                            header: 'Groupe grossiste',
+                                            dataIndex: 'libelleGroupeGrossiste',
+                                            flex: 1.5
 
-                },
-
-                {
-                    xtype: 'panel',
-                    margin: '5',
-                    id: 'criditsAccordes',
-                    flex: 1,
-                    title: "CREDITS ACCORDES",
-                    layout: 'fit',
-                    items: [
-                        {
-                            xtype: 'grid',
-                            minHeight: 15,
-                            itemId: 'creditaccorde',
-                            store: credits,
-                            columns: [{
-                                    header: 'Nom TP',
-                                    dataIndex: 'libelleTiersPayant',
-                                    flex: 1.5
-
-                                },
-                                {
-                                    header: 'Type',
-                                    dataIndex: 'libelleTypeTiersPayant',
-                                    flex: 1
-
-                                },
-                                {
-                                    header: 'Nb.Bons',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'nbreBons',
-                                    align: 'right',
-                                    flex: 0.5
-                                },
-                                {
-                                    header: 'Montant',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'montant',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Nb.Clients',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'nbreClient',
-                                    align: 'right',
-                                    flex: 0.5
-                                }
-                            ],
-                            bbar: {
-                                xtype: 'pagingtoolbar',
-                                store: credits,
-                                dock: 'bottom',
-                                pageSize: 10,
-                                displayInfo: true,
-                                items: [
-
-                                    {
-                                        xtype: 'displayfield',
-                                        fieldLabel: 'Total Nb Bons',
-                                        labelWidth: 100,
-                                        itemId: 'totalnb',
-                                        fieldStyle: "color:blue;",
-                                        margin: '0 10 0 10',
-                                        renderer: function (v) {
-                                            return Ext.util.Format.number(v, '0,000.');
                                         },
 
-                                        value: 0
-                                    },
-                                    {
-                                        xtype: 'displayfield',
-                                        fieldLabel: 'Total Montant',
-                                        labelWidth: 100,
-                                        itemId: 'totalmontant',
-                                        fieldStyle: "color:blue;",
-                                        margin: '0 10 0 10',
-                                        renderer: function (v) {
-                                            return Ext.util.Format.number(v, '0,000.');
-                                        },
-
-                                        value: 0
-                                    },
-                                    {
-                                        xtype: 'displayfield',
-                                        fieldLabel: ' Total Nb Clients',
-                                        labelWidth: 110,
-                                        itemId: 'totalnbclient',
-                                        renderer: function (v) {
-                                            return Ext.util.Format.number(v, '0,000.');
-                                        },
-                                        fieldStyle: "color:blue;",
-                                        value: 0,
-                                        margin: '0 10 0 10'
-                                    }
-
-
-                                ]
-                            },
-                            dockedItems: [
-                                {
-                                    xtype: 'toolbar',
-                                    dock: 'top',
-                                    items: [
                                         {
-                                            xtype: 'textfield',
-                                            itemId: 'query',
-                                            width: 450,
-                                            enableKeyEvents: true,
-                                            emptyText: 'Recherche'
+                                            header: 'Montant HT',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'montantHT',
+                                            align: 'right',
+                                            flex: 1
                                         },
                                         {
-                                            text: 'rechercher',
-                                            tooltip: 'rechercher',
-                                            itemId: 'creditbtn',
-                                            scope: this,
-                                            iconCls: 'searchicon'
+                                            header: 'Montant TVA',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'montantTVA',
+                                            align: 'right',
+                                            flex: 1
+                                        },
+                                        {
+                                            header: 'Montant TTC',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'montantTTC',
+                                            align: 'right',
+                                            flex: 1
                                         }
-
-
+                                    ],
+                                    dockedItems: [
+                                        {
+                                            xtype: 'toolbar',
+                                            dock: 'top',
+                                            items: [
+                                                {
+                                                    xtype: 'tbtext',
+                                                    itemId: 'resumeAchats',
+                                                    text: ''
+                                                },
+                                                '->',
+                                                {
+                                                    text: 'imprimer',
+                                                    itemId: 'imprimerAchats',
+                                                    iconCls: 'printable',
+                                                    tooltip: 'imprimer les achats par groupe de grossistes'
+                                                }
+                                            ]
+                                        }
                                     ]
                                 }
                             ]
-                        }
-                    ]
 
-                },
+                        },
 
-                {
-                    xtype: 'panel',
-                    margin: '5',
-                    id: 'reglementTp',
-                    flex: 1,
-                    title: "REGLEMENTS TP",
-                    layout: 'fit',
-                    items: [
                         {
-                            xtype: 'grid',
-                            itemId: 'reglementGrid',
-                            minHeight: 15,
-                            store: reglements,
-                            columns: [{
-                                    header: 'Nom TP',
-                                    dataIndex: 'description',
-                                    flex: 1.5
+                            xtype: 'panel',
+                            id: 'criditsAccordes',
+                            itemId: 'ongletCredits',
+                            title: "CREDITS ACCORDES",
+                            layout: 'fit',
+                            items: [
+                                {
+                                    xtype: 'grid',
+                                    minHeight: 15,
+                                    itemId: 'creditaccorde',
+                                    store: credits,
+                                    columns: [{
+                                            header: 'Nom TP',
+                                            dataIndex: 'libelleTiersPayant',
+                                            flex: 1.5
 
-                                },
-                                {
-                                    header: 'Type',
-                                    dataIndex: 'ref',
-                                    flex: 1
-
-                                },
-                                {
-                                    header: 'Facture',
-                                    dataIndex: 'refTwo',
-                                    flex: 1
-
-                                },
-                                {
-                                    header: 'Montant.Facture',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'valueTwo',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Montant',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'value',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Reste',
-                                    xtype: 'numbercolumn',
-                                    format: '0,000.',
-                                    dataIndex: 'valueThree',
-                                    align: 'right',
-                                    flex: 1
-                                }
-                            ],
-                            bbar: {
-                                xtype: 'pagingtoolbar',
-                                store: reglements,
-                                dock: 'bottom',
-                                pageSize: 10,
-                                displayInfo: true
-
-                            },
-                            dockedItems: [
-                                {
-                                    xtype: 'toolbar',
-                                    dock: 'top',
-                                    items: [
-                                        {
-                                            xtype: 'textfield',
-                                            itemId: 'queryRgl',
-                                            width: 450,
-                                            enableKeyEvents: true,
-                                            emptyText: 'Recherche'
                                         },
                                         {
-                                            text: 'rechercher',
-                                            tooltip: 'rechercher',
-                                            itemId: 'reglebtn',
-                                            scope: this,
-                                            iconCls: 'searchicon'
+                                            header: 'Type',
+                                            dataIndex: 'libelleTypeTiersPayant',
+                                            flex: 1
+
+                                        },
+                                        {
+                                            header: 'Nb.Bons',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'nbreBons',
+                                            align: 'right',
+                                            flex: 0.5
+                                        },
+                                        {
+                                            header: 'Montant',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'montant',
+                                            align: 'right',
+                                            flex: 1
+                                        },
+                                        {
+                                            header: 'Nb.Clients',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'nbreClient',
+                                            align: 'right',
+                                            flex: 0.5
                                         }
+                                    ],
+                                    bbar: {
+                                        xtype: 'pagingtoolbar',
+                                        store: credits,
+                                        dock: 'bottom',
+                                        pageSize: 10,
+                                        displayInfo: true,
+                                        items: [
+
+                                            {
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Total Nb Bons',
+                                                labelWidth: 100,
+                                                itemId: 'totalnb',
+                                                fieldStyle: "color:blue;",
+                                                margin: '0 10 0 10',
+                                                renderer: function (v) {
+                                                    return Ext.util.Format.number(v, '0,000.');
+                                                },
+
+                                                value: 0
+                                            },
+                                            {
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Total Montant',
+                                                labelWidth: 100,
+                                                itemId: 'totalmontant',
+                                                fieldStyle: "color:blue;",
+                                                margin: '0 10 0 10',
+                                                renderer: function (v) {
+                                                    return Ext.util.Format.number(v, '0,000.');
+                                                },
+
+                                                value: 0
+                                            },
+                                            {
+                                                xtype: 'displayfield',
+                                                fieldLabel: ' Total Nb Clients',
+                                                labelWidth: 110,
+                                                itemId: 'totalnbclient',
+                                                renderer: function (v) {
+                                                    return Ext.util.Format.number(v, '0,000.');
+                                                },
+                                                fieldStyle: "color:blue;",
+                                                value: 0,
+                                                margin: '0 10 0 10'
+                                            }
 
 
+                                        ]
+                                    },
+                                    dockedItems: [
+                                        {
+                                            xtype: 'toolbar',
+                                            dock: 'top',
+                                            items: [
+                                                {
+                                                    xtype: 'textfield',
+                                                    itemId: 'query',
+                                                    width: 450,
+                                                    enableKeyEvents: true,
+                                                    emptyText: 'Recherche'
+                                                },
+                                                {
+                                                    text: 'rechercher',
+                                                    tooltip: 'rechercher',
+                                                    itemId: 'creditbtn',
+                                                    scope: this,
+                                                    iconCls: 'searchicon'
+                                                },
+                                                '->',
+                                                {
+                                                    text: 'imprimer',
+                                                    itemId: 'imprimerCredits',
+                                                    iconCls: 'printable',
+                                                    tooltip: 'imprimer les crédits accordés'
+                                                }
+
+
+                                            ]
+                                        }
                                     ]
                                 }
                             ]
-                        }]}
+
+                        },
+
+                        {
+                            xtype: 'panel',
+                            id: 'reglementTp',
+                            itemId: 'ongletReglements',
+                            title: "REGLEMENTS TP",
+                            layout: 'fit',
+                            items: [
+                                {
+                                    xtype: 'grid',
+                                    itemId: 'reglementGrid',
+                                    minHeight: 15,
+                                    store: reglements,
+                                    columns: [{
+                                            header: 'Nom TP',
+                                            dataIndex: 'description',
+                                            flex: 1.5
+
+                                        },
+                                        {
+                                            header: 'Type',
+                                            dataIndex: 'ref',
+                                            flex: 1
+
+                                        },
+                                        {
+                                            header: 'Facture',
+                                            dataIndex: 'refTwo',
+                                            flex: 1
+
+                                        },
+                                        {
+                                            header: 'Montant.Facture',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'valueTwo',
+                                            align: 'right',
+                                            flex: 1
+                                        },
+                                        {
+                                            header: 'Montant',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'value',
+                                            align: 'right',
+                                            flex: 1
+                                        },
+                                        {
+                                            header: 'Reste',
+                                            xtype: 'numbercolumn',
+                                            format: '0,000.',
+                                            dataIndex: 'valueThree',
+                                            align: 'right',
+                                            flex: 1
+                                        }
+                                    ],
+                                    bbar: {
+                                        xtype: 'pagingtoolbar',
+                                        store: reglements,
+                                        dock: 'bottom',
+                                        pageSize: 10,
+                                        displayInfo: true
+
+                                    },
+                                    dockedItems: [
+                                        {
+                                            xtype: 'toolbar',
+                                            dock: 'top',
+                                            items: [
+                                                {
+                                                    xtype: 'textfield',
+                                                    itemId: 'queryRgl',
+                                                    width: 450,
+                                                    enableKeyEvents: true,
+                                                    emptyText: 'Recherche'
+                                                },
+                                                {
+                                                    text: 'rechercher',
+                                                    tooltip: 'rechercher',
+                                                    itemId: 'reglebtn',
+                                                    scope: this,
+                                                    iconCls: 'searchicon'
+                                                },
+                                                '->',
+                                                {
+                                                    text: 'imprimer',
+                                                    itemId: 'imprimerReglements',
+                                                    iconCls: 'printable',
+                                                    tooltip: 'imprimer les règlements des tiers payants'
+                                                }
+
+
+                                            ]
+                                        }
+                                    ]
+                                }]
+                        }
+                    ]
+                }
             ]
 
         });

@@ -100,6 +100,22 @@ Ext.define('testextjs.controller.RecapCtr', {
         {
             ref: 'achatGrid',
             selector: 'recap #achatGrid'
+        },
+        {
+            ref: 'ongletAchats',
+            selector: 'recap #ongletAchats'
+        },
+        {
+            ref: 'ongletCredits',
+            selector: 'recap #ongletCredits'
+        },
+        {
+            ref: 'ongletReglements',
+            selector: 'recap #ongletReglements'
+        },
+        {
+            ref: 'resumeAchats',
+            selector: 'recap #resumeAchats'
         }
 
     ],
@@ -126,6 +142,15 @@ Ext.define('testextjs.controller.RecapCtr', {
             'recap #imprimer': {
                 click: this.onPdfClick
             },
+            'recap #imprimerAchats': {
+                click: this.onImprimerAchats
+            },
+            'recap #imprimerCredits': {
+                click: this.onImprimerCredits
+            },
+            'recap #imprimerReglements': {
+                click: this.onImprimerReglements
+            },
             'recap #query': {
                 specialkey: this.onCreditKey
             },
@@ -141,6 +166,32 @@ Ext.define('testextjs.controller.RecapCtr', {
         const query=me.getQuery().getValue();
         const linkUrl = '../BalancePdfServlet?mode=RECAP&dtStart=' + dtStart + '&dtEnd=' + dtEnd+'&query='+query;
         window.open(linkUrl);
+    },
+
+    /* Editions des onglets : le PDF est servi en flux par l'API, dans l'onglet ouvert par le clic (pas de
+       fenetre intermediaire). */
+    periodeUrl: function () {
+        const me = this;
+        return 'dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue();
+    },
+    onImprimerAchats: function () {
+        window.open('../api/v1/recap/achats/pdf?' + this.periodeUrl());
+    },
+    onImprimerCredits: function () {
+        window.open('../api/v1/recap/credits/pdf?' + this.periodeUrl() + '&query=' + encodeURIComponent(this.getQuery().getValue() || ''));
+    },
+    onImprimerReglements: function () {
+        window.open('../api/v1/recap/reglements/pdf?' + this.periodeUrl() + '&query=' + encodeURIComponent(this.getQueryRgl().getValue() || ''));
+    },
+    /* Le titre de chaque onglet annonce son contenu : nombre de lignes et total, mis a jour a chaque chargement. */
+    titreOnglet: function (onglet, base, detail) {
+        if (onglet) {
+            onglet.setTitle(base + (detail ? ' <span style="font-weight:normal;color:#555;">' + detail + '</span>' : ''));
+        }
+    },
+    resumerReglements: function (store) {
+        const me = this, total = store.getTotalCount() || 0;
+        me.titreOnglet(me.getOngletReglements(), 'REGLEMENTS TP', total + ' facture(s)');
     },
 
     doBeforechange: function (page, currentPage) {
@@ -180,6 +231,9 @@ Ext.define('testextjs.controller.RecapCtr', {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 query: me.getQueryRgl().getValue()
 
+            },
+            callback: function () {
+                me.resumerReglements(me.getReglementGrid().getStore());
             }
         });
 
@@ -232,6 +286,11 @@ Ext.define('testextjs.controller.RecapCtr', {
                 me.buildRecette(rec.reglements);
                 me.buildMvts(rec.mvtsCaisse, rec.montantTotalMvt);
                 achatGrid.getStore().loadData(rec.achats);
+                const nbAchats = (rec.achats || []).length;
+                me.titreOnglet(me.getOngletAchats(), 'ACHATS', nbAchats + ' groupe(s) · ' + Ext.util.Format.number(rec.montantTotalTTC, '0,000.') + ' TTC');
+                if (me.getResumeAchats()) {
+                    me.getResumeAchats().setText('Achats par groupe de grossistes : ' + nbAchats + ' groupe(s), total TTC ' + Ext.util.Format.number(rec.montantTotalTTC, '0,000.'));
+                }
 
             }, failure: function (response, options) {
                 progress.hide();
@@ -325,6 +384,7 @@ Ext.define('testextjs.controller.RecapCtr', {
                 totalnb.setValue(rec.nbreBons);
                 totalnbclient.setValue(rec.nbreClient);
                 totalmontant.setValue(rec.montant);
+                me.titreOnglet(me.getOngletCredits(), 'CREDITS ACCORDES', Ext.util.Format.number(rec.nbreBons, '0,000.') + ' bon(s) · ' + Ext.util.Format.number(rec.montant, '0,000.'));
 
             }, failure: function (response, options) {
                 progress.hide();

@@ -10,6 +10,7 @@ import dal.TUser;
 import dal.dataManager;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -28,6 +29,8 @@ import javax.ws.rs.core.Response;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.report.ReportUtil;
+import rest.report.pdf.EditionRecapActivite;
 import rest.service.DashBoardService;
 import rest.service.dto.BalanceParamsDTO;
 import toolkits.parameters.commonparameter;
@@ -48,6 +51,8 @@ public class DashBoardRessource {
     private HttpServletRequest servletRequest;
     @EJB
     DashBoardService dashBoardService;
+    @EJB
+    private ReportUtil reportUtil;
 
     // Cache memoire court pour les agregats les plus lourds du tableau de bord (scans annuels/mensuels).
     // Les donnees sont globales a l'officine : une entree par endpoint suffit.
@@ -148,6 +153,82 @@ public class DashBoardRessource {
         JSONObject jsono = dashBoardService.donneesReglementsTpView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
                 tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, query, start, limit, false);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    // ---- Editions des onglets du rapport d'activite : PDF servi en flux, dans l'onglet ouvert par le clic ----
+
+    private static LocalDate jour(String s) {
+        try {
+            return LocalDate.parse(s);
+        } catch (Exception e) {
+            return LocalDate.now();
+        }
+    }
+
+    private Response pdfTableau(TUser tu, String dtStart, String dtEnd, String query,
+            Function<Map<String, Object>, List<EditionRecapActivite.Ligne>> lignes, String nomFichier) {
+        LocalDate dtSt = jour(dtStart), dtEn = jour(dtEnd);
+        Map<String, Object> parametres = reportUtil.officineData(tu);
+        parametres.put("P_PERIODE", EditionRecapActivite.periode(dtSt, dtEn));
+        parametres.put("P_FILTRES", EditionRecapActivite.filtre(query));
+        List<EditionRecapActivite.Ligne> donnees = lignes.apply(parametres);
+        String url = reportUtil.buildReport(parametres, EditionRecapActivite.MODELE, donnees, nomFichier);
+        if (!reportUtil.editionEcrite(url)) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).type("text/html;charset=UTF-8")
+                    .entity("<html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial,sans-serif;"
+                            + "padding:30px;\"><h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3>"
+                            + "</body></html>")
+                    .build();
+        }
+        java.io.File fichier = new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1)));
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=\"" + fichier.getName() + "\"").build();
+    }
+
+    @GET
+    @Path("achats/pdf")
+    @Produces({ "application/pdf", "text/html" })
+    public Response achatsPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return pdfTableau(tu, dtStart, dtEnd, null, p -> EditionRecapActivite.lignesAchats(p, dashBoardService
+                .donneesRecapActivite(jour(dtStart), jour(dtEnd), tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu)
+                .getAchats()), "recap_achats");
+    }
+
+    @GET
+    @Path("credits/pdf")
+    @Produces({ "application/pdf", "text/html" })
+    public Response creditsPdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return pdfTableau(tu, dtStart, dtEnd, query, p -> EditionRecapActivite.lignesCredits(p,
+                dashBoardService.donneesCreditAccordes(BalanceParamsDTO.builder().dtStart(jour(dtStart).toString())
+                        .dtEnd(jour(dtEnd).toString()).query(query).all(true).showAllAmount(true)
+                        .emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build())),
+                "recap_credits");
+    }
+
+    @GET
+    @Path("reglements/pdf")
+    @Produces({ "application/pdf", "text/html" })
+    public Response reglementsPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return pdfTableau(tu, dtStart, dtEnd, query,
+                p -> EditionRecapActivite.lignesReglements(p,
+                        dashBoardService.donneesReglementsTp(jour(dtStart), jour(dtEnd),
+                                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, query, 0, 0, true)),
+                "recap_reglements");
     }
 
     @GET
