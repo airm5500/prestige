@@ -43,6 +43,32 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
     const inconnues = images.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src));
     ok('un operateur sans logo garde une tuile sans image cassee', inconnues.every(i => !i.visible), JSON.stringify(inconnues));
     await p.screenshot({ path: '/tmp/lot-u/tuiles.png' });
+    await p.evaluate(() => { const w = Ext.ComponentQuery.query('window[title]').filter(x => /CLIENT/i.test(x.title || ''))[0]; if (w) { w.close(); } });
+
+    /* ---- liste deroulante des modes : logo devant chaque operateur, logo dans le champ une fois choisi */
+    await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.expand(); });
+    await p.waitForFunction(() => document.querySelectorAll('.x-boundlist-item img[src*="images/modes/"]').length >= 5, null, { timeout: 15000 });
+    await p.waitForTimeout(800);
+    const liste = await p.evaluate(() => Array.from(document.querySelectorAll('.x-boundlist-item img[src*="images/modes/"]')).map(i => ({ src: i.getAttribute('src').split('/').pop(), chargee: i.complete && i.naturalWidth > 0, visible: i.style.visibility !== 'hidden' })));
+    ok('la liste deroulante des modes porte le logo devant chaque operateur', ['ORANGE.png', 'WAVE.png', 'DJAMO.png', 'MOOV.png', 'MTN.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste).slice(0, 300));
+    ok('un mode sans logo (Especes, Cheques...) n affiche pas d image cassee', liste.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src)).every(i => !i.visible), JSON.stringify(liste.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src))));
+    await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.collapse(); c.setValue('10'); });
+    await p.waitForFunction(() => /WAVE\.png/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
+    ok('le champ du mode choisi (WAVE) affiche son logo', true);
+    await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.setValue('1'); });
+    await p.waitForFunction(() => !/images\/modes/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
+    ok('Especes : plus de logo dans le champ', true);
+
+    /* ---- bouton « Associer un autre paiement mobile » : logo du second mode choisi, generique sinon */
+    await p.evaluate(() => testextjs.app.getController('VenteCtr').poserLogoBoutonExtra('MTN'));
+    await p.waitForFunction(() => /MTN\.png/.test(testextjs.app.getController('VenteCtr').getBtnExtraMode().icon || ''), null, { timeout: 10000 });
+    ok('le bouton second mode prend le logo de l operateur choisi (MTN)', true);
+    await p.evaluate(() => testextjs.app.getController('VenteCtr').poserLogoBoutonExtra('WYZALL'));
+    await p.waitForTimeout(1500);
+    ok('un operateur sans logo laisse l icone generique', /paiement-mobile/.test(await p.evaluate(() => testextjs.app.getController('VenteCtr').getBtnExtraMode().icon || '')));
+    await p.evaluate(() => testextjs.app.getController('VenteCtr').poserLogoBoutonExtra(null));
+    await p.waitForTimeout(500);
+    ok('sans second mode, l icone generique revient', /paiement-mobile/.test(await p.evaluate(() => testextjs.app.getController('VenteCtr').getBtnExtraMode().icon || '')));
     ok('aucune erreur javascript', err.length === 0, err.join(' | '));
   } finally {
     retablir();

@@ -569,6 +569,9 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
         var rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.configmanagement.zonegeographique.action.basculement({
             odatasource: rec.get('lg_ZONE_GEO_ID'),
+            // Retours du 12/09 (point 7) : l'emplacement d'origine est nomme en tete de la fenetre
+            libelleOrigine: rec.get('str_LIBELLEE'),
+            codeOrigine: rec.get('str_CODE'),
 
             parentview: this,
             titre: "Gestion des emplacements"

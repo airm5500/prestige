@@ -7731,6 +7731,34 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     },
 
+    /* Logo de l'operateur sur le bouton « Associer un autre paiement mobile » : celui du second mode choisi,
+       l'icone generique sinon ou si le fichier manque. */
+    poserLogoBoutonExtra: function (libelle) {
+        const me = this;
+        const bouton = me.getBtnExtraMode();
+        if (!bouton) {
+            return;
+        }
+        const generique = 'resources/images/icons/fam/paiement-mobile.png';
+        const nom = String(libelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!nom) {
+            bouton.setIcon(generique);
+            return;
+        }
+        const image = new Image();
+        image.onload = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon('resources/images/modes/' + nom + '.png');
+            }
+        };
+        image.onerror = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon(generique);
+            }
+        };
+        image.src = 'resources/images/modes/' + nom + '.png';
+    },
+
     onModeReglementSelect: function (modeRegelement) {
         const me = this;
         if (Ext.isEmpty(me.getClient())) {
@@ -7743,6 +7771,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.labelWidth = modeRegelement.libelle.length + 2;
         me._extraModeBaseLabel = modeRegelement.libelle.toUpperCase();
         montantExtra.setFieldLabel(me._extraModeBaseLabel);
+        // le bouton du second mode prend le logo de l'operateur choisi
+        me.poserLogoBoutonExtra(modeRegelement.libelle);
         if (me.isMobileMode(me.getVnotypeReglement().getValue())) {
             // Fractionnement mobile + mobile : on déverrouille la saisie de la part
             // du mode principal, le complément se calcule dans montantExtra
@@ -7782,6 +7812,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.setReadOnly(true); // re-verrouille (saisissable seulement en espèces comptant)
         montantExtra.hide();
         me.extraModeReglementId = null;
+        me.poserLogoBoutonExtra(null);
         me.extraModeManualAmount = false;
         me.getBtnExtraMode()?.hide();
         // plus de second mode engagé : le bouton « associer un client » revient si especes pures

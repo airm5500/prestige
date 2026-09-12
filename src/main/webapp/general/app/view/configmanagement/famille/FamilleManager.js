@@ -430,11 +430,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'int_NUMBER_AVAILABLE',
                     itemId: 'stockUnifie',
                     align: 'center',
-                    // Retour des tests du 12/09 : a quatre chiffres, total et puces ne tenaient plus sur la
-                    // largeur et se chevauchaient. Le total et les puces sont sur deux lignes, la colonne
-                    // garde une largeur minimale.
-                    flex: 0.95,
-                    minWidth: 118,
+                    // Retour des tests du 12/09 : a quatre chiffres, total et puces debordaient. La colonne
+                    // reserve la place de quatre caracteres pour le total, le rayon et la reserve, sur UNE
+                    // ligne (presentation d'origine), sans retour a la ligne possible.
+                    flex: 1.3,
+                    minWidth: 215,
                     tooltip: 'Total = rayon + réserve. Le tri porte sur le stock rayon.',
                     renderer: function (v, m, r) {
                         var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
@@ -452,15 +452,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                         m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
                                 + ' = ' + total + '" data-qwidth="180"';
-                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;">RAY '
+                        // chaque puce reserve quatre caracteres pour son nombre : les colonnes restent alignees
+                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;display:inline-block;min-width:6ch;text-align:center;">RAY '
                                 + rayon + '</span>';
                         if (reserve !== 0) {
-                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;">RES '
+                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;display:inline-block;min-width:6ch;text-align:center;">RES '
                                     + reserve + '</span>';
                         }
-                        return '<div style="line-height:1.15;text-align:center;">'
-                                + '<b style="font-size:16px;color:' + couleur + ';">' + total + '</b>'
-                                + '<div style="font-size:9.5px;white-space:nowrap;margin-top:1px;">' + puces + '</div></div>';
+                        return '<span style="white-space:nowrap;">'
+                                + '<b style="font-size:16px;color:' + couleur + ';vertical-align:middle;display:inline-block;min-width:4ch;text-align:right;">' + total + '</b>'
+                                + '<span style="font-size:10px;margin-left:6px;vertical-align:middle;">' + puces + '</span></span>';
                     }
                 }, {
                     header: 'Seuil',

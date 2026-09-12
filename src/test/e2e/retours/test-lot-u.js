@@ -161,6 +161,26 @@ function poserLots(ps) {
       return { modale: !!g.up('window').modal, origine: Ext.getCmp('origineEmp').getValue(), combo: Ext.getCmp('zoneID').getRawValue(), compte: Ext.getCmp('compteCoches').text, lignes: g.getStore().getCount(), total: g.getStore().getTotalCount() };
     });
     ok('Point 7 : fenetre modale, origine affichee en tete et preselectionnee dans la liste', fenetre.modale && fenetre.origine.indexOf(zoneLib) === 0 && fenetre.combo === zoneLib, JSON.stringify(fenetre));
+    // le meme parcours que l'utilisateur : le bouton « basculer » d'une ligne de la liste des emplacements
+    await p.evaluate(() => { Ext.getCmp('basculID').up('window').close(); });
+    await p.waitForTimeout(500);
+    const parLigne = await p.evaluate(() => {
+      const g = Ext.getCmp('zonegeographiquegridID');
+      const rec = g.getStore().getAt(0);
+      Ext.ComponentQuery.query('zonegeographiquemanager')[0].onbasculer2(g.getView(), 0);
+      return { lib: rec.get('str_LIBELLEE'), code: rec.get('str_CODE') };
+    });
+    await p.waitForFunction(() => { const g = Ext.getCmp('basculID'); return g && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
+    const enTete = await p.evaluate(() => ({ origine: Ext.getCmp('origineEmp').getValue(), combo: Ext.getCmp('zoneID').getRawValue() }));
+    ok('Point 7 : depuis le bouton « basculer » d une ligne, l origine (libelle et code) est en tete et dans la liste', enTete.origine === parLigne.lib + ' (' + parLigne.code + ')' && enTete.combo === parLigne.lib, JSON.stringify(enTete) + ' ' + JSON.stringify(parLigne));
+    await p.evaluate(() => { Ext.getCmp('basculID').up('window').close(); });
+    await p.waitForTimeout(500);
+    await p.evaluate((a) => {
+      new testextjs.view.configmanagement.zonegeographique.action.basculement({
+        odatasource: a.z, libelleOrigine: a.lib, codeOrigine: 'C1', parentview: Ext.ComponentQuery.query('zonegeographiquemanager')[0], titre: 'Gestion des emplacements'
+      });
+    }, { z: zone, lib: zoneLib });
+    await p.waitForFunction(() => { const g = Ext.getCmp('basculID'); return g && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
     ok('Point 7 : compteur a zero a l ouverture', /^0 produit coché$/.test(fenetre.compte), fenetre.compte);
     const coche = await p.evaluate(() => {
       try {

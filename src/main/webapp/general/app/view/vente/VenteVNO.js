@@ -903,6 +903,47 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     store: store_typereglement,
                                                     valueField: 'lgTYPEREGLEMENTID',
                                                     displayField: 'strNAME',
+                                                    /* Logo de l'operateur (resources/images/modes/<NOM>.png) dans la
+                                                       liste deroulante, et dans le champ une fois le mode choisi.
+                                                       Sans fichier, l'image est masquee et le libelle reste seul. */
+                                                    listConfig: {
+                                                        getInnerTpl: function () {
+                                                            return '<div style="display:flex;align-items:center;gap:8px;">'
+                                                                    + '<img src="resources/images/modes/{[String(values.strNAME || \'\').toUpperCase().replace(/[^A-Z0-9]/g, \'\')]}.png" alt="" '
+                                                                    + 'onerror="this.style.visibility=\'hidden\'" style="width:22px;height:22px;border-radius:50%;"/>'
+                                                                    + '<span>{strNAME}</span></div>';
+                                                        }
+                                                    },
+                                                    listeners: {
+                                                        change: function (combo) {
+                                                            if (!combo.inputEl) {
+                                                                return;
+                                                            }
+                                                            var rec = combo.findRecordByValue(combo.getValue());
+                                                            var nom = rec ? String(rec.get('strNAME') || '').toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+                                                            // le theme de la caisse pose des fonds en !important : le logo doit l'etre aussi
+                                                            var poser = function (proprietes) {
+                                                                if (combo.isDestroyed || !combo.inputEl) {
+                                                                    return;
+                                                                }
+                                                                Ext.Object.each(proprietes, function (k, v) {
+                                                                    combo.inputEl.dom.style.setProperty(k, v, 'important');
+                                                                });
+                                                            };
+                                                            var image = new Image();
+                                                            image.onload = function () {
+                                                                poser({'background-image': 'url(resources/images/modes/' + nom + '.png)', 'background-repeat': 'no-repeat', 'background-position': '4px center', 'background-size': '22px 22px', 'padding-left': '32px'});
+                                                            };
+                                                            image.onerror = function () {
+                                                                poser({'background-image': 'none', 'padding-left': '4px'});
+                                                            };
+                                                            if (nom) {
+                                                                image.src = 'resources/images/modes/' + nom + '.png';
+                                                            } else {
+                                                                image.onerror();
+                                                            }
+                                                        }
+                                                    },
                                                     editable: false,
                                                     queryMode: 'remote',
                                                     emptyText: 'Choisir un type de reglement...',
