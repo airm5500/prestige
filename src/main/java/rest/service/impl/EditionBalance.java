@@ -52,6 +52,11 @@ public final class EditionBalance {
         m.put("P_KPI_VENTES", n(resume.optLong("nbreVente")));
         m.put("P_KPI_PANIER", n(resume.optLong("panierMoyen")));
         m.put("P_KPI_ESPECES", n(resume.optLong("montantEsp")));
+        // retours du 12/09 : mobile money et ventes a credit a la suite des especes
+        m.put("P_KPI_MOBILE", n(resume.optLong("montantMobilePayment")));
+        JSONObject ventilation = vue == null ? null : vue.optJSONObject("ventilation");
+        JSONObject credit = ventilation == null ? null : ventilation.optJSONObject("credit");
+        m.put("P_KPI_CREDIT", n(credit == null ? 0L : credit.optLong("montant")));
         return m;
     }
 

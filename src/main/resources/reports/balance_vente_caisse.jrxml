@@ -37,6 +37,8 @@
     <parameter name="P_KPI_VENTES" class="java.lang.String"/>
     <parameter name="P_KPI_PANIER" class="java.lang.String"/>
     <parameter name="P_KPI_ESPECES" class="java.lang.String"/>
+    <parameter name="P_KPI_MOBILE" class="java.lang.String"/>
+    <parameter name="P_KPI_CREDIT" class="java.lang.String"/>
     <field name="section" class="java.lang.String"/>
     <field name="cleSection" class="java.lang.String"/>
     <field name="libelle" class="java.lang.String"/>
@@ -130,83 +132,115 @@
                 </textField>
             </frame>
             <frame>
-                <reportElement mode="Opaque" x="0" y="76" width="107" height="34" backcolor="#F2F6FA">
+                <reportElement mode="Opaque" x="0" y="76" width="76" height="34" backcolor="#F2F6FA">
                     <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
                 </reportElement>
                 <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
                 <staticText>
-                    <reportElement x="0" y="3" width="107" height="11" forecolor="#5D6D7E"/>
-                    <textElement textAlignment="Center"><font size="6.5" isBold="true"/></textElement>
-                    <text><![CDATA[CHIFFRE D'AFFAIRES NET]]></text>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
+                    <text><![CDATA[CA NET]]></text>
                 </staticText>
                 <textField isBlankWhenNull="true">
-                    <reportElement x="0" y="15" width="107" height="16" forecolor="#1F4E79"/>
-                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="10" isBold="true"/></textElement>
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                     <textFieldExpression><![CDATA[$P{P_KPI_CA}]]></textFieldExpression>
                 </textField>
             </frame>
             <frame>
-                <reportElement mode="Opaque" x="112" y="76" width="107" height="34" backcolor="#F2F6FA">
+                <reportElement mode="Opaque" x="80" y="76" width="76" height="34" backcolor="#F2F6FA">
                     <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
                 </reportElement>
                 <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
                 <staticText>
-                    <reportElement x="0" y="3" width="107" height="11" forecolor="#5D6D7E"/>
-                    <textElement textAlignment="Center"><font size="6.5" isBold="true"/></textElement>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
                     <text><![CDATA[MARGE]]></text>
                 </staticText>
                 <textField isBlankWhenNull="true">
-                    <reportElement x="0" y="15" width="107" height="16" forecolor="#1F4E79"/>
-                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="10" isBold="true"/></textElement>
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                     <textFieldExpression><![CDATA[$P{P_KPI_MARGE}]]></textFieldExpression>
                 </textField>
             </frame>
             <frame>
-                <reportElement mode="Opaque" x="224" y="76" width="107" height="34" backcolor="#F2F6FA">
+                <reportElement mode="Opaque" x="160" y="76" width="76" height="34" backcolor="#F2F6FA">
                     <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
                 </reportElement>
                 <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
                 <staticText>
-                    <reportElement x="0" y="3" width="107" height="11" forecolor="#5D6D7E"/>
-                    <textElement textAlignment="Center"><font size="6.5" isBold="true"/></textElement>
-                    <text><![CDATA[NOMBRE DE VENTES]]></text>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
+                    <text><![CDATA[NB VENTES]]></text>
                 </staticText>
                 <textField isBlankWhenNull="true">
-                    <reportElement x="0" y="15" width="107" height="16" forecolor="#1F4E79"/>
-                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="10" isBold="true"/></textElement>
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                     <textFieldExpression><![CDATA[$P{P_KPI_VENTES}]]></textFieldExpression>
                 </textField>
             </frame>
             <frame>
-                <reportElement mode="Opaque" x="336" y="76" width="107" height="34" backcolor="#F2F6FA">
+                <reportElement mode="Opaque" x="240" y="76" width="76" height="34" backcolor="#F2F6FA">
                     <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
                 </reportElement>
                 <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
                 <staticText>
-                    <reportElement x="0" y="3" width="107" height="11" forecolor="#5D6D7E"/>
-                    <textElement textAlignment="Center"><font size="6.5" isBold="true"/></textElement>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
                     <text><![CDATA[PANIER MOYEN]]></text>
                 </staticText>
                 <textField isBlankWhenNull="true">
-                    <reportElement x="0" y="15" width="107" height="16" forecolor="#1F4E79"/>
-                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="10" isBold="true"/></textElement>
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                     <textFieldExpression><![CDATA[$P{P_KPI_PANIER}]]></textFieldExpression>
                 </textField>
             </frame>
             <frame>
-                <reportElement mode="Opaque" x="448" y="76" width="107" height="34" backcolor="#F2F6FA">
+                <reportElement mode="Opaque" x="320" y="76" width="76" height="34" backcolor="#F2F6FA">
                     <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
                 </reportElement>
                 <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
                 <staticText>
-                    <reportElement x="0" y="3" width="107" height="11" forecolor="#5D6D7E"/>
-                    <textElement textAlignment="Center"><font size="6.5" isBold="true"/></textElement>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
                     <text><![CDATA[ESPÈCES]]></text>
                 </staticText>
                 <textField isBlankWhenNull="true">
-                    <reportElement x="0" y="15" width="107" height="16" forecolor="#1F4E79"/>
-                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="10" isBold="true"/></textElement>
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                     <textFieldExpression><![CDATA[$P{P_KPI_ESPECES}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <frame>
+                <reportElement mode="Opaque" x="400" y="76" width="76" height="34" backcolor="#F2F6FA">
+                    <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
+                </reportElement>
+                <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
+                <staticText>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
+                    <text><![CDATA[MOBILE]]></text>
+                </staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_KPI_MOBILE}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <frame>
+                <reportElement mode="Opaque" x="480" y="76" width="76" height="34" backcolor="#F2F6FA">
+                    <property name="net.sf.jasperreports.export.pdf.tag.table" value="none"/>
+                </reportElement>
+                <box><pen lineWidth="0.5" lineColor="#C9D6E3"/></box>
+                <staticText>
+                    <reportElement x="0" y="3" width="76" height="11" forecolor="#5D6D7E"/>
+                    <textElement textAlignment="Center"><font size="5.5" isBold="true"/></textElement>
+                    <text><![CDATA[CRÉDIT]]></text>
+                </staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="0" y="15" width="76" height="16" forecolor="#1F4E79"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_KPI_CREDIT}]]></textFieldExpression>
                 </textField>
             </frame>
         </band>

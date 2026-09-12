@@ -134,6 +134,13 @@ function poserLots(ps) {
     const labos = await p.evaluate(() => { const g = Ext.ComponentQuery.query('cazonegeomanager #grilleLaboratoires')[0]; return { colonnes: g.columns.map(c => c.text), lignes: g.getStore().getRange().map(r => ({ libelle: r.get('libelle'), total: r.get('total') })) }; });
     ok('Point 9 : l onglet Laboratoires rend une ligne par laboratoire avec le total', labos.colonnes[0] === 'Laboratoire' && labos.lignes.some(l => l.libelle === 'Sans laboratoire' && l.total === 3000), JSON.stringify(labos).slice(0, 300));
     ok('Point 9 : les exports suivent l onglet actif (regroupement LABORATOIRE)', await p.evaluate(() => testextjs.app.getController('CaZoneGeoCtr').parametres().regroupement) === 'LABORATOIRE');
+    // retours du 12/09 (3e) : le detail des produits d une ligne gamme / laboratoire
+    ok('Point 9 : la colonne Détail est proposee sur les lignes par laboratoire', await p.evaluate(() => Ext.ComponentQuery.query('cazonegeomanager #grilleLaboratoires')[0].headerCt.getGridColumns().some(c => c.isXType('actioncolumn'))));
+    const detail = await octets('../api/v1/ca-zone-geo/detail?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=LABORATOIRE&zoneId=&familleId=&gammeId=&laboratoireId=&ligneLaboratoireId=&start=0&limit=50');
+    const produitsLigne = JSON.parse(Buffer.from(detail.octets).toString('utf8'));
+    ok('Point 9 : le detail d une ligne « Sans laboratoire » rend les deux produits de la vente', produitsLigne.success !== false && (produitsLigne.data || []).length === 2 && (produitsLigne.data || []).reduce((t, l) => t + Number(l.montant || 0), 0) === 3000, JSON.stringify(produitsLigne).slice(0, 250));
+    const detailVide = JSON.parse(Buffer.from((await octets('../api/v1/ca-zone-geo/detail?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=GAMME&zoneId=&familleId=&gammeId=&laboratoireId=&ligneGammeId=inexistante&start=0&limit=50')).octets).toString('utf8'));
+    ok('Point 9 : une gamme inconnue ne rend aucun produit', (detailVide.data || []).length === 0, JSON.stringify(detailVide).slice(0, 150));
     const xl = await octets('../api/v1/ca-zone-geo/excel?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=GAMME&zoneId=&familleId=');
     fs.writeFileSync(TMP + '/gammes.xls', Buffer.from(xl.octets));
     const chaines = execSync('strings -a ' + TMP + '/gammes.xls; strings -a -el ' + TMP + '/gammes.xls', { encoding: 'utf8' });

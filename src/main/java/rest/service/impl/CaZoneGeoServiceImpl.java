@@ -248,6 +248,7 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
      */
     @Override
     public JSONObject produitsDeLaLigne(TUser utilisateur, Filtres filtres, String zoneId, String familleId) {
+        String gammeId = filtres.getLigneGammeId(), laboratoireId = filtres.getLigneLaboratoireId();
         JSONObject json = new JSONObject();
         try {
             List<Tranche> tranches = PeriodesCa.tranches(filtres.getTypePeriode(), filtres.getDebut(), filtres.getFin(),
@@ -285,6 +286,19 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             if (filtreFamille) {
                 sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(6 + supplementaires.size());
                 supplementaires.add(filtres.getFamilleId());
+            }
+            // filtres gamme / laboratoire de l'onglet, puis gamme ou laboratoire de la LIGNE cliquee (retours du 12/09)
+            String[][] parGammeLabo = { { "f.gamme_id", filtres.getGammeId() },
+                    { "f.laboratoire_id", filtres.getLaboratoireId() }, { "f.gamme_id", gammeId },
+                    { "f.laboratoire_id", laboratoireId } };
+            for (int i = 0; i < parGammeLabo.length; i++) {
+                String colonne = parGammeLabo[i][0], valeur = parGammeLabo[i][1];
+                if (estRenseigne(valeur)) {
+                    sql.append(" AND ").append(colonne).append(" = ?").append(6 + supplementaires.size());
+                    supplementaires.add(valeur);
+                } else if (i >= 2 && valeur != null && valeur.isEmpty()) {
+                    sql.append(" AND (").append(colonne).append(" IS NULL OR ").append(colonne).append(" = '')");
+                }
             }
             // Zone et famille de la LIGNE cliquee. La zone peut etre vide en base : « sans zone » est une ligne
             // comme une autre, et se retrouve par IS NULL plutot que par une egalite qui ne ramenerait rien.

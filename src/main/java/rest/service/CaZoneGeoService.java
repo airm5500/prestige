@@ -55,6 +55,12 @@ public interface CaZoneGeoService {
         private String familleId;
         private String gammeId;
         private String laboratoireId;
+        /*
+         * Gamme ou laboratoire de la LIGNE cliquee (detail de l'onglet Gammes / Laboratoires, retours du 12/09) : null
+         * quand la ligne n'est pas regroupee dessus, chaine vide pour « sans gamme / laboratoire ».
+         */
+        private String ligneGammeId;
+        private String ligneLaboratoireId;
         private Regroupement regroupement = Regroupement.ZONE;
 
         public util.PeriodesCa.Type getTypePeriode() {
@@ -117,6 +123,24 @@ public interface CaZoneGeoService {
 
         public Filtres laboratoireId(String laboratoireId) {
             this.laboratoireId = laboratoireId;
+            return this;
+        }
+
+        public String getLigneGammeId() {
+            return ligneGammeId;
+        }
+
+        public Filtres ligneGammeId(String ligneGammeId) {
+            this.ligneGammeId = ligneGammeId;
+            return this;
+        }
+
+        public String getLigneLaboratoireId() {
+            return ligneLaboratoireId;
+        }
+
+        public Filtres ligneLaboratoireId(String ligneLaboratoireId) {
+            this.ligneLaboratoireId = ligneLaboratoireId;
             return this;
         }
 

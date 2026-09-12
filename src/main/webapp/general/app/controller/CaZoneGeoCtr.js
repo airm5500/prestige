@@ -265,11 +265,18 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
          * « sans zone » ou « sans famille », qui est une ligne comme une autre ; l'absence signifie
          * que la ligne n'est pas regroupee sur ce critere. */
         const regroupement = p.regroupement;
-        if (regroupement !== 'FAMILLE') {
-            p.ligneZoneId = enregistrement.get('zoneId') || '';
-        }
-        if (regroupement !== 'ZONE') {
-            p.ligneFamilleId = enregistrement.get('familleId') || '';
+        if (regroupement === 'GAMME') {
+            // ligne de l'onglet Gammes / Laboratoires (retours du 12/09) : la gamme de la ligne, « sans gamme » = vide
+            p.ligneGammeId = enregistrement.get('gammeId') || '';
+        } else if (regroupement === 'LABORATOIRE') {
+            p.ligneLaboratoireId = enregistrement.get('laboratoireId') || '';
+        } else {
+            if (regroupement !== 'FAMILLE') {
+                p.ligneZoneId = enregistrement.get('zoneId') || '';
+            }
+            if (regroupement !== 'ZONE') {
+                p.ligneFamilleId = enregistrement.get('familleId') || '';
+            }
         }
         p.libelle = enregistrement.get('libelle') || '';
         return p;
@@ -465,7 +472,7 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         const grilleVisee = grilleCible || me.getGrille();
         const regroupement = regroupementCible || (json.data && me.getRegroupement().getValue());
         const parGammeOuLabo = regroupement === 'GAMME' || regroupement === 'LABORATOIRE';
-        const champs = ['zoneId', 'zone', 'familleId', 'famille', 'libelle', {name: 'total', type: 'number'},
+        const champs = ['zoneId', 'zone', 'familleId', 'famille', 'gammeId', 'gamme', 'laboratoireId', 'laboratoire', 'libelle', {name: 'total', type: 'number'},
             {name: 'evolution', type: 'auto'}, {name: 'marge', type: 'number'},
             {name: 'montantHt', type: 'number'}, {name: 'achat', type: 'number'},
             {name: 'pourcentageMarge', type: 'number'}];
@@ -561,8 +568,8 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                 return me.formatEvolution(json.evolutionGenerale);
             }
         });
-        // Detail de la ligne : les produits qui composent ce montant (par zone / famille seulement).
-        if (!parGammeOuLabo) colonnes.push({
+        // Detail de la ligne : les produits qui composent ce montant (aussi par gamme / laboratoire, retours du 12/09).
+        colonnes.push({
             xtype: 'actioncolumn',
             text: 'Détail',
             width: 55,
