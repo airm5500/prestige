@@ -82,6 +82,22 @@ function purger() {
     ok('le retrait d une ligne de prevente est accepte', r.success !== false
       && q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + preventeId + "'") === '1', JSON.stringify(r).slice(0, 200));
 
+    /* ------------------------------------------------- suite du parcours : ticket puis « Terminer la prevente » */
+    r = lire(await poster('../api/v1/vente/ticket/prevente/' + preventeId, {}));
+    // le banc n'a pas d'imprimante ticket : la prevente est trouvee et le ticket construit jusqu'a l'envoi a l'imprimante
+    ok('le ticket de la prevente s edite (ou n echoue que sur l imprimante absente du banc)',
+      r.success === true || /Imprimante inconnue/.test(r.msg || ''), JSON.stringify(r).slice(0, 200));
+    const brutFin = await p.evaluate(async (id) => {
+      const x = await fetch('../api/v1/vente/terminerprevente/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' } });
+      return { statut: x.status, corps: await x.text() };
+    }, preventeId);
+    r = lire(brutFin);
+    ok('« Terminer la prevente » reprend la vente en cours de caisse (is_Process)', r.success === true
+      && q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + preventeId + "'") === 'is_Process', JSON.stringify(r).slice(0, 200));
+    r = lire(await poster('../api/v1/vente/add/item', params(produits[1], preventeId, false)));
+    ok('un produit s ajoute encore a la vente reprise de la prevente', r.success === true
+      && q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + preventeId + "'") === '2', JSON.stringify(r).slice(0, 200));
+
     /* ------------------------------------------------- vente ordinaire : inchangee */
     r = lire(await poster('../api/v1/vente/add/vno', params(produits[0], null, false)));
     const venteId = r.success && r.data ? r.data.lgPREENREGISTREMENTID : null;

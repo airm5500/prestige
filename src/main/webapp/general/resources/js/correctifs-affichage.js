@@ -598,7 +598,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'evaluationventemoyenne', 'cazonegeomanager',
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
-    'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier',
+    'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier', 'suiviremise',
+    // retours des tests du 12/09 : ruptures PharmaML, cautions tiers payant
+    'rupturepharma', 'cautiontierspayant',
     // service client
     'ventesrateesmanager', 'modelemessagemanager',
     // gestion des fichiers
@@ -639,6 +641,13 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     });
     if (concerne) {
         window.PrestigeAffichage.collerAuConteneur(ecran);
+    }
+    // Retours des tests du 12/09 (point 5) : sur un videoprojecteur, la resolution change en cours de
+    // session sans que le navigateur envoie toujours un redimensionnement ; l'ecran suivant s'ouvrait
+    // alors sur une mise en page memorisee trop etroite, laissant un vide a droite. On resynchronise
+    // donc aussi a chaque ouverture de menu, une fois l'ecran en place.
+    if (window.PrestigeAffichage.resynchroniserMiseEnPage) {
+        window.PrestigeAffichage.resynchroniserMiseEnPage.planifier();
     }
 };
 

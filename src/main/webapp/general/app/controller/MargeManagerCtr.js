@@ -68,6 +68,12 @@ Ext.define('testextjs.controller.MargeManagerCtr', {
             'margeproducts #imprimer': {
                 click: this.onPdfClick
             },
+            'margeproducts #exporterExcel': {
+                click: this.exporterExcel
+            },
+            'margeproducts #creerInventaire': {
+                click: this.creerInventaire
+            },
             'margeproducts #rayons': {
                 select: this.doSearch
             },
@@ -114,6 +120,64 @@ Ext.define('testextjs.controller.MargeManagerCtr', {
             me.doSearch();
         }
     },
+    /* Les filtres de l'ecran en chaine de requete : l'export et l'inventaire les reprennent EXACTEMENT
+       (retours des tests du 12/09, point 8). */
+    filtresActifs: function () {
+        var me = this;
+        return Ext.Object.toQueryString({
+            dtStart: me.getDtStart().getSubmitValue(), dtEnd: me.getDtEnd().getSubmitValue(),
+            codeGrossiste: me.getGrossiste().getValue() || '', codeRayon: me.getRayons().getValue() || '',
+            codeFamile: me.getCodeFamile().getValue() || '', query: me.getQuery().getValue() || '',
+            critere: me.getCritere().getValue() || '', filtre: me.getFiltre().getValue() || 'ALL'
+        });
+    },
+
+    exporterExcel: function () {
+        window.open('../api/v1/datareporting/margeproduitsvendus/excel?' + this.filtresActifs());
+    },
+
+    /* Compte d'abord, confirme ensuite. */
+    creerInventaire: function () {
+        var me = this,
+                url = '../api/v1/datareporting/margeproduitsvendus/inventaire?' + me.filtresActifs(),
+                attente = Ext.MessageBox.wait('Veuillez patienter . . .', 'Décompte des produits');
+        Ext.Ajax.request({
+            url: url + '&controle=true', method: 'POST', timeout: 600000,
+            success: function (reponse) {
+                attente.hide();
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (!objet.success || !objet.count) {
+                    Ext.MessageBox.alert('Information', objet.msg || 'Aucun produit vendu sur la période affichée.');
+                    return;
+                }
+                Ext.MessageBox.confirm('Confirmation', 'Créer un inventaire de <b>' + objet.count
+                        + ' produit(s)</b> de la liste ?', function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    var creation = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création de l\'inventaire');
+                    Ext.Ajax.request({
+                        url: url, method: 'POST', timeout: 600000,
+                        success: function (rep) {
+                            creation.hide();
+                            var o = Ext.JSON.decode(rep.responseText, true) || {};
+                            Ext.MessageBox.alert(o.success ? 'Information' : 'Message',
+                                    o.msg || (o.success ? 'Inventaire créé.' : 'L\'inventaire n\'a pas pu être créé.'));
+                        },
+                        failure: function () {
+                            creation.hide();
+                            Ext.MessageBox.alert('Message', 'L\'inventaire n\'a pas pu être créé.');
+                        }
+                    });
+                });
+            },
+            failure: function () {
+                attente.hide();
+                Ext.MessageBox.alert('Message', 'Le décompte des produits a échoué.');
+            }
+        });
+    },
+
     onPdfClick: function () {
         var me = this;
         var dtStart = me.getDtStart().getSubmitValue();

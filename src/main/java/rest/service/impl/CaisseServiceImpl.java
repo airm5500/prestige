@@ -128,7 +128,7 @@ import util.NumberUtils;
 public class CaisseServiceImpl implements CaisseService {
 
     private static final Logger LOG = Logger.getLogger(CaisseServiceImpl.class.getName());
-    private static final String MVT_QUERY = "SELECT tm.`lg_TYPE_MVT_CAISSE_ID` AS typeId, m.`str_COMMENTAIRE` AS commentaire,tm.categorie AS categorie,m.lg_MVT_CAISSE_ID AS id,m.str_NUM_COMPTE AS numCompte,DATE(m.dt_CREATED) AS dateOpreration,DATE_FORMAT(m.dt_CREATED,'%H:%i:%s') AS heureOpreration,m.int_AMOUNT AS montant,tm.str_DESCRIPTION AS typeMvtCaisse,CONCAT(SUBSTR(u.str_FIRST_NAME, 1, 1), '.', u.str_LAST_NAME)   AS userAbrName,tr.str_NAME AS modeReglement,m.str_REF_TICKET AS tiket FROM t_mvt_caisse m,t_type_mvt_caisse tm,t_user u, t_mode_reglement modeReglement,t_type_reglement tr  WHERE m.lg_TYPE_MVT_CAISSE_ID=tm.lg_TYPE_MVT_CAISSE_ID"
+    private static final String MVT_QUERY = "SELECT tm.`lg_TYPE_MVT_CAISSE_ID` AS typeId, m.`str_COMMENTAIRE` AS commentaire,tm.categorie AS categorie,m.lg_MVT_CAISSE_ID AS id,m.str_NUM_COMPTE AS numCompte,DATE(m.dt_CREATED) AS dateOpreration,DATE_FORMAT(m.dt_CREATED,'%H:%i:%s') AS heureOpreration,DATE(m.dt_DATE_MVT) AS dateMvt,m.int_AMOUNT AS montant,tm.str_DESCRIPTION AS typeMvtCaisse,CONCAT(SUBSTR(u.str_FIRST_NAME, 1, 1), '.', u.str_LAST_NAME)   AS userAbrName,tr.str_NAME AS modeReglement,m.str_REF_TICKET AS tiket FROM t_mvt_caisse m,t_type_mvt_caisse tm,t_user u, t_mode_reglement modeReglement,t_type_reglement tr  WHERE m.lg_TYPE_MVT_CAISSE_ID=tm.lg_TYPE_MVT_CAISSE_ID"
             + " AND m.int_AMOUNT <> 0 AND u.lg_USER_ID=m.lg_USER_ID AND m.lg_MODE_REGLEMENT_ID=modeReglement.lg_MODE_REGLEMENT_ID AND modeReglement.lg_TYPE_REGLEMENT_ID=tr.lg_TYPE_REGLEMENT_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 {userId} {typeMvt} ORDER BY m.dt_CREATED ";
 
     private static final String MVT_SUMMARY_QUERY = "SELECT tm.`lg_TYPE_MVT_CAISSE_ID` AS typeId, SUM(m.int_AMOUNT) AS montant,tr.str_NAME AS modeReglement FROM t_mvt_caisse m,t_type_mvt_caisse tm,t_user u, t_mode_reglement modeReglement,t_type_reglement tr  "
@@ -2115,6 +2115,10 @@ public class CaisseServiceImpl implements CaisseService {
                 .tiket(t.get("tiket", String.class)).heureOpreration(t.get("heureOpreration", String.class))
                 .dateOpreration(t.get("dateOpreration", java.sql.Date.class).toLocalDate()
                         .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                // date du mouvement saisie par l'utilisateur, distincte de la date de creation (retours du 12/09)
+                .dateMouvement(t.get("dateMvt", java.sql.Date.class) == null ? null
+                        : t.get("dateMvt", java.sql.Date.class).toLocalDate()
+                                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
                 .typeId(typeMvtId).commentaire(t.get("commentaire", String.class)).build();
     }
 

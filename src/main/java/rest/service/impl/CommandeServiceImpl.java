@@ -306,6 +306,11 @@ public class CommandeServiceImpl implements CommandeService {
                         familleGrossiste.setIntPRICE(bn.getIntPRIXVENTE());
                     }
                 }
+                // Retours des tests du 12/09 (point 2) : le taux de marque de la fiche suit chaque entree en stock.
+                Integer tauxMarque = TauxMarque.calculer(oFamille.getIntPRICE(), oFamille.getIntPAF());
+                if (tauxMarque != null) {
+                    oFamille.setIntTAUXMARQUE(tauxMarque);
+                }
                 this.getEm().merge(oFamille);
 
                 if (familleGrossiste != null) {

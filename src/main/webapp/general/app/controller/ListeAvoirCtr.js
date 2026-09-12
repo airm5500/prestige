@@ -70,6 +70,69 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
             },
             'venteavoirmanager #printPdf': {
                 click: this.printLit
+            },
+            'venteavoirmanager #exporterExcel': {
+                click: this.exporterExcel
+            },
+            'venteavoirmanager #creerInventaire': {
+                click: this.creerInventaire
+            }
+        });
+    },
+
+    /* Les filtres de l'onglet actif, sous forme de chaine de requete : exports et inventaire les reprennent
+       EXACTEMENT (retours des tests du 12/09, point 6). */
+    filtresActifs: function () {
+        var params = this.buildParams(this.activeStatut());
+        return Ext.Object.toQueryString({
+            query: params.query || '', dtStart: params.dtStart, dtEnd: params.dtEnd,
+            hStart: params.hStart || '', hEnd: params.hEnd || '', typeVenteId: params.typeVenteId,
+            caissierId: params.caissierId, avoirStatut: params.avoirStatut, onlyAvoir: true, sansBon: false
+        });
+    },
+
+    exporterExcel: function () {
+        window.open('../api/v1/ventestats/excel?' + this.filtresActifs());
+    },
+
+    /* Compte d'abord, confirme ensuite : la caissiere sait combien de produits l'inventaire portera. */
+    creerInventaire: function () {
+        var me = this,
+                url = '../api/v1/ventestats/avoirs/inventaire?' + me.filtresActifs(),
+                attente = Ext.MessageBox.wait('Veuillez patienter . . .', 'Décompte des produits');
+        Ext.Ajax.request({
+            url: url + '&controle=true', method: 'POST', timeout: 600000,
+            success: function (reponse) {
+                attente.hide();
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (!objet.success || !objet.count) {
+                    Ext.MessageBox.alert('Information', objet.msg || 'Aucun produit dans les avoirs affichés.');
+                    return;
+                }
+                Ext.MessageBox.confirm('Confirmation', 'Créer un inventaire de <b>' + objet.count
+                        + ' produit(s)</b> issus de <b>' + objet.ventes + ' avoir(s)</b> ?', function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    var creation = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création de l\'inventaire');
+                    Ext.Ajax.request({
+                        url: url, method: 'POST', timeout: 600000,
+                        success: function (rep) {
+                            creation.hide();
+                            var o = Ext.JSON.decode(rep.responseText, true) || {};
+                            Ext.MessageBox.alert(o.success ? 'Information' : 'Message',
+                                    o.msg || (o.success ? 'Inventaire créé.' : 'L\'inventaire n\'a pas pu être créé.'));
+                        },
+                        failure: function () {
+                            creation.hide();
+                            Ext.MessageBox.alert('Message', 'L\'inventaire n\'a pas pu être créé.');
+                        }
+                    });
+                });
+            },
+            failure: function () {
+                attente.hide();
+                Ext.MessageBox.alert('Message', 'Le décompte des produits a échoué.');
             }
         });
     },

@@ -39,6 +39,22 @@ public final class EditionBalance {
         return e;
     }
 
+    /**
+     * Les indicateurs du bandeau de tete de l'edition (retours du 12/09, point 10) : chiffre d'affaires net, marge,
+     * nombre de ventes, panier moyen, especes, lus dans le resume de la vue.
+     */
+    public static Map<String, Object> indicateurs(JSONObject vue) {
+        JSONObject resume = vue == null ? null : vue.optJSONObject("metaData");
+        resume = resume == null ? new JSONObject() : resume;
+        Map<String, Object> m = new HashMap<>();
+        m.put("P_KPI_CA", n(resume.optLong("montantNet", resume.optLong("montantTTC"))));
+        m.put("P_KPI_MARGE", n(resume.optLong("marge")));
+        m.put("P_KPI_VENTES", n(resume.optLong("nbreVente")));
+        m.put("P_KPI_PANIER", n(resume.optLong("panierMoyen")));
+        m.put("P_KPI_ESPECES", n(resume.optLong("montantEsp")));
+        return m;
+    }
+
     public static List<BalanceEditionLigneDTO> lignes(JSONObject vue) {
         List<BalanceEditionLigneDTO> l = new ArrayList<>();
         JSONArray balances = vue.optJSONArray("data");

@@ -430,7 +430,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'int_NUMBER_AVAILABLE',
                     itemId: 'stockUnifie',
                     align: 'center',
+                    // Retour des tests du 12/09 : a quatre chiffres, total et puces ne tenaient plus sur la
+                    // largeur et se chevauchaient. Le total et les puces sont sur deux lignes, la colonne
+                    // garde une largeur minimale.
                     flex: 0.95,
+                    minWidth: 118,
                     tooltip: 'Total = rayon + réserve. Le tri porte sur le stock rayon.',
                     renderer: function (v, m, r) {
                         var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
@@ -454,9 +458,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;">RES '
                                     + reserve + '</span>';
                         }
-                        return '<span style="white-space:nowrap;">'
-                                + '<b style="font-size:17px;color:' + couleur + ';vertical-align:middle;">' + total + '</b>'
-                                + '<span style="font-size:10px;margin-left:7px;vertical-align:middle;">' + puces + '</span></span>';
+                        return '<div style="line-height:1.15;text-align:center;">'
+                                + '<b style="font-size:16px;color:' + couleur + ';">' + total + '</b>'
+                                + '<div style="font-size:9.5px;white-space:nowrap;margin-top:1px;">' + puces + '</div></div>';
                     }
                 }, {
                     header: 'Seuil',
@@ -1182,14 +1186,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             reperes += ligne('Derni\u00e8re entr\u00e9e', '<em>aucune entr\u00e9e enregistr\u00e9e</em>');
         }
 
-        var puces = '';
-        if (o.classe) {
-            puces += '<span class="vp-ap-puce">Classe ' + esc(o.classe) + '</span>';
-        }
+        // Retour des tests du 12/09 : la classe et la TVA figurent toujours, meme absentes de la fiche.
+        var puces = '<span class="vp-ap-puce">Classe ' + (o.classe ? esc(o.classe) : '<em>non classé</em>') + '</span>';
         if (o.tva) {
             // Le libelle de TVA porte souvent deja la mention ("TVA 0") : ne pas la doubler.
             var tva = String(o.tva);
             puces += '<span class="vp-ap-puce">' + (/tva/i.test(tva) ? esc(tva) : 'TVA ' + esc(tva)) + '</span>';
+        } else {
+            puces += '<span class="vp-ap-puce">TVA <em>non renseignée</em></span>';
         }
         // Contenance : seulement si l'article est deconditionnable et qu'elle est renseignee.
         if (o.contenance) {

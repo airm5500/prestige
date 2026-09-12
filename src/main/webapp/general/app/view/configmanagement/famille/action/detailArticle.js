@@ -248,6 +248,20 @@ var winDetailArticleOuverte = null;
 // Store des ventes mensuelles, partage avec les fonctions de courbe ci-dessus.
 var storeStatVenteDetail = null;
 
+/* Retour des tests du 12/09 : le taux de marque (PV - PA) / PV est enregistre sur la fiche a chaque entree en stock ;
+   la fiche affiche cette valeur, et la calcule depuis les prix courants tant qu'aucune entree ne l'a encore posee. */
+function tauxMarqueFiche(prixVente, prixAchat, valeurEnregistree) {
+    var enregistre = parseFloat(valeurEnregistree);
+    if (!isNaN(enregistre) && enregistre !== 0) {
+        return enregistre + ' %';
+    }
+    var pv = parseFloat(prixVente), pa = parseFloat(prixAchat);
+    if (isNaN(pv) || isNaN(pa) || pv <= 0 || pa < 0) {
+        return '';
+    }
+    return Math.round((pv - pa) / pv * 100) + ' %';
+}
+
 Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     extend: 'Ext.window.Window',
     xtype: 'addfamille',
@@ -1458,7 +1472,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         this.afficherPeremptionProche(rec.dt_PEREMPTION_PROCHE, rec.lot_PEREMPTION_PROCHE, rec.qte_PEREMPTION_PROCHE);
         Ext.getCmp('str_CODE_TVA').setValue(rec.lg_CODE_TVA_ID);
         Ext.getCmp('int_T').setValue(rec.int_T);
-        Ext.getCmp('int_TAUX_MARQUE').setValue(rec.int_TAUX_MARQUE);
+        Ext.getCmp('int_TAUX_MARQUE').setValue(tauxMarqueFiche(rec.int_PRICE, rec.int_PAF, rec.int_TAUX_MARQUE));
         Ext.getCmp('int_PAF').setValue(formatMillier(rec.int_PAF));
         Ext.getCmp('int_PAT').setValue(rec.int_PAT);
         Ext.getCmp('int_PRICE').setValue(formatMillier(rec.int_PRICE));

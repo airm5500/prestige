@@ -28,5 +28,7 @@ public class MvtCaisseDTO {
     private String commentaire;
     private String typeId;
     private Date dateMvt;
+    /** Date du mouvement saisie a la creation (jj/MM/aaaa), distincte de la date de creation ; lecture seule. */
+    private String dateMouvement;
     private CategorieMvtCaisse categorieMvtCaisse;
 }

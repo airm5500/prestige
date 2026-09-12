@@ -111,6 +111,7 @@ public class BalanceVenteRessource {
         java.util.Map<String, Object> parametres = reportUtil.officineData(tu);
         parametres.put("P_PERIODE", "Du " + dateLisible(dtStart) + " au " + dateLisible(dtEnd));
         parametres.put("P_ENTETES", rest.service.impl.EditionBalance.entetes());
+        parametres.putAll(rest.service.impl.EditionBalance.indicateurs(vue));
         String url = reportUtil.buildReport(parametres, "balance_vente_caisse",
                 rest.service.impl.EditionBalance.lignes(vue));
         java.io.File fichier = reportUtil.editionEcrite(url)

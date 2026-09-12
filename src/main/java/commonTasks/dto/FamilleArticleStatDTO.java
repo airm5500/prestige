@@ -335,6 +335,16 @@ public class FamilleArticleStatDTO implements Serializable {
         return true;
     }
 
+    /**
+     * Marge sur produits vendus, avec l'identifiant du produit : l'ecran cree un inventaire des produits listes
+     * (retours des tests du 12/09) et a besoin de l'identifiant, le CIP pouvant etre partage.
+     */
+    public FamilleArticleStatDTO(String id, String code, String libelle, long montantTTC, long montantAchat,
+            long montantTva, long montantRemise, Integer prixAchat, Integer prixVente, long quantite) {
+        this(code, libelle, montantTTC, montantAchat, montantTva, montantRemise, prixAchat, prixVente, quantite);
+        this.id = id;
+    }
+
     public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva,
             long montantRemise, Integer prixAchat, Integer prixVente, long quantite) {
         this.code = code;

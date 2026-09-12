@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Liste des mouvements de caisse, nouvelle presentation (retours des tests du 12/09, point 3) : en-tete de l'officine,
+  periode, mouvements groupes par type avec sous-total, date du mouvement saisie distincte de la date de creation,
+  total general et recapitulatif par mode de reglement.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="mouvements_caisse" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <style name="ligne" fontSize="8">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F5F8FB"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_FILTRES" class="java.lang.String"/>
+    <parameter name="P_MODES" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <field name="typeMvtCaisse" class="java.lang.String"/>
+    <field name="dateMouvement" class="java.lang.String"/>
+    <field name="dateOpreration" class="java.lang.String"/>
+    <field name="heureOpreration" class="java.lang.String"/>
+    <field name="tiket" class="java.lang.String"/>
+    <field name="numCompte" class="java.lang.String"/>
+    <field name="modeReglement" class="java.lang.String"/>
+    <field name="userAbrName" class="java.lang.String"/>
+    <field name="commentaire" class="java.lang.String"/>
+    <field name="montant" class="java.lang.Long"/>
+    <!-- les mouvements arrivent dans l ordre de creation : le tri par type rend les groupes contigus -->
+    <sortField name="typeMvtCaisse"/>
+    <variable name="totalType" class="java.lang.Long" resetType="Group" resetGroup="type" calculation="Sum">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+    </variable>
+    <variable name="nombreType" class="java.lang.Integer" resetType="Group" resetGroup="type" calculation="Count">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+    </variable>
+    <variable name="totalGeneral" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+    </variable>
+    <group name="type">
+        <groupExpression><![CDATA[$F{typeMvtCaisse}]]></groupExpression>
+        <groupHeader>
+            <band height="18">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="2" width="802" height="15" backcolor="#2E75B6"/>
+                    <textField isBlankWhenNull="true">
+                        <reportElement x="6" y="0" width="600" height="15" forecolor="#FFFFFF"/>
+                        <textElement verticalAlignment="Middle"><font size="8.5" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[($F{typeMvtCaisse} == null ? "AUTRE" : $F{typeMvtCaisse}.toUpperCase())]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="16">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="0" width="802" height="14" backcolor="#E8F0FA"/>
+                    <textField>
+                        <reportElement x="6" y="0" width="500" height="14"/>
+                        <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA["Sous-total " + ($F{typeMvtCaisse} == null ? "" : $F{typeMvtCaisse}) + " : " + $V{nombreType} + " mouvement(s)"]]></textFieldExpression>
+                    </textField>
+                    <textField pattern="#,##0">
+                        <reportElement x="700" y="0" width="96" height="14"/>
+                        <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                        <textFieldExpression><![CDATA[$V{totalType}]]></textFieldExpression>
+                    </textField>
+                </frame>
+            </band>
+        </groupFooter>
+    </group>
+    <title>
+        <band height="74">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="500" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="13" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="32" width="802" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[LISTE DES MOUVEMENTS DE CAISSE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="49" width="802" height="12"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="61" width="802" height="11" forecolor="#7F8C8D"/>
+                <textElement textAlignment="Center"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FILTRES}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="16">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="15" backcolor="#DFE6EE"/>
+                <staticText>
+                    <reportElement x="6" y="0" width="64" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Date mvt]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="72" y="0" width="90" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Créé le]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="164" y="0" width="80" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Réf. ticket]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="246" y="0" width="60" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[N° compte]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="308" y="0" width="90" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Mode de règlement]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="400" y="0" width="80" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Utilisateur]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="482" y="0" width="216" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Commentaire]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="700" y="0" width="96" height="15"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <text><![CDATA[Montant]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="14">
+            <frame>
+                <reportElement style="ligne" x="0" y="0" width="802" height="14"/>
+                <line>
+                    <reportElement positionType="FixRelativeToBottom" x="0" y="13" width="802" height="1" forecolor="#F0F3F6"/>
+                </line>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="6" y="0" width="64" height="13"/>
+                    <textElement verticalAlignment="Middle"><font isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{dateMouvement} == null ? $F{dateOpreration} : $F{dateMouvement}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="72" y="0" width="90" height="13" forecolor="#5D6D7E"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{dateOpreration} + " " + ($F{heureOpreration} == null ? "" : $F{heureOpreration})]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="164" y="0" width="80" height="13"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{tiket}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="246" y="0" width="60" height="13"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{numCompte}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="308" y="0" width="90" height="13"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{modeReglement}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="400" y="0" width="80" height="13"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{userAbrName}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true" isStretchWithOverflow="true">
+                    <reportElement style="ligne" x="482" y="0" width="216" height="13"/>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{commentaire}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0" isBlankWhenNull="true">
+                    <reportElement style="ligne" x="700" y="0" width="96" height="13"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$F{montant}]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="600" height="12"/>
+                <textElement><font size="6"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="60">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="4" width="802" height="18" backcolor="#2E75B6"/>
+                <textField>
+                    <reportElement x="6" y="0" width="500" height="18" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["TOTAL GÉNÉRAL : " + $V{REPORT_COUNT} + " mouvement(s)"]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="700" y="0" width="96" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{totalGeneral} == null ? 0L : $V{totalGeneral}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true">
+                <reportElement x="6" y="28" width="790" height="28"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_MODES}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+    <noData>
+        <band height="90">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="32" width="802" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[LISTE DES MOUVEMENTS DE CAISSE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="49" width="802" height="12"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="70" width="802" height="14" forecolor="#7F8C8D"/>
+                <textElement textAlignment="Center"><font size="9" isItalic="true"/></textElement>
+                <text><![CDATA[Aucun mouvement de caisse sur cette période avec ces filtres.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>
