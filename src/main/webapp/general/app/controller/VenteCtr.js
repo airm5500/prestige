@@ -3120,12 +3120,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                 });
                 const boutons = clients.map(function (c) {
                     const enAvant = c.typeReglementId === modeEnAvant;
+                    // Logo de l'operateur (resources/images/modes/<LIBELLE>.png) a gauche du libelle ; sans fichier,
+                    // l'image ne s'affiche pas et la tuile garde son texte seul.
+                    const logo = 'resources/images/modes/' + String(c.modeLibelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png';
                     return {
                         xtype: 'button',
                         margin: '0 6 6 0',
-                        height: 44,
-                        text: '<div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
-                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div>',
+                        height: 48,
+                        text: '<div style="display:flex;align-items:center;gap:8px;">'
+                                + '<img src="' + logo + '" alt="" onerror="this.style.display=\'none\'" style="width:34px;height:34px;border-radius:50%;background:#fff;object-fit:cover;"/>'
+                                + '<div style="text-align:left;"><div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
+                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div></div></div>',
                         style: enAvant
                                 ? 'background:#1E8449;border-color:#1E8449;'
                                 : 'background:#5D6D7E;border-color:#5D6D7E;',
