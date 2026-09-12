@@ -10,9 +10,12 @@ import org.json.JSONObject;
 @Local
 public interface CaZoneGeoService {
 
-    /** Regroupement des lignes : par zone, par famille, ou zone puis famille. */
+    /**
+     * Regroupement des lignes : par zone, par famille, zone puis famille, et (retours du 12/09, point 9) par gamme ou
+     * par laboratoire, sur les memes tranches et les memes filtres.
+     */
     enum Regroupement {
-        ZONE, FAMILLE, ZONE_FAMILLE;
+        ZONE, FAMILLE, ZONE_FAMILLE, GAMME, LABORATOIRE;
 
         public static Regroupement de(String valeur) {
             if (valeur == null) {

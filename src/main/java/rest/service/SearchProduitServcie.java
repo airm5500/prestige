@@ -29,4 +29,10 @@ public interface SearchProduitServcie {
 
     List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
             String stockOperator, String stockValue, String tvaId, boolean onlyReserve);
+
+    /**
+     * Peremption la plus proche d'un produit : { date jj/MM/aaaa, lot, quantite restante }, chaines vides sans lot ni
+     * date (retours du 12/09, point 12 : la meme source pour l'ecran de vente et la fiche article).
+     */
+    Object[] peremptionProche(String produitId);
 }

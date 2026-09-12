@@ -118,10 +118,9 @@ public class StatCaisseRecetteResource {
                 .nombre("Chèque", l -> l.nombre(l.cheque)).nombre("Virement", l -> l.nombre(l.virement))
                 .nombre("Crédit", l -> l.nombre(l.credit)).nombre("Remise", l -> l.nombre(l.remise))
                 .nombre("Net", l -> l.nombre(l.net)).nombre("Nbre clients", l -> l.nombre(l.clients))
-                .nombre("Règlement TP", l -> l.nombre(l.reglementTp))
-                .nombre("Règlement différé", l -> l.nombre(l.reglementDiff))
-                .nombre("Billetage", l -> l.nombre(l.billetage)).texte("Écart", l -> l.ecart)
-                .nombre("Solde", l -> l.nombre(l.solde))
+                .nombre("Mouv. caisse", l -> l.nombre(l.mouvements)).nombre("Regl TP", l -> l.nombre(l.reglementTp))
+                .nombre("Regl DIFF", l -> l.nombre(l.reglementDiff)).nombre("Billetage", l -> l.nombre(l.billetage))
+                .texte("Écart", l -> l.ecart).nombre("Solde", l -> l.nombre(l.solde))
                 .texte("Détail (mobile money, mouvements de caisse)", l -> l.detailMobile);
         try {
             byte[] contenu = classeur.construire(lignes);
@@ -149,6 +148,7 @@ public class StatCaisseRecetteResource {
         private long remise;
         private long net;
         private long clients;
+        private long mouvements;
         private long reglementTp;
         private long reglementDiff;
         private long billetage;
@@ -167,6 +167,7 @@ public class StatCaisseRecetteResource {
             l.remise = d.getMontantRemise();
             l.net = d.getMontantNet();
             l.clients = d.getNbreClient();
+            l.mouvements = d.getMontantMouvements();
             l.reglementTp = d.getMontantReglementFacture();
             l.reglementDiff = d.getMontantReglementDiff();
             l.billetage = d.getMontantBilletage();

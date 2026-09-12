@@ -51,6 +51,9 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             ref: 'pagingtoolbar',
             selector: 'caisserecetterecap #caisserecetterecapGrid pagingtoolbar'
         },
+        {ref: 'typePeriode',
+            selector: 'caisserecetterecap #typePeriode'
+        },
         {ref: 'groupByYear',
             selector: 'caisserecetterecap #groupByYear'
 
@@ -95,9 +98,38 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             },
             'caisserecetterecap #groupByMonth': {
                 change: this.surRegroupementMensuel
+            },
+            'caisserecetterecap #typePeriode': {
+                select: this.surChoixPeriode
             }
 
         });
+    },
+
+    /* Retours du 12/09 : le choix de periode pose les dates Du / Au puis relance la recherche. « Aujourd'hui »
+       est le defaut ; « Periode libre » laisse les dates a la main. Meme decoupage que la balance : trois
+       semaines = 21 jours, n mois = depuis le premier jour du mois d'il y a n mois, n annees de meme. */
+    surChoixPeriode: function (combo) {
+        const me = this;
+        const id = combo.getValue();
+        if (id === 'LIBRE') {
+            return;
+        }
+        const aujourdhui = new Date();
+        let debut = new Date();
+        const choix = window.PrestigeAnalyse && window.PrestigeAnalyse.choix ? window.PrestigeAnalyse.choix(id) : null;
+        if (id === 'JOUR' || !choix) {
+            debut = aujourdhui;
+        } else if (choix.unite === 'SEMAINE') {
+            debut = Ext.Date.add(aujourdhui, Ext.Date.DAY, -7 * choix.nombre);
+        } else if (choix.unite === 'MOIS') {
+            debut = Ext.Date.getFirstDateOfMonth(Ext.Date.add(aujourdhui, Ext.Date.MONTH, -choix.nombre));
+        } else if (choix.unite === 'ANNEE') {
+            debut = new Date(aujourdhui.getFullYear() - choix.nombre, 0, 1);
+        }
+        me.getStartDateField().setValue(debut);
+        me.getEndDateField().setValue(aujourdhui);
+        me.doSearch();
     },
     surRegroupementAnnuel: function (champ, valeur) {
         const mensuel = this.getGroupByMonth();

@@ -122,6 +122,10 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     type: 'boolean'
                 },
                 {
+                    name: 'montantMouvements',
+                    type: 'number'
+                },
+                {
                     name: 'montantEntre',
                     type: 'number'
                 },
@@ -165,6 +169,25 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     dock: 'top',
                     items: [
                         {
+                            /* Retours du 12/09 : selecteur de periode comme la balance vente / caisse, avec en
+                               plus « Aujourd'hui », qui est le choix par defaut de cet ecran. */
+                            xtype: 'combobox',
+                            fieldLabel: 'Période',
+                            labelWidth: 50,
+                            width: 215,
+                            itemId: 'typePeriode',
+                            store: Ext.create('Ext.data.Store', {
+                                fields: ['id', 'libelle'],
+                                data: [{id: 'JOUR', libelle: 'Aujourd\'hui'}].concat(
+                                        (window.PrestigeAnalyse && window.PrestigeAnalyse.CHOIX) || [])
+                            }),
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            value: 'JOUR'
+                        },
+                        {
                             xtype: 'datefield',
                             fieldLabel: 'Du',
                             itemId: 'dtStart',
@@ -205,9 +228,12 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
 
                         },
                         {
+                            // Retours du 12/09 : « Annuelle » est retiree de l'ecran (le regroupement mensuel suffit).
+                            // Le composant reste, cache, pour les appels qui lisent encore groupByYear.
                             xtype: 'checkbox',
                             boxLabel: 'Annuelle',
                             checked: false,
+                            hidden: true,
                             itemId: 'groupByYear'
                         },
                         {
@@ -497,7 +523,32 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
-                            header: 'Règlement tp',
+                            /* Retours du 12/09 : les mouvements de caisse (entrees - sorties) en colonne,
+                               juste apres les clients ; le detail entrees / sorties est en infobulle. */
+                            header: 'Mouv. caisse',
+                            dataIndex: 'montantMouvements',
+                            itemId: 'colonneMouvements',
+                            flex: 1,
+                            xtype: 'numbercolumn',
+                            format: '0,000.',
+                            align: 'right',
+                            summaryType: 'sum',
+                            renderer: function (valeur, meta, rec) {
+                                if (valeur === null || valeur === undefined || valeur === '') {
+                                    return '';
+                                }
+                                meta.tdAttr = 'data-qtip="Entrées ' + Ext.util.Format.number(rec.get('montantEntre') || 0, '0,000')
+                                        + ' - Sorties ' + Ext.util.Format.number(rec.get('montantSortie') || 0, '0,000') + '"';
+                                var couleur = valeur < 0 ? '#c0392b' : '#1c7c1c';
+                                return "<span style='color:" + couleur + ";font-weight:bold;'>"
+                                        + Ext.util.Format.number(valeur, '0,000') + "</span>";
+                            },
+                            summaryRenderer: function (value) {
+                                return value ? '<b>' + Ext.util.Format.number(value, '0,000') + '</b>' : '';
+                            }
+                        },
+                        {
+                            header: 'Regl TP',
                             dataIndex: 'montantReglementFacture',
                             flex: 1,
                             summaryType: "sum",
@@ -513,7 +564,7 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
-                            header: 'Règlement diff',
+                            header: 'Regl DIFF',
                             dataIndex: 'montantReglementDiff',
                             flex: 1,
                             summaryType: "sum",

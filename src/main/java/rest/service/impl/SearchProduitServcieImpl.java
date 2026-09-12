@@ -1152,6 +1152,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     /** [date jj/mm/aaaa ou "", numero de lot ou "", quantite en stock du lot ou ""]. */
+    @Override
+    public Object[] peremptionProche(String produitId) {
+        TFamille t = produitId == null || produitId.trim().isEmpty() ? null : em.find(TFamille.class, produitId.trim());
+        return t == null ? new Object[] { "", "", "" } : peremptionProche(t);
+    }
+
     public Object[] peremptionProche(TFamille t) {
         try {
             List<Object[]> lots = em.createQuery("SELECT l.dtPEREMPTION, l.intNUMLOT, l.currentStock FROM TLot l"

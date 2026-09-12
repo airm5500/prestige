@@ -241,6 +241,11 @@ public class StatCaisseRecetteDTO {
                 + montantEntre - montantSortie;
     }
 
+    /** Mouvements de caisse nets de la journee : entrees moins sorties (retours du 12/09, colonne de l'ecran). */
+    public long getMontantMouvements() {
+        return montantEntre - montantSortie;
+    }
+
     /** Vrai des qu'une entree ou une sortie de caisse a ete enregistree sur la journee. */
     public boolean aDesMouvementsDeCaisse() {
         return montantEntre != 0 || montantSortie != 0;

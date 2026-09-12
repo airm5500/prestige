@@ -31,7 +31,10 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
         odatasource: '',
         parentview: '',
         mode: '',
-        titre: ''
+        titre: '',
+        // Retours du 12/09 (point 7) : libelle et code de l'emplacement d'origine, affiches en tete
+        libelleOrigine: '',
+        codeOrigine: ''
     },
     initComponent: function () {
         listProductSelected = [];
@@ -117,7 +120,15 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                             defaultType: 'displayfield',
                             margin: '0 0 5 0',
                             items: [
-
+                                {
+                                    xtype: 'displayfield',
+                                    fieldLabel: 'Emplacement d\'origine',
+                                    labelWidth: 150,
+                                    id: 'origineEmp',
+                                    fieldStyle: "color:#1c7c1c;font-weight:bold;font-size:1.2em",
+                                    value: this.getLibelleOrigine() ? this.getLibelleOrigine()
+                                            + (this.getCodeOrigine() ? ' (' + this.getCodeOrigine() + ')' : '') : ''
+                                },
                                 {
                                     xtype: 'displayfield',
                                     fieldLabel: 'Libell&eacute; Empacement Choisi',
@@ -293,6 +304,50 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                     }},
 
                                 {
+                                    /* Retours du 12/09 (point 7) : coche la page affichee (les coches des autres
+                                       pages restent memorisees jusqu'au basculement). */
+                                    xtype: 'checkbox',
+                                    margins: '0 0 5 5',
+                                    boxLabel: 'Cocher la page',
+                                    id: 'cocherPage',
+                                    checked: false,
+                                    listeners: {
+                                        change: function (cb, coche) {
+                                            var grid = Ext.getCmp('basculID');
+                                            var CODEstore = grid.getStore();
+                                            CODEstore.each(function (rec) {
+                                                var id = rec.get('lg_FAMILLE_ID');
+                                                rec.set('isChecked', coche);
+                                                if (coche) {
+                                                    if (listProductSelected.indexOf(id) < 0) {
+                                                        listProductSelected.push(id);
+                                                    }
+                                                    var k = checkedList.indexOf(id);
+                                                    if (k > -1) {
+                                                        checkedList.splice(k, 1);
+                                                    }
+                                                } else {
+                                                    var j = listProductSelected.indexOf(id);
+                                                    if (j > -1) {
+                                                        listProductSelected.splice(j, 1);
+                                                    }
+                                                    if (Ext.getCmp('selectALL').getValue() && checkedList.indexOf(id) < 0) {
+                                                        checkedList.push(id);
+                                                    }
+                                                }
+                                            });
+                                            CODEstore.commitChanges();
+                                            Me.majCompteCoches();
+                                        }
+                                    }
+                                },
+                                {
+                                    xtype: 'tbtext',
+                                    id: 'compteCoches',
+                                    text: '0 produit coché',
+                                    style: 'font-weight:bold;color:#1a3fc4;margin:0 10px;'
+                                },
+                                {
 
                                     xtype: 'checkbox',
                                     margins: '0 0 5 5',
@@ -327,6 +382,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                             }
                                             CODEstore.commitChanges();
                                             grid.reconfigure(CODEstore);
+                                            Me.majCompteCoches();
 
                                         }
                                     }
@@ -366,9 +422,22 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
         const grid = Ext.getCmp('basculID');
         const all = Ext.getCmp('selectALL');
         const val = Ext.getCmp('rechercher');
+        // Retours du 12/09 (point 7) : l'emplacement d'origine figure aussi dans sa liste deroulante
+        if (lg_ZONE_GEO_ID && this.getLibelleOrigine()) {
+            var origine = Ext.getCmp('zoneID');
+            origine.setValue(lg_ZONE_GEO_ID);
+            origine.setRawValue(this.getLibelleOrigine());
+        }
         grid.getStore().on(
                 "load",
                 function () {
+                    Me.majCompteCoches();
+                    var cochePage = Ext.getCmp('cocherPage');
+                    if (cochePage) {
+                        cochePage.suspendEvents();
+                        cochePage.setValue(false);
+                        cochePage.resumeEvents();
+                    }
 
                     pageItems = [];
                     const CODEstore = grid.getStore();
@@ -421,6 +490,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
 
         const win = new Ext.window.Window({
             autoShow: true, title: this.getTitre(),
+            modal: true, // retours du 12/09 (point 7)
             maximizable: true,
             width: '90%',
             height: 600,
@@ -600,6 +670,21 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
 
         }
         Ext.getCmp('basculID').getStore().commitChanges();
+        this.majCompteCoches();
+    },
+
+    /* Retours du 12/09 (point 7) : nombre de produits coches, toutes pages confondues. Avec « Tous selectionner »,
+       c'est le total moins les decoches. */
+    majCompteCoches: function () {
+        var texte = Ext.getCmp('compteCoches');
+        var grid = Ext.getCmp('basculID');
+        if (!texte || !grid) {
+            return;
+        }
+        var all = Ext.getCmp('selectALL');
+        var nombre = all && all.getValue() ? Math.max(0, grid.getStore().getTotalCount() - checkedList.length)
+                : listProductSelected.length;
+        texte.setText(nombre + ' produit' + (nombre > 1 ? 's' : '') + ' coché' + (nombre > 1 ? 's' : ''));
     }
 
 });

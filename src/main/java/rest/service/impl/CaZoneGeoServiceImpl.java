@@ -69,13 +69,17 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                     // ligne de vente, jamais le prix courant de la fiche article.
                     .append(" SUM(IFNULL(d.montantTva, 0)) AS tva,")
                     .append(" SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY) AS achat,")
-                    .append(" SUM(IFNULL(d.int_PRICE_REMISE, 0)) AS remise")
+                    .append(" SUM(IFNULL(d.int_PRICE_REMISE, 0)) AS remise,")
+                    // Retours du 12/09 (point 9) : la gamme et le laboratoire de la fiche, pour les onglets dedies
+                    .append(" f.gamme_id, g.libelle AS gamme, f.laboratoire_id, lb.libelle AS laboratoire")
                     .append(" FROM t_preenregistrement p FORCE INDEX (idx_preenr_statut_date)")
                     .append(" INNER JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID")
                     .append(" INNER JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID")
                     .append(" INNER JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID")
                     .append(" LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID")
                     .append(" LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID")
+                    .append(" LEFT JOIN gamme_produit g ON g.id = f.gamme_id")
+                    .append(" LEFT JOIN laboratoire lb ON lb.id = f.laboratoire_id")
                     // Borne haute exclusive au lendemain : un intervalle sur la colonne elle-meme, que l'index
                     // sur dt_UPDATED sait servir. DATE(p.dt_UPDATED) BETWEEN ... obligeait a lire toutes les ventes.
                     .append(" WHERE p.str_STATUT = ?4 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2")
@@ -89,7 +93,8 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             if (filtreFamille) {
                 sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(filtreZone ? 7 : 6);
             }
-            sql.append(" GROUP BY f.lg_ZONE_GEO_ID, z.str_LIBELLEE, f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, tranche");
+            sql.append(" GROUP BY f.lg_ZONE_GEO_ID, z.str_LIBELLEE, f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, tranche,")
+                    .append(" f.gamme_id, g.libelle, f.laboratoire_id, lb.libelle");
             Query requete = em.createNativeQuery(sql.toString())
                     .setParameter(1, java.sql.Timestamp.valueOf(debut.atStartOfDay()))
                     .setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()))
@@ -123,6 +128,10 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 long tva = r[7] == null ? 0 : ((Number) r[7]).longValue();
                 long achat = r[8] == null ? 0 : ((Number) r[8]).longValue();
                 long remise = r[9] == null ? 0 : ((Number) r[9]).longValue();
+                String gammeId = texte(r[10]);
+                String gamme = texte(r[11]).isEmpty() ? SANS_GAMME : texte(r[11]);
+                String laboId = texte(r[12]);
+                String labo = texte(r[13]).isEmpty() ? SANS_LABORATOIRE : texte(r[13]);
                 if (!totauxTranches.containsKey(tranche)) {
                     continue; // hors des tranches (ne devrait pas arriver, les bornes SQL sont celles des tranches)
                 }
@@ -134,12 +143,18 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                 case ZONE_FAMILLE:
                     cle = "Z|" + zoneId + "|F|" + familleId;
                     break;
+                case GAMME:
+                    cle = "G|" + gammeId;
+                    break;
+                case LABORATOIRE:
+                    cle = "L|" + laboId;
+                    break;
                 default:
                     cle = "Z|" + zoneId;
                     break;
                 }
-                Ligne ligne = lignes.computeIfAbsent(cle,
-                        k -> new Ligne(filtres.getRegroupement(), zoneId, zone, familleId, famille));
+                Ligne ligne = lignes.computeIfAbsent(cle, k -> new Ligne(filtres.getRegroupement(), zoneId, zone,
+                        familleId, famille, gammeId, gamme, laboId, labo));
                 ligne.montants.merge(tranche, ca, Long::sum);
                 ligne.quantites.merge(tranche, qte, Long::sum);
                 ligne.total += ca;
@@ -165,7 +180,8 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             for (Ligne l : triees) {
                 JSONObject o = new JSONObject().put("zoneId", l.zoneId).put("zone", l.zone)
                         .put("familleId", l.familleId).put("famille", l.famille).put("libelle", l.libelle())
-                        .put("total", l.total)
+                        .put("gammeId", l.gammeId).put("gamme", l.gamme).put("laboratoireId", l.laboId)
+                        .put("laboratoire", l.labo).put("total", l.total)
                         // Marge en valeur et en pourcentage, formule unique documentee dans util.CalculMarge.
                         .put("montantHt", l.montantHt()).put("achat", l.achat).put("tva", l.tva).put("marge", l.marge())
                         .put("pourcentageMarge", l.pourcentageMarge());
@@ -347,6 +363,9 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
         return valeur != null && !valeur.trim().isEmpty() && !"ALL".equalsIgnoreCase(valeur.trim());
     }
 
+    private static final String SANS_GAMME = "Sans gamme";
+    private static final String SANS_LABORATOIRE = "Sans laboratoire";
+
     private static String texte(Object o) {
         return o == null ? "" : o.toString().trim();
     }
@@ -358,6 +377,10 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
         final String zone;
         final String familleId;
         final String famille;
+        final String gammeId;
+        final String gamme;
+        final String laboId;
+        final String labo;
         final Map<String, Long> montants = new LinkedHashMap<>();
         final Map<String, Long> quantites = new LinkedHashMap<>();
         long total;
@@ -381,18 +404,27 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             return util.CalculMarge.pourcentage(marge(), montantHt());
         }
 
-        Ligne(Regroupement regroupement, String zoneId, String zone, String familleId, String famille) {
+        Ligne(Regroupement regroupement, String zoneId, String zone, String familleId, String famille, String gammeId,
+                String gamme, String laboId, String labo) {
             this.regroupement = regroupement;
             this.zoneId = zoneId;
             this.zone = zone;
             this.familleId = familleId;
             this.famille = famille;
+            this.gammeId = gammeId;
+            this.gamme = gamme;
+            this.laboId = laboId;
+            this.labo = labo;
         }
 
         String libelle() {
             switch (regroupement) {
             case FAMILLE:
                 return famille;
+            case GAMME:
+                return gamme;
+            case LABORATOIRE:
+                return labo;
             case ZONE_FAMILLE:
                 return zone + " / " + famille;
             default:

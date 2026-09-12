@@ -443,6 +443,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     fieldStyle: "color:#0D47A1;font-weight:bold;",
                                                     margin: '0 0 0 20',
                                                     flex: 1
+                                                },
+                                                {
+                                                    /* Retours du 12/09 (point 12) : peremption la plus proche du
+                                                       produit choisi, lot et quantite restante ; vide sans lot.
+                                                       Clignote a moins de six mois, sinon bleu gras. */
+                                                    xtype: 'displayfield',
+                                                    fieldLabel: 'Péremption',
+                                                    labelWidth: 75,
+                                                    labelStyle: 'font-weight:bold;',
+                                                    itemId: 'peremptionProcheId',
+                                                    margin: '0 0 0 20',
+                                                    flex: 1.6
                                                 }
                                             ]
                                         }
@@ -713,6 +725,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                     };
                                                                     barre.mon(barre.getStore(), 'load', majDate);
                                                                     majDate();
+                                                                    /* Retours du 12/09 : le nombre total de lignes de
+                                                                       la vente, a cote du nombre de produits. */
+                                                                    var lignes = barre.insert(position + 1, {
+                                                                        xtype: 'tbtext', itemId: 'nombreLignesVente', text: '',
+                                                                        style: 'color:#1f4e79;font-weight:600;margin-left:10px;'
+                                                                    });
+                                                                    var majLignes = function () {
+                                                                        var total = barre.getStore().getTotalCount();
+                                                                        lignes.setText(total ? 'Lignes : ' + total : '');
+                                                                    };
+                                                                    barre.mon(barre.getStore(), 'load', majLignes);
+                                                                    majLignes();
                                                                 }
                                                             }
 
@@ -982,6 +1006,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'btnExtraMode',
                                                     text: 'Associer un autre paiement mobile',
                                                     tooltip: 'Répartir le paiement entre deux modes mobiles',
+                                                    // Retours du 12/09 : une icone sur le bouton mobile money
+                                                    icon: 'resources/images/icons/fam/paiement-mobile.png',
                                                     hidden: true,
                                                     cls: 'vp-btn-extra',
                                                     height: 32,

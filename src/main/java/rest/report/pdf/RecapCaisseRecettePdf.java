@@ -37,9 +37,9 @@ public final class RecapCaisseRecettePdf {
 
     /** Colonnes de l'etat ; l'ecart suit le billetage, le solde ferme la ligne. */
     private static final String[] COLONNES = { "Date", "Comptant", "Mobile", "Carte", "Chèque", "Virement", "Crédit",
-            "Net", "Clients", "Règl. TP", "Règl. diff.", "Billetage", "Écart", "Solde" };
+            "Net", "Clients", "Mouv. caisse", "Regl TP", "Regl DIFF", "Billetage", "Écart", "Solde" };
 
-    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 7f, 8f, 6f, 8f, 8f, 8f, 8f, 9f };
+    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 7f, 8f, 6f, 8f, 8f, 8f, 8f, 8f, 9f };
 
     private RecapCaisseRecettePdf() {
     }
@@ -100,6 +100,8 @@ public final class RecapCaisseRecettePdf {
                 table.addCell(cellule(montant(ligne.getMontantCredit()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantNet()), cellule, true));
                 table.addCell(cellule(montant(ligne.getNbreClient()), cellule, true));
+                // Retours du 12/09 : les mouvements de caisse (entrees - sorties) en colonne, apres les clients
+                table.addCell(cellule(montant(ligne.getMontantMouvements()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantReglementFacture()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantReglementDiff()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantBilletage()), cellule, true));
@@ -144,6 +146,7 @@ public final class RecapCaisseRecettePdf {
             table.addCell(total(montant(totaux.credit), entetes, true));
             table.addCell(total(montant(totaux.net), entetes, true));
             table.addCell(total(montant(totaux.clients), entetes, true));
+            table.addCell(total(montant(totaux.mouvements), entetes, true));
             table.addCell(total(montant(totaux.reglementTp), entetes, true));
             table.addCell(total(montant(totaux.reglementDiff), entetes, true));
             table.addCell(total(montant(totaux.billetage), entetes, true));
@@ -220,12 +223,14 @@ public final class RecapCaisseRecettePdf {
         private long credit;
         private long net;
         private long clients;
+        private long mouvements;
         private long reglementTp;
         private long reglementDiff;
         private long billetage;
         private long solde;
 
         void ajouter(StatCaisseRecetteDTO l) {
+            mouvements += l.getMontantMouvements();
             espece += l.getMontantEspece();
             mobile += l.getMontantMobile();
             cb += l.getMontantCb();

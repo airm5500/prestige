@@ -456,6 +456,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         {
             ref: 'vnoemplacementField',
             selector: 'doventemanager #contenu [xtype=container] #emplacementId'
+        },
+        {
+            ref: 'peremptionProcheField',
+            selector: 'doventemanager #peremptionProcheId'
         }
         , {
             ref: 'commentaire',
@@ -1223,9 +1227,56 @@ Ext.define('testextjs.controller.VenteCtr', {
             const vnoemplacementId = me.getVnoemplacementField();
             me.updateStockField(item.get('intNUMBERAVAILABLE'));
             vnoemplacementId.setValue(item.get('strLIBELLEE'));
+            me.afficherPeremptionProche(item.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         }
 
+    },
+    /* Retours du 12/09 (point 12) : peremption la plus proche du produit choisi, meme source que la fenetre de
+       detail de la fiche article. Clignote a moins de six mois, sinon bleu gras ; vide sans lot ni date. */
+    afficherPeremptionProche: function (produitId) {
+        const me = this;
+        const champ = me.getPeremptionProcheField();
+        if (!champ) {
+            return;
+        }
+        if (!produitId) {
+            champ.setValue('');
+            return;
+        }
+        me.peremptionDemandee = produitId;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/peremption-proche/' + produitId,
+            success: function (reponse) {
+                if (me.peremptionDemandee !== produitId || !me.getPeremptionProcheField()) {
+                    return; // un autre produit a ete choisi entre-temps
+                }
+                const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (!r.date) {
+                    champ.setValue('');
+                    return;
+                }
+                if (!Ext.get('css-peremption-clignote')) {
+                    Ext.util.CSS.createStyleSheet(
+                            '@keyframes peremptionClignote { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }'
+                            + ' .peremption-clignote { color:#d40000;font-weight:bold;'
+                            + 'animation: peremptionClignote 1s step-end infinite; }', 'css-peremption-clignote');
+                }
+                const date = Ext.Date.parse(r.date, 'd/m/Y');
+                const limite = Ext.Date.add(new Date(), Ext.Date.MONTH, 6);
+                const proche = date && date < limite;
+                let texte = Ext.String.htmlEncode(r.date);
+                if (r.lot || r.qte) {
+                    texte += ' - lot ' + Ext.String.htmlEncode(String(r.lot || '?')) + ' × ' + Ext.String.htmlEncode(String(r.qte || '?'));
+                }
+                champ.setValue(proche ? '<span class="peremption-clignote">' + texte + '</span>'
+                        : '<span style="color:#0D47A1;font-weight:bold;">' + texte + '</span>');
+            },
+            failure: function () {
+                champ.setValue('');
+            }
+        });
     },
     updateStockField: function (stock) {
         let me = this;
@@ -1287,6 +1338,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let vnoemplacementId = me.getVnoemplacementField();
                     me.updateStockField(produit.intNUMBERAVAILABLE);
                     vnoemplacementId.setValue(produit.strLIBELLEE);
+                    me.afficherPeremptionProche(produit.lgFAMILLEID);
 
                     // ✅ Ajout direct si scan => résultat unique
                     if (autoAdd) {
@@ -1442,6 +1494,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         produitCmp.focus(true, 100);
                         me.updateStockField(0);
                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     }
                 }
             }, [produitCmp, qtyField]);
@@ -1618,6 +1671,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const vnoemplacementId = me.getVnoemplacementField();
                 me.updateStockField(rec.get('intNUMBERAVAILABLE'));
                 vnoemplacementId.setValue(rec.get('strLIBELLEE'));
+                me.afficherPeremptionProche(rec.get('lgFAMILLEID'));
                 me.getVnoqtyField().focus(true, 100);
                 return;
             }
@@ -1651,6 +1705,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             const vnoemplacementId = me.getVnoemplacementField();
             me.updateStockField(record.get('intNUMBERAVAILABLE'));
             vnoemplacementId.setValue(record.get('strLIBELLEE'));
+            me.afficherPeremptionProche(record.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         } else {
             // ✅ si pas trouvé localement => douchette (API)
@@ -1859,6 +1914,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                         produitCmp.focus(true, 100);
                                         me.updateStockField(0);
                                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
 
                                     }
                                 }
@@ -1930,6 +1986,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (result.success) {
                     me.updateStockField(0);
                     me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     me.current = result.data;
 
                     // ✅ IMPORTANT : après ajout article, forcer recalcul net
@@ -3566,6 +3623,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         comboxProduit.setValue(null);
                         me.updateStockField(0);
                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                         me.refresh();
 
 
@@ -6844,6 +6902,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (result.success) {
                     me.updateStockField(0);
                     me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     me.current = result.data;
 
                     // ✅ IMPORTANT : après ajout article, forcer recalcul net

@@ -123,6 +123,9 @@ function retirerJeuDEssai() {
   const json = JSON.parse(r.corps);
   const lignes = json.data || [];
   ok('le recapitulatif rend les deux journees', lignes.length === 2, JSON.stringify(lignes).slice(0, 400));
+  ok('(12/09) J1 porte le montant net des mouvements de caisse : 3 000 - 500 = 2 500',
+     lignes.some(l => Number(l.montantMouvements) === 2500) && lignes.some(l => Number(l.montantMouvements) === 0),
+     JSON.stringify(lignes.map(l => l.montantMouvements)));
 
   const l1 = lignes[0] || {}, l2 = lignes[1] || {};
   ok('journee 1 : comptant = 10 000', l1.montantEspece === 10000, JSON.stringify(l1));
@@ -185,6 +188,8 @@ function retirerJeuDEssai() {
   ok('PDF : la rubrique « Mouvements de caisse » n est editee que pour J1, avec entrees 3 000 et sorties 500',
      (texte.match(/Mouvements de caisse :/g) || []).length === 1 && /Mouvements de caisse :\s*entr.{1,2}es 3\s?000.*sorties 500/.test(texte),
      (texte.match(/Mouvements de caisse :.*/g) || []).join(' // '));
+  ok('PDF (12/09) : colonne « Mouv. caisse » entre « Clients » et « Regl TP », J1 a 2 500',
+     /Clients\s+Mouv\. caisse\s+Regl TP\s+Regl DIFF/.test(texte) && /2\s?500/.test(texte), (texte.match(/Clients.*/) || [''])[0]);
   ok('PDF : le solde de J1 edite vaut 17 500', /17\s?500/.test(texte), texte.split('\n').filter(l => /17\s?500/.test(l)).join(' | ').slice(0, 200));
   ok('PDF : le total general est edite', /TOTAL/.test(texte));
 
@@ -204,6 +209,9 @@ function retirerJeuDEssai() {
   const feuille = execSync("cd " + TMP + " && unzip -p recap.xlsx xl/sharedStrings.xml", { encoding: 'utf8' });
   ok('Excel : la colonne Ecart figure dans l en-tete', /crit|Écart|cart/.test(feuille));
   ok('Excel : le detail mobile money est present', /Mobile money|ORANGE/.test(feuille), feuille.slice(0, 200));
+  ok('Excel (12/09) : colonne « Mouv. caisse » apres « Nbre clients », puis « Regl TP » et « Regl DIFF »',
+     /Nbre clients<\/t><\/si><si><t[^>]*>Mouv\. caisse<\/t><\/si><si><t[^>]*>Regl TP<\/t><\/si><si><t[^>]*>Regl DIFF/.test(feuille),
+     (feuille.match(/Nbre clients.{0,120}/) || [''])[0]);
   ok('Excel : la rubrique des mouvements de caisse est presente', /Mouvements de caisse/.test(feuille), feuille.slice(0, 200));
 
   /* ------------------------------------------------- ecran */
@@ -216,13 +224,21 @@ function retirerJeuDEssai() {
     const grille = vue.down('#caisserecetterecapGrid');
     return {
       annuelle: !!vue.down('#groupByYear'),
+      annuelleCachee: !!vue.down('#groupByYear') && vue.down('#groupByYear').hidden === true,
       mensuelle: !!vue.down('#groupByMonth'),
+      typePeriode: vue.down('#typePeriode') ? vue.down('#typePeriode').getValue() : null,
       colonnes: grille.columns.map(c => c.text || c.header),
       boutonExcel: !!vue.down('#btnExcel')
     };
   });
-  ok('ecran : la case « Mensuelle » est a cote d « Annuelle »', ecran.annuelle && ecran.mensuelle,
+  // Retours du 12/09 (point 1) : « Annuelle » est retiree de l'ecran (composant conserve, cache) ; « Mensuelle » reste
+  ok('ecran : « Mensuelle » est la, « Annuelle » est retiree (cachee)', ecran.annuelle && ecran.annuelleCachee && ecran.mensuelle,
      JSON.stringify(ecran));
+  ok('ecran (12/09) : colonne « Mouv. caisse » juste apres « Nbre clients », libelles « Regl TP » / « Regl DIFF »',
+     ecran.colonnes.indexOf('Mouv. caisse') === ecran.colonnes.indexOf('Nbre clients') + 1
+     && ecran.colonnes.indexOf('Regl TP') === ecran.colonnes.indexOf('Mouv. caisse') + 1
+     && ecran.colonnes.indexOf('Regl DIFF') === ecran.colonnes.indexOf('Regl TP') + 1, ecran.colonnes.join(' | '));
+  ok('ecran (12/09) : selecteur de periode present, « Aujourd\'hui » par defaut', ecran.typePeriode === 'JOUR', ecran.typePeriode);
   ok('ecran : la colonne Ecart est presente, entre le billetage et le solde',
      ecran.colonnes.indexOf('Écart') !== -1
      && ecran.colonnes.findIndex(c => /Billetage/i.test(c || '')) < ecran.colonnes.indexOf('Écart')

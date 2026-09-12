@@ -82,13 +82,17 @@ public class CaZoneGeoRessource {
         JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
 
         List<String> entetes = new ArrayList<>();
-        boolean avecZone = filtres.getRegroupement() != Regroupement.FAMILLE;
+        // Retours du 12/09 (point 9) : par gamme ou par laboratoire, une seule colonne de libelle
+        boolean parGammeOuLabo = filtres.getRegroupement() == Regroupement.GAMME
+                || filtres.getRegroupement() == Regroupement.LABORATOIRE;
+        boolean avecZone = !parGammeOuLabo && filtres.getRegroupement() != Regroupement.FAMILLE;
         boolean avecFamille = filtres.getRegroupement() != Regroupement.ZONE;
         if (avecZone) {
             entetes.add("Zone géographique");
         }
         if (avecFamille) {
-            entetes.add("Famille d'articles");
+            entetes.add(filtres.getRegroupement() == Regroupement.GAMME ? "Gamme"
+                    : filtres.getRegroupement() == Regroupement.LABORATOIRE ? "Laboratoire" : "Famille d'articles");
         }
         for (int i = 0; i < tranches.length(); i++) {
             entetes.add(tranches.getJSONObject(i).getString("libelle"));
@@ -121,9 +125,8 @@ public class CaZoneGeoRessource {
         lignes.add(totauxLigne);
 
         String titre = "CHIFFRE D'AFFAIRES PAR "
-                + (avecZone && avecFamille ? "ZONE GEOGRAPHIQUE ET FAMILLE"
-                        : avecZone ? "ZONE GEOGRAPHIQUE" : "FAMILLE D'ARTICLES")
-                + " - DU " + formatFr(json.optString("debut")) + " AU " + formatFr(json.optString("fin"));
+                + libelleRegroupement(filtres.getRegroupement(), "ZONE GEOGRAPHIQUE ET FAMILLE") + " - DU "
+                + formatFr(json.optString("debut")) + " AU " + formatFr(json.optString("fin"));
         byte[] fichier = reportExcelExportService.createLandscapeExcelReport(titre, entetes.toArray(new String[0]),
                 lignes, (row, o) -> {
                     int col = 0;
@@ -131,7 +134,7 @@ public class CaZoneGeoRessource {
                         row.createCell(col++).setCellValue(o.optString("zone"));
                     }
                     if (avecFamille) {
-                        row.createCell(col++).setCellValue(o.optString("famille"));
+                        row.createCell(col++).setCellValue(o.optString(parGammeOuLabo ? "libelle" : "famille"));
                     }
                     for (int i = 0; i < tranches.length(); i++) {
                         String cle = tranches.getJSONObject(i).getString("cle");
@@ -239,11 +242,13 @@ public class CaZoneGeoRessource {
                     totauxTranches == null ? 0 : totauxTranches.optLong(t.getString("cle"))));
         }
 
-        boolean avecZone = filtres.getRegroupement() != Regroupement.FAMILLE;
+        boolean parGammeOuLabo = filtres.getRegroupement() == Regroupement.GAMME
+                || filtres.getRegroupement() == Regroupement.LABORATOIRE;
+        boolean avecZone = !parGammeOuLabo && filtres.getRegroupement() != Regroupement.FAMILLE;
         boolean avecFamille = filtres.getRegroupement() != Regroupement.ZONE;
         java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
         parametres.put("P_H_CLT_INFOS", "CHIFFRE D'AFFAIRES PAR " + (avecZone && avecFamille
-                ? "ZONE GEOGRAPHIQUE ET FAMILLE D'ARTICLES" : avecZone ? "ZONE GEOGRAPHIQUE" : "FAMILLE D'ARTICLES"));
+                ? "ZONE GEOGRAPHIQUE ET FAMILLE D'ARTICLES" : libelleRegroupement(filtres.getRegroupement(), "")));
         parametres.put("P_PERIODE",
                 "Période du " + formatFr(json.optString("debut")) + " au " + formatFr(json.optString("fin")) + " - "
                         + tranches.length() + " tranche" + (tranches.length() > 1 ? "s" : "") + " ("
@@ -473,6 +478,22 @@ public class CaZoneGeoRessource {
             String regroupement) {
         return new Filtres().typePeriode(PeriodesCa.Type.de(typePeriode)).debut(date(dtStart)).fin(date(dtEnd))
                 .zoneId(zoneId).familleId(familleId).regroupement(Regroupement.de(regroupement));
+    }
+
+    /** Le libelle du regroupement dans les titres d'edition (retours du 12/09 : gamme et laboratoire en plus). */
+    static String libelleRegroupement(Regroupement r, String zoneEtFamille) {
+        switch (r) {
+        case FAMILLE:
+            return "FAMILLE D'ARTICLES";
+        case GAMME:
+            return "GAMME";
+        case LABORATOIRE:
+            return "LABORATOIRE";
+        case ZONE_FAMILLE:
+            return zoneEtFamille;
+        default:
+            return "ZONE GEOGRAPHIQUE";
+        }
     }
 
     private static LocalDate date(String valeur) {

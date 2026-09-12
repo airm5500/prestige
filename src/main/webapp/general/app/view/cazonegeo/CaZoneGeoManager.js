@@ -202,6 +202,37 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                     layout: 'fit',
                     border: false,
                     html: '<div style="margin:20px;color:#666;">Lancez une recherche pour afficher la courbe.</div>'
+                }, {
+                    /* Retours du 12/09 (point 9) : le meme tableau comparatif, regroupe par gamme puis par
+                       laboratoire, sur la periode et les filtres de la barre d'outils. Charge a l'ouverture de
+                       l'onglet. */
+                    xtype: 'tabpanel',
+                    title: 'Gammes / Laboratoires',
+                    itemId: 'ongletGammesLabos',
+                    border: false,
+                    items: [{
+                            xtype: 'gridpanel',
+                            title: 'Gammes',
+                            itemId: 'grilleGammes',
+                            regroupement: 'GAMME',
+                            border: false,
+                            autoScroll: true,
+                            features: [{ftype: 'summary'}],
+                            viewConfig: {columnLines: true, emptyText: '<div style="margin:20px;">Aucune vente sur la période</div>', deferEmptyText: false},
+                            store: Ext.create('Ext.data.Store', {fields: ['libelle'], data: []}),
+                            columns: [{text: 'Gamme', dataIndex: 'libelle', flex: 1}]
+                        }, {
+                            xtype: 'gridpanel',
+                            title: 'Laboratoires',
+                            itemId: 'grilleLaboratoires',
+                            regroupement: 'LABORATOIRE',
+                            border: false,
+                            autoScroll: true,
+                            features: [{ftype: 'summary'}],
+                            viewConfig: {columnLines: true, emptyText: '<div style="margin:20px;">Aucune vente sur la période</div>', deferEmptyText: false},
+                            store: Ext.create('Ext.data.Store', {fields: ['libelle'], data: []}),
+                            columns: [{text: 'Laboratoire', dataIndex: 'libelle', flex: 1}]
+                        }]
                 }]
         });
         me.callParent(arguments);
