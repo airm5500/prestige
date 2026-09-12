@@ -267,7 +267,9 @@ public class ReportUtil {
             parameters.put("P_H_LOGO", logo);
             parameters.put("P_H_INSTITUTION", institution);
             parameters.put("P_PRINTED_BY", " " + op.getStrFIRSTNAME() + "  " + op.getStrLASTNAME());
-            parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+            // nom du pharmacien : jamais « null null » sur une edition quand la fiche officine est incomplete
+            parameters.put("P_AUTRE_DESC", (StringUtils.defaultString(oTOfficine.getStrFIRSTNAME()) + " "
+                    + StringUtils.defaultString(oTOfficine.getStrLASTNAME())).trim());
             // Ville d'edition du recapitulatif. Le modele la portait en dur ("TAFIRE") : toute
             // officine imprimait donc la ville d'une autre. Vide, l'etat se contente de la date.
             parameters.put("P_LIEU_EDITION", lieuEdition());

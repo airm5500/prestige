@@ -235,14 +235,14 @@
                 </textField>
                 <textField isBlankWhenNull="true">
                     <reportElement style="ligne" x="309" y="0" width="60" height="13">
-                        <printWhenExpression><![CDATA[!"2".equals($F{cleSection})]]></printWhenExpression>
+                        <printWhenExpression><![CDATA[!$F{cleSection}.startsWith("02|")]]></printWhenExpression>
                     </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c3}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
                     <reportElement style="ligne" x="371" y="0" width="60" height="13">
-                        <printWhenExpression><![CDATA[!"2".equals($F{cleSection})]]></printWhenExpression>
+                        <printWhenExpression><![CDATA[!$F{cleSection}.startsWith("02|")]]></printWhenExpression>
                     </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c4}]]></textFieldExpression>
@@ -250,25 +250,29 @@
                 <!-- Resume sur deux colonnes (retours du 12/09) : libelle et montant de droite -->
                 <textField isBlankWhenNull="true">
                     <reportElement style="ligne" x="300" y="0" width="180" height="13">
-                        <printWhenExpression><![CDATA["2".equals($F{cleSection})]]></printWhenExpression>
+                        <printWhenExpression><![CDATA[$F{cleSection}.startsWith("02|")]]></printWhenExpression>
                     </reportElement>
                     <textElement verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c3}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
                     <reportElement style="ligne" x="495" y="0" width="60" height="13">
-                        <printWhenExpression><![CDATA["2".equals($F{cleSection})]]></printWhenExpression>
+                        <printWhenExpression><![CDATA[$F{cleSection}.startsWith("02|")]]></printWhenExpression>
                     </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c4}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
-                    <reportElement style="ligne" x="433" y="0" width="60" height="13"/>
+                    <reportElement style="ligne" x="433" y="0" width="60" height="13">
+                        <printWhenExpression><![CDATA[!$F{cleSection}.startsWith("02|")]]></printWhenExpression>
+                    </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c5}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
-                    <reportElement style="ligne" x="495" y="0" width="60" height="13"/>
+                    <reportElement style="ligne" x="495" y="0" width="60" height="13">
+                        <printWhenExpression><![CDATA[!$F{cleSection}.startsWith("02|")]]></printWhenExpression>
+                    </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c6}]]></textFieldExpression>
                 </textField>
