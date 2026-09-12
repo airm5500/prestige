@@ -1363,3 +1363,12 @@ body.x-body,
 .analyse-article-quadrants .aa-axes { font-size: 10.5px; color: #7f8c8d; margin-bottom: 4px; }
 .analyse-article-quadrants .aa-chiffres { font-size: 11.5px; color: #333; }
 .analyse-article-quadrants .aa-decision { font-size: 11px; color: #555; margin-top: 4px; font-style: italic; }
+
+/* Rapport activite : les quatre cartes du haut reprennent le style des tableaux de la balance ; une carte
+   longue (recettes par mode) defile dans son cadre, la hauteur de la rangee reste fixe. */
+.recap-cartes.ventilation-balance.vb-v2 { padding: 4px 6px 0 6px; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-rangee { flex-wrap: nowrap; gap: 8px; margin-bottom: 0; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-col { flex: 1 1 0; min-width: 0; max-height: 240px; overflow-y: auto; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-titre { position: sticky; top: 0; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-table td { padding: 3px 8px; font-size: 12px; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-n, .recap-cartes.ventilation-balance.vb-v2 .vb-p { font-size: 12.5px; white-space: nowrap; }

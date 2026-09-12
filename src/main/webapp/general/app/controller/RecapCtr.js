@@ -17,45 +17,8 @@ Ext.define('testextjs.controller.RecapCtr', {
             selector: 'recap #dtEnd'
         },
         {
-            ref: 'montantNet',
-            selector: 'recap #montantNet'
-        }, {
-            ref: 'montantTTC',
-            selector: 'recap #montantTTC'
-        },
-        {
-            ref: 'marge',
-            selector: 'recap #marge'
-        }, {
-            ref: 'montantHT',
-            selector: 'recap #montantHT'
-        },
-        {
-            ref: 'montantTVA',
-            selector: 'recap #montantTVA'
-        },
-        {
-            ref: 'montantCredit',
-            selector: 'recap #montantCredit'
-        }, {
-            ref: 'montantRemise',
-            selector: 'recap #montantRemise'
-        }
-        , {
-            ref: 'montantEsp',
-            selector: 'recap #montantEsp'
-        }
-        , {
-            ref: 'montantTotalHT',
-            selector: 'recap #montantTotalHT'
-        }
-        , {
-            ref: 'montantTotalTVA',
-            selector: 'recap #montantTotalTVA'
-        }
-        , {
-            ref: 'montantTotalTTC',
-            selector: 'recap #montantTotalTTC'
+            ref: 'cartesRecap',
+            selector: 'recap #cartesRecap'
         }
         , {
             ref: 'queryRgl',
@@ -84,18 +47,6 @@ Ext.define('testextjs.controller.RecapCtr', {
         {
             ref: 'totalnbclient',
             selector: 'recap #totalnbclient'
-        },
-        {
-            ref: 'recette',
-            selector: 'recap #recette'
-        },
-        {
-            ref: 'reglement',
-            selector: 'recap #reglement'
-        },
-        {
-            ref: 'ratio',
-            selector: 'recap #ratio'
         },
         {
             ref: 'achatGrid',
@@ -271,20 +222,7 @@ Ext.define('testextjs.controller.RecapCtr', {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
                 const rec = result.data;
-                me.getMontantNet().setValue(rec.montantNet);
-                me.getMontantCredit().setValue(rec.montantCredit);//pourcentageEsp
-                me.getMontantEsp().setValue(rec.montantEsp);
-                me.getMontantTTC().setValue(rec.montantTTC);
-                me.getMontantRemise().setValue(rec.montantRemise);
-                me.getMontantHT().setValue(rec.montantHT);
-                me.getMontantTVA().setValue(rec.montantTVA);
-                me.getMarge().setValue(rec.marge);
-                me.getMontantTotalHT().setValue(rec.montantTotalHT);
-                me.getMontantTotalTVA().setValue(rec.montantTotalTVA);
-                me.getMontantTotalTTC().setValue(rec.montantTotalTTC);
-                me.getRatio().setValue(rec.ratio);
-                me.buildRecette(rec.reglements);
-                me.buildMvts(rec.mvtsCaisse, rec.montantTotalMvt);
+                me.dessinerCartes(rec);
                 achatGrid.getStore().loadData(rec.achats);
                 const nbAchats = (rec.achats || []).length;
                 me.titreOnglet(me.getOngletAchats(), 'ACHATS', nbAchats + ' groupe(s) · ' + Ext.util.Format.number(rec.montantTotalTTC, '0,000.') + ' TTC');
@@ -299,54 +237,15 @@ Ext.define('testextjs.controller.RecapCtr', {
 
         });
     },
-    buildRecette: function (recette) {
-        const me = this, cmp = me.getRecette();
-        let items = [];
-        recette.forEach(function (e) {
-            items.push({
-                xtype: 'displayfield',
-                fieldLabel: e.libelle,
-                labelWidth: 100,
-                flex: 1,
-                value: e.montant,
-                renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
-                },
-                fieldStyle: "color:blue;text-align:right;"
-            });
+    /* Les quatre cartes du haut sont un seul gabarit HTML (style des tableaux de la balance). */
+    dessinerCartes: function (rec) {
+        const me = this, cartes = me.getCartesRecap();
+        const recettes = rec.reglements || [];
+        let total = 0;
+        recettes.forEach(function (e) {
+            total += Number(e.montant) || 0;
         });
-        cmp.removeAll(true);
-        cmp.add(items);
-    },
-
-    buildMvts: function (mvt, montantTotalMvt) {
-        const me = this, cmp = me.getReglement();
-        let items = [];
-        mvt.forEach(function (e) {
-            items.push({
-                xtype: 'displayfield',
-                fieldLabel: e.libelle,
-                labelWidth: 130,
-                flex: 1,
-                value: e.montant,
-                renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
-                },
-                fieldStyle: "color:blue;text-align:right;"
-            });
-        });
-        cmp.removeAll(true);
-        cmp.add(items);
-        cmp.add({
-            xtype: 'displayfield',
-            fieldLabel: "Total",
-            flex: 1,
-            value: montantTotalMvt,
-            renderer: function (v) {
-                return Ext.util.Format.number(v, '0,000.');
-            },
-            fieldStyle: "color:blue;text-align:right;"
-        });
+        cartes.update(Ext.apply({}, rec, {reglements: recettes, totalRecettes: total, mvtsCaisse: rec.mvtsCaisse || []}));
     },
     onSpecialSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {

@@ -96,8 +96,9 @@ function retablir() {
     /* ------------------------------------------------ point 5 : rapport activite */
     await ouvrir('recap', 'recap');
     await p.waitForTimeout(2500);
-    const recap = await p.evaluate(() => { const c = Ext.getCmp('panelCa'); const f = c.up('fieldset'); return { panneau: c.getHeight(), section: f.getHeight(), visible: c.getEl().getBottom() <= f.getEl().getBottom() + 2 }; });
-    ok('Point 5 : la premiere section du rapport garde sa hauteur (260 dans 280)', recap.panneau === 260 && recap.section >= 270 && recap.visible, JSON.stringify(recap));
+    // depuis la proposition A : les cartes sont un gabarit HTML (style balance) de hauteur fixe, entierement visible
+    const recap = await p.evaluate(() => { const c = Ext.ComponentQuery.query('recap #cartesRecap')[0]; const carte = document.getElementById('panelCa'); const r = carte.getBoundingClientRect(), s = c.getEl().dom.getBoundingClientRect(); return { section: c.getHeight(), carte: r.height, visible: r.bottom <= s.bottom + 2, titre: (carte.querySelector('.vb-titre') || {}).textContent }; });
+    ok('Point 5 : la premiere section du rapport garde sa hauteur fixe et sa premiere carte entiere', recap.section === 250 && recap.carte > 150 && recap.visible && /affaires/i.test(recap.titre), JSON.stringify(recap));
     await p.screenshot({ path: TMP + '/recap.png' });
 
     /* ------------------------------------------------ point 6 : PDF balance */

@@ -26,13 +26,15 @@ const TMP = '/tmp/recap-a'; fs.mkdirSync(TMP, { recursive: true });
     /* structure : cartes fixes + onglets qui remplissent le reste, sans defilement global */
     const s = await p.evaluate(() => {
       const recap = Ext.ComponentQuery.query('recap')[0], t = Ext.ComponentQuery.query('recap #ongletsRecap')[0];
-      const cartes = Ext.getCmp('panelCa').up('fieldset');
+      const cartes = Ext.ComponentQuery.query('recap #cartesRecap')[0];
       return { onglets: t.items.getCount(), titres: t.items.getRange().map(x => x.title), cartes: cartes.getHeight(),
         basOnglets: t.getEl().getBottom(), basEcran: recap.getEl().getBottom(), hauteurOnglets: t.getHeight(),
         defile: recap.body.dom.scrollHeight - recap.body.dom.clientHeight, actif: t.getActiveTab().itemId };
     });
     ok('Trois onglets Achats / Credits accordes / Reglements TP', s.onglets === 3 && /ACHATS/.test(s.titres[0]) && /CREDITS/.test(s.titres[1]) && /REGLEMENTS/.test(s.titres[2]), JSON.stringify(s.titres));
-    ok('Les cartes gardent leur hauteur fixe (280)', s.cartes === 280, s.cartes);
+    ok('Les cartes gardent leur hauteur fixe (250)', s.cartes === 250, s.cartes);
+    const style = await p.evaluate(() => { const c = document.querySelector('#panelCa .vb-titre'); const cs = getComputedStyle(c); return { titres: document.querySelectorAll('.recap-cartes .vb-titre').length, fond: cs.backgroundColor, couleur: cs.color, totaux: document.querySelectorAll('.recap-cartes .vb-total').length, tables: document.querySelectorAll('.recap-cartes table.vb-table').length }; });
+    ok('Les quatre cartes ont le style des tableaux de la balance (bandeau bleu, ligne de total)', style.titres === 4 && style.tables === 4 && style.totaux === 4 && style.fond === 'rgb(46, 117, 182)' && style.couleur === 'rgb(255, 255, 255)', JSON.stringify(style));
     ok('Les onglets remplissent le bas de l ecran sans defilement global', s.hauteurOnglets >= 250 && s.basOnglets <= s.basEcran && s.defile <= 2, JSON.stringify(s));
     ok('L onglet Achats est ouvert par defaut', s.actif === 'ongletAchats', s.actif);
 

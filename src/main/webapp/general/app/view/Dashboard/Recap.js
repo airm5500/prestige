@@ -172,221 +172,85 @@ Ext.define('testextjs.view.Dashboard.Recap', {
             ],
             items: [
                 {
-                    /* Retours du 12/09 (point 5) : hauteur fixe, sans « flex », sinon la colonne repartit la place
-                       entre les sections quand l'ecran est colle au conteneur et cette premiere section se fait
-                       rogner ; le reste de l'ecran defile. */
-                    xtype: 'fieldset',
-                    collapsible: false,
+                    /* Les quatre cartes du haut, dans le style des tableaux de la balance vente / caisse (bandeau
+                       bleu, libelle a gauche, montant en gras a droite, part en pourcentage, ligne de total).
+                       Hauteur fixe : le reste de l'ecran revient aux onglets. */
+                    xtype: 'component',
+                    itemId: 'cartesRecap',
+                    cls: 'ventilation-balance vb-v2 recap-cartes',
+                    height: 250,
                     margin: '2',
-                    height: 280,
-                    layout: 'hbox',
-                    items: [
+                    tpl: new Ext.XTemplate(
+                        '<div class="vb-rangee">',
+                        // ---------------------------------------------------------------- chiffres d affaires
+                        '<div class="vb-col" id="panelCa">',
+                        '<div class="vb-titre">Chiffres d\'affaires</div>',
+                        '<table class="vb-table">',
+                        '<tr><th></th><th>Montant</th><th>% ventes</th></tr>',
+                        '<tr><td class="vb-lib">Montant TTC</td><td class="vb-n">{[this.n(values.montantTTC)]}</td><td class="vb-p"></td></tr>',
+                        '<tr><td class="vb-lib">Montant remise</td><td class="vb-n">{[this.n(values.montantRemise)]}</td><td class="vb-p"></td></tr>',
+                        '<tr><td class="vb-lib">Montant net</td><td class="vb-n">{[this.n(values.montantNet)]}</td><td class="vb-p"></td></tr>',
+                        '<tr><td class="vb-lib">Montant TVA</td><td class="vb-n">{[this.n(values.montantTVA)]}</td><td class="vb-p"></td></tr>',
+                        '<tr><td class="vb-lib">Montant HT</td><td class="vb-n">{[this.n(values.montantHT)]}</td><td class="vb-p"></td></tr>',
+                        '<tr><td class="vb-lib">Total comptant</td><td class="vb-n">{[this.n(values.montantEsp)]}</td><td class="vb-p">{[this.p(values.pourcentageEsp)]}</td></tr>',
+                        '<tr class="vb-total"><td class="vb-lib">Total crédit</td><td class="vb-n">{[this.n(values.montantCredit)]}</td><td class="vb-p">{[this.p(values.pourcentageCredit)]}</td></tr>',
+                        '</table>',
+                        '</div>',
+                        // ---------------------------------------------------------------- totaux achats
+                        '<div class="vb-col" id="panelAchat">',
+                        '<div class="vb-titre">Totaux achats</div>',
+                        '<table class="vb-table">',
+                        '<tr><th></th><th>Montant</th></tr>',
+                        '<tr><td class="vb-lib">Montant HT</td><td class="vb-n">{[this.n(values.montantTotalHT)]}</td></tr>',
+                        '<tr><td class="vb-lib">Montant TVA</td><td class="vb-n">{[this.n(values.montantTotalTVA)]}</td></tr>',
+                        '<tr class="vb-total"><td class="vb-lib">Montant TTC</td><td class="vb-n">{[this.n(values.montantTotalTTC)]}</td></tr>',
+                        '<tr><td class="vb-lib">Marge</td><td class="vb-n">{[this.n(values.marge)]}</td></tr>',
+                        '<tr><td class="vb-lib">Ratio ventes / achats</td><td class="vb-p">{[values.ratio == null ? "" : values.ratio]}</td></tr>',
+                        '</table>',
+                        '</div>',
+                        // ---------------------------------------------------------------- recettes
+                        '<div class="vb-col" id="panelRecette">',
+                        '<div class="vb-titre">Recettes</div>',
+                        '<table class="vb-table">',
+                        '<tr><th></th><th>Montant</th><th>% recettes</th></tr>',
+                        '<tpl for="reglements">',
+                        '<tr><td class="vb-lib">{libelle}</td><td class="vb-n">{[this.n(values.montant)]}</td><td class="vb-p">{[this.part(values.montant, parent.totalRecettes)]}</td></tr>',
+                        '</tpl>',
+                        '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.totalRecettes)]}</td><td class="vb-p">{[values.reglements && values.reglements.length ? "100 %" : ""]}</td></tr>',
+                        '</table>',
+                        '</div>',
+                        // ---------------------------------------------------------------- mouvements de caisse
+                        '<div class="vb-col" id="panelCaisse">',
+                        '<div class="vb-titre">Mouvements de caisse</div>',
+                        '<table class="vb-table">',
+                        '<tr><th></th><th>Montant</th></tr>',
+                        '<tpl for="mvtsCaisse">',
+                        '<tr><td class="vb-lib">{libelle}</td><td class="vb-n">{[this.n(values.montant)]}</td></tr>',
+                        '</tpl>',
+                        '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.montantTotalMvt)]}</td></tr>',
+                        '</table>',
+                        '</div>',
+                        '</div>',
                         {
-                            xtype: 'panel',
-
-                            margin: '5',
-                            flex: 1,
-                            id: 'panelCa',
-                            height: 260, //#3CBC9E #3CBC80; #3CBC80; #5E3CBC #AC3CBCF2;
-                            title: "CHIFFRES D'AFFAIRES ",
-                            layout: {
-                                type: 'vbox',
-                                align: 'stretch'
+                            n: function (v) {
+                                const x = Number(v) || 0;
+                                // le format ne gere pas le signe : on l ajoute (sorties de caisse negatives)
+                                return (x < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(x), '0,000.');
                             },
-                            items: [
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant TTC',
-                                    labelWidth: 100,
-                                    itemId: 'montantTTC',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant remise',
-                                    labelWidth: 100,
-                                    itemId: 'montantRemise',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant net',
-                                    labelWidth: 100,
-                                    itemId: 'montantNet',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant Tva',
-                                    labelWidth: 100,
-                                    itemId: 'montantTVA',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant HT',
-                                    labelWidth: 100,
-                                    itemId: 'montantHT',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Total comptant',
-                                    labelWidth: 100,
-                                    itemId: 'montantEsp',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Total crédit',
-                                    labelWidth: 100,
-                                    itemId: 'montantCredit',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
+                            p: function (v) {
+                                return (v == null ? 0 : v) + ' %';
+                            },
+                            part: function (v, total) {
+                                if (!total) {
+                                    return '';
                                 }
-                            ]
-                        },
-                        {
-                            xtype: 'panel',
-                            margin: '5',
-                            flex: 1,
-                            height: 260,
-                            id: 'panelAchat',
-                            title: "TOTAUX ACHATS",
-                            layout: {
-                                type: 'vbox',
-                                align: 'stretch'
-                            },
-                            items: [
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant TTC',
-                                    labelWidth: 100,
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    itemId: 'montantTotalTTC',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant TVA',
-                                    labelWidth: 100,
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    itemId: 'montantTotalTVA',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Montant HT',
-                                    labelWidth: 100,
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    itemId: 'montantTotalHT',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Marge',
-                                    labelWidth: 100,
-                                    itemId: 'marge',
-                                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    flex: 1,
-                                    fieldLabel: 'Ratio',
-                                    labelWidth: 100,
-                                    itemId: 'ratio',
-                                    fieldStyle: "color:blue;text-align:right;",
-                                    value: 0
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'panel',
-                            margin: '5',
-                            collapsible: false,
-                            height: 260,
-                            id: 'panelRecette',
-                            flex: 1,
-                            title: "RECETTES",
-                            layout: {
-                                type: 'vbox',
-                                align: 'stretch'
-                            },
-                            itemId: 'recette',
-                            items: [
-
-                            ]
-                        },
-                        {
-                            xtype: 'panel',
-                            collapsible: false,
-                            margin: '5',
-                            height: 260,
-                            id: 'panelCaisse',
-                            flex: 1,
-                            title: "MOUVEMENTS DE CAISSE",
-                            layout: {
-                                type: 'vbox',
-                                align: 'stretch'
-                            },
-                            itemId: 'reglement',
-                            items: [
-
-                            ]
+                                return Ext.util.Format.number(v * 100 / total, '0.0') + ' %';
+                            }
                         }
-
-                    ]
+                    ),
+                    data: {montantTTC: 0, montantRemise: 0, montantNet: 0, montantTVA: 0, montantHT: 0, montantEsp: 0, montantCredit: 0,
+                        pourcentageEsp: 0, pourcentageCredit: 0, montantTotalHT: 0, montantTotalTVA: 0, montantTotalTTC: 0, marge: 0, ratio: 0,
+                        reglements: [], totalRecettes: 0, mvtsCaisse: [], montantTotalMvt: 0}
                 },
                 {
                     /* Nouvelle presentation (proposition A retenue) : les cartes restent fixes en haut, les trois
