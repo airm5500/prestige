@@ -113,6 +113,9 @@ public interface SalesService {
 
     Integer nbreProduitsByVente(String venteId);
 
+    /** Nombre d'unites de la vente (somme des quantites des lignes) ; retours du 12/09. */
+    long quantiteProduitsByVente(String venteId);
+
     JSONObject updatRemiseVenteDepot(String venteId, int valueRemise) throws JSONException;
 
     JSONObject clotureVenteDepot(ClotureVenteParams clotureVenteParams) throws JSONException;

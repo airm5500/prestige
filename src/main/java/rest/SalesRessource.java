@@ -433,6 +433,20 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Lignes et unites de la vente en cours, pour le pied de la liste des articles (retours du 12/09). */
+    @GET
+    @Path("quantites-vente/{id}")
+    public Response quantitesVente(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Integer lignes = salesService.nbreProduitsByVente(id);
+        return Response.ok().entity(new JSONObject().put("success", true).put("lignes", lignes == null ? 0 : lignes)
+                .put("produits", salesService.quantiteProduitsByVente(id)).toString()).build();
+    }
+
     @GET
     @Path("quantite-vente/{id}")
     public Response nobreproduits(@PathParam("id") String id) throws JSONException {

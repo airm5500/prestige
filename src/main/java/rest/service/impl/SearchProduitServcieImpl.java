@@ -137,6 +137,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             o.put("classe", abcLettre(t.getLgCLASSEABCID()));
             o.put("tva", t.getLgCODETVAID() != null && t.getLgCODETVAID().getStrNAME() != null
                     ? t.getLgCODETVAID().getStrNAME() : "");
+            // Retours du 12/09 : le taux de marque de la fiche (enregistre a l'entree en stock, calcule a defaut)
+            Integer tauxMarque = t.getIntTAUXMARQUE() != null && t.getIntTAUXMARQUE() != 0 ? t.getIntTAUXMARQUE()
+                    : TauxMarque.calculer(t.getIntPRICE(), t.getIntPAF());
+            o.put("tauxMarque", tauxMarque == null ? "" : String.valueOf(tauxMarque));
             boolean decond = (t.getBoolDECONDITIONNE() != null && t.getBoolDECONDITIONNE() == 1)
                     || (t.getBoolDECONDITIONNEEXIST() != null && t.getBoolDECONDITIONNEEXIST() == 1);
             o.put("deconditionnable", decond);

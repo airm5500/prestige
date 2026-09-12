@@ -31,6 +31,7 @@
     <parameter name="P_PERIODE" class="java.lang.String"/>
     <parameter name="P_ENTETES" class="java.util.Map"/>
     <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String"/>
     <parameter name="P_KPI_CA" class="java.lang.String"/>
     <parameter name="P_KPI_MARGE" class="java.lang.String"/>
     <parameter name="P_KPI_VENTES" class="java.lang.String"/>
@@ -104,29 +105,19 @@
         </groupHeader>
     </group>
     <title>
-        <band height="114">
+        <band height="118">
             <textField isBlankWhenNull="true">
-                <reportElement x="0" y="0" width="380" height="16"/>
-                <textElement><font size="11" isBold="true"/></textElement>
+                <reportElement x="0" y="0" width="555" height="18"/>
+                <textElement textAlignment="Center"><font size="14" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="0" y="16" width="380" height="12"/>
-                <textElement><font size="7"/></textElement>
-                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
-            </textField>
-            <textField>
-                <reportElement x="385" y="0" width="170" height="12"/>
-                <textElement textAlignment="Right"><font size="7"/></textElement>
-                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
-            </textField>
-            <textField isBlankWhenNull="true">
-                <reportElement x="385" y="13" width="170" height="12"/>
-                <textElement textAlignment="Right"><font size="7"/></textElement>
-                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+                <reportElement x="0" y="18" width="555" height="12" forecolor="#1F4E79"/>
+                <textElement textAlignment="Center"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_AUTRE_DESC}]]></textFieldExpression>
             </textField>
             <frame>
-                <reportElement mode="Opaque" x="0" y="34" width="555" height="36" backcolor="#1F4E79"/>
+                <reportElement mode="Opaque" x="0" y="36" width="555" height="36" backcolor="#1F4E79"/>
                 <staticText>
                     <reportElement x="0" y="4" width="555" height="17" forecolor="#FFFFFF"/>
                     <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
@@ -243,12 +234,31 @@
                     <textFieldExpression><![CDATA[$F{c2}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
-                    <reportElement style="ligne" x="309" y="0" width="60" height="13"/>
+                    <reportElement style="ligne" x="309" y="0" width="60" height="13">
+                        <printWhenExpression><![CDATA[!"2".equals($F{cleSection})]]></printWhenExpression>
+                    </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c3}]]></textFieldExpression>
                 </textField>
                 <textField isBlankWhenNull="true">
-                    <reportElement style="ligne" x="371" y="0" width="60" height="13"/>
+                    <reportElement style="ligne" x="371" y="0" width="60" height="13">
+                        <printWhenExpression><![CDATA[!"2".equals($F{cleSection})]]></printWhenExpression>
+                    </reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{c4}]]></textFieldExpression>
+                </textField>
+                <!-- Resume sur deux colonnes (retours du 12/09) : libelle et montant de droite -->
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="300" y="0" width="180" height="13">
+                        <printWhenExpression><![CDATA["2".equals($F{cleSection})]]></printWhenExpression>
+                    </reportElement>
+                    <textElement verticalAlignment="Middle"/>
+                    <textFieldExpression><![CDATA[$F{c3}]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true">
+                    <reportElement style="ligne" x="495" y="0" width="60" height="13">
+                        <printWhenExpression><![CDATA["2".equals($F{cleSection})]]></printWhenExpression>
+                    </reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"/>
                     <textFieldExpression><![CDATA[$F{c4}]]></textFieldExpression>
                 </textField>
@@ -268,14 +278,14 @@
     <pageFooter>
         <band height="16">
             <textField isBlankWhenNull="true">
-                <reportElement x="0" y="2" width="420" height="12"/>
+                <reportElement x="0" y="2" width="300" height="12"/>
                 <textElement><font size="6"/></textElement>
                 <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="455" y="2" width="100" height="12"/>
-                <textElement textAlignment="Right"><font size="6"/></textElement>
-                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            <textField isBlankWhenNull="true">
+                <reportElement x="305" y="2" width="250" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date()) + " par " + $P{P_PRINTED_BY}]]></textFieldExpression>
             </textField>
         </band>
     </pageFooter>

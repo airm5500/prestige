@@ -18,6 +18,8 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         {ref: 'ongletGammesLabos', selector: 'cazonegeomanager #ongletGammesLabos'},
         {ref: 'grilleGammes', selector: 'cazonegeomanager #grilleGammes'},
         {ref: 'grilleLaboratoires', selector: 'cazonegeomanager #grilleLaboratoires'},
+        {ref: 'gammeFiltre', selector: 'cazonegeomanager #gammeFiltre'},
+        {ref: 'laboratoireFiltre', selector: 'cazonegeomanager #laboratoireFiltre'},
         {ref: 'panneauCourbe', selector: 'cazonegeomanager #panneauCourbe'},
         {ref: 'typePeriode', selector: 'cazonegeomanager #typePeriode'},
         {ref: 'dtStart', selector: 'cazonegeomanager #dtStart'},
@@ -64,6 +66,15 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             },
             'cazonegeomanager #grilleLaboratoires': {
                 activate: this.chargerGammesLabos
+            },
+            'cazonegeomanager #gammeFiltre': {
+                select: this.chargerGammesLabos
+            },
+            'cazonegeomanager #laboratoireFiltre': {
+                select: this.chargerGammesLabos
+            },
+            'cazonegeomanager #effacerFiltresGammesLabos': {
+                click: this.effacerFiltresGammesLabos
             }
         });
     },
@@ -77,6 +88,16 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             return null;
         }
         return onglet.getActiveTab();
+    },
+
+    effacerFiltresGammesLabos: function () {
+        const me = this;
+        Ext.each([me.getGammeFiltre(), me.getLaboratoireFiltre()], function (c) {
+            if (c) {
+                c.clearValue();
+            }
+        });
+        me.chargerGammesLabos();
     },
 
     regroupementActif: function () {
@@ -153,7 +174,10 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             typePeriode: me.getTypePeriode().getValue(),
             regroupement: me.regroupementActif(),
             zoneId: me.getZone().getValue() || '',
-            familleId: me.getFamille().getValue() || ''
+            familleId: me.getFamille().getValue() || '',
+            // filtres de l'onglet Gammes / Laboratoires (retours du 12/09)
+            gammeId: (me.getGammeFiltre() && me.getGammeFiltre().getValue()) || '',
+            laboratoireId: (me.getLaboratoireFiltre() && me.getLaboratoireFiltre().getValue()) || ''
         };
         if (p.typePeriode === 'LIBRE') {
             p.dtStart = me.getDtStart().getSubmitValue();

@@ -3540,6 +3540,19 @@ public class SalesServiceImpl implements SalesService {
     }
 
     @Override
+    public long quantiteProduitsByVente(String venteId) {
+        try {
+            Object total = getEm().createQuery(
+                    "SELECT COALESCE(SUM(o.intQUANTITY), 0) FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1")
+                    .setParameter(1, venteId).getSingleResult();
+            return total instanceof Number ? ((Number) total).longValue() : 0L;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "quantiteProduitsByVente", e);
+            return 0L;
+        }
+    }
+
+    @Override
     public JSONObject updatRemiseVenteDepot(String venteId, int valueRemise) throws JSONException {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();

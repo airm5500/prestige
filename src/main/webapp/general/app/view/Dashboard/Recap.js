@@ -10,6 +10,7 @@ Ext.define('testextjs.view.Dashboard.Recap', {
         align: 'stretch'
 
     },
+    autoScroll: true,
     initComponent: function () {
         const achats = new Ext.data.Store({
             fields: [
@@ -171,9 +172,11 @@ Ext.define('testextjs.view.Dashboard.Recap', {
             ],
             items: [
                 {
+                    /* Retours du 12/09 (point 5) : hauteur fixe, sans « flex », sinon la colonne repartit la place
+                       entre les sections quand l'ecran est colle au conteneur et cette premiere section se fait
+                       rogner ; le reste de l'ecran defile. */
                     xtype: 'fieldset',
                     collapsible: false,
-                    flex: 1,
                     margin: '2',
                     height: 280,
                     layout: 'hbox',

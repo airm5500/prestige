@@ -31,7 +31,7 @@ public final class EditionBalance {
     public static Map<String, String[]> entetes() {
         Map<String, String[]> e = new HashMap<>();
         e.put(S_BALANCE, new String[] { "Ventes", "Brut TTC", "Remise", "Net TTC", "Espèces", "Mobile" });
-        e.put(S_RESUME, new String[] { "Montant", "", "", "", "", "" });
+        e.put(S_RESUME, new String[] { "Montant", "", "", "", "", "Montant" });
         e.put(S_CLIENTS, new String[] { "Clients", "% clients", "Montant net", "% ventes", "", "" });
         e.put(S_PART, new String[] { "Montant", "% du CA", "Ventes", "% ventes", "", "" });
         e.put(S_CAISSE, new String[] { "Nombre", "Montant", "", "", "", "" });
@@ -82,11 +82,16 @@ public final class EditionBalance {
                 { "Chèques", "montantCheque" }, { "Virements", "montantVirement" }, { "Carte bancaire", "montantCB" },
                 { "Tiers payant", "montantTp" }, { "Panier moyen", "panierMoyen" },
                 { "Nombre de ventes", "nbreVente" } };
-        for (String[] k : kpis) {
-            l.add(new BalanceEditionLigneDTO(S_RESUME, 2, k[0], false, false, n(resume.optLong(k[1]))));
+        // Retours du 12/09 : le resume sur deux colonnes (libelle, montant | libelle, montant) pour occuper la page
+        List<String[]> elements = new ArrayList<>(java.util.Arrays.asList(kpis));
+        elements.add(new String[] { "Ratio V/A", null });
+        int moitie = (elements.size() + 1) / 2;
+        for (int i = 0; i < moitie; i++) {
+            String[] gauche = elements.get(i);
+            String[] droite = i + moitie < elements.size() ? elements.get(i + moitie) : null;
+            l.add(new BalanceEditionLigneDTO(S_RESUME, 2, gauche[0], false, false, valeurResume(resume, gauche), "",
+                    droite == null ? "" : droite[0], droite == null ? "" : valeurResume(resume, droite)));
         }
-        l.add(new BalanceEditionLigneDTO(S_RESUME, 2, "Ratio V/A", false, false,
-                String.valueOf(resume.opt("ratioVA"))));
 
         // 3. clients et ventes
         JSONObject comptant = v.optJSONObject("comptant"), credit = v.optJSONObject("credit");
@@ -147,6 +152,10 @@ public final class EditionBalance {
                     n(t.optLong("montantTva")), n(t.optLong("montantTtc")), p(t.optDouble("part"))));
         }
         return l;
+    }
+
+    private static String valeurResume(JSONObject resume, String[] element) {
+        return element[1] == null ? String.valueOf(resume.opt("ratioVA")) : n(resume.optLong(element[1]));
     }
 
     private static BalanceEditionLigneDTO part(String libelle, JSONObject o, boolean secondaire) {

@@ -699,7 +699,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             xtype: 'pagingtoolbar',
                                                             displayInfo: true,
                                                             flex: 2,
-                                                            displayMsg: 'nombre(s) de produit(s): {2}',
+                                                            displayMsg: 'nombre(s) de ligne(s): {2}',
                                                             pageSize: 10,
                                                             store: venteDetails,
                                                             /* Date et heure de creation de la vente en cours, juste
@@ -725,15 +725,31 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                     };
                                                                     barre.mon(barre.getStore(), 'load', majDate);
                                                                     majDate();
-                                                                    /* Retours du 12/09 : le nombre total de lignes de
-                                                                       la vente, a cote du nombre de produits. */
+                                                                    /* Retours du 12/09 : le nombre de produits (somme des
+                                                                       quantites, toutes pages) a cote du nombre de lignes
+                                                                       que la pagination affiche deja. */
                                                                     var lignes = barre.insert(position + 1, {
                                                                         xtype: 'tbtext', itemId: 'nombreLignesVente', text: '',
                                                                         style: 'color:#1f4e79;font-weight:600;margin-left:10px;'
                                                                     });
                                                                     var majLignes = function () {
                                                                         var total = barre.getStore().getTotalCount();
-                                                                        lignes.setText(total ? 'Lignes : ' + total : '');
+                                                                        var ctrl = testextjs.app.getController('VenteCtr');
+                                                                        var vente = ctrl ? (ctrl.current || (ctrl.getCurrent ? ctrl.getCurrent() : null)) : null;
+                                                                        if (!total || !vente || !vente.lgPREENREGISTREMENTID) {
+                                                                            lignes.setText('');
+                                                                            return;
+                                                                        }
+                                                                        Ext.Ajax.request({
+                                                                            url: '../api/v1/vente/quantites-vente/' + vente.lgPREENREGISTREMENTID,
+                                                                            method: 'GET',
+                                                                            success: function (rep) {
+                                                                                var o = Ext.JSON.decode(rep.responseText, true) || {};
+                                                                                if (!lignes.isDestroyed) {
+                                                                                    lignes.setText(o.success ? 'nombre(s) de produit(s) : ' + (o.produits || 0) : '');
+                                                                                }
+                                                                            }
+                                                                        });
                                                                     };
                                                                     barre.mon(barre.getStore(), 'load', majLignes);
                                                                     majLignes();

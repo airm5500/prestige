@@ -56,10 +56,10 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/stockmanagement/stock/ws_zone.jsp',
+                url: '../api/v1/zones-geographiques', // REST (retours du 12/09)
                 reader: {
                     type: 'json',
-                    root: 'data',
+                    root: 'results',
                     totalProperty: 'total'
                 }
             }
@@ -71,7 +71,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/stockmanagement/stock/ws_productbyzone.jsp',
+                url: '../api/v1/zones-geographiques/produits', // REST (retours du 12/09)
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -539,7 +539,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
 
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: '../webservices/stockmanagement/stock/ws_update.jsp',
+                            url: '../api/v1/zones-geographiques/basculer', // REST (retours du 12/09)
                             method: 'POST',
                             timeout: 24000000,
                             params: {

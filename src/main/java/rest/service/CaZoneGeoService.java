@@ -53,6 +53,8 @@ public interface CaZoneGeoService {
         private java.time.LocalDate fin;
         private String zoneId;
         private String familleId;
+        private String gammeId;
+        private String laboratoireId;
         private Regroupement regroupement = Regroupement.ZONE;
 
         public util.PeriodesCa.Type getTypePeriode() {
@@ -97,6 +99,24 @@ public interface CaZoneGeoService {
 
         public Filtres familleId(String familleId) {
             this.familleId = familleId;
+            return this;
+        }
+
+        public String getGammeId() {
+            return gammeId;
+        }
+
+        public Filtres gammeId(String gammeId) {
+            this.gammeId = gammeId;
+            return this;
+        }
+
+        public String getLaboratoireId() {
+            return laboratoireId;
+        }
+
+        public Filtres laboratoireId(String laboratoireId) {
+            this.laboratoireId = laboratoireId;
             return this;
         }
 

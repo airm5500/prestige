@@ -1196,6 +1196,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         } else {
             puces += '<span class="vp-ap-puce">TVA <em>non renseignée</em></span>';
         }
+        // Retours du 12/09 : le taux de marque, juste apres la TVA
+        puces += '<span class="vp-ap-puce">Taux de marque ' + (o.tauxMarque !== undefined && o.tauxMarque !== null && o.tauxMarque !== ''
+                ? esc(o.tauxMarque) + ' %' : '<em>non calculable</em>') + '</span>';
         // Contenance : seulement si l'article est deconditionnable et qu'elle est renseignee.
         if (o.contenance) {
             puces += '<span class="vp-ap-puce contenance">Contenance ' + esc(o.contenance) + '</span>';

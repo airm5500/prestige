@@ -85,13 +85,17 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                     .append(" WHERE p.str_STATUT = ?4 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2")
                     .append(" AND u.lg_EMPLACEMENT_ID = ?3 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
                     .append(" AND p.lg_TYPE_VENTE_ID <> ?5");
-            boolean filtreZone = estRenseigne(filtres.getZoneId());
-            boolean filtreFamille = estRenseigne(filtres.getFamilleId());
-            if (filtreZone) {
-                sql.append(" AND f.lg_ZONE_GEO_ID = ?6");
-            }
-            if (filtreFamille) {
-                sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(filtreZone ? 7 : 6);
+            // Filtres facultatifs, numerotes a la suite des cinq parametres fixes (retours du 12/09 : gamme et
+            // laboratoire en plus de la zone et de la famille)
+            List<String> valeursFiltres = new ArrayList<>();
+            String[][] filtresFacultatifs = { { "f.lg_ZONE_GEO_ID", filtres.getZoneId() },
+                    { "f.lg_FAMILLEARTICLE_ID", filtres.getFamilleId() }, { "f.gamme_id", filtres.getGammeId() },
+                    { "f.laboratoire_id", filtres.getLaboratoireId() } };
+            for (String[] f : filtresFacultatifs) {
+                if (estRenseigne(f[1])) {
+                    valeursFiltres.add(f[1]);
+                    sql.append(" AND ").append(f[0]).append(" = ?").append(5 + valeursFiltres.size());
+                }
             }
             sql.append(" GROUP BY f.lg_ZONE_GEO_ID, z.str_LIBELLEE, f.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE, tranche,")
                     .append(" f.gamme_id, g.libelle, f.laboratoire_id, lb.libelle");
@@ -100,12 +104,8 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
                     .setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()))
                     .setParameter(3, emplacementId).setParameter(4, DateConverter.STATUT_IS_CLOSED)
                     .setParameter(5, DateConverter.DEPOT_EXTENSION);
-            int position = 6;
-            if (filtreZone) {
-                requete.setParameter(position++, filtres.getZoneId());
-            }
-            if (filtreFamille) {
-                requete.setParameter(position, filtres.getFamilleId());
+            for (int i = 0; i < valeursFiltres.size(); i++) {
+                requete.setParameter(6 + i, valeursFiltres.get(i));
             }
             @SuppressWarnings("unchecked")
             List<Object[]> lignesSql = requete.getResultList();
