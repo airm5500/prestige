@@ -668,106 +668,76 @@ public class CommandeServiceImpl implements CommandeService {
             return json.put("success", false).put("msg",
                     "Vous n'avez pas le privilège requis pour clôturer un inventaire");
         }
+        // Retour du 13/09 : la cloture traitait les lignes une par une en JPA (deux merge et un persist par ligne,
+        // rechargements toutes les dix lignes) : plusieurs minutes pour dix mille lignes. Elle est maintenant faite
+        // en ordres SQL ensemblistes, dans une seule transaction, et ecrit a nouveau ce que la procedure stockee de
+        // l'ancien ecran ecrivait (stock par type, date du dernier inventaire, mouvement et instantane du jour).
         EntityManager emg = this.getEm();
+        boolean transactionOuverte = false;
         try {
-            TInventaire inventaire = emg.find(TInventaire.class, inventaireId);
-            boolean isReserve = inventaire != null && "reserve".equals(inventaire.getStrTYPE());
-            List<TInventaireFamille> list = findByInventaire(inventaireId);
-            Typemvtproduit typemvtproduit = findById(Constant.INVENTAIRE);
             userTransaction.begin();
-            LongAdder count = new LongAdder();
-            LongAdder count2 = new LongAdder();
-            TEmplacement emplacement = user.getLgEMPLACEMENTID();
-            list.stream().forEach(s -> {
-                // list.stream().filter(s -> Boolean.TRUE.equals(s.getBoolINVENTAIRE())).forEach(s -> {
-                if (s.getIntNUMBER().compareTo(s.getIntNUMBERINIT()) != 0) {
-                    count.increment();
-                    if (isReserve) {
-                        // Inventaire reserve : on met a jour UNIQUEMENT le stock reserve
-                        // (t_type_stock_famille type 2), sans toucher au stock rayon.
-                        updateStockReserve(emg, s.getLgFAMILLEID().getLgFAMILLEID(), emplacement.getLgEMPLACEMENTID(),
-                                s.getIntNUMBER());
-                    } else {
-                        TFamilleStock stock = s.getLgFAMILLESTOCKID();
-                        stock.setIntNUMBERAVAILABLE(s.getIntNUMBER());
-                        stock.setIntNUMBER(s.getIntNUMBER());
-                        stock.setDtUPDATED(new Date());
-                        emg.merge(stock);
-                    }
-                    s.setStrSTATUT(Constant.STATUT_IS_CLOSED);
-                    s.setDtUPDATED(new Date());
-                    emg.merge(s);
-
-                }
-
-                if (!isReserve) {
-                    saveMvtProduit(s.getLgINVENTAIREFAMILLEID() + "", typemvtproduit, s.getLgFAMILLEID(), user,
-                            emplacement, s.getIntNUMBER(), s.getIntNUMBERINIT(), s.getIntNUMBER());
-                }
-
-                count2.increment();
-                if (count2.intValue() > 0 && count2.intValue() % 10 == 0) {
-                    emg.flush();
-                    emg.clear();
-
-                }
-            });
+            transactionOuverte = true;
+            TInventaire inventaire = emg.find(TInventaire.class, inventaireId);
+            if (inventaire == null) {
+                userTransaction.rollback();
+                return json.put("success", false).put("msg", "Cet inventaire n'existe plus.");
+            }
+            boolean isReserve = "reserve".equals(inventaire.getStrTYPE());
+            String emplacementId = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            String userId = user.getLgUSERID();
+            int count;
+            if (isReserve) {
+                // Inventaire reserve : UNIQUEMENT le stock reserve (type 2), sans toucher au stock rayon.
+                executer(emg, ClotureInventaireSql.STOCK_PAR_TYPE, inventaireId, emplacementId, userId, "2");
+            } else {
+                executer(emg, ClotureInventaireSql.STOCK_RAYON, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.STOCK_PAR_TYPE, inventaireId, emplacementId, userId,
+                        ClotureInventaireSql.typeStockRayon(emplacementId));
+                executer(emg, ClotureInventaireSql.DERNIER_INVENTAIRE, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.HISTORIQUE, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.MOUVEMENT_CUMUL, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.MOUVEMENT_CREATION, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.INSTANTANE_MAJ, inventaireId, emplacementId, userId, null);
+                executer(emg, ClotureInventaireSql.INSTANTANE_CREATION, inventaireId, emplacementId, userId, null);
+            }
+            count = executer(emg, ClotureInventaireSql.LIGNES_CLOTUREES, inventaireId, emplacementId, userId, null);
             inventaire.setStrSTATUT(Constant.STATUT_IS_CLOSED);
             inventaire.setDtUPDATED(new Date());
             inventaire.setLgUSERID(user);
             emg.merge(inventaire);
-            String result = "Inventaire cloturé; " + count.intValue() + " Article(s) mis à jour";
-            json.put("success", true).put("msg", result);
             userTransaction.commit();
-
-        } catch (IllegalStateException | SecurityException | HeuristicMixedException | HeuristicRollbackException
-                | NotSupportedException | RollbackException | SystemException | JSONException e) {
+            transactionOuverte = false;
+            json.put("success", true).put("msg", "Inventaire cloturé; " + count + " Article(s) mis à jour");
+        } catch (Exception e) {
+            // Toute erreur (verrou en base, donnee inattendue...) annule l'ensemble : rien n'est ecrit a moitie.
+            LOG.log(Level.SEVERE, "cloture de l'inventaire " + inventaireId, e);
             json.put("success", false).put("msg", "La cloture n'a pas abouti");
-            try {
-                LOG.log(Level.SEVERE, null, e);
-
-                if (userTransaction.getStatus() == Status.STATUS_ACTIVE
-                        || userTransaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+            if (transactionOuverte) {
+                try {
                     userTransaction.rollback();
+                } catch (Exception ex) {
+                    LOG.log(Level.SEVERE, null, ex);
                 }
-            } catch (SystemException ex) {
-                Logger.getLogger(CommandeServiceImpl.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         return json;
     }
 
-    /**
-     * Met a jour le stock reserve (t_type_stock_famille type 2) d'un produit pour un emplacement donne, sans toucher au
-     * stock rayon (t_famille_stock).
-     */
-    private void updateStockReserve(EntityManager emg, String familleId, String emplacementId, int qte) {
-        TTypeStockFamille typeStock;
-        try {
-            // Verrou exclusif sur la ligne reserve : un mouvement rayon<->reserve concurrent sur ce produit ne peut
-            // plus etre ecrase silencieusement par la valeur comptee de l'inventaire.
-            typeStock = (TTypeStockFamille) emg
-                    .createQuery("SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = '2' "
-                            + "AND t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 "
-                            + "AND t.strSTATUT = 'enable'")
-                    .setParameter(1, familleId).setParameter(2, emplacementId).setMaxResults(1)
-                    .setLockMode(LockModeType.PESSIMISTIC_WRITE).getSingleResult();
-        } catch (javax.persistence.PessimisticLockException | javax.persistence.LockTimeoutException e) {
-            // Conflit de verrou : on NE POURSUIT PAS en silence (cela laisserait l'inventaire partiellement applique).
-            // IllegalStateException est traitee par le catch de cloturerInvetaire -> rollback complet et message clair.
-            LOG.log(Level.SEVERE, "updateStockReserve: conflit de verrou famille=" + familleId, e);
-            throw new IllegalStateException(
-                    "Article " + familleId + " en cours de modification par un autre traitement : cloture interrompue.",
-                    e);
-        } catch (Exception e) {
-            // Absence de ligne de stock reserve : comportement historique conserve (on trace et on continue).
-            LOG.log(Level.WARNING, "updateStockReserve: pas de stock reserve pour famille={0} empl={1} : {2}",
-                    new Object[] { familleId, emplacementId, e.getMessage() });
-            return;
+    /** Execute un ordre de la cloture ; les parametres absents de l'ordre ne sont pas poses. */
+    private static int executer(EntityManager emg, String sql, String inventaireId, String emplacementId, String userId,
+            String typeStock) {
+        Query q = emg.createNativeQuery(sql);
+        q.setParameter("inventaire", inventaireId);
+        if (sql.contains(":emplacement")) {
+            q.setParameter("emplacement", emplacementId);
         }
-        typeStock.setIntNUMBER(qte);
-        typeStock.setDtUPDATED(new Date());
-        emg.merge(typeStock);
+        if (sql.contains(":utilisateur")) {
+            q.setParameter("utilisateur", userId);
+        }
+        if (sql.contains(":typeStock")) {
+            q.setParameter("typeStock", typeStock);
+        }
+        return q.executeUpdate();
     }
 
     @Override
