@@ -134,6 +134,24 @@ public class dataManager {
     public void initEntityManager() {
 
         setEmf(sharedEntityManagerFactory());
+        // Le cache partage d'EclipseLink est vide a CHAQUE ouverture d'EntityManager.
+        //
+        // Deux moteurs ecrivent dans la meme base : les services REST (Hibernate, unite JTA_UNIT) et le code
+        // historique (EclipseLink, cette classe). EclipseLink ne voit pas les ecritures d'Hibernate : une entite
+        // deja en cache y reste telle quelle, meme quand la ligne a change en base. Cas constate le 13/09 : la
+        // cloture d'inventaire (REST) passait l'en-tete a « is_Closed » en base, et la liste des inventaires
+        // (EclipseLink) continuait d'afficher « En cours » - meme avec le filtre « Cloture », qui trouvait bien
+        // la ligne en base mais la rendait avec l'etat en cache.
+        //
+        // Ce vidage restitue le comportement d'origine : tant que toutes les ecritures passaient par bllBase.persiste,
+        // celui-ci videait le cache avant chaque transaction, et aucune lecture ne pouvait etre perimee. Le cache
+        // partage reste ACTIF (voir sharedEntityManagerFactory : le desactiver confisquerait les connexions du pool) ;
+        // il ne sert plus qu'a l'interieur d'une meme requete, ce qui suffit aux lectures en lot.
+        try {
+            getEmf().getCache().evictAll();
+        } catch (RuntimeException e) {
+            // Un cache qui ne peut pas etre vide ne doit jamais empecher d'ouvrir l'EntityManager.
+        }
         setEm(getEmf().createEntityManager());
         isConected = true;
 
