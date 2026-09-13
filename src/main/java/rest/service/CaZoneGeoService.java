@@ -11,9 +11,12 @@ import static rest.service.CaZoneGeoService.Regroupement.valueOf;
 @Local
 public interface CaZoneGeoService {
 
-    /** Regroupement des lignes : par zone, par famille, ou zone puis famille. */
+    /**
+     * Regroupement des lignes : par zone, par famille, zone puis famille, et (retours du 12/09, point 9) par gamme ou
+     * par laboratoire, sur les memes tranches et les memes filtres.
+     */
     enum Regroupement {
-        ZONE, FAMILLE, ZONE_FAMILLE;
+        ZONE, FAMILLE, ZONE_FAMILLE, GAMME, LABORATOIRE;
 
         public static Regroupement de(String valeur) {
             if (valeur == null) {
@@ -51,6 +54,14 @@ public interface CaZoneGeoService {
         private java.time.LocalDate fin;
         private String zoneId;
         private String familleId;
+        private String gammeId;
+        private String laboratoireId;
+        /*
+         * Gamme ou laboratoire de la LIGNE cliquee (detail de l'onglet Gammes / Laboratoires, retours du 12/09) : null
+         * quand la ligne n'est pas regroupee dessus, chaine vide pour « sans gamme / laboratoire ».
+         */
+        private String ligneGammeId;
+        private String ligneLaboratoireId;
         private Regroupement regroupement = Regroupement.ZONE;
 
         public util.PeriodesCa.Type getTypePeriode() {
@@ -95,6 +106,42 @@ public interface CaZoneGeoService {
 
         public Filtres familleId(String familleId) {
             this.familleId = familleId;
+            return this;
+        }
+
+        public String getGammeId() {
+            return gammeId;
+        }
+
+        public Filtres gammeId(String gammeId) {
+            this.gammeId = gammeId;
+            return this;
+        }
+
+        public String getLaboratoireId() {
+            return laboratoireId;
+        }
+
+        public Filtres laboratoireId(String laboratoireId) {
+            this.laboratoireId = laboratoireId;
+            return this;
+        }
+
+        public String getLigneGammeId() {
+            return ligneGammeId;
+        }
+
+        public Filtres ligneGammeId(String ligneGammeId) {
+            this.ligneGammeId = ligneGammeId;
+            return this;
+        }
+
+        public String getLigneLaboratoireId() {
+            return ligneLaboratoireId;
+        }
+
+        public Filtres ligneLaboratoireId(String ligneLaboratoireId) {
+            this.ligneLaboratoireId = ligneLaboratoireId;
             return this;
         }
 

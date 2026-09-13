@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Stateless;
+import dal.TFamille;
+import dal.TFamilleZonegeo;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
@@ -289,6 +291,134 @@ public class ZoneGeographiqueServiceImpl implements ZoneGeographiqueService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "toggleStatusMasse", e);
             return json.put("success", FAILED).put("errors", "Impossible de changer le statut des emplacements");
+        }
+    }
+
+    /* ------------------------------------------------------------ basculement (retours du 12/09, point 3) */
+
+    private static final String PRODUITS_DE_LA_ZONE = " FROM TFamille o WHERE o.lgZONEGEOID.lgZONEGEOID = ?1"
+            + " AND o.strSTATUT = 'enable' AND (o.intCIP LIKE ?2 OR o.strNAME LIKE ?2)"
+            + " AND o.lgZONEGEOID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3";
+
+    @Override
+    public JSONObject produitsDeLaZone(TUser user, String zoneId, String recherche, int start, int limit) {
+        JSONObject json = new JSONObject();
+        JSONArray data = new JSONArray();
+        try {
+            String like = (recherche == null ? "" : recherche.trim()) + "%";
+            String emplacement = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            List<Object[]> lignes = em
+                    .createQuery("SELECT o.lgFAMILLEID, o.intCIP, o.strNAME, o.intPRICE," + " o.lgZONEGEOID.strLIBELLEE"
+                            + PRODUITS_DE_LA_ZONE + " ORDER BY o.strNAME", Object[].class)
+                    .setParameter(1, zoneId == null ? "" : zoneId).setParameter(2, like).setParameter(3, emplacement)
+                    .setFirstResult(Math.max(0, start)).setMaxResults(limit > 0 ? limit : 15).getResultList();
+            long total = em.createQuery("SELECT COUNT(o)" + PRODUITS_DE_LA_ZONE, Long.class)
+                    .setParameter(1, zoneId == null ? "" : zoneId).setParameter(2, like).setParameter(3, emplacement)
+                    .getSingleResult();
+            for (Object[] t : lignes) {
+                data.put(new JSONObject().put("lg_FAMILLE_ID", String.valueOf(t[0]))
+                        .put("int_CIP", t[1] == null ? "" : String.valueOf(t[1]))
+                        .put("str_NAME", t[2] == null ? "" : String.valueOf(t[2]))
+                        .put("int_PRICE", t[3] == null ? 0 : t[3])
+                        .put("int_NUMBER", stockDisponible(String.valueOf(t[0]), emplacement))
+                        .put("str_DESCRIPTION", t[4] == null ? "" : String.valueOf(t[4])).put("isChecked", false));
+            }
+            json.put("data", data).put("total", total).put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produits de la zone " + zoneId, e);
+            json.put("data", new JSONArray()).put("total", 0).put("success", false);
+        }
+        return json;
+    }
+
+    private int stockDisponible(String produitId, String emplacementId) {
+        try {
+            Object stock = em
+                    .createQuery("SELECT COALESCE(SUM(s.intNUMBERAVAILABLE), 0) FROM TFamilleStock s"
+                            + " WHERE s.lgFAMILLEID.lgFAMILLEID = ?1 AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2")
+                    .setParameter(1, produitId).setParameter(2, emplacementId).getSingleResult();
+            return stock instanceof Number ? ((Number) stock).intValue() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    @Override
+    public JSONObject basculer(TUser user, String zoneDestinationId, String zoneOrigineId, String mode,
+            List<String> produits, List<String> decoches, String recherche) {
+        JSONObject json = new JSONObject();
+        try {
+            TZoneGeographique destination = zoneDestinationId == null ? null
+                    : em.find(TZoneGeographique.class, zoneDestinationId);
+            if (destination == null) {
+                return json.put("status", 0).put("message", "Choisissez l'emplacement de destination.");
+            }
+            String emplacement = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            List<String> cibles;
+            if ("ALL".equals(mode)) {
+                cibles = em
+                        .createQuery("SELECT o.lgFAMILLEID" + PRODUITS_DE_LA_ZONE + " ORDER BY o.strNAME", String.class)
+                        .setParameter(1, zoneOrigineId == null ? "" : zoneOrigineId)
+                        .setParameter(2, (recherche == null ? "" : recherche.trim()) + "%").setParameter(3, emplacement)
+                        .getResultList();
+                if (decoches != null && !decoches.isEmpty()) {
+                    cibles.removeAll(decoches);
+                }
+            } else {
+                cibles = produits == null ? new java.util.ArrayList<>() : produits;
+            }
+            int compte = 0;
+            List<String> ignores = new java.util.ArrayList<>();
+            for (String id : cibles) {
+                TFamille article = id == null ? null : em.find(TFamille.class, id.trim());
+                if (article == null) {
+                    ignores.add(String.valueOf(id));
+                    continue;
+                }
+                article.setLgZONEGEOID(destination);
+                article.setDtUPDATED(new Date());
+                em.merge(article);
+                lierProduitAZone(article, destination, user);
+                compte++;
+            }
+            String message = "Le nombre de produits pris en compte : <span style=\"color:blue;font-weight:800; \" >"
+                    + compte + "</span>";
+            if (!ignores.isEmpty()) {
+                message += " - " + ignores.size() + " produit(s) introuvable(s) ignoré(s)";
+            }
+            return json.put("status", 1).put("message", message).put("count", compte);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "basculement vers " + zoneDestinationId, e);
+            return json.put("status", 0).put("message", "Le processus n'a pas abouti : " + e.getMessage());
+        }
+    }
+
+    /**
+     * La ligne t_famille_zonegeo du produit pour l'emplacement de l'utilisateur, mise a jour ou creee : un produit sans
+     * ligne (cree hors de l'ecran des emplacements) faisait echouer tout le basculement.
+     */
+    private void lierProduitAZone(TFamille article, TZoneGeographique destination, TUser user) {
+        List<TFamilleZonegeo> liens = em
+                .createQuery("SELECT o FROM TFamilleZonegeo o WHERE o.lgFAMILLEID.lgFAMILLEID = ?1"
+                        + " AND o.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2", TFamilleZonegeo.class)
+                .setParameter(1, article.getLgFAMILLEID())
+                .setParameter(2, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).setMaxResults(1).getResultList();
+        TFamilleZonegeo lien;
+        if (liens.isEmpty()) {
+            lien = new TFamilleZonegeo();
+            lien.setLgFAMILLEZONEGEOID(java.util.UUID.randomUUID().toString());
+            lien.setLgFAMILLEID(article);
+            lien.setLgEMPLACEMENTID(user.getLgEMPLACEMENTID());
+            lien.setStrSTATUT("enable");
+            lien.setDtCREATED(new Date());
+            lien.setLgZONEGEOID(destination);
+            lien.setDtUPDATED(new Date());
+            em.persist(lien);
+        } else {
+            lien = liens.get(0);
+            lien.setLgZONEGEOID(destination);
+            lien.setDtUPDATED(new Date());
+            em.merge(lien);
         }
     }
 }

@@ -90,12 +90,18 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     @Override
     public List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot,
             Boolean exclu) {
+        return all(start, size, query, all, depot, exclu, null);
+    }
+
+    @Override
+    public List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu,
+            Boolean carnetSeulement) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<TTiersPayant> cq = cb.createQuery(TTiersPayant.class);
             Root<TTiersPayant> root = cq.from(TTiersPayant.class);
             cq.select(root).orderBy(cb.asc(root.get(TTiersPayant_.strNAME)));
-            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu);
+            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu, carnetSeulement);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TTiersPayant> q = getEntityManager().createQuery(cq);
             if (!all) {
@@ -113,8 +119,27 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
      * Les deux filtres de l'ecran se combinent : chacun ajoute sa condition, et un filtre laisse a null (« Tous ») n'en
      * ajoute aucune. Le comportement d'origine - aucun filtre, ou le seul filtre depot - est donc rendu a l'identique.
      */
+    /**
+     * Restreint la selection aux tiers payants de type CARNET.
+     *
+     * <p>
+     * Un carnet depot est, par definition, un carnet. Presenter les assurances dans les ecrans qui en designent ou en
+     * gerent oblige l'utilisateur a trier lui-meme une liste ou la majorite des lignes n'a rien a y faire, et rend
+     * possible de designer comme carnet depot un organisme qui ne se gere pas ainsi.
+     * </p>
+     */
+    private Predicate predicatTypeCarnet(CriteriaBuilder cb, Root<TTiersPayant> root) {
+        return cb.equal(root.get(TTiersPayant_.lgTYPETIERSPAYANTID).get(TTypeTiersPayant_.lgTYPETIERSPAYANTID),
+                Constant.TYPE_TIERS_PAYANT_CARNET_ID);
+    }
+
     private List<Predicate> depotPredicatCountAll(CriteriaBuilder cb, Root<TTiersPayant> root, String query,
             Boolean depot, Boolean exclu) {
+        return depotPredicatCountAll(cb, root, query, depot, exclu, null);
+    }
+
+    private List<Predicate> depotPredicatCountAll(CriteriaBuilder cb, Root<TTiersPayant> root, String query,
+            Boolean depot, Boolean exclu, Boolean carnetSeulement) {
         List<Predicate> predicates = new ArrayList<>();
         if (!StringUtils.isEmpty(query)) {
             predicates.add(cb.or(cb.like(root.get(TTiersPayant_.strNAME), query + "%"),
@@ -130,13 +155,17 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
                 // L'indicateur is_depot est independant du TYPE de tiers payant : une
                 // assurance marquee depot y apparaissait, alors qu'elle ne se gere pas
                 // comme un carnet. Le type est donc exige en plus de l'indicateur.
-                predicates.add(
-                        cb.equal(root.get(TTiersPayant_.lgTYPETIERSPAYANTID).get(TTypeTiersPayant_.lgTYPETIERSPAYANTID),
-                                Constant.TYPE_TIERS_PAYANT_CARNET_ID));
+                predicates.add(predicatTypeCarnet(cb, root));
             } else {
                 predicates.add(cb.isFalse(root.get(TTiersPayant_.isDepot)));
             }
 
+        }
+        if (Boolean.TRUE.equals(carnetSeulement)) {
+            // Filtre INDEPENDANT de is_depot : l'ecran « Depot carnet » designe les carnets a
+            // passer en depot, il doit donc voir les carnets qui ne le sont pas encore -- mais
+            // pas les assurances, qui n'ont rien a y faire.
+            predicates.add(predicatTypeCarnet(cb, root));
         }
         if (exclu != null) {
             // toBeExclude peut etre NULL sur les fiches anciennes : « non exclu » doit les retenir.
@@ -151,25 +180,51 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     }
 
     @Override
+    public Long solde(String tiersPayantId) {
+        TTiersPayant payant = getEntityManager().find(TTiersPayant.class, tiersPayantId);
+        if (payant == null) {
+            return null;
+        }
+        // Relu en base : une vente modifiee ou annulee depuis un autre ecran a deja touche le compte.
+        try {
+            getEntityManager().refresh(payant);
+        } catch (Exception e) {
+            // entite non geree : la valeur lue par find suffit
+        }
+        return payant.getAccount() == null ? 0L : payant.getAccount().longValue();
+    }
+
+    @Override
     public JSONObject all(int start, int size, String query, Boolean exclude) {
         return all(start, size, query, exclude, null);
     }
 
     @Override
     public JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu) {
-        long count = countAll(query, depot, exclu);
-        List<TiersPayantExclusDTO> data = all(start, size, query, false, depot, exclu);
+        return all(start, size, query, depot, exclu, null);
+    }
+
+    @Override
+    public JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu, Boolean carnetSeulement) {
+        long count = countAll(query, depot, exclu, carnetSeulement);
+        List<TiersPayantExclusDTO> data = all(start, size, query, false, depot, exclu, carnetSeulement);
         return new JSONObject().put("total", count).put("data", data);
 
     }
 
     private long countAll(String query, Boolean depot, Boolean exclu) {
+        return countAll(query, depot, exclu, null);
+    }
+
+    private long countAll(String query, Boolean depot, Boolean exclu, Boolean carnetSeulement) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<Long> cq = cb.createQuery(Long.class);
             Root<TTiersPayant> root = cq.from(TTiersPayant.class);
             cq.select(cb.count(root));
-            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu);
+            // Le comptage doit poser LES MEMES predicats que la liste : sans cela la pagination
+            // annoncerait un nombre de pages que les lignes ne remplissent pas.
+            List<Predicate> predicates = depotPredicatCountAll(cb, root, query, depot, exclu, carnetSeulement);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<Long> q = getEntityManager().createQuery(cq);
             return q.getSingleResult();

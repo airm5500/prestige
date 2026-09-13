@@ -492,7 +492,7 @@ public class SalesStatsRessource {
                     row.createCell(11).setCellValue(nonNul(v.getUserVendeurName()));
                     row.createCell(12).setCellValue(nonNul(v.getUserCaissierName()));
                 });
-        String filename = "ventes_terminees_"
+        String filename = (body.isOnlyAvoir() ? "avoirs_" : "ventes_terminees_")
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + filename + "\"").build();
     }
@@ -503,7 +503,64 @@ public class SalesStatsRessource {
 
     private String titreExportVentes(SalesStatsParams body) {
         DateTimeFormatter jour = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        return "VENTES TERMINEES DU " + body.getDtStart().format(jour) + " AU " + body.getDtEnd().format(jour);
+        String objet = "VENTES TERMINEES";
+        if (body.isOnlyAvoir()) {
+            // la liste des avoirs partage cet export (retours des tests du 12/09, point 6)
+            objet = "CLOTURE".equals(body.getAvoirStatut()) ? "AVOIRS CLOTURES" : "AVOIRS EN COURS";
+        }
+        return objet + " DU " + body.getDtStart().format(jour) + " AU " + body.getDtEnd().format(jour);
+    }
+
+    /**
+     * Inventaire des produits des avoirs listes, avec EXACTEMENT les filtres de l'ecran (retours du 12/09, point 6). Un
+     * produit present dans plusieurs avoirs donne une seule ligne ; {@code controle=true} compte sans creer.
+     */
+    @POST
+    @Path("avoirs/inventaire")
+    public Response inventaireAvoirs(@QueryParam(value = "query") String query,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "hStart") String hStart, @QueryParam(value = "hEnd") String hEnd,
+            @QueryParam(value = "typeVenteId") String typeVenteId,
+            @QueryParam(value = "avoirStatut") String avoirStatut, @QueryParam(value = "caissierId") String caissierId,
+            @DefaultValue("false") @QueryParam(value = "controle") boolean controle) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        SalesStatsParams body = buildParams(0, EXPORT_VENTES_MAX, query, dtStart, dtEnd, hStart, hEnd, false, true,
+                typeVenteId, null, null, null, null);
+        body.setAvoirStatut(avoirStatut);
+        body.setCaissierId(caissierId);
+        List<String> venteIds = salesService.getListTerminees(body).stream()
+                .map(commonTasks.dto.VenteDTO::getLgPREENREGISTREMENTID).filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toList());
+        java.util.Set<String> produitIds = venteIds.isEmpty() ? new java.util.LinkedHashSet<>()
+                : inventaireService.produitIdsFromVentes(venteIds);
+        if (controle) {
+            return Response.ok().entity(new JSONObject().put("success", true).put("count", produitIds.size())
+                    .put("ventes", venteIds.size()).toString()).build();
+        }
+        if (produitIds.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "Aucun produit dans les avoirs affichés.").toString()).build();
+        }
+        String nom = "INVENTAIRE AVOIRS " + ("CLOTURE".equals(avoirStatut) ? "CLOTURES " : "EN COURS ")
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        try {
+            int compte = inventaireService.create(produitIds, nom, nom);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("count", compte).put("nom", nom)
+                            .put("msg", "Inventaire « " + nom + " » créé avec " + compte + " produit(s).").toString())
+                    .build();
+        } catch (Exception e) {
+            Logger.getLogger(SalesStatsRessource.class.getName()).log(Level.SEVERE,
+                    "inventaire depuis la liste des avoirs", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("msg", "L'inventaire n'a pas pu être créé.").toString())
+                    .build();
+        }
     }
 
     /*
@@ -816,8 +873,7 @@ public class SalesStatsRessource {
                 rest.service.impl.AnalyseOrdonnancier.aPlat(r));
         // Meme precaution que pour le registre : buildReport rend l'URL attendue meme quand
         // l'edition a echoue. On verifie que le PDF existe avant d'annoncer un succes.
-        if (StringUtils.isBlank(url)
-                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+        if (!reportUtil.editionEcrite(url)) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
                     .build();
@@ -871,8 +927,7 @@ public class SalesStatsRessource {
         // buildReport rend l'URL attendue meme quand l'edition a echoue : il journalise l'erreur et
         // continue. Annoncer un succes sur cette seule foi enverrait l'utilisateur ouvrir un fichier
         // qui n'existe pas. On verifie donc que le PDF a bien ete ecrit.
-        if (StringUtils.isBlank(url)
-                || !new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile()) {
+        if (!reportUtil.editionEcrite(url)) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée").toString())
                     .build();

@@ -27,6 +27,39 @@ public class FactureDetailDTO implements Serializable {
     private String lgFACTUREDETAILID, lgFACTUREID, ayantDroitId, clientId, clientFirstName, clientLastName,
             clientNumAssurance, ayantDroitFirstName, ayantDroitLastName, ayantDroitNumAssurance;
     private String strREF;
+    /*
+     * Retour du 09/09 : strREF est l'identifiant technique du bon (ligne compte client / tiers payant), pas un numero
+     * lisible. Les editions et la visualisation portent la reference de la VENTE, le numero de bon saisi, et
+     * l'identifiant de la vente pour retrouver ses medicaments.
+     */
+    private String strREFVENTE = "";
+    private String strREFBON = "";
+    private String venteId = "";
+
+    public String getStrREFVENTE() {
+        return strREFVENTE;
+    }
+
+    public void setStrREFVENTE(String strREFVENTE) {
+        this.strREFVENTE = strREFVENTE == null ? "" : strREFVENTE;
+    }
+
+    public String getStrREFBON() {
+        return strREFBON;
+    }
+
+    public void setStrREFBON(String strREFBON) {
+        this.strREFBON = strREFBON == null ? "" : strREFBON;
+    }
+
+    public String getVenteId() {
+        return venteId;
+    }
+
+    public void setVenteId(String venteId) {
+        this.venteId = venteId == null ? "" : venteId;
+    }
+
     private Integer dblMONTANT, dblMONTANTPAYE, dblMONTANTRESTANT, dblMONTANTREMISE, montantRemiseVente,
             montantTvaVente, montantVente, dblMONTANTBrut;
     private String dateVente;

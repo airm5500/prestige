@@ -9,6 +9,12 @@ import bll.common.Parameter;
 import commonTasks.dto.CodeFactureDTO;
 import commonTasks.dto.GenererFactureDTO;
 import commonTasks.dto.Mode;
+import static commonTasks.dto.Mode.BONS;
+import static commonTasks.dto.Mode.CODE_GROUP;
+import static commonTasks.dto.Mode.GROUP;
+import static commonTasks.dto.Mode.SELECT;
+import static commonTasks.dto.Mode.TP;
+import static commonTasks.dto.Mode.TYPETP;
 import dal.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -493,6 +499,48 @@ public class GenererFactureServiceImpl implements GenererFactureService {
 
     }
 
+    @Override
+    public LinkedHashSet<CodeFactureDTO> genererFactureCarnetDepot(GenererFactureDTO datas) {
+        List<TPreenregistrementCompteClientTiersPayent> list;
+        switch (datas.getMode()) {
+        case SELECT:
+            list = getSelectedTp(datas.getDatas(), datas.getDtStart(), datas.getDtEnd());
+            break;
+        case BONS:
+            list = getSelectedBons(datas.getDatas());
+            break;
+        default:
+            list = provisoirespartp(datas.getMode(), datas.getGroupTp(), datas.getTypetp(), datas.getTpid(),
+                    datas.getCodegroup(), datas.getDtStart().toString(), datas.getDtEnd().toString());
+            break;
+        }
+        /*
+         * Le menu du carnet depot ne facture QUE des carnets depot, quoi qu'on lui envoie. Le marquage est relu en BASE
+         * et non sur l'entite : le cache partage peut encore porter un tiers payant marque « depot » a l'instant, et le
+         * filtre laisserait alors passer - ou retiendrait - la mauvaise liste.
+         */
+        java.util.Set<String> carnetsDepot = new java.util.HashSet<>(getEntityManager()
+                .createQuery("SELECT o.lgTIERSPAYANTID FROM TTiersPayant o WHERE o.isDepot = TRUE", String.class)
+                .getResultList());
+        List<TPreenregistrementCompteClientTiersPayent> depots = list.stream()
+                .filter(o -> carnetsDepot
+                        .contains(o.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getLgTIERSPAYANTID()))
+                .collect(Collectors.toList());
+        if (depots.isEmpty()) {
+            return new LinkedHashSet<>();
+        }
+        TTypeFacture typeFacture = getEntityManager().find(TTypeFacture.class,
+                commonparameter.KEY_TYPE_FACTURE_TIERSPAYANT);
+        TTypeMvtCaisse typeMvtCaisse = getEntityManager().find(TTypeMvtCaisse.class,
+                commonparameter.KEY_TYPE_FACTURE_TIERSPAYANT);
+        // Pas de facture de groupe pour un carnet depot : le groupe est ignore, chaque carnet a sa facture.
+        return genererFactureTiersPayants(datas.getOperateur(), null,
+                depots.stream()
+                        .collect(Collectors.groupingBy(o -> o.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID())),
+                DateConverter.convertLocalDateToDate(datas.getDtStart()),
+                DateConverter.convertLocalDateToDate(datas.getDtEnd()), typeFacture, typeMvtCaisse);
+    }
+
     TParameters retrieveLastCodeFacture() {
         return getEntityManager().find(TParameters.class, KEY_CODE_FACTURE);
     }
@@ -546,6 +594,12 @@ public class GenererFactureServiceImpl implements GenererFactureService {
                 TFactureDetail detail = invoiceDetail(tf, tp, montantNetDetails, montantRemiseDetails);
                 tFactureDetailCollection.add(detail);
                 getEntityManager().persist(detail);
+                /*
+                 * Facture DEFINITIVE : le bon est marque facture, sinon il resterait proposable a une nouvelle
+                 * facturation. C'est ce que fait l'autre generateur definitif (genererFacture), pas celui-ci.
+                 */
+                tp.setStrSTATUTFACTURE(DateConverter.CHARGED);
+                getEntityManager().merge(tp);
             }
             tf.setTFactureDetailCollection(tFactureDetailCollection);
             tf.setDblMONTANTBrut(BigDecimal.valueOf(totalBrut));
@@ -638,7 +692,15 @@ public class GenererFactureServiceImpl implements GenererFactureService {
             userTransaction.begin();
             for (Map.Entry<TTiersPayant, List<TPreenregistrementCompteClientTiersPayent>> entry : data.entrySet()) {
                 lastCodeFacture = String.valueOf(codeFactureLst);
-                TTiersPayant k = entry.getKey();
+                /*
+                 * Le tiers payant est RELU dans la transaction : celui de la cle a ete charge avant son ouverture
+                 * (transactions gerees par le bean), il est donc detache, et toucher sa liste de comptes clients (mise
+                 * a jour du plafond) levait LazyInitializationException - « no Session ».
+                 */
+                TTiersPayant k = getEntityManager().find(TTiersPayant.class, entry.getKey().getLgTIERSPAYANTID());
+                if (k == null) {
+                    k = entry.getKey();
+                }
                 List<TPreenregistrementCompteClientTiersPayent> v = entry.getValue();
                 TFacture facture = genererFactureTiersPayants(groupeFactureId, k, v, dtdebut, dtfin, OTTypeFacture,
                         OTTypeMvtCaisse, lastCodeFacture);

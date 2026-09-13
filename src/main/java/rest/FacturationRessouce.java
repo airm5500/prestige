@@ -139,15 +139,240 @@ public class FacturationRessouce {
     @GET
     @Path("summary/carnet-depot")
     public Response facturesCarnetDepot(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "tpid") String tpid) throws JSONException {
+            @QueryParam(value = "tpid") String tpid, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
             return Response.ok().entity(
                     new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
                     .build();
         }
-        JSONObject jsono = facturationService.facturesCarnetDepot(tpid, start, limit <= 0 ? 18 : limit);
+        // Point 17 : la periode et le numero de facture filtrent la liste, comme le tiers payant.
+        JSONObject jsono = facturationService.facturesCarnetDepot(tpid, dtStart, dtEnd, query, start,
+                limit <= 0 ? 18 : limit);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Le recapitulatif des factures de carnet depot affichees dans l'onglet Factures (retour des tests du 09/09, point
+     * 7) : memes criteres que la liste (carnet, periode, numero), sur son propre modele
+     * facture_carnet_depot_recap.jrxml, rendu en flux dans l'onglet ouvert par le clic.
+     */
+    @GET
+    @Path("carnet-depot/recap/pdf")
+    @Produces("application/pdf")
+    public Response recapFacturesCarnetDepotPdf(@QueryParam(value = "tpid") String tpid,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) {
+        HttpSession hs = servletRequest.getSession();
+        TUser utilisateur = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (utilisateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject liste = facturationService.facturesCarnetDepot(tpid, dtStart, dtEnd, query, 0, 100000);
+        java.util.List<rest.service.dto.FactureCarnetDepotRecapLigneDTO> lignes = new java.util.ArrayList<>();
+        org.json.JSONArray data = liste.optJSONArray("data");
+        for (int i = 0; data != null && i < data.length(); i++) {
+            lignes.add(new rest.service.dto.FactureCarnetDepotRecapLigneDTO(data.getJSONObject(i)));
+        }
+        java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
+        StringBuilder criteres = new StringBuilder();
+        if (dtStart != null && !dtStart.trim().isEmpty() && dtEnd != null && !dtEnd.trim().isEmpty()) {
+            criteres.append("Période du ").append(dateLisible(dtStart)).append(" au ").append(dateLisible(dtEnd));
+        }
+        if (tpid != null && !tpid.trim().isEmpty() && !"TOUT".equals(tpid) && !lignes.isEmpty()) {
+            criteres.append(criteres.length() > 0 ? "  -  " : "").append("Carnet : ")
+                    .append(lignes.get(0).getTiersPayant());
+        } else {
+            criteres.append(criteres.length() > 0 ? "  -  " : "").append("Tous les carnets");
+        }
+        if (query != null && !query.trim().isEmpty()) {
+            criteres.append("  -  Recherche : ").append(query.trim());
+        }
+        parametres.put("P_CRITERES", criteres.toString());
+        String url = reportUtil.buildReport(parametres, "facture_carnet_depot_recap", lignes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=recap_factures_carnet_depot.pdf").build();
+    }
+
+    private static String dateLisible(String iso) {
+        try {
+            return java.time.LocalDate.parse(iso.trim())
+                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (RuntimeException e) {
+            return iso;
+        }
+    }
+
+    /**
+     * Edition d'une facture de carnet depot, SANS le detail des medicaments (point 17).
+     *
+     * <p>
+     * Une seule ligne par bon, la date en tete et le tri par date, ni « M.TOTAL » ni « M.ADHER », et aucune premiere
+     * page recapitulative. Les seize modeles jasper de l'officine ne sont pas touches : ils servent les autres tiers
+     * payants, dont les factures continuent de sortir exactement comme avant.
+     * </p>
+     */
+    @GET
+    @Path("facture/{id}/carnet-depot/pdf")
+    @Produces("application/pdf")
+    public Response factureCarnetDepotPdf(@PathParam("id") String factureId) {
+        HttpSession hs = servletRequest.getSession();
+        TUser utilisateur = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (utilisateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        dal.TFacture facture = facturationService.findFactureById(factureId);
+        if (facture == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        java.text.SimpleDateFormat jour = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur);
+        /*
+         * Retour du 09/09 : le meme modele que l'edition detaillee (facture_carnet_depot_simple.jrxml, derive de
+         * facture_detail_articles.jrxml), une ligne par vente avec la reference de la vente et le numero de bon, plus
+         * l'identifiant technique de la ligne. Le PDF est rendu en flux, dans l'onglet ouvert par le clic : aucune
+         * fenetre surgissante.
+         */
+        parametres.put("P_CODE_FACTURE", "FACTURE N° " + facture.getStrCODEFACTURE());
+        parametres.put("P_TIERS_PAYANT_NAME",
+                facture.getTiersPayant() == null ? "" : facture.getTiersPayant().getStrFULLNAME());
+        parametres.put("P_H_CLT_INFOS", "PERIODE DU " + jour.format(facture.getDtDEBUTFACTURE()) + " AU "
+                + jour.format(facture.getDtFINFACTURE()));
+        java.util.List<commonTasks.dto.FactureDetailDTO> lignes = facturationService
+                .findFacturesDetailsByFactureId(factureId);
+        lignes.sort(java.util.Comparator
+                .comparing((commonTasks.dto.FactureDetailDTO l) -> l.getDateVente() == null ? "" : l.getDateVente())
+                .thenComparing(l -> l.getStrREFVENTE() == null ? "" : l.getStrREFVENTE()));
+        String url = reportUtil.buildReport(parametres, "facture_carnet_depot_simple", lignes);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head>"
+                            + "<body style=\"font-family:Arial,sans-serif;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=facture_" + facture.getStrCODEFACTURE() + ".pdf")
+                .build();
+    }
+
+    /**
+     * Les ventes (bons) d'une facture, paginees, avec le beneficiaire (retour du 09/09 : visualisation du contenu).
+     */
+    @GET
+    @Path("facture/{id}/bons")
+    public Response bonsDeFacture(@PathParam("id") String factureId,
+            @DefaultValue("") @QueryParam("query") String query, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("25") @QueryParam("limit") int limit) {
+        java.util.List<commonTasks.dto.FactureDetailDTO> lignes = facturationService
+                .findFacturesDetailsByFactureId(factureId);
+        String motif = query == null ? "" : query.trim().toLowerCase();
+        java.util.List<commonTasks.dto.FactureDetailDTO> retenues = new java.util.ArrayList<>();
+        for (commonTasks.dto.FactureDetailDTO l : lignes) {
+            String texte = (l.getStrREFVENTE() + " " + l.getStrREFBON() + " " + l.getClientFirstName() + " "
+                    + l.getClientLastName() + " " + l.getClientNumAssurance()).toLowerCase();
+            if (motif.isEmpty() || texte.contains(motif)) {
+                retenues.add(l);
+            }
+        }
+        retenues.sort(java.util.Comparator
+                .comparing((commonTasks.dto.FactureDetailDTO l) -> l.getDateVente() == null ? "" : l.getDateVente())
+                .thenComparing(l -> l.getStrREFVENTE() == null ? "" : l.getStrREFVENTE()));
+        JSONArray data = new JSONArray();
+        int fin = limit > 0 ? Math.min(retenues.size(), Math.max(0, start) + limit) : retenues.size();
+        for (int i = Math.max(0, start); i < fin; i++) {
+            commonTasks.dto.FactureDetailDTO l = retenues.get(i);
+            data.put(new JSONObject().put("id", l.getLgFACTUREDETAILID()).put("venteId", l.getVenteId())
+                    .put("strREFVENTE", l.getStrREFVENTE()).put("strREFBON", l.getStrREFBON())
+                    .put("dateVente", l.getDateVente())
+                    .put("client",
+                            ((l.getClientFirstName() == null ? "" : l.getClientFirstName()) + " "
+                                    + (l.getClientLastName() == null ? "" : l.getClientLastName())).trim())
+                    .put("matricule", l.getClientNumAssurance() == null ? "" : l.getClientNumAssurance())
+                    .put("montant", l.getDblMONTANT() == null ? 0 : l.getDblMONTANT()));
+        }
+        long total = 0L;
+        for (commonTasks.dto.FactureDetailDTO l : retenues) {
+            total += l.getDblMONTANT() == null ? 0 : l.getDblMONTANT();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true).put("total", retenues.size())
+                .put("montantTotal", total).put("data", data).toString()).build();
+    }
+
+    /** Les medicaments d'une vente d'une facture, pagines (retour du 09/09 : visualisation du contenu). */
+    @GET
+    @Path("facture/{id}/bons/{venteId}/articles")
+    public Response articlesDeBon(@PathParam("id") String factureId, @PathParam("venteId") String venteId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("25") @QueryParam("limit") int limit) {
+        java.util.List<commonTasks.dto.VenteDetailsDTO> articles = facturationService
+                .findArticleByFactureDetailsId(venteId);
+        JSONArray data = new JSONArray();
+        int fin = limit > 0 ? Math.min(articles.size(), Math.max(0, start) + limit) : articles.size();
+        for (int i = Math.max(0, start); i < fin; i++) {
+            commonTasks.dto.VenteDetailsDTO a = articles.get(i);
+            data.put(new JSONObject().put("intCIP", a.getIntCIP()).put("strNAME", a.getStrNAME())
+                    .put("intQUANTITY", a.getIntQUANTITY()).put("intPRICEUNITAIR", a.getIntPRICEUNITAIR())
+                    .put("intPRICE", a.getIntPRICE()));
+        }
+        return Response.ok().entity(
+                new JSONObject().put("success", true).put("total", articles.size()).put("data", data).toString())
+                .build();
+    }
+
+    /**
+     * Generation des factures de carnet depot (retour du 08/09) : definitives et numerotees d'un coup, sans passer par
+     * une provisoire ni par le choix d'un modele. Seuls les bons des carnets depot sont retenus.
+     */
+    @POST
+    @Path("carnet-depot/generer")
+    public Response genererFacturesCarnetDepot(GenererFactureDTO datas) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        java.util.LinkedHashSet<CodeFactureDTO> factures = genererFactureService
+                .genererFactureCarnetDepot(datas.setOperateur(tu));
+        JSONArray codes = new JSONArray();
+        for (CodeFactureDTO f : factures) {
+            codes.put(new JSONObject().put("id", f.getFactureId()).put("code", f.getCode()));
+        }
+        return Response.ok().entity(
+                new JSONObject().put("success", true).put("total", factures.size()).put("factures", codes).toString())
+                .build();
+    }
+
+    /** Suppression simple de factures de carnet depot : les bons redeviennent facturables (retour du 08/09). */
+    @POST
+    @Path("carnet-depot/supprimer")
+    public Response supprimerFacturesCarnetDepot(String body) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        JSONArray recus = in.optJSONArray("ids");
+        List<String> ids = new java.util.ArrayList<>();
+        for (int i = 0; recus != null && i < recus.length(); i++) {
+            ids.add(recus.optString(i));
+        }
+        return Response.ok().entity(facturationService.supprimerFacturesCarnetDepot(ids).toString()).build();
     }
 
     @POST

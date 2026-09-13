@@ -56,6 +56,54 @@ public class ZoneGeographiqueRessource {
                 .build();
     }
 
+    /** Produits d'un emplacement (retours du 12/09, point 3 : remplace ws_productbyzone.jsp). */
+    @GET
+    @Path("produits")
+    public Response produits(@QueryParam("zoneID") String zoneId, @QueryParam("search_value") String searchValue,
+            @QueryParam("query") String query, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("15") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        String recherche = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
+        return Response.ok()
+                .entity(zoneGeographiqueService.produitsDeLaZone(user, zoneId, recherche, start, limit).toString())
+                .build();
+    }
+
+    /** Basculement de produits vers un emplacement (remplace ws_update.jsp) ; memes parametres que l'ancien appel. */
+    @POST
+    @Path("basculer")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response basculer(@FormParam("zoneID") String zoneDestinationId, @FormParam("zoneIDO") String zoneOrigineId,
+            @FormParam("MODE_SELECTION") String mode, @FormParam("search_value") String searchValue,
+            @FormParam("uncheckedList") String decoches, @FormParam("recordsToSend") String produits) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(zoneGeographiqueService.basculer(user, zoneDestinationId, zoneOrigineId, mode,
+                listeJson(produits), listeJson(decoches), searchValue).toString()).build();
+    }
+
+    private static java.util.List<String> listeJson(String tableau) {
+        java.util.List<String> liste = new java.util.ArrayList<>();
+        try {
+            org.json.JSONArray a = tableau == null || tableau.trim().isEmpty() ? new org.json.JSONArray()
+                    : new org.json.JSONArray(tableau);
+            for (int i = 0; i < a.length(); i++) {
+                String v = a.optString(i, "");
+                if (!v.isEmpty()) {
+                    liste.add(v);
+                }
+            }
+        } catch (RuntimeException e) {
+            // tableau illisible : rien a basculer
+        }
+        return liste;
+    }
+
     @POST
     @Path("create")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

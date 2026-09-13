@@ -68,6 +68,20 @@ Ext.define('testextjs.controller.App', {
         //contregisterordermanager
         Me_Workflow = this;
 
+        /* Veille de geometrie (retour du 08/09) : l'ecran ouvert suit la largeur du panneau central
+           - repli du menu, fenetre redimensionnee, ascenseur - et tout ecart est trace pour le
+           support. Posee UNE fois, des que le panneau central existe, quel que soit le chemin par
+           lequel un ecran est ensuite ouvert. Cf. resources/js/veille-geometrie.js. */
+        if (window.PrestigeGeometrie) {
+            this.control({
+                'contentPanel': {
+                    afterrender: function (contentPanel) {
+                        window.PrestigeGeometrie.surveiller(contentPanel);
+                    }
+                }
+            });
+        }
+
 
 
         this.control({

@@ -1285,3 +1285,90 @@ body.x-body,
 .classe-abc-c .x-grid-cell {
     background-color: #fafafa;
 }
+/* Gardes (H3) : un produit commande pendant la garde et pas vendu pendant la garde. */
+.garde-non-vendu .x-grid-cell {
+    background-color: #fdecea;
+}
+
+/* Retour du 09/09, point 4 : ventilation affichee sous les lignes VO / VNO de la balance vente / caisse. */
+.ventilation-balance { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 10px; font-size: 11px; }
+.ventilation-balance .vb-col { flex: 1 1 260px; min-width: 240px; background: #fff; border: 1px solid #dfe6ee; border-radius: 3px; padding: 6px 8px; }
+.ventilation-balance .vb-titre { font-weight: bold; color: #2E75B6; text-transform: uppercase; font-size: 10px; letter-spacing: .4px; margin-bottom: 4px; border-bottom: 1px solid #dfe6ee; padding-bottom: 3px; }
+.ventilation-balance .vb-table { width: 100%; border-collapse: collapse; }
+.ventilation-balance .vb-table th { text-align: right; font-weight: normal; color: #7f8c8d; font-size: 10px; padding: 2px 4px; }
+.ventilation-balance .vb-table td { padding: 2px 4px; border-top: 1px solid #f0f3f6; }
+.ventilation-balance .vb-lib { text-align: left; color: #34495e; }
+.ventilation-balance .vb-n { text-align: right; font-weight: bold; }
+.ventilation-balance .vb-p { text-align: right; color: #1565c0; font-weight: bold; }
+.ventilation-balance .vb-total td { border-top: 2px solid #2E75B6; font-weight: bold; }
+.ventilation-balance .vb-operateur td { color: #7f8c8d; font-weight: normal; }
+.ventilation-balance .vb-operateur .vb-n, .ventilation-balance .vb-operateur .vb-p { font-weight: normal; }
+
+/* Retour du 09/09, point 7 : detail mobile money toujours visible au pied de chaque journee, et recap des modes. */
+.x-grid-row-body-hidden { display: none; }
+.recap-modes-ca { padding: 6px 10px; font-size: 11px; background: #fbfcfd; border-top: 1px solid #dfe6ee; line-height: 20px; }
+.recap-modes-ca .rm-titre { font-weight: bold; color: #2E75B6; margin-right: 8px; }
+.recap-modes-ca .rm-mode { display: inline-block; margin-right: 12px; white-space: nowrap; }
+.recap-modes-ca .rm-mode b { color: #1565c0; }
+.recap-modes-ca .rm-operateur { color: #7f8c8d; }
+
+/* Gardes (retour des tests du 09/09) : la lettre de classe dans le resume, aux couleurs de la classification. */
+.classe-abc-lettre-a { color: #177a17; }
+.classe-abc-lettre-b { color: #1565c0; }
+.classe-abc-lettre-c { color: #a00000; }
+
+/* Retour des tests du 09/09 : balance modernisee (synthese, blocs larges, cartes du resume). */
+.ventilation-balance .vb-large { flex: 2 1 480px; }
+.ventilation-balance .vb-kpis { display: flex; flex-wrap: wrap; gap: 6px; }
+.ventilation-balance .vb-kpi { flex: 1 1 120px; background: #f3f6fa; border-radius: 3px; padding: 4px 8px; display: flex; flex-direction: column; }
+.ventilation-balance .vb-kpi-lib { color: #7f8c8d; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+.ventilation-balance .vb-kpi-val { color: #1565c0; font-weight: bold; font-size: 13px; }
+.synthese-balance { padding-bottom: 0; }
+.x-grid-cell-inner .evolution { display: block; line-height: 12px; }
+
+/* Fiche article (retour des tests du 09/09) : prix d'achat et de vente agrandis, en gras. */
+.fa-prix { font-size: 13px; font-weight: bold; }
+
+/* Balance (retour des tests du 09/09) : les sorties de caisse en rouge dans le resume. */
+.ventilation-balance .vb-kpi-rouge .vb-kpi-val { color: #a00000; }
+
+/* Gardes (retour des tests du 09/09) : le resume par classe, chaque ligne entiere aux couleurs de sa classe. */
+.resume-classe-a .x-grid-cell { color: #177a17; font-weight: bold; }
+.resume-classe-b .x-grid-cell { color: #1565c0; font-weight: bold; }
+.resume-classe-c .x-grid-cell { color: #a00000; font-weight: bold; }
+
+/* Balance, retours des tests 3 : trois rangees, en-tetes de meme couleur, chiffres agrandis. */
+.ventilation-balance.vb-v2 { display: block; padding: 8px 10px; font-size: 12px; }
+.ventilation-balance.vb-v2 .vb-rangee { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.ventilation-balance.vb-v2 .vb-col { padding: 0 0 6px 0; overflow: hidden; }
+.ventilation-balance.vb-v2 .vb-titre { background: #2E75B6; color: #fff; font-size: 12px; letter-spacing: .5px; padding: 6px 10px; margin: 0 0 6px 0; border-bottom: none; border-radius: 3px 3px 0 0; }
+.ventilation-balance.vb-v2 .vb-table th { font-size: 11px; padding: 3px 8px; }
+.ventilation-balance.vb-v2 .vb-table td { padding: 4px 8px; font-size: 12.5px; }
+.ventilation-balance.vb-v2 .vb-n, .ventilation-balance.vb-v2 .vb-p { font-size: 13px; }
+.ventilation-balance.vb-v2 .vb-lib { padding-left: 10px; }
+.ventilation-balance.vb-v2 .vb-rouge { color: #a00000; }
+.ventilation-balance.vb-v2 .vb-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 0 8px; }
+.ventilation-balance.vb-v2 .vb-kpi { padding: 6px 10px; }
+.ventilation-balance.vb-v2 .vb-kpi-lib { font-size: 10.5px; }
+.ventilation-balance.vb-v2 .vb-kpi-val { font-size: 16px; }
+
+/* ---------------------------------------------------------------- analyse article : matrice marge x rotation */
+.analyse-article-quadrants { padding: 6px 8px 2px 8px; background: #f7f9fb; }
+.analyse-article-quadrants .aa-entete { font-size: 12px; color: #333; margin-bottom: 6px; }
+.analyse-article-quadrants .aa-grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.analyse-article-quadrants .aa-quadrant { background: #fff; border: 1px solid #d5dde5; border-radius: 3px; padding: 6px 10px; cursor: pointer; min-height: 96px; }
+.analyse-article-quadrants .aa-quadrant:hover { box-shadow: 0 0 0 2px #b8c6d4 inset; }
+.analyse-article-quadrants .aa-quadrant.aa-actif { box-shadow: 0 0 0 2px #2E75B6 inset; background: #eef4fb; }
+.analyse-article-quadrants .aa-titre { font-size: 13px; font-weight: bold; }
+.analyse-article-quadrants .aa-axes { font-size: 10.5px; color: #7f8c8d; margin-bottom: 4px; }
+.analyse-article-quadrants .aa-chiffres { font-size: 11.5px; color: #333; }
+.analyse-article-quadrants .aa-decision { font-size: 11px; color: #555; margin-top: 4px; font-style: italic; }
+
+/* Rapport activite : les quatre cartes du haut reprennent le style des tableaux de la balance ; une carte
+   longue (recettes par mode) defile dans son cadre, la hauteur de la rangee reste fixe. */
+.recap-cartes.ventilation-balance.vb-v2 { padding: 4px 6px 0 6px; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-rangee { flex-wrap: nowrap; gap: 8px; margin-bottom: 0; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-col { flex: 1 1 0; min-width: 0; max-height: 240px; overflow-y: auto; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-titre { position: sticky; top: 0; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-table td { padding: 3px 8px; font-size: 12px; }
+.recap-cartes.ventilation-balance.vb-v2 .vb-n, .recap-cartes.ventilation-balance.vb-v2 .vb-p { font-size: 12.5px; white-space: nowrap; }

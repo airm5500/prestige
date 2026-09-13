@@ -298,6 +298,16 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public List<TiersPayantDTO> findTiersPayants(String query, String type) {
+        return findTiersPayants(query, type, null);
+    }
+
+    /**
+     * @param carnetDepot
+     *            vrai : seulement les carnets depot ; faux : tout SAUF les carnets depot (facturation ordinaire, retour
+     *            du 08/09) ; nul : tous, comportement historique des autres appelants.
+     */
+    @Override
+    public List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -311,6 +321,12 @@ public class ClientServiceImpl implements ClientService {
             if (type != null && !"".equals(type)) {
                 predicates.add(cb.equal(
                         root.get(TTiersPayant_.lgTYPETIERSPAYANTID).get(TTypeTiersPayant_.lgTYPETIERSPAYANTID), type));
+            }
+            if (Boolean.TRUE.equals(carnetDepot)) {
+                predicates.add(cb.isTrue(root.get(TTiersPayant_.isDepot)));
+            } else if (Boolean.FALSE.equals(carnetDepot)) {
+                predicates.add(
+                        cb.or(cb.isNull(root.get(TTiersPayant_.isDepot)), cb.isFalse(root.get(TTiersPayant_.isDepot))));
             }
 
             if (query != null && !query.equals("")) {
@@ -424,18 +440,73 @@ public class ClientServiceImpl implements ClientService {
                 item.put("strLASTNAME", existant.getStrLASTNAME());
                 item.put("strFIRSTNAME", existant.getStrFIRSTNAME());
                 item.put("strNUMEROSECURITESOCIAL", existant.getStrNUMEROSECURITESOCIAL());
+                // L'assurance PRINCIPALE du client. Deux homonymes se distinguent d'abord par leur
+                // organisme : sans lui, l'utilisateur voit deux lignes identiques et ne peut pas
+                // choisir entre « aller chercher l'existant » et « creer quand meme ».
+                item.put("assurance", assurancePrincipale(existant));
                 existants.put(item);
             } catch (JSONException e) {
                 LOG.log(Level.SEVERE, null, e);
             }
         });
-        String identite = (client.getStrLASTNAME() + " "
-                + (client.getStrFIRSTNAME() == null ? "" : client.getStrFIRSTNAME())).trim();
+        // NOM puis PRENOMS. Dans cette base, str_FIRST_NAME porte le NOM de famille et
+        // str_LAST_NAME les prenoms -- l'inverse de ce que les noms de colonnes laissent croire.
+        // Les concatener dans l'ordre des colonnes donnait « HERMANN NZI » au lieu de « NZI
+        // HERMANN » : lisible, donc jamais suspecte, mais a l'envers de l'usage.
+        String identite = (defautChaine(client.getStrFIRSTNAME()) + " " + defautChaine(client.getStrLASTNAME())).trim();
         return new JSONObject().put("success", false).put("doublonClient", true).put("doublons", existants).put("msg",
                 doublons.size() == 1
                         ? "Un client nomme [<span style=\"color: blue; \">" + identite + "</span>] existe deja."
                         : doublons.size() + " clients nommes [<span style=\"color: blue; \">" + identite
                                 + "</span>] existent deja.");
+    }
+
+    private static String defautChaine(String valeur) {
+        return valeur == null ? "" : valeur;
+    }
+
+    /**
+     * Le nom de l'assurance principale du client, ou une chaine vide.
+     *
+     * <p>
+     * « Principale » se lit sur la priorite du compte tiers payant : la priorite 1 est le regime de tete. A defaut de
+     * priorite exploitable, le premier compte actif rencontre fait l'affaire -- mieux vaut nommer une assurance que
+     * n'en nommer aucune, l'objet etant de distinguer deux homonymes.
+     * </p>
+     */
+    private String assurancePrincipale(TClient client) {
+        try {
+            if (client.getTCompteClientCollection() == null) {
+                return "";
+            }
+            TTiersPayant meilleur = null;
+            int meilleurePriorite = Integer.MAX_VALUE;
+            for (TCompteClient compte : client.getTCompteClientCollection()) {
+                if (compte == null || compte.getTCompteClientTiersPayantCollection() == null) {
+                    continue;
+                }
+                for (TCompteClientTiersPayant lien : compte.getTCompteClientTiersPayantCollection()) {
+                    if (lien == null || lien.getLgTIERSPAYANTID() == null
+                            || !Constant.STATUT_ENABLE.equals(lien.getStrSTATUT())) {
+                        continue;
+                    }
+                    int priorite = lien.getIntPRIORITY() == null ? Integer.MAX_VALUE - 1 : lien.getIntPRIORITY();
+                    if (priorite < meilleurePriorite) {
+                        meilleurePriorite = priorite;
+                        meilleur = lien.getLgTIERSPAYANTID();
+                    }
+                }
+            }
+            if (meilleur == null) {
+                return "";
+            }
+            String nom = meilleur.getStrFULLNAME();
+            return nom == null || nom.trim().isEmpty() ? defautChaine(meilleur.getStrNAME()) : nom;
+        } catch (Exception e) {
+            // Un libelle d'assurance manquant ne doit pas empecher l'avertissement de doublon.
+            LOG.log(Level.WARNING, "assurance principale du client", e);
+            return "";
+        }
     }
 
     private TClient updateClientCarnet(ClientDTO client, TClient tc, TCompteClientTiersPayant oltp) {

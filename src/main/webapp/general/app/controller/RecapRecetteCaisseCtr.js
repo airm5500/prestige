@@ -51,13 +51,23 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             ref: 'pagingtoolbar',
             selector: 'caisserecetterecap #caisserecetterecapGrid pagingtoolbar'
         },
+        {ref: 'typePeriode',
+            selector: 'caisserecetterecap #typePeriode'
+        },
         {ref: 'groupByYear',
             selector: 'caisserecetterecap #groupByYear'
+
+        },
+        {ref: 'groupByMonth',
+            selector: 'caisserecetterecap #groupByMonth'
 
         },
         {ref: 'btnExcel',
             selector: 'caisserecetterecap #btnExcel'
 
+        },
+        {ref: 'recapModesCa',
+            selector: 'caisserecetterecap #recapModesCa'
         }
     ],
     init: function (application) {
@@ -80,10 +90,73 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
             },
             'caisserecetterecap #caisserecetterecapGrid': {
                 viewready: this.doInitStore
+            },
+            /* Point 16 : « Annuelle » et « Mensuelle » s'excluent. Cocher l'une decoche l'autre ;
+               ne rien cocher garde le detail par jour, comportement d'origine de l'ecran. */
+            'caisserecetterecap #groupByYear': {
+                change: this.surRegroupementAnnuel
+            },
+            'caisserecetterecap #groupByMonth': {
+                change: this.surRegroupementMensuel
+            },
+            'caisserecetterecap #typePeriode': {
+                select: this.surChoixPeriode
             }
 
         });
     },
+
+    /* Retours du 12/09 : le choix de periode pose les dates Du / Au puis relance la recherche. « Aujourd'hui »
+       est le defaut ; « Periode libre » laisse les dates a la main. Meme decoupage que la balance : trois
+       semaines = 21 jours, n mois = depuis le premier jour du mois d'il y a n mois, n annees de meme. */
+    surChoixPeriode: function (combo) {
+        const me = this;
+        const id = combo.getValue();
+        if (id === 'LIBRE') {
+            return;
+        }
+        const aujourdhui = new Date();
+        let debut = new Date();
+        const choix = window.PrestigeAnalyse && window.PrestigeAnalyse.choix ? window.PrestigeAnalyse.choix(id) : null;
+        if (id === 'JOUR' || !choix) {
+            debut = aujourdhui;
+        } else if (choix.unite === 'SEMAINE') {
+            debut = Ext.Date.add(aujourdhui, Ext.Date.DAY, -7 * choix.nombre);
+        } else if (choix.unite === 'MOIS') {
+            debut = Ext.Date.getFirstDateOfMonth(Ext.Date.add(aujourdhui, Ext.Date.MONTH, -choix.nombre));
+        } else if (choix.unite === 'ANNEE') {
+            debut = new Date(aujourdhui.getFullYear() - choix.nombre, 0, 1);
+        }
+        me.getStartDateField().setValue(debut);
+        me.getEndDateField().setValue(aujourdhui);
+        me.doSearch();
+    },
+    surRegroupementAnnuel: function (champ, valeur) {
+        const mensuel = this.getGroupByMonth();
+        if (valeur && mensuel && mensuel.getValue()) {
+            mensuel.setValue(false);
+        }
+    },
+
+    surRegroupementMensuel: function (champ, valeur) {
+        const annuel = this.getGroupByYear();
+        if (valeur && annuel && annuel.getValue()) {
+            annuel.setValue(false);
+        }
+    },
+
+    /* Regroupement demande : « annee », « mois », ou « jour » quand rien n'est coche. */
+    granularite: function () {
+        const me = this;
+        if (me.getGroupByYear() && me.getGroupByYear().getValue()) {
+            return 'annee';
+        }
+        if (me.getGroupByMonth() && me.getGroupByMonth().getValue()) {
+            return 'mois';
+        }
+        return 'jour';
+    },
+
     onPdfClick: function () {
         const me = this;
         const groupByYear = me.getGroupByYear().checked;
@@ -93,7 +166,8 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         if (!reglement) {
             reglement = '';
         }
-        const linkUrl = '../RecapRecetteCaisseServlet?typeRglementId=' + reglement + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear;
+        const linkUrl = '../RecapRecetteCaisseServlet?typeRglementId=' + reglement + '&dtStart=' + dtStart
+                + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear + '&granularite=' + me.granularite();
         window.open(linkUrl);
     },
 
@@ -106,7 +180,11 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
           if (!reglement) {
             reglement = '';
         }
-        window.location = '../api/v1/stats-recette-caisse/export-csv?typeRglementId=' + reglement + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear;
+        /* Point 16 : le bouton existant rend maintenant un vrai classeur .xlsx, et non plus un .csv
+           qu'Excel ouvrait en devinant separateurs et formats. */
+        window.location = '../api/v1/stats-recette-caisse/export-excel?typeRglementId=' + reglement
+                + '&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&groupByYear=' + groupByYear
+                + '&granularite=' + me.granularite();
     },
     doBeforechange: function (page, currentPage) {
         var me = this;
@@ -124,6 +202,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         myProxy.setExtraParam('dtStart', me.getStartDateField().getSubmitValue());
         myProxy.setExtraParam('dtEnd', me.getEndDateField().getSubmitValue());
         myProxy.setExtraParam('groupByYear', me.getGroupByYear().checked);
+        myProxy.setExtraParam('granularite', me.granularite());
         myProxy.setExtraParam('typeRglementId', me.getReglementComboField().getValue());
     },
 
@@ -139,6 +218,7 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         me.getCaisserecetterecapGrid().getStore().load({
             params: {
                 groupByYear: me.getGroupByYear().checked,
+                granularite: me.granularite(),
                 typeRglementId: me.getReglementComboField().getValue(),
                 dtStart: me.getStartDateField().getSubmitValue(),
                 dtEnd: me.getEndDateField().getSubmitValue()
@@ -164,10 +244,58 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
                 groupByYear: me.getGroupByYear().checked
             },
             callback: function (enregistrements, operation, succes) {
-                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true)) || {};
+                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true))
+                        || grille.getStore().getProxy().getReader().rawData || {};
                 me.construireCourbeModes(json);
+                me.afficherRecapModesCa(json);
             }
         });
+    },
+
+    /**
+     * Le recap sous le tableau (retour du 09/09, point 7) : la part de chaque mode de reglement dans
+     * le chiffre d'affaires realise. Le mobile money est donne en global, puis par operateur ; le
+     * credit (part restee due par les organismes) ferme la liste.
+     */
+    afficherRecapModesCa: function (json) {
+        const me = this;
+        const panneau = me.getRecapModesCa();
+        if (!panneau || panneau.isDestroyed) {
+            return;
+        }
+        const modes = json.data || [];
+        const ca = json.chiffreAffaires || 0;
+        const montant = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        const part = function (v) {
+            return Ext.util.Format.number(v || 0, '0.0') + ' %';
+        };
+        if (!ca && !modes.length) {
+            panneau.update('<span class="rm-titre">Part des modes de r&egrave;glement dans le CA :</span> '
+                    + '<span style="color:#7f8c8d;">aucune vente sur la p&eacute;riode.</span>');
+            return;
+        }
+        const morceaux = [];
+        Ext.each(modes, function (m) {
+            if (!m.mobile) {
+                morceaux.push('<span class="rm-mode">' + Ext.String.htmlEncode(m.mode) + ' <b>' + part(m.partCa)
+                        + '</b> <span class="rm-operateur">(' + montant(m.montant) + ')</span></span>');
+            }
+        });
+        const operateurs = modes.filter(function (m) {
+            return m.mobile;
+        }).map(function (m) {
+            return Ext.String.htmlEncode(m.mode) + ' ' + part(m.partCa);
+        });
+        morceaux.push('<span class="rm-mode">Mobile money <b>' + part(json.partMobileCa) + '</b> <span class="rm-operateur">('
+                + montant(json.totalMobile) + (operateurs.length ? ' : ' + operateurs.join(', ') : '') + ')</span></span>');
+        if (json.montantCredit) {
+            morceaux.push('<span class="rm-mode">Cr&eacute;dit <b>' + part(json.partCreditCa)
+                    + '</b> <span class="rm-operateur">(' + montant(json.montantCredit) + ')</span></span>');
+        }
+        panneau.update('<span class="rm-titre">Part des modes de r&egrave;glement dans le CA r&eacute;alis&eacute; ('
+                + montant(ca) + ') :</span> ' + morceaux.join(''));
     },
 
     construireCourbeModes: function (json) {

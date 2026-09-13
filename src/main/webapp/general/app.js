@@ -825,6 +825,7 @@ Ext.application({
         'ComparaisonCtr',
         'OrdonnancierCtrl',
         'GardeCtrl',
+        'AnalyseArticleCtr',
         'VenteTiersPayantsCtr',
         'UgCtr',
         'ImportationHistoriqueCtr',

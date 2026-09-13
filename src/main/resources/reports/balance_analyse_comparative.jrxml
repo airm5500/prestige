@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Analyse comparative de la balance vente / caisse (retour du 09/09, point 4).
+
+  Deux tableaux sur une page paysage :
+    1. les indicateurs de la balance, une ligne par periode, avec l'ecart d'une periode a la precedente ;
+    2. l'evolution par mode de paiement : les periodes en ligne, les modes de reglement en colonne. Le tableau est
+       croise par JasperReports a partir des cellules recues (P_MODES) : un mode cree par l'officine y prend sa colonne
+       de lui-meme, aucun n'est ecrit d'avance.
+
+  La periode en cours est signalee dans son libelle : un PDF n'a pas les couleurs de l'ecran pour le dire.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="balance_analyse_comparative" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <style name="ecart" forecolor="#177A17">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{ecart} != null && $F{ecart}.longValue() < 0]]></conditionExpression>
+            <style forecolor="#A00000"/>
+        </conditionalStyle>
+    </style>
+    <subDataset name="modes">
+        <field name="periode" class="java.lang.String"/>
+        <field name="rangPeriode" class="java.lang.Integer"/>
+        <field name="mode" class="java.lang.String"/>
+        <field name="rangMode" class="java.lang.Integer"/>
+        <field name="montant" class="java.lang.Long"/>
+    </subDataset>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_COMPARATIF" class="java.lang.Boolean"/>
+    <parameter name="P_MODES" class="net.sf.jasperreports.engine.JRDataSource"/>
+    <parameter name="P_NB_MODES" class="java.lang.Integer"/>
+
+    <field name="libelleComplet" class="java.lang.String"/>
+    <field name="nbreVente" class="java.lang.Long"/>
+    <field name="montantTTC" class="java.lang.Long"/>
+    <field name="montantRemise" class="java.lang.Long"/>
+    <field name="montantNet" class="java.lang.Long"/>
+    <field name="montantAchat" class="java.lang.Long"/>
+    <field name="marge" class="java.lang.Long"/>
+    <field name="panierMoyen" class="java.lang.Long"/>
+    <field name="montantEsp" class="java.lang.Long"/>
+    <field name="montantMobilePayment" class="java.lang.Long"/>
+    <field name="montantTp" class="java.lang.Long"/>
+    <field name="montantDiff" class="java.lang.Long"/>
+    <field name="ecart" class="java.lang.Long"/>
+    <field name="ecartPourcentage" class="java.lang.Double"/>
+
+    <title>
+        <band height="60" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="13" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="24" width="802" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[ANALYSE COMPARATIVE BALANCE VENTE / CAISSE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="42" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Période : " + $P{P_PERIODE} + (Boolean.TRUE.equals($P{P_COMPARATIF}) ? "  -  écart d'une période à la précédente" : "  -  une seule période : chiffres bruts, sans écart")]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="0" y="0" width="95" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Left" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Période]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="95" y="0" width="38" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Ventes]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="133" y="0" width="60" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Brut TTC]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="193" y="0" width="48" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Remise]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="241" y="0" width="62" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Net TTC]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="303" y="0" width="60" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Achat]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="363" y="0" width="58" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Marge]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="421" y="0" width="48" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Panier]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="469" y="0" width="58" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Espèces]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="527" y="0" width="58" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Mobile]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="585" y="0" width="58" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Tiers payant]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="643" y="0" width="52" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Différé]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="695" y="0" width="58" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Écart net]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="753" y="0" width="45" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                    <text><![CDATA[Écart %]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="15" splitType="Stretch">
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#E0E0E0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="95" height="14"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{libelleComplet}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="95" y="0" width="38" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{nbreVente}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="133" y="0" width="60" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantTTC}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="193" y="0" width="48" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantRemise}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="241" y="0" width="62" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantNet}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="303" y="0" width="60" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantAchat}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="363" y="0" width="58" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{marge}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="421" y="0" width="48" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{panierMoyen}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="469" y="0" width="58" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantEsp}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="527" y="0" width="58" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantMobilePayment}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="585" y="0" width="58" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantTp}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="643" y="0" width="52" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantDiff}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="695" y="0" width="58" height="14" style="ecart"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{ecart} == null ? null : ($F{ecart} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0").format($F{ecart})]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="753" y="0" width="45" height="14" style="ecart"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$F{ecartPourcentage} == null ? null : ($F{ecartPourcentage} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0.00").format($F{ecartPourcentage}) + " %"]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="702" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="80" splitType="Stretch">
+            <staticText>
+                <reportElement x="0" y="10" width="802" height="16"/>
+                <textElement><font size="10" isBold="true"/></textElement>
+                <text><![CDATA[ÉVOLUTION PAR MODE DE PAIEMENT]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="0" y="26" width="802" height="12"/>
+                <textElement><font size="7" isItalic="true"/></textElement>
+                <text><![CDATA[Montants encaissés par mode de règlement : les périodes en ligne, les modes en colonne. Les modes affichés sont ceux rencontrés sur la période.]]></text>
+            </staticText>
+            <crosstab>
+                <reportElement x="0" y="42" width="802" height="36">
+                    <printWhenExpression><![CDATA[$P{P_NB_MODES} != null && $P{P_NB_MODES} > 0]]></printWhenExpression>
+                </reportElement>
+                <crosstabDataset>
+                    <dataset>
+                        <datasetRun subDataset="modes">
+                            <dataSourceExpression><![CDATA[$P{P_MODES}]]></dataSourceExpression>
+                        </datasetRun>
+                    </dataset>
+                </crosstabDataset>
+                <crosstabHeaderCell>
+                    <cellContents mode="Opaque" backcolor="#2E75B6">
+                        <staticText>
+                            <reportElement x="0" y="0" width="110" height="18" forecolor="#FFFFFF"/>
+                            <textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                            <text><![CDATA[Période \ Mode]]></text>
+                        </staticText>
+                    </cellContents>
+                </crosstabHeaderCell>
+                <rowGroup name="periode" width="110" totalPosition="End">
+                    <bucket class="java.lang.String">
+                        <!-- Le rang est prefixe a la valeur : les groupes d'un tableau croise se trient sur leur
+                             valeur, et c'est l'ordre des periodes (puis des modes) qui doit primer, pas l'alphabet.
+                             L'en-tete retire ce prefixe a l'affichage. -->
+                        <bucketExpression><![CDATA[String.format("%03d|", $F{rangPeriode}) + $F{periode}]]></bucketExpression>
+                    </bucket>
+                    <crosstabRowHeader>
+                        <cellContents mode="Opaque" backcolor="#F3F6FA">
+                            <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                            <textField isBlankWhenNull="true">
+                                <reportElement x="0" y="0" width="110" height="16"/>
+                                <textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                                <textFieldExpression><![CDATA[$V{periode} == null ? "" : $V{periode}.substring(4)]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabRowHeader>
+                    <crosstabTotalRowHeader>
+                        <cellContents mode="Opaque" backcolor="#DDE6F2">
+                            <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                            <staticText>
+                                <reportElement x="0" y="0" width="110" height="16"/>
+                                <textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                                <text><![CDATA[TOTAL]]></text>
+                            </staticText>
+                        </cellContents>
+                    </crosstabTotalRowHeader>
+                </rowGroup>
+                <columnGroup name="mode" height="18" totalPosition="End">
+                    <bucket class="java.lang.String">
+                        <bucketExpression><![CDATA[String.format("%03d|", $F{rangMode}) + $F{mode}]]></bucketExpression>
+                    </bucket>
+                    <crosstabColumnHeader>
+                        <cellContents mode="Opaque" backcolor="#2E75B6">
+                            <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                            <textField isBlankWhenNull="true">
+                                <reportElement x="0" y="0" width="64" height="18" forecolor="#FFFFFF"/>
+                                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                                <textFieldExpression><![CDATA[$V{mode} == null ? "" : $V{mode}.substring(4)]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabColumnHeader>
+                    <crosstabTotalColumnHeader>
+                        <cellContents mode="Opaque" backcolor="#1F5A94">
+                            <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                            <staticText>
+                                <reportElement x="0" y="0" width="68" height="18" forecolor="#FFFFFF"/>
+                                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                                <text><![CDATA[Total]]></text>
+                            </staticText>
+                        </cellContents>
+                    </crosstabTotalColumnHeader>
+                </columnGroup>
+                <measure name="montantSum" class="java.lang.Long" calculation="Sum">
+                    <measureExpression><![CDATA[$F{montant}]]></measureExpression>
+                </measure>
+                <crosstabCell width="64" height="16">
+                    <cellContents>
+                        <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="64" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                            <textFieldExpression><![CDATA[$V{montantSum}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="68" height="16" columnTotalGroup="mode">
+                    <cellContents mode="Opaque" backcolor="#F3F6FA">
+                        <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="68" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{montantSum}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="64" height="16" rowTotalGroup="periode">
+                    <cellContents mode="Opaque" backcolor="#DDE6F2">
+                        <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="64" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{montantSum}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <crosstabCell width="68" height="16" rowTotalGroup="periode" columnTotalGroup="mode">
+                    <cellContents mode="Opaque" backcolor="#C9D7E8">
+                        <box><pen lineWidth="0.5" lineColor="#D0D7E2"/></box>
+                        <textField pattern="#,##0" isBlankWhenNull="true">
+                            <reportElement x="0" y="0" width="68" height="16"/>
+                            <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                            <textFieldExpression><![CDATA[$V{montantSum}]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+            </crosstab>
+        </band>
+    </summary>
+</jasperReport>

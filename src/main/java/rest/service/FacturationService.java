@@ -54,6 +54,10 @@ public interface FacturationService {
      */
     JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException;
 
+    /** Factures des carnets depot filtrees par tiers payant, periode facturee et numero de facture (point 17). */
+    JSONObject facturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query, int start, int limit)
+            throws JSONException;
+
     /** Liste paginee des factures. {@code carnetDepot} y separe les deux circuits, comme pour les bons (RG-02). */
     JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
             int start, int limit, boolean carnetDepot) throws JSONException;
@@ -65,6 +69,17 @@ public interface FacturationService {
      * n'est pas supprimee : elle est nommee dans le compte rendu.
      */
     JSONObject supprimerProvisoires(List<String> ids);
+
+    /**
+     * Suppression de factures de CARNET DEPOT (retour du 08/09) : une suppression simple, sans avoir FNE.
+     *
+     * <p>
+     * La facture et ses lignes disparaissent, et ses bons redeviennent facturables. Sont refusees : une facture dont le
+     * tiers payant n'est pas un carnet depot - ce n'est pas le bon menu - et une facture qui a deja recu un reglement,
+     * qu'on ne peut pas faire disparaitre sans laisser un paiement orphelin.
+     * </p>
+     */
+    JSONObject supprimerFacturesCarnetDepot(List<String> ids);
 
     /** Factures provisoires d'une periode, avec les filtres de l'ecran. Ne supprime rien. */
     List<FactureDTO> provisoiresDeLaPeriode(String groupTp, String typetp, String tpid, String codegroup,

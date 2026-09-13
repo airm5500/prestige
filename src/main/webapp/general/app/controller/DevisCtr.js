@@ -1526,9 +1526,20 @@ Ext.define('testextjs.controller.DevisCtr', {
      */
     confirmerDoublonClient: function (result, datas, renvoyer) {
         var items = (result.doublons || []).map(function (c) {
-            var identite = ((c.strLASTNAME || '') + ' ' + (c.strFIRSTNAME || '')).trim();
-            var code = c.strCODEINTERNE ? ' (code ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
-            return '<li>' + Ext.String.htmlEncode(identite) + code + '</li>';
+            /*
+             * NOM puis PRENOMS, et non l'inverse.
+             *
+             * Dans cette base, « strFIRSTNAME » porte le NOM de famille et « strLASTNAME » les
+             * prenoms : les colonnes portent des noms trompeurs. Les concatener dans l'ordre
+             * apparent donnait « HERMANN NZI » au lieu de « NZI HERMANN ».
+             */
+            var identite = ((c.strFIRSTNAME || '') + ' ' + (c.strLASTNAME || '')).trim();
+            // « Matricule » plutot que « code » : c'est le terme employe au comptoir.
+            var matricule = c.strCODEINTERNE
+                    ? ' (Matricule: ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            // L'assurance distingue deux homonymes mieux que tout le reste.
+            var assurance = c.assurance ? ' de ' + Ext.String.htmlEncode(c.assurance) : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + matricule + assurance + '</li>';
         }).join('');
         Ext.MessageBox.show({
             title: 'Doublon possible',

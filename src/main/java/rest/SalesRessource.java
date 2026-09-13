@@ -53,6 +53,8 @@ public class SalesRessource {
     @SalesPrimary
     SalesService salesService;
     @EJB
+    private rest.service.SearchProduitServcie searchProduitServcie;
+    @EJB
     GenerateTicketService generateTicketService;
     @EJB
     SmsService smsService;
@@ -431,6 +433,20 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Lignes et unites de la vente en cours, pour le pied de la liste des articles (retours du 12/09). */
+    @GET
+    @Path("quantites-vente/{id}")
+    public Response quantitesVente(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Integer lignes = salesService.nbreProduitsByVente(id);
+        return Response.ok().entity(new JSONObject().put("success", true).put("lignes", lignes == null ? 0 : lignes)
+                .put("produits", salesService.quantiteProduitsByVente(id)).toString()).build();
+    }
+
     @GET
     @Path("quantite-vente/{id}")
     public Response nobreproduits(@PathParam("id") String id) throws JSONException {
@@ -509,6 +525,24 @@ public class SalesRessource {
     public Response updateVenteClient(SalesParams params) throws JSONException {
 
         JSONObject json = salesService.updateclient(params);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Peremption la plus proche d'un produit pour l'ecran de vente (retours du 12/09, point 12) : la meme source que la
+     * fenetre de detail de la fiche article (lot en stock le plus proche, sinon la date de la fiche).
+     */
+    @GET
+    @Path("peremption-proche/{id}")
+    public Response peremptionProche(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Object[] proche = searchProduitServcie.peremptionProche(id);
+        JSONObject json = new JSONObject().put("success", true).put("date", proche[0]).put("lot", proche[1]).put("qte",
+                proche[2]);
         return Response.ok().entity(json.toString()).build();
     }
 

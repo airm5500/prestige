@@ -289,6 +289,19 @@ Ext.define('testextjs.view.Dashboard.MargeManager', {
                             iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
+                        },
+                        // Retours des tests du 12/09 (point 8) : la liste s'exporte et s'inventorie
+                        {
+                            text: 'Exporter en excel',
+                            itemId: 'exporterExcel',
+                            iconCls: 'excel',
+                            tooltip: 'Exporter la liste (filtres actifs) en Excel'
+                        },
+                        {
+                            text: 'Créer un inventaire',
+                            itemId: 'creerInventaire',
+                            iconCls: 'icon-grid',
+                            tooltip: 'Inventaire des produits de la liste (filtres actifs)'
                         }
                     ]
                 }

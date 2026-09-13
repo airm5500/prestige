@@ -17,45 +17,8 @@ Ext.define('testextjs.controller.RecapCtr', {
             selector: 'recap #dtEnd'
         },
         {
-            ref: 'montantNet',
-            selector: 'recap #montantNet'
-        }, {
-            ref: 'montantTTC',
-            selector: 'recap #montantTTC'
-        },
-        {
-            ref: 'marge',
-            selector: 'recap #marge'
-        }, {
-            ref: 'montantHT',
-            selector: 'recap #montantHT'
-        },
-        {
-            ref: 'montantTVA',
-            selector: 'recap #montantTVA'
-        },
-        {
-            ref: 'montantCredit',
-            selector: 'recap #montantCredit'
-        }, {
-            ref: 'montantRemise',
-            selector: 'recap #montantRemise'
-        }
-        , {
-            ref: 'montantEsp',
-            selector: 'recap #montantEsp'
-        }
-        , {
-            ref: 'montantTotalHT',
-            selector: 'recap #montantTotalHT'
-        }
-        , {
-            ref: 'montantTotalTVA',
-            selector: 'recap #montantTotalTVA'
-        }
-        , {
-            ref: 'montantTotalTTC',
-            selector: 'recap #montantTotalTTC'
+            ref: 'cartesRecap',
+            selector: 'recap #cartesRecap'
         }
         , {
             ref: 'queryRgl',
@@ -86,20 +49,24 @@ Ext.define('testextjs.controller.RecapCtr', {
             selector: 'recap #totalnbclient'
         },
         {
-            ref: 'recette',
-            selector: 'recap #recette'
-        },
-        {
-            ref: 'reglement',
-            selector: 'recap #reglement'
-        },
-        {
-            ref: 'ratio',
-            selector: 'recap #ratio'
-        },
-        {
             ref: 'achatGrid',
             selector: 'recap #achatGrid'
+        },
+        {
+            ref: 'ongletAchats',
+            selector: 'recap #ongletAchats'
+        },
+        {
+            ref: 'ongletCredits',
+            selector: 'recap #ongletCredits'
+        },
+        {
+            ref: 'ongletReglements',
+            selector: 'recap #ongletReglements'
+        },
+        {
+            ref: 'resumeAchats',
+            selector: 'recap #resumeAchats'
         }
 
     ],
@@ -126,6 +93,15 @@ Ext.define('testextjs.controller.RecapCtr', {
             'recap #imprimer': {
                 click: this.onPdfClick
             },
+            'recap #imprimerAchats': {
+                click: this.onImprimerAchats
+            },
+            'recap #imprimerCredits': {
+                click: this.onImprimerCredits
+            },
+            'recap #imprimerReglements': {
+                click: this.onImprimerReglements
+            },
             'recap #query': {
                 specialkey: this.onCreditKey
             },
@@ -141,6 +117,32 @@ Ext.define('testextjs.controller.RecapCtr', {
         const query=me.getQuery().getValue();
         const linkUrl = '../BalancePdfServlet?mode=RECAP&dtStart=' + dtStart + '&dtEnd=' + dtEnd+'&query='+query;
         window.open(linkUrl);
+    },
+
+    /* Editions des onglets : le PDF est servi en flux par l'API, dans l'onglet ouvert par le clic (pas de
+       fenetre intermediaire). */
+    periodeUrl: function () {
+        const me = this;
+        return 'dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue();
+    },
+    onImprimerAchats: function () {
+        window.open('../api/v1/recap/achats/pdf?' + this.periodeUrl());
+    },
+    onImprimerCredits: function () {
+        window.open('../api/v1/recap/credits/pdf?' + this.periodeUrl() + '&query=' + encodeURIComponent(this.getQuery().getValue() || ''));
+    },
+    onImprimerReglements: function () {
+        window.open('../api/v1/recap/reglements/pdf?' + this.periodeUrl() + '&query=' + encodeURIComponent(this.getQueryRgl().getValue() || ''));
+    },
+    /* Le titre de chaque onglet annonce son contenu : nombre de lignes et total, mis a jour a chaque chargement. */
+    titreOnglet: function (onglet, base, detail) {
+        if (onglet) {
+            onglet.setTitle(base + (detail ? ' <span style="font-weight:normal;color:#555;">' + detail + '</span>' : ''));
+        }
+    },
+    resumerReglements: function (store) {
+        const me = this, total = store.getTotalCount() || 0;
+        me.titreOnglet(me.getOngletReglements(), 'REGLEMENTS TP', total + ' facture(s)');
     },
 
     doBeforechange: function (page, currentPage) {
@@ -180,6 +182,9 @@ Ext.define('testextjs.controller.RecapCtr', {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 query: me.getQueryRgl().getValue()
 
+            },
+            callback: function () {
+                me.resumerReglements(me.getReglementGrid().getStore());
             }
         });
 
@@ -217,21 +222,13 @@ Ext.define('testextjs.controller.RecapCtr', {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
                 const rec = result.data;
-                me.getMontantNet().setValue(rec.montantNet);
-                me.getMontantCredit().setValue(rec.montantCredit);//pourcentageEsp
-                me.getMontantEsp().setValue(rec.montantEsp);
-                me.getMontantTTC().setValue(rec.montantTTC);
-                me.getMontantRemise().setValue(rec.montantRemise);
-                me.getMontantHT().setValue(rec.montantHT);
-                me.getMontantTVA().setValue(rec.montantTVA);
-                me.getMarge().setValue(rec.marge);
-                me.getMontantTotalHT().setValue(rec.montantTotalHT);
-                me.getMontantTotalTVA().setValue(rec.montantTotalTVA);
-                me.getMontantTotalTTC().setValue(rec.montantTotalTTC);
-                me.getRatio().setValue(rec.ratio);
-                me.buildRecette(rec.reglements);
-                me.buildMvts(rec.mvtsCaisse, rec.montantTotalMvt);
+                me.dessinerCartes(rec);
                 achatGrid.getStore().loadData(rec.achats);
+                const nbAchats = (rec.achats || []).length;
+                me.titreOnglet(me.getOngletAchats(), 'ACHATS', nbAchats + ' groupe(s) · ' + Ext.util.Format.number(rec.montantTotalTTC, '0,000.') + ' TTC');
+                if (me.getResumeAchats()) {
+                    me.getResumeAchats().setText('Achats par groupe de grossistes : ' + nbAchats + ' groupe(s), total TTC ' + Ext.util.Format.number(rec.montantTotalTTC, '0,000.'));
+                }
 
             }, failure: function (response, options) {
                 progress.hide();
@@ -240,54 +237,15 @@ Ext.define('testextjs.controller.RecapCtr', {
 
         });
     },
-    buildRecette: function (recette) {
-        const me = this, cmp = me.getRecette();
-        let items = [];
-        recette.forEach(function (e) {
-            items.push({
-                xtype: 'displayfield',
-                fieldLabel: e.libelle,
-                labelWidth: 100,
-                flex: 1,
-                value: e.montant,
-                renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
-                },
-                fieldStyle: "color:blue;text-align:right;"
-            });
+    /* Les quatre cartes du haut sont un seul gabarit HTML (style des tableaux de la balance). */
+    dessinerCartes: function (rec) {
+        const me = this, cartes = me.getCartesRecap();
+        const recettes = rec.reglements || [];
+        let total = 0;
+        recettes.forEach(function (e) {
+            total += Number(e.montant) || 0;
         });
-        cmp.removeAll(true);
-        cmp.add(items);
-    },
-
-    buildMvts: function (mvt, montantTotalMvt) {
-        const me = this, cmp = me.getReglement();
-        let items = [];
-        mvt.forEach(function (e) {
-            items.push({
-                xtype: 'displayfield',
-                fieldLabel: e.libelle,
-                labelWidth: 130,
-                flex: 1,
-                value: e.montant,
-                renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
-                },
-                fieldStyle: "color:blue;text-align:right;"
-            });
-        });
-        cmp.removeAll(true);
-        cmp.add(items);
-        cmp.add({
-            xtype: 'displayfield',
-            fieldLabel: "Total",
-            flex: 1,
-            value: montantTotalMvt,
-            renderer: function (v) {
-                return Ext.util.Format.number(v, '0,000.');
-            },
-            fieldStyle: "color:blue;text-align:right;"
-        });
+        cartes.update(Ext.apply({}, rec, {reglements: recettes, totalRecettes: total, mvtsCaisse: rec.mvtsCaisse || []}));
     },
     onSpecialSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
@@ -325,6 +283,7 @@ Ext.define('testextjs.controller.RecapCtr', {
                 totalnb.setValue(rec.nbreBons);
                 totalnbclient.setValue(rec.nbreClient);
                 totalmontant.setValue(rec.montant);
+                me.titreOnglet(me.getOngletCredits(), 'CREDITS ACCORDES', Ext.util.Format.number(rec.nbreBons, '0,000.') + ' bon(s) · ' + Ext.util.Format.number(rec.montant, '0,000.'));
 
             }, failure: function (response, options) {
                 progress.hide();

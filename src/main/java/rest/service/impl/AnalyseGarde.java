@@ -7,9 +7,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import commonTasks.dto.GardeCommandeDTO;
+import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
+import commonTasks.dto.GardeReglementDTO;
 import commonTasks.dto.GardeTrancheDTO;
+import commonTasks.dto.GardeVenteDTO;
 import commonTasks.dto.GardeVenteLigneDTO;
+import util.Constant;
+import util.MobileMoney;
 
 /**
  * L'analyse d'une garde : ce qui s'est vendu, quand, et dans quelles proportions.
@@ -93,6 +100,326 @@ public final class AnalyseGarde {
     }
 
     /**
+     * Repartition de l'activite par tranche d'HEURE DU JOUR, agregee sur toute la periode (retour du 08/09).
+     *
+     * <p>
+     * Une garde d'une semaine decoupee en tranches consecutives donnait sept fois les memes heures, et personne ne
+     * lisait plus rien. Ici chaque tranche est une heure du jour - 20 h a 22 h, par exemple - et cumule TOUS les jours
+     * de la periode : c'est bien la question posee, « a quelle heure l'activite se concentre-t-elle ? ». Les tranches
+     * partent de minuit, sur des heures rondes, pour etre les memes d'une garde a l'autre et donc comparables.
+     * </p>
+     *
+     * <p>
+     * Les 24 heures sont rendues, y compris celles hors de la fenetre de la garde : une tranche vide est une
+     * information. Le nombre de « clients » d'une tranche est le nombre de ventes distinctes, comme au recapitulatif
+     * caisse / recette.
+     * </p>
+     */
+    public static List<GardeTrancheDTO> tranchesParHeureDuJour(List<GardeVenteLigneDTO> lignes, int heuresParTranche) {
+        return tranchesParHeureDuJour(lignes, heuresParTranche, null, null);
+    }
+
+    /**
+     * Les tranches de la periode, avec pour chacune le nombre d'heures de la garde qu'elle couvre (H2).
+     *
+     * <p>
+     * C'est ce qui permet de ramener les clients d'une tranche a l'heure : une garde de deux nuits a traverse deux fois
+     * la tranche 20h - 22h, soit quatre heures ; les clients qui s'y sont presentes se repartissent sur ces quatre
+     * heures, pas sur deux.
+     * </p>
+     */
+    public static List<GardeTrancheDTO> tranchesParHeureDuJour(List<GardeVenteLigneDTO> lignes, int heuresParTranche,
+            LocalDateTime debut, LocalDateTime fin) {
+        List<GardeTrancheDTO> tranches = new ArrayList<>();
+        int largeur = heuresParTranche > 0 && heuresParTranche <= 24 && 24 % heuresParTranche == 0 ? heuresParTranche
+                : 1;
+        for (int h = 0; h < 24; h += largeur) {
+            GardeTrancheDTO tranche = new GardeTrancheDTO();
+            tranche.setHeureDuJour(h, h + largeur);
+            tranches.add(tranche);
+        }
+        if (lignes != null) {
+            for (GardeVenteLigneDTO ligne : lignes) {
+                if (ligne.getDateOperation() == null) {
+                    continue;
+                }
+                int indice = ligne.getDateOperation().getHour() / largeur;
+                if (indice >= 0 && indice < tranches.size()) {
+                    tranches.get(indice).ajouter(ligne.getVenteId(), ligne.getCleClient(), ligne.getQuantite(),
+                            ligne.getMontant());
+                }
+            }
+        }
+        if (debut != null && fin != null && fin.isAfter(debut)) {
+            // Heure par heure, du debut a la fin : chaque heure entamee compte pour la tranche qui la contient.
+            // Borne haute : une garde ne dure pas plus d'un an ; au-dela, on s'arrete la.
+            int[] heures = new int[tranches.size()];
+            LocalDateTime curseur = debut.withMinute(0).withSecond(0).withNano(0);
+            int garde = 0;
+            while (curseur.isBefore(fin) && garde++ < 24 * 366) {
+                heures[curseur.getHour() / largeur]++;
+                curseur = curseur.plusHours(1);
+            }
+            for (int t = 0; t < tranches.size(); t++) {
+                tranches.get(t).setHeuresCouvertes(heures[t]);
+            }
+        }
+        return tranches;
+    }
+
+    /**
+     * Les vendeurs de la garde (H3), du plus gros chiffre au plus petit.
+     *
+     * <p>
+     * Le chiffre et la marge d'un vendeur sont ceux des lignes qu'il a vendues, avec la meme formule que l'ABC ; ses
+     * clients se comptent comme partout ailleurs (client rattache, ou la vente pour une vente anonyme).
+     * </p>
+     */
+    public static List<GardeVendeurDTO> vendeurs(List<GardeVenteLigneDTO> lignes) {
+        Map<String, GardeVendeurDTO> table = new LinkedHashMap<>();
+        for (GardeVenteLigneDTO ligne : lignes == null ? new ArrayList<GardeVenteLigneDTO>() : lignes) {
+            String id = ligne.getVendeurId() == null || ligne.getVendeurId().isEmpty() ? "?" : ligne.getVendeurId();
+            GardeVendeurDTO vendeur = table.computeIfAbsent(id,
+                    cle -> new GardeVendeurDTO(cle,
+                            ligne.getVendeurNom() == null || ligne.getVendeurNom().trim().isEmpty() ? "(sans vendeur)"
+                                    : ligne.getVendeurNom().trim()));
+            vendeur.ajouter(ligne.getVenteId(), ligne.getCleClient(), ligne.getMontant(), ligne.getMarge());
+        }
+        List<GardeVendeurDTO> vendeurs = new ArrayList<>(table.values());
+        vendeurs.sort(Comparator.comparingLong(GardeVendeurDTO::getMontant).reversed()
+                .thenComparing(GardeVendeurDTO::getNom));
+        return vendeurs;
+    }
+
+    /**
+     * Les produits commandes pendant la garde, rapproches de ce qui s'en est vendu pendant la meme garde (H3).
+     *
+     * <p>
+     * Les commandes sont deja cumulees par produit ; on y reporte la quantite vendue lue dans les lignes. Un produit
+     * commande sans une unite vendue est « non vendu ». Le classement met ces derniers en tete : c'est eux qu'on veut
+     * voir.
+     * </p>
+     */
+    public static List<GardeCommandeDTO> commandesRapprochees(List<GardeCommandeDTO> commandes,
+            List<GardeVenteLigneDTO> lignes) {
+        Map<String, Long> vendues = new LinkedHashMap<>();
+        for (GardeVenteLigneDTO ligne : lignes == null ? new ArrayList<GardeVenteLigneDTO>() : lignes) {
+            vendues.merge(ligne.getProduitId(), ligne.getQuantite(), Long::sum);
+        }
+        List<GardeCommandeDTO> resultat = new ArrayList<>();
+        for (GardeCommandeDTO c : commandes == null ? new ArrayList<GardeCommandeDTO>() : commandes) {
+            c.setQuantiteVendue(vendues.getOrDefault(c.getProduitId(), 0L));
+            resultat.add(c);
+        }
+        resultat.sort(Comparator.comparing(GardeCommandeDTO::isNonVendu).reversed()
+                .thenComparing(Comparator.comparingLong(GardeCommandeDTO::getQuantiteCommandee).reversed())
+                .thenComparing(GardeCommandeDTO::getLibelle));
+        return resultat;
+    }
+
+    /**
+     * Les indicateurs reels d'une garde (H2), a partir de ce qui a ete lu : les lignes (chiffre, marge), les ventes au
+     * grain du ticket (clients, credit), les reglements (chiffre par mode) et le nombre de ventes ratees.
+     *
+     * <p>
+     * Le chiffre d'affaires et la marge sont ceux des lignes, les memes que l'analyse ABC et les tranches : une seule
+     * verite. Est a credit toute vente dont une part n'est pas encaissee au comptoir : la part prise en charge par un
+     * tiers (type de vente autre que comptant) et le reglement differe.
+     * </p>
+     */
+    public static GardeKpiDTO kpi(Indicateurs indicateurs, List<GardeVenteDTO> ventes,
+            List<GardeReglementDTO> reglements, int rates) {
+        GardeKpiDTO k = new GardeKpiDTO();
+        Indicateurs i = indicateurs == null ? new Indicateurs() : indicateurs;
+        k.setVentes(i.getVentes());
+        k.setMontant(i.getMontant());
+        k.setMarge(i.getMarge());
+        k.setDureeMinutes(i.getDureeMinutes());
+        k.setRates(Math.max(0, rates));
+        java.util.Set<String> clients = new java.util.HashSet<>();
+        java.util.Set<String> ventesACredit = new java.util.HashSet<>();
+        long montantCredit = 0L;
+        for (GardeVenteDTO v : ventes == null ? new ArrayList<GardeVenteDTO>() : ventes) {
+            clients.add(v.getCleClient());
+            if (v.getPartPriseEnCharge() > 0) {
+                ventesACredit.add(v.getVenteId());
+                montantCredit += v.getPartPriseEnCharge();
+            }
+        }
+        for (GardeReglementDTO r : reglements == null ? new ArrayList<GardeReglementDTO>() : reglements) {
+            String type = r.getTypeReglementId();
+            if (Constant.TYPE_REGLEMENT_ESPECE.equals(type)) {
+                k.setCaEspeces(k.getCaEspeces() + r.getMontant());
+            } else if (Constant.MODE_CHEQUE.equals(type)) {
+                k.setCaCheque(k.getCaCheque() + r.getMontant());
+            } else if (Constant.MODE_CB.equals(type)) {
+                k.setCaCarte(k.getCaCarte() + r.getMontant());
+            } else if (Constant.REGL_DIFF.equals(type)) {
+                k.setCaDiffere(k.getCaDiffere() + r.getMontant());
+                ventesACredit.add(r.getVenteId());
+                montantCredit += r.getMontant();
+            } else if (MobileMoney.est(type)) {
+                k.setCaMobile(k.getCaMobile() + r.getMontant());
+            } else {
+                k.setCaAutres(k.getCaAutres() + r.getMontant());
+            }
+        }
+        k.setClients(clients.size());
+        k.setClientsCredit(ventesACredit.size());
+        k.setMontantCredit(montantCredit);
+        return k;
+    }
+
+    /** Cle de tri des produits classes : chiffre d'affaires (defaut), quantite ou marge. */
+    public enum TriProduits {
+        MONTANT, QUANTITE, MARGE;
+
+        public static TriProduits depuis(String valeur) {
+            if (valeur == null) {
+                return MONTANT;
+            }
+            switch (valeur.trim().toLowerCase()) {
+            case "quantite":
+                return QUANTITE;
+            case "marge":
+                return MARGE;
+            default:
+                return MONTANT;
+            }
+        }
+    }
+
+    /**
+     * Vue filtree et triee du classement (retour du 08/09) : une classe (ou toutes), un ordre, et les N premiers.
+     *
+     * <p>
+     * Le classement lui-meme reste calcule sur TOUS les produits, par chiffre d'affaires : la classe d'un produit ne
+     * change pas parce qu'on regarde les cent premiers ou parce qu'on trie par marge. Seule la lecture change.
+     * </p>
+     *
+     * @param classe
+     *            A, B ou C ; vide pour toutes
+     * @param limite
+     *            nombre de lignes rendues ; zero ou negatif pour toutes
+     */
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite) {
+        return filtrer(classes, classe, tri, limite, "", "", "");
+    }
+
+    /**
+     * Le meme filtre, restreint a une famille, un rayon (emplacement) et un grossiste (retour des tests du 09/09). Un
+     * critere vide ne filtre pas.
+     */
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite, String familleId, String rayonId, String grossisteId) {
+        return filtrer(classes, classe, tri, limite, familleId, rayonId, grossisteId, null);
+    }
+
+    /**
+     * Un critere numerique sur les produits (retour des tests du 09/09) : un champ (stock, quantite, tauxMarge), un
+     * operateur (<, <=, =, >=, >) et une valeur. Les criteres se combinent (ET).
+     */
+    public static final class CritereNumerique {
+        private final String champ;
+        private final String operateur;
+        private final double valeur;
+
+        public CritereNumerique(String champ, String operateur, double valeur) {
+            this.champ = champ == null ? "" : champ.trim();
+            this.operateur = operateur == null ? "" : operateur.trim();
+            this.valeur = valeur;
+        }
+
+        /** Lecture tolerante : un critere sans champ, sans operateur reconnu ou sans valeur ne filtre pas. */
+        public static CritereNumerique depuis(String champ, String operateur, String valeur) {
+            if (champ == null || champ.trim().isEmpty() || operateur == null || operateur.trim().isEmpty()
+                    || valeur == null || valeur.trim().isEmpty()) {
+                return null;
+            }
+            try {
+                return new CritereNumerique(champ, operateur, Double.parseDouble(valeur.trim().replace(',', '.')));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        boolean accepte(GardeProduitDTO p) {
+            double v;
+            switch (champ) {
+            case "stock":
+                v = p.getStock();
+                break;
+            case "quantite":
+                v = p.getQuantite();
+                break;
+            case "tauxMarge":
+                v = p.getTauxMarge();
+                break;
+            default:
+                return true;
+            }
+            switch (operateur) {
+            case "<":
+                return v < valeur;
+            case "<=":
+                return v <= valeur;
+            case "=":
+                return Math.abs(v - valeur) < 0.005;
+            case ">=":
+                return v >= valeur;
+            case ">":
+                return v > valeur;
+            default:
+                return true;
+            }
+        }
+    }
+
+    private static boolean accepte(GardeProduitDTO p, List<CritereNumerique> criteres) {
+        for (CritereNumerique c : criteres == null ? List.<CritereNumerique> of() : criteres) {
+            if (c != null && !c.accepte(p)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static List<GardeProduitDTO> filtrer(List<GardeProduitDTO> classes, String classe, TriProduits tri,
+            int limite, String familleId, String rayonId, String grossisteId, List<CritereNumerique> criteres) {
+        List<GardeProduitDTO> vue = new ArrayList<>();
+        String voulue = classe == null ? "" : classe.trim().toUpperCase();
+        String famille = familleId == null ? "" : familleId.trim();
+        String rayon = rayonId == null ? "" : rayonId.trim();
+        String grossiste = grossisteId == null ? "" : grossisteId.trim();
+        for (GardeProduitDTO p : classes) {
+            if ((voulue.isEmpty() || voulue.equals(p.getClasse()))
+                    && (famille.isEmpty() || famille.equals(p.getFamilleId()))
+                    && (rayon.isEmpty() || rayon.equals(p.getRayonId()))
+                    && (grossiste.isEmpty() || grossiste.equals(p.getGrossisteId())) && accepte(p, criteres)) {
+                vue.add(p);
+            }
+        }
+        Comparator<GardeProduitDTO> ordre;
+        switch (tri == null ? TriProduits.MONTANT : tri) {
+        case QUANTITE:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getQuantite).reversed();
+            break;
+        case MARGE:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getMarge).reversed();
+            break;
+        default:
+            ordre = Comparator.comparingLong(GardeProduitDTO::getMontant).reversed();
+            break;
+        }
+        vue.sort(ordre.thenComparing(GardeProduitDTO::getLibelle));
+        if (limite > 0 && vue.size() > limite) {
+            return new ArrayList<>(vue.subList(0, limite));
+        }
+        return vue;
+    }
+
+    /**
      * La tranche contenant cet instant.
      *
      * <p>
@@ -171,10 +498,12 @@ public final class AnalyseGarde {
                 p.setProduitId(id);
                 p.setCip(ligne.getCip());
                 p.setLibelle(ligne.getLibelle());
+                p.setRattachements(ligne.getFamilleId(), ligne.getRayonId(), ligne.getGrossisteId());
                 return p;
             });
             produit.setQuantite(produit.getQuantite() + ligne.getQuantite());
             produit.setMontant(produit.getMontant() + ligne.getMontant());
+            produit.setMarge(produit.getMarge() + ligne.getMarge());
             produit.setLignes(produit.getLignes() + 1);
         }
         return new ArrayList<>(table.values());
@@ -188,7 +517,17 @@ public final class AnalyseGarde {
         private int produitsDistincts;
         private long quantite;
         private long montant;
+        private long marge;
         private long dureeMinutes;
+
+        public long getMarge() {
+            return marge;
+        }
+
+        /** Taux de marge d'ensemble, en pourcentage du chiffre. */
+        public double getTauxMarge() {
+            return montant > 0 ? marge * 100D / montant : 0D;
+        }
 
         public int getVentes() {
             return ventes;
@@ -241,6 +580,7 @@ public final class AnalyseGarde {
             i.lignes++;
             i.quantite += ligne.getQuantite();
             i.montant += ligne.getMontant();
+            i.marge += ligne.getMarge();
             ventes.add(String.valueOf(ligne.getVenteId()));
             produits.add(String.valueOf(ligne.getProduitId()));
         }

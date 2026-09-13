@@ -171,6 +171,21 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                             // var index = cmp.store.indexOf(record); // recupere la position de l'element selectionné de l'
                                             // alert("montant " + index + " record " + record.get('str_CLIENT'));
                                             Ext.getCmp('str_NUM_COMPTE').setValue(record.get('str_CODE_COMPTABLE'));
+                                            // Le type choisi, la saisie suivante est TOUJOURS le
+                                            // montant : on y envoie le curseur plutot que de faire
+                                            // reprendre la souris a chaque mouvement cree.
+                                            //
+                                            // Le focus est differe : ExtJS ferme la liste
+                                            // deroulante APRES cet ecouteur et rend alors la main
+                                            // au combobox, ce qui annulerait un focus pose ici.
+                                            var montant = Ext.getCmp('int_MONTANT_Add_MvtCaisse');
+                                            if (montant) {
+                                                Ext.defer(function () {
+                                                    if (!montant.isDestroyed) {
+                                                        montant.focus(true, 50);
+                                                    }
+                                                }, 100);
+                                            }
                                         }
                                     }
 

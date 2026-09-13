@@ -25,6 +25,43 @@ public class AbcArticleRessource {
 
     @EJB
     private AbcAnalysisService abcAnalysisService;
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+    @EJB
+    private rest.service.SessionHelperService sessionHelperService;
+
+    /**
+     * Nom du fichier edite (retour du 09/09) : feuille_de_match_<officine>_<periode>.<extension>, le nom de l'officine
+     * et la periode reduits a des caracteres surs pour un nom de fichier.
+     */
+    private String nomFichierFeuille(String dtStart, String dtEnd, String extension) {
+        String officine = "";
+        try {
+            Object nom = reportUtil.officineData(sessionHelperService.getCurrentUser()).get("P_H_INSTITUTION");
+            officine = nom == null ? "" : String.valueOf(nom);
+        } catch (Exception e) {
+            officine = "";
+        }
+        return "feuille_de_match_" + slug(officine) + "_" + slug(dtStart) + "_" + slug(dtEnd) + "." + extension;
+    }
+
+    public static String slug(String valeur) {
+        if (valeur == null) {
+            return "";
+        }
+        String sans = java.text.Normalizer.normalize(valeur.trim(), java.text.Normalizer.Form.NFD).replaceAll("\\p{M}",
+                "");
+        String propre = sans.replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+        return propre.length() > 40 ? propre.substring(0, 40) : propre;
+    }
+
+    private java.util.Map<String, Object> enTete() {
+        try {
+            return reportUtil.officineData(sessionHelperService.getCurrentUser());
+        } catch (Exception e) {
+            return new java.util.HashMap<>();
+        }
+    }
 
     @GET
     public Response grid(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
@@ -121,11 +158,75 @@ public class AbcArticleRessource {
             @QueryParam("stockMax") Integer stockMax, @DefaultValue("0") @QueryParam("start") int start,
             @DefaultValue("50") @QueryParam("limit") int limit, @QueryParam("topN") Integer topN,
             @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat,
-            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
+            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter,
+            @DefaultValue("") @QueryParam("tri") String tri) {
         JSONObject json = abcAnalysisService.feuilleDeMatchGrid(dtStart, dtEnd, type, classe, search, codeFamille,
                 codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, start, limit, topN, objectifAchat,
-                objectifFilter);
+                objectifFilter, tri);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * La feuille de match SIMPLE en PDF (retour du 09/09) : Rang, Produit, CIP13, UG, Quantites achetees, Frequence
+     * d'achat, classee par quantite achetee, rangs ex aequo « 17-21 ».
+     */
+    @GET
+    @Path("feuille-match/simple/pdf")
+    @Produces("application/pdf")
+    public Response feuilleMatchSimplePdf(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("QTY") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN,
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat,
+            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
+        java.util.List<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> lignes = abcAnalysisService.feuilleDeMatchSimple(
+                dtStart, dtEnd, type, classe, search, codeFamille, codeRayon, codeGrossiste, stockFilter, stockMin,
+                stockMax, topN, objectifAchat, objectifFilter);
+        java.util.Map<String, Object> enTete = enTete();
+        byte[] data = rest.report.pdf.FeuilleDeMatchSimplePdf.construire(lignes,
+                String.valueOf(enTete.getOrDefault("P_H_INSTITUTION", "")),
+                "Période du " + (dtStart == null ? "" : dtStart) + " au " + (dtEnd == null ? "" : dtEnd) + " - "
+                        + lignes.size() + " produit(s)",
+                String.valueOf(enTete.getOrDefault("P_PRINTED_BY", "")).trim());
+        return Response.ok(data)
+                .header("Content-Disposition", "inline; filename=\"" + nomFichierFeuille(dtStart, dtEnd, "pdf") + "\"")
+                .build();
+    }
+
+    /** La feuille de match SIMPLE en classeur Excel (.xlsx), memes colonnes, meme nom de fichier. */
+    @GET
+    @Path("feuille-match/simple/xlsx")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response feuilleMatchSimpleXlsx(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("QTY") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN,
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat,
+            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
+        java.util.List<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> lignes = abcAnalysisService.feuilleDeMatchSimple(
+                dtStart, dtEnd, type, classe, search, codeFamille, codeRayon, codeGrossiste, stockFilter, stockMin,
+                stockMax, topN, objectifAchat, objectifFilter);
+        rest.report.excel.ClasseurExcel<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> classeur = new rest.report.excel.ClasseurExcel<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO>(
+                "Feuille de match")
+                        .titre("FEUILLE DE MATCH SIMPLE - " + enTete().getOrDefault("P_H_INSTITUTION", ""))
+                        .critere("Période du " + (dtStart == null ? "" : dtStart) + " au "
+                                + (dtEnd == null ? "" : dtEnd))
+                        .texte("Rang", l -> l.getRang()).texte("Produit", l -> l.getProduit())
+                        .texte("CIP13", l -> l.getCip13()).nombre("UG", l -> l.getUg())
+                        .nombre("Quantités achetées", l -> l.getQuantite())
+                        .nombre("Quantités vendues", l -> l.getQuantiteVendue())
+                        .nombre("Fréquence d'achat", l -> l.getFrequence());
+        try {
+            byte[] contenu = classeur.construire(lignes);
+            return Response.ok(contenu).header("Content-Disposition",
+                    "attachment; filename=\"" + nomFichierFeuille(dtStart, dtEnd, "xlsx") + "\"").build();
+        } catch (java.io.IOException e) {
+            return Response.serverError().build();
+        }
     }
 
     /** Impression PDF "Feuille de match" : frequences et quantites d'achat (mois courant + 3 derniers mois). */
@@ -142,7 +243,9 @@ public class AbcArticleRessource {
             @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
         byte[] data = abcAnalysisService.buildFeuilleDeMatchPdf(dtStart, dtEnd, type, classe, search, codeFamille,
                 codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN, objectifAchat, objectifFilter);
-        return Response.ok(data).header("Content-Disposition", "inline; filename=\"feuille_de_match.pdf\"").build();
+        return Response.ok(data)
+                .header("Content-Disposition", "inline; filename=\"" + nomFichierFeuille(dtStart, dtEnd, "pdf") + "\"")
+                .build();
     }
 
     /** Detail achats d'un produit pour la vue feuille de match. */

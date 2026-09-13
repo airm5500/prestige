@@ -43,6 +43,8 @@ public interface ClientService {
 
     List<TiersPayantDTO> findTiersPayants(String query, String type);
 
+    List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot);
+
     List<AyantDroitDTO> findAyantDroitByClientId(String clientId, String query);
 
     JSONObject addAyantDroitToClient(AyantDroitDTO ayantDroit) throws JSONException;

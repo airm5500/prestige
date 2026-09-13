@@ -397,8 +397,100 @@ public class FacturationServiceImpl implements FacturationService {
 
     @Override
     public JSONObject facturesCarnetDepot(String tpid, int start, int limit) throws JSONException {
+        return facturesCarnetDepot(tpid, null, null, null, start, limit);
+    }
+
+    /**
+     * Factures des carnets depot, filtrees (point 17).
+     *
+     * <p>
+     * L'onglet n'offrait que le choix du tiers payant : la periode affichee en haut de l'ecran et le numero de facture
+     * n'y changeaient rien, et la liste rendait tout l'historique. Les trois criteres se combinent desormais ; absents,
+     * la liste reste celle de toujours. La periode porte sur la PERIODE FACTUREE et non sur la date de creation : c'est
+     * celle que l'ecran affiche et celle qu'on cherche.
+     * </p>
+     */
+    @Override
+    public JSONObject facturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query, int start, int limit)
+            throws JSONException {
         // isTemplate a null : provisoires et definitives, sans distinction (RG-06).
-        return listerFactures(null, null, tpid, null, null, start, limit, true);
+        long count = compterFacturesCarnetDepot(tpid, dtStart, dtEnd, query);
+        if (count == 0) {
+            return new JSONObject().put("total", 0).put("data", new JSONArray());
+        }
+        return new JSONObject().put("total", count).put("data",
+                new JSONArray(listerFacturesCarnetDepot(tpid, dtStart, dtEnd, query, start, limit)));
+    }
+
+    private long compterFacturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<TFacture> root = cq.from(TFacture.class);
+            Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
+            cq.select(cb.count(root));
+            cq.where(cb.and(predicatsCarnetDepot(cb, root, st, tpid, dtStart, dtEnd, query).toArray(Predicate[]::new)));
+            return (long) getEntityManager().createQuery(cq).getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "comptage des factures carnet depot", e);
+            return 0;
+        }
+    }
+
+    private List<FactureDTO> listerFacturesCarnetDepot(String tpid, String dtStart, String dtEnd, String query,
+            int start, int limit) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<TFacture> cq = cb.createQuery(TFacture.class);
+            Root<TFacture> root = cq.from(TFacture.class);
+            Join<TFacture, TTiersPayant> st = root.join(TFacture_.tiersPayant, JoinType.INNER);
+            cq.select(root).orderBy(cb.desc(root.get(TFacture_.dtCREATED)), cb.desc(st.get(TTiersPayant_.strFULLNAME)));
+            cq.where(cb.and(predicatsCarnetDepot(cb, root, st, tpid, dtStart, dtEnd, query).toArray(Predicate[]::new)));
+            TypedQuery<TFacture> q = getEntityManager().createQuery(cq);
+            q.setFirstResult(start);
+            q.setMaxResults(limit);
+            return q.getResultStream().map(FactureDTO::new).collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "liste des factures carnet depot", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Predicate> predicatsCarnetDepot(CriteriaBuilder cb, Root<TFacture> root,
+            Join<TFacture, TTiersPayant> st, String tpid, String dtStart, String dtEnd, String query) {
+        List<Predicate> predicates = provisoires10Predicates(cb, root, st, null, null, tpid, null, null, true);
+        /*
+         * Bornes de la periode facturee : une facture est retenue des lors que sa periode CHEVAUCHE celle demandee.
+         * Exiger qu'elle y soit entierement contenue ferait disparaitre une facture a cheval sur deux mois, alors
+         * qu'elle porte bien des bons de la periode cherchee.
+         */
+        java.util.Date debut = dateOuNull(dtStart);
+        java.util.Date fin = dateOuNull(dtEnd);
+        if (debut != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get(TFacture_.dtFINFACTURE), debut));
+        }
+        if (fin != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get(TFacture_.dtDEBUTFACTURE), fin));
+        }
+        if (StringUtils.isNotBlank(query)) {
+            String recherche = "%" + query.trim().toUpperCase() + "%";
+            predicates.add(cb.or(cb.like(cb.upper(root.get(TFacture_.strCODEFACTURE)), recherche),
+                    cb.like(cb.upper(st.get(TTiersPayant_.strFULLNAME)), recherche)));
+        }
+        return predicates;
+    }
+
+    /** Date de l'ecran, au format aaaa-mm-jj ; une saisie vide ou illisible ne filtre rien. */
+    private static java.util.Date dateOuNull(String valeur) {
+        if (StringUtils.isBlank(valeur)) {
+            return null;
+        }
+        try {
+            return java.sql.Date.valueOf(java.time.LocalDate.parse(valeur.trim()));
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "date de filtre illisible : {0}", valeur);
+            return null;
+        }
     }
 
     private JSONObject listerFactures(String groupTp, String typetp, String tpid, String codegroup, Boolean isTemplate,
@@ -616,6 +708,76 @@ public class FacturationServiceImpl implements FacturationService {
         }
     }
 
+    @Override
+    public JSONObject supprimerFacturesCarnetDepot(List<String> ids) {
+        JSONObject reponse = new JSONObject();
+        if (ids == null || ids.isEmpty()) {
+            return reponse.put("success", false).put("message", "Aucune facture sélectionnée.");
+        }
+        int supprimees = 0;
+        JSONArray refusees = new JSONArray();
+        for (String id : ids) {
+            if (id == null || id.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                TFacture facture = getEntityManager().find(TFacture.class, id.trim());
+                if (facture == null) {
+                    refusees.put(new JSONObject().put("id", id).put("motif", "Facture introuvable"));
+                    continue;
+                }
+                String code = facture.getStrCODEFACTURE() == null ? "" : facture.getStrCODEFACTURE();
+                TTiersPayant tiersPayant = facture.getTiersPayant();
+                // Relu en base : le cache partage peut porter un marquage « depot » perime.
+                if (tiersPayant != null) {
+                    getEntityManager().refresh(tiersPayant);
+                }
+                if (tiersPayant == null || !Boolean.TRUE.equals(tiersPayant.getIsDepot())) {
+                    refusees.put(new JSONObject().put("id", id).put("code", code).put("motif",
+                            "Cette facture n'est pas une facture de carnet dépôt"));
+                    continue;
+                }
+                if (facture.getDblMONTANTPAYE() != null && facture.getDblMONTANTPAYE() > 0) {
+                    refusees.put(new JSONObject().put("id", id).put("code", code).put("motif",
+                            "Cette facture a déjà reçu un règlement : elle ne peut pas être supprimée"));
+                    continue;
+                }
+                // Les bons redeviennent facturables : c'est ce qui distingue cette suppression de celle
+                // d'une provisoire, qui ne les avait jamais marques.
+                for (TFactureDetail detail : findFactureDetails(facture)) {
+                    if (detail.getStrREF() == null) {
+                        continue;
+                    }
+                    TPreenregistrementCompteClientTiersPayent bon = getEntityManager()
+                            .find(TPreenregistrementCompteClientTiersPayent.class, detail.getStrREF());
+                    if (bon != null) {
+                        bon.setStrSTATUTFACTURE(DateConverter.STATUT_FACTURE_UNPAID);
+                        getEntityManager().merge(bon);
+                    }
+                }
+                deleteFactureDetails(facture);
+                getEntityManager().remove(facture);
+                supprimees++;
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "supprimerFacturesCarnetDepot " + id, e);
+                refusees.put(new JSONObject().put("id", id).put("motif", "Suppression impossible : " + e.getMessage()));
+            }
+        }
+        return reponse.put("success", true).put("supprimees", supprimees).put("refusees", refusees);
+    }
+
+    private List<TFactureDetail> findFactureDetails(TFacture facture) {
+        try {
+            TypedQuery<TFactureDetail> q = getEntityManager().createNamedQuery("TFactureDetail.findByFactureId",
+                    TFactureDetail.class);
+            q.setParameter("lgFACTUREID", facture.getLgFACTUREID());
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
     private void deleteFactureDetails(TFacture facture) {
         try {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -634,11 +796,56 @@ public class FacturationServiceImpl implements FacturationService {
             TypedQuery<TFactureDetail> q = getEntityManager().createNamedQuery("TFactureDetail.findByFactureId",
                     TFactureDetail.class);
             q.setParameter("lgFACTUREID", id);
-            return q.getResultList().stream().map(FactureDetailDTO::new).collect(Collectors.toList());
+            return completerAvecLesVentes(
+                    q.getResultList().stream().map(FactureDetailDTO::new).collect(Collectors.toList()));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Retour du 09/09 : la ligne de facture ne porte que l'identifiant technique du bon. On y rapporte la reference de
+     * la vente (celle des editions detaillees), le numero de bon saisi et l'identifiant de la vente, par paquets pour
+     * ne pas faire une requete par ligne.
+     */
+    private List<FactureDetailDTO> completerAvecLesVentes(List<FactureDetailDTO> lignes) {
+        if (lignes == null || lignes.isEmpty()) {
+            return lignes == null ? Collections.emptyList() : lignes;
+        }
+        Map<String, FactureDetailDTO> parBon = new LinkedHashMap<>();
+        for (FactureDetailDTO l : lignes) {
+            if (l.getStrREF() != null && !l.getStrREF().isEmpty()) {
+                parBon.put(l.getStrREF(), l);
+            }
+        }
+        List<String> ids = new ArrayList<>(parBon.keySet());
+        int taille = 500;
+        for (int i = 0; i < ids.size(); i += taille) {
+            List<String> paquet = ids.subList(i, Math.min(ids.size(), i + taille));
+            try {
+                TypedQuery<TPreenregistrementCompteClientTiersPayent> q = getEntityManager().createQuery(
+                        "SELECT b FROM TPreenregistrementCompteClientTiersPayent b"
+                                + " WHERE b.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID IN :ids",
+                        TPreenregistrementCompteClientTiersPayent.class);
+                q.setParameter("ids", paquet);
+                for (TPreenregistrementCompteClientTiersPayent bon : q.getResultList()) {
+                    FactureDetailDTO l = parBon.get(bon.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID());
+                    if (l == null) {
+                        continue;
+                    }
+                    l.setStrREFBON(bon.getStrREFBON());
+                    TPreenregistrement vente = bon.getLgPREENREGISTREMENTID();
+                    if (vente != null) {
+                        l.setStrREFVENTE(vente.getStrREF());
+                        l.setVenteId(vente.getLgPREENREGISTREMENTID());
+                    }
+                }
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "references de vente des lignes de facture", e);
+            }
+        }
+        return lignes;
     }
 
     @Override

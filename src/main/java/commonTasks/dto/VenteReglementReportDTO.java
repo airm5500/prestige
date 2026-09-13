@@ -17,6 +17,16 @@ public class VenteReglementReportDTO {
     private long ugTtcAmount;
     private long amountNonCa;
     private int montantVerse;
+    /** Nombre de ventes distinctes reglees (au moins en partie) dans ce mode - retour des tests du 09/09. */
+    private long ventes;
+
+    public long getVentes() {
+        return ventes;
+    }
+
+    public void setVentes(long ventes) {
+        this.ventes = ventes;
+    }
 
     public VenteReglementReportDTO() {
     }

@@ -303,7 +303,8 @@ function semer() {
         boutonCreer: !!vue.down('#btnCreerFactureDepot'),
         impressions: grille
           ? grille.headerCt.items.items.filter(c => c.xtype === 'actioncolumn')
-              .reduce((n, c) => n + c.items.length, 0) : 0
+              .reduce((n, c) => n + c.items.length, 0) : 0,
+        boutonImprimer: grille ? !!grille.down('#btnImprimerFactureDepot') : false
       };
     });
     ok('l onglet FACTURES est present dans Gerer carnet depot',
@@ -313,8 +314,12 @@ function semer() {
          .every(c => ecran.colonnes.indexOf(c) !== -1), JSON.stringify(ecran.colonnes));
     ok('l onglet est rempli avec les factures carnet depot', ecran.lignes >= 3, 'lignes=' + ecran.lignes);
     ok('le bouton « Créer une facture » est present', ecran.boutonCreer);
-    ok('les deux impressions sont proposees sur chaque ligne', ecran.impressions === 2,
-       'actions=' + ecran.impressions);
+    /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE (deux icones, chacune son geste,
+       l'imprimante demandant « avec ou sans les produits ») ; le bouton du haut ne sert qu'a la
+       suppression multiple. */
+    ok('imprimer et supprimer sur la ligne, suppression multiple en haut',
+       ecran.impressions === 2 && ecran.boutonImprimer === false,
+       'icones=' + ecran.impressions + ' bouton haut imprimer=' + ecran.boutonImprimer);
 
     // ---- Scenario D : l'ecran de creation ouvert en mode carnet depot
     const creation = await p.evaluate(async () => {

@@ -1631,10 +1631,20 @@ public class SalesServiceImpl implements SalesService {
         if (tp == null) {
             return "Ce produit n'est plus rattaché à une vente : actualisez l'écran avant de continuer.";
         }
-        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+        if (venteEnCours(tp)) {
             return null;
         }
         return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
+    }
+
+    /**
+     * Une vente se modifie tant qu'elle est en cours : « is_Process » (vente ordinaire) ou « pending » (prevente, qui
+     * garde ce statut jusqu'a « Terminer la prevente »). Retour des tests du 12/09 : le controle n'acceptait que «
+     * is_Process » et refusait le deuxieme produit d'une prevente en la disant cloturee.
+     */
+    static boolean venteEnCours(TPreenregistrement tp) {
+        return tp != null && (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())
+                || Constant.STATUT_PENDING.equals(tp.getStrSTATUT()));
     }
 
     /**
@@ -1653,7 +1663,7 @@ public class SalesServiceImpl implements SalesService {
         if (tp == null) {
             return "Cette vente n'existe plus : actualisez l'écran de vente avant de continuer.";
         }
-        if (Constant.STATUT_IS_PROGRESS.equals(tp.getStrSTATUT())) {
+        if (venteEnCours(tp)) {
             return null;
         }
         return messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED());
@@ -3526,6 +3536,19 @@ public class SalesServiceImpl implements SalesService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return 0;
+        }
+    }
+
+    @Override
+    public long quantiteProduitsByVente(String venteId) {
+        try {
+            Object total = getEm().createQuery(
+                    "SELECT COALESCE(SUM(o.intQUANTITY), 0) FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1")
+                    .setParameter(1, venteId).getSingleResult();
+            return total instanceof Number ? ((Number) total).longValue() : 0L;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "quantiteProduitsByVente", e);
+            return 0L;
         }
     }
 

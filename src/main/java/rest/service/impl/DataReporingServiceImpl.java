@@ -167,6 +167,7 @@ public class DataReporingServiceImpl implements DataReporingService {
             Join<TPreenregistrementDetail, TPreenregistrement> join = root
                     .join(TPreenregistrementDetail_.lgPREENREGISTREMENTID, JoinType.INNER);
             cq.select(cb.construct(FamilleArticleStatDTO.class,
+                    root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEID),
                     root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.intCIP),
                     root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME),
                     cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),

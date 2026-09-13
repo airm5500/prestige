@@ -264,7 +264,7 @@ public class ListCaisseServiceImpl implements ListCaisseService {
         }
 
         TTypeMvtCaisse mvt = m.gettTypeMvtCaisse();
-        caisse.setTypeMouvement(mvt.getStrNAME());
+        caisse.setTypeMouvement(libelleMouvement(mvt));
         caisse.setTypeMvt(mvt.getLgTYPEMVTCAISSEID());
         caisse.setReference(m.getReference());
 
@@ -374,5 +374,32 @@ public class ListCaisseServiceImpl implements ListCaisseService {
         List<SumCaisseDTO> sumCaisses = fetchSummary(caisseParams);
         json.put("total", total).put("data", new JSONArray(data)).put("metaData", new JSONArray(sumCaisses));
         return json;
+    }
+
+    /**
+     * Le libelle du type de mouvement tel qu'il doit APPARAITRE en caisse.
+     *
+     * <p>
+     * La base nomme ces deux types « ventes ordonnancees » et « ventes N.O. », des termes de parametrage que le
+     * personnel de caisse ne lit pas dans ce sens : ce qui l'interesse est de savoir si l'argent est entre ou non. La
+     * correspondance se fait sur l'IDENTIFIANT du type et non sur son nom, pour qu'un renommage en parametrage ne la
+     * rompe pas silencieusement.
+     * </p>
+     *
+     * <p>
+     * Seul l'affichage change ; le nom en base et les filtres, qui portent sur l'identifiant, restent intacts.
+     * </p>
+     */
+    private static String libelleMouvement(TTypeMvtCaisse mvt) {
+        if (mvt == null) {
+            return "";
+        }
+        if (Constant.MVT_VENTE_VO.equals(mvt.getLgTYPEMVTCAISSEID())) {
+            return "VENTE A CREDIT";
+        }
+        if (Constant.MVT_VENTE_VNO.equals(mvt.getLgTYPEMVTCAISSEID())) {
+            return "VENTE AU COMPTANT";
+        }
+        return mvt.getStrNAME();
     }
 }

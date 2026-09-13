@@ -443,6 +443,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     fieldStyle: "color:#0D47A1;font-weight:bold;",
                                                     margin: '0 0 0 20',
                                                     flex: 1
+                                                },
+                                                {
+                                                    /* Retours du 12/09 (point 12) : peremption la plus proche du
+                                                       produit choisi, lot et quantite restante ; vide sans lot.
+                                                       Clignote a moins de six mois, sinon bleu gras. */
+                                                    xtype: 'displayfield',
+                                                    fieldLabel: 'Péremption',
+                                                    labelWidth: 75,
+                                                    labelStyle: 'font-weight:bold;',
+                                                    itemId: 'peremptionProcheId',
+                                                    margin: '0 0 0 20',
+                                                    flex: 1.6
                                                 }
                                             ]
                                         }
@@ -687,7 +699,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             xtype: 'pagingtoolbar',
                                                             displayInfo: true,
                                                             flex: 2,
-                                                            displayMsg: 'nombre(s) de produit(s): {2}',
+                                                            displayMsg: 'nombre(s) de ligne(s): {2}',
                                                             pageSize: 10,
                                                             store: venteDetails,
                                                             /* Date et heure de creation de la vente en cours, juste
@@ -713,6 +725,34 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                     };
                                                                     barre.mon(barre.getStore(), 'load', majDate);
                                                                     majDate();
+                                                                    /* Retours du 12/09 : le nombre de produits (somme des
+                                                                       quantites, toutes pages) a cote du nombre de lignes
+                                                                       que la pagination affiche deja. */
+                                                                    var lignes = barre.insert(position + 1, {
+                                                                        xtype: 'tbtext', itemId: 'nombreLignesVente', text: '',
+                                                                        style: 'color:#1f4e79;font-weight:600;margin-left:10px;'
+                                                                    });
+                                                                    var majLignes = function () {
+                                                                        var total = barre.getStore().getTotalCount();
+                                                                        var ctrl = testextjs.app.getController('VenteCtr');
+                                                                        var vente = ctrl ? (ctrl.current || (ctrl.getCurrent ? ctrl.getCurrent() : null)) : null;
+                                                                        if (!total || !vente || !vente.lgPREENREGISTREMENTID) {
+                                                                            lignes.setText('');
+                                                                            return;
+                                                                        }
+                                                                        Ext.Ajax.request({
+                                                                            url: '../api/v1/vente/quantites-vente/' + vente.lgPREENREGISTREMENTID,
+                                                                            method: 'GET',
+                                                                            success: function (rep) {
+                                                                                var o = Ext.JSON.decode(rep.responseText, true) || {};
+                                                                                if (!lignes.isDestroyed) {
+                                                                                    lignes.setText(o.success ? 'nombre(s) de produit(s) : ' + (o.produits || 0) : '');
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                    };
+                                                                    barre.mon(barre.getStore(), 'load', majLignes);
+                                                                    majLignes();
                                                                 }
                                                             }
 
@@ -879,6 +919,47 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     store: store_typereglement,
                                                     valueField: 'lgTYPEREGLEMENTID',
                                                     displayField: 'strNAME',
+                                                    /* Logo de l'operateur (resources/images/modes/<NOM>.png) dans la
+                                                       liste deroulante, et dans le champ une fois le mode choisi.
+                                                       Sans fichier, l'image est masquee et le libelle reste seul. */
+                                                    listConfig: {
+                                                        getInnerTpl: function () {
+                                                            return '<div style="display:flex;align-items:center;gap:8px;">'
+                                                                    + '<img src="resources/images/modes/{[String(values.strNAME || \'\').toUpperCase().replace(/[^A-Z0-9]/g, \'\')]}.png" alt="" '
+                                                                    + 'onerror="this.style.visibility=\'hidden\'" style="width:22px;height:22px;border-radius:50%;"/>'
+                                                                    + '<span>{strNAME}</span></div>';
+                                                        }
+                                                    },
+                                                    listeners: {
+                                                        change: function (combo) {
+                                                            if (!combo.inputEl) {
+                                                                return;
+                                                            }
+                                                            var rec = combo.findRecordByValue(combo.getValue());
+                                                            var nom = rec ? String(rec.get('strNAME') || '').toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+                                                            // le theme de la caisse pose des fonds en !important : le logo doit l'etre aussi
+                                                            var poser = function (proprietes) {
+                                                                if (combo.isDestroyed || !combo.inputEl) {
+                                                                    return;
+                                                                }
+                                                                Ext.Object.each(proprietes, function (k, v) {
+                                                                    combo.inputEl.dom.style.setProperty(k, v, 'important');
+                                                                });
+                                                            };
+                                                            var image = new Image();
+                                                            image.onload = function () {
+                                                                poser({'background-image': 'url(resources/images/modes/' + nom + '.png)', 'background-repeat': 'no-repeat', 'background-position': '4px center', 'background-size': '22px 22px', 'padding-left': '32px'});
+                                                            };
+                                                            image.onerror = function () {
+                                                                poser({'background-image': 'none', 'padding-left': '4px'});
+                                                            };
+                                                            if (nom) {
+                                                                image.src = 'resources/images/modes/' + nom + '.png';
+                                                            } else {
+                                                                image.onerror();
+                                                            }
+                                                        }
+                                                    },
                                                     editable: false,
                                                     queryMode: 'remote',
                                                     emptyText: 'Choisir un type de reglement...',
@@ -982,6 +1063,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'btnExtraMode',
                                                     text: 'Associer un autre paiement mobile',
                                                     tooltip: 'Répartir le paiement entre deux modes mobiles',
+                                                    // Retours du 12/09 : une icone sur le bouton mobile money
+                                                    icon: 'resources/images/icons/fam/paiement-mobile.png',
                                                     hidden: true,
                                                     cls: 'vp-btn-extra',
                                                     height: 32,

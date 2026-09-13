@@ -42,6 +42,17 @@ public class ImpressionServiceImpl implements Printable {
     SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     private PrintService service;
     private int limit = 0, intBegin = 0, nombreCopie = 1, fontSize = 0;
+    /**
+     * Taille de police du nom de l'officine, en tete du ticket.
+     *
+     * <p>
+     * Elle etait figee a 15 points. Selon la longueur du nom et la largeur du rouleau, ce nom passait a la ligne ou
+     * debordait, sans aucun moyen de l'ajuster sans reprendre le code. La valeur est desormais lue dans le parametre
+     * {@code KEY_TAILLE_NOM_OFFICINE_TICKET} ; 15 reste la valeur par defaut, donc rien ne bouge tant que l'officine ne
+     * la change pas.
+     * </p>
+     */
+    private int taillleNomOfficine = 15;
     private boolean showCodeBar;
     private TImprimante oTImprimante;
     private Date operation;
@@ -242,6 +253,24 @@ public class ImpressionServiceImpl implements Printable {
         this.fontSize = fontSize;
     }
 
+    public int getTaillleNomOfficine() {
+        return taillleNomOfficine;
+    }
+
+    /**
+     * Pose la taille du nom de l'officine.
+     *
+     * <p>
+     * Une valeur nulle ou negative est ignoree : un ticket dont le nom serait invisible ne vaudrait pas mieux qu'un
+     * ticket au nom trop grand, et un parametre mal saisi ne doit pas rendre les tickets inutilisables.
+     * </p>
+     */
+    public void setTaillleNomOfficine(int taillleNomOfficine) {
+        if (taillleNomOfficine > 0) {
+            this.taillleNomOfficine = taillleNomOfficine;
+        }
+    }
+
     public String getTitle() {
         return title;
     }
@@ -426,7 +455,7 @@ public class ImpressionServiceImpl implements Printable {
         int lh = scaleImage * logoHeight;
         boolean result = this.getEmplacement().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE);
         Image logo = new ImageIcon(jdom.scr_report_file_logo).getImage();
-        Font font = new Font("Calibri (Corps)", Font.PLAIN, 15 + fontSize);
+        Font font = new Font("Calibri (Corps)", Font.PLAIN, this.taillleNomOfficine + fontSize);
         graphics.setFont(font);
         graphics.drawString(this.getOfficine().getStrNOMCOMPLET(), 0, start);
         font = new Font("Arial Narrow", Font.PLAIN, 9 + fontSize);

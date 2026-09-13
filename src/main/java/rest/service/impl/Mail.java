@@ -74,7 +74,12 @@ public class Mail implements Runnable {
         try {
             String email = getReceiverAddres();
             if (StringUtils.isEmpty(email)) {
-                email = sp.mailOfficine;
+                email = util.AdressesMail.premiere(sp.mailOfficine);
+            }
+            if (StringUtils.isBlank(email)) {
+                // Ni destinataire explicite, ni adresse d'officine configuree : rien a envoyer.
+                LOG.log(Level.WARNING, "Aucune adresse mail configuree : envoi ignore ({0})", getSubject());
+                return;
             }
             Address sender = new InternetAddress(sp.email);
             Address recipient = new InternetAddress(email);

@@ -53,6 +53,7 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                     proxy.setExtraParam('topN', v('topN'));
                     proxy.setExtraParam('objectifAchat', v('objectifAchat') || 3);
                     proxy.setExtraParam('objectifFilter', v('comboObjectif') || 'ALL');
+                    proxy.setExtraParam('tri', v('comboTri') || 'CLASSEMENT');
                     proxy.setExtraParam('search', v('searchField'));
                     proxy.setExtraParam('codeRayon', v('rayons'));
                     proxy.setExtraParam('codeGrossiste', v('grossiste'));
@@ -98,6 +99,14 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                 {id: 'QTY', libelle: "Quantité"},
                 {id: 'MARGE', libelle: "Marge"},
                 {id: 'CA', libelle: "Chiffre d'Affaires"}
+            ]
+        });
+        /* Retour du 09/09 : tri « par quantite achetee » sur la periode, en plus du classement. */
+        const filtreTri = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [
+                {id: 'CLASSEMENT', libelle: 'Tri : classement'},
+                {id: 'ACHATS', libelle: 'Tri : quantité achetée'}
             ]
         });
         const filtreClasse = new Ext.data.Store({
@@ -151,18 +160,33 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                                 }
                             }},
                         {xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboClasse', labelWidth: 1, editable: false, store: filtreClasse, valueField: 'id', displayField: 'libelle'},
+                        {xtype: 'combo', value: 'CLASSEMENT', flex: 1.1, itemId: 'comboTri', labelWidth: 1, editable: false, store: filtreTri, valueField: 'id', displayField: 'libelle',
+                            tooltip: 'Ordre des lignes : le classement, ou la quantité achetée sur la période'},
                         {xtype: 'combo', value: 'ALL', flex: 1.2, itemId: 'comboObjectif', labelWidth: 1, editable: false, store: filtreObjectif, valueField: 'id', displayField: 'libelle'},
                         {xtype: 'textfield', flex: 1.4, itemId: 'searchField', emptyText: 'Code CIP ou nom du produit',
                             fieldStyle: 'border:2px solid #1565C0;'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         '->',
-                        {text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable', tooltip: 'Imprimer la feuille de match (PDF) : fréquences et quantités d\'achat du mois en cours et des 3 derniers mois'},
+                        {
+                            /* Retour du 09/09 : DEUX impressions, chacune ouverte dans son propre clic (une
+                               ouverture par clic, jamais de fenetre surgissante) : la detaillee (mois en cours et
+                               trois derniers mois) et la simple (rang, produit, CIP13, UG, quantites achetees,
+                               frequence d'achat). */
+                            xtype: 'splitbutton', text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable',
+                            tooltip: 'Imprimer la feuille de match : détaillée ou simple',
+                            handler: function (b) { b.showMenu(); },
+                            menu: [
+                                {text: 'Impression détaillée (mois en cours et 3 derniers mois)', itemId: 'imprimerDetaillee', iconCls: 'printable'},
+                                {text: 'Impression simple (rang, UG, quantités achetées, fréquence)', itemId: 'imprimerSimple', iconCls: 'printable'}
+                            ]
+                        },
                         {
                             xtype: 'splitbutton', text: 'Exporter', itemId: 'btnExporter', iconCls: 'export_excel_icon',
                             tooltip: 'Exporter le résultat filtré',
                             menu: [
                                 {text: 'Exporter Excel', itemId: 'exporterExcel', iconCls: 'export_excel_icon'},
-                                {text: 'Exporter CSV', itemId: 'exporterCsv', iconCls: 'export_csv_icon'}
+                                {text: 'Exporter CSV', itemId: 'exporterCsv', iconCls: 'export_csv_icon'},
+                                {text: 'Feuille simple (Excel)', itemId: 'exporterSimpleXlsx', iconCls: 'export_excel_icon'}
                             ]
                         },
                         {
@@ -206,6 +230,9 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                                 return '<span style="color:' + c + ';font-weight:bold">' + Ext.util.Format.number(v || 0, '0,000.') + '</span>';
                             }},
                         {header: 'Qté achetée (mois)', dataIndex: 'qteM0', width: 110, align: 'right', renderer: moneyRenderer},
+                        /* Retour du 09/09 : les achats de la PERIODE (receptions cloturees entre les deux dates), et les UG. */
+                        {header: 'Qté achetée (période)', dataIndex: 'qteAchetee', width: 115, align: 'right', renderer: moneyRenderer},
+                        {header: 'UG', dataIndex: 'ug', width: 50, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 85, align: 'right',
                             renderer: function (v) {
                                 const cmp = me.down('#comboType');

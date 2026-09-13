@@ -83,7 +83,7 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                             displayField: 'libelle',
                             queryMode: 'local',
                             editable: false,
-                            value: 'TROIS_MOIS'
+                            value: 'TROIS_SEMAINES' // retours du 12/09 : trois dernieres semaines par defaut
                         }, {
                             xtype: 'datefield',
                             itemId: 'dtStart',
@@ -202,6 +202,53 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                     layout: 'fit',
                     border: false,
                     html: '<div style="margin:20px;color:#666;">Lancez une recherche pour afficher la courbe.</div>'
+                }, {
+                    /* Retours du 12/09 (point 9) : le meme tableau comparatif, regroupe par gamme puis par
+                       laboratoire, sur la periode et les filtres de la barre d'outils. Charge a l'ouverture de
+                       l'onglet. */
+                    xtype: 'tabpanel',
+                    title: 'Gammes / Laboratoires',
+                    itemId: 'ongletGammesLabos',
+                    border: false,
+                    // Retours du 12/09 : filtres par gamme et par laboratoire, propres a cet onglet
+                    tbar: [{
+                            xtype: 'combobox', itemId: 'gammeFiltre', fieldLabel: 'Gamme', labelWidth: 50, width: 300,
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], autoLoad: true,
+                                proxy: {type: 'ajax', url: '../api/v1/common/gammeproduits', reader: {type: 'json', root: 'data'}}}),
+                            valueField: 'id', displayField: 'libelle', queryMode: 'local', typeAhead: true,
+                            forceSelection: true, emptyText: 'Toutes les gammes',
+                        }, {
+                            xtype: 'combobox', itemId: 'laboratoireFiltre', fieldLabel: 'Laboratoire', labelWidth: 75, width: 320,
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], autoLoad: true,
+                                proxy: {type: 'ajax', url: '../api/v1/common/laboratoireproduits', reader: {type: 'json', root: 'data'}}}),
+                            valueField: 'id', displayField: 'libelle', queryMode: 'local', typeAhead: true,
+                            forceSelection: true, emptyText: 'Tous les laboratoires'
+                        }, {
+                            text: 'Effacer les filtres', itemId: 'effacerFiltresGammesLabos'
+                        }],
+                    items: [{
+                            xtype: 'gridpanel',
+                            title: 'Gammes',
+                            itemId: 'grilleGammes',
+                            regroupement: 'GAMME',
+                            border: false,
+                            autoScroll: true,
+                            features: [{ftype: 'summary'}],
+                            viewConfig: {columnLines: true, emptyText: '<div style="margin:20px;">Aucune vente sur la période</div>', deferEmptyText: false},
+                            store: Ext.create('Ext.data.Store', {fields: ['libelle'], data: []}),
+                            columns: [{text: 'Gamme', dataIndex: 'libelle', flex: 1}]
+                        }, {
+                            xtype: 'gridpanel',
+                            title: 'Laboratoires',
+                            itemId: 'grilleLaboratoires',
+                            regroupement: 'LABORATOIRE',
+                            border: false,
+                            autoScroll: true,
+                            features: [{ftype: 'summary'}],
+                            viewConfig: {columnLines: true, emptyText: '<div style="margin:20px;">Aucune vente sur la période</div>', deferEmptyText: false},
+                            store: Ext.create('Ext.data.Store', {fields: ['libelle'], data: []}),
+                            columns: [{text: 'Laboratoire', dataIndex: 'libelle', flex: 1}]
+                        }]
                 }]
         });
         me.callParent(arguments);

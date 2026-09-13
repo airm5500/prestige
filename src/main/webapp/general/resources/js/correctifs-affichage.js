@@ -411,6 +411,156 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
 };
 
 /**
+ * 5) ECRANS QUI SE RABATTENT SUR LA DROITE APRES UN REDIMENSIONNEMENT
+ *
+ * Symptome constate : l'ecran occupe bien toute la largeur, puis au premier geste
+ * (ajouter un produit a une vente, lancer une recherche...) il se retracte et une bande de
+ * fond apparait a droite. Rien n'est journalise : ni erreur JavaScript, ni incident au
+ * Centre de Support.
+ *
+ * Cause, mesuree au banc et non supposee. Fenetre ouverte a 1536 puis agrandie a 1810 :
+ *
+ *     ouverture 1536 : panneau 1503 | corps 1503 | memoire de mise en page 1503
+ *     agrandi   1810 : panneau 1777 | corps 1777 | memoire de mise en page 1503  <-- figee
+ *     ajout produit  : panneau 1777 | corps 1503 | memoire de mise en page 1503  <-- reappliquee
+ *
+ * Quand la fenetre change de taille, le navigateur etire les elements (les largeurs sont en
+ * pourcentage) et ExtJS rapporte bien la nouvelle largeur. Mais la taille que le moteur de
+ * mise en page a MEMORISEE (lastBox) reste celle d'avant, a tous les etages : viewport,
+ * panneau central, ecran. La premiere mise en page declenchee ensuite - n'importe quel geste
+ * ordinaire - repart de cette memoire et repose l'ancienne largeur sur le corps du panneau.
+ *
+ * C'est different du blocage traite en section 4 : ici aucune exception n'est levee et
+ * aucune mise en page n'est suspendue. Le moteur fonctionne, il travaille sur une taille
+ * perimee. Le correctif de la section 4, qui ne se declenche que sur exception, ne pouvait
+ * donc pas voir ce defaut : c'est pourquoi le Centre de Support n'avait rien capture.
+ *
+ * Pourquoi ExtJS ne se corrige pas seul : sa memoire n'est rafraichie que lorsqu'il calcule
+ * lui-meme une taille. Ici c'est le navigateur qui a redimensionne, via les pourcentages CSS ;
+ * ExtJS n'a rien calcule, donc rien memorise. Quatre remedes ont ete essayes au banc
+ * (updateLayout sur le panneau, updateLayout isRoot sur le viewport, doLayout, appel differe) :
+ * aucun ne rafraichit cette memoire, parce qu'ExtJS est convaincu que rien n'a change.
+ * Seul le fait d'effacer la memoire perimee, puis de relancer une mise en page, retablit
+ * l'affichage - c'est ce que fait la fonction ci-dessous.
+ *
+ * Elle n'efface QUE les memoires qui contredisent la taille reelle de l'element (ecart de
+ * plus d'un pixel), pas toutes : un composant correctement mesure garde la sienne, et le
+ * calcul reste incremental partout ailleurs.
+ */
+window.PrestigeAffichage.resynchroniserMiseEnPage = (function () {
+    'use strict';
+
+    var enAttente = null,
+        DELAI = 120;
+
+    /** Efface les memoires de mise en page qui ne correspondent plus a la realite. */
+    function purgerMemoiresPerimees(composant, compte) {
+        var reel, memoire;
+        if (!composant || composant.isDestroyed || !composant.rendered) {
+            return compte;
+        }
+        memoire = composant.lastBox;
+        if (memoire) {
+            try {
+                reel = composant.el && composant.el.dom ? composant.el.dom.offsetWidth : null;
+                if (reel !== null && typeof memoire.width === 'number' && Math.abs(reel - memoire.width) > 1) {
+                    delete composant.lastBox;
+                    if (composant.el) {
+                        delete composant.el.lastBox;
+                    }
+                    compte += 1;
+                }
+            } catch (e) {
+                // un composant en cours de destruction : on le laisse tranquille
+            }
+        }
+        if (composant.items && composant.items.each) {
+            composant.items.each(function (enfant) {
+                compte = purgerMemoiresPerimees(enfant, compte);
+            });
+        }
+        // les panneaux ont aussi des barres d'outils, qui ne sont pas dans items
+        if (composant.dockedItems && composant.dockedItems.each) {
+            composant.dockedItems.each(function (enfant) {
+                compte = purgerMemoiresPerimees(enfant, compte);
+            });
+        }
+        return compte;
+    }
+
+    /**
+     * Une region repliee est-elle « flottante » (le volet de navigation glisse sur le contenu) ?
+     *
+     * Retour du 09/09 (point 3) : pendant ce glissement, ExtJS enveloppe le volet dans un element
+     * temporaire place AVANT le panneau de contenu. Une mise en page complete a ce moment-la
+     * remet le panneau de contenu a sa place dans le DOM, ce qui recharge l'iframe du tableau de
+     * bord a chaque clic sur la barre de navigation. Et c'est justement ce que provoquait la
+     * resynchronisation : le volet flottant n'a plus la largeur dont ExtJS se souvient, la purge
+     * le prenait pour un ecran rabattu. On ne resynchronise donc jamais pendant un glissement.
+     */
+    function regionFlottante() {
+        var panneaux, i;
+        try {
+            if (document.querySelector('[id*="-anim-wrap-for-"]')) {
+                return true;
+            }
+            panneaux = Ext.ComponentQuery.query('panel');
+            for (i = 0; i < panneaux.length; i++) {
+                if (panneaux[i].floatedFromCollapse) {
+                    return true;
+                }
+            }
+        } catch (e) {
+            // dans le doute, on ne resynchronise pas : rien ne casse, l'ecran reste tel quel
+            return true;
+        }
+        return false;
+    }
+
+    function resynchroniser() {
+        var viewport, purges;
+        try {
+            viewport = Ext.ComponentQuery.query('viewport')[0];
+            if (!viewport || viewport.isDestroyed || !viewport.rendered) {
+                return 0;
+            }
+            if (regionFlottante()) {
+                return 0;
+            }
+            purges = purgerMemoiresPerimees(viewport, 0);
+            if (purges > 0) {
+                viewport.updateLayout({isRoot: true});
+            }
+            return purges;
+        } catch (e) {
+            // Un affichage qui ne se remet pas droit vaut mieux qu'une application qui tombe.
+            try {
+                if (window.console && console.warn) {
+                    console.warn('[Prestige] resynchronisation de la mise en page impossible', e);
+                }
+            } catch (e2) {
+            }
+            return 0;
+        }
+    }
+
+    /** Version groupee : un redimensionnement a la souris envoie des dizaines d'evenements. */
+    function planifier() {
+        if (enAttente) {
+            clearTimeout(enAttente);
+        }
+        enAttente = setTimeout(function () {
+            enAttente = null;
+            resynchroniser();
+        }, DELAI);
+    }
+
+    resynchroniser.planifier = planifier;
+    resynchroniser.regionFlottante = regionFlottante;
+    return resynchroniser;
+}());
+
+/**
  * Ecrans concernes, par leur xtype.
  *
  * La liste est ici, en un seul endroit, plutot que dispersee dans chaque fichier de vue :
@@ -426,6 +576,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // caisse
     'listecaissemanager', 'visualisercaissemanager', 'gestcaissemanager',
     'caisserecetterecap', 'cashmovements', 'balancesalecahs',
+    // gardes (retour des tests du 09/09)
+    'gardemanager', 'analysearticle',
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
     'ugmanager', 'mouvementprixvente',
@@ -446,7 +598,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'evaluationventemoyenne', 'cazonegeomanager',
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
-    'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier',
+    'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier', 'suiviremise',
+    // retours des tests du 12/09 : ruptures PharmaML, cautions tiers payant
+    'rupturepharma', 'cautiontierspayant',
     // service client
     'ventesrateesmanager', 'modelemessagemanager',
     // gestion des fichiers
@@ -458,7 +612,14 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'diffmanager','valorisationstock',
     // centre de support
     'supportcontact', 'supporttickets', 'supportdiagnostic',
-    'supportsante', 'supporthistorique', 'supportmaintenance'
+    'supportsante', 'supporthistorique', 'supportmaintenance',
+    // depots et carnets
+    'tierpayantasdepot', 'reglementdepot',
+    // ventes et caisse
+    'cloturerventemanager', 'mvtcaissemanager',
+    // journal
+    // (factureprovisoire figure deja plus haut, dans le bloc « facturation »)
+    'logfile'
 ];
 
 /**
@@ -481,6 +642,13 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     if (concerne) {
         window.PrestigeAffichage.collerAuConteneur(ecran);
     }
+    // Retours des tests du 12/09 (point 5) : sur un videoprojecteur, la resolution change en cours de
+    // session sans que le navigateur envoie toujours un redimensionnement ; l'ecran suivant s'ouvrait
+    // alors sur une mise en page memorisee trop etroite, laissant un vide a droite. On resynchronise
+    // donc aussi a chaque ouverture de menu, une fois l'ecran en place.
+    if (window.PrestigeAffichage.resynchroniserMiseEnPage) {
+        window.PrestigeAffichage.resynchroniserMiseEnPage.planifier();
+    }
 };
 
 Ext.onReady(function () {
@@ -488,6 +656,16 @@ Ext.onReady(function () {
 
     corrigerInfobulles();
     corrigerBoitesDeMessage();
+
+    // ---------------------------------------------------------------------------------
+    // 5) rabat apres redimensionnement (cf. l'explication detaillee plus haut)
+    //
+    // Le redimensionnement est le seul moment ou la memoire de mise en page peut se
+    // desynchroniser de la realite : c'est la que le navigateur etire les elements sans
+    // qu'ExtJS calcule quoi que ce soit. On resynchronise donc a ce moment-la, avant que
+    // le premier geste de l'utilisateur ne fasse ressortir l'ancienne taille.
+    // ---------------------------------------------------------------------------------
+    Ext.EventManager.onWindowResize(window.PrestigeAffichage.resynchroniserMiseEnPage.planifier);
 
     // ---------------------------------------------------------------------------------
     // 1) info-bulles

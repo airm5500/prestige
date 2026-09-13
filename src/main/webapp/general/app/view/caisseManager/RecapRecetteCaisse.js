@@ -112,6 +112,20 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     type: 'number'
                 },
                 {
+                    // Ecart comptant / billetage, calcule par le serveur pour que l'ecran, le PDF et
+                    // le classeur Excel affichent tous les trois le meme chiffre.
+                    name: 'montantEcart',
+                    type: 'number'
+                },
+                {
+                    name: 'billetageSaisi',
+                    type: 'boolean'
+                },
+                {
+                    name: 'montantMouvements',
+                    type: 'number'
+                },
+                {
                     name: 'montantEntre',
                     type: 'number'
                 },
@@ -155,6 +169,25 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     dock: 'top',
                     items: [
                         {
+                            /* Retours du 12/09 : selecteur de periode comme la balance vente / caisse, avec en
+                               plus « Aujourd'hui », qui est le choix par defaut de cet ecran. */
+                            xtype: 'combobox',
+                            fieldLabel: 'Période',
+                            labelWidth: 50,
+                            width: 215,
+                            itemId: 'typePeriode',
+                            store: Ext.create('Ext.data.Store', {
+                                fields: ['id', 'libelle'],
+                                data: [{id: 'JOUR', libelle: 'Aujourd\'hui'}].concat(
+                                        (window.PrestigeAnalyse && window.PrestigeAnalyse.CHOIX) || [])
+                            }),
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            value: 'JOUR'
+                        },
+                        {
                             xtype: 'datefield',
                             fieldLabel: 'Du',
                             itemId: 'dtStart',
@@ -195,10 +228,22 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
 
                         },
                         {
+                            // Retours du 12/09 : « Annuelle » est retiree de l'ecran (le regroupement mensuel suffit).
+                            // Le composant reste, cache, pour les appels qui lisent encore groupByYear.
                             xtype: 'checkbox',
                             boxLabel: 'Annuelle',
                             checked: false,
+                            hidden: true,
                             itemId: 'groupByYear'
+                        },
+                        {
+                            /* Point 16 : « Mensuelle » vient a cote d'« Annuelle ». Les deux s'excluent -
+                               cocher l'une decoche l'autre - et ne rien cocher garde le detail par jour. */
+                            xtype: 'checkbox',
+                            boxLabel: 'Mensuelle',
+                            checked: false,
+                            margin: '0 10 0 6',
+                            itemId: 'groupByMonth'
                         },
                         {
                             text: 'rechercher',
@@ -232,53 +277,73 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     border: false,
                     items: [
                 {
-                    xtype: 'gridpanel',
+                    /* Retour du 09/09, point 7 : le tableau et, sous lui, le recap de la part de
+                       chaque mode de reglement dans le chiffre d'affaires realise. */
+                    xtype: 'panel',
                     title: 'Récapitulatif',
+                    itemId: 'ongletRecap',
                     border: false,
+                    layout: {type: 'vbox', align: 'stretch'},
+                    items: [{
+                    xtype: 'gridpanel',
+                    flex: 1,
+                    border: false,
+                    itemId: 'caisserecetterecapGrid',
+                    store: data,
+                    /* Sous-detail des paiements mobiles (point 22, puis retour du 09/09 point 7) :
+                       la repartition par mode que le serveur a rencontree ce jour-la s'affiche
+                       TOUJOURS, sur une ligne au pied de la journee - plus de « + » a cliquer.
+                       Rien n'est ecrit d'avance - un operateur cree par l'officine y figure de
+                       lui-meme - et le total du sous-detail vaut, par construction, le montant
+                       Mobile de la ligne : il est rappele au bout pour que cela se verifie a l'oeil.
+                       Une journee sans paiement mobile n'a pas de ligne de detail. */
                     features: [
                         {
                             ftype: 'summary'
-                        }],
-                    itemId: 'caisserecetterecapGrid',
-                    store: data,
-                    /* Sous-detail des paiements mobiles (point 22) : la ligne s'ouvre sur la
-                       repartition par mode que le serveur a rencontree ce jour-la. Rien n'est
-                       ecrit d'avance - un operateur cree par l'officine y figure de lui-meme -
-                       et le total du sous-detail vaut, par construction, le montant Mobile de la
-                       ligne : il est rappele en bas pour que cela se verifie a l'oeil. */
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                '<tpl if="this.vide(values.detailMobile)">',
-                                '<div style="padding:6px 12px;color:#7f8c8d;">Aucun paiement mobile ce jour-là.</div>',
-                                '<tpl else>',
-                                '<div style="padding:6px 12px;">',
-                                '<div style="font-weight:bold;color:#2a4d69;margin-bottom:4px;">',
-                                'Détail des paiements mobiles</div>',
-                                '<table style="border-collapse:collapse;">',
-                                '{[ this.lignes(values.detailMobile) ]}',
-                                '<tr><td style="padding:2px 18px 2px 0;border-top:1px solid #b8c6d4;',
-                                'font-weight:bold;">Total mobile</td>',
-                                '<td style="padding:2px 0;border-top:1px solid #b8c6d4;text-align:right;',
-                                'font-weight:bold;">{[ this.montant(values.montantMobile) ]}</td></tr>',
-                                '</table></div>',
-                                '</tpl>',
+                        }, {
+                            ftype: 'rowbody',
+                            detailTpl: new Ext.XTemplate(
+                                '<div class="detail-mobile-jour" style="padding:2px 12px;">',
+                                '<span style="font-weight:bold;color:#2a4d69;">Mobile money :</span> ',
+                                '{[ this.ligne(values.detailMobile) ]}',
+                                '<span style="color:#7f8c8d;"> = </span>',
+                                '<span style="font-weight:bold;">{[ this.montant(values.montantMobile) ]}</span>',
+                                '</div>',
                                 {
-                                    vide: function (detail) {
-                                        return !detail || Ext.Object.getKeys(detail).length === 0;
+                                    /* Retours des tests 4 : les entrees et sorties de caisse, a la suite du mobile
+                                       money, seulement quand la journee en a. Elles entrent dans le solde. */
+                                    mouvements: function (values) {
+                                        const entrees = values.montantEntre || 0, sorties = values.montantSortie || 0;
+                                        if (!entrees && !sorties) {
+                                            return '';
+                                        }
+                                        return '<div class="detail-mouvements-jour" style="padding:2px 12px;">'
+                                                + '<span style="font-weight:bold;color:#2a4d69;">Mouvements de caisse :</span> '
+                                                + 'entr\u00e9es <b style="color:#1e8449;">' + this.montant(entrees) + '</b>'
+                                                + '<span style="color:#b8c6d4;"> &middot; </span>'
+                                                + 'sorties <b style="color:#c0392b;">' + this.montant(sorties) + '</b>'
+                                                + '</div>';
                                     },
                                     montant: function (v) {
                                         return Ext.util.Format.number(v || 0, '0,000');
                                     },
-                                    lignes: function (detail) {
+                                    ligne: function (detail) {
                                         const format = this.montant;
                                         return Ext.Object.getKeys(detail || {}).map(function (mode) {
-                                            return '<tr><td style="padding:2px 18px 2px 0;">' + Ext.String.htmlEncode(mode)
-                                                    + '</td><td style="padding:2px 0;text-align:right;">'
-                                                    + format(detail[mode]) + '</td></tr>';
-                                        }).join('');
+                                            return Ext.String.htmlEncode(mode) + ' <b>' + format(detail[mode]) + '</b>';
+                                        }).join('<span style="color:#b8c6d4;"> &middot; </span>');
                                     }
-                                })
+                                }),
+                            getAdditionalData: function (donnees, index, enregistrement) {
+                                const detail = donnees.detailMobile;
+                                const sansMobile = !detail || Ext.Object.getKeys(detail).length === 0;
+                                const mouvements = this.detailTpl.mouvements(donnees);
+                                const vide = sansMobile && !mouvements;
+                                return {
+                                    rowBody: vide ? '' : (sansMobile ? '' : this.detailTpl.apply(donnees)) + mouvements,
+                                    rowBodyCls: vide ? this.rowBodyHiddenCls : ''
+                                };
+                            }
                         }],
                     viewConfig: {
                         forceFit: true,
@@ -458,7 +523,32 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
-                            header: 'Règlement tp',
+                            /* Retours du 12/09 : les mouvements de caisse (entrees - sorties) en colonne,
+                               juste apres les clients ; le detail entrees / sorties est en infobulle. */
+                            header: 'Mouv. caisse',
+                            dataIndex: 'montantMouvements',
+                            itemId: 'colonneMouvements',
+                            flex: 1,
+                            xtype: 'numbercolumn',
+                            format: '0,000.',
+                            align: 'right',
+                            summaryType: 'sum',
+                            renderer: function (valeur, meta, rec) {
+                                if (valeur === null || valeur === undefined || valeur === '') {
+                                    return '';
+                                }
+                                meta.tdAttr = 'data-qtip="Entrées ' + Ext.util.Format.number(rec.get('montantEntre') || 0, '0,000')
+                                        + ' - Sorties ' + Ext.util.Format.number(rec.get('montantSortie') || 0, '0,000') + '"';
+                                var couleur = valeur < 0 ? '#c0392b' : '#1c7c1c';
+                                return "<span style='color:" + couleur + ";font-weight:bold;'>"
+                                        + Ext.util.Format.number(valeur, '0,000') + "</span>";
+                            },
+                            summaryRenderer: function (value) {
+                                return value ? '<b>' + Ext.util.Format.number(value, '0,000') + '</b>' : '';
+                            }
+                        },
+                        {
+                            header: 'Regl TP',
                             dataIndex: 'montantReglementFacture',
                             flex: 1,
                             summaryType: "sum",
@@ -474,7 +564,7 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
-                            header: 'Règlement diff',
+                            header: 'Regl DIFF',
                             dataIndex: 'montantReglementDiff',
                             flex: 1,
                             summaryType: "sum",
@@ -516,7 +606,48 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
+                            /* Point 16 : ecart entre le comptant et le billetage.
+                               Rouge quand le comptant est INFERIEUR au billetage, vert quand il est superieur,
+                               tiret quand aucun billetage n'a ete saisi : il n'y a alors rien a comparer, et
+                               afficher l'oppose du comptant ferait croire a un manquant. */
+                            header: 'Écart',
+                            dataIndex: 'montantEcart',
+                            flex: 1,
+                            align: 'right',
+                            tooltip: 'Comptant moins billetage',
+                            renderer: function (valeur, meta, enregistrement) {
+                                if (!enregistrement.get('billetageSaisi')) {
+                                    return "<span style='color:#7f8c8d;'>-</span>";
+                                }
+                                const ecart = valeur || 0;
+                                const couleur = ecart < 0 ? '#c0392b' : '#1e8449';
+                                return "<span style='color:" + couleur + ";font-weight:bold;'>"
+                                        + Ext.util.Format.number(ecart, '0,000') + "</span>";
+                            },
+                            summaryType: 'sum',
+                            summaryRenderer: function (value, donnees, champ, contexte) {
+                                // Le total n'a de sens que si au moins une journee a ete billetee.
+                                const store = contexte && contexte.store ? contexte.store : null;
+                                let billete = false;
+                                if (store) {
+                                    store.each(function (r) {
+                                        if (r.get('billetageSaisi')) {
+                                            billete = true;
+                                            return false;
+                                        }
+                                    });
+                                }
+                                if (!billete) {
+                                    return "<span style='color:#7f8c8d;'>-</span>";
+                                }
+                                const couleur = (value || 0) < 0 ? '#c0392b' : '#1e8449';
+                                return "<b><span style='color:" + couleur + ";'>"
+                                        + Ext.util.Format.number(value || 0, '0,000') + "</span></b>";
+                            }
+                        },
+                        {
                             header: 'Solde',
+                            tooltip: 'Comptant + mobile + règlement tiers payant + règlement différé + entrées de caisse − sorties de caisse',
                             /* Point 22 : couleur imposee en recette, sur la ligne comme sur le total.
                                Ces trois colonnes se lisent d'un coup d'oeil au moment de fermer la caisse. */
                             renderer: function (valeur) {
@@ -553,6 +684,18 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                         displayInfo: true
 
                     }
+                }, {
+                    /* Retour du 09/09, point 7 : la part de chaque mode de reglement dans le
+                       chiffre d'affaires realise sur la periode ; le mobile money en global, puis
+                       operateur par operateur. Alimente par la meme reponse que l'onglet « Suivi
+                       des modes de reglement ». */
+                    xtype: 'panel',
+                    itemId: 'recapModesCa',
+                    border: false,
+                    cls: 'recap-modes-ca',
+                    html: '<span class="rm-titre">Part des modes de r&egrave;glement dans le CA :</span> '
+                            + '<span style="color:#7f8c8d;">lancez une recherche.</span>'
+                }]
                 },
                 {
                     /* Suivi des modes de reglement : synthese d'aide a la decision par mode, et

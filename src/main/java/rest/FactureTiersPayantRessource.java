@@ -156,6 +156,8 @@ public class FactureTiersPayantRessource {
                     }
                 }
                 json.put("str_STATUT", statut);
+                // Retour du 09/09 : une facture de carnet depot se regle depuis le menu du carnet, jamais ici.
+                json.put("carnetDepot", otp != null && Boolean.TRUE.equals(otp.getIsDepot()));
                 json.put("lg_TYPE_FACTURE_ID", of.getLgTYPEFACTUREID().getStrLIBELLE());
                 json.put("str_CUSTOMER_NAME", otp.getStrFULLNAME());
                 json.put("str_PERIODE", "Du " + key.DateToString(of.getDtDEBUTFACTURE(), key.formatterShort) + " Au "

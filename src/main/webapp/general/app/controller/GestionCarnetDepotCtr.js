@@ -99,8 +99,307 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             return;
         }
         const tiersPayant = ecran.down('#tiersPayantsExclus');
-        grille.getStore().getProxy().extraParams = {tpid: (tiersPayant && tiersPayant.getValue()) || ''};
+        const debut = ecran.down('#dtStart');
+        const fin = ecran.down('#dtEnd');
+        const recherche = grille.down('#rechercheFactureDepot');
+        /* Point 17 : les trois criteres de l'ecran filtrent enfin la liste. La periode affichee en
+           haut ne changeait rien : l'onglet rendait tout l'historique du carnet, quelle que soit
+           la periode demandee juste au-dessus. */
+        grille.getStore().getProxy().extraParams = {
+            tpid: (tiersPayant && tiersPayant.getValue()) || '',
+            dtStart: (debut && debut.getSubmitValue()) || '',
+            dtEnd: (fin && fin.getSubmitValue()) || '',
+            query: (recherche && (recherche.getValue() || '').trim()) || ''
+        };
         grille.getStore().loadPage(1);
+    },
+
+    /* Le bouton du haut ne sert qu'a la suppression multiple : grise tant que rien n'est coche. */
+    surSelectionFacturesDepot: function () {
+        const ecran = this.getReglementdepot();
+        const grille = ecran && ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        const supprimer = grille.down('#btnSupprimerFactureDepot');
+        if (supprimer) {
+            supprimer.setDisabled(grille.getSelectionModel().getSelection().length === 0);
+        }
+    },
+
+    /** Suppression des factures cochees (bouton du haut). */
+    supprimerFacturesDepot: function () {
+        const me = this;
+        const ecran = me.getReglementdepot();
+        const grille = ecran && ecran.down('#grilleFacturesDepot');
+        if (!grille) {
+            return;
+        }
+        me.supprimerCesFacturesDepot(grille.getSelectionModel().getSelection());
+    },
+
+    /** Suppression d'une facture depuis sa ligne. */
+    supprimerUneFactureDepot: function (enregistrement) {
+        if (enregistrement) {
+            this.supprimerCesFacturesDepot([enregistrement]);
+        }
+    },
+
+    /**
+     * Suppression simple, sans avoir FNE (retour du 08/09) : la facture et ses lignes disparaissent,
+     * ses bons redeviennent facturables. Le serveur refuse une facture qui a deja recu un reglement,
+     * et le compte rendu nomme chaque refus.
+     */
+    supprimerCesFacturesDepot: function (selection) {
+        const me = this;
+        if (!selection || !selection.length) {
+            return;
+        }
+        const libelle = selection.length === 1
+                ? 'la facture N° <b>' + Ext.String.htmlEncode(selection[0].get('strCODEFACTURE') || '') + '</b>'
+                : '<b>' + selection.length + '</b> factures';
+        Ext.MessageBox.confirm('Confirmation',
+                'Supprimer ' + libelle + ' ? Les bons redeviendront facturables.',
+                function (choix) {
+                    if (choix !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/facturation/carnet-depot/supprimer',
+                        jsonData: {ids: Ext.Array.map(selection, function (f) {
+                                return f.get('lgFACTUREID');
+                            })},
+                        callback: function (opts, succes, reponse) {
+                            let json = {};
+                            try {
+                                json = Ext.decode(reponse.responseText);
+                            } catch (e) {
+                            }
+                            let message = json.success
+                                    ? (json.supprimees || 0) + ' facture(s) supprimée(s)'
+                                    : (json.msg || json.message || 'La suppression a échoué');
+                            Ext.Array.each(json.refusees || [], function (r) {
+                                message += '<br/>Refusée' + (r.code ? ' (N° ' + Ext.String.htmlEncode(r.code) + ')' : '')
+                                        + ' : ' + Ext.String.htmlEncode(r.motif || '');
+                            });
+                            Ext.MessageBox.alert('Message', message);
+                            me.chargerFacturesDepot();
+                        }
+                    });
+                });
+    },
+
+    /**
+     * Impression des factures carnet depot : UN SEUL bouton, le choix de l'edition est pose dans la
+     * fenetre.
+     *
+     * <p>
+     * Deux icones voisines dans la colonne d'action se confondaient, et il fallait cliquer ligne a
+     * ligne. Le bouton porte sur la selection, et le choix « sans » ou « avec le detail des
+     * medicaments » est demande UNE FOIS pour tout le lot.
+     * </p>
+     */
+    imprimerFacturesDepot: function (enregistrement) {
+        const me = this;
+        if (!enregistrement) {
+            return;
+        }
+        const identifiants = [enregistrement.get('lgFACTUREID')];
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Impression de la facture N° ' + (enregistrement.get('strCODEFACTURE') || ''),
+            modal: true,
+            width: 460,
+            bodyPadding: 12,
+            layout: 'anchor',
+            defaults: {anchor: '100%'},
+            items: [{
+                    xtype: 'radiogroup',
+                    itemId: 'choixEdition',
+                    columns: 1,
+                    vertical: true,
+                    items: [{
+                            boxLabel: 'Sans le détail des médicaments (une ligne par bon)',
+                            name: 'edition',
+                            inputValue: 'simple',
+                            checked: true
+                        }, {
+                            boxLabel: 'Avec le détail des médicaments (modèle DETAIL_ARTICLE)',
+                            name: 'edition',
+                            inputValue: 'details'
+                        }]
+                }],
+            buttons: [{
+                    text: 'Imprimer',
+                    handler: function () {
+                        const choix = fenetre.down('#choixEdition').getValue().edition;
+                        fenetre.destroy();
+                        me.lancerImpressionsDepot(identifiants, choix === 'details');
+                    }
+                }, {
+                    text: 'Annuler',
+                    handler: function () {
+                        fenetre.destroy();
+                    }
+                }]
+        });
+        fenetre.show();
+    },
+
+    /* Retour du 09/09 : AUCUNE fenetre surgissante. L'edition s'ouvre dans le clic de l'utilisateur,
+       sur un service qui rend le PDF en flux ; une ouverture differee ou depuis un rappel reseau est
+       bloquee par le navigateur. Les deux editions (avec ou sans les medicaments) suivent le meme modele. */
+    lancerImpressionsDepot: function (identifiants, avecDetails) {
+        const id = identifiants[0];
+        window.open('../api/v1/facturation/facture/' + encodeURIComponent(id)
+                + (avecDetails ? '/detail-articles/pdf' : '/carnet-depot/pdf'));
+    },
+
+    /**
+     * Le contenu d'une facture (retour du 09/09) : les beneficiaires (une ligne par vente) pagines, et,
+     * pour la vente choisie, ses medicaments pagines. Deux grilles, deux appels legers : une facture
+     * de plusieurs milliers de lignes reste consultable.
+     */
+    voirFactureDepot: function (enregistrement) {
+        if (!enregistrement) {
+            return;
+        }
+        const factureId = enregistrement.get('lgFACTUREID');
+        const bons = Ext.create('Ext.data.Store', {
+            fields: ['id', 'venteId', 'strREFVENTE', 'strREFBON', 'dateVente', 'client', 'matricule',
+                {name: 'montant', type: 'int'}],
+            pageSize: 25,
+            remoteSort: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/facture/' + encodeURIComponent(factureId) + '/bons',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        const articles = Ext.create('Ext.data.Store', {
+            fields: ['intCIP', 'strNAME', {name: 'intQUANTITY', type: 'int'}, {name: 'intPRICEUNITAIR', type: 'int'},
+                {name: 'intPRICE', type: 'int'}],
+            pageSize: 25,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/facturation/facture/' + encodeURIComponent(factureId) + '/bons/-/articles',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        const fenetre = Ext.create('Ext.window.Window', {
+            title: 'Contenu de la facture N° ' + Ext.String.htmlEncode(enregistrement.get('strCODEFACTURE') || '')
+                    + ' - ' + Ext.String.htmlEncode(enregistrement.get('strFULLNAME') || ''),
+            modal: true,
+            width: '85%',
+            height: 560,
+            layout: {type: 'hbox', align: 'stretch'},
+            items: [{
+                    xtype: 'gridpanel',
+                    itemId: 'grilleBonsFacture',
+                    title: 'Bénéficiaires (une ligne par vente)',
+                    flex: 1.3,
+                    store: bons,
+                    viewConfig: {emptyText: '<div style="margin:16px">Aucune vente</div>', deferEmptyText: false},
+                    dockedItems: [{
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            items: [{
+                                    xtype: 'textfield',
+                                    itemId: 'rechercheBon',
+                                    emptyText: 'Bénéficiaire, matricule, vente, bon',
+                                    flex: 1,
+                                    enableKeyEvents: true,
+                                    listeners: {
+                                        specialkey: function (champ, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                bons.getProxy().setExtraParam('query', champ.getValue() || '');
+                                                bons.loadPage(1);
+                                            }
+                                        }
+                                    }
+                                }, {
+                                    xtype: 'tbtext',
+                                    itemId: 'totalBons',
+                                    text: ''
+                                }]
+                        }],
+                    columns: [
+                        {header: 'Date', dataIndex: 'dateVente', width: 80},
+                        {header: 'Vente n°', dataIndex: 'strREFVENTE', width: 110},
+                        {header: 'N° bon', dataIndex: 'strREFBON', width: 80},
+                        {header: 'Bénéficiaire', dataIndex: 'client', flex: 1},
+                        {header: 'Matricule', dataIndex: 'matricule', width: 90},
+                        {header: 'Montant', dataIndex: 'montant', width: 90, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'}
+                    ],
+                    bbar: {xtype: 'pagingtoolbar', store: bons, displayInfo: true,
+                        displayMsg: 'Ventes {0} - {1} sur {2}', emptyMsg: 'Aucune vente'}
+                }, {
+                    xtype: 'gridpanel',
+                    itemId: 'grilleArticlesFacture',
+                    title: 'Médicaments de la vente choisie',
+                    flex: 1,
+                    margin: '0 0 0 4',
+                    store: articles,
+                    viewConfig: {emptyText: '<div style="margin:16px">Choisissez une vente à gauche</div>',
+                        deferEmptyText: false},
+                    columns: [
+                        {header: 'CIP', dataIndex: 'intCIP', width: 80},
+                        {header: 'Médicament', dataIndex: 'strNAME', flex: 1},
+                        {header: 'Qté', dataIndex: 'intQUANTITY', width: 50, align: 'right'},
+                        {header: 'P.U.', dataIndex: 'intPRICEUNITAIR', width: 70, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'},
+                        {header: 'Montant', dataIndex: 'intPRICE', width: 80, align: 'right',
+                            xtype: 'numbercolumn', format: '0,000.'}
+                    ],
+                    bbar: {xtype: 'pagingtoolbar', store: articles, displayInfo: true,
+                        displayMsg: 'Médicaments {0} - {1} sur {2}', emptyMsg: 'Aucun médicament'}
+                }],
+            buttons: [{
+                    text: 'Fermer',
+                    handler: function () {
+                        fenetre.destroy();
+                    }
+                }]
+        });
+        fenetre.down('#grilleBonsFacture').on('selectionchange', function (sm, selection) {
+            if (!selection.length) {
+                articles.removeAll();
+                return;
+            }
+            articles.getProxy().url = '../api/v1/facturation/facture/' + encodeURIComponent(factureId)
+                    + '/bons/' + encodeURIComponent(selection[0].get('venteId') || '-') + '/articles';
+            articles.loadPage(1);
+        });
+        bons.on('load', function (store) {
+            const total = fenetre.down('#totalBons');
+            const json = store.getProxy().getReader().rawData;
+            if (total && json) {
+                total.setText('<b>' + Ext.util.Format.number(json.total || 0, '0,000') + '</b> vente(s), '
+                        + '<b>' + Ext.util.Format.number(json.montantTotal || 0, '0,000') + '</b>');
+            }
+        });
+        fenetre.show();
+        bons.loadPage(1);
+    },
+    editionAvecDetails: function (id) {
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/facturation/facture/' + encodeURIComponent(id) + '/detail-articles',
+            callback: function (opts, succes, reponse) {
+                let json = {};
+                try {
+                    json = Ext.decode(reponse.responseText);
+                } catch (e) {
+                }
+                if (json.success && json.url) {
+                    window.open('..' + json.url);
+                } else {
+                    Ext.MessageBox.alert('Message', json.msg || 'L\'édition avec le détail a échoué');
+                }
+            }
+        });
     },
 
     /* Creation : on ouvre l'ecran de facturation EXISTANT en mode carnet depot, plutot que d'ecrire
@@ -115,26 +414,34 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     },
 
     /**
-     * Impression d'une facture carnet depot.
-     *
-     * @param avecDetails
-     *            faux : le modele normalement rattache au tiers payant ; vrai : une edition
-     *            DETAIL_ARTICLE, qui ajoute les medicaments de chaque vente.
+     * Retour dans le menu du carnet depot, onglet FACTURES, apres une generation (retour du 08/09) :
+     * l'ecran de generation ne renvoie plus vers les factures provisoires.
      */
-    imprimerFactureDepot: function (enregistrement, avecDetails) {
-        if (!enregistrement) {
-            return;
-        }
-        const url = '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
-                + encodeURIComponent(enregistrement.get('lgFACTUREID'))
-                + (avecDetails ? '&details=true' : '');
-        window.open(url);
+    revenirAuxFacturesDepot: function () {
+        /* Retour du 09/09 : l'onglet FACTURES est demande AVANT le rendu, l'ecran ne passe plus par
+           l'onglet des ventes. */
+        testextjs.app.getController('App').onRedirectTo('reglementdepot', {ongletActif: 'facturesPanel'});
     },
 
     init: function (application) {
         this.control({
             'reglementdepot #btnVentePanel': {
                 click: this.searchAll
+            },
+            'reglementdepot': {
+                // Chaque onglet etait alimente sur « viewready », qui ne se declenche QU'UNE FOIS,
+                // au premier rendu. Passer d'un onglet a l'autre, ou changer de tiers payant, ne
+                // rechargeait donc rien : il fallait sortir du menu et y revenir pour voir les
+                // donnees a jour -- et entre-temps l'ecran affichait des chiffres perimes sans
+                // que rien ne l'indique.
+                // Retour du 09/09 : cette cle figurait DEUX FOIS dans la table ; la seconde
+                // (evenements des factures) effacait la premiere, et « tabchange » n'etait jamais
+                // branche. C'est pour cela que le solde ne bougeait pas d'un onglet a l'autre.
+                // Tous les evenements de l'ecran sont desormais ici, une seule fois.
+                tabchange: this.surChangementOnglet,
+                imprimerFactureDepot: this.imprimerFacturesDepot,
+                supprimerFactureDepot: this.supprimerUneFactureDepot,
+                voirFactureDepot: this.voirFactureDepot
             },
             'reglementdepot #facturesPanel [xtype=gridpanel]': {
                 viewready: this.chargerFacturesDepot
@@ -145,8 +452,18 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             'reglementdepot #btnCreerFactureDepot': {
                 click: this.creerFactureDepot
             },
-            'reglementdepot': {
-                imprimerFactureDepot: this.imprimerFactureDepot
+            'reglementdepot #btnSupprimerFactureDepot': {
+                click: this.supprimerFacturesDepot
+            },
+            'reglementdepot #grilleFacturesDepot': {
+                selectionchange: this.surSelectionFacturesDepot
+            },
+            'reglementdepot #rechercheFactureDepot': {
+                specialkey: function (champ, evenement) {
+                    if (evenement.getKey() === evenement.ENTER) {
+                        this.chargerFacturesDepot();
+                    }
+                }
             },
  
             'reglementdepot #imprimer': {
@@ -191,6 +508,27 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             
         });
     },
+    /* Le solde s'affiche sur les deux onglets (reglements, depenses) : les deux sont mis a jour
+       d'un coup, et le carnet du selecteur aussi, pour que le retour sur l'onglet ne ramene pas
+       l'ancienne valeur. */
+    afficherSolde: function (solde) {
+        const me = this;
+        if (solde === undefined || solde === null) {
+            return;
+        }
+        if (me.getAccountReglement()) {
+            me.getAccountReglement().setValue(solde);
+        }
+        if (me.getAccount()) {
+            me.getAccount().setValue(solde);
+        }
+        const combo = me.getTiersPayantsExclus();
+        const carnet = combo && combo.findRecord('id', combo.getValue());
+        if (carnet) {
+            carnet.set('account', solde);
+            carnet.commit();
+        }
+    },
     onSelectTiersPayant: function (cmp) {
         let me = this;
         let value = cmp.getValue();
@@ -201,7 +539,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             me.getAccountReglement().setValue(record.get('account'));
             me.getAccount().setValue(record.get('account'));
         }
-        // Choisir un carnet lance directement la recherche de l'onglet ouvert
+        // Choisir un carnet lance directement la recherche de l'onglet ouvert (et le solde y est relu)
         // (ventes, reglements, depenses ou produits) : l'utilisateur n'a plus a
         // cliquer sur Rechercher apres avoir choisi son tiers payant.
         me.searchAll();
@@ -213,10 +551,7 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
     onPdfClick: function () {
         let me = this;
         let itemId = me.getReglementdepot().getLayout().getActiveItem().getItemId();
-        let tiersPayantId = me.getTiersPayantsExclus().getValue();
-        if (tiersPayantId === null || tiersPayantId === undefined) {
-            tiersPayantId = '';
-        }
+        let tiersPayantId = me.tiersPayantChoisi();
         let dtStart = me.getDtStart().getSubmitValue();
         let dtEnd = me.getDtEnd().getSubmitValue();
         let linkUrl = ""; 
@@ -231,6 +566,16 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         }else if(itemId === 'reglementPanel' || itemId === 'depensePanel'){
              linkUrl = '../TiersPayantExcludServlet?mode=REGLEMENTS_CARNET_DEPOT&dtStart=' + dtStart +
                     '&dtEnd=' + dtEnd + '&tiersPayantId=' + tiersPayantId;
+        } else if (itemId === 'facturesPanel') {
+            // Retour des tests du 09/09 : sur l'onglet Factures, le bouton ne donnait aucun PDF. Il
+            // imprime le recapitulatif des factures de la recherche affichee (memes criteres que la
+            // liste), sur son propre modele, en flux dans le clic.
+            const ecran = me.getReglementdepot();
+            const recherche = ecran ? ecran.down('#rechercheFactureDepot') : null;
+            linkUrl = '../api/v1/facturation/carnet-depot/recap/pdf?' + Ext.Object.toQueryString({
+                tpid: tiersPayantId, dtStart: dtStart, dtEnd: dtEnd,
+                query: (recherche && (recherche.getValue() || '').trim()) || ''
+            });
         }
         
        /* else if(itemId === 'depensePanel'){
@@ -257,17 +602,72 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
         const myProxy = me.getVenteGrid().getStore().getProxy();
         me.initProxy(myProxy,me,'REGLEMENT');
     },
+    /**
+     * Recharge l'onglet qui vient d'etre ouvert.
+     *
+     * Le chargement se fait A L'OUVERTURE et non a l'avance : recharger les cinq onglets a chaque
+     * recherche couterait cinq appels pour celui qu'on regarde.
+     */
+    surChangementOnglet: function () {
+        this.searchAll();
+    },
+
+    /** Le tiers payant choisi, ou vide quand « Tout » est selectionne (retour du 09/09). */
+    tiersPayantChoisi: function () {
+        const combo = this.getTiersPayantsExclus();
+        const valeur = combo ? combo.getValue() : null;
+        return valeur === null || valeur === undefined || valeur === 'TOUT' ? '' : valeur;
+    },
+    /**
+     * Le solde est RELU en base a chaque ouverture d'onglet et a chaque recherche (retour du 09/09) :
+     * une vente modifiee ou annulee depuis un autre menu a deja touche le compte, l'ecran ne le
+     * voyait pas tant qu'on ne le quittait pas. Les quantites de l'onglet Produits, elles, etaient
+     * rechargees a chaque fois ; le solde, lui, venait du selecteur, charge une seule fois.
+     */
+    rafraichirSolde: function (suite) {
+        const me = this;
+        const id = me.tiersPayantChoisi();
+        if (!id) {
+            me.afficherSolde(0);
+            if (suite) {
+                suite(null);
+            }
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v2/carnet-depot/solde/' + encodeURIComponent(id),
+            method: 'GET',
+            callback: function (opts, succes, reponse) {
+                const json = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (json.success) {
+                    me.afficherSolde(json.solde);
+                }
+                if (suite) {
+                    suite(json.success ? json.solde : null);
+                }
+            }
+        });
+    },
     searchAll: function () {
         let me = this;
-        let itemId = me.getReglementdepot().getLayout().getActiveItem().getItemId();
+        const actif = me.getReglementdepot() ? me.getReglementdepot().getLayout().getActiveItem() : null;
+        if (!actif) {
+            return;
+        }
+        me.rafraichirSolde();
+        const itemId = actif.getItemId();
         if (itemId === 'ventePanel') {
             me.doSearchVente();
         } else if (itemId === 'reglementPanel') {
             me.doSearchReglement();
         } else if (itemId === 'produitsPanel') {
-me.doSearchProduits();
-        }else if(itemId === 'depensePanel'){
+            me.doSearchProduits();
+        } else if (itemId === 'depensePanel') {
             me.doSearchDepense();
+        } else if (itemId === 'facturesPanel') {
+            // L'onglet des factures etait le seul absent de cette liste : il ne se rechargeait
+            // donc jamais, pas meme sur « Rechercher ».
+            me.chargerFacturesDepot();
         }
     },
     doSearchVente: function () {
@@ -276,23 +676,34 @@ me.doSearchProduits();
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue()
+                tiersPayantId: me.tiersPayantChoisi()
             }
         });
     },
     doInitVenteStore: function () {
         const me = this;
         me.getVenteGrid().getStore().addListener('metachange', this.doMetachange, this);
+        // Retour des tests du 09/09 : le bouton « actualiser » de la barre du bas recharge la liste
+        // sans passer par Rechercher ; le solde suit chaque rechargement.
+        me.getVenteGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchVente();
     },
     doInitReglementStore: function () {
         const me = this;
         me.getReglementGrid().getStore().addListener('metachange', this.doReglementMetachange, this);
+        me.getReglementGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchReglement();
+    },
+    /** Un rechargement de liste (bouton actualiser, changement de page) relit le solde du carnet. */
+    surRechargement: function () {
+        if (this.getReglementdepot()) {
+            this.rafraichirSolde();
+        }
     },
         doInitDepensesStore: function () {
         const me = this;
         me.getDepenseGrid().getStore().addListener('metachange', this.doDepensesMetachange, this);
+        me.getDepenseGrid().getStore().addListener('load', me.surRechargement, me);
         me.doSearchReglement();
     },
      doDepensesMetachange: function (store, meta) {
@@ -331,7 +742,7 @@ me.doSearchProduits();
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue(),
+                tiersPayantId: me.tiersPayantChoisi(),
                 "typeReglementCarnet":'REGLEMENT'
             }
         });
@@ -342,7 +753,7 @@ me.doSearchProduits();
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue(),
+                tiersPayantId: me.tiersPayantChoisi(),
                 "typeReglementCarnet":'DEPENSE'
             }
         });
@@ -366,7 +777,7 @@ me.doSearchProduits();
             tiersPayantId: null,
              "typeReglementCarnet":type
         };
-        myProxy.setExtraParam('tiersPayantId', me.getTiersPayantsExclus().getValue());
+        myProxy.setExtraParam('tiersPayantId', me.tiersPayantChoisi());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
          myProxy.setExtraParam('typeReglementCarnet', type);
@@ -383,7 +794,7 @@ me.doSearchProduits();
             params: {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
-                tiersPayantId: me.getTiersPayantsExclus().getValue()
+                tiersPayantId: me.tiersPayantChoisi()
             }
         });
     },
@@ -427,6 +838,14 @@ me.doSearchProduits();
         let me = this;
         let tiersPayantId = me.getTiersPayantsExclus().getValue();
         if (tiersPayantId) {
+            // Retour des tests du 09/09 : le solde est relu en base a l'ouverture du formulaire, et le
+            // rappel du formulaire suit ; sans cela, il portait le solde de l'affichage precedent.
+            me.rafraichirSolde(function (solde) {
+                const rappel = Ext.ComponentQuery.query('window[title="Nouveau règlement"] #rappelSolde')[0];
+                if (rappel && solde !== null && solde !== undefined) {
+                    rappel.setValue(Ext.util.Format.number(solde, '0,000'));
+                }
+            });
             const form = Ext.create('Ext.window.Window',
                     {
 
@@ -479,6 +898,7 @@ me.doSearchProduits();
                                                                     });
 
                                                             me.getReglementGrid().getStore().reload();
+                                                            me.afficherSolde(result.solde);
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',
@@ -531,6 +951,14 @@ me.doSearchProduits();
                                         },
                                         items: [
                                             {
+                                                /* Retour du 09/09 : le solde du carnet, rappele dans le formulaire. */
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Solde du carnet',
+                                                itemId: 'rappelSolde',
+                                                fieldStyle: 'font-weight:bold;color:#c0392b;font-size:1.2em',
+                                                value: Ext.util.Format.number(me.getAccountReglement() ? (me.getAccountReglement().getValue() || 0) : 0, '0,000')
+                                            },
+                                            {
                                                 xtype: 'textfield',
                                                 fieldLabel: 'Montant',
                                                 emptyText: 'Montant',
@@ -582,6 +1010,8 @@ me.doSearchProduits();
                             xtype: 'datefield',
                             fieldLabel: 'Date',
                             name: 'dateReglement',
+                            /* Retour du 09/09 : la date du jour par defaut. */
+                            value: new Date(),
                           
                             submitFormat: 'Y-m-d',
                             height: 30, flex: 1,
@@ -646,6 +1076,12 @@ me.doSearchProduits();
         let me = this;
         let tiersPayantId = me.getTiersPayantsExclus().getValue();
         if (tiersPayantId) {
+            me.rafraichirSolde(function (solde) {
+                const rappel = Ext.ComponentQuery.query('window[title="Nouvelle dépense"] #rappelSolde')[0];
+                if (rappel && solde !== null && solde !== undefined) {
+                    rappel.setValue(Ext.util.Format.number(solde, '0,000'));
+                }
+            });
             const form = Ext.create('Ext.window.Window',
                     {
 
@@ -698,6 +1134,7 @@ me.doSearchProduits();
                                                                     });
 
                                                             me.getDepenseGrid().getStore().reload();
+                                                            me.afficherSolde(result.solde);
                                                         } else {
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',
@@ -750,6 +1187,13 @@ me.doSearchProduits();
                                         },
                                         items: [
                                             {
+                                                xtype: 'displayfield',
+                                                fieldLabel: 'Solde du carnet',
+                                                itemId: 'rappelSolde',
+                                                fieldStyle: 'font-weight:bold;color:#c0392b;font-size:1.2em',
+                                                value: Ext.util.Format.number(me.getAccount() ? (me.getAccount().getValue() || 0) : 0, '0,000')
+                                            },
+                                            {
                                                 xtype: 'textfield',
                                                 fieldLabel: 'Montant',
                                                 emptyText: 'Montant',
@@ -801,6 +1245,8 @@ me.doSearchProduits();
                             xtype: 'datefield',
                             fieldLabel: 'Date',
                             name: 'dateReglement',
+                            /* Retour du 09/09 : la date du jour par defaut. */
+                            value: new Date(),
                            
                             submitFormat: 'Y-m-d',
                             height: 30, flex: 1,

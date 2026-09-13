@@ -69,6 +69,20 @@ var lg_GROSSISTE_ORDER_ID;
 // une seule fenetre de detail a la fois, les champs utilisent des ids globaux).
 var winDetailArticleOuverte = winDetailArticleOuverte || null;
 
+/* Retour des tests du 12/09 : le taux de marque (PV - PA) / PV est enregistre sur la fiche a chaque entree en stock ;
+   la fiche affiche cette valeur, et la calcule depuis les prix courants tant qu'aucune entree ne l'a encore posee. */
+function tauxMarqueFiche(prixVente, prixAchat, valeurEnregistree) {
+    var enregistre = parseFloat(valeurEnregistree);
+    if (!isNaN(enregistre) && enregistre !== 0) {
+        return enregistre + ' %';
+    }
+    var pv = parseFloat(prixVente), pa = parseFloat(prixAchat);
+    if (isNaN(pv) || isNaN(pa) || pv <= 0 || pa < 0) {
+        return '';
+    }
+    return Math.round((pv - pa) / pv * 100) + ' %';
+}
+
 Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', {
     extend: 'Ext.window.Window',
     xtype: 'addfamille',
@@ -1151,7 +1165,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                 Ext.getCmp('int_T').setValue(OFamille.int_T);
                 Ext.getCmp('str_CODE_TAUX_REMBOURSEMENT').setValue(OFamille.str_CODE_TAUX_REMBOURSEMENT);
                 Ext.getCmp('lg_CODE_ACTE_ID').setValue(OFamille.lg_CODE_ACTE_ID);
-                Ext.getCmp('int_TAUX_MARQUE').setValue(OFamille.int_TAUX_MARQUE);
+                Ext.getCmp('int_TAUX_MARQUE').setValue(tauxMarqueFiche(OFamille.int_PRICE, OFamille.int_PAF, OFamille.int_TAUX_MARQUE));
                 Ext.getCmp('int_PAF').setValue(formatMillier(OFamille.int_PAF));
                 Ext.getCmp('int_PAT').setValue(OFamille.int_PAT);
                 Ext.getCmp('int_PRICE_TIPS').setValue(OFamille.int_PRICE_TIPS);

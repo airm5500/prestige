@@ -65,6 +65,8 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/client/tiers-payants',
+                // Retour du 08/09 : les carnets depot ont leur propre menu, ils ne figurent pas ici.
+                extraParams: {carnetDepot: false},
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -248,6 +250,22 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
                             tooltip: 'Supprimer toutes les factures provisoires d\'une période',
                             scope: this,
                             handler: this.onPurgerPeriode
+                        },
+                        /*
+                         * Reimprimer la liste AFFICHEE, sans avoir a la regenerer.
+                         *
+                         * Une impression manquee -- fenetre fermee par erreur, imprimante en
+                         * defaut, mauvais modele choisi -- obligeait a supprimer les provisoires
+                         * et a tout reprendre depuis la generation. Ce bouton rejoue l'edition sur
+                         * les factures deja creees, qui n'ont pas a l'etre une seconde fois.
+                         */
+                        {
+                            text: 'Réimprimer',
+                            itemId: 'btnReimprimer',
+                            iconCls: 'printable',
+                            tooltip: 'Réimprimer les factures affichées, ou seulement celles cochées',
+                            scope: this,
+                            handler: this.onReimprimer
                         }
 
 
@@ -471,7 +489,68 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
         me.callParent(arguments);
     },
 
-    onPrint: function (url, modePdf) {
+    /**
+     * Reimprime les factures affichees.
+     *
+     * <p>
+     * Si des lignes sont cochees, seules celles-la sont reimprimees ; sinon c'est toute la liste
+     * affichee. On demande confirmation au-dela de cinq documents : lancer trente editions d'un
+     * clic accidentel bloquerait l'imprimante un long moment.
+     * </p>
+     */
+    onReimprimer: function () {
+        var me = this;
+        var grille = me.down('gridpanel');
+        if (!grille) {
+            return;
+        }
+        var selection = grille.getSelectionModel() ? grille.getSelectionModel().getSelection() : [];
+        var lignes = selection.length ? selection : grille.getStore().getRange();
+        if (!lignes.length) {
+            Ext.MessageBox.alert('Information',
+                    'Aucune facture &agrave; r&eacute;imprimer. Lancez d\'abord une recherche.');
+            return;
+        }
+        var lancer = function () {
+            // Le modele d'impression est demande UNE FOIS et vaut pour tout le lot : le redemander
+            // a chaque facture rendrait la reimpression d'une periode entiere inutilisable.
+            me.onPrintLot(Ext.Array.map(lignes, function (l) {
+                return l.get('lgFACTUREID');
+            }));
+        };
+        if (lignes.length > 5) {
+            Ext.MessageBox.confirm('Confirmation',
+                    'R&eacute;imprimer <b>' + lignes.length + '</b> facture(s)'
+                    + (selection.length ? ' s&eacute;lectionn&eacute;e(s)' : ' affich&eacute;e(s)') + '&nbsp;?',
+                    function (choix) {
+                        if (choix === 'yes') {
+                            lancer();
+                        }
+                    });
+            return;
+        }
+        lancer();
+    },
+
+    /**
+     * Demande le modele d'impression une seule fois, puis edite chaque facture du lot.
+     *
+     * Les editions sont espacees : ouvrir vingt onglets dans la meme milliseconde fait intervenir
+     * le blocage des fenetres surgissantes du navigateur, et l'utilisateur n'en voit qu'une.
+     */
+    onPrintLot: function (identifiants) {
+        var me = this;
+        me.onPrint(null, true, function (modelId) {
+            Ext.Array.each(identifiants, function (id, rang) {
+                Ext.defer(function () {
+                    window.open('../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID='
+                            + encodeURIComponent(id) + '&modeId=' + encodeURIComponent(modelId));
+                }, rang * 400);
+            });
+        });
+    },
+
+    onPrint: function (url, modePdf, surChoixModele) {
         var storeMODEL = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
@@ -539,10 +618,15 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
                                         var _this = btn.up('window'), _form = _this.down('form');
                                         if (_form.isValid()) {
                                             var values = _form.getValues();
-                                            if (modePdf)
+                                            if (surChoixModele) {
+                                                // Reimpression d'un lot : l'appelant sait quoi
+                                                // faire du modele choisi, il n'y a pas d'URL unique.
+                                                surChoixModele(values.modelId);
+                                            } else if (modePdf) {
                                                 window.open(url + '&modeId=' + values.modelId);
-                                            else
+                                            } else {
                                                 window.location = url + '&modeId=' + values.modelId;
+                                            }
                                         }
                                         form.destroy();
 

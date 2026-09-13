@@ -16,6 +16,7 @@ import dal.TUser;
 import dal.enumeration.TypeReglementCarnet;
 import java.time.LocalDate;
 import java.util.List;
+/* solde(...) : retour du 09/09 */
 import javax.ejb.Local;
 import org.json.JSONObject;
 import rest.service.dto.DepotProduitVendusDTO;
@@ -42,6 +43,17 @@ public interface CarnetAsDepotService {
      *            VRAI = exclu du chiffre d'affaires, FAUX = non exclu, null = sans filtre
      */
     JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu);
+
+    /**
+     * La meme liste, restreinte au besoin aux tiers payants de type CARNET.
+     *
+     * @param carnetSeulement
+     *            {@code true} pour ecarter les assurances, independamment de l'indicateur de depot
+     */
+    JSONObject all(int start, int size, String query, Boolean depot, Boolean exclu, Boolean carnetSeulement);
+
+    List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu,
+            Boolean carnetSeulement);
 
     List<TiersPayantExclusDTO> all(int start, int size, String query, boolean all, Boolean depot, Boolean exclu);
 
@@ -102,4 +114,7 @@ public interface CarnetAsDepotService {
 
     List<ExtraitCompteClientDTO> extraitcompte(String tiersPayantId, TypeReglementCarnet typeReglementCarnet,
             LocalDate dtStart, LocalDate dtEnd);
+
+    /** Le solde ACTUEL du carnet depot (compte du tiers payant), relu en base a chaque appel (retour du 09/09). */
+    Long solde(String tiersPayantId);
 }

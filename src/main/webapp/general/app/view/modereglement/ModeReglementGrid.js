@@ -160,6 +160,10 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                                     width: 560,
                                     bodyPadding: 10,
                                     items: [{
+                                            xtype: 'fieldset',
+                                            title: 'Choisir un client existant',
+                                            padding: 8,
+                                            items: [{
                                             xtype: 'combobox',
                                             itemId: 'clientDefautCombo',
                                             fieldLabel: 'Client',
@@ -182,6 +186,122 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                                                     cmp.focus(true, 100);
                                                 }
                                             }
+                                        }]
+                                        }, {
+                                            /*
+                                             * Creer le client standard SUR PLACE.
+                                             *
+                                             * Le client par defaut d'un mode mobile money n'existe
+                                             * generalement pas encore quand on cree le mode : il
+                                             * fallait sortir d'ici, aller le creer dans un autre
+                                             * ecran, puis revenir associer. Les trois champs
+                                             * indispensables suffisent, le reste de la fiche
+                                             * n'ayant pas de sens pour un client de passage.
+                                             */
+                                            xtype: 'fieldset',
+                                            title: 'ou créer un nouveau client standard',
+                                            padding: 8,
+                                            defaults: {labelWidth: 60, width: 500},
+                                            items: [
+                                                {
+                                                    xtype: 'textfield', itemId: 'nouveauNom',
+                                                    fieldLabel: 'Nom', emptyText: 'NOM de famille'
+                                                },
+                                                {
+                                                    xtype: 'textfield', itemId: 'nouveauPrenoms',
+                                                    fieldLabel: 'Prénoms'
+                                                },
+                                                {
+                                                    xtype: 'textfield', itemId: 'nouveauTelephone',
+                                                    fieldLabel: 'Téléphone'
+                                                },
+                                                {
+                                                    xtype: 'button', text: 'Créer et associer',
+                                                    iconCls: 'addicon', margin: '6 0 0 65',
+                                                    handler: function () {
+                                                        const nom = (win.down('#nouveauNom').getValue() || '').trim();
+                                                        const prenoms = (win.down('#nouveauPrenoms').getValue()
+                                                                || '').trim();
+                                                        const tel = (win.down('#nouveauTelephone').getValue()
+                                                                || '').trim();
+                                                        if (!nom) {
+                                                            Ext.Msg.alert('Message',
+                                                                    'Le nom est obligatoire.');
+                                                            return;
+                                                        }
+                                                        const attente = Ext.MessageBox.wait(
+                                                                'Cr&eacute;ation du client . . .',
+                                                                'Veuillez patienter');
+                                                        Ext.Ajax.request({
+                                                            method: 'POST',
+                                                            headers: {'Content-Type': 'application/json'},
+                                                            url: '../api/v1/client/add/lambda',
+                                                            // Le NOM va dans strFIRSTNAME et les
+                                                            // PRENOMS dans strLASTNAME : c'est
+                                                            // l'ordre de cette base, a l'inverse de
+                                                            // ce que les noms de champs suggerent.
+                                                            params: Ext.JSON.encode({
+                                                                strFIRSTNAME: nom,
+                                                                strLASTNAME: prenoms,
+                                                                strADRESSE: tel,
+                                                                // Type OBLIGATOIRE : sans lui, la
+                                                                // creation echoue cote base sur
+                                                                // une contrainte de cle etrangere
+                                                                // et l'ecran ne recoit qu'un
+                                                                // « erreur interne ». 6 est le
+                                                                // type du client standard, celui
+                                                                // que pose le formulaire de vente.
+                                                                lgTYPECLIENTID: '6'
+                                                            }),
+                                                            callback: function () {
+                                                                attente.hide();
+                                                            },
+                                                            success: function (reponse) {
+                                                                const res = Ext.JSON.decode(
+                                                                        reponse.responseText, true) || {};
+                                                                const cree = (res.data && res.data.length)
+                                                                        ? res.data[0] : res.data;
+                                                                if (!res.success || !cree
+                                                                        || !cree.lgCLIENTID) {
+                                                                    Ext.Msg.alert('Message',
+                                                                            res.msg || 'La cr&eacute;ation du '
+                                                                            + 'client a &eacute;chou&eacute;.');
+                                                                    return;
+                                                                }
+                                                                // Cree PUIS associe, dans la foulee :
+                                                                // s'arreter apres la creation
+                                                                // obligerait a le rechercher pour
+                                                                // faire ce qu'on venait faire.
+                                                                Ext.Ajax.request({
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json'
+                                                                    },
+                                                                    url: '../api/v1/modereglement/client-defaut/'
+                                                                            + rec.get('id') + '?clientId='
+                                                                            + encodeURIComponent(cree.lgCLIENTID),
+                                                                    success: function () {
+                                                                        win.destroy();
+                                                                        grid.getStore().reload();
+                                                                    },
+                                                                    failure: function () {
+                                                                        Ext.Msg.alert('Message',
+                                                                                'Le client a &eacute;t&eacute; '
+                                                                                + 'cr&eacute;&eacute; mais '
+                                                                                + 'l\'association a '
+                                                                                + '&eacute;chou&eacute;.');
+                                                                    }
+                                                                });
+                                                            },
+                                                            failure: function () {
+                                                                Ext.Msg.alert('Message',
+                                                                        'La cr&eacute;ation du client a '
+                                                                        + '&eacute;chou&eacute;.');
+                                                            }
+                                                        });
+                                                    }
+                                                }
+                                            ]
                                         }],
                                     buttons: [
                                         {

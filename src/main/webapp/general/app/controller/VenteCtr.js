@@ -92,12 +92,12 @@ Ext.define('testextjs.controller.VenteCtr', {
     // les autres sans toucher au code. Si l'appel echoue, on garde le comportement historique.
     clientRequisIds: ['2', '3', '4', '6'],
 
-    chargerTypesClientRequis: function () {
+    chargerTypesClientRequis: function (suite) {
         const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/type-reglements/client-requis',
-            success: function (response) {
+            callback: function (opts, succes, response) {
                 let json = {};
                 try {
                     json = Ext.decode(response.responseText);
@@ -105,6 +105,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 if (json.success && Ext.isArray(json.data) && json.data.length) {
                     me.clientRequisIds = json.data.map(String);
+                }
+                if (Ext.isFunction(suite)) {
+                    suite();
                 }
             }
         });
@@ -119,12 +122,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         return this.clientRequisIds.indexOf(id) !== -1 || this.isMobileMode(id);
     },
 
-    chargerModesMobileMoney: function () {
+    chargerModesMobileMoney: function (suite) {
         const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/type-reglements/mobile-money',
-            success: function (response) {
+            callback: function (opts, succes, response) {
                 let json = {};
                 try {
                     json = Ext.decode(response.responseText);
@@ -138,8 +141,41 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.mobileModeIds = json.data.map(String);
                     me.mobileModeIdsCharges = true;
                 }
+                if (Ext.isFunction(suite)) {
+                    suite();
+                }
             }
         });
+    },
+
+    /* Modes dont le comportement est ecrit dans le code : comptant (1), cheque (2), carte (3),
+     * differe (4) et virement (6). Tout le reste doit etre classe par la configuration. */
+    MODES_CONNUS_DU_CODE: ['1', '2', '3', '4', '6'],
+
+    /*
+     * Ce mode est-il deja classe ? Un mode cree par l'officine pendant que la caisse est restee
+     * ouverte - elles le restent toute la journee - est absent des deux listes chargees au
+     * demarrage du controleur : il faut alors les relire avant de decider quoi que ce soit.
+     */
+    modeClasse: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.MODES_CONNUS_DU_CODE.indexOf(id) !== -1
+                || this.mobileModeIds.indexOf(id) !== -1
+                || this.clientRequisIds.indexOf(id) !== -1;
+    },
+
+    /* Relit les deux classements et n'appelle la suite qu'une fois les DEUX reponses arrivees. */
+    rafraichirClassementModes: function (suite) {
+        const me = this;
+        let restantes = 2;
+        const fini = function () {
+            restantes -= 1;
+            if (restantes === 0 && Ext.isFunction(suite)) {
+                suite();
+            }
+        };
+        me.chargerModesMobileMoney(fini);
+        me.chargerTypesClientRequis(fini);
     },
     models: [
         'testextjs.model.caisse.Nature',
@@ -164,6 +200,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         'testextjs.view.vente.user.AyantDroitGrid',
         'testextjs.view.vente.user.AddCarnet',
         'testextjs.view.vente.user.Medecin',
+        'testextjs.view.vente.user.OrdonnanceParcours',
         'testextjs.view.vente.ReglementGrid'
     ],
     config: {
@@ -419,6 +456,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         {
             ref: 'vnoemplacementField',
             selector: 'doventemanager #contenu [xtype=container] #emplacementId'
+        },
+        {
+            ref: 'peremptionProcheField',
+            selector: 'doventemanager #peremptionProcheId'
         }
         , {
             ref: 'commentaire',
@@ -571,6 +612,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             selector: 'medecin #medecinGrid'
         },
         {
+            ref: 'parcoursOrdonnance',
+            selector: 'ordonnanceparcours'
+        },
+        {
             ref: 'nomMedecin',
             selector: 'medecin form textfield[name=nom]'
         },
@@ -674,7 +719,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
                     }, 'doventemanager #contenu #typeReglement': {
-                        select: this.typeReglementSelectEvent
+                        select: this.typeReglementSelectEvent,
+                        /* La liste est relue a chaque ouverture du menu deroulant : le classement
+                         * est ainsi a jour au moment ou l'utilisateur choisit, sans redemarrer
+                         * l'application. La selection ne l'attend pas - elle a son propre garde-fou
+                         * ci-dessus - ce qui evite tout blocage si le serveur tarde. */
+                        expand: this.onTypeReglementExpand
                     },
                     'clientLambda #btnCancelLambda': {
                         click: this.onCancelClientLambda
@@ -789,8 +839,85 @@ Ext.define('testextjs.controller.VenteCtr', {
                     'medecin #btnRechercheMedecin': {
                         click: this.queryMedecin
                     },
+                    /* Parcours client + medecin d'une vente ordonnanciere (retour du 08/09). */
+                    'ordonnanceparcours': {
+                        clientChoisi: this.parcoursClientChoisi,
+                        medecinChoisi: this.parcoursMedecinChoisi
+                    },
+                    'ordonnanceparcours #rechercheClient': {
+                        keyup: this.parcoursRechercheClient,
+                        specialkey: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcours #btnRechercherClient': {
+                        click: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcours #btnNouveauClient': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', true);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetourListeClients': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', false);
+                        }
+                    },
+                    'ordonnanceparcours #btnEnregistrerClient': {
+                        click: this.parcoursEnregistrerClient
+                    },
+                    'ordonnanceparcours #formulaireClient textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerClient();
+                            }
+                        }
+                    },
+                    'ordonnanceparcours #rechercheMedecin': {
+                        keyup: this.parcoursRechercheMedecin,
+                        specialkey: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcours #btnRechercherMedecin': {
+                        click: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcours #btnNouveauMedecin': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecin', true);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetourListeMedecins': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecin', false);
+                        }
+                    },
+                    'ordonnanceparcours #btnEnregistrerMedecin': {
+                        click: this.parcoursEnregistrerMedecin
+                    },
+                    'ordonnanceparcours #formulaireMedecin textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerMedecin();
+                            }
+                        }
+                    },
+                    'ordonnanceparcours #btnSuivant': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(1);
+                        }
+                    },
+                    'ordonnanceparcours #btnRetour': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(0);
+                        }
+                    },
+                    'ordonnanceparcours #btnAnnuler': {
+                        click: function () {
+                            this.getParcoursOrdonnance().close();
+                        }
+                    },
                     'medecin #queryMedecin': {
-                        specialkey: this.onMedecinKey
+                        specialkey: this.onMedecinKey,
+                        // « specialkey » ne voit pas les lettres : c'est « keyup » qui porte la
+                        // recherche automatique des deux caracteres.
+                        keyup: this.onMedecinKey
                     }, 'reglementGrid [xtype=gridpanel]': {
                         selectionchange: this.onModeReglementGridRowSelect
                     },
@@ -1100,9 +1227,56 @@ Ext.define('testextjs.controller.VenteCtr', {
             const vnoemplacementId = me.getVnoemplacementField();
             me.updateStockField(item.get('intNUMBERAVAILABLE'));
             vnoemplacementId.setValue(item.get('strLIBELLEE'));
+            me.afficherPeremptionProche(item.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         }
 
+    },
+    /* Retours du 12/09 (point 12) : peremption la plus proche du produit choisi, meme source que la fenetre de
+       detail de la fiche article. Clignote a moins de six mois, sinon bleu gras ; vide sans lot ni date. */
+    afficherPeremptionProche: function (produitId) {
+        const me = this;
+        const champ = me.getPeremptionProcheField();
+        if (!champ) {
+            return;
+        }
+        if (!produitId) {
+            champ.setValue('');
+            return;
+        }
+        me.peremptionDemandee = produitId;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/peremption-proche/' + produitId,
+            success: function (reponse) {
+                if (me.peremptionDemandee !== produitId || !me.getPeremptionProcheField()) {
+                    return; // un autre produit a ete choisi entre-temps
+                }
+                const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (!r.date) {
+                    champ.setValue('');
+                    return;
+                }
+                if (!Ext.get('css-peremption-clignote')) {
+                    Ext.util.CSS.createStyleSheet(
+                            '@keyframes peremptionClignote { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }'
+                            + ' .peremption-clignote { color:#d40000;font-weight:bold;'
+                            + 'animation: peremptionClignote 1s step-end infinite; }', 'css-peremption-clignote');
+                }
+                const date = Ext.Date.parse(r.date, 'd/m/Y');
+                const limite = Ext.Date.add(new Date(), Ext.Date.MONTH, 6);
+                const proche = date && date < limite;
+                let texte = Ext.String.htmlEncode(r.date);
+                if (r.lot || r.qte) {
+                    texte += ' - lot ' + Ext.String.htmlEncode(String(r.lot || '?')) + ' × ' + Ext.String.htmlEncode(String(r.qte || '?'));
+                }
+                champ.setValue(proche ? '<span class="peremption-clignote">' + texte + '</span>'
+                        : '<span style="color:#0D47A1;font-weight:bold;">' + texte + '</span>');
+            },
+            failure: function () {
+                champ.setValue('');
+            }
+        });
     },
     updateStockField: function (stock) {
         let me = this;
@@ -1164,6 +1338,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let vnoemplacementId = me.getVnoemplacementField();
                     me.updateStockField(produit.intNUMBERAVAILABLE);
                     vnoemplacementId.setValue(produit.strLIBELLEE);
+                    me.afficherPeremptionProche(produit.lgFAMILLEID);
 
                     // ✅ Ajout direct si scan => résultat unique
                     if (autoAdd) {
@@ -1319,6 +1494,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         produitCmp.focus(true, 100);
                         me.updateStockField(0);
                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     }
                 }
             }, [produitCmp, qtyField]);
@@ -1495,6 +1671,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const vnoemplacementId = me.getVnoemplacementField();
                 me.updateStockField(rec.get('intNUMBERAVAILABLE'));
                 vnoemplacementId.setValue(rec.get('strLIBELLEE'));
+                me.afficherPeremptionProche(rec.get('lgFAMILLEID'));
                 me.getVnoqtyField().focus(true, 100);
                 return;
             }
@@ -1528,6 +1705,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             const vnoemplacementId = me.getVnoemplacementField();
             me.updateStockField(record.get('intNUMBERAVAILABLE'));
             vnoemplacementId.setValue(record.get('strLIBELLEE'));
+            me.afficherPeremptionProche(record.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         } else {
             // ✅ si pas trouvé localement => douchette (API)
@@ -1736,6 +1914,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                         produitCmp.focus(true, 100);
                                         me.updateStockField(0);
                                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
 
                                     }
                                 }
@@ -1807,6 +1986,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (result.success) {
                     me.updateStockField(0);
                     me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     me.current = result.data;
 
                     // ✅ IMPORTANT : après ajout article, forcer recalcul net
@@ -2239,7 +2419,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let codeError = result.codeError;
                     //il faut ajouter un medecin à la vente 
                     if (codeError === 1) {
-                        me.showMedicinWindow();
+                        // Vente ordonnanciere : client puis medecin, sur un seul ecran (retour du 08/09).
+                        me.ouvrirParcoursOrdonnance();
                     } else if (codeError === 2) {
 
                         me.getInfosClientStandard().show();
@@ -2290,6 +2471,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (typeVenteCmp && typeVenteCmp.getValue() === '1') {
             me.getBtnExtraMode()?.show();
         }
+    },
+
+    onTypeReglementExpand: function () {
+        this.rafraichirClassementModes();
     },
 
     isMobileMode: function (typeRegleId) {
@@ -2415,6 +2600,23 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.getVnoproduitCombo().focus(true, 100);
                     }
                 }
+            });
+            return;
+        }
+        /* Point 9 : un mode cree depuis le menu « modes de reglement » alors que la vente etait
+         * deja ouverte n'est dans aucun des deux classements charges au demarrage. Sans cette
+         * relecture il tombait dans la branche « autre mode », donc sans parcours client ni
+         * comportement mobile : rien ne se passait a la selection, et le client n'etait reclame
+         * qu'a la validation. On relit une seule fois par selection, puis on rejoue le choix. */
+        if (!me._classementRelu && !me.modeClasse(value)) {
+            me._classementRelu = true;
+            me.rafraichirClassementModes(function () {
+                if (field.destroyed) {
+                    me._classementRelu = false;
+                    return;
+                }
+                me.typeReglementSelectEvent(field);
+                me._classementRelu = false;
             });
             return;
         }
@@ -2918,12 +3120,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                 });
                 const boutons = clients.map(function (c) {
                     const enAvant = c.typeReglementId === modeEnAvant;
+                    // Logo de l'operateur (resources/images/modes/<LIBELLE>.png) a gauche du libelle ; sans fichier,
+                    // l'image ne s'affiche pas et la tuile garde son texte seul.
+                    const logo = 'resources/images/modes/' + String(c.modeLibelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png';
                     return {
                         xtype: 'button',
                         margin: '0 6 6 0',
-                        height: 44,
-                        text: '<div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
-                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div>',
+                        height: 48,
+                        text: '<div style="display:flex;align-items:center;gap:8px;">'
+                                + '<img src="' + logo + '" alt="" onerror="this.style.display=\'none\'" style="width:34px;height:34px;border-radius:50%;background:#fff;object-fit:cover;"/>'
+                                + '<div style="text-align:left;"><div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
+                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div></div></div>',
                         style: enAvant
                                 ? 'background:#1E8449;border-color:#1E8449;'
                                 : 'background:#5D6D7E;border-color:#5D6D7E;',
@@ -3421,6 +3628,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         comboxProduit.setValue(null);
                         me.updateStockField(0);
                         me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                         me.refresh();
 
 
@@ -4680,9 +4888,20 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     confirmerDoublonClient: function (result, datas, renvoyer) {
         const items = (result.doublons || []).map(function (c) {
-            const identite = ((c.strLASTNAME || '') + ' ' + (c.strFIRSTNAME || '')).trim();
-            const code = c.strCODEINTERNE ? ' (code ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
-            return '<li>' + Ext.String.htmlEncode(identite) + code + '</li>';
+            /*
+             * NOM puis PRENOMS, et non l'inverse.
+             *
+             * Dans cette base, « strFIRSTNAME » porte le NOM de famille et « strLASTNAME » les
+             * prenoms : les colonnes portent des noms trompeurs. Les concatener dans l'ordre
+             * apparent donnait « HERMANN NZI » au lieu de « NZI HERMANN ».
+             */
+            const identite = ((c.strFIRSTNAME || '') + ' ' + (c.strLASTNAME || '')).trim();
+            // « Matricule » plutot que « code » : c'est le terme employe au comptoir.
+            const matricule = c.strCODEINTERNE
+                    ? ' (Matricule: ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            // L'assurance distingue deux homonymes mieux que tout le reste.
+            const assurance = c.assurance ? ' de ' + Ext.String.htmlEncode(c.assurance) : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + matricule + assurance + '</li>';
         }).join('');
         Ext.MessageBox.show({
             title: 'Doublon possible',
@@ -6384,7 +6603,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         let codeError = result.codeError;
                         //il faut ajouter un medecin à la vente 
                         if (codeError === 1) {
-                            me.showMedicinWindow();
+                            me.ouvrirParcoursOrdonnance();
                         } else {
                             Ext.MessageBox.show({
                                 title: 'Message d\'erreur',
@@ -6688,6 +6907,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (result.success) {
                     me.updateStockField(0);
                     me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
                     me.current = result.data;
 
                     // ✅ IMPORTANT : après ajout article, forcer recalcul net
@@ -7077,29 +7297,207 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
 
     },
+    /*
+     * ====== Parcours client + medecin d'une vente ordonnanciere (retour du 08/09, point 4) ======
+     *
+     * Ouvert quand la validation reclame un medecin (codeError 1). Un seul ecran, deux volets :
+     * le client d'abord, le medecin ensuite. Si la vente a deja un client, on ouvre directement
+     * sur le medecin. Chaque choix est enregistre sur la vente aussitot, par les memes services
+     * que les fenetres historiques - qui restent en place pour les autres parcours.
+     */
+    ouvrirParcoursOrdonnance: function () {
+        const me = this;
+        const existant = me.getParcoursOrdonnance && me.getParcoursOrdonnance();
+        if (existant) {
+            existant.close();
+        }
+        const fenetre = Ext.create('testextjs.view.vente.user.OrdonnanceParcours');
+        fenetre.show();
+        fenetre.medecinStore.load({params: {query: ''}});
+        if (me.getClient()) {
+            fenetre.clientAcquis();
+            fenetre.allerAuVolet(1);
+        } else {
+            fenetre.allerAuVolet(0);
+        }
+    },
+
+    parcoursRechercheClient: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheClient').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheClientParcoursDifferee) {
+            me._rechercheClientParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.clientStore.load({params: {query: (f.down('#rechercheClient').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheClientParcoursDifferee();
+    },
+
+    /* Le client est rattache a la vente aussitot, puis l'on passe au medecin. */
+    parcoursClientChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        me._pendingModeNeedsClient = false;
+        me.client = record;
+        if (me.getInfosClientStandard()) {
+            me.getInfosClientStandard().show();
+        }
+        me.updateClientLambdInfos();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteClient(record.get('lgCLIENTID'), progress);
+        fenetre.clientAcquis();
+        fenetre.allerAuVolet(1);
+    },
+
+    parcoursEnregistrerClient: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireClient');
+        if (!formulaire || !formulaire.isValid()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/client/add/lambda',
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    fenetre.basculerFormulaire('client', false);
+                    me.parcoursClientChoisi(new testextjs.model.caisse.ClientLambda(result.data));
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du client a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
+    parcoursRechercheMedecin: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheMedecin').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length !== 0 && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheMedecinParcoursDifferee) {
+            me._rechercheMedecinParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.medecinStore.load({params: {query: (f.down('#rechercheMedecin').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheMedecinParcoursDifferee();
+    },
+
+    /* Le medecin est rattache a la vente : le parcours est termine, l'ecran se ferme. */
+    parcoursMedecinChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        fenetre.close();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteMedecin(record.get('id'), progress);
+    },
+
+    parcoursEnregistrerMedecin: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireMedecin');
+        if (!formulaire || !formulaire.isValid() || !me.getCurrent()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/add/medecin/' + me.getCurrent().lgPREENREGISTREMENTID,
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    me.medecinId = result.medecinId;
+                    fenetre.close();
+                    me.getMontantRecu().focus(true, 50);
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du médecin a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
     showMedicinWindow: function () {
         const me = this;
         const win = Ext.create('testextjs.view.vente.user.Medecin');
         win.add(me.buildMedecinGrid());
         win.show();
+        /* Retour du 08/09 : la fenetre s'ouvre sur TOUS les medecins, et le champ de recherche
+           a le focus des l'affichage - on tape, la liste se trie. */
+        me.getMedecinGrid().getStore().load({params: {query: ''}});
+        const champ = me.getQueryMedecin();
+        if (champ) {
+            champ.focus(false, 150);
+        }
     },
 
     queryMedecin: function () {
-        const me = this, query = me.getQueryMedecin().getValue();
-        if (query && query.trim() !== "") {
-            me.getMedecinGrid().getStore().load({
-                params: {
-                    query: query
-                }
-            });
-        }
+        const me = this, query = (me.getQueryMedecin().getValue() || '').trim();
+        // Champ vide : la liste complete, comme a l'ouverture.
+        me.getMedecinGrid().getStore().load({
+            params: {
+                query: query
+            }
+        });
     },
     onMedecinKey: function (field, e, options) {
+        const me = this;
         if (e.getKey() === e.ENTER) {
-            if (field.getValue() && field.getValue().trim() !== "") {
-                const me = this;
-                me.queryMedecin();
+            me.queryMedecin();
+            return;
+        }
+        /* Recherche automatique a partir de deux caracteres, sans attendre ENTREE ni le bouton.
+           Temporisee : une requete par frappe encombrerait le serveur pour rien. Le champ vide
+           ramene la liste complete. */
+        const saisie = (field.getValue() || '').trim();
+        if (saisie.length >= 2 || saisie.length === 0) {
+            if (!me._rechercheMedecinDifferee) {
+                me._rechercheMedecinDifferee = Ext.Function.createBuffered(me.queryMedecin, 300, me);
             }
+            me._rechercheMedecinDifferee();
         }
     },
     /*
@@ -7333,6 +7731,34 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     },
 
+    /* Logo de l'operateur sur le bouton « Associer un autre paiement mobile » : celui du second mode choisi,
+       l'icone generique sinon ou si le fichier manque. */
+    poserLogoBoutonExtra: function (libelle) {
+        const me = this;
+        const bouton = me.getBtnExtraMode();
+        if (!bouton) {
+            return;
+        }
+        const generique = 'resources/images/icons/fam/paiement-mobile.png';
+        const nom = String(libelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!nom) {
+            bouton.setIcon(generique);
+            return;
+        }
+        const image = new Image();
+        image.onload = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon('resources/images/modes/' + nom + '.png');
+            }
+        };
+        image.onerror = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon(generique);
+            }
+        };
+        image.src = 'resources/images/modes/' + nom + '.png';
+    },
+
     onModeReglementSelect: function (modeRegelement) {
         const me = this;
         if (Ext.isEmpty(me.getClient())) {
@@ -7345,6 +7771,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.labelWidth = modeRegelement.libelle.length + 2;
         me._extraModeBaseLabel = modeRegelement.libelle.toUpperCase();
         montantExtra.setFieldLabel(me._extraModeBaseLabel);
+        // le bouton du second mode prend le logo de l'operateur choisi
+        me.poserLogoBoutonExtra(modeRegelement.libelle);
         if (me.isMobileMode(me.getVnotypeReglement().getValue())) {
             // Fractionnement mobile + mobile : on déverrouille la saisie de la part
             // du mode principal, le complément se calcule dans montantExtra
@@ -7384,6 +7812,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.setReadOnly(true); // re-verrouille (saisissable seulement en espèces comptant)
         montantExtra.hide();
         me.extraModeReglementId = null;
+        me.poserLogoBoutonExtra(null);
         me.extraModeManualAmount = false;
         me.getBtnExtraMode()?.hide();
         // plus de second mode engagé : le bouton « associer un client » revient si especes pures

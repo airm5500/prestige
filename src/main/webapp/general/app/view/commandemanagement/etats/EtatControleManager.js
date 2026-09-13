@@ -56,11 +56,12 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
 
     title: 'Etat de controle des achats',
 //    btnUpdate: false,
-    plugins: [{
-            ptype: 'rowexpander',
-            rowBodyTpl: new Ext.XTemplate(
-                    '<p> {items}</p>')
-        }],
+    /*
+     * Le (+) a ete retire. Il obligeait a descendre le detail de TOUTES les lignes de la periode
+     * avec la liste, pour les rares qu'on ouvre -- et il affichait « {items} », un champ que le
+     * serveur ne remplit jamais : la zone s'ouvrait donc vide. Le bouton « Voir le detail du
+     * controle » fait le travail, a la demande et pour la seule ligne choisie.
+     */
 
     initComponent: function () {
 

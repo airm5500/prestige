@@ -1228,6 +1228,56 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         return map;
     }
 
+    /**
+     * Achats de la PERIODE (retour du 09/09) : id -> [frequence d'achat (nombre de receptions), quantite recue, unites
+     * gratuites], sur les bons de livraison clotures entre les deux dates de l'ecran.
+     */
+    private Map<String, long[]> fmAchatsPeriode(List<String> ids, String dtStart, String dtEnd) {
+        Map<String, long[]> map = new HashMap<>();
+        String debut = StringUtils.isBlank(dtStart) ? "1970-01-01" : dtStart.trim();
+        String fin = StringUtils.isBlank(dtEnd) ? "2999-12-31" : dtEnd.trim();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em
+                    .createNativeQuery("SELECT bld.lg_FAMILLE_ID, COUNT(bld.lg_BON_LIVRAISON_DETAIL),"
+                            + " SUM(COALESCE(bld.int_QTE_RECUE,0)), SUM(COALESCE(bld.int_QTE_UG,0))"
+                            + " FROM t_bon_livraison_detail bld"
+                            + " INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
+                            + " WHERE bl.str_STATUT = 'is_Closed' AND DATE(bld.dt_UPDATED) BETWEEN :debut AND :fin"
+                            + " AND bld.lg_FAMILLE_ID IN (:ids) GROUP BY bld.lg_FAMILLE_ID")
+                    .setParameter("ids", chunk).setParameter("debut", debut).setParameter("fin", fin).getResultList();
+            for (Object[] r : rows) {
+                map.put(asStr(r[0]), new long[] { Math.round(asDouble(r[1])), Math.round(asDouble(r[2])),
+                        Math.round(asDouble(r[3])) });
+            }
+        }
+        return map;
+    }
+
+    @Override
+    public List<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> feuilleDeMatchSimple(String dtStart, String dtEnd,
+            String type, String classe, String search, String codeFamille, String codeRayon, String codeGrossiste,
+            String stockFilter, Integer stockMin, Integer stockMax, Integer topN, Integer objectifAchat,
+            String objectifFilter) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
+        int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+        if (StringUtils.isNotBlank(objectifFilter) && !"ALL".equalsIgnoreCase(objectifFilter) && !rows.isEmpty()) {
+            rows = applyObjectifFilter(rows, fmEntrees(fmIds(rows)), objectif, objectifFilter);
+        }
+        Map<String, long[]> achats = fmAchatsPeriode(fmIds(rows), dtStart, dtEnd);
+        List<commonTasks.dto.FeuilleDeMatchSimpleLigneDTO> lignes = new ArrayList<>();
+        for (AbcProduitDTO d : rows) {
+            long[] a = achats.getOrDefault(nz(d.getProduitId()), new long[3]);
+            // « CODE-LIBELLE » comme dans le modele fourni, le code geo de l'article quand il existe.
+            String produit = StringUtils.isNotBlank(d.getCodeGeoArticle())
+                    ? d.getCodeGeoArticle().trim() + "-" + nz(d.getLibelle()) : nz(d.getLibelle());
+            String cip13 = StringUtils.isNotBlank(d.getEan()) ? d.getEan().trim() : nz(d.getCip());
+            lignes.add(new commonTasks.dto.FeuilleDeMatchSimpleLigneDTO(nz(d.getProduitId()), produit, cip13, a[2],
+                    a[1], a[0], d.getQuantiteVendue()));
+        }
+        return FeuilleDeMatchSimple.classer(lignes);
+    }
+
     /** Derniere entree en stock par produit : id -> [date de reception (java.util.Date), quantite recue]. */
     private Map<String, Object[]> fmDerniereEntree(List<String> ids) {
         Map<String, Object[]> map = new HashMap<>();
@@ -1389,6 +1439,15 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     public JSONObject feuilleDeMatchGrid(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
             Integer stockMax, int start, int limit, Integer topN, Integer objectifAchat, String objectifFilter) {
+        return feuilleDeMatchGrid(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon, codeGrossiste,
+                stockFilter, stockMin, stockMax, start, limit, topN, objectifAchat, objectifFilter, null);
+    }
+
+    @Override
+    public JSONObject feuilleDeMatchGrid(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, int start, int limit, Integer topN, Integer objectifAchat, String objectifFilter,
+            String tri) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
         int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
@@ -1399,6 +1458,19 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         Map<String, long[][]> entrees = avecFiltreObjectif ? fmEntrees(fmIds(rows)) : null;
         if (avecFiltreObjectif) {
             rows = applyObjectifFilter(rows, entrees, objectif, objectifFilter);
+        }
+        /*
+         * Retour du 09/09 : tri « par quantite achetee » sur la periode, et colonnes UG / quantite achetee / frequence.
+         * Le classement ABC (type, classe, top N) reste celui des ventes ; seule la lecture change.
+         */
+        boolean parAchats = "ACHATS".equalsIgnoreCase(StringUtils.trimToEmpty(tri));
+        Map<String, long[]> achats = parAchats ? fmAchatsPeriode(fmIds(rows), dtStart, dtEnd) : null;
+        if (parAchats) {
+            final Map<String, long[]> a = achats;
+            rows = new ArrayList<>(rows);
+            rows.sort(
+                    Comparator.comparingLong((AbcProduitDTO d) -> a.getOrDefault(nz(d.getProduitId()), new long[3])[1])
+                            .reversed().thenComparing(d -> nz(d.getLibelle())));
         }
 
         int total = rows.size();
@@ -1411,12 +1483,17 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         if (entrees == null) {
             entrees = fmEntrees(fmIds(page));
         }
+        if (achats == null) {
+            achats = fmAchatsPeriode(fmIds(page), dtStart, dtEnd);
+        }
 
         JSONArray data = new JSONArray();
         for (AbcProduitDTO d : page) {
             long[][] e = entrees.getOrDefault(nz(d.getProduitId()), new long[4][2]);
-            data.put(new JSONObject(d).put("freqM0", e[0][0]).put("qteM0", e[0][1]).put("objectifStatut",
-                    fmObjectifStatut(e, objectif)));
+            long[] a = achats.getOrDefault(nz(d.getProduitId()), new long[3]);
+            data.put(new JSONObject(d).put("freqM0", e[0][0]).put("qteM0", e[0][1])
+                    .put("objectifStatut", fmObjectifStatut(e, objectif)).put("freqAchat", a[0]).put("qteAchetee", a[1])
+                    .put("ug", a[2]));
         }
         return new JSONObject().put("success", true).put("total", total).put("data", data).put("moisCourant",
                 fmNomMois(0));

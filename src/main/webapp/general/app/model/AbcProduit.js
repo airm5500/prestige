@@ -29,6 +29,10 @@ Ext.define('testextjs.model.AbcProduit', {
         /* champs additionnels renvoyes par la grille feuille de match uniquement */
         {name: 'freqM0', type: 'number', defaultValue: 0},
         {name: 'qteM0', type: 'number', defaultValue: 0},
-        {name: 'objectifStatut', type: 'string'}
+        {name: 'objectifStatut', type: 'string'},
+        /* Retour du 09/09 : achats de la periode et unites gratuites. */
+        {name: 'qteAchetee', type: 'number', defaultValue: 0},
+        {name: 'ug', type: 'number', defaultValue: 0},
+        {name: 'freqAchat', type: 'number', defaultValue: 0}
     ]
 });

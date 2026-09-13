@@ -27,6 +27,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.StatCaisseRecetteService;
+import rest.service.StatCaisseRecetteService.Granularite;
+import static rest.service.StatCaisseRecetteService.Granularite.ANNEE;
+import static rest.service.StatCaisseRecetteService.Granularite.MOIS;
 import rest.service.dto.StatCaisseRecetteDTO;
 import util.Constant;
 import util.FunctionUtils;
@@ -43,6 +46,12 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
     private static final String DATE_QUERY_VENTE_REGL = "DATE(vr.mvtDate) ";
     private static final String DATE_QUERY_YEAR = "YEAR(p.dt_UPDATED) ";
     private static final String DATE_QUERY_VENTE_REGL_YEAR = "YEAR(vr.mvtDate) ";
+    /*
+     * Regroupement mensuel (point 16) : le premier jour du mois, rendu comme une DATE et non comme une chaine, pour que
+     * les lignes se relisent exactement comme les lignes journalieres - seul l'affichage change.
+     */
+    private static final String DATE_QUERY_MONTH = "DATE(DATE_FORMAT(p.dt_UPDATED, '%Y-%m-01')) ";
+    private static final String DATE_QUERY_VENTE_REGL_MONTH = "DATE(DATE_FORMAT(vr.mvtDate, '%Y-%m-01')) ";
     private static final String QUERY = "SELECT {date_column} AS mvtDate, SUM(p.int_PRICE) AS montantTtc,SUM(m.montantRestant) AS montantDiffere,SUM(p.int_PRICE_REMISE) AS montantRemise, SUM(CASE WHEN p.`int_PRICE` <0 OR p.`b_IS_CANCEL`=1 THEN 0 ELSE 1 END) AS nbreClient,SUM(m.montantNet) montantNet, SUM(m.montantTva) AS montantTva, SUM(m.montantCredit) AS montantCredit,vente_reglement_q.venteReglement FROM mvttransaction m "
             + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=m.vente_id,(SELECT {date_regl_column} AS mvtDateR,GROUP_CONCAT(CONCAT(CONCAT(tr.lg_TYPE_REGLEMENT_ID, ':', vr.montant_attentu)  ) SEPARATOR '/' ) AS venteReglement   FROM vente_reglement vr JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID=vr.type_regelement "
             + " {sub_where_close} GROUP BY {date_regl_column}) AS vente_reglement_q WHERE vente_reglement_q.mvtDateR={date_column} AND  {date_column} BETWEEN ?1 AND ?2 AND p.str_STATUT='is_Closed' AND m.lg_EMPLACEMENT_ID=?3 AND  p.lg_TYPE_VENTE_ID <> '5' AND p.imported=0   AND  p.`lg_PREENREGISTREMENT_ID` NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v) {where_close}"
@@ -62,11 +71,18 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
     @Override
     public List<StatCaisseRecetteDTO> fetchStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
             boolean groupByYear, String emplacementId) {
-        List<Tuple> tuples = getData(dateDebut, dateFin, typeRglementId, groupByYear, emplacementId);
-        List<StatCaisseRecetteDTO> ventes = buildData(tuples);
+        return fetchStatCaisseRecettes(dateDebut, dateFin, typeRglementId,
+                groupByYear ? Granularite.ANNEE : Granularite.JOUR, emplacementId);
+    }
+
+    @Override
+    public List<StatCaisseRecetteDTO> fetchStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
+            Granularite granularite, String emplacementId) {
+        List<Tuple> tuples = getData(dateDebut, dateFin, typeRglementId, granularite, emplacementId);
+        List<StatCaisseRecetteDTO> ventes = buildData(tuples, granularite);
         List<StatCaisseRecetteDTO> mvts = buildDataMvts(
-                getDataMvts(dateDebut, dateFin, typeRglementId, groupByYear, emplacementId));
-        List<StatCaisseRecetteDTO> billetages = buildDataBilletage(dateDebut, dateFin, groupByYear);
+                getDataMvts(dateDebut, dateFin, typeRglementId, granularite, emplacementId), granularite);
+        List<StatCaisseRecetteDTO> billetages = buildDataBilletage(dateDebut, dateFin, granularite);
         return mergeAll(ventes, mvts, billetages);
 
     }
@@ -74,8 +90,15 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
     @Override
     public JSONObject getStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
             boolean groupByYear, String emplacementId) {
+        return getStatCaisseRecettes(dateDebut, dateFin, typeRglementId,
+                groupByYear ? Granularite.ANNEE : Granularite.JOUR, emplacementId);
+    }
+
+    @Override
+    public JSONObject getStatCaisseRecettes(String dateDebut, String dateFin, String typeRglementId,
+            Granularite granularite, String emplacementId) {
         List<StatCaisseRecetteDTO> caisseRecettes = this.fetchStatCaisseRecettes(dateDebut, dateFin, typeRglementId,
-                groupByYear, emplacementId);
+                granularite, emplacementId);
         return FunctionUtils.returnData(caisseRecettes, caisseRecettes.size());
     }
 
@@ -98,10 +121,28 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
             + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
             + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, tr.str_NAME, tranche ORDER BY tranche";
 
+    /**
+     * Le chiffre d'affaires realise sur la periode (retour du 09/09, point 7) : le net TTC des memes ventes que le
+     * recapitulatif, et la part restee a credit (organismes). C'est le denominateur du « % de chaque mode de reglement
+     * dans le chiffre d'affaires ».
+     */
+    private static final String CA_QUERY = "SELECT COALESCE(SUM(m.montantNet),0) AS chiffreAffaires,"
+            + " COALESCE(SUM(m.montantCredit),0) AS montantCredit FROM mvttransaction m"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.vente_id"
+            + " WHERE DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND p.str_STATUT = 'is_Closed'"
+            + " AND m.lg_EMPLACEMENT_ID = ?3 AND p.lg_TYPE_VENTE_ID <> '5' AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)";
+
     @Override
     public JSONObject suiviModesReglement(String dateDebut, String dateFin, boolean groupByYear, String emplacementId) {
         JSONObject json = new JSONObject();
         try {
+            javax.persistence.Tuple ca = (javax.persistence.Tuple) em
+                    .createNativeQuery(CA_QUERY, javax.persistence.Tuple.class)
+                    .setParameter(1, java.sql.Date.valueOf(dateDebut)).setParameter(2, java.sql.Date.valueOf(dateFin))
+                    .setParameter(3, emplacementId).getSingleResult();
+            long chiffreAffaires = ((Number) ca.get("chiffreAffaires")).longValue();
+            long montantCredit = ((Number) ca.get("montantCredit")).longValue();
             String sql = MODES_QUERY.replace("{tranche}",
                     groupByYear ? "YEAR(vr.mvtDate)" : "DATE_FORMAT(vr.mvtDate, '%Y-%m-%d')");
             @SuppressWarnings("unchecked")
@@ -147,8 +188,16 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                                         .divide(java.math.BigDecimal.valueOf(totalGeneral), 1, RoundingMode.HALF_UP)
                                         .doubleValue());
                 m.put("montantMoyen", operations == 0 ? 0L : Math.round((double) montant / operations));
+                // Part dans le chiffre d'affaires realise (point 7), distincte de la part des encaissements.
+                m.put("partCa", VentilationBalance.pourcentage(montant, chiffreAffaires));
                 dataModes.put(m);
             }
+            long totalMobile = modes.stream().filter(m -> m.optBoolean("mobile")).mapToLong(m -> m.optLong("montant"))
+                    .sum();
+            json.put("chiffreAffaires", chiffreAffaires).put("totalMobile", totalMobile)
+                    .put("partMobileCa", VentilationBalance.pourcentage(totalMobile, chiffreAffaires))
+                    .put("montantCredit", montantCredit)
+                    .put("partCreditCa", VentilationBalance.pourcentage(montantCredit, chiffreAffaires));
 
             // Courbe : une serie par mode, une valeur par tranche, les tranches sans encaissement valant zero -
             // une courbe trouee se lit de travers.
@@ -173,13 +222,25 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         return json;
     }
 
-    private String buildQuery(String query, String typeRglementId, boolean groupByYear) {
+    private String buildQuery(String query, String typeRglementId, Granularite granularite) {
 
-        if (groupByYear) {
+        switch (granularite) {
+        case ANNEE:
             query = query.replace("{date_column}", DATE_QUERY_YEAR).replace("{date_regl_column}",
                     DATE_QUERY_VENTE_REGL_YEAR);
-        } else {
+            break;
+        case MOIS:
+            /*
+             * Le regroupement porte sur le premier du mois, mais les BORNES portent sur le jour reel : sans cela, « du
+             * 03 au 04 aout » comparerait le 1er aout aux bornes et ne rendrait aucune ligne.
+             */
+            query = query.replace("{date_column} BETWEEN", DATE_QUERY_DAY + " BETWEEN")
+                    .replace("{date_column}", DATE_QUERY_MONTH)
+                    .replace("{date_regl_column}", DATE_QUERY_VENTE_REGL_MONTH);
+            break;
+        default:
             query = query.replace("{date_column}", DATE_QUERY_DAY).replace("{date_regl_column}", DATE_QUERY_VENTE_REGL);
+            break;
         }
         if (StringUtils.isNotBlank(typeRglementId)) {
             query = query.replace("{where_close}", String.format(TYPE_REGLEMENT_WHERE_CLOSE, typeRglementId));
@@ -191,9 +252,9 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         return query;
     }
 
-    private List<Tuple> getData(String dateDebut, String dateFin, String typeRglementId, boolean groupByYear,
+    private List<Tuple> getData(String dateDebut, String dateFin, String typeRglementId, Granularite granularite,
             String emplacementId) {
-        String sql = buildQuery(QUERY, typeRglementId, groupByYear);
+        String sql = buildQuery(QUERY, typeRglementId, granularite);
         LOG.log(Level.INFO, "sql--- StatCaisseRecette {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(3, emplacementId)
@@ -206,9 +267,9 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         }
     }
 
-    private List<Tuple> getDataMvts(String dateDebut, String dateFin, String typeRglementId, boolean groupByYear,
+    private List<Tuple> getDataMvts(String dateDebut, String dateFin, String typeRglementId, Granularite granularite,
             String emplacementId) {
-        String sql = buildMvtsQuery(OTHER_MVT_SQL_QUERY, typeRglementId, groupByYear);
+        String sql = buildMvtsQuery(OTHER_MVT_SQL_QUERY, typeRglementId, granularite);
         LOG.log(Level.INFO, "sql--- OTHER_MVT_SQL_QUERY {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(3, emplacementId)
@@ -221,24 +282,13 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         }
     }
 
-    private List<StatCaisseRecetteDTO> buildDataMvts(List<Tuple> tuples) {
+    private List<StatCaisseRecetteDTO> buildDataMvts(List<Tuple> tuples, Granularite granularite) {
         try {
             if (CollectionUtils.isNotEmpty(tuples)) {
                 List<StatCaisseRecetteDTO> datas = new ArrayList<>();
                 for (Tuple t : tuples) {
                     StatCaisseRecetteDTO caisseRecette = new StatCaisseRecetteDTO();
-                    String displayMvtDate;
-                    LocalDate mvdateLocalDate;
-                    var mvtDate = t.get("mvtDate", Object.class);
-                    if (mvtDate instanceof Integer) {
-                        displayMvtDate = mvtDate + "";
-                        mvdateLocalDate = LocalDate.ofYearDay((int) mvtDate, 1);
-                    } else {
-                        mvdateLocalDate = ((Date) mvtDate).toLocalDate();
-                        displayMvtDate = mvdateLocalDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    }
-                    caisseRecette.setDisplayMvtDate(displayMvtDate);
-                    caisseRecette.setMvtDate(mvdateLocalDate);
+                    daterLigne(caisseRecette, t.get("mvtDate", Object.class), granularite);
 
                     long montantTTC = t.get("montantTTC", BigDecimal.class).longValue();
                     var typeId = t.get("typeMvtCaisse", String.class);
@@ -275,24 +325,13 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
 
     }
 
-    private List<StatCaisseRecetteDTO> buildData(List<Tuple> tuples) {
+    private List<StatCaisseRecetteDTO> buildData(List<Tuple> tuples, Granularite granularite) {
         try {
             if (CollectionUtils.isNotEmpty(tuples)) {
                 List<StatCaisseRecetteDTO> datas = new ArrayList<>();
                 for (Tuple t : tuples) {
                     StatCaisseRecetteDTO caisseRecette = new StatCaisseRecetteDTO();
-                    String displayMvtDate;
-                    LocalDate mvdateLocalDate;
-                    var mvtDate = t.get("mvtDate", Object.class);
-                    if (mvtDate instanceof Integer) {
-                        displayMvtDate = mvtDate + "";
-                        mvdateLocalDate = LocalDate.ofYearDay((int) mvtDate, 1);
-                    } else {
-                        mvdateLocalDate = ((Date) mvtDate).toLocalDate();
-                        displayMvtDate = mvdateLocalDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    }
-                    caisseRecette.setDisplayMvtDate(displayMvtDate);
-                    caisseRecette.setMvtDate(mvdateLocalDate);
+                    daterLigne(caisseRecette, t.get("mvtDate", Object.class), granularite);
                     caisseRecette.setMontantTtc(t.get("montantTtc", BigDecimal.class).longValue());
                     caisseRecette.setMontantRemise(t.get("montantRemise", BigDecimal.class).longValue());
                     caisseRecette.setMontantNet(t.get("montantNet", BigDecimal.class).longValue());
@@ -392,10 +431,14 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         return this.getEntityManager().createNamedQuery("TTypeReglement.findAll", TTypeReglement.class).getResultList();
     }
 
-    private String buildMvtsQuery(String query, String typeRglementId, boolean groupByYear) {
+    private String buildMvtsQuery(String query, String typeRglementId, Granularite granularite) {
 
-        if (groupByYear) {
+        if (granularite == Granularite.ANNEE) {
             query = query.replace("{date_regl_column}", DATE_QUERY_VENTE_REGL_YEAR);
+        } else if (granularite == Granularite.MOIS) {
+            // Bornes sur le jour reel, regroupement sur le mois : cf. buildQuery.
+            query = query.replace("{date_regl_column} BETWEEN", DATE_QUERY_VENTE_REGL + " BETWEEN")
+                    .replace("{date_regl_column}", DATE_QUERY_VENTE_REGL_MONTH);
         } else {
             query = query.replace("{date_regl_column}", DATE_QUERY_VENTE_REGL);
         }
@@ -409,15 +452,43 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         return query;
     }
 
-    private String buildBilletageQuery(String query, boolean groupByYear) {
+    private String buildBilletageQuery(String query, Granularite granularite) {
 
-        if (groupByYear) {
+        if (granularite == Granularite.ANNEE) {
             query = query.replace("{date_regl_column}", " YEAR(vr.dt_CREATED) ");
+        } else if (granularite == Granularite.MOIS) {
+            // Bornes sur le jour reel, regroupement sur le mois : cf. buildQuery.
+            query = query.replace("{date_regl_column} BETWEEN", " DATE(vr.dt_CREATED) BETWEEN")
+                    .replace("{date_regl_column}", " DATE(DATE_FORMAT(vr.dt_CREATED, '%Y-%m-01')) ");
         } else {
             query = query.replace("{date_regl_column}", " DATE(vr.dt_CREATED)  ");
         }
 
         return query;
+    }
+
+    /**
+     * Date de la ligne et son libelle, selon le regroupement demande.
+     *
+     * <p>
+     * Le regroupement annuel rend un entier, les deux autres une date : jour affiche « 05/08/2026 », mois « 08/2026 »,
+     * annee « 2026 ». Les trois lectures de ligne partagent ce meme calcul, faute de quoi elles se desaccorderaient a
+     * la fusion - les journees se regroupent sur cette date.
+     * </p>
+     */
+    private static void daterLigne(StatCaisseRecetteDTO ligne, Object mvtDate, Granularite granularite) {
+        LocalDate date;
+        String libelle;
+        if (mvtDate instanceof Integer) {
+            date = LocalDate.ofYearDay((int) mvtDate, 1);
+            libelle = String.valueOf(mvtDate);
+        } else {
+            date = ((Date) mvtDate).toLocalDate();
+            libelle = granularite == Granularite.MOIS ? date.format(DateTimeFormatter.ofPattern("MM/yyyy"))
+                    : date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        }
+        ligne.setDisplayMvtDate(libelle);
+        ligne.setMvtDate(date);
     }
 
     private List<StatCaisseRecetteDTO> mergeAll(List<StatCaisseRecetteDTO> ventes, List<StatCaisseRecetteDTO> mvtCaisse,
@@ -447,9 +518,6 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                         o.setMontantHt(o.getMontantTtc() - o.getMontantTva());
                         o.setMontantSortie(o.getMontantSortie() + e.getMontantSortie());
                         o.setMontantNet(o.getMontantNet() + e.getMontantNet());
-                        o.setMontantSolde(o.getMontantSolde() + o.getMontantEspece() + o.getMontantCb()
-                                + o.getMontantCheque() + o.getMontantMobile() + o.getMontantVirement()
-                                + o.getMontantReglementFacture() + o.getMontantReglementDiff());
                         /*
                          * La journee est recomposee dans un objet NEUF, champ par champ : le sous-detail des paiements
                          * mobiles doit etre reporte lui aussi, sinon il se perd ici alors qu'il a bien ete calcule. Les
@@ -459,6 +527,16 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                          */
                         e.getDetailMobile().forEach((mode, part) -> o.getDetailMobile().merge(mode, part, Long::sum));
                     });
+                    /*
+                     * Point 16 : le solde est calcule UNE FOIS, la journee entierement recomposee.
+                     *
+                     * Il l'etait auparavant a l'interieur de la boucle, en s'ajoutant a lui-meme : chaque source de la
+                     * journee - ventes, mouvements de caisse, billetage - reempilait des totaux encore partiels, si
+                     * bien que le solde valait plusieurs fois les montants deja cumules. Il vaut desormais exactement
+                     * ce que l'officine appelle le solde : comptant + mobile + reglement tiers payant + reglement
+                     * differe.
+                     */
+                    o.calculerSolde();
                     datas.add(o);
                 });
         datas.sort(Comparator.comparing(StatCaisseRecetteDTO::getMvtDate));
@@ -466,8 +544,8 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
 
     }
 
-    private List<Tuple> getDataBilletage(String dateDebut, String dateFin, boolean groupByYear) {
-        String sql = buildBilletageQuery(BILLETAGE_QUERY, groupByYear);
+    private List<Tuple> getDataBilletage(String dateDebut, String dateFin, Granularite granularite) {
+        String sql = buildBilletageQuery(BILLETAGE_QUERY, granularite);
         LOG.log(Level.INFO, "sql--- BILLETAGE_QUERY {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, java.sql.Date.valueOf(dateDebut))
@@ -480,25 +558,14 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
         }
     }
 
-    private List<StatCaisseRecetteDTO> buildDataBilletage(String dateDebut, String dateFin, boolean groupByYear) {
-        List<Tuple> tuples = getDataBilletage(dateDebut, dateFin, groupByYear);
+    private List<StatCaisseRecetteDTO> buildDataBilletage(String dateDebut, String dateFin, Granularite granularite) {
+        List<Tuple> tuples = getDataBilletage(dateDebut, dateFin, granularite);
         try {
             if (CollectionUtils.isNotEmpty(tuples)) {
                 List<StatCaisseRecetteDTO> datas = new ArrayList<>();
                 for (Tuple t : tuples) {
                     StatCaisseRecetteDTO caisseRecette = new StatCaisseRecetteDTO();
-                    String displayMvtDate;
-                    LocalDate mvdateLocalDate;
-                    var mvtDate = t.get("mvtDate", Object.class);
-                    if (mvtDate instanceof Integer) {
-                        displayMvtDate = mvtDate + "";
-                        mvdateLocalDate = LocalDate.ofYearDay((int) mvtDate, 1);
-                    } else {
-                        mvdateLocalDate = ((Date) mvtDate).toLocalDate();
-                        displayMvtDate = mvdateLocalDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    }
-                    caisseRecette.setDisplayMvtDate(displayMvtDate);
-                    caisseRecette.setMvtDate(mvdateLocalDate);
+                    daterLigne(caisseRecette, t.get("mvtDate", Object.class), granularite);
 
                     long montantBilletage = t.get("montantTTC", Double.class).longValue();
                     caisseRecette.setMontantBilletage(montantBilletage);

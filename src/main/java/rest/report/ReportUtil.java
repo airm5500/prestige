@@ -267,7 +267,9 @@ public class ReportUtil {
             parameters.put("P_H_LOGO", logo);
             parameters.put("P_H_INSTITUTION", institution);
             parameters.put("P_PRINTED_BY", " " + op.getStrFIRSTNAME() + "  " + op.getStrLASTNAME());
-            parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+            // nom du pharmacien : jamais « null null » sur une edition quand la fiche officine est incomplete
+            parameters.put("P_AUTRE_DESC", (StringUtils.defaultString(oTOfficine.getStrFIRSTNAME()) + " "
+                    + StringUtils.defaultString(oTOfficine.getStrLASTNAME())).trim());
             // Ville d'edition du recapitulatif. Le modele la portait en dur ("TAFIRE") : toute
             // officine imprimait donc la ville d'une autre. Vide, l'etat se contente de la date.
             parameters.put("P_LIEU_EDITION", lieuEdition());
@@ -531,6 +533,37 @@ public class ReportUtil {
             LOG.log(Level.SEVERE, "Echec de l'edition de l'etat " + reportName, ex);
         }
         return "/data/reports/pdf/" + fileName;
+    }
+
+    /**
+     * L'edition designee par cette URL a-t-elle REELLEMENT ete ecrite ?
+     *
+     * <p>
+     * {@link #buildReport} rend l'URL attendue dans tous les cas : quand l'edition echoue -- modele absent, police
+     * introuvable, donnee inattendue -- elle journalise et poursuit. L'appelant qui annonce un succes sur cette seule
+     * foi envoie l'utilisateur ouvrir un fichier qui n'existe pas, et celui-ci ne voit qu'un « HTTP 404 » sans rapport
+     * visible avec la cause ; le vrai motif ne vit que dans le journal.
+     * </p>
+     *
+     * <p>
+     * Le retour de {@code buildReport} n'a pas ete change : quatre-vingt-treize appels s'y fient, et les modifier tous
+     * d'un coup ferait courir un risque hors de proportion avec le defaut. C'est donc a l'appelant de poser cette
+     * verification, comme le font desormais l'ordonnancier, les gardes et l'analyse du chiffre d'affaires.
+     * </p>
+     *
+     * @param url
+     *            l'URL rendue par {@code buildReport}
+     */
+    public boolean editionEcrite(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            return new java.io.File(this.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))).isFile();
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "verification du fichier d'edition " + url, e);
+            return false;
+        }
     }
 
     // Concatene plusieurs rapports (memes parametres, meme collection) dans un seul PDF.

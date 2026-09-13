@@ -126,6 +126,18 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
             }
         });
 
+        /*
+         * Le magasin de la LISTE DEROULANTE, distinct de celui qui charge les types.
+         *
+         * Filtrer directement le magasin charge ne tient pas : un combobox ExtJS 4 efface les
+         * filtres de son magasin des qu'on deroule sa liste (doQuery pose le sien). Les trois
+         * types du journal disparaissaient donc au premier clic, et les dix types revenaient.
+         * Un magasin propre, rempli une fois apres le chargement, ne peut pas etre repris.
+         */
+        const storeTypeJournal = Ext.create('Ext.data.Store', {
+            fields: ['lg_TYPE_MVT_CAISSE_ID', 'str_NAME']
+        });
+
         const storeTypeMvt = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.TypeEcartMvt',
             autoLoad: true,
@@ -144,9 +156,18 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                  * reglements tiers payant. La liste deroulante ne propose donc qu'eux - laisser
                  * choisir un type que la liste n'affiche pas ne menerait qu'a un ecran vide. */
                 load: function (store) {
-                    store.filterBy(function (rec) {
-                        return estTypeDuJournal(rec.get('str_NAME'));
+                    // On alimente le magasin de la liste deroulante avec les seuls types du
+                    // journal, plutot que de filtrer celui-ci : voir le commentaire ci-dessus.
+                    const retenus = [];
+                    store.each(function (rec) {
+                        if (estTypeDuJournal(rec.get('str_NAME'))) {
+                            retenus.push({
+                                lg_TYPE_MVT_CAISSE_ID: rec.get('lg_TYPE_MVT_CAISSE_ID'),
+                                str_NAME: rec.get('str_NAME')
+                            });
+                        }
                     });
+                    storeTypeJournal.loadData(retenus);
                     // Les types ne sont connus qu'apres cet appel : la premiere liste a pu partir
                     // sans filtre, on la redemande une fois - et une seule, le magasin ne se
                     // chargeant qu'a l'ouverture de l'ecran.
@@ -205,7 +226,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                             labelWidth: 35,
                             flex: 1,
                             margin: '0 9 0 0',
-                            store: storeTypeMvt,
+                            store: storeTypeJournal,
                             valueField: 'lg_TYPE_MVT_CAISSE_ID',
                             displayField: 'str_NAME',
                             queryMode: 'local',
@@ -253,6 +274,15 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
 
                             handler: this.onPdfPrint
 
+                        },
+                        {
+                            width: 100,
+                            xtype: 'button',
+                            text: 'Exporter',
+                            tooltip: 'Exporter le journal affich&eacute; au format Excel',
+                            iconCls: 'export_excel_icon',
+                            scope: this,
+                            handler: this.onExcelExport
                         }
                     ]
                 }],
@@ -323,7 +353,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                             handler: this.showDetail,
                             getClass: function (value, metadata, record) {
                                 if (record.get('id') != "") {  //read your condition from the record
-                                    return ''; //affiche l'icone
+                                    return '';
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
                                 }
@@ -446,6 +476,26 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
 
 
     },
+    /**
+     * Export Excel du journal, sur EXACTEMENT les criteres de l'impression PDF.
+     *
+     * Les deux sorties doivent porter sur la meme population : un export qui ne dirait pas la
+     * meme chose que l'etat imprime obligerait a se demander lequel croire.
+     */
+    onExcelExport: function () {
+        let userId = "";
+        if (Ext.getCmp('lg_USER_ID').getValue()) {
+            userId = Ext.getCmp('lg_USER_ID').getValue();
+        }
+        // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
+        window.open('../api/v1/caisse/mvtcaisses/excel?' + Ext.Object.toQueryString({
+            dtStart: Ext.getCmp('dt_debut_journal').getSubmitValue(),
+            dtEnd: Ext.getCmp('dt_fin_journal').getSubmitValue(),
+            user: userId,
+            typeMvtId: typesDemandes()
+        }));
+    },
+
     loadSummary: function () {
         let userId = "";
         if (Ext.getCmp('lg_USER_ID').getValue()) {

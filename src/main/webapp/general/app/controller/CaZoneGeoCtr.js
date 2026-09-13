@@ -15,6 +15,11 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
     refs: [
         {ref: 'ecran', selector: 'cazonegeomanager'},
         {ref: 'grille', selector: 'cazonegeomanager #grille'},
+        {ref: 'ongletGammesLabos', selector: 'cazonegeomanager #ongletGammesLabos'},
+        {ref: 'grilleGammes', selector: 'cazonegeomanager #grilleGammes'},
+        {ref: 'grilleLaboratoires', selector: 'cazonegeomanager #grilleLaboratoires'},
+        {ref: 'gammeFiltre', selector: 'cazonegeomanager #gammeFiltre'},
+        {ref: 'laboratoireFiltre', selector: 'cazonegeomanager #laboratoireFiltre'},
         {ref: 'panneauCourbe', selector: 'cazonegeomanager #panneauCourbe'},
         {ref: 'typePeriode', selector: 'cazonegeomanager #typePeriode'},
         {ref: 'dtStart', selector: 'cazonegeomanager #dtStart'},
@@ -52,6 +57,102 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             },
             'cazonegeomanager #regroupement': {
                 select: this.rechercher
+            },
+            'cazonegeomanager #ongletGammesLabos': {
+                activate: this.chargerGammesLabos
+            },
+            'cazonegeomanager #grilleGammes': {
+                activate: this.chargerGammesLabos
+            },
+            'cazonegeomanager #grilleLaboratoires': {
+                activate: this.chargerGammesLabos
+            },
+            'cazonegeomanager #gammeFiltre': {
+                select: this.chargerGammesLabos
+            },
+            'cazonegeomanager #laboratoireFiltre': {
+                select: this.chargerGammesLabos
+            },
+            'cazonegeomanager #effacerFiltresGammesLabos': {
+                click: this.effacerFiltresGammesLabos
+            }
+        });
+    },
+
+    /* Retours du 12/09 (point 9) : la grille active de l'onglet « Gammes / Laboratoires », ou null quand un autre
+       onglet est ouvert. Les exports suivent cette grille quand elle est visible. */
+    grilleGammesLabosActive: function () {
+        const ecran = this.getEcran();
+        const onglet = this.getOngletGammesLabos();
+        if (!ecran || !onglet || ecran.getActiveTab() !== onglet) {
+            return null;
+        }
+        return onglet.getActiveTab();
+    },
+
+    effacerFiltresGammesLabos: function () {
+        const me = this;
+        Ext.each([me.getGammeFiltre(), me.getLaboratoireFiltre()], function (c) {
+            if (c) {
+                c.clearValue();
+            }
+        });
+        me.chargerGammesLabos();
+    },
+
+    regroupementActif: function () {
+        const grille = this.grilleGammesLabosActive();
+        return grille ? grille.regroupement : this.getRegroupement().getValue();
+    },
+
+    /* Charge la grille active de l'onglet, avec les filtres de la barre d'outils. Une meme demande (memes filtres)
+       n'est pas rejouee tant que la recherche principale n'a pas change. */
+    chargerGammesLabos: function () {
+        const me = this;
+        // « activate » arrive au milieu de la mise en page de l'onglet : on laisse ExtJS la terminer avant de poser
+        // le masque de chargement et de reconfigurer la grille.
+        if (!me.chargementDiffere) {
+            me.chargementDiffere = true;
+            Ext.defer(function () {
+                me.chargementDiffere = false;
+                me.chargerGammesLabosMaintenant();
+            }, 60);
+        }
+    },
+
+    chargerGammesLabosMaintenant: function () {
+        const me = this;
+        const grille = me.grilleGammesLabosActive();
+        if (!grille || !grille.rendered) {
+            return;
+        }
+        const params = Ext.apply(me.parametres(), {regroupement: grille.regroupement});
+        const signature = Ext.JSON.encode(params);
+        if (grille.signatureChargee === signature) {
+            return;
+        }
+        grille.setLoading('Calcul en cours...');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ca-zone-geo',
+            params: params,
+            timeout: 600000,
+            callback: function (opts, success, response) {
+                if (grille.isDestroyed) {
+                    return;
+                }
+                grille.setLoading(false);
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (!success || !json.success) {
+                    Ext.Msg.alert('Message', json.msg || 'Le calcul du chiffre d\'affaires a échoué');
+                    return;
+                }
+                grille.signatureChargee = signature;
+                me.construireGrille(json, grille, grille.regroupement);
             }
         });
     },
@@ -71,9 +172,12 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         const me = this;
         const p = {
             typePeriode: me.getTypePeriode().getValue(),
-            regroupement: me.getRegroupement().getValue(),
+            regroupement: me.regroupementActif(),
             zoneId: me.getZone().getValue() || '',
-            familleId: me.getFamille().getValue() || ''
+            familleId: me.getFamille().getValue() || '',
+            // filtres de l'onglet Gammes / Laboratoires (retours du 12/09)
+            gammeId: (me.getGammeFiltre() && me.getGammeFiltre().getValue()) || '',
+            laboratoireId: (me.getLaboratoireFiltre() && me.getLaboratoireFiltre().getValue()) || ''
         };
         if (p.typePeriode === 'LIBRE') {
             p.dtStart = me.getDtStart().getSubmitValue();
@@ -116,6 +220,12 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                 me.construireGrille(json);
                 me.construireCourbe(json);
                 me.afficherTotaux(json);
+                Ext.each([me.getGrilleGammes(), me.getGrilleLaboratoires()], function (g) {
+                    if (g) {
+                        g.signatureChargee = null;
+                    }
+                });
+                me.chargerGammesLabos();
             }
         });
     },
@@ -155,11 +265,18 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
          * « sans zone » ou « sans famille », qui est une ligne comme une autre ; l'absence signifie
          * que la ligne n'est pas regroupee sur ce critere. */
         const regroupement = p.regroupement;
-        if (regroupement !== 'FAMILLE') {
-            p.ligneZoneId = enregistrement.get('zoneId') || '';
-        }
-        if (regroupement !== 'ZONE') {
-            p.ligneFamilleId = enregistrement.get('familleId') || '';
+        if (regroupement === 'GAMME') {
+            // ligne de l'onglet Gammes / Laboratoires (retours du 12/09) : la gamme de la ligne, « sans gamme » = vide
+            p.ligneGammeId = enregistrement.get('gammeId') || '';
+        } else if (regroupement === 'LABORATOIRE') {
+            p.ligneLaboratoireId = enregistrement.get('laboratoireId') || '';
+        } else {
+            if (regroupement !== 'FAMILLE') {
+                p.ligneZoneId = enregistrement.get('zoneId') || '';
+            }
+            if (regroupement !== 'ZONE') {
+                p.ligneFamilleId = enregistrement.get('familleId') || '';
+            }
         }
         p.libelle = enregistrement.get('libelle') || '';
         return p;
@@ -350,21 +467,30 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                 + Ext.util.Format.number(v, '0.0') + ' %</span>';
     },
 
-    construireGrille: function (json) {
+    construireGrille: function (json, grilleCible, regroupementCible) {
         const me = this;
-        const regroupement = json.data && me.getRegroupement().getValue();
-        const champs = ['zoneId', 'zone', 'familleId', 'famille', 'libelle', {name: 'total', type: 'number'},
+        const grilleVisee = grilleCible || me.getGrille();
+        const regroupement = regroupementCible || (json.data && me.getRegroupement().getValue());
+        const parGammeOuLabo = regroupement === 'GAMME' || regroupement === 'LABORATOIRE';
+        const champs = ['zoneId', 'zone', 'familleId', 'famille', 'gammeId', 'gamme', 'laboratoireId', 'laboratoire', 'libelle', {name: 'total', type: 'number'},
             {name: 'evolution', type: 'auto'}, {name: 'marge', type: 'number'},
             {name: 'montantHt', type: 'number'}, {name: 'achat', type: 'number'},
             {name: 'pourcentageMarge', type: 'number'}];
         const colonnes = [];
-        if (regroupement !== 'FAMILLE') {
+        if (parGammeOuLabo) {
+            colonnes.push({text: regroupement === 'GAMME' ? 'Gamme' : 'Laboratoire', dataIndex: 'libelle',
+                flex: 1.2, minWidth: 140,
+                summaryRenderer: function () {
+                    return '<b>TOTAL</b>';
+                }});
+        }
+        if (!parGammeOuLabo && regroupement !== 'FAMILLE') {
             colonnes.push({text: 'Zone géographique', dataIndex: 'zone', flex: 1.2, minWidth: 140,
                 summaryRenderer: function () {
                     return '<b>TOTAL</b>';
                 }});
         }
-        if (regroupement !== 'ZONE') {
+        if (!parGammeOuLabo && regroupement !== 'ZONE') {
             colonnes.push({text: 'Famille d\'articles', dataIndex: 'famille', flex: 1.2, minWidth: 140,
                 summaryRenderer: regroupement === 'FAMILLE' ? function () {
                     return '<b>TOTAL</b>';
@@ -442,7 +568,7 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                 return me.formatEvolution(json.evolutionGenerale);
             }
         });
-        // Detail de la ligne : les produits qui composent ce montant.
+        // Detail de la ligne : les produits qui composent ce montant (aussi par gamme / laboratoire, retours du 12/09).
         colonnes.push({
             xtype: 'actioncolumn',
             text: 'Détail',
@@ -460,7 +586,7 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
                 }]
         });
         const store = Ext.create('Ext.data.Store', {fields: champs, data: json.data || []});
-        me.getGrille().reconfigure(store, colonnes);
+        grilleVisee.reconfigure(store, colonnes);
     },
 
     construireCourbe: function (json) {

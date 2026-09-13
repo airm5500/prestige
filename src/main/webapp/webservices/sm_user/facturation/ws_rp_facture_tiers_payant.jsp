@@ -111,7 +111,34 @@
         response.sendRedirect(request.getContextPath() + "/api/v1/model-facture-dynamique/pdf/" + lg_FACTURE_ID);
         return;
     }
+    /*
+     * Impression detaillee : l'edition est confiee a la ressource REST dediee, qui choisit le modele
+     * ACTIF de type DETAIL_ARTICLE et rend les medicaments de chaque vente. Le calcul n'est pas fait
+     * ici : cette page n'est pas dans une archive CDI et ne peut pas resoudre les beans du projet.
+     * C'est le meme procede que pour les modeles de facture dynamiques, quelques lignes plus haut.
+     *
+     * Un choix explicite de modele (modeId) reste prioritaire : il vient de l'utilisateur.
+     *
+     * Retour du 08/09 : cette redirection est posee AVANT la lecture du modele du tiers payant. Un
+     * carnet depot n'a pas de modele de facture : lire son numero levait une NullPointerException
+     * (ligne 190 du servlet compile) avant meme d'arriver ici, et l'edition avec produits etait
+     * impossible.
+     */
+    if (avecDetailsArticles && modeId == null) {
+        response.sendRedirect(request.getContextPath() + "/api/v1/facturation/facture/" + lg_FACTURE_ID
+                + "/detail-articles/pdf");
+        return;
+    }
+    // Un tiers payant sans modele de facture - c'est le cas des carnets depot - ne peut pas etre
+    // edite par cette page, qui le dit au lieu de planter.
     TModelFacture modelFacture = OTiersPayant.getLgMODELFACTUREID();
+    if (modelFacture == null && modeId == null) {
+        out.println("<html><head><meta charset=\"UTF-8\"><title>Impression impossible</title></head><body style=\"font-family:Arial,sans-serif;padding:30px;\">");
+        out.println("<h3 style=\"color:#C00000;\">Impression impossible : aucun mod&egrave;le de facture n'est rattach&eacute; au tiers payant " + OTiersPayant.getStrFULLNAME() + ".</h3>");
+        out.println("<p>Rattachez un mod&egrave;le sur la fiche du tiers payant, ou, pour un carnet d&eacute;p&ocirc;t, imprimez depuis le menu du carnet d&eacute;p&ocirc;t.</p>");
+        out.println("</body></html>");
+        return;
+    }
     String codeModelFacture = modelFacture.getLgMODELFACTUREID();
     TParameters recapParam = null;
 
@@ -122,19 +149,6 @@
     if (modeId != null) {
         codeModelFacture = modeId;
         modelFacture = obllBase.getOdataManager().getEm().find(TModelFacture.class, modeId);
-    }
-    /*
-     * Impression detaillee : l'edition est confiee a la ressource REST dediee, qui choisit le modele
-     * ACTIF de type DETAIL_ARTICLE et rend les medicaments de chaque vente. Le calcul n'est pas fait
-     * ici : cette page n'est pas dans une archive CDI et ne peut pas resoudre les beans du projet.
-     * C'est le meme procede que pour les modeles de facture dynamiques, quelques lignes plus haut.
-     *
-     * Un choix explicite de modele (modeId) reste prioritaire : il vient de l'utilisateur.
-     */
-    if (avecDetailsArticles && modeId == null) {
-        response.sendRedirect(request.getContextPath() + "/api/v1/facturation/facture/" + lg_FACTURE_ID
-                + "/detail-articles/pdf");
-        return;
     }
     facManagement = new factureManagement(OdataManager, OTUser);
     // int codeFACT = 7;

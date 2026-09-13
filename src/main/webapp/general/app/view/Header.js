@@ -490,8 +490,11 @@ var PrestigeNotif = (function () {
     }
 
     function updateBadge(total) {
-        // Battement de la cloche tant qu'il y a des notifications
-        var bell = Ext.query('.hdr-bell')[0];
+        // Battement de la cloche tant qu'il y a des notifications.
+        // Retour du 09/09 : le panier des ventes ratees porte lui aussi la classe .hdr-bell et
+        // precede la cloche dans l'en-tete ; « le premier .hdr-bell » n'etait plus la cloche,
+        // qui restait blanche et immobile. On vise la cloche par son conteneur.
+        var bell = Ext.query('#notif-bell .hdr-bell')[0];
         if (bell) {
             if (total > 0) {
                 Ext.fly(bell).addCls('has-notif');

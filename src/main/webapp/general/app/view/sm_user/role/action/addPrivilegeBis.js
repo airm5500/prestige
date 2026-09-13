@@ -18,6 +18,12 @@ var listProductSelected;
 Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
     extend: 'Ext.window.Window',
     xtype: 'addPrivilegeBis',
+    /*
+     * Fenetre MODALE : elle porte une saisie qu'il faut terminer ou abandonner. Sans cela on peut
+     * revenir a la liste derriere, y changer de ligne, puis valider la fenetre restee ouverte --
+     * qui ecrit alors sur le role qu'on croyait avoir quitte.
+     */
+    modal: true,
     id: 'addPrivilegeBisID',
     requires: [
         'Ext.form.*',

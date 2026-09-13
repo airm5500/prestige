@@ -35,4 +35,20 @@ public interface ZoneGeographiqueService {
 
     /** Desactivation ou reactivation EN MASSE d'une liste d'identifiants. Renvoie le nombre traite. */
     JSONObject toggleStatusMasse(TUser user, String zoneIds, boolean actif);
+
+    /**
+     * Produits d'un emplacement (retours du 12/09, point 3 : remplace ws_productbyzone.jsp). Recherche par CIP ou
+     * designation « commence par », pagination ; { data : [ { lg_FAMILLE_ID, int_CIP, str_NAME, int_PRICE, int_NUMBER,
+     * str_DESCRIPTION, isChecked } ], total }.
+     */
+    org.json.JSONObject produitsDeLaZone(dal.TUser user, String zoneId, String recherche, int start, int limit);
+
+    /**
+     * Basculement de produits vers un emplacement (remplace ws_update.jsp). Mode « ALL » : tous les produits de la zone
+     * d'origine repondant a la recherche, moins les decoches ; sinon les identifiants envoyes. Un produit sans ligne
+     * dans t_famille_zonegeo la recoit (c'etait la cause des « transaction n'a pas abouti »). Repond { status : 1,
+     * message } ou { status : 0, message }.
+     */
+    org.json.JSONObject basculer(dal.TUser user, String zoneDestinationId, String zoneOrigineId, String mode,
+            java.util.List<String> produits, java.util.List<String> decoches, String recherche);
 }

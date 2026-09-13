@@ -45,8 +45,22 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     totalProperty: 'total'
                 },
                 timeout: 2400000
+            },
+            listeners: {
+                /* Retour du 09/09 : « Tout » en tete de liste, pour reafficher l'ensemble des carnets
+                   apres en avoir choisi un. Le filtre est alors vide cote serveur. */
+                load: function (store) {
+                    if (!store.findRecord('id', 'TOUT', 0, false, true, true)) {
+                        store.insert(0, {id: 'TOUT', code: '', nom: 'Tout', nomComplet: 'Tout', account: 0});
+                    }
+                }
             }
         });
+        /* Onglet a ouvrir, transmis par le routeur (retour du 09/09) : apres la creation d'une facture,
+           on revient DIRECTEMENT dans l'onglet FACTURES, sans passer par les ventes. */
+        if (this.data && this.data.ongletActif) {
+            this.ongletDemande = this.data.ongletActif;
+        }
         let ventes = new Ext.data.Store({
             fields: [
                 {
@@ -278,7 +292,7 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
         const facturesDepot = Ext.create('Ext.data.Store', {
             fields: ['lgFACTUREID', 'periode', 'strFULLNAME', 'strCODEFACTURE',
                 {name: 'nbDossier', type: 'number'}, {name: 'dblMONTANTCMDE', type: 'number'},
-                'dtDATEFACTURE'],
+                'dtDATEFACTURE', {name: 'template', type: 'boolean'}],
             pageSize: 18,
             autoLoad: false,
             proxy: {
@@ -929,6 +943,11 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                 emptyText: '<div style="margin:20px;">Aucune facture carnet dépôt</div>',
                                 deferEmptyText: false
                             },
+                            /* Point 17 : cocher pour supprimer ou reimprimer plusieurs factures. */
+                            selModel: Ext.create('Ext.selection.CheckboxModel', {
+                                checkOnly: true,
+                                mode: 'MULTI'
+                            }),
                             dockedItems: [{
                                     xtype: 'toolbar',
                                     dock: 'top',
@@ -938,13 +957,29 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                             iconCls: 'addicon',
                                             tooltip: 'Créer une facture pour un carnet dépôt'
                                         }, {
+                                            /* Point 17 : la liste se filtre aussi par numero de facture,
+                                               en plus du tiers payant et de la periode de l'ecran. */
+                                            xtype: 'textfield',
+                                            itemId: 'rechercheFactureDepot',
+                                            emptyText: 'N° de facture ou organisme',
+                                            width: 200,
+                                            margin: '0 5 0 5',
+                                            enableKeyEvents: true
+                                        }, {
                                             text: 'Rafraîchir',
                                             itemId: 'btnRafraichirFacturesDepot',
                                             iconCls: 'searchicon'
                                         }, '->', {
-                                            xtype: 'tbtext',
-                                            text: '<span style="color:#555;">La sélection de tiers-payant '
-                                                    + 'ci-dessus limite la liste à un carnet précis.</span>'
+                                            /* Retour du 08/09 : le bouton du haut ne sert qu'a la suppression
+                                               MULTIPLE des factures cochees ; l'impression et la suppression
+                                               d'une facture se font sur sa ligne. Une facture de carnet depot
+                                               est une vraie facture, numerotee : sa suppression est simple,
+                                               sans avoir FNE, et libere ses bons. */
+                                            text: 'Supprimer la sélection',
+                                            itemId: 'btnSupprimerFactureDepot',
+                                            iconCls: 'icon-delete',
+                                            tooltip: 'Supprimer d\'un coup les factures cochées',
+                                            disabled: true
                                         }]
                                 }],
                             columns: [
@@ -961,27 +996,55 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                     }},
                                 {header: 'Date facture', dataIndex: 'dtDATEFACTURE', flex: 0.9},
                                 {
+                                    /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE. Retour du 09/09 :
+                                       les deux icones etaient trop proches, on se trompait au clic. Chacune a
+                                       sa colonne, avec son titre, et « Voir » ouvre le contenu de la facture
+                                       (beneficiaires, puis medicaments d'une vente), pagine. */
                                     xtype: 'actioncolumn',
-                                    header: 'Impressions',
-                                    width: 90,
+                                    header: 'Voir',
+                                    width: 50,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
+                                            icon: 'resources/images/icons/fam/application_view_list.png',
+                                            tooltip: 'Voir le contenu : bénéficiaires et médicaments',
+                                            altText: 'Voir',
+                                            handler: function (grille, ligne) {
+                                                grille.up('reglementdepot').fireEvent('voirFactureDepot',
+                                                        grille.getStore().getAt(ligne));
+                                            }
+                                        }]
+                                }, {
+                                    xtype: 'actioncolumn',
+                                    header: 'Imprimer',
+                                    width: 70,
                                     align: 'center',
                                     menuDisabled: true,
                                     sortable: false,
                                     items: [{
                                             icon: 'resources/images/icons/fam/printer.png',
-                                            tooltip: 'Imprimer les bons (modèle du tiers-payant)',
-                                            altText: 'Imprimer les bons',
+                                            tooltip: 'Imprimer cette facture (avec ou sans les produits)',
+                                            altText: 'Imprimer',
                                             handler: function (grille, ligne) {
                                                 grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
-                                                        grille.getStore().getAt(ligne), false);
+                                                        grille.getStore().getAt(ligne));
                                             }
-                                        }, {
-                                            icon: 'resources/images/icons/fam/text_list_bullets.png',
-                                            tooltip: 'Imprimer les bons + le détail des médicaments',
-                                            altText: 'Imprimer les bons avec le détail des médicaments',
+                                        }]
+                                }, {
+                                    xtype: 'actioncolumn',
+                                    header: 'Supprimer',
+                                    width: 80,
+                                    align: 'center',
+                                    menuDisabled: true,
+                                    sortable: false,
+                                    items: [{
+                                            icon: 'resources/images/icons/fam/delete.png',
+                                            tooltip: 'Supprimer cette facture',
+                                            altText: 'Supprimer',
                                             handler: function (grille, ligne) {
-                                                grille.up('reglementdepot').fireEvent('imprimerFactureDepot',
-                                                        grille.getStore().getAt(ligne), true);
+                                                grille.up('reglementdepot').fireEvent('supprimerFactureDepot',
+                                                        grille.getStore().getAt(ligne));
                                             }
                                         }]
                                 }
@@ -998,5 +1061,11 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
             ]
         });
         me.callParent(arguments);
+        if (me.ongletDemande) {
+            var onglet = me.down('#' + me.ongletDemande);
+            if (onglet) {
+                me.setActiveTab(onglet);
+            }
+        }
     }
 });

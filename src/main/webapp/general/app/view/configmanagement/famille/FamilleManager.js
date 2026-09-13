@@ -389,7 +389,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return v;
+                        // Retour du 09/09, puis retour des tests : la classe ABC apres la designation, aux
+                        // couleurs de la classification - A vert, B bleu, C rouge - en gras.
+                        var classe = r.data.classe;
+                        var couleurs = {A: '#177a17', B: '#1565c0', C: '#a00000'};
+                        return classe ? v + ' <span style="color:' + (couleurs[classe] || '#1565c0')
+                                + ';font-weight:bold">(' + classe + ')</span>' : v;
                     }
                 },
                 {
@@ -400,7 +405,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return amountformat(v);
+                        // Retour des tests du 09/09 : les deux prix, agrandis et en gras.
+                        return '<span class="fa-prix">' + amountformat(v) + '</span>';
                     }
                 },
 
@@ -412,7 +418,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     renderer: function (v, m, r) {
 
                         teinteSelonStock(r.data.int_NUMBER_AVAILABLE, m);
-                        return amountformat(v);
+                        return '<span class="fa-prix">' + amountformat(v) + '</span>';
                     }
                 },
                 {
@@ -424,7 +430,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'int_NUMBER_AVAILABLE',
                     itemId: 'stockUnifie',
                     align: 'center',
-                    flex: 0.95,
+                    // Retour des tests du 12/09 : a quatre chiffres, total et puces debordaient. La colonne
+                    // reserve la place de quatre caracteres pour le total, le rayon et la reserve, sur UNE
+                    // ligne (presentation d'origine), sans retour a la ligne possible.
+                    flex: 1.3,
+                    minWidth: 215,
                     tooltip: 'Total = rayon + réserve. Le tri porte sur le stock rayon.',
                     renderer: function (v, m, r) {
                         var rayon = parseInt(r.data.int_NUMBER_AVAILABLE, 10);
@@ -442,15 +452,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                         m.tdAttr = 'data-qtip="Rayon ' + rayon + ' + Réserve ' + reserve
                                 + ' = ' + total + '" data-qwidth="180"';
-                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;">RAY '
+                        // chaque puce reserve quatre caracteres pour son nombre : les colonnes restent alignees
+                        var puces = '<span style="border:1px solid #d5dde2;border-radius:5px;padding:0 5px;color:#555;font-weight:800;display:inline-block;min-width:6ch;text-align:center;">RAY '
                                 + rayon + '</span>';
                         if (reserve !== 0) {
-                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;">RES '
+                            puces += ' <span style="border:1px solid #c9b6e3;border-radius:5px;padding:0 5px;color:#6600cc;font-weight:800;display:inline-block;min-width:6ch;text-align:center;">RES '
                                     + reserve + '</span>';
                         }
                         return '<span style="white-space:nowrap;">'
-                                + '<b style="font-size:17px;color:' + couleur + ';vertical-align:middle;">' + total + '</b>'
-                                + '<span style="font-size:10px;margin-left:7px;vertical-align:middle;">' + puces + '</span></span>';
+                                + '<b style="font-size:16px;color:' + couleur + ';vertical-align:middle;display:inline-block;min-width:4ch;text-align:right;">' + total + '</b>'
+                                + '<span style="font-size:10px;margin-left:6px;vertical-align:middle;">' + puces + '</span></span>';
                     }
                 }, {
                     header: 'Seuil',
@@ -1176,15 +1187,18 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             reperes += ligne('Derni\u00e8re entr\u00e9e', '<em>aucune entr\u00e9e enregistr\u00e9e</em>');
         }
 
-        var puces = '';
-        if (o.classe) {
-            puces += '<span class="vp-ap-puce">Classe ' + esc(o.classe) + '</span>';
-        }
+        // Retour des tests du 12/09 : la classe et la TVA figurent toujours, meme absentes de la fiche.
+        var puces = '<span class="vp-ap-puce">Classe ' + (o.classe ? esc(o.classe) : '<em>non classé</em>') + '</span>';
         if (o.tva) {
             // Le libelle de TVA porte souvent deja la mention ("TVA 0") : ne pas la doubler.
             var tva = String(o.tva);
             puces += '<span class="vp-ap-puce">' + (/tva/i.test(tva) ? esc(tva) : 'TVA ' + esc(tva)) + '</span>';
+        } else {
+            puces += '<span class="vp-ap-puce">TVA <em>non renseignée</em></span>';
         }
+        // Retours du 12/09 : le taux de marque, juste apres la TVA
+        puces += '<span class="vp-ap-puce">Taux de marque ' + (o.tauxMarque !== undefined && o.tauxMarque !== null && o.tauxMarque !== ''
+                ? esc(o.tauxMarque) + ' %' : '<em>non calculable</em>') + '</span>';
         // Contenance : seulement si l'article est deconditionnable et qu'elle est renseignee.
         if (o.contenance) {
             puces += '<span class="vp-ap-puce contenance">Contenance ' + esc(o.contenance) + '</span>';
@@ -1803,7 +1817,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             if (action.visible && !action.visible(record)) {
                                 return 'x-hide-display';
                             }
-                            return '' + action.classe;
+                            return 'fa-action ' + action.classe;
                         }
                     }]
             });

@@ -137,6 +137,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             o.put("classe", abcLettre(t.getLgCLASSEABCID()));
             o.put("tva", t.getLgCODETVAID() != null && t.getLgCODETVAID().getStrNAME() != null
                     ? t.getLgCODETVAID().getStrNAME() : "");
+            // Retours du 12/09 : le taux de marque de la fiche (enregistre a l'entree en stock, calcule a defaut)
+            Integer tauxMarque = t.getIntTAUXMARQUE() != null && t.getIntTAUXMARQUE() != 0 ? t.getIntTAUXMARQUE()
+                    : TauxMarque.calculer(t.getIntPRICE(), t.getIntPAF());
+            o.put("tauxMarque", tauxMarque == null ? "" : String.valueOf(tauxMarque));
             boolean decond = (t.getBoolDECONDITIONNE() != null && t.getBoolDECONDITIONNE() == 1)
                     || (t.getBoolDECONDITIONNEEXIST() != null && t.getBoolDECONDITIONNEEXIST() == 1);
             o.put("deconditionnable", decond);
@@ -660,6 +664,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         json.put("str_NAME", t.getStrNAME());
         json.put("STATUS", t.getIntORERSTATUS());
         json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+        // Retour du 09/09 : la classe ABC, affichee en bleu apres la designation quand elle existe.
+        json.put("classe", abcLettre(t.getLgCLASSEABCID()));
         json.put("int_PRICE", t.getIntPRICE());
         json.put("int_EAN13", t.getIntEAN13());
         json.put("int_CIP", t.getIntCIP());
@@ -723,6 +729,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("str_NAME", t.getStrNAME());
             json.put("STATUS", t.getIntORERSTATUS());
             json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+            json.put("classe", abcLettre(t.getLgCLASSEABCID()));
             json.put("int_PRICE", t.getIntPRICE());
 
             json.put("int_CIP", t.getIntCIP());
@@ -870,6 +877,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("str_NAME", t.getStrNAME());
             json.put("STATUS", t.getIntORERSTATUS());
             json.put("str_DESCRIPTION", t.getStrDESCRIPTION());
+            json.put("classe", abcLettre(t.getLgCLASSEABCID()));
             json.put("int_PRICE", t.getIntPRICE());
             if (grossiste != null) {
                 json.put("lg_GROSSISTE_ID", grossiste.getStrLIBELLE());
@@ -1148,6 +1156,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     /** [date jj/mm/aaaa ou "", numero de lot ou "", quantite en stock du lot ou ""]. */
+    @Override
+    public Object[] peremptionProche(String produitId) {
+        TFamille t = produitId == null || produitId.trim().isEmpty() ? null : em.find(TFamille.class, produitId.trim());
+        return t == null ? new Object[] { "", "", "" } : peremptionProche(t);
+    }
+
     public Object[] peremptionProche(TFamille t) {
         try {
             List<Object[]> lots = em.createQuery("SELECT l.dtPEREMPTION, l.intNUMLOT, l.currentStock FROM TLot l"

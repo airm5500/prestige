@@ -130,22 +130,30 @@ function semer() {
       '7000 / 12 h = 583, obtenu ' + ind.montantParHeure);
 
     // ------------------------------------------------------------------ tranches horaires
+    /* Retour du 08/09 : les tranches sont les heures du JOUR, cumulees sur toute la periode de la
+       garde (une garde de plusieurs jours additionne ses 20h-22h), avec le nombre de clients et le
+       chiffre d'affaires. Les 24 heures sont rendues, meme celles hors de la fenetre de la garde. */
     const tranches = rapport.tranches || [];
-    ok('Douze heures en tranches de deux font six tranches', tranches.length === 6, tranches.length);
-    ok('La premiere tranche part du debut de la garde, pas de minuit',
-      tranches[0].libelle === '20h00 - 22h00', tranches.map(t => t.libelle).join(' | '));
-    ok('La vente de 20h30 tombe dans la premiere tranche', tranches[0].montant === 1000,
-      JSON.stringify(tranches[0]));
-    ok('Celle de 23h15 dans la deuxieme', tranches[1].montant === 4000, JSON.stringify(tranches[1]));
-    ok('Une tranche creuse est rendue quand meme',
-      tranches.filter(t => t.montant === 0).length === 2,
+    ok('Les 24 heures en tranches de deux font douze tranches', tranches.length === 12, tranches.length);
+    ok('La premiere tranche part de minuit', tranches[0].libelle === '00h - 02h',
+      tranches.map(t => t.libelle).join(' | '));
+    const t20 = tranches.find(t => t.libelle === '20h - 22h') || {};
+    const t22 = tranches.find(t => t.libelle === '22h - 00h') || {};
+    const t02 = tranches.find(t => t.libelle === '02h - 04h') || {};
+    ok('La vente de 20h30 tombe dans la tranche 20h - 22h', t20.montant === 1000 && t20.ventes === 1,
+      JSON.stringify(t20));
+    ok('Celle de 23h15 dans 22h - 00h', t22.montant === 4000, JSON.stringify(t22));
+    ok('Celle de 03h00 dans 02h - 04h', t02.montant === 1500, JSON.stringify(t02));
+    ok('Les heures de jour de la garde sont vides : les ventes de jour du 5 et du 6 ne comptent pas',
+      (tranches.find(t => t.libelle === '12h - 14h') || {}).montant === 0
+      && (tranches.find(t => t.libelle === '14h - 16h') || {}).montant === 0,
       tranches.map(t => t.libelle + '=' + t.montant).join(' | '));
     ok('Le total des tranches egale le total de la garde',
       tranches.reduce((s, t) => s + t.montant, 0) === ind.montant,
       tranches.reduce((s, t) => s + t.montant, 0) + ' vs ' + ind.montant);
 
     const tranches1h = await lire('/' + gardeId + '/rapport?heures=1');
-    ok('La largeur de tranche est parametrable', (tranches1h.tranches || []).length === 12,
+    ok('La largeur de tranche est parametrable', (tranches1h.tranches || []).length === 24,
       (tranches1h.tranches || []).length);
     ok('Le total ne change pas avec la largeur',
       (tranches1h.tranches || []).reduce((s, t) => s + t.montant, 0) === ind.montant);
@@ -260,20 +268,26 @@ function semer() {
         titres: onglets.items.getRange().map(o => o.title),
         listePresente: !!vue.down('#grilleGardes'),
         selectionMultiple: vue.down('#grilleGardes').getSelectionModel().mode === 'MULTI',
+        casesACocher: !!vue.down('#grilleGardes').getSelectionModel().isCheckboxModel
+          || vue.down('#grilleGardes').getSelectionModel().$className === 'Ext.selection.CheckboxModel',
         tranchesPresentes: !!vue.down('#grilleTranches'),
         abcPresent: !!vue.down('#grilleAbc'),
         resumePresent: !!vue.down('#grilleResumeAbc'),
         actions: ['gardeNouvelle', 'gardeModifier', 'gardeSupprimer', 'gardeHeures', 'gardeImprimer',
+          'gardeAnnee', 'abcClasse', 'abcTri', 'abcLimite',
           'gardeExporterAbc', 'gardeExporterTranches', 'comparerDernieres', 'comparerSelection']
           .every(id => !!vue.down('#' + id))
       };
       vue.destroy();
       return resultat;
     });
-    ok('L\'ecran a ses deux onglets',
-      ecran.titres.join('|') === 'Analyse de la garde|Comparaison', ecran.titres.join('|'));
+    ok('L\'ecran a ses onglets : analyse, suivi de l\'activite (H2), vendeurs et commandes (H3), comparaison',
+      ecran.titres.length === 5 && ecran.titres[0] === 'Analyse de la garde' && /activit/i.test(ecran.titres[1])
+      && ecran.titres[2] === 'Vendeurs' && /Command/.test(ecran.titres[3])
+      && ecran.titres[4] === 'Comparaison', ecran.titres.join('|'));
     ok('La liste des gardes est presente', ecran.listePresente);
     ok('Elle accepte une selection multiple, pour comparer', ecran.selectionMultiple);
+    ok('Les gardes se cochent (retour du 08/09)', ecran.casesACocher);
     ok('Tranches, ABC et resume sont presents',
       ecran.tranchesPresentes && ecran.abcPresent && ecran.resumePresent);
     ok('Toutes les actions sont cablees', ecran.actions);

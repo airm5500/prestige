@@ -16,7 +16,12 @@ import javax.persistence.TypedQuery;
 
 import org.apache.commons.lang3.StringUtils;
 
+import commonTasks.dto.GardeCommandeDTO;
+import commonTasks.dto.GardeKpiDTO;
+import commonTasks.dto.GardeVendeurDTO;
 import commonTasks.dto.GardeProduitDTO;
+import commonTasks.dto.GardeReglementDTO;
+import commonTasks.dto.GardeVenteDTO;
 import commonTasks.dto.GardeTrancheDTO;
 import commonTasks.dto.GardeVenteLigneDTO;
 import dal.Garde;
@@ -32,6 +37,16 @@ public class GardeServiceImpl implements GardeService {
     private static final int LONGUEUR_LIBELLE = 120;
 
     /**
+     * Retour des tests du 09/09 : la garde comptait TOUTES les ventes de la periode, quel que soit le site, y compris
+     * les ventes importees d'un autre systeme et les ventes exclues des etats. Sur une officine multi-sites, elle
+     * affichait trois fois le chiffre de la balance vente / caisse pour la meme semaine. Le perimetre est desormais
+     * celui de la balance et de l'ecran de classification ABC : les ventes de l'emplacement de l'utilisateur (?3), non
+     * importees, hors ventes exclues.
+     */
+    private static final String PERIMETRE_COMMUN = " AND up.lg_EMPLACEMENT_ID = ?3 AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)";
+
+    /**
      * Les lignes de vente de la periode.
      *
      * <p>
@@ -41,12 +56,45 @@ public class GardeServiceImpl implements GardeService {
      * </p>
      */
     private static final String SQL_LIGNES = "SELECT p.lg_PREENREGISTREMENT_ID, f.lg_FAMILLE_ID,"
-            + " f.int_CIP, f.str_NAME, p.dt_UPDATED, pd.int_QUANTITY, pd.int_PRICE" + " FROM t_preenregistrement p"
+            + " f.int_CIP, f.str_NAME, p.dt_UPDATED, pd.int_QUANTITY, pd.int_PRICE,"
+            // Marge (retour du 08/09) : la formule de l'analyse ABC de l'application, pas une autre.
+            + " IFNULL(pd.int_PRICE_REMISE, 0), IFNULL(pd.montantTva, 0), IFNULL(pd.prixAchat, 0),"
+            + " IFNULL(p.lg_CLIENT_ID, ''), IFNULL(p.lg_USER_VENDEUR_ID, ''),"
+            + " IFNULL(CONCAT(TRIM(IFNULL(u.str_FIRST_NAME, '')), ' ', TRIM(IFNULL(u.str_LAST_NAME, ''))), ''),"
+            // Retour des tests du 09/09 : famille, rayon (emplacement) et grossiste du produit, pour les filtres.
+            + " IFNULL(f.lg_FAMILLEARTICLE_ID, ''), IFNULL(f.lg_ZONE_GEO_ID, ''), IFNULL(f.lg_GROSSISTE_ID, '')"
+            + " FROM t_preenregistrement p" + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_VENDEUR_ID"
+            + " JOIN t_user up ON up.lg_USER_ID = p.lg_USER_ID"
             + " JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = pd.lg_FAMILLE_ID"
             + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
             + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-            + " AND p.lg_TYPE_VENTE_ID <> '5'" + " ORDER BY p.dt_UPDATED";
+            + " AND p.lg_TYPE_VENTE_ID <> '5'" + PERIMETRE_COMMUN + " ORDER BY p.dt_UPDATED";
+
+    /** Le meme perimetre de ventes que les lignes, au grain du ticket (H2) : client, type, montant, part client. */
+    private static final String PERIMETRE_VENTES = " FROM t_preenregistrement p"
+            + " JOIN t_user up ON up.lg_USER_ID = p.lg_USER_ID" + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED <= ?2"
+            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+            + " AND p.lg_TYPE_VENTE_ID <> '5'" + PERIMETRE_COMMUN;
+    private static final String SQL_VENTES = "SELECT p.lg_PREENREGISTREMENT_ID, IFNULL(p.lg_CLIENT_ID, ''),"
+            + " p.lg_TYPE_VENTE_ID, p.int_PRICE, IFNULL(p.int_CUST_PART, 0)" + PERIMETRE_VENTES;
+    /** Les reglements des ventes du perimetre : le mode et le montant attendu dans ce mode. */
+    private static final String SQL_REGLEMENTS = "SELECT vr.vente_id, vr.type_regelement, IFNULL(vr.montant_attentu, 0)"
+            + " FROM vente_reglement vr WHERE vr.vente_id IN (SELECT p.lg_PREENREGISTREMENT_ID" + PERIMETRE_VENTES
+            + ")";
+    /**
+     * Les produits commandes pendant la garde (H3) : lignes de commande creees dans la fenetre, cumulees par produit.
+     */
+    private static final String SQL_COMMANDES = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, SUM(d.int_NUMBER)"
+            + " FROM t_order_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+            + " WHERE d.dt_CREATED >= ?1 AND d.dt_CREATED <= ?2 AND IFNULL(d.str_STATUT, '') <> 'delete'"
+            + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY f.str_NAME";
+    /** Les ventes ratees enregistrees pendant la garde. */
+    private static final String SQL_RATES = "SELECT COUNT(*) FROM t_vente_ratee v"
+            + " WHERE v.dt_CREATED >= ?1 AND v.dt_CREATED <= ?2 AND v.str_STATUT = 'enable'";
+
+    @javax.ejb.EJB
+    private rest.service.SessionHelperService sessionHelperService;
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -127,11 +175,16 @@ public class GardeServiceImpl implements GardeService {
             Query q = em.createNativeQuery(SQL_LIGNES);
             q.setParameter(1, java.sql.Timestamp.valueOf(debut));
             q.setParameter(2, java.sql.Timestamp.valueOf(fin));
+            q.setParameter(3, emplacementCourant());
             List<GardeVenteLigneDTO> lignes = new ArrayList<>();
             for (Object ligne : q.getResultList()) {
                 Object[] c = (Object[]) ligne;
-                lignes.add(new GardeVenteLigneDTO(texte(c[0]), texte(c[1]), texte(c[2]), texte(c[3]), instant(c[4]),
-                        entier(c[5]), entier(c[6])));
+                GardeVenteLigneDTO lue = new GardeVenteLigneDTO(texte(c[0]), texte(c[1]), texte(c[2]), texte(c[3]),
+                        instant(c[4]), entier(c[5]), entier(c[6]), entier(c[7]), entier(c[8]), entier(c[9]));
+                lue.setClientId(texte(c[10]));
+                lue.setVendeur(texte(c[11]), texte(c[12]));
+                lue.setRattachements(texte(c[13]), texte(c[14]), texte(c[15]));
+                lignes.add(lue);
             }
             return lignes;
         } catch (Exception e) {
@@ -145,8 +198,166 @@ public class GardeServiceImpl implements GardeService {
         if (garde == null) {
             return Collections.emptyList();
         }
-        return AnalyseGarde.tranches(garde.getDateDebut(), garde.getDateFin(),
-                lignesDeVente(garde.getDateDebut(), garde.getDateFin()), heuresParTranche);
+        /*
+         * Retour du 08/09 : les tranches sont des heures du jour, cumulees sur toute la periode. Les tranches
+         * consecutives repetaient sept fois les memes heures sur une garde d'une semaine, et ne servaient a rien.
+         */
+        return AnalyseGarde.tranchesParHeureDuJour(lignesDeVente(garde.getDateDebut(), garde.getDateFin()),
+                heuresParTranche, garde.getDateDebut(), garde.getDateFin());
+    }
+
+    @Override
+    public List<GardeVendeurDTO> vendeurs(Garde garde) {
+        if (garde == null) {
+            return Collections.emptyList();
+        }
+        return AnalyseGarde.vendeurs(lignesDeVente(garde.getDateDebut(), garde.getDateFin()));
+    }
+
+    @Override
+    public List<GardeVendeurDTO> vendeurs(List<Garde> gardes) {
+        return AnalyseGarde.vendeurs(lignesDe(gardes));
+    }
+
+    @Override
+    public List<GardeTrancheDTO> tranches(List<Garde> gardes, int heuresParTranche) {
+        List<GardeTrancheDTO> cumul = AnalyseGarde.tranchesParHeureDuJour(lignesDe(gardes), heuresParTranche);
+        // Les heures tenues s'additionnent garde par garde : c'est sur elles que les clients se repartissent.
+        for (Garde g : gardes == null ? Collections.<Garde> emptyList() : gardes) {
+            if (g == null) {
+                continue;
+            }
+            List<GardeTrancheDTO> seule = AnalyseGarde.tranchesParHeureDuJour(Collections.emptyList(), heuresParTranche,
+                    g.getDateDebut(), g.getDateFin());
+            for (int t = 0; t < cumul.size() && t < seule.size(); t++) {
+                cumul.get(t).setHeuresCouvertes(cumul.get(t).getHeuresCouvertes() + seule.get(t).getHeuresCouvertes());
+            }
+        }
+        return cumul;
+    }
+
+    private List<GardeVenteLigneDTO> lignesDe(List<Garde> gardes) {
+        List<GardeVenteLigneDTO> lignes = new ArrayList<>();
+        for (Garde g : gardes == null ? Collections.<Garde> emptyList() : gardes) {
+            if (g != null) {
+                lignes.addAll(lignesDeVente(g.getDateDebut(), g.getDateFin()));
+            }
+        }
+        return lignes;
+    }
+
+    @Override
+    public List<GardeCommandeDTO> commandes(Garde garde) {
+        if (garde == null || garde.getDateDebut() == null || garde.getDateFin() == null) {
+            return Collections.emptyList();
+        }
+        List<GardeCommandeDTO> commandes = new ArrayList<>();
+        try {
+            for (Object[] c : lignesBrutes(SQL_COMMANDES, garde.getDateDebut(), garde.getDateFin())) {
+                commandes.add(new GardeCommandeDTO(texte(c[0]), texte(c[1]), texte(c[2]), entier(c[3])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "commandes de la garde", e);
+        }
+        return AnalyseGarde.commandesRapprochees(commandes, lignesDeVente(garde.getDateDebut(), garde.getDateFin()));
+    }
+
+    @Override
+    public java.util.Map<String, Long> quantitesVendues(Garde garde) {
+        java.util.Map<String, Long> quantites = new java.util.LinkedHashMap<>();
+        if (garde == null) {
+            return quantites;
+        }
+        for (GardeVenteLigneDTO ligne : lignesDeVente(garde.getDateDebut(), garde.getDateFin())) {
+            quantites.merge(ligne.getProduitId(), ligne.getQuantite(), Long::sum);
+        }
+        return quantites;
+    }
+
+    @Override
+    public GardeKpiDTO kpi(Garde garde) {
+        if (garde == null || garde.getDateDebut() == null || garde.getDateFin() == null) {
+            return AnalyseGarde.kpi(null, null, null, 0);
+        }
+        LocalDateTime debut = garde.getDateDebut();
+        LocalDateTime fin = garde.getDateFin();
+        AnalyseGarde.Indicateurs i = AnalyseGarde.indicateurs(debut, fin, lignesDeVente(debut, fin));
+        List<GardeVenteDTO> ventes = new ArrayList<>();
+        List<GardeReglementDTO> reglements = new ArrayList<>();
+        int rates = 0;
+        try {
+            for (Object[] c : lignesBrutes(SQL_VENTES, debut, fin)) {
+                ventes.add(new GardeVenteDTO(texte(c[0]), texte(c[1]), texte(c[2]), entier(c[3]), entier(c[4])));
+            }
+            for (Object[] c : lignesBrutes(SQL_REGLEMENTS, debut, fin)) {
+                reglements.add(new GardeReglementDTO(texte(c[0]), texte(c[1]), entier(c[2])));
+            }
+            Query q = em.createNativeQuery(SQL_RATES);
+            q.setParameter(1, java.sql.Timestamp.valueOf(debut));
+            q.setParameter(2, java.sql.Timestamp.valueOf(fin));
+            rates = (int) entier(q.getSingleResult());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "indicateurs de la garde", e);
+        }
+        return AnalyseGarde.kpi(i, ventes, reglements, rates);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object[]> lignesBrutes(String sql, LocalDateTime debut, LocalDateTime fin) {
+        Query q = em.createNativeQuery(sql);
+        q.setParameter(1, java.sql.Timestamp.valueOf(debut));
+        q.setParameter(2, java.sql.Timestamp.valueOf(fin));
+        if (sql.contains("?3")) {
+            q.setParameter(3, emplacementCourant());
+        }
+        return q.getResultList();
+    }
+
+    /** L'emplacement de l'utilisateur connecte : le meme que celui de la balance et de l'ecran ABC. */
+    private String emplacementCourant() {
+        try {
+            dal.TUser utilisateur = sessionHelperService.getCurrentUser();
+            if (utilisateur != null && utilisateur.getLgEMPLACEMENTID() != null) {
+                return utilisateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "emplacement de l'utilisateur courant", e);
+        }
+        return "";
+    }
+
+    @Override
+    public List<Garde> lister(Integer annee) {
+        if (annee == null) {
+            return lister();
+        }
+        TypedQuery<Garde> q = em.createQuery("SELECT g FROM Garde g WHERE g.dateDebut >= :debut"
+                + " AND g.dateDebut < :fin ORDER BY g.dateDebut DESC", Garde.class);
+        q.setParameter("debut", LocalDateTime.of(annee, 1, 1, 0, 0));
+        q.setParameter("fin", LocalDateTime.of(annee + 1, 1, 1, 0, 0));
+        return q.getResultList();
+    }
+
+    @Override
+    public List<Integer> annees() {
+        List<Integer> annees = new ArrayList<>();
+        for (Garde g : lister()) {
+            if (g.getDateDebut() != null && !annees.contains(g.getDateDebut().getYear())) {
+                annees.add(g.getDateDebut().getYear());
+            }
+        }
+        return annees;
+    }
+
+    @Override
+    public int supprimer(List<String> ids) {
+        int supprimees = 0;
+        for (String id : ids == null ? Collections.<String> emptyList() : ids) {
+            if (supprimer(id)) {
+                supprimees++;
+            }
+        }
+        return supprimees;
     }
 
     @Override
@@ -154,8 +365,46 @@ public class GardeServiceImpl implements GardeService {
         if (garde == null) {
             return Collections.emptyList();
         }
-        return AnalyseGarde.classifierAbc(lignesDeVente(garde.getDateDebut(), garde.getDateFin()),
-                seuil("A", AnalyseGarde.SEUIL_A_DEFAUT), seuil("B", AnalyseGarde.SEUIL_B_DEFAUT));
+        List<GardeProduitDTO> produits = AnalyseGarde.classifierAbc(
+                lignesDeVente(garde.getDateDebut(), garde.getDateFin()), seuil("A", AnalyseGarde.SEUIL_A_DEFAUT),
+                seuil("B", AnalyseGarde.SEUIL_B_DEFAUT));
+        renseignerStock(produits);
+        return produits;
+    }
+
+    /**
+     * Le stock actuel de chaque produit (retour des tests du 09/09), lu la ou la fiche article le lit : le stock
+     * disponible de l'emplacement de l'utilisateur (t_famille_stock).
+     */
+    private void renseignerStock(List<GardeProduitDTO> produits) {
+        if (produits == null || produits.isEmpty()) {
+            return;
+        }
+        try {
+            java.util.Map<String, Long> stocks = new java.util.HashMap<>();
+            List<String> ids = new ArrayList<>();
+            for (GardeProduitDTO p : produits) {
+                ids.add(p.getProduitId());
+            }
+            for (int debut = 0; debut < ids.size(); debut += 500) {
+                List<String> tranche = ids.subList(debut, Math.min(ids.size(), debut + 500));
+                // Retour des tests du 09/09 : le stock est celui de la fiche article (t_famille_stock, stock
+                // disponible de l'emplacement), pas le stock « type 2 » qui vaut zero chez l'officine.
+                Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER_AVAILABLE),0)"
+                        + " FROM t_famille_stock t WHERE t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids)"
+                        + " GROUP BY t.lg_FAMILLE_ID");
+                q.setParameter("empl", emplacementCourant()).setParameter("ids", tranche);
+                for (Object ligne : q.getResultList()) {
+                    Object[] c = (Object[]) ligne;
+                    stocks.put(texte(c[0]), entier(c[1]));
+                }
+            }
+            for (GardeProduitDTO p : produits) {
+                p.setStock(stocks.getOrDefault(p.getProduitId(), 0L));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stock des produits de la garde", e);
+        }
     }
 
     /**

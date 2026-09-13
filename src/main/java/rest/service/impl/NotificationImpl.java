@@ -300,14 +300,18 @@ public class NotificationImpl implements NotificationService {
             MimeMessage msg = new MimeMessage(session);
             List<Address> listadd = new ArrayList<>();
 
-            var email = sp.mailOfficine;
-
-            String[] emails = email.split(";");
-            for (String email1 : emails) {
-                if (StringUtils.isNotBlank(email)) {
-                    listadd.add(new InternetAddress(email1));
-                }
-
+            // Sans adresse d'officine configuree (cle usermail absente ou vide), il n'y a rien a
+            // envoyer : on le dit et on rend la main. Les notifications restent en attente et
+            // partiront des que l'adresse sera renseignee. Avant, une cle absente levait une
+            // NullPointerException a chaque demarrage.
+            List<String> adresses = util.AdressesMail.destinataires(sp.mailOfficine);
+            if (adresses.isEmpty()) {
+                LOG.log(Level.WARNING,
+                        "Aucune adresse mail d'officine configuree (cle usermail) : envoi des notifications ignore.");
+                return false;
+            }
+            for (String adresse : adresses) {
+                listadd.add(new InternetAddress(adresse));
             }
 
             Address[] recipient = new InternetAddress[listadd.size()];

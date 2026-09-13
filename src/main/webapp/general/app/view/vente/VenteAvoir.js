@@ -200,7 +200,13 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                         {xtype: 'selecteurgarde'}, '-',
                         {text: 'rechercher', tooltip: 'rechercher', itemId: 'rechercher', scope: this, iconCls: 'searchicon'},
                         '-',
-                        {text: 'Imprimer', tooltip: 'imprimer', scope: this, itemId: 'printPdf', iconCls: 'printable'}
+                        {text: 'Imprimer', tooltip: 'imprimer', scope: this, itemId: 'printPdf', iconCls: 'printable'},
+                        '-',
+                        // Retours des tests du 12/09 (point 6) : la liste s'exporte et s'inventorie
+                        {text: 'Exporter en excel', tooltip: 'Exporter la liste affichée (filtres actifs) en Excel',
+                            itemId: 'exporterExcel', iconCls: 'excel'},
+                        {text: 'Créer un inventaire', tooltip: 'Inventaire des produits des avoirs affichés',
+                            itemId: 'creerInventaire', iconCls: 'icon-grid'}
                     ]
                 }],
             items: [{
