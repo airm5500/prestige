@@ -20,3 +20,7 @@ src/main/resources/build.properties
 # tout etat demandant « Arial » echoue avec JRFontNotFoundException et aucun PDF n'est produit.
 !src/main/resources/jasperreports_extension.properties
 *.md
+# Exception a la regle ci-dessus. Les fiches d'incident gardent la trace des pannes traitees
+# en production : symptome, mesures, cause, remede et ce qui a ete ecarte. Elles evitent de
+# refaire deux fois le meme diagnostic.
+!docs/incidents/*.md
