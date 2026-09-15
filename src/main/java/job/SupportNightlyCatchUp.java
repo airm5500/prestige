@@ -69,6 +69,9 @@ public class SupportNightlyCatchUp {
     @EJB
     private StockSnapshotPurgeScheduler stockSnapshotPurgeScheduler;
 
+    @EJB
+    private ValorisationPdfScheduler valorisationPdfScheduler;
+
     @PostConstruct
     public void planifier() {
         try {
@@ -107,6 +110,18 @@ public class SupportNightlyCatchUp {
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "rattrapage ventes en attente", e);
+        }
+        try {
+            // Archivage PDF de la valorisation : l'officine qui n'allume son serveur que dans la journee
+            // n'atteint jamais 01:20 et n'aurait jamais aucune valorisation archivee. Le rattrapage ne
+            // reecrit pas un fichier deja present, et ne fait rien hors des jours d'archivage.
+            if (aBesoinDeRattrapage("VALORISATION_PDF")) {
+                LOG.info("Rattrapage au demarrage : archivage PDF de la valorisation"
+                        + " (le job de 01:20 n'a pas tourne)");
+                valorisationPdfScheduler.rattraperAuDemarrage();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rattrapage archivage valorisation PDF", e);
         }
         try {
             if (aBesoinDeRattrapage("PURGE_VALORISATION")) {
