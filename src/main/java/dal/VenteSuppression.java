@@ -52,6 +52,16 @@ public class VenteSuppression implements Serializable {
     @Column(name = "user_name", length = 150)
     private String userName;
     @NotNull
+    /**
+     * Utilisateur qui a initie la vente, distinct de l'auteur de la suppression ({@link #userId}). Pour les ventes
+     * abandonnees supprimees automatiquement a minuit, l'auteur vaut « Systeme » : sans ces deux colonnes, la trace ne
+     * dirait plus qui avait ouvert la vente.
+     */
+    @Column(name = "origine_user_id", length = 50)
+    private String origineUserId;
+    @Column(name = "origine_user_name", length = 150)
+    private String origineUserName;
+
     @Column(name = "mvt_date", nullable = false)
     private LocalDateTime mvtDate = LocalDateTime.now();
 
@@ -133,6 +143,22 @@ public class VenteSuppression implements Serializable {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public String getOrigineUserId() {
+        return origineUserId;
+    }
+
+    public void setOrigineUserId(String origineUserId) {
+        this.origineUserId = origineUserId;
+    }
+
+    public String getOrigineUserName() {
+        return origineUserName;
+    }
+
+    public void setOrigineUserName(String origineUserName) {
+        this.origineUserName = origineUserName;
     }
 
     public LocalDateTime getMvtDate() {

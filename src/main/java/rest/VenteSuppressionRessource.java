@@ -105,7 +105,8 @@ public class VenteSuppressionRessource {
         }
         java.util.List<VenteSuppressionDTO> data = venteSuppressionService.fetchAll(dtStart, dtEnd, userId, query,
                 type);
-        String[] entetes = { "Date", "Heure", "Vente", "CIP", "Produit", "Qte", "Utilisateur", "Type" };
+        String[] entetes = { "Date", "Heure", "Vente", "CIP", "Produit", "Qte", "Supprime par", "Vente ouverte par",
+                "Type" };
         byte[] bytes = reportExcelExportService.createExcelReport("Suppressions de vente", entetes, data, (row, o) -> {
             int col = 0;
             row.createCell(col++).setCellValue(StringUtils.defaultString(o.getDate()));
@@ -115,6 +116,7 @@ public class VenteSuppressionRessource {
             row.createCell(col++).setCellValue(StringUtils.defaultString(o.getProduitLibelle()));
             row.createCell(col++).setCellValue(o.getQuantite() == null ? 0 : o.getQuantite());
             row.createCell(col++).setCellValue(StringUtils.defaultString(o.getUserName()));
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getOrigineUserName()));
             row.createCell(col)
                     .setCellValue("VENTE".equals(o.getTypeSuppression()) ? "Vente abandonnee" : "Produit retire");
         });

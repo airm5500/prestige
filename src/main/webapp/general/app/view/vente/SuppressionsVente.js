@@ -31,7 +31,7 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
 
         me.suppressionStore = new Ext.data.Store({
             fields: ['id', 'typeSuppression', 'venteId', 'venteRef', 'produitId',
-                'produitCip', 'produitLibelle', 'quantite', 'userName', 'date', 'heure'],
+                'produitCip', 'produitLibelle', 'quantite', 'userName', 'origineUserName', 'date', 'heure'],
             pageSize: 20,
             autoLoad: false,
             proxy: {
@@ -193,7 +193,16 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
                         {header: 'CIP', dataIndex: 'produitCip', width: 80},
                         {header: 'Produit', dataIndex: 'produitLibelle', flex: 2},
                         {header: 'Qte', dataIndex: 'quantite', width: 55, align: 'right'},
-                        {header: 'Utilisateur', dataIndex: 'userName', flex: 1},
+                        {header: 'Supprimé par', dataIndex: 'userName', flex: 1},
+                        {
+                            // Pour les ventes abandonnees supprimees a minuit, « Supprime par » vaut
+                            // « Systeme » : cette colonne dit qui avait ouvert la vente. Vide pour les
+                            // lignes tracees avant l'ajout, la vente n'etant plus lisible.
+                            header: 'Vente ouverte par', dataIndex: 'origineUserName', flex: 1,
+                            renderer: function (v) {
+                                return v ? v : '<span style="color:#999">—</span>';
+                            }
+                        },
                         {
                             header: 'Type', dataIndex: 'typeSuppression', width: 110,
                             renderer: function (v) {

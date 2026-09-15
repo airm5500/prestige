@@ -107,6 +107,13 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
             suppression.setVenteId(vente.getLgPREENREGISTREMENTID());
             suppression.setVenteRef(
                     StringUtils.isNotEmpty(vente.getStrREF()) ? vente.getStrREF() : vente.getStrREFTICKET());
+            // Utilisateur d'origine : celui qui a ouvert la vente. Renseigne sur les deux chemins, la
+            // suppression manuelle pouvant elle aussi porter sur la vente d'un autre operateur.
+            TUser origine = utilisateurOrigine(vente);
+            if (origine != null) {
+                suppression.setOrigineUserId(origine.getLgUSERID());
+                suppression.setOrigineUserName(nom(origine));
+            }
         }
         if (detail != null) {
             TFamille famille = detail.getLgFAMILLEID();
@@ -119,7 +126,7 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
         }
         if (user != null) {
             suppression.setUserId(user.getLgUSERID());
-            suppression.setUserName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
+            suppression.setUserName(nom(user));
         }
         suppression.setMvtDate(LocalDateTime.now());
         return suppression;
@@ -154,6 +161,24 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
                 .filter(StringUtils::isNotEmpty).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    /**
+     * Qui a initie la vente. lg_USER_ID est l'operateur qui l'a ouverte ; a defaut on retombe sur le vendeur puis sur
+     * le caissier, pour ne pas laisser la trace vide quand seule l'une des trois colonnes est posee.
+     */
+    static TUser utilisateurOrigine(TPreenregistrement vente) { // visible pour le test unitaire
+        if (vente.getLgUSERID() != null) {
+            return vente.getLgUSERID();
+        }
+        if (vente.getLgUSERVENDEURID() != null) {
+            return vente.getLgUSERVENDEURID();
+        }
+        return vente.getLgUSERCAISSIERID();
+    }
+
+    private static String nom(TUser user) {
+        return StringUtils.trimToEmpty(user.getStrFIRSTNAME()) + " " + StringUtils.trimToEmpty(user.getStrLASTNAME());
+    }
+
     private VenteSuppressionDTO toDto(VenteSuppression suppression) {
         VenteSuppressionDTO dto = new VenteSuppressionDTO();
         dto.setId(suppression.getId());
@@ -165,6 +190,7 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
         dto.setProduitLibelle(suppression.getProduitLibelle());
         dto.setQuantite(suppression.getQuantite());
         dto.setUserName(suppression.getUserName());
+        dto.setOrigineUserName(suppression.getOrigineUserName());
         if (suppression.getMvtDate() != null) {
             dto.setDate(suppression.getMvtDate().format(DATE_FORMAT));
             dto.setHeure(suppression.getMvtDate().format(HEURE_FORMAT));

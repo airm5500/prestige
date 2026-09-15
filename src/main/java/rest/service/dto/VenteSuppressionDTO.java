@@ -14,6 +14,8 @@ public class VenteSuppressionDTO {
     private String produitLibelle;
     private Integer quantite;
     private String userName;
+    /** Utilisateur qui a initie la vente, distinct de l'auteur de la suppression (« Systeme » a minuit). */
+    private String origineUserName;
     private String date;
     private String heure;
 
@@ -87,6 +89,14 @@ public class VenteSuppressionDTO {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public String getOrigineUserName() {
+        return origineUserName;
+    }
+
+    public void setOrigineUserName(String origineUserName) {
+        this.origineUserName = origineUserName;
     }
 
     public String getDate() {
