@@ -35,6 +35,21 @@ Ext.define('testextjs.controller.ArticleMvtController', {
             },
             'articlemvtgrid button[itemId=btnCreateInventaire]': {
                 click: me.onCreateInventaireFromSelection
+            },
+            'articlemvtgrid button[itemId=btnCreateInventaireListe]': {
+                click: me.onCreateInventaireFromListe
+            },
+            'articlemvtgrid button[itemId=btnExportExcel]': {
+                click: me.onExportExcel
+            },
+            'articlemvtgrid combobox[itemId=filtreTypeMvt]': {
+                select: me.onFiltreChange
+            },
+            'articlemvtgrid combobox[itemId=filtreEmplacement]': {
+                select: me.onFiltreChange
+            },
+            'articlemvtgrid combobox[itemId=filtreFamille]': {
+                select: me.onFiltreChange
             }
         });
     },
@@ -63,6 +78,76 @@ Ext.define('testextjs.controller.ArticleMvtController', {
             }
         }
         btn.setDisabled(!hasAny);
+    },
+
+    // Valeur d'un combo de filtre : null/'ALL' signifient "pas de filtre".
+    valeurFiltre: function (grid, itemId) {
+        var c = grid.down('combobox[itemId=' + itemId + ']');
+        var v = c ? c.getValue() : null;
+        return (!v || v === 'ALL') ? '' : v;
+    },
+
+    // Criteres courants de l'ecran, partages par la liste, l'export et les
+    // creations d'inventaire : les trois portent ainsi toujours sur le meme perimetre.
+    criteres: function (grid) {
+        var q = grid.down('textfield[itemId=queryField]');
+        var d1 = grid.down('datefield[itemId=dtStart]');
+        var d2 = grid.down('datefield[itemId=dtEnd]');
+
+        return {
+            query: q ? (q.getValue() || '').trim() : '',
+            dtStart: (d1 && d1.getSubmitValue) ? (d1.getSubmitValue() || '') : '',
+            dtEnd: (d2 && d2.getSubmitValue) ? (d2.getSubmitValue() || '') : '',
+            typeMvt: this.valeurFiltre(grid, 'filtreTypeMvt'),
+            emplacementId: this.valeurFiltre(grid, 'filtreEmplacement'),
+            familleId: this.valeurFiltre(grid, 'filtreFamille')
+        };
+    },
+
+    // Reporte les criteres sur le proxy du store (une seule source de verite).
+    appliquerCriteres: function (grid) {
+        var c = this.criteres(grid);
+        var proxy = grid.getStore().getProxy();
+        proxy.extraParams = Ext.apply(proxy.extraParams || {}, c);
+        return c;
+    },
+
+    champsPresents: function (grid) {
+        var ok = grid.down('textfield[itemId=queryField]') && grid.down('datefield[itemId=dtStart]')
+                && grid.down('datefield[itemId=dtEnd]');
+        if (!ok) {
+            Ext.Msg.alert('Erreur', 'Champs de recherche introuvables dans la barre d’outils.');
+        }
+        return !!ok;
+    },
+
+    // Controle des bornes de periode, partage par la recherche, l'export et les
+    // creations d'inventaire : aucun de ces trois chemins ne doit partir sur une periode incoherente.
+    datesValides: function (grid) {
+        var d1 = grid.down('datefield[itemId=dtStart]');
+        var d2 = grid.down('datefield[itemId=dtEnd]');
+        var vStart = d1 ? d1.getValue() : null;
+        var vEnd = d2 ? d2.getValue() : null;
+
+        if (vStart && !vEnd) {
+            Ext.Msg.alert('Information', 'Veuillez renseigner la date de fin.', function () {
+                d2.focus(true, 100);
+            });
+            return false;
+        }
+        if (!vStart && vEnd) {
+            Ext.Msg.alert('Information', 'Veuillez renseigner la date de début.', function () {
+                d1.focus(true, 100);
+            });
+            return false;
+        }
+        if (vStart && vEnd && vStart > vEnd) {
+            Ext.Msg.alert('Information', 'La date de début ne peut pas être supérieure à la date de fin.', function () {
+                d1.focus(true, 100);
+            });
+            return false;
+        }
+        return true;
     },
 
     getIdFromRecord: function (rec) {
@@ -139,13 +224,7 @@ Ext.define('testextjs.controller.ArticleMvtController', {
         if (d1) { d1.setValue(today); }
         if (d2) { d2.setValue(today); }
 
-        var dtStart = d1 && d1.getSubmitValue ? d1.getSubmitValue() : '';
-        var dtEnd   = d2 && d2.getSubmitValue ? d2.getSubmitValue() : '';
-
-        store.getProxy().extraParams = store.getProxy().extraParams || {};
-        store.getProxy().extraParams.dtStart = dtStart;
-        store.getProxy().extraParams.dtEnd   = dtEnd;
-        store.getProxy().extraParams.query   = '';
+        me.appliquerCriteres(grid);
 
         // ✅ hooks store load => restaurer sélection + focus
         store.on('load', function () {
@@ -188,12 +267,17 @@ Ext.define('testextjs.controller.ArticleMvtController', {
         if (d1) { d1.setValue(null); }
         if (d2) { d2.setValue(null); }
 
+        // Les trois filtres repartent aussi à "Tous", sinon le résultat
+        // affiché après réinitialisation resterait restreint sans que rien ne le montre.
+        Ext.Array.each(['filtreTypeMvt', 'filtreEmplacement', 'filtreFamille'], function (itemId) {
+            var c = grid.down('combobox[itemId=' + itemId + ']');
+            if (c) { c.setValue(null); }
+        });
+
         me.clearSelectionMemory(grid);
 
         var store = grid.getStore();
-        store.getProxy().extraParams.query   = '';
-        store.getProxy().extraParams.dtStart = '';
-        store.getProxy().extraParams.dtEnd   = '';
+        me.appliquerCriteres(grid);
 
         store.loadPage(1);
         me.focusQueryField(grid);
@@ -208,50 +292,90 @@ Ext.define('testextjs.controller.ArticleMvtController', {
 
         if (!grid) { return; }
 
-        var q  = grid.down('textfield[itemId=queryField]');
-        var d1 = grid.down('datefield[itemId=dtStart]');
-        var d2 = grid.down('datefield[itemId=dtEnd]');
-
-        if (!q || !d1 || !d2) {
-            Ext.Msg.alert('Erreur', 'Champs de recherche introuvables dans la barre d’outils.');
+        if (!me.champsPresents(grid)) {
             return;
         }
 
-        var query  = (q.getValue() || '').trim();
-        var vStart = d1.getValue();
-        var vEnd   = d2.getValue();
-
-        // ✅ 2) contrôle dates + focus champ manquant
-        if (vStart && !vEnd) {
-            Ext.Msg.alert('Information', 'Veuillez renseigner la date de fin.', function () {
-                d2.focus(true, 100);
-            });
-            return;
-        }
-        if (!vStart && vEnd) {
-            Ext.Msg.alert('Information', 'Veuillez renseigner la date de début.', function () {
-                d1.focus(true, 100);
-            });
-            return;
-        }
-        if (vStart && vEnd && vStart > vEnd) {
-            Ext.Msg.alert('Information', 'La date de début ne peut pas être supérieure à la date de fin.', function () {
-                d1.focus(true, 100);
-            });
+        if (!me.datesValides(grid)) {
             return;
         }
 
-        var dtStart = d1.getSubmitValue ? d1.getSubmitValue() : '';
-        var dtEnd   = d2.getSubmitValue ? d2.getSubmitValue() : '';
-
-        var store = grid.getStore();
-        store.getProxy().extraParams.query   = query;
-        store.getProxy().extraParams.dtStart = dtStart || '';
-        store.getProxy().extraParams.dtEnd   = dtEnd || '';
-        store.loadPage(1);
+        me.appliquerCriteres(grid);
+        grid.getStore().loadPage(1);
 
         // ✅ ne PAS deselectAll() ici (sinon on casse la sélection multi-pages)
         me.focusQueryField(grid);
+    },
+
+    // Un changement de filtre relance la liste : sans cela l'utilisateur verrait
+    // un combo positionne et une grille qui ne lui correspond pas.
+    onFiltreChange: function (combo) {
+        var grid = combo.up('articlemvtgrid');
+        if (!grid) { return; }
+
+        this.appliquerCriteres(grid);
+        grid.getStore().loadPage(1);
+    },
+
+    onExportExcel: function (btn) {
+        var me = this;
+        var grid = btn.up('articlemvtgrid');
+        if (!grid || !me.datesValides(grid)) { return; }
+
+        var c = me.criteres(grid);
+        // Ouverture directe de l'URL : le navigateur telecharge le fichier,
+        // aucune fenetre intermediaire n'est affichee.
+        window.open('../api/v1/articlemvt/export?' + Ext.Object.toQueryString(c), '_self');
+    },
+
+    // Inventaire de toute la liste filtree : c'est le parcours "je choisis un mode
+    // de mouvement et j'inventorie tout ce qui a bouge ainsi", sans cocher page par page.
+    onCreateInventaireFromListe: function (btn) {
+        var me = this;
+        var grid = btn.up('articlemvtgrid');
+        if (!grid || !me.datesValides(grid)) { return; }
+
+        var c = me.criteres(grid);
+        var total = grid.getStore().getTotalCount() || 0;
+
+        if (total === 0) {
+            Ext.Msg.alert('Information', 'La liste est vide : il n\'y a rien à inventorier.');
+            return;
+        }
+
+        var mode = grid.down('combobox[itemId=filtreTypeMvt]');
+        var libelleMode = (mode && mode.getRawValue && c.typeMvt) ? mode.getRawValue() : 'tous modes confondus';
+
+        Ext.Msg.confirm('Confirmation',
+                'Créer un inventaire avec les ' + total + ' article(s) de la liste (' + libelleMode + ') ?',
+                function (choice) {
+                    if (choice !== 'yes') { return; }
+
+                    var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création de l\'inventaire');
+
+                    Ext.Ajax.request({
+                        url: '../api/v1/articlemvt/inventaire-liste',
+                        method: 'GET',
+                        params: c,
+                        timeout: 300000,
+                        success: function (response) {
+                            progress.hide();
+
+                            var result = Ext.decode(response.responseText, true) || {};
+                            Ext.Msg.alert(result.success ? 'Succès' : 'Information',
+                                    result.message || 'Opération non réalisée.');
+
+                            if (result.success) {
+                                me.clearSelectionMemory(grid);
+                            }
+                            grid.getStore().reload();
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.Msg.alert('Erreur', 'Impossible de créer l’inventaire. Vérifiez les logs serveur.');
+                        }
+                    });
+                });
     },
 
     onCreateInventaireFromSelection: function (btn) {

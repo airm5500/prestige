@@ -22,7 +22,11 @@ Ext.define('testextjs.store.ArticleMvtStore', {
         extraParams: {
             query: '',
             dtStart: '',
-            dtEnd: ''
+            dtEnd: '',
+            // Vide = pas de filtre (le serveur traite de la meme facon la valeur 'ALL').
+            typeMvt: '',
+            emplacementId: '',
+            familleId: ''
         },
 
         timeout: 120000
