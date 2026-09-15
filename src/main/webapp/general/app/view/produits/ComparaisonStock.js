@@ -49,6 +49,9 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
                 {name: 'filterId', type: 'string'},
                 {name: 'filterLibelle', type: 'string'},
                 {name: 'stock', type: 'number'},
+                // Le stock historique est le stock RAYON ; la reserve s'y ajoute, le total est leur somme.
+                {name: 'stockReserve', type: 'number'},
+                {name: 'stockTotal', type: 'number'},
                 {name: 'prixAchat', type: 'number'},
                 {name: 'prixVente', type: 'number'},
                 {name: 'codeGrossiste', type: 'string'},
@@ -405,12 +408,35 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
 
                         },
                         {
-                            header: 'Qté.Stock',
+                            // Anciennement « Qte.Stock » : c'etait deja le stock du rayon, le libelle
+                            // le dit maintenant puisque la reserve figure a cote.
+                            header: 'Qté.Rayon',
                             dataIndex: 'stock',
                             align: 'right',
                             flex: 0.5,
                             renderer: function (v) {
                                 return Ext.util.Format.number(v, '0,000.');
+                            }
+
+                        },
+                        {
+                            header: 'Qté.Réserve',
+                            dataIndex: 'stockReserve',
+                            align: 'right',
+                            flex: 0.5,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }
+
+                        },
+                        {
+                            header: 'Qté.Totale',
+                            dataIndex: 'stockTotal',
+                            align: 'right',
+                            flex: 0.5,
+                            cls: 'colonne-total',
+                            renderer: function (v) {
+                                return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
                             }
 
                         },

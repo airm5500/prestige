@@ -52,7 +52,8 @@ public class EtatStockRessource {
     private static final DateTimeFormatter FMT_NOM = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter FMT_FICHIER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final String[] ENTETES_EXPORT = new String[] { "CIP", "Designation", "TVA", "Fournisseur",
-            "Seuil reappro", "Prix vente TTC", "Prix achat HT", "Code emplacement", "Stock" };
+            "Seuil reappro", "Prix vente TTC", "Prix achat HT", "Code emplacement", "Stock rayon", "Stock reserve",
+            "Stock total" };
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -261,7 +262,11 @@ public class EtatStockRessource {
                 row.optString("str_CODE_TVA", ""), row.optString("lg_GROSSISTE_ID", ""),
                 row.optString("int_STOCK_REAPROVISONEMENT", ""), row.optString("int_PRICE", ""),
                 row.optString("int_NUMBER_ENTREE", ""), row.optString("CODEEMPLACEMENT", ""),
-                row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER", "") : "" };
+                // Les trois quantites suivent le meme masquage que la grille : le parametre
+                // AFFICHER_STOCK cache le stock a l'utilisateur, l'export ne doit pas le contourner.
+                row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER", "") : "",
+                row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER_RESERVE", "") : "",
+                row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER_TOTAL", "") : "" };
     }
 
     /** Export CSV du resultat de la recherche en cours. */

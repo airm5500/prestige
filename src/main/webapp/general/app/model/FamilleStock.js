@@ -34,6 +34,15 @@ Ext.define('testextjs.model.FamilleStock', {
             type: 'int'
         },
         {
+            // int_NUMBER porte le stock RAYON ; la reserve s'y ajoute, le total est leur somme.
+            name: 'int_NUMBER_RESERVE',
+            type: 'int'
+        },
+        {
+            name: 'int_NUMBER_TOTAL',
+            type: 'int'
+        },
+        {
             name: 'int_STOCK_REAPROVISONEMENT',
             type: 'int'
         },

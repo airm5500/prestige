@@ -255,20 +255,30 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                     }
 
                 }, {
-                    header: 'Stock',
+                    // Anciennement « Stock » : c'etait deja le stock du rayon, le libelle le dit
+                    // maintenant puisque la reserve figure a cote.
+                    header: 'Stock rayon',
                     dataIndex: 'int_NUMBER',
-//                    renderer: amountformat,
                     align: 'right',
                     flex: 0.5,
                     renderer: function (v, m, r) {
-                        var afficherStock = r.data.afficherStock;
-                        if (afficherStock) {
-                            return v;
-
-                        } else {
-                            return '';
-                        }
-
+                        return r.data.afficherStock ? v : '';
+                    }
+                }, {
+                    header: 'Stock réserve',
+                    dataIndex: 'int_NUMBER_RESERVE',
+                    align: 'right',
+                    flex: 0.5,
+                    renderer: function (v, m, r) {
+                        return r.data.afficherStock ? v : '';
+                    }
+                }, {
+                    header: 'Stock total',
+                    dataIndex: 'int_NUMBER_TOTAL',
+                    align: 'right',
+                    flex: 0.5,
+                    renderer: function (v, m, r) {
+                        return r.data.afficherStock ? '<b>' + v + '</b>' : '';
                     }
                 }],
             selModel: {

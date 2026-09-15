@@ -32,6 +32,11 @@ public class ArticleDTO implements Serializable {
             consommationsTwo, cumulConso, consommationsThree, consommationUn, consommationsFour, consommationsFive,
             consommationsSix;
     private int stockUg;
+    /**
+     * Stock de reserve de l'article (t_type_stock_famille, type de stock 2). Le champ {@link #stock} porte le stock
+     * RAYON : les deux sont distincts, et leur somme est le stock total detenu sur l'emplacement.
+     */
+    private int stockReserve;
     private double coefficient;
     private String codeEan, datePeremption, rayonLibelle, codeEtiquette, tva, dateEntree, dateBon, familleLibelle,
             dateInventaire, lastDateVente;
@@ -343,6 +348,27 @@ public class ArticleDTO implements Serializable {
 
     public void setStockUg(int stockUg) {
         this.stockUg = stockUg;
+    }
+
+    public int getStockReserve() {
+        return stockReserve;
+    }
+
+    public void setStockReserve(int stockReserve) {
+        this.stockReserve = stockReserve;
+    }
+
+    public ArticleDTO stockReserve(int stockReserve) {
+        this.stockReserve = stockReserve;
+        return this;
+    }
+
+    /**
+     * Stock total detenu sur l'emplacement : rayon plus reserve. Calcule et non stocke, pour qu'il ne puisse jamais se
+     * desynchroniser des deux valeurs qui le composent.
+     */
+    public int getStockTotal() {
+        return stock + stockReserve;
     }
 
     public ArticleDTO stockUg(int stockUg) {

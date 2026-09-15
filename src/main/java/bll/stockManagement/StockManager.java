@@ -2420,6 +2420,11 @@ public class StockManager extends bllBase {
             }
             List<Object[]> list = q.getResultList();
             boolean afficherStock = findParametre("AFFICHER_STOCK");
+            // Stock de reserve de toutes les lignes en une requete : int_NUMBER porte le stock RAYON,
+            // la reserve s'y ajoute et le total est leur somme.
+            java.util.Map<String, Integer> reserves = stocksReserve(list.stream()
+                    .map(t -> t[0] == null ? "" : String.valueOf(t[0])).collect(java.util.stream.Collectors.toList()),
+                    lg_EMPLACEMENT_ID);
             list.forEach((t) -> {
 
                 try {
@@ -2430,8 +2435,12 @@ public class StockManager extends bllBase {
                     ob.put("str_NAME", t[1]);
                     ob.put("int_NUMBER_ENTREE", t[5]);
                     ob.put("int_PRICE", t[3]);
+                    int rayon = t[4] == null ? 0 : ((Number) t[4]).intValue();
+                    int reserve = reserves.getOrDefault(t[0] == null ? "" : String.valueOf(t[0]), 0);
                     if (afficherStock) {
                         ob.put("int_NUMBER", t[4]);
+                        ob.put("int_NUMBER_RESERVE", reserve);
+                        ob.put("int_NUMBER_TOTAL", rayon + reserve);
                     }
                     ob.put("int_STOCK_REAPROVISONEMENT", t[7]);
                     ob.put("CODEEMPLACEMENT", t[8]);
@@ -2452,6 +2461,60 @@ public class StockManager extends bllBase {
 
         return aray;
 
+    }
+
+    /** Type de stock « reserve » dans t_type_stock (1 = rayon, 2 = reserve, 3 = depot). */
+    private static final String TYPE_STOCK_RESERVE_ID = "2";
+
+    /** Au-dela, la clause IN est decoupee : une requete a plusieurs milliers de parametres est refusee. */
+    private static final int TAILLE_LOT_RESERVE = 500;
+
+    /**
+     * Stock de reserve des articles donnes, en UNE requete par lot de 500 plutot qu'une par article : l'etat de stock
+     * n'affiche que vingt lignes a la fois, mais son export en compte plusieurs milliers et une lecture par ligne y
+     * couterait plus cher que toute la requete principale.
+     *
+     * <p>
+     * Un article sans ligne de reserve ne figure pas dans le resultat : il vaut zero, ce qui est le cas de la grande
+     * majorite des articles d'une officine qui n'utilise pas la reserve.
+     * </p>
+     */
+    private java.util.Map<String, Integer> stocksReserve(java.util.Collection<String> articleIds,
+            String lgEMPLACEMENTID) {
+        java.util.Map<String, Integer> reserves = new java.util.HashMap<>();
+        java.util.List<String> ids = articleIds.stream().filter(x -> x != null && !x.isEmpty()).distinct()
+                .collect(java.util.stream.Collectors.toList());
+        for (int debut = 0; debut < ids.size(); debut += TAILLE_LOT_RESERVE) {
+            java.util.List<String> lot = ids.subList(debut, Math.min(debut + TAILLE_LOT_RESERVE, ids.size()));
+            try {
+                // Un parametre unique pour la clause IN ne convient pas : ce gestionnaire tourne sur
+                // EclipseLink, qui lie la collection telle quelle au lieu de l'eclater, et MariaDB refuse
+                // alors la requete. Les identifiants sont donc ecrits un par un, et restent des parametres lies.
+                StringBuilder places = new StringBuilder();
+                for (int i = 0; i < lot.size(); i++) {
+                    places.append(i == 0 ? "" : ", ").append('?').append(i + 3);
+                }
+                Query requete = this.getOdataManager().getEm()
+                        .createNativeQuery("SELECT t.lg_FAMILLE_ID, t.int_NUMBER FROM t_type_stock_famille t"
+                                + " WHERE t.lg_TYPE_STOCK_ID = ?1 AND t.lg_EMPLACEMENT_ID = ?2"
+                                + " AND t.str_STATUT = 'enable' AND t.lg_FAMILLE_ID IN (" + places + ")")
+                        .setParameter(1, TYPE_STOCK_RESERVE_ID).setParameter(2, lgEMPLACEMENTID);
+                for (int i = 0; i < lot.size(); i++) {
+                    requete.setParameter(i + 3, lot.get(i));
+                }
+                @SuppressWarnings("unchecked")
+                List<Object[]> lignes = requete.getResultList();
+                for (Object[] ligne : lignes) {
+                    if (ligne[0] != null) {
+                        reserves.put(String.valueOf(ligne[0]), ligne[1] == null ? 0 : ((Number) ligne[1]).intValue());
+                    }
+                }
+            } catch (Exception e) {
+                Logger.getLogger(StockManager.class.getName()).log(Level.WARNING,
+                        "Lecture du stock de reserve impossible, zero utilise", e);
+            }
+        }
+        return reserves;
     }
 
     private boolean findParametre(String id) {
