@@ -143,6 +143,10 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     name: 'createdAt',
                     type: 'string'
                 }, {
+                    // instant reel de la saisie, distinct de la date de reglement choisie
+                    name: 'dateCreation',
+                    type: 'string'
+                }, {
                     name: 'montantPayer',
                     type: 'number'
                 }
@@ -200,6 +204,10 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                 },
                 {
                     name: 'createdAt',
+                    type: 'string'
+                }, {
+                    // instant reel de la saisie, distinct de la date de reglement choisie
+                    name: 'dateCreation',
                     type: 'string'
                 }, {
                     name: 'montantPayer',
@@ -505,9 +513,15 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                             flex: 1
                                         },
                                         {
-                                            header: 'Date',
+                                            header: 'Date de règlement',
                                             dataIndex: 'createdAt',
-                                            flex: 0.5
+                                            flex: 0.6
+                                        }, {
+                                            // La date de reglement peut etre choisie par l'operateur : celle-ci
+                                            // dit quand la saisie a reellement eu lieu.
+                                            header: 'Saisi le',
+                                            dataIndex: 'dateCreation',
+                                            flex: 0.6
                                         }, {
                                             header: 'Montant versé',
                                             dataIndex: 'montantPaye',
@@ -668,9 +682,15 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                                             flex: 1
                                         },
                                         {
-                                            header: 'Date',
+                                            header: 'Date de règlement',
                                             dataIndex: 'createdAt',
-                                            flex: 0.5
+                                            flex: 0.6
+                                        }, {
+                                            // La date de reglement peut etre choisie par l'operateur : celle-ci
+                                            // dit quand la saisie a reellement eu lieu.
+                                            header: 'Saisi le',
+                                            dataIndex: 'dateCreation',
+                                            flex: 0.6
                                         }, {
                                             header: 'Montant versé',
                                             dataIndex: 'montantPaye',

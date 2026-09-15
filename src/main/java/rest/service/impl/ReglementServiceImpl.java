@@ -421,13 +421,19 @@ public class ReglementServiceImpl implements ReglementService {
         if (Objects.nonNull(reglementCarnetDTO.getMotifId()) && reglementCarnetDTO.getMotifId() != 0) {
             carnet.setMotifReglement(fromId(reglementCarnetDTO.getMotifId()));
         }
+        // createdAt porte la date de reglement : celle choisie par l'operateur si elle est renseignee, sinon
+        // maintenant. C'est elle qui alimente le dossier de reglement, le mouvement de caisse et le ticket.
+        // dateCreation, elle, garde l'instant reel de la saisie : sans quoi un reglement saisi aujourd'hui pour
+        // une date passee serait indiscernable d'un reglement saisi ce jour-la.
+        LocalDateTime maintenant = LocalDateTime.now();
         if (StringUtils.isNotEmpty(reglementCarnetDTO.getDateReglement())) {
             carnet.setCreatedAt(DateCommonUtils
                     .convertLocalDateToLocalDateTime(LocalDate.parse(reglementCarnetDTO.getDateReglement())));
 
         } else {
-            carnet.setCreatedAt(LocalDateTime.now());
+            carnet.setCreatedAt(maintenant);
         }
+        carnet.setDateCreation(maintenant);
         carnet.setTypeReglement(typeReglement);
 
         carnet.setUser(user);

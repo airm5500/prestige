@@ -504,7 +504,10 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
             return json.put("success", false).put("msg", "VEUILLEZ SAISIR UN MONTANT EGAL OU INFERIEUR AU SOLDE");
         }
         ReglementCarnet carnet = new ReglementCarnet();
-        carnet.setCreatedAt(LocalDateTime.now());
+        // Ce chemin ne propose pas de date : la date de reglement et l'instant de saisie coincident.
+        LocalDateTime maintenant = LocalDateTime.now();
+        carnet.setCreatedAt(maintenant);
+        carnet.setDateCreation(maintenant);
         carnet.setUser(user);
         carnet.setTiersPayant(payant);
         carnet.setDescription(reglementCarnetDTO.getDescription());

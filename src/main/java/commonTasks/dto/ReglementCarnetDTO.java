@@ -41,6 +41,11 @@ public class ReglementCarnetDTO {
     private String motifLibelle;
     private TypeReglementCarnet typeReglementCarnet;
     private String dateReglement;
+    /**
+     * Instant reel de la saisie, distinct de createdAt qui porte la date de reglement choisie : c'est ce qui permet de
+     * voir, dans l'ecran, qu'un reglement date d'il y a trois semaines a en fait ete saisi ce matin.
+     */
+    private String dateCreation;
     private Integer motifId;
     private String motif;
 
@@ -65,6 +70,14 @@ public class ReglementCarnetDTO {
 
     public void setMotifId(Integer motifId) {
         this.motifId = motifId;
+    }
+
+    public String getDateCreation() {
+        return dateCreation;
+    }
+
+    public void setDateCreation(String dateCreation) {
+        this.dateCreation = dateCreation;
     }
 
     public String getDateReglement() {
@@ -208,6 +221,8 @@ public class ReglementCarnetDTO {
         this.description = carnet.getDescription();
         this.reference = StringUtils.leftPad(carnet.getReference().toString(), 5, '0');
         this.created = carnet.getCreatedAt();
+        this.dateCreation = Objects.nonNull(carnet.getDateCreation())
+                ? carnet.getDateCreation().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")) : "";
         this.idDossier = carnet.getIdDossier();
         MotifReglement motifReglement = carnet.getMotifReglement();
         if (Objects.nonNull(motifReglement)) {

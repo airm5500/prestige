@@ -64,6 +64,13 @@ public class ReglementCarnet implements Serializable {
     private TTiersPayant tiersPayant;
     @Column(name = "createdAt", nullable = false)
     private LocalDateTime createdAt;
+    /**
+     * Instant reel de la saisie. Distinct de {@link #createdAt}, que la date de reglement choisie par l'operateur
+     * ecrase : sans cette colonne, un reglement saisi aujourd'hui pour une date passee etait indiscernable d'un
+     * reglement saisi ce jour-la. Positionne a la construction, jamais recalcule.
+     */
+    @Column(name = "date_creation")
+    private LocalDateTime dateCreation = LocalDateTime.now();
     @NotNull
     @Column(name = "reference", nullable = false)
     private Integer reference = 0;
@@ -185,6 +192,14 @@ public class ReglementCarnet implements Serializable {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getDateCreation() {
+        return dateCreation;
+    }
+
+    public void setDateCreation(LocalDateTime dateCreation) {
+        this.dateCreation = dateCreation;
     }
 
     @Override
