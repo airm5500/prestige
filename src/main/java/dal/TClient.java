@@ -69,6 +69,14 @@ public class TClient implements Serializable {
     private String strSEXE;
     @Column(name = "str_ADRESSE", length = 50)
     private String strADRESSE;
+    /**
+     * Numero de telephone, normalise au format local a dix chiffres par {@code util.TelephoneCi}. Pour les clients
+     * standards il est UNIQUE : la colonne generee {@code telephone_standard} ne retient le numero que pour ce type de
+     * client, et c'est elle que l'index unique contraint. Auparavant le numero etait range dans {@link #strADRESSE},
+     * champ partage avec les adresses reelles des autres types de clients.
+     */
+    @Column(name = "str_TELEPHONE", length = 30)
+    private String strTELEPHONE;
     @Column(name = "str_DOMICILE", length = 50)
     private String strDOMICILE;
     @Column(name = "str_AUTRE_ADRESSE", length = 50)
@@ -202,6 +210,14 @@ public class TClient implements Serializable {
 
     public void setStrSEXE(String strSEXE) {
         this.strSEXE = strSEXE;
+    }
+
+    public String getStrTELEPHONE() {
+        return strTELEPHONE;
+    }
+
+    public void setStrTELEPHONE(String strTELEPHONE) {
+        this.strTELEPHONE = strTELEPHONE;
     }
 
     public String getStrADRESSE() {

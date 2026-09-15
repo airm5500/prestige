@@ -225,6 +225,11 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     hidden: true, // colonne retiree pour elargir l'organisme
                     flex: 0.4
                 }, {
+                    // Pour un client standard, le numero est son seul identifiant : il est donc visible.
+                    header: 'Téléphone',
+                    dataIndex: 'str_TELEPHONE',
+                    flex: 0.7
+                }, {
                     header: 'Adresse',
                     dataIndex: 'str_ADRESSE',
                     hidden: true,
@@ -404,6 +409,15 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     scope: this,
                     iconCls: 'addicon',
                     handler: this.onAddClick
+                }, {
+                    // Creation allegee, a cote du formulaire complet qui ne change pas : un client
+                    // standard n'a besoin que de son nom, de ses prenoms et de son numero.
+                    text: 'Cr&eacute;er client standard',
+                    itemId: 'creerClientStandard',
+                    tooltip: 'Nom, pr&eacute;noms et num&eacute;ro de t&eacute;l&eacute;phone',
+                    scope: this,
+                    iconCls: 'addicon',
+                    handler: this.onAddStandardClick
                 }, '-', {
                     xtype: 'combobox',
                     fieldLabel: 'Type Client',
@@ -555,6 +569,13 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         var extension = "xls";
         window.location = '../MigrationServlet?table_name=TABLE_CLIENT' + "&extension=" + extension;
     },
+    /** Ouvre la fenetre de creation allegee d'un client standard. */
+    onAddStandardClick: function () {
+        new testextjs.view.configmanagement.client.action.addClientStandard({
+            parentview: this
+        });
+    },
+
     onAddClick: function () {
         new testextjs.view.configmanagement.client.action.addClientLast({
             odatasource: "",

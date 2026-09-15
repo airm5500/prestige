@@ -1844,7 +1844,10 @@ public class ClientServiceImpl implements ClientService {
             where.append(" AND (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1")
                     .append(" OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1")
                     .append(" OR CONCAT(t.strLASTNAME,' ',t.strFIRSTNAME) LIKE ?1")
-                    .append(" OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1)");
+                    .append(" OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1")
+                    // Le telephone est le seul identifiant d'un client standard : on doit pouvoir
+                    // le retrouver par son numero, saisi avec ou sans separateurs.
+                    .append(" OR t.strTELEPHONE LIKE ?1)");
         }
         if (StringUtils.isNotBlank(typeClientId)) {
             where.append(" AND t.lgTYPECLIENTID.lgTYPECLIENTID = ?3");
@@ -1864,6 +1867,39 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @SuppressWarnings("unchecked")
+    public String clientStandardPortantLeNumero(String telephoneLocal) {
+        if (StringUtils.isBlank(telephoneLocal)) {
+            return null;
+        }
+        try {
+            List<TClient> trouves = em
+                    .createQuery("SELECT t FROM TClient t WHERE t.strTELEPHONE = ?1"
+                            + " AND t.lgTYPECLIENTID.lgTYPECLIENTID = ?2", TClient.class)
+                    .setParameter(1, telephoneLocal).setParameter(2, ClientStandardSaisie.TYPE_CLIENT_STANDARD)
+                    .setMaxResults(1).getResultList();
+            if (trouves.isEmpty()) {
+                return null;
+            }
+            TClient c = trouves.get(0);
+            return (StringUtils.trimToEmpty(c.getStrFIRSTNAME()) + " " + StringUtils.trimToEmpty(c.getStrLASTNAME()))
+                    .trim();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "clientStandardPortantLeNumero", e);
+            return null;
+        }
+    }
+
+    @Override
+    public void enregistrerTelephone(String clientId, String telephoneLocal) {
+        TClient client = em.find(TClient.class, clientId);
+        if (client == null) {
+            return;
+        }
+        client.setStrTELEPHONE(StringUtils.trimToNull(telephoneLocal));
+        em.merge(client);
+    }
+
+    @Override
     public JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete,
             boolean btnDesactiver, int start, int limit) {
         JSONObject json = new JSONObject();
@@ -2016,6 +2052,7 @@ public class ClientServiceImpl implements ClientService {
                         toolkits.utils.date.DateToString(c.getDtNAISSANCE(), toolkits.utils.date.formatterShort));
                 row.put("str_SEXE", c.getStrSEXE());
                 row.put("str_ADRESSE", c.getStrADRESSE());
+                row.put("str_TELEPHONE", StringUtils.defaultString(c.getStrTELEPHONE()));
                 row.put("str_DOMICILE", c.getStrDOMICILE());
                 row.put("str_AUTRE_ADRESSE", c.getStrAUTREADRESSE());
                 row.put("str_CODE_POSTAL", c.getStrCODEPOSTAL());

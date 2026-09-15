@@ -516,6 +516,80 @@ public class ClientRessource {
                 .build();
     }
 
+    /**
+     * Creation d'un client standard : nom, prenoms et numero de telephone, rien d'autre. Le formulaire complet
+     * (assurance, carnet, ayants droit...) reste disponible par ailleurs et n'est pas modifie.
+     *
+     * <p>
+     * Le numero est normalise au format local a dix chiffres avant enregistrement, et il est UNIQUE parmi les clients
+     * standards : un numero deja porte est refuse en nommant le client qui le detient, de sorte que l'operateur
+     * retrouve la fiche existante au lieu d'en creer une seconde.
+     * </p>
+     */
+    @POST
+    @Path("gestion/create-standard")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response creerClientStandard(@FormParam("str_FIRST_NAME") String nom,
+            @FormParam("str_LAST_NAME") String prenoms, @FormParam("str_TELEPHONE") String telephone) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        rest.service.impl.ClientStandardSaisie saisie = rest.service.impl.ClientStandardSaisie.controler(nom, prenoms,
+                telephone);
+        if (!saisie.estValide()) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("errors", saisie.message())
+                    .put("champ", saisie.getTelephone().isEmpty() ? "str_TELEPHONE" : "str_FIRST_NAME").toString())
+                    .build();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String occupePar = clientService.clientStandardPortantLeNumero(saisie.getTelephone());
+            if (org.apache.commons.lang3.StringUtils.isNotBlank(occupePar)) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false).put("champ", "str_TELEPHONE")
+                                .put("errors",
+                                        "Ce numéro est déjà celui du client " + occupePar
+                                                + ". Retrouvez sa fiche plutôt que d'en créer une seconde.")
+                                .toString())
+                        .build();
+            }
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            clientManagement ocm = new clientManagement(odm, user);
+            // Meme chemin de creation que le formulaire complet : toutes les regles metier historiques
+            // s'appliquent (code interne genere, compte client cree). Seuls les champs utiles sont poses.
+            TCompteClient compte = ocm.createClient(saisie.getNom(), saisie.getPrenoms(), "", null, "", "", "", "", "",
+                    "", "", 0.0, 0.0, 0, rest.service.impl.ClientStandardSaisie.TYPE_CLIENT_STANDARD,
+                    CATEGORIE_AYANT_DROIT_DEFAUT, RISQUE_DEFAUT, "", 0, 1, "", 0.0, "", 0, false, null);
+            if (compte == null) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false)
+                                .put("errors", org.apache.commons.lang3.StringUtils.defaultIfBlank(
+                                        ocm.getDetailmessage(), "La création du client n'a pas abouti."))
+                                .toString())
+                        .build();
+            }
+            // Le numero est pose apres la creation : la colonne generee qui porte l'unicite suit cette
+            // ecriture, et un doublon concurrent serait refuse ici par l'index unique.
+            String clientId = compte.getLgCLIENTID().getLgCLIENTID();
+            clientService.enregistrerTelephone(clientId, saisie.getTelephone());
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("lg_CLIENT_ID", clientId)
+                            .put("str_TELEPHONE", saisie.getTelephone()).put("message", "Client standard créé : "
+                                    + saisie.getNom() + " " + saisie.getPrenoms() + " (" + saisie.getTelephone() + ")")
+                            .toString())
+                    .build();
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "creation d un client standard", e);
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("errors", "Ce numéro est peut-être déjà utilisé. Vérifiez la liste des clients.").toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     @POST
     @Path("gestion/create")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

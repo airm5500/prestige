@@ -43,6 +43,12 @@ Ext.define('testextjs.model.Client', {
             type: 'string'
         },
         {
+            // Numero de telephone, colonne propre depuis l'evolution 5 point 3 : il etait
+            // auparavant range dans str_ADRESSE, champ partage avec les adresses reelles.
+            name: 'str_TELEPHONE',
+            type: 'string'
+        },
+        {
             name: 'str_ADRESSE',
             type: 'string'
         },

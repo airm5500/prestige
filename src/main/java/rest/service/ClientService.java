@@ -92,6 +92,15 @@ public interface ClientService {
      * ligne. actifs=true : statut enable (comportement historique) ; false : les desactives. btnDelete / btnDesactiver
      * : privileges de l'utilisateur connecte (calcules dans la ressource depuis la session).
      */
+    /**
+     * Nom du client standard portant deja ce numero, ou {@code null} si le numero est libre. Le numero attendu est deja
+     * normalise (format local a dix chiffres).
+     */
+    String clientStandardPortantLeNumero(String telephoneLocal);
+
+    /** Pose le numero de telephone normalise sur un client. */
+    void enregistrerTelephone(String clientId, String telephoneLocal);
+
     JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete, boolean btnDesactiver,
             int start, int limit);
 
