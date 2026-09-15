@@ -496,6 +496,134 @@ public class ClientRessource {
                 .build();
     }
 
+    /**
+     * Import de clients standards : analyse du fichier, puis controle, puis ecriture - trois etapes distinctes.
+     *
+     * <p>
+     * L'import historique lisait les colonnes par leur position, figee dans le code, sans aucun controle. Ici
+     * l'operateur DESIGNE la colonne du nom, des prenoms et du telephone, chaque ligne est jugee separement, et le
+     * rapport est connu avant toute ecriture. Les reponses sont servies en text/html : l'envoi de fichier ExtJS passe
+     * par une iframe cachee, qui n'accepte pas application/json.
+     * </p>
+     */
+    /**
+     * Dit si l'operateur connecte peut importer des clients. L'ecran s'en sert pour n'afficher le bouton qu'aux profils
+     * concernes ; le controle qui compte est celui des trois services d'import, qui le refont chacun.
+     */
+    @GET
+    @Path("import/autorise")
+    public Response importAutorise() {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        boolean autorise = CommonUtils.hasAuthorityByName(privilegesSession(), DateConverter.P_IMPORT_CLIENTS);
+        return Response.ok().entity(new JSONObject().put("authorize", autorise).toString()).build();
+    }
+
+    /**
+     * Etape 1 : lecture du fichier. Il n'est envoye QU'ICI, et garde quelques minutes sous un jeton que les deux etapes
+     * suivantes reprennent - le navigateur vide le champ fichier apres chaque envoi, le faire rechoisir a chaque etape
+     * serait absurde. La reponse est servie en text/html : l'envoi de fichier ExtJS passe par une iframe cachee, qui
+     * n'accepte pas application/json.
+     */
+    @POST
+    @Path("import/analyse")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.TEXT_HTML)
+    public Response importAnalyse() {
+        TUser sessionUser = utilisateurSession();
+        Response refus = refusImport(sessionUser);
+        if (refus != null) {
+            return refus;
+        }
+        try {
+            org.apache.commons.fileupload.servlet.ServletFileUpload upload = new org.apache.commons.fileupload.servlet.ServletFileUpload(
+                    new org.apache.commons.fileupload.disk.DiskFileItemFactory());
+            java.util.List<org.apache.commons.fileupload.FileItem> items = upload.parseRequest(servletRequest);
+            String nomFichier = null;
+            byte[] contenu = null;
+            java.util.Map<String, String> champs = new java.util.HashMap<>();
+            for (org.apache.commons.fileupload.FileItem item : items) {
+                if (item.isFormField()) {
+                    champs.put(item.getFieldName(), item.getString("UTF-8"));
+                } else if (contenu == null) {
+                    nomFichier = item.getName();
+                    contenu = item.get();
+                }
+            }
+            if (contenu == null || contenu.length == 0) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false).put("message", "Aucun fichier reçu.").toString())
+                        .build();
+            }
+            return Response.ok().entity(
+                    clientService.importerClients(sessionUser, nomFichier, contenu, champs, null, false).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "import de clients : analyse", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("message", "Lecture du fichier impossible. Formats acceptés : CSV, TXT, XLS ou XLSX.")
+                            .toString())
+                    .build();
+        }
+    }
+
+    /** Etape 2 : controle ligne a ligne, sans aucune ecriture. */
+    @POST
+    @Path("import/controle")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response importControle(@FormParam("jeton") String jeton, @FormParam("colonneNom") String colonneNom,
+            @FormParam("colonnePrenoms") String colonnePrenoms, @FormParam("colonneTelephone") String colonneTelephone,
+            @FormParam("entete") String entete) {
+        return etapeImport(jeton, colonneNom, colonnePrenoms, colonneTelephone, entete, Boolean.FALSE);
+    }
+
+    /** Etape 3 : ecriture des seules lignes retenues. */
+    @POST
+    @Path("import/executer")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response importExecuter(@FormParam("jeton") String jeton, @FormParam("colonneNom") String colonneNom,
+            @FormParam("colonnePrenoms") String colonnePrenoms, @FormParam("colonneTelephone") String colonneTelephone,
+            @FormParam("entete") String entete) {
+        return etapeImport(jeton, colonneNom, colonnePrenoms, colonneTelephone, entete, Boolean.TRUE);
+    }
+
+    private Response etapeImport(String jeton, String colonneNom, String colonnePrenoms, String colonneTelephone,
+            String entete, Boolean ecrire) {
+        TUser sessionUser = utilisateurSession();
+        Response refus = refusImport(sessionUser);
+        if (refus != null) {
+            return refus;
+        }
+        java.util.Map<String, String> champs = new java.util.HashMap<>();
+        champs.put("jeton", org.apache.commons.lang3.StringUtils.trimToEmpty(jeton));
+        champs.put("colonneNom", org.apache.commons.lang3.StringUtils.trimToEmpty(colonneNom));
+        champs.put("colonnePrenoms", org.apache.commons.lang3.StringUtils.trimToEmpty(colonnePrenoms));
+        champs.put("colonneTelephone", org.apache.commons.lang3.StringUtils.trimToEmpty(colonneTelephone));
+        champs.put("entete", org.apache.commons.lang3.StringUtils.trimToEmpty(entete));
+        return Response.ok()
+                .entity(clientService.importerClients(sessionUser, null, new byte[0], champs, ecrire, true).toString())
+                .build();
+    }
+
+    /**
+     * Le privilege est verifie a CHAQUE etape, et pas seulement a l'affichage du bouton : masquer un bouton n'est pas
+     * un controle d'acces.
+     */
+    private Response refusImport(TUser sessionUser) {
+        if (sessionUser == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (!CommonUtils.hasAuthorityByName(privilegesSession(), DateConverter.P_IMPORT_CLIENTS)) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Votre profil ne permet pas d'importer des clients.").toString()).build();
+        }
+        return null;
+    }
+
     @GET
     @Path("gestion")
     public Response listeGestion(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,

@@ -640,6 +640,7 @@ Ext.application({
         'testextjs.model.TypeEcartMvt',
         'testextjs.view.configmanagement.client.action.addClientLast',
         'testextjs.view.configmanagement.client.action.addClientStandard',
+        'testextjs.view.configmanagement.client.action.importClientStandard',
         'testextjs.view.sm_user.dovente.action.associateTiersPayantItem',
         'testextjs.view.sm_user.parameter.ParameterManager',
         'testextjs.view.sm_user.parameter.action.add',

@@ -93,6 +93,14 @@ public interface ClientService {
      * : privileges de l'utilisateur connecte (calcules dans la ressource depuis la session).
      */
     /**
+     * Import de clients standards depuis un fichier, en trois etapes selon {@code ecrire} : analyse des colonnes
+     * ({@code null}), controle ligne a ligne sans ecriture ({@code FALSE}), puis ecriture des lignes retenues
+     * ({@code TRUE}).
+     */
+    JSONObject importerClients(dal.TUser operateur, String nomFichier, byte[] contenu,
+            java.util.Map<String, String> champs, Boolean ecrire, boolean avecCorrespondance);
+
+    /**
      * Nom du client standard portant deja ce numero, ou {@code null} si le numero est libre. Le numero attendu est deja
      * normalise (format local a dix chiffres).
      */

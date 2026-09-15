@@ -46,12 +46,32 @@ public final class ClientStandardSaisie {
         if (prenoms.isEmpty()) {
             erreurs.add("Les prénoms sont obligatoires.");
         }
-        TelephoneCi.Resultat numero = TelephoneCi.controler(telephoneSaisi);
+        TelephoneCi.Resultat numero = TelephoneCi.controler(retablirZeroDeTete(telephoneSaisi));
         if (!numero.isValide()) {
             erreurs.add("Numéro de téléphone invalide : " + numero.getMotif()
                     + ". Un numéro ivoirien compte dix chiffres et commence par 01, 05 ou 07.");
         }
         return new ClientStandardSaisie(erreurs, nom, prenoms, numero.isValide() ? numero.getLocal() : "");
+    }
+
+    /**
+     * Retablit le zero de tete d'un numero qui l'a perdu.
+     *
+     * <p>
+     * Un numero saisi dans un tableur est traite comme un nombre : « 0708473750 » y devient 708473750, et le zero est
+     * perdu des l'enregistrement du fichier. Sans cette reparation, un import depuis un classeur verrait TOUTES ses
+     * lignes rejetees pour « nombre de chiffres incorrect (9) ». Un mobile ivoirien comptant dix chiffres et commencant
+     * par 01, 05 ou 07, une suite de neuf chiffres commencant par 1, 5 ou 7 ne peut etre que ce numero prive de son
+     * zero : la reparation est sans ambiguite. Toute autre saisie est laissee telle quelle.
+     * </p>
+     */
+    static String retablirZeroDeTete(String saisie) {
+        String brut = StringUtils.trimToEmpty(saisie);
+        String nettoye = brut.replaceAll("[\\s.\\-()]", "");
+        if (nettoye.matches("[157][0-9]{8}")) {
+            return "0" + nettoye;
+        }
+        return brut;
     }
 
     public boolean estValide() {

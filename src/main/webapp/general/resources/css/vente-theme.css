@@ -1400,3 +1400,12 @@ body.x-body,
 .synthese-inventaire .si-para { margin: 6px 0; line-height: 17px; }
 .synthese-inventaire .si-reco { margin: 4px 0 10px 18px; padding: 0; line-height: 18px; }
 .synthese-inventaire .si-reco li { margin-bottom: 4px; }
+
+/* Rapport d'import de clients (evolution 5, point 3) : une ligne rejetee doit se voir d'un coup d'oeil,
+   sans avoir a lire la colonne du motif. */
+.import-client-rejet .x-grid-cell {
+    background-color: #fdecea !important;
+}
+.import-client-cree .x-grid-cell {
+    background-color: #eafaf1 !important;
+}

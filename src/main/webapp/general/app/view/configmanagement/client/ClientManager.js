@@ -472,6 +472,16 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     iconCls: 'importicon',
                     scope: this,
                     handler: this.onbtnimport
+                }, {
+                    // Import avec choix des colonnes et controle des lignes, sous privilege
+                    // (P_IMPORT_CLIENTS). L'import historique reste accessible par le bouton ci-dessus.
+                    text: 'Importer (colonnes au choix)',
+                    tooltip: 'Choisir les colonnes du fichier et contr&ocirc;ler les lignes avant d\'importer',
+                    itemId: 'btnImportClientStandard',
+                    iconCls: 'importicon',
+                    hidden: true, // visible seulement avec le privilege, voir onAfterRender
+                    scope: this,
+                    handler: this.onbtnImportStandard
                 }, '-',
                 {
                     text: 'Exporter CSV',
@@ -542,10 +552,32 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                 }
             }
         });
+
+        // L'import avec choix des colonnes cree des clients en masse : le bouton n'apparait
+        // qu'aux profils portant le privilege P_IMPORT_CLIENTS. Les services le reverifient.
+        var ecran = this;
+        Ext.Ajax.request({
+            url: '../api/v1/client/import/autorise',
+            method: 'GET',
+            success: function (response) {
+                var objet = Ext.JSON.decode(response.responseText, true);
+                var bouton = ecran.down('#btnImportClientStandard');
+                if (objet && objet.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
+        });
     },
      loadStore: function () {
         this.getStore().load();
     },
+    /** Import avec choix des colonnes : reserve aux profils portant le privilege P_IMPORT_CLIENTS. */
+    onbtnImportStandard: function () {
+        new testextjs.view.configmanagement.client.action.importClientStandard({
+            parentview: this
+        });
+    },
+
     onbtnimport: function () {
         new testextjs.view.configmanagement.famille.action.importOrder({
             odatasource: 'TABLE_CLIENT',

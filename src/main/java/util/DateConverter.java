@@ -172,6 +172,8 @@ public final class DateConverter {
     public static final String VETERINAIRE = "51217125136245583494";
     public static final String ACTION_DESACTIVE_PRODUIT = "ACTION_DESACTIVE_PRODUIT";
     public static final String P_BTN_DESACTIVER_CLIENT = "P_BTN_DESACTIVER_CLIENT";
+    /** Import de clients depuis un fichier : creation en masse, reservee aux profils qui la portent. */
+    public static final String P_IMPORT_CLIENTS = "P_IMPORT_CLIENTS";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
     public static final String TIERS_PAYANT_CARNET_ID = "2";
     public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE = "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";

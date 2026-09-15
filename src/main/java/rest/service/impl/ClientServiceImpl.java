@@ -1867,6 +1867,189 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @SuppressWarnings("unchecked")
+    public JSONObject importerClients(dal.TUser operateur, String nomFichier, byte[] contenu,
+            Map<String, String> champs, Boolean ecrire, boolean avecCorrespondance) {
+        boolean entete = Boolean.parseBoolean(StringUtils.defaultString(champs.get("entete")));
+        try {
+            // Etape 1 : le fichier est lu UNE fois, garde sous un jeton, et ses colonnes sont rendues
+            // telles qu'elles sont pour que l'operateur designe lui-meme celle du nom, des prenoms et
+            // du telephone. Les deux etapes suivantes ne transportent plus que le jeton : le navigateur
+            // vide le champ fichier apres chaque envoi, le faire rechoisir trois fois serait absurde.
+            if (!avecCorrespondance) {
+                util.FichierTabulaire fichier = util.FichierTabulaire.lire(nomFichier,
+                        new java.io.ByteArrayInputStream(contenu));
+                if (fichier.getLignes().isEmpty()) {
+                    return new JSONObject().put("success", false).put("message",
+                            "Le fichier ne contient aucune ligne exploitable.");
+                }
+                String jeton = importClientDepot.deposer(operateur.getLgUSERID(), nomFichier, fichier.getSeparateur(),
+                        fichier.getLignes());
+                return analyseFichier(fichier, entete).put("jeton", jeton);
+            }
+
+            ImportClientDepot.Depot depot = importClientDepot.lire(StringUtils.trimToEmpty(champs.get("jeton")),
+                    operateur.getLgUSERID());
+            if (depot == null) {
+                return new JSONObject().put("success", false).put("expire", true).put("message",
+                        "Le fichier n'est plus disponible (import trop ancien). Choisissez-le à nouveau.");
+            }
+            List<List<String>> lignes = depot.getLignes();
+
+            ImportClientControle.Correspondance correspondance = new ImportClientControle.Correspondance(
+                    colonne(champs.get("colonneNom")), colonne(champs.get("colonnePrenoms")),
+                    colonne(champs.get("colonneTelephone")), entete);
+            String invalide = correspondance.motifInvalidite();
+            if (!invalide.isEmpty()) {
+                return new JSONObject().put("success", false).put("message", invalide);
+            }
+
+            // Une seule requete pour tous les numeros du fichier, au lieu d'une par ligne.
+            Set<String> dejaPris = numerosStandardsExistants(
+                    ImportClientControle.numerosDuFichier(lignes, correspondance));
+            ImportClientControle rapport = ImportClientControle.controler(lignes, correspondance, dejaPris);
+
+            JSONObject json = new JSONObject().put("success", true).put("total", rapport.getLignes().size())
+                    .put("retenues", rapport.retenues().size()).put("rejetees", rapport.rejetees().size())
+                    .put("resume", rapport.resume()).put("ecrit", false);
+
+            if (!Boolean.TRUE.equals(ecrire)) {
+                return json.put("lignes", lignesJson(rapport.getLignes(), ""));
+            }
+
+            // Etape 3 : ecriture des seules lignes retenues, chacune independamment des autres.
+            int crees = 0;
+            JSONArray detail = new JSONArray();
+            for (ImportClientControle.Ligne ligne : rapport.getLignes()) {
+                if (!ligne.estRetenue()) {
+                    detail.put(ligneJson(ligne, "Rejetée"));
+                    continue;
+                }
+                String motif = creerUnClientStandard(operateur, ligne);
+                if (motif.isEmpty()) {
+                    crees++;
+                    detail.put(ligneJson(ligne, "Créé"));
+                } else {
+                    detail.put(new JSONObject().put("ligne", ligne.getNumero()).put("nom", ligne.getNom())
+                            .put("prenoms", ligne.getPrenoms()).put("telephone", ligne.getTelephone())
+                            .put("motif", motif).put("etat", "Échec"));
+                }
+            }
+            LOG.log(Level.INFO, "import de clients : fichier={0} lignes={1} creees={2} rejetees={3} operateur={4}",
+                    new Object[] { depot.getNomFichier(), rapport.getLignes().size(), crees, rapport.rejetees().size(),
+                            operateur.getLgUSERID() });
+            return json.put("ecrit", true).put("crees", crees).put("lignes", detail).put("resume",
+                    crees + " client(s) créé(s), " + (rapport.getLignes().size() - crees) + " non créé(s)");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "importerClients fichier=" + nomFichier, e);
+            return new JSONObject().put("success", false).put("message",
+                    "Lecture du fichier impossible. Formats acceptés : CSV, TXT, XLS ou XLSX.");
+        }
+    }
+
+    /** Colonnes du fichier et premieres lignes, pour que l'operateur reconnaisse ce qu'il importe. */
+    private JSONObject analyseFichier(util.FichierTabulaire fichier, boolean entete) {
+        List<List<String>> lignes = fichier.getLignes();
+        int nbColonnes = fichier.nombreColonnes();
+        JSONArray colonnes = new JSONArray();
+        for (int c = 0; c < nbColonnes; c++) {
+            String titre = entete ? util.FichierTabulaire.cellule(lignes.get(0), c) : "";
+            // Un echantillon vaut mieux qu'un titre : c'est en voyant « 0708473750 » que l'operateur
+            // reconnait la colonne du telephone, meme si le fichier n'a pas d'en-tete.
+            StringBuilder exemples = new StringBuilder();
+            for (int l = entete ? 1 : 0; l < Math.min(lignes.size(), (entete ? 1 : 0) + 3); l++) {
+                String v = util.FichierTabulaire.cellule(lignes.get(l), c);
+                if (!v.isEmpty()) {
+                    exemples.append(exemples.length() > 0 ? " / " : "").append(v);
+                }
+            }
+            colonnes.put(new JSONObject().put("index", c)
+                    .put("libelle", StringUtils.isNotBlank(titre) ? titre : "Colonne " + (c + 1))
+                    .put("exemples", exemples.toString()));
+        }
+        return new JSONObject().put("success", true).put("colonnes", colonnes)
+                .put("separateur", fichier.getSeparateur() == 0 ? "" : String.valueOf(fichier.getSeparateur()))
+                .put("totalLignes", lignes.size()).put("entete", entete)
+                .put("message", lignes.size() + " ligne(s) lue(s), " + nbColonnes + " colonne(s)");
+    }
+
+    private static int colonne(String valeur) {
+        try {
+            return Integer.parseInt(StringUtils.trimToEmpty(valeur));
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private static JSONArray lignesJson(List<ImportClientControle.Ligne> lignes, String etatForce) {
+        JSONArray out = new JSONArray();
+        for (ImportClientControle.Ligne l : lignes) {
+            out.put(ligneJson(l,
+                    StringUtils.isNotBlank(etatForce) ? etatForce : (l.estRetenue() ? "Retenue" : "Rejetée")));
+        }
+        return out;
+    }
+
+    private static JSONObject ligneJson(ImportClientControle.Ligne l, String etat) {
+        return new JSONObject().put("ligne", l.getNumero()).put("nom", l.getNom()).put("prenoms", l.getPrenoms())
+                .put("telephone", l.getTelephone()).put("motif", l.getMotif()).put("etat", etat);
+    }
+
+    /** Numeros, parmi ceux demandes, deja portes par un client standard. Une seule requete. */
+    private Set<String> numerosStandardsExistants(Set<String> numeros) {
+        Set<String> pris = new java.util.HashSet<>();
+        if (numeros.isEmpty()) {
+            return pris;
+        }
+        List<String> liste = new ArrayList<>(numeros);
+        for (int debut = 0; debut < liste.size(); debut += 500) {
+            List<String> lot = liste.subList(debut, Math.min(debut + 500, liste.size()));
+            try {
+                pris.addAll(em
+                        .createQuery("SELECT t.strTELEPHONE FROM TClient t WHERE t.strTELEPHONE IN ?1"
+                                + " AND t.lgTYPECLIENTID.lgTYPECLIENTID = ?2", String.class)
+                        .setParameter(1, lot).setParameter(2, ClientStandardSaisie.TYPE_CLIENT_STANDARD)
+                        .getResultList());
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "numerosStandardsExistants", e);
+            }
+        }
+        return pris;
+    }
+
+    /**
+     * Cree un client standard a partir d'une ligne retenue. Chaque ligne est ecrite pour elle-meme : une ligne en echec
+     * ne doit pas emporter les suivantes, ce qui etait tout le defaut de l'import historique.
+     */
+    private String creerUnClientStandard(dal.TUser operateur, ImportClientControle.Ligne ligne) {
+        dal.dataManager odm = new dal.dataManager();
+        odm.initEntityManager();
+        try {
+            dal.TUser user = odm.getEm().find(dal.TUser.class, operateur.getLgUSERID());
+            bll.configManagement.clientManagement ocm = new bll.configManagement.clientManagement(odm, user);
+            dal.TCompteClient compte = ocm.createClient(ligne.getNom(), ligne.getPrenoms(), "", null, "", "", "", "",
+                    "", "", "", 0.0, 0.0, 0, ClientStandardSaisie.TYPE_CLIENT_STANDARD, CATEGORIE_AYANT_DROIT_IMPORT,
+                    RISQUE_IMPORT, "", 0, 1, "", 0.0, "", 0, false, null);
+            if (compte == null) {
+                return StringUtils.defaultIfBlank(ocm.getDetailmessage(), "Création refusée par le serveur.");
+            }
+            enregistrerTelephone(compte.getLgCLIENTID().getLgCLIENTID(), ligne.getTelephone());
+            return "";
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "creation du client importe ligne " + ligne.getNumero(), e);
+            return "Erreur serveur : " + StringUtils.defaultString(e.getMessage());
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    private static final String CATEGORIE_AYANT_DROIT_IMPORT = "555146116095894790";
+
+    private static final String RISQUE_IMPORT = "55181642844215217016";
+
+    @javax.ejb.EJB
+    private ImportClientDepot importClientDepot;
+
+    @Override
     public String clientStandardPortantLeNumero(String telephoneLocal) {
         if (StringUtils.isBlank(telephoneLocal)) {
             return null;
