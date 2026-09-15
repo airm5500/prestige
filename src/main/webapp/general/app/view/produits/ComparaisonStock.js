@@ -273,6 +273,14 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
                             iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
+                        }, {
+                            // Seconde edition, a cote de l'edition historique qui n'est pas modifiee :
+                            // celle-ci detaille rayon, reserve et total, et valorise le total detenu.
+                            text: 'imprimer (réserve)',
+                            itemId: 'imprimerReserve',
+                            iconCls: 'printable',
+                            tooltip: 'Imprimer en detaillant le stock du rayon, celui de la reserve et le total',
+                            scope: this
                         },  {
                             xtype: 'tbseparator'
                         },

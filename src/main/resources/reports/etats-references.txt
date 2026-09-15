@@ -204,6 +204,7 @@ rp_type_societes
 rp_valorisation_stock
 rp_vente_annulees
 rp_vente_ugs
+stock_reserve
 ticket_support
 ventes_modifiees
 ventes_ratees

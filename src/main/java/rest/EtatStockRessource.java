@@ -62,6 +62,8 @@ public class EtatStockRessource {
     @EJB
     private InventaireService inventaireService;
     @EJB
+    private rest.service.impl.StockReserveEditionService stockReserveEditionService;
+    @EJB
     private ReportExcelExportService reportExcelExportService;
 
     private TUser currentUser() {
@@ -267,6 +269,57 @@ public class EtatStockRessource {
                 row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER", "") : "",
                 row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER_RESERVE", "") : "",
                 row.optBoolean("afficherStock", false) ? row.optString("int_NUMBER_TOTAL", "") : "" };
+    }
+
+    /**
+     * Edition « avec reserve » : nouvelle edition, servie a cote de l'edition historique de l'ecran
+     * (ws_etatstock_pdf.jsp et son modele rp_etatdestock installe sur site), qui n'est pas modifiee. Le PDF part en
+     * flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire, aucun fichier temporaire.
+     */
+    @GET
+    @Path("pdf-reserve")
+    @Produces("application/pdf")
+    public Response pdfReserve(@QueryParam("search_value") String searchValue,
+            @DefaultValue("") @QueryParam("str_TYPE_TRANSACTION") String typeTransaction,
+            @DefaultValue("") @QueryParam("lg_FAMILLEARTICLE_ID") String familleArticleId,
+            @DefaultValue("") @QueryParam("lg_ZONE_GEO_ID") String zoneGeoId,
+            @DefaultValue("") @QueryParam("lg_GROSSISTE_ID") String grossisteId,
+            @DefaultValue("") @QueryParam("int_NUMBER") String nombreStock) {
+        TUser sessionUser = currentUser();
+        if (sessionUser == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        try {
+            JSONArray lignes = lignesRecherche(sessionUser, searchValue, typeTransaction, familleArticleId, zoneGeoId,
+                    grossisteId, nombreStock);
+            byte[] pdf = stockReserveEditionService.editer(sessionUser, "ETAT DE STOCK - RAYON, RESERVE ET TOTAL",
+                    criteresEtatStock(searchValue, familleArticleId, zoneGeoId, grossisteId),
+                    stockReserveEditionService.lignesEtatStock(lignes));
+            return Response.ok(pdf, "application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"etat_stock_reserve.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "edition etat de stock avec reserve", e);
+            return Response.serverError().build();
+        }
+    }
+
+    /** Rappel des criteres en sous-titre : une edition sans ses criteres n'est pas relisible un mois plus tard. */
+    private static String criteresEtatStock(String searchValue, String familleArticleId, String zoneGeoId,
+            String grossisteId) {
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.isNotBlank(searchValue)) {
+            sb.append("Recherche : ").append(searchValue);
+        }
+        if (StringUtils.isNotBlank(familleArticleId)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Famille : ").append(familleArticleId);
+        }
+        if (StringUtils.isNotBlank(zoneGeoId)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Emplacement : ").append(zoneGeoId);
+        }
+        if (StringUtils.isNotBlank(grossisteId)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Fournisseur : ").append(grossisteId);
+        }
+        return sb.length() == 0 ? "Tous les articles" : sb.toString();
     }
 
     /** Export CSV du resultat de la recherche en cours. */

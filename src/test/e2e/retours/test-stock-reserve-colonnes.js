@@ -44,6 +44,34 @@ function poser() {
   return lignes;
 }
 
+// Texte affiche par un PDF : les flux sont deflates, on en extrait les chaines.
+function texteDuPdf(octets) {
+  const zlib = require('zlib');
+  const d = Buffer.from(octets);
+  const brut = d.toString('latin1');
+  let out = '';
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(brut)) !== null) {
+    const debut = m.index + m[0].length;
+    const fin = brut.indexOf('endstream', debut);
+    if (fin < 0) { continue; }
+    try {
+      const clair = zlib.inflateSync(d.slice(debut, fin)).toString('latin1');
+      out += (clair.match(/\((?:[^()\\]|\\.)*\)/g) || []).join(' ');
+    } catch (e) { /* flux non compresse ou police */ }
+  }
+  return out;
+}
+
+// Recupere un PDF servi par l'application, avec la session du navigateur.
+const recupererPdf = (p, url) => p.evaluate(async (u) => {
+  const r = await fetch(u);
+  const b = await r.arrayBuffer();
+  return { statut: r.status, type: r.headers.get('content-type'),
+    disposition: r.headers.get('content-disposition'), octets: Array.from(new Uint8Array(b)) };
+}, url);
+
 const appeler = (p, url) => p.evaluate(async (u) => {
   const r = await fetch(u);
   return { statut: r.status, corps: await r.text() };
@@ -157,6 +185,58 @@ const appeler = (p, url) => p.evaluate(async (u) => {
       expMasque.statut === 200 && /;;;\s*$/m.test(expMasque.corps.split('\r\n')[1] + ''),
       (expMasque.corps.split('\r\n')[1] || '').slice(-30));
     exec("UPDATE t_parameters SET str_VALUE='1' WHERE str_KEY='AFFICHER_STOCK';");
+
+    /* ---------- les deux nouvelles editions PDF « avec reserve » ---------- */
+    const attendu = articles[0];
+    const editions = [
+      { nom: 'Comparaison de stock', bouton: 'famillestockcomparaisonmanager #imprimerReserve',
+        url: '../api/v1/fichearticle/comparaison/pdf-reserve?query=' + encodeURIComponent(cipUn)
+          + '&codeFamile=&codeRayon=&codeGrossiste=&stock=0&seuil=0',
+        titre: 'COMPARAISON DE STOCK', fichier: 'comparaison_stock_reserve.pdf' },
+      { nom: 'Etat de stock', bouton: 'etatstock #imprimerReserve',
+        url: '../api/v1/etat-stock/pdf-reserve?search_value=' + encodeURIComponent(cipUn),
+        titre: 'ETAT DE STOCK', fichier: 'etat_stock_reserve.pdf' }
+    ];
+
+    for (const e of editions) {
+      const pdf = await recupererPdf(p, e.url);
+      ok(e.nom + ' : l edition « avec reserve » est servie en flux dans l onglet',
+        pdf.statut === 200 && /application\/pdf/.test(pdf.type) && /inline/.test(pdf.disposition)
+        && /filename="/.test(pdf.disposition) && pdf.disposition.indexOf(e.fichier) > 0,
+        JSON.stringify({ statut: pdf.statut, type: pdf.type, disposition: pdf.disposition }));
+
+      const entete = Buffer.from(pdf.octets).slice(0, 5).toString();
+      ok(e.nom + ' : le document est un vrai PDF', entete === '%PDF-', entete);
+
+      const texte = texteDuPdf(pdf.octets);
+      ok(e.nom + ' : le titre annonce les trois quantites, sans caractere non rendu',
+        texte.indexOf(e.titre + ' - RAYON, RESERVE ET TOTAL') >= 0, texte.slice(0, 220));
+      ok(e.nom + ' : les colonnes Rayon, Réserve et Total figurent dans l en-tete',
+        /Rayon/.test(texte) && /serve/.test(texte) && /Total/.test(texte) && /Val\. achat/.test(texte),
+        texte.slice(0, 260));
+      ok(e.nom + ' : la ligne de l article porte ses trois quantites ' + attendu.rayon + ' / '
+        + attendu.reserve + ' / ' + (attendu.rayon + attendu.reserve),
+        texte.indexOf(String(attendu.rayon)) >= 0 && texte.indexOf(String(attendu.reserve)) >= 0
+        && texte.indexOf(String(attendu.rayon + attendu.reserve)) >= 0, texte.slice(-260));
+      ok(e.nom + ' : la ligne de total reprend les memes quantites',
+        new RegExp('TOTAL : 1 article').test(texte), texte.slice(-140));
+      ok(e.nom + ' : les criteres de l ecran sont rappeles sur l edition',
+        texte.indexOf(cipUn) >= 0, texte.slice(0, 260));
+    }
+
+    /* les boutons : l edition historique est conservee et la nouvelle s ajoute a cote.
+       Un seul ecran est ouvert a la fois, on les controle donc l un puis l autre. */
+    const boutonsEtat = await p.evaluate(() => Ext.ComponentQuery.query('etatstock #imprimerReserve').length);
+    ok('Etat de stock : l edition avec reserve s ajoute a l ecran', boutonsEtat === 1, boutonsEtat);
+
+    await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('famillestockcomparaisonmanager', {}); });
+    await p.waitForFunction(() => Ext.ComponentQuery.query('famillestockcomparaisonmanager gridpanel').length > 0, null, { timeout: 25000 });
+    await p.waitForTimeout(3000);
+    const boutonsComp = await p.evaluate(() => Ext.ComponentQuery.query('famillestockcomparaisonmanager')[0]
+      .query('button').map((b) => b.itemId || b.text).filter((x) => /imprimer/i.test(x)));
+    ok('Comparaison : l edition historique est conservee et l edition avec reserve s ajoute a cote',
+      boutonsComp.indexOf('imprimer') >= 0 && boutonsComp.indexOf('imprimerReserve') >= 0,
+      JSON.stringify(boutonsComp));
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err.slice(0, 3)));
   } catch (e) {

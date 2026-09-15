@@ -89,6 +89,9 @@ Ext.define('testextjs.controller.ComparaisonCtr', {
             'famillestockcomparaisonmanager #imprimer': {
                 click: this.onPdfClick
             },
+            'famillestockcomparaisonmanager #imprimerReserve': {
+                click: this.onPdfReserveClick
+            },
             'famillestockcomparaisonmanager #rayons': {
                 select: this.doSearch
             }, 'famillestockcomparaisonmanager #codeFamile': {
@@ -218,6 +221,30 @@ Ext.define('testextjs.controller.ComparaisonCtr', {
                 + '&filtreSeuil=' + seuilFiltre
                 ;
         window.open(linkUrl);
+    },
+
+    // Criteres courants de l'ecran, partages par les deux editions et la recherche.
+    criteresEdition: function () {
+        var me = this;
+        return {
+            query: me.getQuery().getValue() || '',
+            codeFamile: me.getCodeFamile().getValue() || '',
+            codeRayon: me.getRayons().getValue() || '',
+            codeGrossiste: me.getGrossiste().getValue() || '',
+            stock: me.getStock().getValue() || 0,
+            seuil: me.getSuill().getValue() || 0,
+            filtreStock: me.getStockFiltre().getValue() || '',
+            filtreSeuil: me.getSeuilFiltre().getValue() || ''
+        };
+    },
+
+    /**
+     * Edition detaillant rayon, reserve et total. Le PDF est servi en flux : il s'ouvre une seule fois,
+     * dans l'onglet ouvert par le clic, sans fenetre intermediaire.
+     */
+    onPdfReserveClick: function () {
+        window.open('../api/v1/fichearticle/comparaison/pdf-reserve?'
+                + Ext.Object.toQueryString(this.criteresEdition()));
     },
 
     doBeforechange: function (page, currentPage) {

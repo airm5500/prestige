@@ -52,6 +52,11 @@ public class FicheArticleRessource {
     private FicheArticleService ficheArticleService;
     @EJB
     private SuggestionService suggestionService;
+    @EJB
+    private rest.service.impl.StockReserveEditionService stockReserveEditionService;
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(FicheArticleRessource.class.getName());
 
     @GET
     @Path("perimes")
@@ -742,6 +747,56 @@ public class FicheArticleRessource {
 
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"comparaison_stock.csv\"")
                 .build();
+    }
+
+    /**
+     * Edition « avec reserve » : nouvelle edition, servie a cote de l'edition historique de l'ecran
+     * (rp_comparaison_surstock, modele installe sur site), qui n'est pas modifiee. Le PDF part en flux dans l'onglet
+     * ouvert par le clic : aucune fenetre intermediaire, aucun fichier temporaire.
+     */
+    @GET
+    @Path("comparaison/pdf-reserve")
+    @Produces("application/pdf")
+    public Response comparaisonPdfReserve(@QueryParam("seuil") int seuil, @QueryParam("codeFamile") String codeFamile,
+            @QueryParam("query") String query, @QueryParam("codeRayon") String codeRayon,
+            @QueryParam("codeGrossiste") String codeGrossiste, @QueryParam("filtreSeuil") MargeEnum filtreSeuil,
+            @QueryParam("filtreStock") MargeEnum filtreStock, @QueryParam("stock") int stock) {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        try {
+            java.util.List<commonTasks.dto.ArticleDTO> articles = ficheArticleService.comparaisonStock(tu, query,
+                    filtreStock, filtreSeuil, codeFamile, codeRayon, codeGrossiste, stock, seuil, 0, 0, true);
+            byte[] pdf = stockReserveEditionService.editer(tu, "COMPARAISON DE STOCK - RAYON, RESERVE ET TOTAL",
+                    criteresComparaison(query, codeFamile, codeRayon, codeGrossiste),
+                    stockReserveEditionService.lignesComparaison(articles));
+            return Response.ok(pdf, "application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"comparaison_stock_reserve.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "edition comparaison de stock avec reserve", e);
+            return Response.serverError().build();
+        }
+    }
+
+    /** Rappel des criteres en sous-titre : une edition sans ses criteres n'est pas relisible un mois plus tard. */
+    private static String criteresComparaison(String query, String codeFamile, String codeRayon, String codeGrossiste) {
+        StringBuilder sb = new StringBuilder();
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(query)) {
+            sb.append("Recherche : ").append(query);
+        }
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeFamile) && !"ALL".equalsIgnoreCase(codeFamile)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Famille : ").append(codeFamile);
+        }
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeRayon) && !"ALL".equalsIgnoreCase(codeRayon)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Emplacement : ").append(codeRayon);
+        }
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeGrossiste) && !"ALL".equalsIgnoreCase(codeGrossiste)) {
+            sb.append(sb.length() > 0 ? " - " : "").append("Grossiste : ").append(codeGrossiste);
+        }
+        return sb.length() == 0 ? "Tous les articles" : sb.toString();
     }
 
     @GET
