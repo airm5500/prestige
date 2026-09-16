@@ -44,11 +44,24 @@ public class SalesParams implements Serializable {
     private Integer totalRecap;
     private String statut = Constant.STATUT_IS_PROGRESS;
     private String emplacementId;
+    /**
+     * Depot d'extension dans lequel la vente se joue. Vide pour une vente d'officine, c'est-a-dire pour tout ce qui
+     * existait avant. A ne pas confondre avec emplacementId, qui designe le depot CLIENT d'une vente a un depot.
+     */
+    private String depotVenteId;
     private String medecinId;
     private List<TiersPayantParams> tierspayants = new ArrayList<>();
 
     public String getEmplacementId() {
         return emplacementId;
+    }
+
+    public String getDepotVenteId() {
+        return depotVenteId;
+    }
+
+    public void setDepotVenteId(String depotVenteId) {
+        this.depotVenteId = depotVenteId;
     }
 
     public void setEmplacementId(String emplacementId) {

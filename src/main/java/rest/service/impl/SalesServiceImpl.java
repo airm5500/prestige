@@ -171,6 +171,8 @@ public class SalesServiceImpl implements SalesService {
     @EJB
     private SalesNetComputingService computingService;
     private static Boolean KEY_TAKE_INTO_ACCOUNT;
+    /** t_typedepot : 1 = officine, 2 = depot d'extension. */
+    private static final String TYPE_DEPOT_EXTENSION = "2";
     @EJB
     private RemiseService remiseService;
     @EJB
@@ -627,7 +629,9 @@ public class SalesServiceImpl implements SalesService {
                 }
 
             });
-            TEmplacement emplacement = ooTUser.getLgEMPLACEMENTID();
+            // L'annulation remet le stock la ou la vente l'avait pris : le depot d'extension si la vente s'y est
+            // jouee, l'emplacement de l'operateur sinon (regle historique).
+            TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp, ooTUser);
             final Typemvtproduit typemvtproduit = checked ? findTypeMvtProduitById(ANNULATION_DE_VENTE)
                     : findTypeMvtProduitById(TMVTP_ANNUL_VENTE_DEPOT_EXTENSION);
             preenregistrementDetails.forEach(e -> {
@@ -774,7 +778,9 @@ public class SalesServiceImpl implements SalesService {
         newTp.setLgREGLEMENTID(tp.getLgREGLEMENTID());
         newTp.setLgPREENGISTREMENTANNULEID(tp.getLgPREENREGISTREMENTID());
         newTp.setMedecin(tp.getMedecin());
-        newTp.setStrREF(buildRef(LocalDate.now(), ooTUser.getLgEMPLACEMENTID()).getReference());
+        newTp.setEmplacementVente(tp.getEmplacementVente());
+        newTp.setStrREF(
+                buildRef(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTp, ooTUser)).getReference());
         tp.setBISCANCEL(true);
         tp.setDtANNULER(newTp.getDtCREATED());
         tp.setLgUSERID(ooTUser);
@@ -900,7 +906,7 @@ public class SalesServiceImpl implements SalesService {
         as.setMontantPaye(Math.abs(montantPaye));
         as.setDateOp(new Date());
         as.setReglement(tTypeReglement);
-        as.setEmplacement(o.getLgEMPLACEMENTID());
+        as.setEmplacement(ContexteVenteDepot.emplacementDeVente(preenregistrement, o));
         as.setPreenregistrement(preenregistrement);
         as.setRemise(preenregistrement.getIntPRICEREMISE());
         as.setUser(o);
@@ -1025,12 +1031,11 @@ public class SalesServiceImpl implements SalesService {
             if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
                 return json;
             }
-            if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
-                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+            if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(), emplacementDeSaisie(salesParams))) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
             if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
-                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                    emplacementDeSaisie(salesParams))) {
                 return json;
             }
             Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
@@ -1054,16 +1059,14 @@ public class SalesServiceImpl implements SalesService {
                 }
                 preenregistrement.setPkBrand("");
                 if (!salesParams.isDevis()) {
-                    preenregistrement
-                            .setStrREF(buildRefTmp(LocalDate.now(), salesParams.getUserId().getLgEMPLACEMENTID())
-                                    .getReferenceTemp());
+                    preenregistrement.setStrREF(
+                            buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
                     emg.persist(preenregistrement);
                     createPreenregistrementTierspayant(salesParams.getTierspayants(), preenregistrement);
 
                 } else {
                     preenregistrement
-                            .setStrREF(buildRefDevis(LocalDate.now(), salesParams.getUserId().getLgEMPLACEMENTID())
-                                    .getReference());
+                            .setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReference());
                     preenregistrement.setStrREFBON(salesParams.getBonRef());
                     preenregistrement.setStrREFTICKET(DateConverter.getShortId(10));
                     emg.persist(preenregistrement);
@@ -1083,8 +1086,8 @@ public class SalesServiceImpl implements SalesService {
                         calculRemiseDepot(preenregistrement.getIntPRICE(), salesParams.getRemiseDepot()));
                 preenregistrement
                         .setStrTYPEVENTE((salesParams.getTypeDepoId().equals("1") ? VENTE_COMPTANT : VENTE_ASSURANCE));
-                preenregistrement.setStrREF(
-                        buildRefTmp(LocalDate.now(), salesParams.getUserId().getLgEMPLACEMENTID()).getReferenceTemp());
+                preenregistrement
+                        .setStrREF(buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
                 emg.persist(preenregistrement);
             }
             emg.persist(dp);
@@ -1108,6 +1111,39 @@ public class SalesServiceImpl implements SalesService {
             }
         }
         return json;
+    }
+
+    /**
+     * Depot d'extension dans lequel la saisie se joue, ou {@code null} pour une vente d'officine. Le depot n'est retenu
+     * que s'il existe, est actif et est bien un depot d'extension : une valeur inconnue ou l'officine elle-meme ramene
+     * au comportement d'avant, plutot que de jouer la vente sur un emplacement arbitraire.
+     */
+    private TEmplacement depotDeVente(SalesParams salesParams) {
+        String depotId = salesParams == null ? null : salesParams.getDepotVenteId();
+        if (StringUtils.isBlank(depotId)) {
+            return null;
+        }
+        try {
+            TEmplacement depot = getEm().find(TEmplacement.class, depotId);
+            if (depot == null || depot.getLgTYPEDEPOTID() == null
+                    || !TYPE_DEPOT_EXTENSION.equals(depot.getLgTYPEDEPOTID().getLgTYPEDEPOTID())
+                    || !"enable".equals(depot.getStrSTATUT())) {
+                return null;
+            }
+            return depot;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "depotDeVente " + depotId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Emplacement sur lequel les controles de stock et les references de la saisie doivent porter : le depot
+     * d'extension s'il est pose, l'emplacement de l'operateur sinon - la regle historique.
+     */
+    private TEmplacement emplacementDeSaisie(SalesParams salesParams) {
+        TEmplacement depot = depotDeVente(salesParams);
+        return depot != null ? depot : salesParams.getUserId().getLgEMPLACEMENTID();
     }
 
     private boolean forcerStock(int qty, String familleId, TEmplacement em) {
@@ -1268,7 +1304,7 @@ public class SalesServiceImpl implements SalesService {
             if (tp == null) {
                 return json.put("success", false).put("msg", "Vente introuvable").put("produits", new JSONArray());
             }
-            List<String> produits = produitsDetailInvendables(getItems(tp), tp.getLgUSERID().getLgEMPLACEMENTID());
+            List<String> produits = produitsDetailInvendables(getItems(tp), ContexteVenteDepot.emplacementDeVente(tp));
             json.put("success", true);
             json.put("produits", new JSONArray(produits));
             return json;
@@ -1280,7 +1316,7 @@ public class SalesServiceImpl implements SalesService {
 
     private boolean refuserVenteDetailInvendable(JSONObject json, TPreenregistrement tp,
             List<TPreenregistrementDetail> items) throws JSONException {
-        Optional<String> produit = produitDetailInvendable(items, tp.getLgUSERID().getLgEMPLACEMENTID());
+        Optional<String> produit = produitDetailInvendable(items, ContexteVenteDepot.emplacementDeVente(tp));
         if (produit.isPresent()) {
             json.put("success", false);
             json.put("msg", "Impossible de valider la vente : stock insuffisant pour " + produit.get()
@@ -1300,12 +1336,11 @@ public class SalesServiceImpl implements SalesService {
             if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
                 return json;
             }
-            if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(),
-                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+            if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(), emplacementDeSaisie(salesParams))) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
             if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
-                    salesParams.getUserId().getLgEMPLACEMENTID())) {
+                    emplacementDeSaisie(salesParams))) {
                 return json;
             }
 
@@ -1446,12 +1481,12 @@ public class SalesServiceImpl implements SalesService {
                 tpd = detailOp.get();
 
                 int qty = tpd.getIntQUANTITY() + params.getQte();
-                if (!forcerStock(qty, params.getProduitId(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                if (!forcerStock(qty, params.getProduitId(), ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
                 }
                 if (refuserQuantiteDetailInvendable(json, params.getProduitId(), qty,
-                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                        ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json;
                 }
                 int oldPrice = tpd.getIntPRICE();
@@ -1476,12 +1511,12 @@ public class SalesServiceImpl implements SalesService {
                 afficheurProduit(tpd.getLgFAMILLEID().getStrNAME(), tpd.getIntQUANTITY(), tpd.getIntPRICEUNITAIR(),
                         tpd.getIntPRICE());
             } else {
-                if (!forcerStock(params.getQte(), params.getProduitId(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                if (!forcerStock(params.getQte(), params.getProduitId(), ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
                 }
                 if (refuserQuantiteDetailInvendable(json, params.getProduitId(), params.getQte(),
-                        tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                        ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json;
                 }
                 TPreenregistrementDetail dp = addPreenregistrementItem(tp, famille, params.getQte(),
@@ -1528,11 +1563,11 @@ public class SalesServiceImpl implements SalesService {
 
             TFamille famille = detail.getLgFAMILLEID();
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
-            if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
+            if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), ContexteVenteDepot.emplacementDeVente(tp))) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
             if (refuserQuantiteDetailInvendable(json, famille.getLgFAMILLEID(), params.getQte(),
-                    tp.getLgUSERID().getLgEMPLACEMENTID())) {
+                    ContexteVenteDepot.emplacementDeVente(tp))) {
                 return json;
             }
             if (detail.getIntPRICEUNITAIR().compareTo(params.getItemPu()) != 0) {
@@ -2608,8 +2643,8 @@ public class SalesServiceImpl implements SalesService {
                 tp.setDtUPDATED(new Date());
             }
 
-            tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()), tUser.getLgEMPLACEMENTID())
-                    .getReference());
+            tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
+                    ContexteVenteDepot.emplacementDeVente(tp, tUser)).getReference());
 
             boolean keyAccount = test.test(takeInAcount);
             if (keyAccount) {
@@ -2858,7 +2893,7 @@ public class SalesServiceImpl implements SalesService {
             }
 
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    clotureVenteParams.getUserId().getLgEMPLACEMENTID()).getReference());
+                    ContexteVenteDepot.emplacementDeVente(tp, clotureVenteParams.getUserId())).getReference());
             java.util.function.Predicate<Optional<TParameters>> testP = e -> {
                 if (e.isPresent()) {
                     return Integer.parseInt(e.get().getStrVALUE().trim()) == 1;
@@ -3646,7 +3681,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    tp.getLgUSERVENDEURID().getLgEMPLACEMENTID()).getReference());
+                    ContexteVenteDepot.emplacementDeVente(tp, tp.getLgUSERVENDEURID())).getReference());
             tp.setIntACCOUNT(tp.getIntPRICE());
             tp.setIntPRICEOTHER(tp.getIntACCOUNT());
             tp.setCompletionDate(new Date());
@@ -3774,7 +3809,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setIntPRICEOTHER(montant);
             updateUgData(clotureVenteParams.getData(), tp);
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    clotureVenteParams.getUserId().getLgEMPLACEMENTID()).getReference());
+                    ContexteVenteDepot.emplacementDeVente(tp, clotureVenteParams.getUserId())).getReference());
             cloturerItemsVente(tp.getLgPREENREGISTREMENTID());
             addRecette(clotureVenteParams.getMontantPaye(), tp.getStrREFTICKET() + "_" + tp.getStrREF(),
                     tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId());
@@ -4043,7 +4078,9 @@ public class SalesServiceImpl implements SalesService {
         newTP.setMedecin(tp.getMedecin());
         newTP.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
         newTP.setLgPREENGISTREMENTANNULEID(tp.getLgPREENREGISTREMENTID());
-        newTP.setStrREF(buildRefTmp(LocalDate.now(), ooTUser.getLgEMPLACEMENTID()).getReferenceTemp());
+        newTP.setEmplacementVente(tp.getEmplacementVente());
+        newTP.setStrREF(
+                buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTP, ooTUser)).getReferenceTemp());
         newTP.setChecked(true);
         newTP.setCopy(true);
         newTP.setMargeug(tp.getMargeug());
@@ -4557,7 +4594,7 @@ public class SalesServiceImpl implements SalesService {
                 payantExclusService.updateTiersPayantAccount(payantDuCompte, (-1) * action.getIntPRICE());
             }
         });
-        TEmplacement emplacement = ooTUser.getLgEMPLACEMENTID();
+        TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp, ooTUser);
         final Typemvtproduit typemvtproduit = checked ? findTypeMvtProduitById(ANNULATION_DE_VENTE)
                 : findTypeMvtProduitById(TMVTP_ANNUL_VENTE_DEPOT_EXTENSION);
         preenregistrementDetails.forEach(e -> {
@@ -4935,7 +4972,7 @@ public class SalesServiceImpl implements SalesService {
         LongAdder montantTtcUg = new LongAdder();
         LongAdder margeUg = new LongAdder();
         LongAdder tvaUg = new LongAdder();
-        TEmplacement emplacement = oPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
+        TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(oPreenregistrement);
         boolean isVno = oPreenregistrement.getStrTYPEVENTE().equals(DateConverter.VENTE_COMPTANT);
         List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(oPreenregistrement);
         lstTPreenregistrementDetail.forEach(x -> {
@@ -5011,7 +5048,7 @@ public class SalesServiceImpl implements SalesService {
         int montantTtcUg = 0;
         int margeUg = 0;
         int tvaug = 0;
-        TEmplacement emplacement = p.getLgUSERID().getLgEMPLACEMENTID();
+        TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(p);
         boolean isVno = p.getStrTYPEVENTE().equals(DateConverter.VENTE_COMPTANT);
         for (TPreenregistrementDetail x : list) {
             montant += x.getIntPRICE();
@@ -5090,7 +5127,8 @@ public class SalesServiceImpl implements SalesService {
         newTp.setAyantDroit(tp.getAyantDroit());
         newTp.setMedecin(tp.getMedecin());
         newTp.setStrSTATUT(tp.getStrSTATUT());
-        newTp.setStrREF(buildRefTmp(LocalDate.now(), newTp.getLgUSERID().getLgEMPLACEMENTID()).getReferenceTemp());
+        newTp.setEmplacementVente(tp.getEmplacementVente());
+        newTp.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTp)).getReferenceTemp());
         newTp.setChecked(Boolean.TRUE);
         newTp.setCopy(Boolean.FALSE);
         newTp.setMargeug(tp.getMargeug());
@@ -5546,14 +5584,16 @@ public class SalesServiceImpl implements SalesService {
         op.setLgUSERID(salesParams.getUserId());
         op.setIntREMISEPARA(0);
         op.setPkBrand("");
+        // Depot d'extension ou la vente se joue. null pour une vente d'officine : toute la chaine retombe alors
+        // sur l'emplacement de l'utilisateur de la vente, exactement comme avant.
+        op.setEmplacementVente(depotDeVente(salesParams));
         Medecin medecin = findMedecin(salesParams.getMedecinId());
         op.setMedecin(medecin);
         if (!salesParams.isDevis()) {
-            op.setStrREF(buildRefTmp(LocalDate.now(), salesParams.getUserId().getLgEMPLACEMENTID()).getReferenceTemp());
+            op.setStrREF(buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
         } else {
 
-            op.setStrREF(
-                    buildRefDevis(LocalDate.now(), salesParams.getUserId().getLgEMPLACEMENTID()).getReferenceTemp());
+            op.setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
             op.setStrREFTICKET(DateConverter.getShortId(10));
         }
         op.setLgREMISEID(oTRemise != null ? oTRemise.getLgREMISEID() : "");

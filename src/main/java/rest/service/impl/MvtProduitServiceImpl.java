@@ -178,7 +178,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     public void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, TEmplacement depot)
             throws Exception {
         TUser tu = tp.getLgUSERID();
-        final TEmplacement emplacement = tu.getLgEMPLACEMENTID();
+        // Emplacement de la vente : le depot d'extension s'il est pose sur la vente, sinon celui de l'utilisateur
+        // de la vente - la regle historique. Le destockage, le mouvement produit et le deconditionnement suivent
+        // donc le lieu reel de la vente.
+        final TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp);
         final String emplacementId = emplacement.getLgEMPLACEMENTID();
         final boolean isDepot = !("1".equals(emplacementId));
         JSONArray items = new JSONArray();
@@ -282,9 +285,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     public void updateVenteStock(TPreenregistrement tp, List<TPreenregistrementDetail> list) {
         EntityManager emg = this.getEmg();
         TUser tu = tp.getLgUSERID();
-        final TEmplacement emplacement = tu.getLgEMPLACEMENTID();
+        // Voir updateVenteStockDepot : l'emplacement de la vente prime sur celui de l'utilisateur.
+        final TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp);
         final String emplacementId = emplacement.getLgEMPLACEMENTID();
         final boolean isDepot = !("1".equals(emplacementId));
+        final boolean contexteDepot = ContexteVenteDepot.estEnContexteDepot(tp);
         final Typemvtproduit typemvtproduit = getTypemvtproduitByID(VENTE);
         final String statut = STATUT_IS_CLOSED;
         JSONArray items = new JSONArray();
@@ -337,9 +342,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 this.suggestionService.makeSuggestionAuto(familleStock, tFamille);
             }
             // Suggestions de reserve : on se contente d'inscrire le produit, l'evaluation se fera une
-            // fois la vente validee. Encadre : la vente prime sur toute suggestion.
+            // fois la vente validee. Encadre : la vente prime sur toute suggestion. La reserve est une notion
+            // d'officine : une vente jouee dans un depot d'extension n'a pas a la declencher.
             try {
-                suggestionReserveService.planifierEvaluationApresVente(tu, tFamille.getLgFAMILLEID());
+                if (!contexteDepot) {
+                    suggestionReserveService.planifierEvaluationApresVente(tu, tFamille.getLgFAMILLEID());
+                }
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestion de reserve non planifiee pour " + tFamille.getLgFAMILLEID(), e);
             }

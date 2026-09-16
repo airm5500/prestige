@@ -172,6 +172,14 @@ public class TPreenregistrement implements Serializable {
     private Integer intREMISEPARA;
     @Column(name = "PK_BRAND")
     private String pkBrand;
+    /**
+     * Depot d'extension ou la vente a lieu. NULL pour une vente d'officine : le code retombe alors sur l'emplacement de
+     * l'utilisateur de la vente, comme avant l'introduction de ce champ. A ne pas confondre avec pkBrand, qui designe
+     * le depot CLIENT d'une vente a un depot.
+     */
+    @JoinColumn(name = "lg_EMPLACEMENT_VENTE_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
+    @ManyToOne
+    private TEmplacement emplacementVente;
     @JoinColumn(name = "lg_REGLEMENT_ID", referencedColumnName = "lg_REGLEMENT_ID")
     @ManyToOne
     private TReglement lgREGLEMENTID;
@@ -295,6 +303,14 @@ public class TPreenregistrement implements Serializable {
 
     public String getPkBrand() {
         return pkBrand;
+    }
+
+    public TEmplacement getEmplacementVente() {
+        return emplacementVente;
+    }
+
+    public void setEmplacementVente(TEmplacement emplacementVente) {
+        this.emplacementVente = emplacementVente;
     }
 
     public void setPkBrand(String pkBrand) {
