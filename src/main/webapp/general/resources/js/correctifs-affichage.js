@@ -592,6 +592,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'detailsmanager', 'gestionsurstock', 'stockmort', 'saisieperime',
     'evolutionstock', 'famillestockcomparaisonmanager', 'peremptionquery',
     'articlemvtgrid',
+    'depotextension',
     // tiers payants et clients
     'tierspayantmanager', 'clientmanager', 'analysetierspayant',
     // analyses

@@ -20,6 +20,7 @@ balance_all_depots
 balance_single_depot
 ca_zone_geo
 controle_achats
+depot_stock
 detail_ca_ligne
 facture_detail_articles
 garde

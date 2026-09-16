@@ -1409,3 +1409,11 @@ body.x-body,
 .import-client-cree .x-grid-cell {
     background-color: #eafaf1 !important;
 }
+
+/* Valorisation d'un depot d'extension (evolution 5, point 1) : elle doit se lire d'un coup d'oeil,
+   au-dessus de la liste. */
+.depot-valorisation {
+    padding: 4px 6px;
+    font-size: 12px;
+    color: #1f3864;
+}

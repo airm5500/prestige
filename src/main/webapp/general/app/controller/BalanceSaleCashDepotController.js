@@ -7,35 +7,41 @@ Ext.define('testextjs.controller.BalanceSaleCashDepotController', {
     stores: ['BalanceSaleCashDepotStore'],
     models: ['BalanceSaleCashDepotModel'],
 
+    // Selecteurs QUALIFIES par l'ecran. Ils ne l'etaient pas : '#depot', '#dtStart' et '#dtEnd' sont
+    // des identifiants courants, et ces references pointaient vers le premier composant du genre
+    // trouve dans TOUTE l'application - donc potentiellement celui d'un autre ecran.
     refs: [{
         ref: 'balanceView',
         selector: 'balancesalecashdepot'
     }, {
         ref: 'grid',
-        selector: '#gridBalance'
+        selector: 'balancesalecashdepot #gridBalance'
     }, {
         ref: 'summaryPanel',
-        selector: '#summaryPanel'
+        selector: 'balancesalecashdepot #summaryPanel'
     }, {
         ref: 'depotCombo',
-        selector: '#depot'
+        selector: 'balancesalecashdepot #depot'
     }, {
         ref: 'dtStart',
-        selector: '#dtStart'
+        selector: 'balancesalecashdepot #dtStart'
     }, {
         ref: 'dtEnd',
-        selector: '#dtEnd'
+        selector: 'balancesalecashdepot #dtEnd'
     }],
 
     init: function() {
+        // Selecteurs QUALIFIES par l'ecran. Ils ne l'etaient pas : '#depot' et '#searchBtn' captaient
+        // les evenements de n'importe quel autre ecran portant ces itemId, y compris ceux ajoutes plus
+        // tard, et cet ecran-ci tentait alors de recharger une grille qui n'etait pas la sienne.
         this.control({
-            '#searchBtn': {
+            'balancesalecashdepot #searchBtn': {
                 click: this.onSearchClick
             },
-            '#printBtn': {
+            'balancesalecashdepot #printBtn': {
                 click: this.onPrintClick
             },
-            '#depot': {
+            'balancesalecashdepot #depot': {
                 select: this.onSearchClick
             },
             'balancesalecashdepot': {

@@ -394,6 +394,7 @@ Ext.application({
         'testextjs.view.configmanagement.grilleremise.action.add',
         //gestion de stock
         'testextjs.model.FamilleStock',
+        'testextjs.view.stockmanagement.depotextension.DepotExtensionManager',
         'testextjs.view.stockmanagement.etatstock.EtatStockManager',
         'testextjs.view.stockmanagement.etatstock.action.add',
         'testextjs.view.stockmanagement.evolutionstock.EvolutionStock',
@@ -856,6 +857,7 @@ Ext.application({
         'CautionCtr',
         'BalanceSaleCashDepotController',
         'PointCaisseController',
+        'DepotExtensionCtr',
         'ArticleMvtController',
         'SupportContactCtr',
         'SupportTicketsCtr',
