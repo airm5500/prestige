@@ -63,6 +63,25 @@ public class DepotExtensionRessource {
     }
 
     /**
+     * Valorisation du depot ventilee par emplacement des articles - leur rayon, le depot etant deja choisi. Le total du
+     * depot accompagne la ventilation, pour que la somme des lignes soit verifiable d'un coup d'oeil.
+     */
+    @GET
+    @Path("valorisation-emplacement")
+    public Response valorisationParEmplacement(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
+            @QueryParam("familleId") String familleId, @DefaultValue("true") @QueryParam("enStock") boolean enStock) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!depotExtensionService.estDepotExtension(depotId)) {
+            return depotInvalide();
+        }
+        return Response.ok()
+                .entity(depotExtensionService.valorisationParEmplacement(depotId, query, familleId, enStock).toString())
+                .build();
+    }
+
+    /**
      * Stock du depot : la liste paginee, son total, et la valorisation calculee sur l'ensemble des lignes retenues (et
      * non sur la page affichee).
      */

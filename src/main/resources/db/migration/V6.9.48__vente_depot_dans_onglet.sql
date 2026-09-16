@@ -1,0 +1,21 @@
+-- =====================================================================
+-- Evolution 5, point 1 : la vente en depot passe dans « Gestion depots
+-- extensions », onglet « Saisir vente depot »
+-- ---------------------------------------------------------------------
+-- Decision de l'officine : tout ce qui concerne un depot se trouve au
+-- meme endroit. L'ecran « Gestion depots extensions » porte desormais
+-- trois onglets - Valorisation, Saisir vente depot, Chiffre d'affaires
+-- - et le menu separe « Vente du depot » disparait.
+--
+-- Ce n'est pas seulement un choix de presentation : l'ecran de vente en
+-- depot ne peut exister qu'a UN seul endroit a la fois. Son controleur
+-- retrouve ses composants par des selecteurs qui renvoient le PREMIER
+-- trouve ; deux instances ouvertes en meme temps (un menu et un onglet)
+-- donneraient un ecran pilote et l'autre mort.
+--
+-- Le privilege P_VENTE_DEPOT_EXTENSION est CONSERVE : il garde son sens,
+-- l'onglet de vente n'etant propose qu'aux profils qui le detiennent.
+-- Seul le sous-menu est retire.
+-- =====================================================================
+
+DELETE FROM t_sous_menu WHERE lg_SOUS_MENU_ID = '20260918';

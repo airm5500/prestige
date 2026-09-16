@@ -171,6 +171,35 @@ public class DepotExtensionService {
         }
     }
 
+    /**
+     * Valorisation ventilee par emplacement des articles - leur rayon, et non le depot, qui est deja choisi.
+     *
+     * <p>
+     * Le total du depot est joint a la ventilation : c'est ce qui permet de verifier d'un coup d'oeil que la somme des
+     * lignes fait bien le total. Sans lui, une ligne oubliee passerait inapercue.
+     */
+    public JSONObject valorisationParEmplacement(String depotId, String recherche, String familleId,
+            boolean seulementEnStock) {
+        JSONArray lignes = new JSONArray();
+        try {
+            @SuppressWarnings("unchecked")
+            List<Tuple> resultats = appliquer(em.createNativeQuery(
+                    DepotStockSql.valorisationParEmplacement(recherche, familleId, seulementEnStock), Tuple.class),
+                    depotId, recherche, familleId).getResultList();
+            for (Tuple t : resultats) {
+                lignes.put(new JSONObject()
+                        .put("emplacement", StringUtils.defaultString(t.get("emplacement", String.class)))
+                        .put("articles", entier(t.get("articles"))).put("quantite", entier(t.get("quantite")))
+                        .put("valeurAchat", longueur(t.get("valeurAchat")))
+                        .put("valeurVente", longueur(t.get("valeurVente"))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "valorisation par emplacement du depot " + depotId, e);
+        }
+        return new JSONObject().put("success", true).put("total", lignes.length()).put("data", lignes)
+                .put("valorisation", valorisation(depotId, recherche, familleId, seulementEnStock));
+    }
+
     public JSONObject stock(String depotId, String recherche, String familleId, boolean seulementEnStock, int start,
             int limit) {
         return new JSONObject().put("success", true)
@@ -188,7 +217,9 @@ public class DepotExtensionService {
         if (StringUtils.isNotBlank(familleLibelle)) {
             sb.append(" - Famille : ").append(familleLibelle);
         }
-        sb.append(seulementEnStock ? " - articles détenus seulement" : " - tous les articles du référentiel");
+        // Meme formulation que la case a cocher de l'ecran : une edition doit se relire avec les memes
+        // mots que l'ecran qui l'a produite.
+        sb.append(seulementEnStock ? " - articles à 0 masqués" : " - tous les articles du référentiel");
         return sb.toString();
     }
 

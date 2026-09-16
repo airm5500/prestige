@@ -119,7 +119,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
 
     /* 1. a l ouverture : aucun depot choisi, rien n est demande, editions inactives */
     const depart = await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       return { lignes: e.getStore().getCount(), excel: e.down('#exporterExcel').isDisabled(),
         pdf: e.down('#imprimer').isDisabled(), message: e.down('#valorisation').el.dom.textContent.trim() };
     });
@@ -129,7 +129,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
 
     /* 2. la liste des depots ne propose que les depots d extension, pas l officine */
     const depots = await p.evaluate(() => {
-      const c = Ext.ComponentQuery.query('depotextension combobox[itemId=depot]')[0];
+      const c = Ext.ComponentQuery.query('depotextension #depotEcran')[0];
       const v = []; c.getStore().each((r) => v.push([r.get('id'), r.get('nom')]));
       return v;
     });
@@ -140,7 +140,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     /* 3. choix du depot : stock et valorisation */
     const choisirDepot = async (id) => {
       await p.evaluate((d) => {
-        const c = Ext.ComponentQuery.query('depotextension combobox[itemId=depot]')[0];
+        const c = Ext.ComponentQuery.query('depotextension #depotEcran')[0];
         c.setValue(d);
         c.fireEvent('select', c, [c.getStore().findRecord('id', d)].filter(Boolean));
       }, id);
@@ -148,7 +148,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     };
     await choisirDepot(DEPOT);
     let vue = await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       const lignes = []; e.getStore().each((r) => lignes.push(r.data));
       return { total: e.getStore().getTotalCount(), lignes: lignes,
         valorisation: e.down('#valorisation').el.dom.textContent.trim(),
@@ -179,7 +179,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     /* 4. un depot sans stock ne montre pas celui du precedent */
     await choisirDepot(DEPOT2);
     vue = await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       return { total: e.getStore().getTotalCount(), lignes: e.getStore().getCount(),
         valorisation: e.down('#valorisation').el.dom.textContent.trim() };
     });
@@ -190,25 +190,25 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     /* 5. decocher « masquer les articles a 0 » ouvre tout le referentiel */
     await choisirDepot(DEPOT);
     await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       e.down('#enStock').setValue(false);
     });
     await p.waitForTimeout(4000);
-    const tous = await p.evaluate(() => Ext.ComponentQuery.query('depotextension')[0].getStore().getTotalCount());
+    const tous = await p.evaluate(() => Ext.ComponentQuery.query('depotextension depotextensionstock')[0].getStore().getTotalCount());
     ok('Décocher « masquer les articles à 0 » fait apparaître la ligne à zéro', tous === 4, tous);
-    await p.evaluate(() => { Ext.ComponentQuery.query('depotextension')[0].down('#enStock').setValue(true); });
+    await p.evaluate(() => { Ext.ComponentQuery.query('depotextension depotextensionstock')[0].down('#enStock').setValue(true); });
     await p.waitForTimeout(3500);
 
     /* 6. recherche par CIP */
     await p.evaluate((cip) => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       e.down('#recherche').setValue(cip);
       const btn = e.down('#rechercher');
       btn.fireEvent('click', btn);
     }, attendus[0].cip);
     await p.waitForTimeout(4000);
     const cherche = await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       const lignes = []; e.getStore().each((r) => lignes.push(r.get('cip')));
       return { total: e.getStore().getTotalCount(), lignes: lignes,
         valorisation: e.down('#valorisation').el.dom.textContent.trim() };
@@ -218,7 +218,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       && contient(cherche.valorisation, attendus[0].stock * attendus[0].pa), JSON.stringify(cherche));
 
     await p.evaluate(() => {
-      const e = Ext.ComponentQuery.query('depotextension')[0];
+      const e = Ext.ComponentQuery.query('depotextension depotextensionstock')[0];
       e.down('#recherche').setValue('');
       const btn = e.down('#rechercher');
       btn.fireEvent('click', btn);
@@ -233,9 +233,11 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       JSON.stringify({ statut: pdf.statut, type: pdf.type, disposition: pdf.disposition }));
     ok('Le document est un vrai PDF', Buffer.from(pdf.octets).slice(0, 5).toString() === '%PDF-');
     const texte = texteDuPdf(pdf.octets);
-    ok('Le PDF nomme le dépôt et rappelle les critères',
+    // Le rappel des criteres reprend les MEMES mots que la case a cocher de l'ecran : une edition doit se
+    // relire avec le vocabulaire de l'ecran qui l'a produite.
+    ok('Le PDF nomme le dépôt et rappelle les critères, avec les mots de l écran',
       /STOCK DU DEPOT - DEPOT E2E NORD/.test(texte) && /D.p.t : DEPOT E2E NORD/.test(texte)
-      && /d.tenus seulement/.test(texte), texte.slice(0, 260));
+      && /articles . 0 masqu/.test(texte), texte.slice(0, 260));
     ok('Le PDF porte les colonnes de stock et de valorisation',
       /Stock/.test(texte) && /Val\. achat/.test(texte) && /Val\. vente/.test(texte)
       && /TOTAL : 3 article/.test(texte), texte.slice(0, 300));

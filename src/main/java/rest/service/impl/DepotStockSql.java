@@ -74,4 +74,26 @@ final class DepotStockSql {
                 + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE), 0) AS valeurVente " + JOINTURES
                 + predicats(recherche, familleId, seulementEnStock);
     }
+
+    /**
+     * Meme valorisation, mais ventilee par EMPLACEMENT des articles.
+     *
+     * <p>
+     * « Emplacement » designe ici l'emplacement de l'article - son rayon, {@code t_zone_geographique} - et non le depot
+     * : le depot, lui, est deja choisi. C'est le sens qu'a deja « valorisation par EMPLACEMENT » dans l'edition de
+     * valorisation de l'officine, et le vocabulaire de la maison est garde tel quel.
+     *
+     * <p>
+     * Les articles sans rayon renseigne sont regroupes sous un libelle explicite plutot que d'etre perdus : leur valeur
+     * compte dans le total du depot, elle doit donc apparaitre ici aussi, sinon la somme des lignes ne ferait pas le
+     * total.
+     */
+    static String valorisationParEmplacement(String recherche, String familleId, boolean seulementEnStock) {
+        return "SELECT COALESCE(NULLIF(TRIM(z.str_LIBELLEE), ''), 'Sans emplacement') AS emplacement,"
+                + " COUNT(1) AS articles, COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) AS quantite,"
+                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PAF), 0) AS valeurAchat,"
+                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE), 0) AS valeurVente " + JOINTURES
+                + predicats(recherche, familleId, seulementEnStock)
+                + " GROUP BY emplacement ORDER BY valeurAchat DESC, emplacement";
+    }
 }
