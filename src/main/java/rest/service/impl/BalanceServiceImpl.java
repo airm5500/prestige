@@ -497,8 +497,35 @@ public class BalanceServiceImpl implements BalanceService {
         } else {
             sql = sql.replace("{excludeStatement}", EXCLUDE_STATEMENT);
         }
+        sql = appliquerPerimetreDeVente(sql, balanceParams);
 
         return sql;
+    }
+
+    /**
+     * Pose le perimetre de vente sur toutes les requetes de vente de la balance, en un seul endroit : chacune passe par
+     * replacePlaceHolder. Les requetes purement caisse (achats, autres mouvements) n'ont pas de vente a leur cote et
+     * gardent leur predicat tel quel - elles n'ont pas de « p » a interroger.
+     */
+    private String appliquerPerimetreDeVente(String sql, BalanceParamsDTO balanceParams) {
+        return PerimetreVenteSql.appliquer(sql, estDepotExtension(balanceParams.getEmplacementId()));
+    }
+
+    /** Vrai si l'emplacement demande est un depot d'extension (t_typedepot = 2), faux pour l'officine. */
+    private boolean estDepotExtension(String emplacementId) {
+        if (emplacementId == null || emplacementId.isEmpty() || "ALL".equalsIgnoreCase(emplacementId)) {
+            return false;
+        }
+        try {
+            Number n = (Number) em
+                    .createNativeQuery("SELECT COUNT(1) FROM t_emplacement e WHERE e.lg_EMPLACEMENT_ID = ?1"
+                            + " AND e.lg_TYPEDEPOT_ID = '2'")
+                    .setParameter(1, emplacementId).getSingleResult();
+            return n != null && n.intValue() > 0;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "type de l'emplacement " + emplacementId, e);
+            return false;
+        }
     }
 
     /**
@@ -932,7 +959,10 @@ public class BalanceServiceImpl implements BalanceService {
         }
 
         try {
-            Query query = em.createNativeQuery(AMOUNT_TO_REMOVE, Tuple.class)
+            // Cette requete ne portait pas de {excludeStatement} et ne passait donc pas par
+            // replacePlaceHolder : elle serait restee sur l'ancien perimetre, et le montant a retirer aurait
+            // compte les ventes de depot alors que le reste de la balance ne les compte plus.
+            Query query = em.createNativeQuery(appliquerPerimetreDeVente(AMOUNT_TO_REMOVE, balanceParams), Tuple.class)
                     .setParameter(4, balanceParams.getEmplacementId()).setParameter(3, DateConverter.DEPOT_EXTENSION)
                     .setParameter(1, java.sql.Date.valueOf(balanceParams.getDtStart()))
                     .setParameter(2, java.sql.Date.valueOf(balanceParams.getDtEnd()));
@@ -1380,7 +1410,11 @@ public class BalanceServiceImpl implements BalanceService {
         LocalDate now = LocalDate.now();
         try {
 
-            Query query = em.createNativeQuery(STAT_LAST_THREE_YEARS, Tuple.class)
+            // Etat de l'officine (emplacement « 1 » en dur) : les ventes jouees dans un depot en sont retirees,
+            // comme partout ailleurs dans la balance.
+            Query query = em
+                    .createNativeQuery(appliquerPerimetreDeVente(STAT_LAST_THREE_YEARS,
+                            BalanceParamsDTO.builder().emplacementId("1").build()), Tuple.class)
                     .setParameter(1, DateConverter.DEPOT_EXTENSION).setParameter(2, now.minusYears(2).getYear())
                     .setParameter(3, now.getYear()).setParameter(4, "1");
             return (List<Tuple>) query.getResultList();

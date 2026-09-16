@@ -2021,9 +2021,33 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
     }
 
+    /**
+     * Ventile la part des encaissements de cet operateur qui vient d'une vente jouee dans un depot d'extension.
+     *
+     * <p>
+     * L'argent de ces ventes est dans le tiroir de l'operateur, et il est donc bien compte dans les totaux du ticket Z.
+     * Mais le chiffre d'affaires, lui, appartient au depot : sans cette ligne, l'operateur verrait un total qu'il ne
+     * saurait pas rattacher. On ne touche a aucun total - on ajoute une lecture.
+     */
+    private void releverVenteEnDepot(TicketZDTO ticket, MvtTransaction mvt) {
+        try {
+            if (mvt.getPreenregistrement() == null || mvt.getPreenregistrement().getEmplacementVente() == null) {
+                return;
+            }
+            dal.TEmplacement depot = mvt.getPreenregistrement().getEmplacementVente();
+            Integer regle = mvt.getMontantRegle();
+            ticket.ajouterVenteEnDepot(depot.getStrNAME(), regle == null ? 0L : regle.longValue());
+        } catch (Exception e) {
+            // Une ventilation illisible ne doit jamais empecher l'edition du ticket Z : le caissier doit
+            // pouvoir fermer sa caisse.
+            LOG.log(Level.WARNING, "ventilation des ventes en depot du ticket Z", e);
+        }
+    }
+
     private void computeVenteTicketZDataByUser(TicketZDTO ticket, List<MvtTransaction> list) {
 
         for (MvtTransaction b : list) {
+            releverVenteEnDepot(ticket, b);
             if (b.getTypeTransaction() == TypeTransaction.VENTE_CREDIT) {
                 ticket.setTotalCredit(ticket.getTotalCredit() + b.getMontantCredit());
             }
@@ -2845,6 +2869,14 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("MOOV (vno/vo)",
                         NumberUtils.formatLongToString(v.getMontantMoov()));
                 modePaymentAmounts.add(modePaymentAmount);
+            }
+            // « dont vente dépôt » : une ventilation, pas un total de plus. Absente quand il n'y a pas eu de
+            // vente en dépôt, donc invisible pour qui n'en fait pas.
+            for (java.util.Map.Entry<String, Long> depot : v.getVentesEnDepot().entrySet()) {
+                if (depot.getValue() != null && depot.getValue() != 0) {
+                    modePaymentAmounts.add(new ModePaymentAmount("dont vente dépôt " + depot.getKey(),
+                            NumberUtils.formatLongToString(depot.getValue())));
+                }
             }
             for (TicketZDTO.AutreMobile autre : v.getAutresMobiles().values()) {
                 if (autre.getVente() != 0) {

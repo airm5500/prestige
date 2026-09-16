@@ -91,6 +91,39 @@ public class TicketZDTO {
         return getAutresMobiles().computeIfAbsent(typeReglementId, k -> new AutreMobile(libelle));
     }
 
+    /**
+     * Ventes jouees dans un depot d'extension, depot par depot, encaissees dans la caisse de cet operateur.
+     *
+     * <p>
+     * Ces montants sont DEJA compris dans les totaux ci-dessus : l'argent est reellement dans le tiroir de l'operateur.
+     * Ils ne s'ajoutent donc pas au ticket, ils le ventilent - c'est la reponse a « le ticket Z peut-il ajouter une
+     * ligne pour mentionner ces ventes ? ». Sans vente en depot, la carte reste vide et le ticket est exactement celui
+     * d'avant.
+     */
+    private java.util.Map<String, Long> ventesEnDepot;
+
+    public java.util.Map<String, Long> getVentesEnDepot() {
+        if (ventesEnDepot == null) {
+            ventesEnDepot = new java.util.LinkedHashMap<>();
+        }
+        return ventesEnDepot;
+    }
+
+    /** Ajoute un encaissement au cumul du depot nomme. */
+    public void ajouterVenteEnDepot(String nomDepot, long montant) {
+        String cle = nomDepot == null || nomDepot.isEmpty() ? "Depot" : nomDepot;
+        getVentesEnDepot().merge(cle, montant, Long::sum);
+    }
+
+    /** Total encaisse pour le compte des depots, tous depots confondus. */
+    public long totalVentesEnDepot() {
+        long total = 0;
+        for (Long montant : getVentesEnDepot().values()) {
+            total += montant == null ? 0 : montant;
+        }
+        return total;
+    }
+
     @Getter
     @Setter
     public static class AutreMobile {
