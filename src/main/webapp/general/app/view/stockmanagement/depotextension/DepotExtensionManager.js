@@ -14,7 +14,7 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
     extend: 'Ext.grid.Panel',
     xtype: 'depotextension',
 
-    title: 'Dépôts d\'extension',
+    title: 'GESTION DÉPÔTS EXTENSIONS',
     frame: true,
     cls: 'custompanel',
     width: '97%',
@@ -103,11 +103,17 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                         }, {
                             xtype: 'checkbox',
                             itemId: 'enStock',
-                            boxLabel: 'détenus seulement',
+                            // « détenus seulement » ne disait pas ce que fait la case, et cachait un cas : un
+                            // stock NEGATIF passe aussi le filtre. Le libellé décrit maintenant exactement
+                            // l'effet, et il est assez court pour la barre.
+                            boxLabel: 'masquer les articles à 0',
                             checked: true,
-                            // Un depot partage le referentiel articles de l'officine : sans ce filtre,
-                            // la liste sortirait les milliers d'articles que le depot ne detient pas.
-                            tooltip: 'N\'afficher que les articles dont le dépôt détient du stock'
+                            // Un depot partage le referentiel articles de l'officine : sans ce filtre, la liste
+                            // sortirait les milliers d'articles que le depot ne detient pas.
+                            tooltip: 'Cochée : seuls les articles dont le stock du dépôt n\'est pas zéro. '
+                                    + 'Un stock négatif reste visible, c\'est une anomalie à voir. '
+                                    + 'Décochée : tout le catalogue de l\'officine, pour saisir un article que '
+                                    + 'le dépôt ne détient pas encore.'
                         }, {
                             xtype: 'button',
                             itemId: 'rechercher',

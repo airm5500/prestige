@@ -13,7 +13,7 @@ Ext.define('testextjs.view.posos.PososManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'pososmanager',
     frame: true,
-    title: 'ANALYSE POSOS',
+    title: 'ANALYSE POSOLOGIE',
     width: '99%',
     height: 'auto',
     minHeight: 560,

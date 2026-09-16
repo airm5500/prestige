@@ -5,8 +5,7 @@
  * permettait de les consulter depuis l'officine depot par depot, avec la valorisation de ce que le depot
  * detient, ni de l'emporter en Excel ou en PDF.
  *
- * Le parcours est joue a l'ecran : choix du depot, recherche, filtre famille, bascule « detenus
- * seulement », export Excel et edition PDF. Le depot et le stock poses par le test sont retires a la fin. */
+ * Le parcours est joue a l'ecran : choix du depot, recherche, filtre famille, bascule « masquer les articles a 0 », export Excel et edition PDF. Le depot et le stock poses par le test sont retires a la fin. */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
 
@@ -44,7 +43,7 @@ function poser() {
     + " FROM t_famille WHERE str_STATUT='enable' AND int_PAF>0 AND int_PRICE>0 AND int_CIP IS NOT NULL"
     + " ORDER BY str_NAME LIMIT 4) x").split('|')
     .map((x) => { const p = x.split(':'); return { id: p[0], pa: parseInt(p[1], 10), pv: parseInt(p[2], 10), cip: p[3] }; });
-  const quantites = [12, 5, 40, 0]; // le dernier a zero : il ne doit pas sortir en mode « detenus seulement »
+  const quantites = [12, 5, 40, 0]; // le dernier a zero : il est masque par defaut
   arts.forEach((a, i) => {
     a.stock = quantites[i];
     exec("INSERT INTO t_famille_stock (lg_FAMILLE_STOCK_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_AVAILABLE,"
@@ -103,8 +102,13 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     /* le sous-menu existe et porte son privilege */
     const menu = q("SELECT CONCAT(str_VALUE, '|', str_COMPOSANT, '|', P_KEY, '|', lg_MENU_ID)"
       + " FROM t_sous_menu WHERE str_COMPOSANT='depotextension'");
-    ok('Le sous-menu « Dépôts d extension » est posé sous la gestion du stock, avec son privilège',
-      menu === "Depots d'extension|depotextension|P_SM_DEPOT_EXTENSION|55111546114940284023", menu);
+    ok('Le sous-menu « Gestion depots extensions » est posé sous la gestion du stock, avec son privilège',
+      menu === 'Gestion depots extensions|depotextension|P_SM_DEPOT_EXTENSION|55111546114940284023', menu);
+    // Regle de la maison : les libelles et descriptions de menus sont affiches dans une place etroite.
+    const longueurs = q("SELECT CONCAT(CHAR_LENGTH(str_VALUE), '|', CHAR_LENGTH(str_DESCRIPTION))"
+      + " FROM t_sous_menu WHERE str_COMPOSANT='depotextension'").split('|').map(Number);
+    ok('Le libellé et la description tiennent dans la navigation (25 et 30 au plus)',
+      longueurs[0] <= 25 && longueurs[1] <= 30, 'libelle=' + longueurs[0] + ' description=' + longueurs[1]);
     const visible = q("SELECT COUNT(*) FROM v_getallsousmenubyconnecteduser v JOIN t_user u ON u.lg_USER_ID=v.lg_USER_ID"
       + " WHERE u.str_LOGIN='admin' AND v.str_COMPOSANT='depotextension'");
     ok('Il est visible pour un profil administrateur', visible === '1', visible);
@@ -152,7 +156,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     });
     ok('Le stock du dépôt s affiche : 3 articles détenus sur les 4 posés',
       vue.total === 3 && vue.lignes.length === 3, JSON.stringify({ total: vue.total }));
-    ok('L article à zéro n est pas listé en mode « détenus seulement »',
+    ok('L article à zéro est masqué par défaut',
       !vue.lignes.some((l) => l.stock === 0), JSON.stringify(vue.lignes.map((l) => l.stock)));
     ok('Les éditions deviennent actives', vue.excel === false && vue.pdf === false);
 
@@ -183,7 +187,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       vue.total === 0 && vue.lignes === 0 && /DEPOT E2E SUD/.test(vue.valorisation)
       && /0 article/.test(vue.valorisation), JSON.stringify(vue));
 
-    /* 5. la bascule « detenus seulement » ouvre tout le referentiel */
+    /* 5. decocher « masquer les articles a 0 » ouvre tout le referentiel */
     await choisirDepot(DEPOT);
     await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('depotextension')[0];
@@ -191,7 +195,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     });
     await p.waitForTimeout(4000);
     const tous = await p.evaluate(() => Ext.ComponentQuery.query('depotextension')[0].getStore().getTotalCount());
-    ok('Décocher « détenus seulement » fait apparaître la ligne à zéro', tous === 4, tous);
+    ok('Décocher « masquer les articles à 0 » fait apparaître la ligne à zéro', tous === 4, tous);
     await p.evaluate(() => { Ext.ComponentQuery.query('depotextension')[0].down('#enStock').setValue(true); });
     await p.waitForTimeout(3500);
 
