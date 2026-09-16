@@ -76,10 +76,16 @@ Ext.define('testextjs.controller.PososCtr', {
             zone.update('<div style="color:#17987e;">Posos configuré — ' + Ext.String.htmlEncode(r.url || '')
                     + ' (identifiant ' + Ext.String.htmlEncode(r.clientId || '') + ')</div>');
         } else {
-            // On dit ce qui manque sans jamais montrer de valeur : le gestionnaire renseigne cote serveur.
-            zone.update('<div style="color:#c0392b;">Posos n\'est pas configuré : adresse et identifiants sont à '
-                    + 'renseigner sur le serveur (POSOS_API_URL, POSOS_CLIENT_ID, POSOS_CLIENT_SECRET). '
-                    + 'Aucun identifiant ne se saisit depuis cet écran.</div>');
+            // On dit ce qui manque ET OU le renseigner, sans jamais montrer de valeur. Sans le chemin exact, le
+            // gestionnaire depose le fichier au hasard et ne comprend pas pourquoi rien ne change.
+            var ou = r.fichierAttendu
+                    ? '<br/>Fichier attendu : <b>' + Ext.String.htmlEncode(r.fichierAttendu) + '</b> ('
+                    + (r.fichierPresent ? 'présent mais incomplet' : 'absent') + '), '
+                    + 'dans le même dossier que dicisms.properties.'
+                    : '';
+            zone.update('<div style="color:#c0392b;">Posos n\'est pas configuré : renseignez POSOS_API_URL, '
+                    + 'POSOS_CLIENT_ID et POSOS_CLIENT_SECRET côté serveur — aucun identifiant ne se saisit '
+                    + 'depuis cet écran.' + ou + '</div>');
         }
         var bouton = this.getBoutonAnalyser();
         if (bouton && !bouton.isDestroyed) {

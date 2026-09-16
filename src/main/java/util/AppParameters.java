@@ -62,7 +62,9 @@ public final class AppParameters {
         if (new File(cheminHistorique).exists()) {
             return cheminHistorique;
         }
-        return StockageDisque.sousDossier("config").resolve("dicisms.properties").toString();
+        // Meme regle, tenue en UN seul endroit : les autres fichiers de configuration du poste (posos.properties)
+        // se rangent dans ce meme dossier, plutot que chacun dans le sien.
+        return StockageDisque.fichierConfiguration("dicisms.properties").toString();
     }
 
     public String fneUrl;

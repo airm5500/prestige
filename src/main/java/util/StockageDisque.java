@@ -74,6 +74,40 @@ public final class StockageDisque {
         return dossier;
     }
 
+    /**
+     * Dossier des fichiers de configuration du poste - celui qui contient {@code dicisms.properties}.
+     *
+     * <p>
+     * La regle est celle que suivait deja {@code AppParameters} : si le fichier historique existe, on garde SON dossier
+     * (aucune regression sur les installations en place) ; sinon le dossier {@code config} du disque de donnees,
+     * c'est-a-dire {@code D:\prestige\config} sur Windows.
+     *
+     * <p>
+     * Tous les fichiers de configuration du poste vivent ainsi au MEME endroit : on cherche à un seul endroit, et un
+     * nouveau fichier n'atterrit pas dans un dossier que personne ne pense à ouvrir.
+     */
+    public static Path dossierConfiguration() {
+        String os = System.getProperty("os.name");
+        boolean windows = os != null && os.toLowerCase().contains("windows");
+        Path historique = windows ? Paths.get(System.getProperty("user.home"), "Documents", FICHIER_HISTORIQUE)
+                : Paths.get(System.getProperty("user.home"), "Home", FICHIER_HISTORIQUE);
+        if (Files.exists(historique)) {
+            return historique.getParent();
+        }
+        return sousDossier("config");
+    }
+
+    /**
+     * Fichier de configuration a cote duquel les autres se rangent. Son emplacement historique sert de repere : s'il
+     * est là, tout le reste de la configuration est là aussi.
+     */
+    static final String FICHIER_HISTORIQUE = "dicisms.properties";
+
+    /** Un fichier de configuration du poste, dans le dossier de configuration. */
+    public static Path fichierConfiguration(String nom) {
+        return dossierConfiguration().resolve(nom);
+    }
+
     private static Path resoudreRacine() {
         String os = System.getProperty("os.name");
         if (os != null && os.toLowerCase().contains("windows")) {

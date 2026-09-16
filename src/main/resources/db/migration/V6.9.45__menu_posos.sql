@@ -6,8 +6,8 @@
 -- navigateur et aucun ne se saisit depuis l'ecran : l'adresse et les
 -- identifiants sont renseignes cote serveur, hors du depot de code
 -- (variables d'environnement, proprietes systeme, ou le fichier
--- /opt/CONF/LABOREX/CONF/posos.properties a cote de la configuration du
--- site).
+-- posos.properties place dans le meme dossier que dicisms.properties -
+-- sous Windows D:\prestige\config).
 --
 -- Le sous-menu se place dans « SERVICE CLIENT » et n'apparait qu'aux
 -- profils portant son privilege : c'est la vue

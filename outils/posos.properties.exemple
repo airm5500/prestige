@@ -2,12 +2,20 @@
 # Configuration de la passerelle Posos - EXEMPLE
 # ---------------------------------------------------------------------
 # NE PAS mettre de vraies valeurs dans ce fichier : il est dans le depot
-# de code. C'est un modele a recopier sur le serveur, a l'emplacement
+# de code. C'est un modele a recopier sur le serveur, sous le nom
 #
-#     /opt/CONF/LABOREX/CONF/posos.properties
+#     posos.properties
 #
-# a cote de la configuration du site, hors du depot. Les droits de ce
-# fichier doivent le reserver au compte de service (chmod 600).
+# dans le MEME dossier que dicisms.properties. Sous Windows, c'est
+#
+#     D:\prestige\config\posos.properties
+#
+# (ou F:\ puis E:\ si D: n'est pas utilisable), ou bien le dossier
+# historique du profil - <profil>\Documents - si dicisms.properties y
+# est deja. En cas de doute, l'ecran « Analyse Posos » affiche le chemin
+# exact qu'il consulte, et dit si le fichier y est.
+#
+# Les droits de ce fichier doivent le reserver au compte de service.
 #
 # La passerelle lit sa configuration dans cet ordre de priorite :
 #   1. une variable d'environnement du serveur ;

@@ -28,7 +28,9 @@ const BASE = process.env.DB_TEST || 'capitale';
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
-const CONFIG = '/opt/CONF/LABOREX/CONF/posos.properties';
+/* Le chemin n'est plus devine : on demande a l'application ou elle attend son fichier de configuration.
+ * C'est ce que voit le gestionnaire sur l'ecran, et cela rend le test juste sous Windows comme ici. */
+let CONFIG = null;
 // Identifiants uniques a chaque execution : le jeton est mis en cache cote serveur pour une heure, et
 // c'est voulu. Changer les identifiants doit le faire jeter - le test l'exige donc a chaque passage, et
 // verifie du meme coup que l'invalidation sur changement de configuration fonctionne.
@@ -42,6 +44,7 @@ let sauvegardeConfig = null;
 const ventes = [];
 
 function poserConfig(contenu) {
+  if (!CONFIG) { throw new Error('emplacement de configuration inconnu'); }
   if (sauvegardeConfig === null) {
     sauvegardeConfig = fs.existsSync(CONFIG) ? fs.readFileSync(CONFIG, 'utf8') : false;
   }
@@ -54,6 +57,7 @@ function poserConfig(contenu) {
 }
 
 function restaurerConfig() {
+  if (!CONFIG) { return; }
   if (sauvegardeConfig === false) {
     if (fs.existsSync(CONFIG)) { fs.unlinkSync(CONFIG); }
   } else if (sauvegardeConfig !== null) {
@@ -108,8 +112,6 @@ function demarrerPosos() {
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
-    /* ------------------------------------------- d abord SANS configuration */
-    poserConfig(null);
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
@@ -124,9 +126,23 @@ function demarrerPosos() {
       try { return JSON.parse(t); } catch (e) { return { brut: t.slice(0, 300) }; }
     }, { url: url, corps: corps });
 
+    /* --------------- l application dit elle-meme ou elle attend sa configuration */
     let statut = await json('../api/v1/posos/status');
+    CONFIG = statut.fichierAttendu;
+    ok('l application annonce OU elle attend son fichier de configuration',
+      !!CONFIG && path.isAbsolute(CONFIG) && path.basename(CONFIG) === 'posos.properties', String(CONFIG));
+    ok('ce fichier est attendu dans le MÊME dossier que dicisms.properties',
+      path.basename(path.dirname(CONFIG)) === 'config'
+      || fs.existsSync(path.join(path.dirname(CONFIG), 'dicisms.properties')),
+      String(CONFIG));
+
+    /* ------------------------------------------- d abord SANS configuration */
+    poserConfig(null);
+    statut = await json('../api/v1/posos/status');
     ok('sans configuration, le statut repond et annonce « non configurée »',
       statut.success === true && statut.configuree === false, JSON.stringify(statut));
+    ok('le statut dit que le fichier est absent, pour qu on sache quoi déposer',
+      statut.fichierPresent === false, JSON.stringify({ a: statut.fichierAttendu, p: statut.fichierPresent }));
     ok('sans configuration, aucune analyse n est tentee et l indisponibilite est dite',
       await (async () => {
         const r = await json('../api/v1/posos/analyse', { produits: [{ nom: 'PARACETAMOL 500 MG' }] });
@@ -143,6 +159,7 @@ function demarrerPosos() {
     statut = await json('../api/v1/posos/status');
     ok('la configuration du site est prise en compte sans redemarrage',
       statut.configuree === true, JSON.stringify(statut));
+    ok('le statut signale desormais le fichier comme présent', statut.fichierPresent === true);
     ok('le statut ne rend NI le secret NI l identifiant en clair',
       JSON.stringify(statut).indexOf(SECRET) < 0 && JSON.stringify(statut).indexOf(IDENTIFIANT) < 0,
       JSON.stringify(statut));

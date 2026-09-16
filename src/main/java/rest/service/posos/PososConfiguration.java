@@ -20,8 +20,9 @@ import java.util.logging.Logger;
  * <ol>
  * <li>une variable d'environnement du serveur ({@code POSOS_CLIENT_SECRET}...) ;</li>
  * <li>une propriete systeme de la JVM, de meme nom ;</li>
- * <li>un fichier de proprietes hors du depot, par defaut {@code /opt/CONF/LABOREX/CONF/posos.properties}, a cote de la
- * configuration du site.</li>
+ * <li>un fichier de proprietes hors du depot, {@code posos.properties}, dans le MEME dossier que
+ * {@code dicisms.properties} - sur Windows {@code D:\prestige\config} (ou F:, E:), ou le dossier historique du profil
+ * s'il existe deja. {@code POSOS_CONFIG_FILE} permet de le placer ailleurs.</li>
  * </ol>
  *
  * <p>
@@ -32,8 +33,25 @@ public final class PososConfiguration {
 
     private static final Logger LOG = Logger.getLogger(PososConfiguration.class.getName());
 
-    /** Emplacement par defaut du fichier de configuration du site, hors du depot. */
-    static final String FICHIER_DEFAUT = "/opt/CONF/LABOREX/CONF/posos.properties";
+    /** Nom du fichier de configuration de la passerelle. */
+    static final String NOM_FICHIER = "posos.properties";
+
+    /**
+     * Emplacement par defaut : le MEME dossier que {@code dicisms.properties}, resolu par la meme regle - sur Windows
+     * {@code D:\prestige\config} (ou F:, E:), ou le dossier historique du profil s'il existe deja.
+     *
+     * <p>
+     * Un chemin en dur ne conviendrait pas : les postes de l'officine sont sous Windows, et un fichier depose dans un
+     * dossier que personne ne pense a ouvrir n'est jamais trouve.
+     */
+    static String fichierParDefaut() {
+        try {
+            return util.StockageDisque.fichierConfiguration(NOM_FICHIER).toString();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Dossier de configuration introuvable : posos.properties sera ignore");
+            return NOM_FICHIER;
+        }
+    }
 
     static final String CLE_FICHIER = "POSOS_CONFIG_FILE";
     static final String CLE_URL = "POSOS_API_URL";
@@ -80,7 +98,7 @@ public final class PososConfiguration {
 
     private static Properties chargerFichier(String chemin) {
         Properties p = new Properties();
-        String vise = chemin == null || chemin.trim().isEmpty() ? FICHIER_DEFAUT : chemin.trim();
+        String vise = chemin == null || chemin.trim().isEmpty() ? fichierParDefaut() : chemin.trim();
         try {
             Path f = Paths.get(vise);
             if (!Files.isReadable(f)) {
@@ -182,7 +200,17 @@ public final class PososConfiguration {
         d.put("secretRenseigne", clientSecret() != null);
         d.put("scopeRenseigne", scope() != null);
         d.put("delaiMs", delaiMs());
+        // Ou deposer le fichier, et s'il y est : la question « je ne le vois nulle part » ne doit plus se poser.
+        String attendu = fichierAttendu();
+        d.put("fichierAttendu", attendu);
+        d.put("fichierPresent", java.nio.file.Files.isReadable(Paths.get(attendu)));
         return d;
+    }
+
+    /** Chemin du fichier de configuration effectivement consulte, pour que l'ecran puisse le dire. */
+    public String fichierAttendu() {
+        String choisi = lire(CLE_FICHIER);
+        return choisi != null ? choisi : fichierParDefaut();
     }
 
     /**
