@@ -778,6 +778,8 @@ Ext.application({
         'VisualisationCtr',
         'ListeCaisseCtr',
         'VenteCtr',
+        // Ecran « vente en depot » : duplication de l'ecran de vente, oriente « je suis dans le depot ».
+        'VenteEnDepotCtr',
         'PendingCtr',
         'PreVentesCtr',
         'ProduitDesactivesCtr',

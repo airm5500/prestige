@@ -741,7 +741,8 @@ Ext.define('testextjs.controller.App', {
         // L'ecran de vente (doventemanager) se colle en haut a gauche du
         // corps, sans centrage ni decalage : son bandeau VENTE AU COMPTANT
         // touche directement la barre de titre "Ventes" du panneau central.
-        if (item && item.isXType && item.isXType('doventemanager')) {
+        // doventeendepot est la duplication « vente en depot » du meme ecran : meme traitement.
+        if (item && item.isXType && (item.isXType('doventemanager') || item.isXType('doventeendepot'))) {
             return;
         }
 

@@ -17,6 +17,12 @@ public class QueryDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private String query, emplacementId, venteId;
+    /**
+     * Depot d'extension dont on veut lire le stock. Vide pour une lecture d'officine, c'est-a-dire pour tout ce qui
+     * existait avant l'ecran de vente en depot.
+     */
+    private String depotVenteId;
+
     private int start = 0, limit;
     private String dtStart, dtEnd, statut;
     private Date utilDateStart, utilDateEnd;
@@ -44,6 +50,14 @@ public class QueryDTO implements Serializable {
 
     public void setQuery(String query) {
         this.query = query;
+    }
+
+    public String getDepotVenteId() {
+        return depotVenteId;
+    }
+
+    public void setDepotVenteId(String depotVenteId) {
+        this.depotVenteId = depotVenteId;
     }
 
     public String getEmplacementId() {

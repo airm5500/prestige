@@ -307,9 +307,11 @@ public class SalesRessource {
 
     @GET
     @Path("search/{id}")
-    public Response searchProductById(@PathParam("id") String id) throws JSONException {
+    public Response searchProductById(@PathParam("id") String id, @QueryParam(value = "depot") String depot)
+            throws JSONException {
 
-        JSONObject jsono = salesService.produits(id);
+        // depot : renseigne par l'ecran de vente en depot uniquement. Absent, la lecture est celle d'avant.
+        JSONObject jsono = salesService.produits(id, depot);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -335,25 +337,28 @@ public class SalesRessource {
      */
     @GET
     @Path("stock-vendable/{produitId}")
-    public Response stockVendableProduit(@PathParam("produitId") String produitId) throws JSONException {
+    public Response stockVendableProduit(@PathParam("produitId") String produitId,
+            @QueryParam(value = "depot") String depot) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = salesService.stockVendableProduit(produitId);
+        JSONObject jsono = salesService.stockVendableProduit(produitId, depot);
         return Response.ok().entity(jsono.toString()).build();
     }
 
     @GET
     @Path("search")
     public Response searchProduct(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "query") String query) throws JSONException {
+            @QueryParam(value = "query") String query, @QueryParam(value = "depot") String depot) throws JSONException {
 
         QueryDTO body = new QueryDTO();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
+        // depot : renseigne par l'ecran de vente en depot uniquement, pour lister le stock du depot.
+        body.setDepotVenteId(depot);
 
         JSONObject jsono = salesService.produits(body, false);
         return Response.ok().entity(jsono.toString()).build();

@@ -37,6 +37,12 @@ public interface SalesService {
 
     JSONObject stockVendableProduit(String produitId) throws JSONException;
 
+    /**
+     * Meme lecture, mais dans un depot d'extension : l'ecran de vente en depot doit voir le stock du depot. Un depot
+     * vide ou invalide ramene a la lecture de l'officine.
+     */
+    JSONObject stockVendableProduit(String produitId, String depotId) throws JSONException;
+
     TPreenregistrement removePreenregistrementDetail(String itemId);
 
     /**
@@ -129,6 +135,9 @@ public interface SalesService {
     boolean checkCaisse(TUser ooTUser);
 
     JSONObject produits(String produitId) throws JSONException;
+
+    /** Fiche produit lue dans un depot d'extension (stock du depot). Depot vide ou invalide : lecture d'officine. */
+    JSONObject produits(String produitId, String depotId) throws JSONException;
 
     JSONObject findOneproduit(String produitId, String emplacementId) throws JSONException;
 

@@ -1,0 +1,9779 @@
+/* ECRAN DUPLIQUE - « vente en depot ».
+ *
+ * Copie de controller/VenteCtr.js, orientee « je suis dans le depot ».
+ * L'officine a demande que l'ecran de vente de tous les jours ne soit pas touche : cet ecran est
+ * donc une duplication, pas une variante. Consequence a connaitre : une correction portee sur
+ * controller/VenteCtr.js doit etre reportee ici.
+ *
+ * Le xtype est distinct pour que les selecteurs du controleur de l'officine ne rencontrent
+ * jamais cet ecran, et inversement.
+ */
+
+/* global Ext */
+
+Ext.define('testextjs.controller.VenteEnDepotCtr', {
+    extend: 'Ext.app.Controller',
+
+    /**
+     * Remet totalement à zéro le champ de recherche produit (combo) :
+     * - clearValue() seul peut laisser le rawValue affiché
+     * - ici on force aussi setValue(null) + setRawValue('') + reset() + inputEl
+     */
+    resetProduitCombo: function (combo) {
+        if (!combo) {
+            return;
+        }
+        try {
+            // Fermer la liste (évite ENTER en arrière-plan)
+            if (combo.isExpanded) {
+                combo.collapse();
+            }
+        } catch (e) {
+        }
+        try {
+            // Deselect dans le picker
+            if (combo.getPicker && combo.getPicker()) {
+                const sm = combo.getPicker().getSelectionModel && combo.getPicker().getSelectionModel();
+                if (sm && sm.deselectAll) {
+                    sm.deselectAll();
+                }
+            }
+        } catch (e) {
+        }
+        try {
+            // Vider value + texte affiché
+            combo.clearValue();
+        } catch (e) {
+        }
+        try {
+            combo.setValue(null);
+        } catch (e) {
+        }
+        try {
+            combo.setRawValue('');
+        } catch (e) {
+        }
+        try {
+            combo.reset();
+        } catch (e) {
+        }
+        try {
+            // Réinitialiser la dernière requête pour forcer une nouvelle recherche
+            combo.lastQuery = null;
+        } catch (e) {
+        }
+        try {
+            // Enlever tout filtre restant sur le store (sinon la liste conserve l'ancien résultat)
+            const st = combo.getStore && combo.getStore();
+            if (st && st.clearFilter) {
+                st.clearFilter(false);
+            }
+        } catch (e) {
+        }
+        try {
+            if (combo.inputEl && combo.inputEl.dom) {
+                combo.inputEl.dom.value = '';
+            }
+        } catch (e) {
+        }
+    },
+
+    // === Protection saisie Montant reçu (anti-scanner + confirmation) ===
+    antiBarcodeMaxDigits: 7, // > 5 chiffres => blocage (probable scan code-barres)
+    confirmAtMaxDigits: true, // == 5 chiffres => demande confirmation
+    suspectInputThreshold: 200000, // confirmation au clic "Terminer" si montant élevé
+
+    maxChangeAllowed: 9500, // monnaie à rendre max avant alerte (anti scan)
+
+    /* === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
+     *
+     * Cette liste vient de la BASE, plus du code (point 13). Les identifiants ci-dessous ne sont
+     * qu'un repli, servant uniquement si le serveur ne répond pas : ils étaient auparavant COMPLÉTÉS
+     * par la réponse du serveur au lieu d'être remplacés, si bien qu'un opérateur désactivé dans la
+     * configuration - CELPAID et TRESORPAY le sont - restait reconnu par l'écran de vente. */
+    mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
+    /* Vrai dès que le serveur a répondu : la liste n'est alors plus celle du code. */
+    mobileModeIdsCharges: false,
+
+    // === Types de reglement exigeant un client (cf. typeReglementSelectEvent) ===
+    // Liste de repli : cheque (2), carte bancaire (3), differe (4) et virement (6), ceux qui
+    // ouvraient deja le parcours client. Elle est remplacee au demarrage par le reglage de la base
+    // (point 12), de sorte qu'un mode cree par l'officine - Wyzall, par exemple - se comporte comme
+    // les autres sans toucher au code. Si l'appel echoue, on garde le comportement historique.
+    clientRequisIds: ['2', '3', '4', '6'],
+
+    chargerTypesClientRequis: function (suite) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/type-reglements/client-requis',
+            callback: function (opts, succes, response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.clientRequisIds = json.data.map(String);
+                }
+                if (Ext.isFunction(suite)) {
+                    suite();
+                }
+            }
+        });
+    },
+
+    /*
+     * Ce mode de reglement demande-t-il un client ? Le mobile money reste reconnu par sa propre
+     * liste : il porte d'autres comportements que le seul parcours client.
+     */
+    modeExigeClient: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.clientRequisIds.indexOf(id) !== -1 || this.isMobileMode(id);
+    },
+
+    chargerModesMobileMoney: function (suite) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/type-reglements/mobile-money',
+            callback: function (opts, succes, response) {
+                let json = {};
+                try {
+                    json = Ext.decode(response.responseText);
+                } catch (e) {
+                }
+                /* La réponse REMPLACE la liste, elle ne s'y ajoute pas : c'est la configuration
+                 * qui fait foi, y compris quand elle RETIRE un mode. Une réponse vide est refusée -
+                 * elle signifierait qu'aucun mode mobile n'existe, ce qui priverait la vente de tout
+                 * le comportement mobile ; dans ce cas on garde le repli. */
+                if (json.success && Ext.isArray(json.data) && json.data.length) {
+                    me.mobileModeIds = json.data.map(String);
+                    me.mobileModeIdsCharges = true;
+                }
+                if (Ext.isFunction(suite)) {
+                    suite();
+                }
+            }
+        });
+    },
+
+    /* Modes dont le comportement est ecrit dans le code : comptant (1), cheque (2), carte (3),
+     * differe (4) et virement (6). Tout le reste doit etre classe par la configuration. */
+    MODES_CONNUS_DU_CODE: ['1', '2', '3', '4', '6'],
+
+    /*
+     * Ce mode est-il deja classe ? Un mode cree par l'officine pendant que la caisse est restee
+     * ouverte - elles le restent toute la journee - est absent des deux listes chargees au
+     * demarrage du controleur : il faut alors les relire avant de decider quoi que ce soit.
+     */
+    modeClasse: function (typeRegleId) {
+        const id = String(typeRegleId);
+        return this.MODES_CONNUS_DU_CODE.indexOf(id) !== -1
+                || this.mobileModeIds.indexOf(id) !== -1
+                || this.clientRequisIds.indexOf(id) !== -1;
+    },
+
+    /* Relit les deux classements et n'appelle la suite qu'une fois les DEUX reponses arrivees. */
+    rafraichirClassementModes: function (suite) {
+        const me = this;
+        let restantes = 2;
+        const fini = function () {
+            restantes -= 1;
+            if (restantes === 0 && Ext.isFunction(suite)) {
+                suite();
+            }
+        };
+        me.chargerModesMobileMoney(fini);
+        me.chargerTypesClientRequis(fini);
+    },
+    models: [
+        'testextjs.model.caisse.Nature',
+        'testextjs.model.caisse.Reglement',
+        'testextjs.model.caisse.TypeRemise',
+        'testextjs.model.caisse.Remise',
+        'testextjs.model.caisse.TypeVente',
+        'testextjs.model.caisse.Produit',
+        'testextjs.model.caisse.VenteItem',
+        'testextjs.model.caisse.ClientLambda',
+        'testextjs.model.caisse.ClientAssurance',
+        'testextjs.model.caisse.AyantDroit',
+        'testextjs.model.caisse.ClientTiersPayant',
+        'testextjs.store.caisse.RechercheClientAss',
+        'testextjs.model.caisse.MedecinModel'
+    ],
+    views: [
+        'testextjs.view.vente.endepot.VenteEnDepotView',
+        'testextjs.view.vente.endepot.ClientLambda',
+        'testextjs.view.vente.endepot.ClientGrid',
+        'testextjs.view.vente.endepot.addClientAssurance',
+        'testextjs.view.vente.endepot.AyantDroitGrid',
+        'testextjs.view.vente.endepot.AddCarnet',
+        'testextjs.view.vente.endepot.Medecin',
+        'testextjs.view.vente.endepot.OrdonnanceParcours',
+        'testextjs.view.vente.endepot.ReglementGrid'
+    ],
+    config: {
+        current: null,
+        netAmountToPay: null,
+        client: null,
+        canModifyPu: null,
+        ayantDroit: null,
+        categorie: null,
+        venteSansBon: false,
+        caisse: false,
+        ancienTierspayant: null,
+        toRecalculate: true,
+        plafondVente: false,
+        medecinId: null,
+        showStock: false,
+        checkUg: false,
+        extraModeReglementId: null,
+        ticketCaisse: true,
+        /* Depot d'extension dans lequel la vente se joue. Redemande a chaque vente : on ne veut pas
+         * vendre dans un depot sans l'avoir voulu. */
+        depotVente: null
+
+    },
+    refs: [
+        {
+            ref: 'depotVenteCombo',
+            selector: 'doventeendepot #depotVente'
+        },
+
+        {
+            ref: 'preventeSearchField',
+            selector: 'doventeendepot #preventeSearchField'
+        },
+        {
+            ref: 'preventeSearchBtn',
+            selector: 'doventeendepot #preventeSearchBtn'
+        },
+
+        {
+            ref: 'doventeendepot',
+            selector: 'doventeendepot'
+        },
+        {
+            ref: 'clientLambdadepot',
+            selector: 'clientLambdadepot'
+        },
+        {
+            ref: 'medecindepot',
+            selector: 'medecindepot'
+        },
+        {
+            ref: 'reglementGriddepot',
+            selector: 'reglementGriddepot'
+        },
+
+        {
+            ref: 'addaddclientwindowdepot',
+            selector: 'addaddclientwindowdepot'
+        }, {
+            ref: 'addCarnetwindowdepot',
+            selector: 'addCarnetwindowdepot'
+        },
+        {
+            ref: 'nomCarnetClient',
+            selector: 'addCarnetwindowdepot form textfield[name=strFIRSTNAME]'
+        },
+        {
+            ref: 'clientCarnetForm',
+            selector: 'addCarnetwindowdepot [xtype=form]'
+        },
+        {
+            ref: 'nomAssClient',
+            selector: 'addaddclientwindowdepot form textfield[name=strFIRSTNAME]'
+        },
+        {
+            ref: 'nomLambdaClient',
+            selector: 'clientLambdadepot form textfield[name=strFIRSTNAME]'
+        },
+
+        {
+            ref: 'clientAssuranceForm',
+            selector: 'addaddclientwindowdepot [xtype=form]'
+        },
+        {
+            ref: 'tpComplementaireGrid',
+            selector: 'addaddclientwindowdepot [xtype=grid]'
+        },
+        {
+            ref: 'btnAddClientAssurance',
+            selector: 'addaddclientwindowdepot #btnAddClientAssurance'
+        },
+        {
+            ref: 'btnCancelAssClient',
+            selector: 'addaddclientwindowdepot #btnCancelAssClient'
+        },
+        {
+            ref: 'btnAddClientCarnet',
+            selector: 'addCarnetwindowdepot #btnAddClientAssurance'
+        },
+        {
+            ref: 'btnCancelCarnet',
+            selector: 'addCarnetwindowdepot #btnCancelAssClient'
+        },
+        {
+            ref: 'clientLambdaform',
+            selector: 'clientLambdadepot form#clientLambdaform'
+        },
+        {
+            ref: 'lambdaClientGrid',
+            selector: 'clientLambdadepot #lambdaClientGrid'
+        },
+        {
+            ref: 'btnAjouterClientLambda',
+            selector: 'clientLambdadepot #lambdaClientGrid #btnAjouterClientLambda'
+        },
+        {
+            ref: 'btnNewLambda',
+            selector: 'clientLambdadepot #btnNewLambda'
+        },
+        {
+            ref: 'btnAddNewLambda',
+            selector: 'clientLambdadepot #btnAddNewLambda'
+        },
+        {
+            ref: 'btnCancelLambda',
+            selector: 'clientLambdadepot form #btnCancelLambda'
+        },
+        {
+            ref: 'queryClientLambda',
+            selector: 'clientLambdadepot [xtype=grid] #queryClientLambda'
+        },
+        {
+            ref: 'btnRechercheLambda',
+            selector: 'clientLambdadepot [xtype=grid] #btnRechercheLambda'
+        }
+        , {
+            ref: 'contenu',
+            selector: 'doventeendepot #contenu'
+        },
+        {
+            ref: 'infosClientStandard',
+            selector: 'doventeendepot #contenu #infosClientStandard'
+        },
+        {
+            ref: 'btnClientComptant',
+            selector: 'doventeendepot #contenu #btnClientComptant'
+        },
+        {
+            ref: 'clientSearchTextField',
+            selector: 'doventeendepot #contenu #clientSearchTextField'
+        },
+
+        {
+            ref: 'encaissement',
+            selector: 'doventeendepot #contenu #encaissement'
+        },
+        {
+            ref: 'btnClosePrevente',
+            selector: 'doventeendepot #contenu #btnClosePrevente'
+        }
+        ,
+        {
+            ref: 'nomClient',
+            selector: 'doventeendepot #contenu #infosClientStandard #nomClient'
+        }
+        , {
+            ref: 'prenomClient',
+            selector: 'doventeendepot #contenu #infosClientStandard #prenomClient'
+        }
+        , {
+            ref: 'telephoneClient',
+            selector: 'doventeendepot #contenu #infosClientStandard #telephoneClient'
+        },
+        {
+            ref: 'cbContainer',
+            selector: 'doventeendepot #contenu #cbContainer'
+        },
+        {
+            ref: 'montantTp',
+            selector: 'doventeendepot #contenu #montantTp'
+        },
+        {
+            ref: 'sansBon',
+            selector: 'doventeendepot #contenu #sansBon'
+        },
+        {
+            ref: 'refCb',
+            selector: 'doventeendepot #contenu #cbContainer #refCb'
+        },
+        {
+            ref: 'banque',
+            selector: 'doventeendepot #contenu #cbContainer #banque'
+        },
+        {
+            ref: 'lieuxBanque',
+            selector: 'doventeendepot #contenu #cbContainer #lieuxBanque'
+        },
+        {
+            ref: 'totalField',
+            selector: 'doventeendepot #contenu #totalField'
+        },
+        {
+            ref: 'dernierMonnaie',
+            selector: 'doventeendepot #contenu #dernierMonnaie'
+        },
+        {
+            ref: 'montantRecu',
+            selector: 'doventeendepot #contenu #montantRecu'
+        },
+        {
+            ref: 'montantExtra',
+            selector: 'doventeendepot #contenu #montantExtra'
+        },
+        {
+            ref: 'btnExtraMode',
+            selector: 'doventeendepot #contenu #btnExtraMode'
+        },
+
+        {
+            ref: 'ventevno',
+            selector: 'doventeendepot #contenu ventevno'
+        },
+        {
+            ref: 'ventevnoPaging',
+            selector: 'doventeendepot #contenu pagingtoolbar'
+        },
+        {
+            ref: 'montantNet',
+            selector: 'doventeendepot #contenu #montantNet'
+        },
+        {
+            ref: 'vnomontantRemise',
+            selector: 'doventeendepot #contenu [xtype=fieldset] [xtype=container] #montantRemise'
+        }, {
+            ref: 'monnaie',
+            selector: 'doventeendepot #contenu [xtype=fieldset] [xtype=container] #montantRemis'
+        },
+
+        {
+            ref: 'vnotypeReglement',
+            selector: 'doventeendepot #contenu [xtype=fieldset] [xtype=container] #typeReglement'
+        },
+        {
+            ref: 'vnotypeRemise',
+            selector: 'doventeendepot #contenu [xtype=container] #typeRemise'
+        },
+        {
+            ref: 'vnoremise',
+            selector: 'doventeendepot #contenu [xtype=container] #remise'
+        },
+        {
+            ref: 'vnoproduitCombo',
+            selector: 'doventeendepot #contenu [xtype=fieldcontainer] #produit'
+        },
+        {
+            ref: 'vnoqtyField',
+            selector: 'doventeendepot #contenu [xtype=fieldcontainer] #qtyField'
+        },
+        {
+            ref: 'vnoemplacementField',
+            selector: 'doventeendepot #contenu [xtype=container] #emplacementId'
+        },
+        {
+            ref: 'peremptionProcheField',
+            selector: 'doventeendepot #peremptionProcheId'
+        }
+        , {
+            ref: 'commentaire',
+            selector: 'doventeendepot #contenu #commentaire'
+        },
+        {
+            ref: 'vnostockField',
+            selector: 'doventeendepot #contenu [xtype=container] #stockField'
+        }, {
+            ref: 'userCombo',
+            selector: 'doventeendepot #user'
+        }, {
+            ref: 'natureCombo',
+            selector: 'doventeendepot #nature'
+        },
+        {
+            ref: 'typeVenteCombo',
+            selector: 'doventeendepot #typeVente'
+        },
+        {
+            ref: 'vnonetBtn',
+            selector: 'doventeendepot #contenu [xtype=toolbar] #netBtn'
+        },
+
+        {
+            ref: 'vnobtnCloture',
+            selector: 'doventeendepot #contenu [xtype=toolbar] #btnCloture'
+        },
+        {
+            ref: 'vnobtnGoBack',
+            selector: 'doventeendepot #contenu [xtype=toolbar] #btnGoBack'
+        },
+
+        {
+            ref: 'vnogrid',
+            selector: 'doventeendepot #contenu #gridContainer #venteGrid'
+        },
+        {
+            ref: 'vnoactioncolumn',
+            selector: 'doventeendepot #contenu [xtype=gridpanel] [xtype=actioncolumn]'
+        },
+        {
+            ref: 'queryField',
+            selector: 'doventeendepot #contenu #gridContainer [xtype=gridpanel] #query'
+        },
+        {
+            ref: 'vnopagingtoolbar',
+            selector: 'doventeendepot #contenu #gridContainer gridpanel #pagingtoolbar'
+        },
+        {
+            ref: 'detailGrid',
+            selector: 'doventeendepot #contenu [xtype=gridpanel]'
+        },
+        {
+            ref: 'pagingtoolbar',
+            selector: 'doventeendepot #contenu [xtype=gridpanel] #pagingtoolbar'
+        },
+        {
+            ref: 'typeReglement',
+            selector: 'doventeendepot #contenu #typeReglement'
+        },
+        {
+            ref: 'clientSearchTextField',
+            selector: 'doventeendepot #contenu #clientSearchTextField'
+        },
+        {
+            ref: 'assuranceClientdepot',
+            selector: 'assuranceClientdepot'
+        },
+        {
+            ref: 'addBtnClientAssurance',
+            selector: 'assuranceClientdepot #addBtnClientAssurance'
+        },
+        {
+            ref: 'gridClientAss',
+            selector: 'assuranceClientdepot [xtype=gridpanel]'
+        },
+        {
+            ref: 'queryClientAssurance',
+            selector: 'assuranceClientdepot #queryClientAssurance'
+        },
+        {
+            ref: 'ayantdroitView',
+            selector: 'ayantdroiGriddepot'
+        },
+        {
+            ref: 'ayantdroiGriddepot',
+            selector: 'ayantdroiGriddepot [xtype=gridpanel]'
+        },
+        {
+            ref: 'tpContainer',
+            selector: 'doventeendepot #contenu #tpContainer'
+        },
+        {
+            ref: 'tpContainerForm',
+            selector: 'doventeendepot #contenu #tpContainer [xtype=form]'
+        },
+        {
+            ref: 'nomAssure',
+            selector: 'doventeendepot #contenu #nomAssure'
+
+        },
+        {
+            ref: 'prenomAssure',
+            selector: 'doventeendepot #contenu #prenomAssure'
+
+        },
+        {
+            ref: 'numAssure',
+            selector: 'doventeendepot #contenu #numAssure'
+
+        },
+        {
+            ref: 'nomAyantDroit',
+            selector: 'doventeendepot #contenu #nomAyantDroit'
+
+        },
+        {
+            ref: 'prenomAyantDroit',
+            selector: 'doventeendepot #contenu #prenomAyantDroit'
+
+        },
+        {
+            ref: 'numAyantDroit',
+            selector: 'doventeendepot #contenu #numAyantDroit'
+
+        },
+        {
+            ref: 'assureContainer',
+            selector: 'doventeendepot #contenu #assureContainer'
+        },
+        {
+            ref: 'assureCmp',
+            selector: 'doventeendepot #contenu #assureCmp'
+        },
+        {
+            ref: 'ayantDroyCmp',
+            selector: 'doventeendepot #contenu #ayantDroyCmp'
+        },
+        {
+            ref: 'tiersvo',
+            selector: 'addaddclientwindowdepot #tiersvo'
+        },
+        {
+            ref: 'carnetVo',
+            selector: 'addCarnetwindowdepot #carnetVo'
+        },
+        {
+            ref: 'medecinGrid',
+            selector: 'medecindepot #medecinGrid'
+        },
+        {
+            ref: 'parcoursOrdonnance',
+            selector: 'ordonnanceparcoursdepot'
+        },
+        {
+            ref: 'nomMedecin',
+            selector: 'medecindepot form textfield[name=nom]'
+        },
+        {
+            ref: 'medecinform',
+            selector: 'medecindepot form#medecinform'
+        },
+        {
+            ref: 'btnAddNewMedecin',
+            selector: 'medecindepot #btnAddNewMedecin'
+        },
+        {
+            ref: 'btnRechercheMedecin',
+            selector: 'medecindepot [xtype=grid] #btnRechercheMedecin'
+        },
+        {
+            ref: 'queryMedecin',
+            selector: 'medecindepot [xtype=grid] #queryMedecin'
+        },
+        {
+            ref: 'btnNewMedecin',
+            selector: 'medecindepot #btnNewMedecin'
+        },
+        {
+            ref: 'btnCancelMedecin',
+            selector: 'medecindepot #btnCancelMedecin'
+        },
+
+        {
+            ref: 'btnCancelModeReglement',
+            selector: 'reglementGriddepot #btnCancelModeReglement'
+        }
+        , {
+            ref: 'preventeSearchWindow',
+            selector: 'window[title="RÉSULTATS DE RECHERCHE DES PRÉVENTES"]'
+        }
+    ],
+    init: function () {
+        const me = this;
+        // Recalcul de la hauteur de la grille au redimensionnement de la
+        // fenêtre (portable <-> écran externe). Bufferisé, sans effet hors
+        // vente comptant plein écran.
+        me._onWinResizeFill = Ext.Function.createBuffered(function () {
+            me.refreshGridFill();
+        }, 150);
+        Ext.on('resize', me._onWinResizeFill);
+        me.chargerModesMobileMoney();
+        me.chargerTypesClientRequis();
+        this.control(
+                {
+
+                    'doventeendepot #preventeSearchBtn': {
+                        click: this.onPreventeSearchClick
+                    },
+                    'doventeendepot #preventeSearchField': {
+                        specialkey: this.onPreventeFieldSpecialKey
+                    },
+
+                    'doventeendepot': {
+                        render: this.onReady
+                    }, 'doventeendepot #user': {
+                        select: this.onUserSelect
+                    },
+                    'doventeendepot #depotVente': {
+                        select: this.onDepotVenteSelect
+                    },
+                    'doventeendepot #contenu [xtype=fieldcontainer] #qtyField': {
+                        specialkey: this.onQtySpecialKey
+                    },
+                    'doventeendepot #contenu #produitContainer [xtype=fieldcontainer] #produit': {
+                        afterrender: this.produitCmpAfterRender,
+                        select: this.produitSelect,
+                        specialkey: this.onProduitSpecialKey
+                    }
+                    ,
+                    'doventeendepot #contenu #remise': {
+                        select: this.updateRemise
+                    },
+                    'doventeendepot #contenu [xtype=gridpanel] pagingtoolbar': {
+                        beforechange: this.doBeforechangeVno
+                    },
+                    'doventeendepot #contenu [xtype=gridpanel] #btnRecherche': {
+                        click: this.refresh
+                    },
+                    'doventeendepot #contenu [xtype=gridpanel] #query': {
+                        specialkey: this.onSpecialSpecialKey,
+                        keyup: this.onQueryFrappe
+                    },
+                    'doventeendepot #contenu #montantRecu': {
+                        change: this.montantRecuChangeListener,
+                        specialkey: this.onMontantRecuVnoKey,
+                        focus: this.montantRecuFocus
+                    },
+                    'doventeendepot #contenu #btnExtraMode': {
+                        click: this.onBtnExtraModeClick
+                    },
+                    'doventeendepot #contenu #montantExtra': {
+                        change: this.montantExtraChangeListener,
+                        // Entree dans le champ du 2e mode : en especes + mobile elle
+                        // confirme la part mobile et rend la main au montant recu ;
+                        // en mobile + mobile elle garde son sens historique (cloture)
+                        specialkey: this.onMontantExtraKey
+                    },
+                    'doventeendepot #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
+                        click: this.removeItemVno
+                    }, 'doventeendepot #contenu #typeReglement': {
+                        select: this.typeReglementSelectEvent,
+                        /* La liste est relue a chaque ouverture du menu deroulant : le classement
+                         * est ainsi a jour au moment ou l'utilisateur choisit, sans redemarrer
+                         * l'application. La selection ne l'attend pas - elle a son propre garde-fou
+                         * ci-dessus - ce qui evite tout blocage si le serveur tarde. */
+                        expand: this.onTypeReglementExpand
+                    },
+                    'clientLambdadepot #btnCancelLambda': {
+                        click: this.onCancelClientLambda
+                    },
+                    'clientLambdadepot #btnAddNewLambda': {
+                        click: this.addClientForm
+                    },
+
+                    "clientLambda form textfield": {
+                        specialkey: this.onClientLambdaSpecialKey
+                    },
+                    'clientLambdadepot #btnNewLambda': {
+                        click: this.registerNewClient
+                    },
+                    'clientLambdadepot #btnRechercheLambda': {
+                        click: this.queryClientLambda
+                    },
+                    'clientLambdadepot #queryClientLambda': {
+                        specialkey: this.onClientLambdaKey,
+                        keyup: {fn: this.onQueryClientLambdaKeyUp, buffer: 350}
+
+                    },
+                    'doventeendepot #contenu [xtype=gridpanel]': {
+                        edit: this.onGridEdit,
+                        afterrender: this.onVenteGridAfterRender
+                    },
+                    'doventeendepot #contenu [xtype=toolbar] #btnGoBack': {
+                        click: this.goBack
+                    },
+                    'doventeendepot #contenu [xtype=toolbar] #btnStandBy': {
+                        click: this.putToStandBy
+                    }, 'doventeendepot #contenu [xtype=toolbar] #btnClosePrevente': {
+                        click: this.closePrevente
+                    },
+
+                    'doventeendepot #contenu [xtype=toolbar] #btnCloture': {
+                        click: this.doCloture
+                    },
+                    'assuranceClientdepot #btnCancelClient': {
+                        click: this.onBtnCancelClient
+                    },
+                    'doventeendepot #contenu #clientSearchTextField': {
+                        specialkey: this.onClientSearchTextField
+                    },
+                    'doventeendepot #contenu #btnClientComptant': {
+                        click: this.onBtnClientComptantClick
+                    }
+                    , 'assuranceClientdepot #queryClientAssurance': {
+                        specialkey: this.onQueryClientAssurance,
+                        // buffer : une seule requete en fin de frappe, pas une par touche
+                        keyup: {fn: this.onQueryClientAssuranceKeyUp, buffer: 350}
+                    }, 'assuranceClientdepot [xtype=gridpanel] actioncolumn': {
+                        click: this.onBtnClientAssuranceClick
+                    }, 'assuranceClientdepot [xtype=gridpanel]': {
+                        selectionchange: this.onGridRowSelect
+                    },
+                    'doventeendepot #contenu #btnModifierInfo': {
+                        click: this.onbtnModifierInfo
+                    }, 'doventeendepot #contenu #btnModifierAyant': {
+                        click: this.onbtnModifierAyantDroitInfo
+                    }
+
+                    , 'addaddclientwindowdepot #btnCancelAssClient': {
+                        click: this.onBtnCancelAssClient
+                    },
+                    'addaddclientwindowdepot [xtype=grid] actioncolumn': {
+                        click: this.onRemoveTierspayantCompl
+                    },
+                    'addaddclientwindowdepot #btnAddClientAssurance': {
+                        click: this.onBtnAddClientAssuranceClick
+                    },
+                    'addaddclientwindowdepot #associertps': {
+                        click: this.onAssociertpsClick
+                    }, 'ayantdroiGriddepot #addBtnAyantDroit': {
+                        click: this.createAyantDroitForm
+                    }, 'ayantdroiGriddepot #btnCancelBtnAyantDroit': {
+                        click: this.onBtnCancelBtnAyantDroit
+                    },
+                    'ayantdroiGriddepot [xtype=gridpanel]': {
+                        selectionchange: this.onAyantDroitGridRowSelect
+                    },
+                    'ayantdroiGriddepot [xtype=gridpanel] actioncolumn': {
+                        click: this.onBtnClientAyantDroitClick
+                    },
+                    'doventeendepot #typeVente': {
+                        select: this.onTypeVenteSelect
+                    }
+                    , 'addCarnetwindowdepot #btnCancelAssClient': {
+                        click: this.onBtnCancelCarnet
+                    },
+                    'addCarnetwindowdepot #btnAddClientAssurance': {
+                        click: this.onBtnAddClientCarnteClick
+                    }, 'doventeendepot #contenu [xtype=toolbar] #netBtn': {
+                        click: this.onNetBtnClick
+                    },
+
+                    'medecindepot #btnCancelMedecin': {
+                        click: this.closeMedecinWindow
+                    },
+                    'medecindepot #btnAddNewMedecin': {
+                        click: this.addMedecinForm
+                    },
+                    'medecindepot #medecinGrid actioncolumn': {
+                        click: this.btnAjouterMedecin
+                    },
+                    "medecin form textfield": {
+                        specialkey: this.onMedecinSpecialKey
+                    },
+                    'medecindepot #btnNewMedecin': {
+                        click: this.registerNewMedecin
+                    },
+                    'medecindepot #btnRechercheMedecin': {
+                        click: this.queryMedecin
+                    },
+                    /* Parcours client + medecin d'une vente ordonnanciere (retour du 08/09). */
+                    'ordonnanceparcoursdepot': {
+                        clientChoisi: this.parcoursClientChoisi,
+                        medecinChoisi: this.parcoursMedecinChoisi
+                    },
+                    'ordonnanceparcoursdepot #rechercheClient': {
+                        keyup: this.parcoursRechercheClient,
+                        specialkey: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcoursdepot #btnRechercherClient': {
+                        click: this.parcoursRechercheClient
+                    },
+                    'ordonnanceparcoursdepot #btnNouveauClient': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', true);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnRetourListeClients': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('client', false);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnEnregistrerClient': {
+                        click: this.parcoursEnregistrerClient
+                    },
+                    'ordonnanceparcoursdepot #formulaireClient textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerClient();
+                            }
+                        }
+                    },
+                    'ordonnanceparcoursdepot #rechercheMedecin': {
+                        keyup: this.parcoursRechercheMedecin,
+                        specialkey: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcoursdepot #btnRechercherMedecin': {
+                        click: this.parcoursRechercheMedecin
+                    },
+                    'ordonnanceparcoursdepot #btnNouveauMedecin': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecindepot', true);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnRetourListeMedecins': {
+                        click: function () {
+                            this.getParcoursOrdonnance().basculerFormulaire('medecindepot', false);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnEnregistrerMedecin': {
+                        click: this.parcoursEnregistrerMedecin
+                    },
+                    'ordonnanceparcoursdepot #formulaireMedecin textfield': {
+                        specialkey: function (champ, e) {
+                            if (e.getKey() === e.ENTER) {
+                                this.parcoursEnregistrerMedecin();
+                            }
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnSuivant': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(1);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnRetour': {
+                        click: function () {
+                            this.getParcoursOrdonnance().allerAuVolet(0);
+                        }
+                    },
+                    'ordonnanceparcoursdepot #btnAnnuler': {
+                        click: function () {
+                            this.getParcoursOrdonnance().close();
+                        }
+                    },
+                    'medecindepot #queryMedecin': {
+                        specialkey: this.onMedecinKey,
+                        // « specialkey » ne voit pas les lettres : c'est « keyup » qui porte la
+                        // recherche automatique des deux caracteres.
+                        keyup: this.onMedecinKey
+                    }, 'reglementGriddepot [xtype=gridpanel]': {
+                        selectionchange: this.onModeReglementGridRowSelect
+                    },
+                    'reglementGriddepot [xtype=gridpanel] actioncolumn': {
+                        click: this.onBtnModeReglementClick
+                    },
+                    'reglementGriddepot #btnCancelModeReglement': {
+                        click: this.onBtnCancelModeReglement
+                    },
+                    'clientLambdadepot #lambdaClientGrid actioncolumn': {
+                        click: this.btnAjouterClientLambda
+                    }
+
+                });
+    },
+
+    onReady: function (view) {
+        const me = this;
+        me.markVenteContentPanel(true, view);
+        me.goToVenteView();
+        me.cheickCaisse();
+        me.checkModificationPrixU();
+        me.checkShowStock();
+        me.oncheckUg();
+        me.checkSansBon();
+        me.checkParamImpressionTicketCaisse();
+        // L'ecran s'ouvre sur le choix du depot : c'est la premiere chose a dire.
+        var depotCombo = me.getDepotVenteCombo();
+        if (depotCombo && !depotCombo.isDestroyed) {
+            depotCombo.focus(false, 200);
+        }
+
+    },
+    /*
+     * Marque le panneau central quand l'écran de vente est actif : la classe
+     * vp-vente-mode neutralise (en CSS) la photo de fond du thème UNIQUEMENT
+     * ici. Retirée au destroy de la vue pour que les autres écrans gardent
+     * leur fond décoratif (pas de régression globale).
+     */
+    markVenteContentPanel: function (active, view) {
+        const cp = Ext.getCmp('content-panel');
+        if (cp && cp.getEl()) {
+            cp.getEl()[active ? 'addCls' : 'removeCls']('vp-vente-mode');
+        }
+        if (active && view && view.on) {
+            view.on('destroy', function () {
+                const p = Ext.getCmp('content-panel');
+                if (p && p.getEl()) {
+                    p.getEl().removeCls('vp-vente-mode');
+                }
+            }, null, {single: true});
+        }
+    },
+    /*
+     * Relit l'etat de la caisse. Appele a l'ouverture de l'ecran, et de nouveau apres une ouverture
+     * de caisse faite depuis la vente : sans cette relecture l'ecran garderait « caisse fermee » en
+     * memoire et reposerait la meme question au clic suivant.
+     *
+     * @param suite fonction appelee avec l'etat relu, pour reprendre ce qui avait ete interrompu.
+     */
+    cheickCaisse: function (suite) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/cheick-caisse',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.caisse = result.data;
+                }
+                if (Ext.isFunction(suite)) {
+                    suite(me.getCaisse());
+                }
+            },
+            failure: function () {
+                // On ne bloque pas la suite sur un echec de relecture : l'appelant decidera.
+                if (Ext.isFunction(suite)) {
+                    suite(me.getCaisse());
+                }
+            }
+
+        });
+    },
+    hideAssureContainer: function () {
+        const me = this;
+        let assureContainer = me.getAssureContainer(),
+                ayantDroyCmp = me.getAyantDroyCmp(), montantTp = me.getMontantTp(), sansBon = me.getSansBon();
+        if (assureContainer.isVisible()) {
+            me.client = null;
+            me.ayantDroit = null;
+            me.updateAssurerResetCmp();
+            if (ayantDroyCmp.isVisible()) {
+                me.updateAyantDroitResetCmp();
+            }
+            assureContainer.hide();
+        }
+        montantTp.setValue(0);
+        sansBon.setValue(false);
+        montantTp.hide();
+        sansBon.hide();
+        me.setGridFillHeight(true);
+        // Retour au comptant : le bouton « associer un client » redevient
+        // disponible si le reglement est en especes
+        me.refreshBtnClientComptant();
+    },
+    /* Comptant : la grille s'étire jusqu'au bas du panneau (plein écran, pour
+     * occuper toute la hauteur quel que soit l'écran). En assurance/carnet le
+     * bandeau assuré occupe la place : la grille repasse à 250. */
+    setGridFillHeight: function (fill) {
+        const me = this, grid = me.getVnogrid && me.getVnogrid();
+        if (!grid) {
+            return;
+        }
+        me._gridFillMode = !!fill;
+        if (!fill) {
+            grid.minHeight = 250;
+            grid.updateLayout();
+            return;
+        }
+        me.fitGridToPanel(grid);
+    },
+    /* Ajuste la hauteur de la grille pour que le bas de l'écran de vente
+     * s'aligne juste au-dessus de la zone visible du panneau central : pas de
+     * barre de défilement (sinon elle rogne le bouton VENTES EN ATTENTE et les
+     * bords), et l'espace est occupé jusqu'en bas.
+     *
+     * spare = (bas de la zone visible) - (bas réel de l'écran vente). On ajoute
+     * spare - RESERVE à la hauteur courante de la grille : si l'écran est trop
+     * petit (spare < 0) la grille RÉTRÉCIT (plus de scrollbar) ; s'il reste de
+     * la place la grille GRANDIT. getViewRegion exclut la scrollbar → calcul
+     * stable. Plancher 250 (comme l'assurance). Idempotent (converge). */
+    fitGridToPanel: function (grid) {
+        const me = this, FLOOR = 250, RESERVE = 10;
+        try {
+            const cp = Ext.getCmp('content-panel');
+            const view = me.getDoventeendepot && me.getDoventeendepot();
+            if (!cp || !cp.body || !grid.rendered || !view || !view.getEl()) {
+                return;
+            }
+            // On aligne le bas de l'écran vente juste au-dessus de la zone
+            // visible : la grille GRANDIT s'il reste de la place (grand écran),
+            // RÉTRÉCIT vers 250 si l'écran est petit. getViewRegion exclut la
+            // scrollbar → calcul stable, idempotent.
+            const bviewBottom = cp.body.getViewRegion().bottom;
+            const shellBottom = view.getEl().getRegion().bottom;
+            const target = grid.getHeight() + (bviewBottom - shellBottom) - RESERVE;
+            const next = Math.max(FLOOR, Math.round(target));
+            if (Math.abs(next - grid.minHeight) > 1) {
+                grid.minHeight = next;
+                grid.updateLayout();
+            }
+        } catch (e) {
+        }
+    },
+    /* À l'affichage de la grille (vente comptant par défaut) : on l'étire pour
+     * remplir la hauteur. Différé pour laisser le layout se poser. */
+    onVenteGridAfterRender: function () {
+        const me = this;
+        // deux passes : la 1re peut faire (dis)paraître la scrollbar, la 2nde
+        // stabilise (le calcul est idempotent, il converge)
+        Ext.defer(function () {
+            if (me.getSafeComboValue('getTypeVenteCombo', '1') === '1') {
+                me.setGridFillHeight(true);
+                Ext.defer(function () {
+                    if (me._gridFillMode) {
+                        me.fitGridToPanel(me.getVnogrid());
+                    }
+                }, 80);
+            }
+        }, 60);
+    },
+    /* Recalcul de la hauteur de la grille au redimensionnement de la fenêtre
+     * (passage portable <-> écran externe, maximisation). Ne fait rien hors du
+     * mode plein écran comptant. */
+    refreshGridFill: function () {
+        const me = this, grid = me.getVnogrid && me.getVnogrid();
+        if (!me._gridFillMode || !grid || !grid.rendered) {
+            return;
+        }
+        me.fitGridToPanel(grid);
+    },
+    showAssureContainer: function (typevente) {
+        const me = this;
+        let assureContainer = me.getAssureContainer(), ayantDroyCmp = me.getAyantDroyCmp(),
+                montantTp = me.getMontantTp();
+        montantTp.show();
+        // Assurance/carnet : le client est porté par la vente, pas par ce bouton
+        // (on ne lit pas la combo type de vente : elle peut etre encore en cours
+        // de repositionnement au rappel d'une vente — le parametre fait foi)
+        me.getBtnClientComptant() && me.getBtnClientComptant().hide();
+        // "Vente sans bon" retiré de l'écran (le paramètre reste à false)
+        me.setGridFillHeight(false);
+        me.appliquerLibellesTiersPayant(typevente);
+        me.updateAssurerResetCmp();
+        me.updateAyantDroitResetCmp();
+        if (typevente === "2") {
+            if (!assureContainer.isVisible()) {
+                assureContainer.show();
+            }
+            if (!ayantDroyCmp.isVisible()) {
+                ayantDroyCmp.show();
+            }
+        } else if (typevente === "3") {
+            if (!assureContainer.isVisible()) {
+                assureContainer.show();
+            }
+            if (ayantDroyCmp.isVisible()) {
+                ayantDroyCmp.hide();
+            }
+        }
+    },
+    modifierTypeVente: function (newValue, venteId, field) {
+        const me = this;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/modifiertypevente/' + venteId,
+            params: Ext.JSON.encode({typeVenteId: newValue}),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                const dataRetour = result.typeVenteId;
+                if (result.success) {
+                    me.showAssureContainer(dataRetour);
+                    me.getClientSearchTextField().focus(true, 50);
+                } else {
+                    Ext.Msg.alert("Message", result.msg);
+
+                }
+                field.setValue(dataRetour);
+                me.resetTitle(dataRetour);
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'Un problème s\'est produit avec le server ' + response.status);
+            }
+
+        });
+
+    },
+
+    onTypeVenteSelect: function (field) {
+        const me = this;
+        const value = field.getValue();
+        if (me.getCurrent()) {
+            me.modifierTypeVente(value, me.getCurrent().lgPREENREGISTREMENTID, field);
+        } else {
+            me.client = null;
+            me.ayantDroit = null;
+            me.getTpContainerForm().removeAll();
+            if (value === "1") {
+                me.getMontantRecu().enable();
+                me.getMontantRecu().setReadOnly(false);
+                me.hideAssureContainer();
+                me.getVnoproduitCombo().focus(true, 100);
+            } else {
+                me.showAssureContainer(value);
+                me.getClientSearchTextField().focus(true, 50);
+            }
+            me.resetTitle(value);
+        }
+    },
+    closeClientLambdaWindow: function () {
+        const me = this;
+        me.showAndHideInfosStandardClient(false);
+        me.getClientLambda().destroy();
+        if (!me.getClient()) {
+            me.getTypeReglement().setValue('1');
+        }
+        me.getVnoproduitCombo().focus(true, 100);
+    },
+    addClientForm: function () {
+        const me = this;
+        me.getLambdaClientGrid().setVisible(false);
+        me.getClientLambdaform().setVisible(true);
+        me.getNomLambdaClient().focus(true, 100);
+        me.getBtnNewLambda().enable();
+    },
+    produitCmpAfterRender: function (cmp) {
+        cmp.focus();
+    },
+
+    produitSelect: function (cmp, record) {
+        const me = this;
+        // Aucun produit ne s'ajoute avant que le lieu de la vente soit connu.
+        if (!me.exigerDepot()) {
+            cmp.clearValue();
+            return false;
+        }
+        let  typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente !== '1') {
+            const client = me.getClient();
+            if (!client) {
+                cmp.clearValue();
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: "Veuillez ajouter un client à la vente",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            me.getClientSearchTextField().focus(true, 50);
+                        }
+                    }
+                });
+                return false;
+            }
+
+        }
+        // ✅ recherche sûre du record (store peut être null selon l'état du composant)
+        let dsCmp = (cmp.getStore) ? cmp.getStore() : cmp.store;
+        const item = dsCmp ? (dsCmp.findRecord("lgFAMILLEID", cmp.getValue(), 0, false, false, true)
+                || dsCmp.findRecord("intCIP", cmp.getValue(), 0, false, false, true)) : null;
+        if (item) {
+            const vnoemplacementId = me.getVnoemplacementField();
+            me.updateStockField(item.get('intNUMBERAVAILABLE'));
+            vnoemplacementId.setValue(item.get('strLIBELLEE'));
+            me.afficherPeremptionProche(item.get('lgFAMILLEID'));
+            me.getVnoqtyField().focus(true, 100);
+        }
+
+    },
+    /* Retours du 12/09 (point 12) : peremption la plus proche du produit choisi, meme source que la fenetre de
+       detail de la fiche article. Clignote a moins de six mois, sinon bleu gras ; vide sans lot ni date. */
+    afficherPeremptionProche: function (produitId) {
+        const me = this;
+        const champ = me.getPeremptionProcheField();
+        if (!champ) {
+            return;
+        }
+        if (!produitId) {
+            champ.setValue('');
+            return;
+        }
+        me.peremptionDemandee = produitId;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/peremption-proche/' + produitId,
+            success: function (reponse) {
+                if (me.peremptionDemandee !== produitId || !me.getPeremptionProcheField()) {
+                    return; // un autre produit a ete choisi entre-temps
+                }
+                const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (!r.date) {
+                    champ.setValue('');
+                    return;
+                }
+                if (!Ext.get('css-peremption-clignote')) {
+                    Ext.util.CSS.createStyleSheet(
+                            '@keyframes peremptionClignote { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }'
+                            + ' .peremption-clignote { color:#d40000;font-weight:bold;'
+                            + 'animation: peremptionClignote 1s step-end infinite; }', 'css-peremption-clignote');
+                }
+                const date = Ext.Date.parse(r.date, 'd/m/Y');
+                const limite = Ext.Date.add(new Date(), Ext.Date.MONTH, 6);
+                const proche = date && date < limite;
+                let texte = Ext.String.htmlEncode(r.date);
+                if (r.lot || r.qte) {
+                    texte += ' - lot ' + Ext.String.htmlEncode(String(r.lot || '?')) + ' × ' + Ext.String.htmlEncode(String(r.qte || '?'));
+                }
+                champ.setValue(proche ? '<span class="peremption-clignote">' + texte + '</span>'
+                        : '<span style="color:#0D47A1;font-weight:bold;">' + texte + '</span>');
+            },
+            failure: function () {
+                champ.setValue('');
+            }
+        });
+    },
+    updateStockField: function (stock) {
+        let me = this;
+        if (me.getShowStock()) {
+            let vnostockField = me.getVnostockField();
+            vnostockField.setValue(stock);
+        }
+
+    },
+    onUserSelect: function (cmp) {
+        const me = this;
+        let clientSearchBox = me.getClientSearchTextField(),
+                typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente === '1') {
+            me.getVnoproduitCombo().focus(true, 100);
+        } else {
+            clientSearchBox.setValue('');
+            clientSearchBox.focus(true, 50);
+        }
+
+    },
+    onTypeRemiseSelect: function () {
+        let me = this, combo = me.getVnotypeRemise(), remiseCombo = me.getVnoremise();
+        let record = combo.getStore().findRecord('lgTYPEREMISEID', combo.getValue());
+        remiseCombo.getStore().loadData(record.get('remises'));
+        remiseCombo.focus(false, 100);
+    },
+
+    onComputeNet: function () {
+        const me = this;
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente === '1') {
+            me.showNetPaidVno();
+        } else {
+            me.showNetPaidAssurance();
+
+        }
+    },
+    onNetBtnClick: function () {
+        const me = this;
+        me.onComputeNet();
+    },
+    /**
+     * Recherche un produit via douchette (API findone/{code}).
+     * - mode classique: renseigne stock/emplacement puis focus quantité
+     * - mode autoAdd: si résultat unique => ajoute directement qté=1 (sans passer par la saisie quantité)
+     */
+    checkDouchette(field, autoAdd) {
+        let me = this;
+        autoAdd = (autoAdd === true);
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/findone/' + field.getValue(),
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    let produit = result.data;
+                    let vnoemplacementId = me.getVnoemplacementField();
+                    me.updateStockField(produit.intNUMBERAVAILABLE);
+                    vnoemplacementId.setValue(produit.strLIBELLEE);
+                    me.afficherPeremptionProche(produit.lgFAMILLEID);
+
+                    // ✅ Ajout direct si scan => résultat unique
+                    if (autoAdd) {
+                        try {
+                            // On crée un record compatible buildSaleParams (record.get(...))
+                            const record = Ext.create('testextjs.model.caisse.Produit', produit);
+                            me.addProduitFromScan(record, 1);
+                        } catch (e) {
+                            // fallback: comportement historique
+                            me.getVnoqtyField().focus(true, 100);
+                        }
+                    } else {
+                        me.getVnoqtyField().focus(true, 100);
+                    }
+                } else {
+                    field.focus(true, 100);
+                }
+
+            }
+
+        });
+
+    },
+
+    /**
+     * Ajout direct d'un produit après scan (résultat unique).
+     * Reprend les contrôles de stock/déconditionnement de onQtySpecialKey.
+     */
+    addProduitFromScan: function (record, qte) {
+        const me = this;
+
+        // ✅ IMPORTANT : après un ajout (scan), forcer recalcul net
+        me.toRecalculate = true;
+        me.netAmountToPay = null;
+
+        // Chemin d'enregistrement : type de vente sécurisé SANS défaut deviné.
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (!typeVenteCmp) {
+            me.recoverVenteView();
+            return;
+        }
+        const typeVente = typeVenteCmp.getValue();
+        const vente = me.getCurrent();
+        const isVno = (typeVente === '1');
+
+        // champs UI
+        const qtyField = me.getVnoqtyField();
+        const produitCmp = me.getVnoproduitCombo();
+
+        // URL d'ajout
+        const url = vente ? '../api/v1/vente/add/item' : isVno ? '../api/v1/vente/add/vno' : '../api/v1/vente/add/assurance';
+
+        if (!record) {
+            produitCmp.focus(true, 100);
+            return;
+        }
+
+        const stock = parseInt(record.get('intNUMBERAVAILABLE'));
+        const boolDECONDITIONNE = parseInt(record.get('boolDECONDITIONNE'));
+        const lgFAMILLEID = record.get('lgFAMILLEPARENTID');
+        qte = parseInt(qte);
+
+        if (qte > 999) {
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 550,
+                msg: "Impossible de saisir une quantit&eacute; sup&eacute;rieure &agrave; 1000",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        produitCmp.focus(true, 100);
+                    }
+                }
+            });
+            return;
+        }
+
+        if (qte <= stock) {
+            if (isVno) {
+                me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+            } else {
+                me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+            }
+            return;
+        }
+
+        // qte > stock
+        if (boolDECONDITIONNE === 1) {
+            me.showYesNoPriority({
+                title: 'Message d\'erreur',
+                width: 550,
+                msg: "Stock insuffisant. Voulez-vous faire un déconditionnement ?",
+                buttons: Ext.MessageBox.YESNO,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "yes") {
+                        Ext.Ajax.request({
+                            method: 'GET',
+                            headers: {'Content-Type': 'application/json'},
+                            url: '../api/v1/vente/search/' + lgFAMILLEID + me.parametreDepot(false),
+                            success: function (response, options) {
+                                const result = Ext.JSON.decode(response.responseText, true);
+                                if (result.success) {
+                                    let produit = result.data;
+                                    let qtyDetail = produit.intNUMBERDETAIL,
+                                            nbreBoite = produit.intNUMBERAVAILABLE;
+                                    let stockParent = (nbreBoite * qtyDetail) + stock;
+
+                                    if (qte <= stockParent) {
+                                        if (isVno) {
+                                            me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+                                        } else {
+                                            me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+                                        }
+                                    } else {
+                                        Ext.MessageBox.show({
+                                            title: 'Message d\'erreur',
+                                            width: 550,
+                                            msg: "Le stock est insuffisant",
+                                            buttons: Ext.MessageBox.OK,
+                                            icon: Ext.MessageBox.ERROR,
+                                            fn: function (buttonId) {
+                                                if (buttonId === "ok") {
+                                                    produitCmp.focus(true, 100);
+                                                }
+                                            }
+                                        });
+                                    }
+                                } else {
+                                    Ext.MessageBox.show({
+                                        title: 'Message d\'erreur',
+                                        width: 550,
+                                        msg: "Impossible de poursuivre",
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.ERROR,
+                                        fn: function (buttonId) {
+                                            if (buttonId === "ok") {
+                                                produitCmp.focus(true, 100);
+                                            }
+                                        }
+                                    });
+                                }
+                            },
+                            failure: function (response, options) {
+                                Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                            }
+                        });
+                    } else {
+                        // annulation: retour champ produit, remise à zéro infos
+                        qtyField.setValue(1);
+                        me.resetProduitCombo(produitCmp);
+                        produitCmp.focus(true, 100);
+                        me.updateStockField(0);
+                        me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
+                    }
+                }
+            }, [produitCmp, qtyField]);
+        } else {
+            me.showYesNoPriority({
+                title: 'Ajout de produit',
+                msg: 'Stock insuffisant, voulez-vous forcer le stock ?',
+                buttons: Ext.MessageBox.YESNO,
+                fn: function (button) {
+                    if ('yes' === button) {
+                        if (isVno) {
+                            me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+                        } else {
+                            me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, qtyField, produitCmp);
+                        }
+                    } else if ('no' === button) {
+                        produitCmp.focus(true, 100);
+                    }
+                },
+                icon: Ext.MessageBox.QUESTION
+            }, [produitCmp, qtyField]);
+        }
+    },
+    // Lit la valeur d'un combo de façon sûre : si le composant est
+    // momentanément indisponible (ref ExtJS détruite), retourne la valeur par
+    // défaut au lieu de lever une exception. À RÉSERVER aux chemins d'affichage
+    // (calcul net, navigation) : ne JAMAIS l'utiliser pour décider du type d'une
+    // vente qu'on enregistre (risque d'enregistrer le mauvais type).
+    getSafeComboValue: function (getterName, defaultValue) {
+        const me = this;
+        const getter = me[getterName];
+        if (!getter) {
+            return defaultValue;
+        }
+        const cmp = getter.call(me);
+        if (!cmp || cmp.destroyed || !cmp.getValue) {
+            return defaultValue;
+        }
+        const value = cmp.getValue();
+        return (value === null || value === undefined || value === '') ? defaultValue : value;
+    },
+    // Récupère le record produit déjà sélectionné SANS dépendre du store du
+    // combo (qui peut être null). On le cherche dans la sélection courante,
+    // puis dans lastSelection / valueModels (ExtJS 4), puis dans les stores
+    // disponibles. Évite l'erreur "ds is null" dans findRecord.
+    getSelectedProduitRecord: function (produitCmp) {
+        if (!produitCmp) {
+            return null;
+        }
+        const value = produitCmp.getValue ? produitCmp.getValue() : null;
+        const matchesValue = function (record) {
+            if (!record || !record.get) {
+                return false;
+            }
+            return record.get('lgFAMILLEID') === value || record.get('intCIP') === value;
+        };
+        const selection = produitCmp.getSelection && produitCmp.getSelection();
+        if (matchesValue(selection)) {
+            return selection;
+        }
+        if (produitCmp.lastSelection && produitCmp.lastSelection.length && matchesValue(produitCmp.lastSelection[0])) {
+            return produitCmp.lastSelection[0];
+        }
+        if (produitCmp.valueModels && produitCmp.valueModels.length && matchesValue(produitCmp.valueModels[0])) {
+            return produitCmp.valueModels[0];
+        }
+
+        let stores = [];
+        if (produitCmp.getStore && produitCmp.getStore()) {
+            stores.push(produitCmp.getStore());
+        }
+        if (produitCmp.store && stores.indexOf(produitCmp.store) === -1) {
+            stores.push(produitCmp.store);
+        }
+        if (produitCmp.getPicker && produitCmp.getPicker()) {
+            const picker = produitCmp.getPicker();
+            const pickerStore = picker && picker.getStore ? picker.getStore() : null;
+            if (pickerStore && stores.indexOf(pickerStore) === -1) {
+                stores.push(pickerStore);
+            }
+        }
+
+        for (let i = 0; i < stores.length; i++) {
+            const store = stores[i];
+            if (!store || !store.findRecord) {
+                continue;
+            }
+            const record = store.findRecord('lgFAMILLEID', value, 0, false, false, true)
+                    || store.findRecord('intCIP', value, 0, false, false, true);
+            if (record) {
+                return record;
+            }
+        }
+        return null;
+    },
+    // Reconstruit la zone de vente (#contenu) en place lorsqu'un combo ou son
+    // store a été détruit/perdu. Évite à l'utilisateur de devoir recharger la
+    // page ou vider le cache pour que la validation par ENTRÉE refonctionne.
+    recoverVenteView: function () {
+        const me = this;
+        const contenu = me.getContenu && me.getContenu();
+        if (!contenu || contenu.destroyed) {
+            return false;
+        }
+        try {
+            const vente = me.getCurrent && me.getCurrent();
+            contenu.removeAll();
+            const vno = Ext.create('testextjs.view.vente.VenteVNO');
+            contenu.add(vno);
+            if (vente && vente.lgPREENREGISTREMENTID) {
+                // Vente en cours : on recharge ses données (le panier est
+                // persisté côté serveur, rien n'est perdu).
+                me.loadVenteData(vente.lgPREENREGISTREMENTID);
+            } else {
+                me.updateComboxFields(null, null, null, null, null);
+            }
+            const produit = me.getVnoproduitCombo && me.getVnoproduitCombo();
+            if (produit) {
+                produit.focus(true, 200);
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    onProduitSpecialKey: function (combo, e) {
+        const me = this;
+
+        // ✅ Sécuriser l'accès au combo Type de vente (évite l'exception
+        // "me.getTypeVenteCombo() is undefined" qui bloquait la saisie produit)
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (!typeVenteCmp) {
+            me.recoverVenteView();
+            return false;
+        }
+        // Aucun produit ne s'ajoute avant que le lieu de la vente soit connu.
+        if (!me.exigerDepot()) {
+            return false;
+        }
+        // contrôle client inchangé
+        const typeVente = typeVenteCmp.getValue();
+        if (typeVente !== '1') {
+            let client = me.getClient();
+            if (!client) {
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: "Veuillez ajouter un client à la vente",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            me.getClientSearchTextField().focus(true, 50);
+                        }
+                    }
+                });
+                return false;
+            }
+        }
+
+        if (e.getKey() !== e.ENTER) {
+            return;
+        }
+
+        // 1) Si la liste est ouverte, on évite toute validation en arrière plan
+        const store = (combo.getStore) ? combo.getStore() : combo.store;
+
+        if (combo.isExpanded && store) {
+            const count = store.getCount ? store.getCount() : 0;
+
+            // ✅ si 1 seul résultat, on sélectionne automatiquement
+            if (count === 1) {
+                e.stopEvent();
+                const rec = store.getAt(0);
+                combo.select(rec);
+                combo.collapse();
+
+                const vnoemplacementId = me.getVnoemplacementField();
+                me.updateStockField(rec.get('intNUMBERAVAILABLE'));
+                vnoemplacementId.setValue(rec.get('strLIBELLEE'));
+                me.afficherPeremptionProche(rec.get('lgFAMILLEID'));
+                me.getVnoqtyField().focus(true, 100);
+                return;
+            }
+
+            // ✅ si plusieurs résultats : on laisse l’utilisateur choisir (ne pas basculer en quantité)
+            e.stopEvent();
+            return;
+        }
+
+        // 2) Si vide => compute net (comportement existant)
+        const v = combo.getValue();
+        if (v === null || String(v).trim() === "") {
+            let selection = [];
+            try {
+                selection = combo.getPicker().getSelectionModel().getSelection();
+            } catch (e2) {
+            }
+            if (!selection || selection.length <= 0) {
+                me.onComputeNet();
+            }
+            return;
+        }
+
+        // 3) Si valeur présente, chercher le record dans le store
+        const record = store ? (
+                store.findRecord("lgFAMILLEID", combo.getValue(), 0, false, false, true)
+                || store.findRecord("intCIP", combo.getValue(), 0, false, false, true)
+                ) : null;
+
+        if (record) {
+            const vnoemplacementId = me.getVnoemplacementField();
+            me.updateStockField(record.get('intNUMBERAVAILABLE'));
+            vnoemplacementId.setValue(record.get('strLIBELLEE'));
+            me.afficherPeremptionProche(record.get('lgFAMILLEID'));
+            me.getVnoqtyField().focus(true, 100);
+        } else {
+            // ✅ si pas trouvé localement => douchette (API)
+            me.checkDouchette(combo, true);
+        }
+    },
+    onMontantRecuVnoKey: function (field, e, options) {
+        let me = this;
+        if (e.getKey() === e.ENTER) {
+            let montantVerse = parseInt(field.getValue());
+            if (montantVerse >= 0) {
+                me.doCloture();
+
+            } else {
+                Ext.MessageBox.show({
+                    title: 'Message',
+                    width: 550,
+                    msg: 'Veuillez saisir le montant à payer',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.WARNING,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            field.focus(true, 50);
+                        }
+                    }
+                });
+            }
+
+        }
+
+    },
+    onSpecialSpecialKey: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            const me = this;
+            me.refresh();
+        }
+    },
+
+    /**
+     * Recherche pendant la frappe dans « LISTE DES ARTICLES CHOISIS », des deux caracteres.
+     *
+     * Le declencheur est la VALEUR du champ, jamais la touche : les fleches, la tabulation ou
+     * Majuscule ne relancent donc rien, et une saisie rapide n'envoie qu'une seule requete grace
+     * au delai de grace. En dessous de deux caracteres on ne cherche pas - sauf quand le champ
+     * redevient vide, ou l'on remet la liste complete, sans quoi la caissiere ne pourrait plus y
+     * revenir. Entree conserve son role et cherche sans attendre, par onSpecialSpecialKey.
+     */
+    onQueryFrappe: function (field, e) {
+        const me = this;
+        if (e.getKey() === e.ENTER) {
+            return;
+        }
+        const valeur = (field.getValue() || '').trim();
+        if (valeur === me.derniereRechercheArticle) {
+            return;
+        }
+        if (valeur.length === 1) {
+            return;
+        }
+        me.derniereRechercheArticle = valeur;
+        clearTimeout(me.attenteRechercheArticle);
+        me.attenteRechercheArticle = setTimeout(function () {
+            const ecran = Ext.ComponentQuery.query('doventeendepot')[0];
+            if (ecran && !ecran.isDestroyed) {
+                me.refresh();
+            }
+        }, 350);
+    },
+    onQtySpecialKey: function (field, e, options) {
+        if (field.getValue() > 0) {
+            if (e.getKey() === e.ENTER) {
+                let me = this;
+                me.toRecalculate = true;
+                let produitCmp = me.getVnoproduitCombo();
+                if (!produitCmp) {
+                    // Combo produit introuvable (zone de vente corrompue) :
+                    // on reconstruit la zone en place plutôt que d'imposer
+                    // un rechargement de la page.
+                    me.recoverVenteView();
+                    return;
+                }
+
+                // ✅ Récupère le produit déjà sélectionné SANS dépendre du store
+                // (évite "ds is null" dans findRecord).
+                let record = me.getSelectedProduitRecord(produitCmp);
+                if (!record) {
+                    // Aucun record récupérable (store ET sélection perdus) :
+                    // dernier recours, on reconstruit la zone de vente en place
+                    // pour rétablir le fonctionnement SANS recharger la page.
+                    me.recoverVenteView();
+                    return;
+                }
+
+                // ✅ Type de vente : sécurisé SANS défaut deviné. C'est un chemin
+                // d'enregistrement : si le combo est perdu, on reconstruit plutôt
+                // que de risquer d'enregistrer la vente avec le mauvais type.
+                const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+                if (!typeVenteCmp) {
+                    me.recoverVenteView();
+                    return;
+                }
+                const typeVente = typeVenteCmp.getValue();
+                const vente = me.getCurrent();
+                const isVno = (typeVente === '1') ? true : false;
+                let url = vente ? '../api/v1/vente/add/item' : isVno ? '../api/v1/vente/add/vno' : '../api/v1/vente/add/assurance';
+                if (record) {
+                    const stock = parseInt(record.get('intNUMBERAVAILABLE'));
+                    const boolDECONDITIONNE = parseInt(record.get('boolDECONDITIONNE'));
+                    const lgFAMILLEID = record.get('lgFAMILLEPARENTID');
+                    const qte = parseInt(field.getValue());
+                    if (qte > 999) {
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: "Impossible de saisir une quantit&eacute; sup&eacute;rieure &agrave; 1000",
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.WARNING,
+                            fn: function (buttonId) {
+                                if (buttonId === "ok") {
+                                    field.focus(true, 100);
+
+                                }
+                            }
+                        });
+                        return;
+                    }
+                    if (qte <= stock) {
+                        if (isVno) {
+                            me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                        } else {
+                            me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                        }
+
+                    } else if (qte > stock) {
+                        if (boolDECONDITIONNE === 1) {
+                            me.showYesNoPriority({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: "Stock insuffisant. Voulez-vous faire un déconditionnement ?",
+                                buttons: Ext.MessageBox.YESNO,
+                                icon: Ext.MessageBox.WARNING,
+                                fn: function (buttonId) {
+                                    if (buttonId === "yes") {
+                                        Ext.Ajax.request({
+                                            method: 'GET',
+                                            headers: {'Content-Type': 'application/json'},
+                                            url: '../api/v1/vente/search/' + lgFAMILLEID + me.parametreDepot(false),
+                                            success: function (response, options) {
+                                                const result = Ext.JSON.decode(response.responseText, true);
+                                                if (result.success) {
+                                                    let produit = result.data;
+                                                    let qtyDetail = produit.intNUMBERDETAIL,
+                                                            nbreBoite = produit.intNUMBERAVAILABLE;
+                                                    let stockParent = (nbreBoite * qtyDetail) + stock;
+//
+                                                    if (qte <= stockParent) {
+                                                        if (isVno) {
+                                                            me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                                                        } else {
+                                                            me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                                                        }
+                                                    } else {
+
+                                                        Ext.MessageBox.show({
+                                                            title: 'Message d\'erreur',
+                                                            width: 550,
+                                                            msg: "Le stock est insuffisant",
+                                                            buttons: Ext.MessageBox.OK,
+                                                            icon: Ext.MessageBox.ERROR,
+                                                            fn: function (buttonId) {
+                                                                if (buttonId === "ok") {
+                                                                    me.getVnoqtyField().focus(true, 100);
+                                                                }
+                                                            }
+                                                        });
+                                                    }
+                                                } else {
+
+                                                    Ext.MessageBox.show({
+                                                        title: 'Message d\'erreur',
+                                                        width: 550,
+                                                        msg: "Impossible de poursuivre",
+                                                        buttons: Ext.MessageBox.OK,
+                                                        icon: Ext.MessageBox.ERROR,
+                                                        fn: function (buttonId) {
+                                                            if (buttonId === "ok") {
+                                                                me.getVnoqtyField().focus(true, 100);
+                                                            }
+                                                        }
+                                                    });
+
+                                                }
+
+                                            },
+                                            failure: function (response, options) {
+
+                                                Ext.Msg.alert("Message", 'Un problème avec le serveur');
+
+                                            }
+                                        });
+
+                                    } else {
+                                        me.getVnoqtyField().setValue(1);
+                                        produitCmp.clearValue();
+                                        produitCmp.setValue(null);
+                                        produitCmp.focus(true, 100);
+                                        me.updateStockField(0);
+                                        me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
+
+                                    }
+                                }
+                            }, [produitCmp, field]);
+                        } else {
+                            me.showYesNoPriority({
+                                title: 'Ajout de produit',
+                                msg: 'Stock insuffisant, voulez-vous forcer le stock ?',
+                                buttons: Ext.MessageBox.YESNO,
+                                fn: function (button) {
+                                    if ('yes' == button) {
+                                        if (isVno) {
+                                            me.addVenteVno(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                                        } else {
+                                            me.addVenteAssuarnce(me.buildSaleParams(record, qte, typeVente), url, field, produitCmp);
+                                        }
+
+                                    } else if ('no' == button) {
+                                        field.focus(true, 100, function () {
+                                        });
+                                    }
+                                },
+                                icon: Ext.MessageBox.QUESTION
+                            }, [produitCmp, field]);
+                        }
+                    }
+
+                }
+            }
+        }
+    },
+
+    refresh: function () {
+        const me = this;
+        let vente = me.getCurrent();
+        let venteId = null;
+        if (vente) {
+            venteId = vente.lgPREENREGISTREMENTID;
+        }
+        let query = me.getQueryField().getValue();
+        let grid = me.getVnogrid();
+        grid.getStore()
+                .load(
+                        {
+                            params: {
+                                venteId: venteId,
+                                query: query,
+                                statut: null
+                            }
+                            ,
+                            callback: function (records, operation, successful) {
+                                me.getVnoproduitCombo()
+                                        .focus(true, 100);
+                            }
+                        }
+                );
+    },
+    addVenteVno: function (data, url, field, comboxProduit) {
+        const me = this;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: url,
+            params: Ext.JSON.encode(data),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.updateStockField(0);
+                    me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
+                    me.current = result.data;
+
+                    // ✅ IMPORTANT : après ajout article, forcer recalcul net
+                    me.toRecalculate = true;
+                    me.netAmountToPay = null;
+
+                    me.getTotalField().setValue(me.getCurrent().intPRICE);
+                    field.setValue(1);
+                    me.resetProduitCombo(comboxProduit);
+                    comboxProduit.focus(true, 100, function () {
+                    });
+                    me.refresh();
+                    // comptant : net à payer recalculé automatiquement à chaque ajout
+                    me.autoComputeNetVno();
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                field.focus(true, 100, function () {
+                                });
+                            }
+                        }
+                    });
+
+                }
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+            }
+        });
+    },
+    doBeforechangeVno: function (page, currentPage) {
+        const me = this;
+        let myProxy = me.getVnogrid().getStore().getProxy();
+        let vente = me.getCurrent();
+        let venteId = null;
+        if (vente) {
+            venteId = vente.lgPREENREGISTREMENTID;
+        }
+        var query = me.getQueryField().getValue();
+        myProxy.params = {
+            venteId: null,
+            query: null,
+            statut: null
+
+        };
+        myProxy.setExtraParam('venteId', venteId);
+        myProxy.setExtraParam('query', query);
+        myProxy.setExtraParam('statut', null);
+    },
+
+    doSearch: function () {
+        let me = this;
+        me.refresh();
+    },
+    handleMontantField: function (montantNet) {
+        let me = this, typeRegle = me.getVnotypeReglement().getValue();
+        if (montantNet > 0 && (typeRegle === '1' || typeRegle === '4')) {
+            me.getMontantRecu().setReadOnly(false);
+        }
+        if (typeRegle !== '1' && typeRegle !== '4') {
+            me.getMontantRecu().setValue(montantNet);
+        }
+    },
+    /*
+     * Calcul silencieux du net à payer (vente comptant uniquement) : même
+     * appel que le bouton AFFICHER NET mais sans popup d'attente ni vol de
+     * focus, pour ne pas ralentir la vente au scan. Réapplique ensuite le
+     * mode de règlement courant (montant forcé / complément du fractionné).
+     */
+    autoComputeNetVno: function (onDone) {
+        const me = this, vente = me.getCurrent();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente !== '1' || !vente) {
+            return;
+        }
+        const data = {"remiseId": me.getVnoremise().getValue(), "venteId": vente.lgPREENREGISTREMENTID,
+            "checkUg": me.getCheckUg()};
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/net/vno',
+            params: Ext.JSON.encode(data),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success) {
+                    me.netAmountToPay = result.data;
+                    me.toRecalculate = false;
+                    const montantNet = me.getNetAmountToPay().montantNet;
+                    me.getMontantNet().setValue(montantNet);
+                    me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                    if (me.getExtraModeReglementId()) {
+                        // fractionné en cours : on recalcule le complément sans
+                        // écraser la part principale saisie
+                        me.handleExtraAmountInputValue();
+                    } else {
+                        me.handleMontantField(montantNet);
+                    }
+                    if (Ext.isFunction(onDone)) {
+                        onDone();
+                    }
+                }
+            },
+            failure: function () {
+                // silencieux : le bouton AFFICHER NET A PAYER reste disponible
+            }
+        });
+    },
+    /*
+     * Calcul silencieux du net à payer (vente assurance/carnet) : même appel
+     * que AFFICHER NET mais sans popup, sans message ni vol de focus. Les
+     * contrôles bloquants (n° de bon, tiers-payant) restent portés par le
+     * bouton et la clôture : ici on passe simplement si la vente n'est pas
+     * prête (pas de tiers-payant).
+     */
+    autoComputeNetAssurance: function (onDone) {
+        const me = this, vente = me.getCurrent();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if ((typeVente !== '2' && typeVente !== '3') || !vente) {
+            return;
+        }
+        const tierspayants = me.buildAssuranceData();
+        if (!tierspayants || tierspayants.length === 0) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/net/assurance',
+            params: Ext.JSON.encode({"remiseId": me.getVnoremise().getValue(),
+                "venteId": vente.lgPREENREGISTREMENTID, "tierspayants": tierspayants}),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success) {
+                    me.netAmountToPay = result.data;
+                    me.toRecalculate = false;
+                    const montantNet = me.getNetAmountToPay().montantNet;
+                    me.getMontantNet().setValue(montantNet);
+                    me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                    me.getMontantTp().setValue(me.getNetAmountToPay().montantTp);
+                    me.handleMontantField(montantNet);
+                    if (Ext.isFunction(onDone)) {
+                        onDone();
+                    }
+                }
+            },
+            failure: function () {
+                // silencieux : le bouton AFFICHER NET A PAYER reste disponible
+            }
+        });
+    },
+    /*
+     * Recalcul du net après une modification de la vente dans la grille
+     * (prix, quantité, suppression) — dispatch selon le type de vente.
+     */
+    autoComputeNetAfterChange: function () {
+        const me = this;
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente === '1') {
+            me.autoComputeNetVno();
+        } else if (typeVente === '2' || typeVente === '3') {
+            me.autoComputeNetAssurance();
+        }
+    },
+    showNetPaidVno: function () {
+        const me = this;
+        let vente = me.getCurrent(), remiseId = me.getVnoremise().getValue();
+        if (vente) {
+            let venteId = vente.lgPREENREGISTREMENTID;
+            let data = {"remiseId": remiseId, "venteId": venteId, "checkUg": me.getCheckUg()};
+            let progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/net/vno',
+                params: Ext.JSON.encode(data),
+                success: function (response, options) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        me.netAmountToPay = result.data;
+                        me.toRecalculate = false;
+                        let montantNet = me.getNetAmountToPay().montantNet;
+                        me.getMontantNet().setValue(me.getNetAmountToPay().montantNet);
+                        me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                        me.handleMontantField(montantNet);
+                        me.getMontantRecu().focus(true, 50);
+
+                    } else {
+                        me.getVnoproduitCombo().focus();
+
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                }
+
+            });
+        }
+    },
+    onbtncloturerVnoComptant: function (typeRegleId) {
+        const me = this;
+        let vente = me.getCurrent();
+        let client = me.getClient();
+        let clientId = null;
+        let commentaire = '';
+        const medecinId = me.getMedecinId();
+        if (client) {
+            clientId = client.get('lgCLIENTID');
+            commentaire = me.getCommentaire().getValue();
+        }
+        let nom = "", banque = "", lieux = "";
+        if (typeRegleId !== '1' && typeRegleId !== '4') {
+            if (me.getRefCb()) {
+                nom = me.getRefCb().getValue();
+                banque = me.getBanque().getValue();
+                lieux = me.getLieuxBanque().getValue();
+            }
+        }
+
+        if (vente) {
+            let venteId = vente.lgPREENREGISTREMENTID;
+
+            let data = me.getNetAmountToPay();
+            let netTopay = data.montantNet;
+
+            // Chemin de clôture (soumission) : si l'un des combos décisifs est
+            // perdu, on NE devine PAS de valeur (risque d'enregistrer une vente
+            // erronée). On reconstruit la zone de vente et on abandonne la
+            // clôture proprement plutôt que de figer ou de soumettre faux.
+            const typeVenteCmpC = me.getTypeVenteCombo && me.getTypeVenteCombo();
+            const natureCmpC = me.getNatureCombo && me.getNatureCombo();
+            const userCmpC = me.getUserCombo && me.getUserCombo();
+            if (!typeVenteCmpC || !natureCmpC || !userCmpC) {
+                me.recoverVenteView();
+                return false;
+            }
+
+            let typeVenteCombo = typeVenteCmpC.getValue(),
+                    remiseId = me.getVnoremise().getValue(),
+                    natureCombo = natureCmpC.getValue(),
+                    userCombo = userCmpC.getValue(),
+                    montantRecu = me.getMontantRecu().getValue();
+            let montantExtra = 0;
+            const montantExtraCmp = me.getMontantExtra();
+            if (!montantExtraCmp?.hidden) {
+                // Champ du second mode affiché mais VIDE (effacé par la caissière avant de
+                // ressaisir, ou vidé par un recalcul) : parseInt('') vaut NaN, le montant reçu
+                // devenait NaN, envoyé « null » au serveur, qui plantait APRES le passage de la
+                // vente en terminée : vente terminée sans mouvement de caisse, ticket impossible.
+                // On refuse ici, avec le curseur sur le champ à compléter.
+                if (me.montantExtraVide(montantExtraCmp)) {
+                    me.showMontantExtraRequisMessage();
+                    return false;
+                }
+                montantExtra = parseInt(montantExtraCmp.getValue(), 10) || 0;
+            }
+            montantRecu = (parseInt(montantRecu, 10) || 0) + montantExtra;
+            if (typeRegleId === '1' && parseInt(montantRecu) < parseInt(netTopay)) {
+                if (me.getExtraModeReglementId()) {
+                    // un second mode est déjà choisi : le total saisi ne couvre pas le net
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Le total espèces + mode mobile est inférieur au net à payer de <span style="color: black; font-size: 1rem;font-weight: 900;">' + Ext.util.Format.number(netTopay, '0,000.') + '</span>',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.getMontantRecu().focus(true, 50);
+                            }
+                        }
+                    });
+                    return false;
+                }
+                me.handleExtraModePayment(netTopay);
+
+                return false;
+            } else if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && montantExtra > parseInt(netTopay)) {
+                // défensif : jamais de monnaie sur la part mobile
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: 'Le montant du mode mobile ne peut pas dépasser le net à payer',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+                });
+                return false;
+            } else if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && ((parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0
+                            || (montantExtra > 0 && montantExtra >= parseInt(netTopay)))) {
+                // Symétrique du contrôle mobile + mobile (les deux parts > 0) :
+                // pas de clôture espèces + mobile avec une part espèces nulle —
+                // montant reçu vide/0, ou part mobile couvrant tout le net
+                // (la part espèces encaissée serait 0 : vente 100% mobile
+                // à passer par le mode mobile principal)
+                me.showMontantRecuRequisMessage();
+                return false;
+            } else if (me.isMobileMode(typeRegleId) && me.getExtraModeReglementId()) {
+                // Fractionnement mobile + mobile : la somme des deux parts doit
+                // couvrir exactement le net à payer (pas de monnaie sur du mobile)
+                const partPrincipale = parseInt(me.getMontantRecu().getValue()) || 0;
+                if (montantExtra === 0 && partPrincipale === parseInt(netTopay)) {
+                    // Le mode principal couvre finalement tout : retour au mono-règlement
+                    me.resetExtraModeCmp();
+                } else if (partPrincipale <= 0 || montantExtra <= 0
+                        || (partPrincipale + montantExtra) !== parseInt(netTopay)) {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'La somme des deux modes de règlement doit être égale au net à payer de <span style="color: black; font-size: 1rem;font-weight: 900;">' + Ext.util.Format.number(netTopay, '0,000.') + '</span>',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.getMontantRecu().focus(true, 50);
+                            }
+                        }
+                    });
+                    return false;
+                }
+            } else if (typeRegleId === '6' || typeRegleId === '3' || typeRegleId === '2') {
+                montantRecu = netTopay;
+            }
+
+            let montantRemis = (montantRecu > netTopay) ? montantRecu - netTopay : 0;
+            let totalRecap = data.montant;
+            let montantPaye = montantRecu - montantRemis;
+            let param = {
+                "typeVenteId": typeVenteCombo,
+                "natureVenteId": natureCombo,
+                "devis": false,
+                "remiseId": remiseId,
+                "venteId": venteId,
+                "userVendeurId": userCombo,
+                "montantRecu": montantRecu,
+                "montantRemis": montantRemis,
+                "montantPaye": montantPaye,
+                "totalRecap": totalRecap,
+                "partTP": 0,
+                "typeRegleId": typeRegleId,
+                "clientId": clientId,
+                "nom": nom,
+                "commentaire": commentaire,
+                "banque": banque,
+                "lieux": lieux,
+                "marge": data.marge,
+                "medecinId": medecinId,
+                "data": data,
+                "reglements": me.buildModeReglements(typeRegleId, netTopay)
+            };
+            if (me.getExtraModeReglementId()) {
+                if (Ext.isEmpty(client)) {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Vous devez ajouter un client à la vente pour continuer',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.showAndHideInfosStandardClient(true);
+                            }
+                        }
+                    });
+                } else {
+                    me.closeVenteVno(param, montantRemis, typeVenteCombo);
+                }
+
+            } else {
+                me.closeVenteVno(param, montantRemis, typeVenteCombo);
+            }
+
+        }
+    },
+    closeVenteVno: function (param, montantRemis, typeVenteCombo) {
+        const me = this;
+        if (!me.prendreVerrouCloture()) {
+            return;
+        }
+        /* La suite d'une cloture reussie, nommee une fois : elle sert aussi quand la reponse s'est perdue et
+         * qu'on a retrouve la vente encaissee - la caissiere doit alors voir exactement la meme chose. */
+        const apresSucces = function () {
+            if (!me.getTicketCaisse()) {
+                me.onPrintTicket(param, typeVenteCombo);
+                me.resetAll(montantRemis);
+                me.getVnoproduitCombo().focus(false, 100, function () {
+                });
+                return;
+            }
+            Ext.MessageBox.show({
+                title: 'Impression du ticket',
+                msg: 'Voulez-vous imprimer le ticket ?',
+                buttons: Ext.MessageBox.YESNO,
+                fn: function (button) {
+                    if ('yes' == button) {
+                        me.onPrintTicket(param, typeVenteCombo);
+                    }
+                    me.resetAll(montantRemis);
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                },
+                icon: Ext.MessageBox.QUESTION
+            });
+        };
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/cloturer/vno',
+            params: Ext.JSON.encode(param),
+            timeout: me.delaiCloture,
+            success: function (response, options) {
+                me.rendreVerrouCloture();
+                const result = Ext.JSON.decode(response.responseText, true);
+                progress.hide();
+                if (result.success) {
+                    apresSucces();
+                } else {
+                    let codeError = result.codeError;
+                    //il faut ajouter un medecin à la vente 
+                    if (codeError === 1) {
+                        // Vente ordonnanciere : client puis medecin, sur un seul ecran (retour du 08/09).
+                        me.ouvrirParcoursOrdonnance();
+                    } else if (codeError === 2) {
+
+                        me.getInfosClientStandard().show();
+                        me.openClientLambdaSearchWindow();
+
+
+                    } else {
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg,
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR,
+                            fn: function (buttonId) {
+                                if (buttonId === "ok") {
+                                    me.getMontantRecu().focus(true, 100);
+                                }
+                            }
+                        });
+                    }
+                }
+
+            },
+            failure: function (response, options) {
+                me.rendreVerrouCloture();
+                progress.hide();
+                me.apresEchecCloture('/api/v1/vente/cloturer/vno', param.venteId, response, apresSucces,
+                        function () {
+                            me.closeVenteVno(param, montantRemis, typeVenteCombo);
+                        });
+            }
+
+        });
+    },
+    handleMobileMoney: function () {
+        const me = this;
+        me.getCbContainer().hide();
+        me.refreshBtnClientComptant();
+        if (Ext.isEmpty(me.getClient())) {
+            me.showAndHideInfosStandardClient(true);
+        }
+        if (me.getNetAmountToPay()) {
+            me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
+        }
+        me.getMontantRecu().setReadOnly(true);
+        // Paiement fractionné mobile + mobile : uniquement pour la vente comptant
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (typeVenteCmp && typeVenteCmp.getValue() === '1') {
+            me.getBtnExtraMode()?.show();
+        }
+    },
+
+    onTypeReglementExpand: function () {
+        this.rafraichirClassementModes();
+    },
+
+    isMobileMode: function (typeRegleId) {
+        return this.mobileModeIds.indexOf(typeRegleId) !== -1;
+    },
+
+    onBtnExtraModeClick: function () {
+        const me = this;
+        if (!me.getNetAmountToPay()) {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant de fractionner le règlement',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
+            });
+            return;
+        }
+        const typeRegle = me.getVnotypeReglement().getValue();
+        /* La liste est relue AVANT d'ouvrir : un mode cree ou desactive pendant que la caisse est
+         * restee ouverte - elles le restent toute la journee - doit valoir des l'ouverture
+         * suivante, sans redemarrer l'application. La fenetre s'ouvre sans attendre la reponse :
+         * son propre magasin est charge ensuite, et le filtre est applique a ce chargement. */
+        me.chargerModesMobileMoney();
+        Ext.create('testextjs.view.vente.endepot.ReglementGrid', {
+            title: 'AJOUTEZ UN AUTRE MODE MOBILE',
+            excludeModeId: typeRegle,
+            // Fonction et non tableau fige : le filtre lit la liste AU MOMENT du chargement,
+            // donc apres la reponse du serveur demandee juste au-dessus.
+            onlyModeIds: function () {
+                return me.mobileModeIds;
+            }
+        }).show();
+    },
+    showAndHideCbInfos: function (v) {
+        const me = this;
+        if (v === '2' || v === '3' || v === '6') {
+            me.getCbContainer().show();
+            if (v !== '6') {
+                me.getRefCb().setFieldLabel('NOM');
+                me.getMontantRecu().setReadOnly(true);
+            } else {
+                me.getRefCb().setFieldLabel('REFERENCE');
+                me.getMontantRecu().setReadOnly(false);
+            }
+        } else {
+
+            me.getCbContainer().hide();
+        }
+    },
+    showAndHideInfosStandardClient: function (showOrHide) {
+        const me = this;
+        if (showOrHide) {
+            me.getInfosClientStandard().show();
+            if (!me.getClient()) {
+                me.openClientLambdaSearchWindow();
+            }
+
+        } else {
+            if (!me.getClient())
+                me.getInfosClientStandard().hide();
+        }
+
+
+    }
+    ,
+    removeItemVno: function (grid, rowIndex, colIndex) {
+        const me = this;
+        me.toRecalculate = true;
+        let record = grid.getStore().getAt(colIndex);
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/remove/vno/item/' + record.get('lgPREENREGISTREMENTDETAILID'),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.netAmountToPay = result.data;
+                    me.getTotalField().setValue(me.getNetAmountToPay().montant);
+                    me.getMontantNet().setValue(me.getNetAmountToPay().montantNet);
+                    me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                    me.getVnoproduitCombo()
+                            .focus(false, 100);
+                    me.refresh();
+                } else {
+                    /* Retrait refuse (vente cloturee entre-temps par une autre caisse, ligne disparue) :
+                     * le motif est affiche et la vente est relue pour que l'ecran cesse de montrer
+                     * une vente qui n'est plus modifiable. */
+                    Ext.Msg.alert('Retrait du produit', result.msg || 'Le produit n\'a pas pu être retiré');
+                    me.refresh();
+                }
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert('Retrait du produit',
+                        'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
+            }
+        });
+    }
+    ,
+    typeReglementSelectEvent: function (field) {
+        const me = this;
+        const value = field.getValue().trim();
+        // Garde-fou : aucun produit dans la vente → on refuse le choix du
+        // mode et on revient à la valeur précédente (évite tout plantage)
+        if (!me.getCurrent() && value !== '1') {
+            field.setValue(me._appliedTypeReglement || '1');
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant de choisir le mode de règlement',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
+            });
+            return;
+        }
+        /* Point 9 : un mode cree depuis le menu « modes de reglement » alors que la vente etait
+         * deja ouverte n'est dans aucun des deux classements charges au demarrage. Sans cette
+         * relecture il tombait dans la branche « autre mode », donc sans parcours client ni
+         * comportement mobile : rien ne se passait a la selection, et le client n'etait reclame
+         * qu'a la validation. On relit une seule fois par selection, puis on rejoue le choix. */
+        if (!me._classementRelu && !me.modeClasse(value)) {
+            me._classementRelu = true;
+            me.rafraichirClassementModes(function () {
+                if (field.destroyed) {
+                    me._classementRelu = false;
+                    return;
+                }
+                me.typeReglementSelectEvent(field);
+                me._classementRelu = false;
+            });
+            return;
+        }
+        me.resetExtraModeCmp();
+        // Si le net n'est pas encore calculé (produits ajoutés sans passer
+        // par AFFICHER NET), on le calcule automatiquement puis on réapplique
+        // le mode choisi — comptant ET assurance/carnet. _skipAutoNet évite
+        // de boucler à la ré-entrée si le calcul est impossible.
+        const typeVenteCourant = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (me.getCurrent() && (me.toRecalculate || !me.netAmountToPay) && !me._skipAutoNet) {
+            const reApply = function () {
+                me._skipAutoNet = true;
+                me.typeReglementSelectEvent(field);
+                me._skipAutoNet = false;
+            };
+            if (typeVenteCourant === '1') {
+                me.autoComputeNetVno(reApply);
+                return;
+            }
+            if (typeVenteCourant === '2' || typeVenteCourant === '3') {
+                me.autoComputeNetAssurance(reApply);
+                return;
+            }
+        }
+        // Mode en place avant cette sélection : point de retour du rollback
+        me._previousTypeReglement = me._appliedTypeReglement || '1';
+        // Cette sélection va-t-elle ouvrir la fenêtre « client lié » ? Si oui
+        // et que l'utilisateur clique Annuler, on défera tout (rollback).
+        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient()) && me.modeExigeClient(value);
+        if (value === '1') {
+            me.getMontantRecu().enable();
+            me.getMontantRecu().setReadOnly(false);
+            me.showAndHideCbInfos(value);
+
+        } else if (value === '4') {
+            me.getMontantRecu().enable();
+            me.showAndHideInfosStandardClient(true);
+            me.getMontantRecu().setReadOnly(false);
+            me.getCbContainer().hide();
+        } else if (me.isMobileMode(value)) {
+            me.handleMobileMoney();
+        } else {
+            if (value === '2' || value === '3' || value === '6') {
+                me.showAndHideInfosStandardClient(true);
+                me.showAndHideCbInfos(value);
+                if (me.getNetAmountToPay()) {
+                    me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
+                }
+                me.getMontantRecu().disable();
+
+            } else if (me.modeExigeClient(value)) {
+                /* Mode de reglement configure comme exigeant un client, sans etre l'un des quatre
+                 * types historiques : il ouvre le meme parcours client, mais sans la zone cheque /
+                 * carte bancaire, qui ne le concerne pas. */
+                me.showAndHideInfosStandardClient(true);
+                me.getCbContainer().hide();
+                if (me.getNetAmountToPay()) {
+                    me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
+                }
+                me.getMontantRecu().setReadOnly(true);
+            } else {
+                me.getMontantRecu().setValue(0);
+                me.getMontantRecu().setReadOnly(false);
+                me.getMontantRecu().focus(true);
+            }
+
+        }
+        // Mode réellement appliqué : sert de point de retour au garde-fou
+        // « sans produit » et au rollback du bouton Annuler (fenêtre client)
+        me._appliedTypeReglement = value;
+        me.refreshBtnClientComptant();
+    }
+    ,
+    // Utilitaire: focus + sélection du texte sur Montant Reçu
+    focusSelectMontantRecu: function () {
+        const me = this;
+        const field = me.getMontantRecu ? me.getMontantRecu() : null;
+        if (!field) {
+            return;
+        }
+        field.focus(false, 50);
+        Ext.defer(function () {
+            try {
+                if (field.selectText) {
+                    field.selectText();
+                } else if (field.inputEl && field.inputEl.dom) {
+                    field.inputEl.dom.select();
+                }
+            } catch (e) {
+            }
+        }, 80);
+    },
+
+    // Utilitaire: après un "Annuler" sur une alerte de sécurité, on empêche toute boucle
+    // tant que l'utilisateur n'a pas modifié la valeur du champ.
+    // - bloque la validation
+    // - garde le focus + sélection
+    blockMontantRecuUntilChange: function (rawValue, message) {
+        const me = this;
+        const field = me.getMontantRecu ? me.getMontantRecu() : null;
+        if (!field) {
+            return;
+        }
+        field._blockedSecurityValue = String(rawValue || '');
+        if (message) {
+            try {
+                field.markInvalid(message);
+            } catch (e) {
+            }
+        }
+        if (me.getVnobtnCloture) {
+            try {
+                me.getVnobtnCloture().disable();
+            } catch (e) {
+            }
+        }
+        me.focusSelectMontantRecu();
+    },
+
+    // Utilitaire: mettre le focus par défaut sur le bouton "Annuler" (NO) d'une MessageBox
+    // Objectif: si l'utilisateur appuie sur Entrée par erreur => on annule toujours.
+    focusMsgBoxCancelButton: function () {
+        Ext.defer(function () {
+            try {
+                const dlg = Ext.Msg.getDialog ? Ext.Msg.getDialog() : null;
+                // Ext.MessageBox expose souvent getButton('no') (plus fiable que query itemId)
+                const btn = dlg && dlg.getButton ? (dlg.getButton('no') || dlg.getButton('cancel')) : null;
+                const btnFallback = !btn && dlg ? (dlg.down('button[itemId=no]') || dlg.down('button[itemId=cancel]')) : null;
+                const target = btn || btnFallback;
+                if (target) {
+                    target.focus();
+                    if (target.el && target.el.dom) {
+                        target.el.dom.focus();
+                    }
+                }
+            } catch (e) {
+            }
+        }, 120);
+    },
+
+    // Wrapper: contrôle anti-scan + confirmation à 5 chiffres
+
+    montantRecuChangeListener: function (field, value, options) {
+        const me = this;
+
+        // Normalise la saisie (ne garde que les chiffres)
+        const raw = String(field.getValue() || '').replace(/\D/g, '');
+        const digits = raw.length;
+
+        // Vide => laisse la logique existante gérer (désactivation etc.)
+        if (digits === 0) {
+            field.clearInvalid();
+            field._confirmedMaxDigitsValue = null;
+            field._blockedSecurityValue = null;
+            return me.montantRecuChangeCore(field, value, options);
+        }
+
+        // Fractionnement mobile : plafond ABSOLU au net à payer, appliqué avant
+        // toute autre voie (anti-scan, confirmations...) — pas de monnaie sur
+        // mobile, seul un retour en espèces permet de dépasser
+        if (me.getExtraModeReglementId() && me.isMobileMode(me.getVnotypeReglement().getValue())) {
+            const dataSplit = me.getNetAmountToPay ? me.getNetAmountToPay() : null;
+            const netSplit = dataSplit && dataSplit.montantNet != null ? parseInt(dataSplit.montantNet, 10) : 0;
+            if (netSplit > 0 && (parseInt(raw, 10) || 0) > netSplit) {
+                field.setValue(netSplit); // re-déclenche le change avec la valeur plafonnée
+                return;
+            }
+        }
+
+        // Si l'utilisateur a cliqué "Annuler" sur une alerte de sécurité,
+        // on ne relance aucune popup tant que la valeur n'a pas changé.
+        if (field._blockedSecurityValue && String(field._blockedSecurityValue) === raw) {
+            return;
+        } else if (field._blockedSecurityValue && String(field._blockedSecurityValue) !== raw) {
+            field._blockedSecurityValue = null;
+        }
+
+        // Blocage net si > max digits (probable scan code-barres)
+        if (digits > me.antiBarcodeMaxDigits) {
+            field.markInvalid('Quantité trop grande ! (Code barre scanné ?)');
+            if (me.getVnobtnCloture) {
+                me.getVnobtnCloture().disable();
+            }
+            return;
+        }
+
+        // 5 digits atteint => demander confirmation (uniquement si la saisie dépasse le montant de la vente)
+        const data = me.getNetAmountToPay ? me.getNetAmountToPay() : null;
+        const netTopay = data && data.montantNet != null ? parseInt(data.montantNet, 10) : 0;
+        const numericValue = parseInt(raw, 10) || 0;
+        const exceedsSaleAmount = netTopay > 0 && numericValue > netTopay;
+
+        // ✅ Protection "monnaie à rendre" : si la monnaie dépasse le seuil -> quasi certain scan/erreur
+        const monnaieARendre = (netTopay > 0 && numericValue > netTopay) ? (numericValue - netTopay) : 0;
+        if (field && monnaieARendre > me.maxChangeAllowed && me._changeConfirmedForValue !== raw) {
+            Ext.Msg.show({
+                title: 'Alerte',
+                msg: '⚠️ Monnaie à rendre anormalement élevée : ' + monnaieARendre + ' (seuil ' + me.maxChangeAllowed + ').\n' +
+                        'Montant reçu : ' + raw + ' / Montant vente : ' + netTopay + '.\n' +
+                        'Probable scan ou erreur de saisie. Confirmez-vous ?',
+                buttons: Ext.Msg.YESNO,
+                icon: Ext.Msg.ERROR,
+                defaultFocus: 'no',
+                buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        me._changeConfirmedForValue = raw;
+                        // Ne pas relancer automatiquement ici (évite boucle de confirmations)
+                        me.focusSelectMontantRecu();
+                    } else {
+                        me._changeConfirmedForValue = null;
+                        me.blockMontantRecuUntilChange(raw, 'Saisie annulée. Corrigez le montant reçu.');
+                    }
+                }
+            });
+            me.focusMsgBoxCancelButton(); // focus par défaut sur Annuler
+            return;
+        }
+
+        if (me.confirmAtMaxDigits
+                && digits === me.antiBarcodeMaxDigits
+                && exceedsSaleAmount
+                && field._confirmedMaxDigitsValue !== raw) {
+            Ext.Msg.show({
+                title: 'Confirmation',
+                msg: '⚠️ Montant à 5 chiffres détecté (' + raw + ') et supérieur au montant de la vente (' + netTopay + '). Confirmez-vous ?',
+                buttons: Ext.Msg.YESNO,
+                icon: Ext.Msg.WARNING,
+                defaultFocus: 'no',
+                buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        field._confirmedMaxDigitsValue = raw;
+                        field.clearInvalid();
+                        // relance la logique existante après confirmation
+                        me.montantRecuChangeCore(field, value, options);
+                        me.focusSelectMontantRecu();
+                    } else {
+                        // Pas confirmé => on laisse la valeur pour correction, et on reposera la question si nécessaire
+                        field._confirmedMaxDigitsValue = null;
+                        me.blockMontantRecuUntilChange(raw, 'Saisie annulée. Corrigez le montant reçu.');
+                    }
+                }
+            });
+            me.focusMsgBoxCancelButton(); // focus par défaut sur Annuler
+            return;
+        }
+
+        // OK => continue
+        field.clearInvalid();
+        return me.montantRecuChangeCore(field, value, options);
+    },
+
+    montantRecuChangeCore: function (field, value, options) {
+        const me = this, typeRegle = me.getVnotypeReglement().getValue();
+        const montantRecu = parseInt(field.getValue());
+        const data = me.getNetAmountToPay();
+        // Fractionnement mobile : pas de monnaie possible, la saisie est
+        // plafonnée au net à payer (on répartit entre 2 modes, sans dépasser)
+        if (me.getExtraModeReglementId() && me.isMobileMode(typeRegle) && data) {
+            const netTopay = parseInt(data.montantNet);
+            if (montantRecu > netTopay) {
+                field.setValue(netTopay); // re-déclenche le change avec la valeur plafonnée
+                return;
+            }
+        }
+        if (me.getExtraModeReglementId()) {
+            me.handleExtraAmountInputValue();
+            const montantExtra = me.getMontantExtra();
+            let montantExtraValue = 0;
+            if (montantExtra) {
+                montantExtraValue = parseInt(montantExtra.getValue());
+            }
+            const totalSaisie = montantRecu + montantExtraValue;
+            me.montantRecuHandler(me, typeRegle, totalSaisie, data);
+        } else {
+            me.montantRecuHandler(me, typeRegle, montantRecu, data);
+        }
+
+    },
+    montantRecuHandler: function (me, typeRegle, montantRecu, data) {
+
+        let vnomontantRemise = me.getMonnaie();
+
+        let monnais = 0;
+        if (montantRecu > 0) {
+            if (!data) {
+                // Aucun net a payer calcule (vente encore vide, ou recalcul en cours) : on ne peut
+                // ni rendre la monnaie ni autoriser la cloture. Sans cette garde, chaque frappe
+                // dans MONTANT RECU levait « data is null » (vu en officine dans le log support).
+                return;
+            }
+            let netTopay = data.montantNet;
+            me.getVnobtnCloture().enable();
+            monnais = (montantRecu > netTopay) ? montantRecu - netTopay : 0;
+            vnomontantRemise.setValue(monnais);
+        } else if (montantRecu === 0) {
+            vnomontantRemise.setValue(0);
+            if (typeRegle === '4') {
+                me.getVnobtnCloture().enable();
+            } else {
+                me.getVnobtnCloture().disable();
+            }
+
+        }
+    }
+    ,
+    updateRemise: function (cmp) {
+        const me = this;
+        let vente = me.getCurrent(), remiseId = cmp.getValue();
+        if (vente) {
+            let venteId = vente.lgPREENREGISTREMENTID;
+            let data = {"remiseId": remiseId, "venteId": venteId};
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/remise',
+                params: Ext.JSON.encode(data),
+                success: function (response, options) {
+                    progress.hide();
+                    me.toRecalculate = true;
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        me.getVnoproduitCombo()
+                                .focus(false, 100, function () {
+                                });
+                    } else {
+                        Ext.Msg.alert("Message", "L'opérateur a échouée");
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                }
+            });
+        }
+
+    }
+    ,
+
+    buildLambdaClientGrid: function () {
+        const me = this;
+        me.getClientLambdaform().setVisible(false);
+        return  {
+
+            xtype: 'grid',
+            itemId: 'lambdaClientGrid',
+            selModel: {
+                selType: 'rowmodel',
+                mode: 'SINGLE'
+            },
+            store: Ext.create('Ext.data.Store', {
+                autoLoad: false,
+                pageSize: null,
+                model: 'testextjs.model.caisse.ClientLambda',
+                proxy: {
+                    type: 'ajax',
+                    url: '../api/v1/client/lambda',
+                    reader: {
+                        type: 'json',
+                        root: 'data',
+                        totalProperty: 'total'
+                    }
+                }
+
+            }),
+            height: 'auto',
+            minHeight: 250,
+            columns: [
+                {
+                    text: '#',
+                    width: 45,
+                    dataIndex: 'lgCLIENTID',
+                    hidden: true
+
+                },
+                {
+                    xtype: 'rownumberer',
+                    text: 'LG',
+                    width: 45,
+                    sortable: true
+                }, {
+                    text: 'Nom',
+                    flex: 1,
+                    sortable: true,
+                    dataIndex: 'strFIRSTNAME'
+                }, {
+                    header: 'Prénom(s)',
+                    dataIndex: 'strLASTNAME',
+                    flex: 1
+
+                },
+                {
+                    header: 'Téléphone',
+                    dataIndex: 'strADRESSE',
+                    flex: 1
+
+                },
+                {
+                    header: 'E-mail',
+                    dataIndex: 'email',
+                    flex: 1
+
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [
+                        {
+                            icon: 'resources/images/icons/add16.gif',
+                            tooltip: 'Ajouter',
+                            scope: this
+
+                        }]
+                }],
+            dockedItems: [
+
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    ui: 'footer',
+                    items: [
+                        {
+                            xtype: 'textfield',
+                            itemId: 'queryClientLambda',
+                            emptyText: 'Rechercher un client (2 caractères)',
+                            width: '70%',
+                            height: 45,
+                            enableKeyEvents: true
+                        }, '-', {
+                            text: 'rechercher',
+                            tooltip: 'rechercher',
+                            scope: this,
+                            itemId: 'btnRechercheLambda',
+                            iconCls: 'searchicon'
+
+                        },
+                        '-', {
+                            text: 'Nouveau client',
+                            scope: this,
+                            itemId: 'btnAddNewLambda',
+                            icon: 'resources/images/icons/add16.gif'
+
+                        }
+                    ]
+                }
+            ]
+
+
+        };
+
+    },
+    /*
+     * Ouvre la fenêtre « client lié » en mode recherche avec le focus
+     * directement dans le champ de saisie : la caissière tape le nom
+     * sans avoir à cliquer dans le champ.
+     */
+    /*
+     * Volet « selection rapide » mobile money (lot 3, option A validee) : quand un
+     * mode mobile est choisi, la fenetre client s'ouvre avec, au-dessus du volet de
+     * recherche habituel, une tuile par client mobile money parametre sur la fiche
+     * du mode de reglement. La tuile du mode choisi passe en premier, en evidence.
+     * Un clic attache le client et ferme la fenetre — le volet normal reste la
+     * pour creer/chercher un vrai client.
+     */
+    ajouterSelectionRapideMobileMoney: function (win) {
+        const me = this;
+        const modeCourant = me.getSafeComboValue('getVnotypeReglement', '1');
+        // Le volet vaut pour un mode mobile PRINCIPAL, et aussi (retour lot 3,
+        // point 3) pour le fractionnement « especes + autre mode » : la fenetre
+        // client s'ouvre alors juste avant que extraModeReglementId ne soit posé,
+        // d'ou l'evaluation differee dans la reponse du serveur.
+        if (!me.isMobileMode(modeCourant) && modeCourant !== '1') {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/modereglement/clients-mobile-money',
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (!result || !result.data || !result.data.length || win.destroyed) {
+                    return;
+                }
+                // Contexte au moment de l'affichage : mobile principal, ou second mode
+                // engagé sur une vente en especes. Sinon, pas de volet.
+                const contexteExtra = (modeCourant === '1' && !!me.extraModeReglementId);
+                if (!me.isMobileMode(modeCourant) && !contexteExtra) {
+                    return;
+                }
+                const modeEnAvant = contexteExtra ? me.extraModeReglementId : modeCourant;
+                const clients = result.data.slice();
+                // la tuile du mode choisi d'abord, en evidence
+                clients.sort(function (a, b) {
+                    const pa = (a.typeReglementId === modeEnAvant) ? 0 : 1;
+                    const pb = (b.typeReglementId === modeEnAvant) ? 0 : 1;
+                    return pa !== pb ? pa - pb : String(a.modeLibelle).localeCompare(String(b.modeLibelle));
+                });
+                const boutons = clients.map(function (c) {
+                    const enAvant = c.typeReglementId === modeEnAvant;
+                    // Logo de l'operateur (resources/images/modes/<LIBELLE>.png) a gauche du libelle ; sans fichier,
+                    // l'image ne s'affiche pas et la tuile garde son texte seul.
+                    const logo = 'resources/images/modes/' + String(c.modeLibelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png';
+                    return {
+                        xtype: 'button',
+                        margin: '0 6 6 0',
+                        height: 48,
+                        text: '<div style="display:flex;align-items:center;gap:8px;">'
+                                + '<img src="' + logo + '" alt="" onerror="this.style.display=\'none\'" style="width:34px;height:34px;border-radius:50%;background:#fff;object-fit:cover;"/>'
+                                + '<div style="text-align:left;"><div style="font-weight:900;font-size:13px;">' + c.modeLibelle + '</div>'
+                                + '<div style="font-size:11px;">' + c.nom + ' ' + c.prenom + '</div></div></div>',
+                        style: enAvant
+                                ? 'background:#1E8449;border-color:#1E8449;'
+                                : 'background:#5D6D7E;border-color:#5D6D7E;',
+                        handler: function () {
+                            const record = Ext.create('testextjs.model.caisse.ClientLambda', {
+                                lgCLIENTID: c.clientId,
+                                strFIRSTNAME: c.nom,
+                                strLASTNAME: c.prenom,
+                                strADRESSE: c.telephone
+                            });
+                            me.updateClientStandard(record);
+                            // Retour lot 3, point 2 : cliquer la tuile d'un AUTRE operateur
+                            // bascule le reglement dessus (on a pu se tromper au depart).
+                            if (c.typeReglementId === modeEnAvant) {
+                                return;
+                            }
+                            if (contexteExtra) {
+                                // second mode : on remplace le mode engagé par celui de la tuile
+                                me.onModeReglementSelect({id: c.typeReglementId, libelle: c.modeLibelle});
+                            } else {
+                                // mode principal : la combo bascule et son etat d'ecran suit
+                                const combo = me.getVnotypeReglement();
+                                combo.setValue(c.typeReglementId);
+                                me.typeReglementSelectEvent(combo);
+                            }
+                        }
+                    };
+                });
+                win.insert(0, {
+                    xtype: 'panel',
+                    bodyPadding: '8 8 2 8',
+                    border: false,
+                    title: '<span style="font-size:12px;">SÉLECTION RAPIDE MOBILE MONEY</span>',
+                    layout: {type: 'hbox', align: 'stretch'},
+                    style: 'border-bottom:2px solid #1E8449;',
+                    items: boutons
+                });
+            }
+        });
+    },
+    openClientLambdaSearchWindow: function () {
+        const me = this;
+        const win = Ext.create('testextjs.view.vente.endepot.ClientLambda');
+        win.add(me.buildLambdaClientGrid());
+        me.ajouterSelectionRapideMobileMoney(win);
+        win.show();
+        const queryField = win.down('#queryClientLambda');
+        if (queryField) {
+            queryField.focus(false, 150);
+            // Ceinture et bretelles : certains enchaînements asynchrones
+            // (calcul du net, listeners du mode) peuvent reprendre le focus
+            // après coup — on le réaffirme une fois la poussière retombée.
+            Ext.defer(function () {
+                if (!queryField.destroyed && !queryField.hasFocus) {
+                    queryField.focus();
+                }
+            }, 450);
+        }
+    },
+    /*
+     * Focus sur la zone d'encaissement.
+     * Flux espèces + mobile (comptant), part mobile non confirmée : le focus
+     * arrive dans le champ mobile pré-rempli avec le complément — la caissière
+     * le valide par Entrée (ou le corrige) ; la part est alors verrouillée et
+     * le focus revient dans le montant reçu où la saisie des espèces tendues
+     * ne recalcule plus que la monnaie.
+     * Tous les autres cas (part déjà confirmée, mobile + mobile...) : montant
+     * reçu, comme avant — Entrée y valide la vente.
+     */
+    focusEncaissement: function () {
+        const me = this;
+        const montantExtra = me.getMontantExtra();
+        if (me.getExtraModeReglementId()
+                && me.getVnotypeReglement().getValue() === '1'
+                && !me.extraModeManualAmount
+                && montantExtra && montantExtra.isVisible() && !montantExtra.readOnly) {
+            montantExtra.focus(true, 100);
+            return;
+        }
+        me.getMontantRecu().focus(true, 100);
+    },
+    /*
+     * Après une action sur le client (sélection, création, annulation de la
+     * fenêtre) : si un second mode de règlement est engagé on revient à
+     * l'encaissement, sinon comportement historique (champ produit).
+     */
+    focusAfterClientAction: function () {
+        const me = this;
+        if (me.getExtraModeReglementId()) {
+            me.focusEncaissement();
+        } else {
+            me.getVnoproduitCombo().focus(true, 100);
+        }
+    },
+    onCancelClientLambda: function () {
+        const me = this;
+        me.closeClientLambdaWindow();
+        if (me._pendingModeNeedsClient && Ext.isEmpty(me.getClient())) {
+            // Annuler pendant un choix de mode nécessitant un client :
+            // on défait tout, comme si le mode n'avait jamais été choisi
+            me._pendingModeNeedsClient = false;
+            me.rollbackModeSelection();
+            return;
+        }
+        me.focusAfterClientAction();
+    },
+    /*
+     * Retour complet à l'état d'avant la sélection du mode de règlement :
+     * combo sur le mode précédent, champ complément mobile masqué et
+     * reverrouillé, bloc chèque/CB masqué, bloc client masqué si aucun
+     * client, montant reçu déverrouillé.
+     */
+    rollbackModeSelection: function () {
+        const me = this;
+        const previous = me._previousTypeReglement || '1';
+        const combo = me.getVnotypeReglement();
+        combo.suspendEvents(false);
+        combo.setValue(previous);
+        combo.resumeEvents();
+        me._appliedTypeReglement = previous;
+        me.resetExtraModeCmp();
+        me.getCbContainer().hide();
+        me.showAndHideInfosStandardClient(false);
+        const recu = me.getMontantRecu();
+        recu.enable();
+        if (previous === '1' || previous === '4' || previous === '6') {
+            recu.setReadOnly(false);
+        }
+        recu.focus(true, 100);
+    },
+    /*
+     * Vente comptant en especes : association FACULTATIVE d'un client standard.
+     * Le circuit est celui des autres modes (fenetre ClientLambda, update/client
+     * sur la prevente) — on ne fait que l'ouvrir a la demande.
+     */
+    onBtnClientComptantClick: function () {
+        const me = this;
+        if (!me.getCurrent()) {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant d\'associer un client',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
+            });
+            return;
+        }
+        me.getInfosClientStandard().show();
+        me.openClientLambdaSearchWindow();
+    },
+    /*
+     * Le bouton « associer un client » n'a de sens qu'en vente comptant reglée
+     * en especes PURES : partout ailleurs (mobile money, cheque/CB/virement,
+     * assurance/carnet, ou especes avec un second mode engagé) le client est
+     * deja demandé par le mode ou porté par la vente (retour lot 3, point 1).
+     */
+    refreshBtnClientComptant: function () {
+        const me = this;
+        const btn = me.getBtnClientComptant();
+        if (!btn) {
+            return;
+        }
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        const typeRegle = me.getSafeComboValue('getVnotypeReglement', '1');
+        // ... et jamais quand la vente porte deja un client (vente a credit ouverte en
+        // modification, client deja associe) : il n'y a plus rien a associer.
+        btn.setVisible(typeVente === '1' && typeRegle === '1' && !me.extraModeReglementId && !me.client);
+    },
+    updateClientStandard: function (record) {
+        const me = this;
+        me._pendingModeNeedsClient = false; // un client est choisi : plus de rollback
+        me.client = record;
+        me.getNomClient().setValue(record.get('strFIRSTNAME'));
+        me.getPrenomClient().setValue(record.get('strLASTNAME'));
+        me.getTelephoneClient().setValue(record.get('strADRESSE'));
+        me.closeClientLambdaWindow();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteClient(record.get('lgCLIENTID'), progress);
+    },
+    btnAjouterClientLambda: function (grid, rowIndex, colIndex) {
+        const me = this;
+        const record = grid.getStore().getAt(colIndex);
+        me.updateClientStandard(record);
+        me.client = record;
+
+    },
+    onClientLambdaSpecialKey: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            const me = this;
+            me.registerNewClient();
+        }
+
+    },
+    updateClientLambdInfos: function () {
+        const me = this;
+        const client = me.getClient();
+        me.getNomClient().setValue(client.get('strFIRSTNAME'));
+        me.getPrenomClient().setValue(client.get('strLASTNAME'));
+        me.getTelephoneClient().setValue(client.get('strADRESSE'));
+    },
+    updateVenteClient: function (clientId, progress) {
+        const me = this;
+        let venteId = me.getCurrent().lgPREENREGISTREMENTID;
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/update/client',
+            params: Ext.JSON.encode({
+                "clientId": clientId, "venteId": venteId
+            }),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    // Retour contextuel : encaissement si un second mode de
+                    // règlement est engagé, sinon champ produit (historique)
+                    me.focusAfterClientAction();
+
+                } else {
+
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.focusAfterClientAction();
+                            }
+                        }
+
+                    });
+                }
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+            }
+
+        });
+    },
+    registerNewClient: function () {
+        const me = this, form = me.getClientLambdaform();
+        if (form.isValid()) {
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/client/add/lambda',
+                params: Ext.JSON.encode(form.getValues()),
+                success: function (response, options) {
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        let clientData = result.data;
+                        me._pendingModeNeedsClient = false; // client créé : plus de rollback
+                        me.client = new testextjs.model.caisse.ClientLambda(clientData);
+                        me.updateClientLambdInfos();
+                        me.closeClientLambdaWindow();
+                        me.updateVenteClient(clientData.lgCLIENTID, progress);
+
+                    } else {
+                        progress.hide();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg,
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+
+                        });
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                }
+
+            });
+        }
+
+    },
+    queryClientLambda: function () {
+        const me = this, query = me.getQueryClientLambda().getValue();
+        if (query && query.trim() !== "") {
+            me.getLambdaClientGrid().getStore().load({
+                params: {
+                    query: query
+                }
+            });
+        }
+    },
+    onClientLambdaKey: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            if (field.getValue() && field.getValue().trim() !== "") {
+                const me = this;
+                me.queryClientLambda();
+            }
+        }
+    },
+
+    /**
+     * Recherche automatique des 2 caracteres saisis dans la fenetre « Ajouter un client a la
+     * vente » (mobile money, differe, avoir). Le seuil evite d'interroger le serveur sur une
+     * seule lettre, qui ramenerait presque tout le fichier client ; le buffer declare a
+     * l'ecoute de l'evenement laisse finir la frappe, pour n'envoyer qu'une requete.
+     *
+     * En dessous de 2 caracteres on ne fait rien : la grille garde le dernier resultat plutot
+     * que de se vider sous les yeux de la caissiere pendant qu'elle corrige sa saisie.
+     */
+    onQueryClientLambdaKeyUp: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            // Deja traite par specialkey : ne pas lancer deux fois la meme recherche.
+            return;
+        }
+        if ((field.getValue() || '').trim().length < 2) {
+            return;
+        }
+        this.queryClientLambda();
+    },
+    /**
+     * Pre-controle du stock vendable avant une modification de quantite en grille. Interroge le serveur
+     * (v1/vente/stock-vendable/{produitId}) : si le produit est deconditionnable et que la quantite demandee
+     * depasse le stock vendable, affiche le message et retablit la quantite precedente SANS appeler l'update.
+     * Dans tous les autres cas (produit non detail, quantite couverte, ou echec du controle), poursuit via
+     * onOk() : le flux existant et la barriere serveur restent inchanges.
+     */
+    /**
+     * Rend la main dans le champ quantite de la zone recherche produit, valeur preselectionnee (meme
+     * geste que les autres refus de stock de la caisse : focus(true, ...) selectionne le contenu pour
+     * une ressaisie immediate).
+     */
+    redonnerFocusQuantite: function () {
+        const me = this;
+        const champ = me.getVnoqtyField && me.getVnoqtyField();
+        if (champ && champ.focus) {
+            champ.focus(true, 100);
+        }
+    },
+    controlerVendableAvantModif: function (produitId, qte, e, onOk) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/stock-vendable/' + produitId + me.parametreDepot(false),
+            success: function (response) {
+                let r = null;
+                try { r = Ext.JSON.decode(response.responseText, true); } catch (ex) { r = null; }
+                if (r && r.success === true && r.deconditionnable === true && qte > parseInt(r.stockVendable)) {
+                    if (e && e.originalValue !== undefined && e.originalValue !== null) {
+                        e.record.set(e.field, e.originalValue);
+                    }
+                    e.record.commit();
+                    me.refresh();
+                    me.autoComputeNetAfterChange();
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Stock insuffisant pour ' + (r.libelle || 'ce produit')
+                                + ' : plus aucune boîte à déconditionner. Veuillez réduire la quantité.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        // apres OK : rendre la main dans le champ quantite (zone recherche produit) avec la
+                        // valeur preselectionnee, pour que la caissiere ressaisisse directement
+                        fn: function (buttonId) {
+                            if (buttonId === 'ok') {
+                                me.redonnerFocusQuantite();
+                            }
+                        }
+                    });
+                    return;
+                }
+                onOk();
+            },
+            failure: function () {
+                // controle indisponible : ne pas bloquer, laisser le flux normal (la validation serveur protege)
+                onOk();
+            }
+        });
+    },
+    updateventeOngrid: function (editor, e, url, params) {
+        const me = this;
+        let record = e.record;
+        let stock = parseInt(record.get('intNUMBERAVAILABLE'));
+        let boolDECONDITIONNE = parseInt(record.get('boolDECONDITIONNE'));
+        let lgFAMILLEID = record.get('lgFAMILLEPARENTID');
+        let qte = parseInt(record.get('intQUANTITY'));
+        if (boolDECONDITIONNE === 1 && stock < qte) {
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 550,
+                msg: "Stock insuffisant. Voulez-vous faire un déconditionnement ?",
+                buttons: Ext.MessageBox.YESNO,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "yes") {
+                        Ext.Ajax.request({
+                            method: 'GET',
+                            headers: {'Content-Type': 'application/json'},
+                            url: '../api/v1/vente/search/' + lgFAMILLEID + me.parametreDepot(false),
+                            success: function (response, options) {
+                                let result = Ext.JSON.decode(response.responseText, true);
+                                if (result.success) {
+                                    let produit = result.data;
+                                    let qtyDetail = produit.intNUMBERDETAIL, nbreBoite = produit.intNUMBERAVAILABLE;
+                                    let stockParent = (nbreBoite * qtyDetail) + stock;
+                                    if (qte <= stockParent) {
+                                        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                        Ext.Ajax.request({
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'},
+                                            url: url,
+                                            params: Ext.JSON.encode(params),
+                                            success: function (response, options) {
+                                                me.toRecalculate = true;
+                                                progress.hide();
+                                                editor.cancelEdit();
+                                                e.record.commit();
+                                                let result0 = Ext.JSON.decode(response.responseText, true);
+                                                if (result0.success) {
+                                                    me.current = result0.data;
+                                                    me.getTotalField().setValue(me.getCurrent().intPRICE);
+
+                                                    if (e.field === 'intQUANTITYSERVED' && (parseInt(record.get('intQUANTITYSERVED')) < parseInt(record.get('intQUANTITY')))) {
+                                                        if (!me.getClient()) {
+                                                            me.showAndHideInfosStandardClient(true);
+                                                        }
+                                                    }
+                                                    me.refresh();
+                                                    me.autoComputeNetAfterChange();
+                                                }
+                                            },
+                                            failure: function (response, options) {
+                                                me.toRecalculate = true;
+                                                editor.cancelEdit();
+                                                e.record.commit();
+                                                progress.hide();
+                                                Ext.Msg.alert("Message", "L'opération a échoué " + response.status);
+                                            }
+
+                                        });
+                                    } else {
+
+                                        Ext.MessageBox.show({
+                                            title: 'Message d\'erreur',
+                                            width: 550,
+                                            msg: "Le stock est insuffisant",
+                                            buttons: Ext.MessageBox.OK,
+                                            icon: Ext.MessageBox.ERROR,
+                                            fn: function (buttonId) {
+                                                if (buttonId === "ok") {
+                                                    me.getVnoqtyField().focus(true, 100);
+                                                }
+                                            }
+                                        });
+
+                                    }
+                                } else {
+                                    Ext.MessageBox.show({
+                                        title: 'Message d\'erreur',
+                                        width: 550,
+                                        msg: "Impossible de poursuivre",
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.ERROR,
+                                        fn: function (buttonId) {
+                                            if (buttonId === "ok") {
+                                                me.getVnoqtyField().focus(true, 100);
+                                            }
+                                        }
+                                    });
+
+                                }
+
+                            },
+                            failure: function (response, options) {
+
+                                Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                                me.getVnoqtyField().focus(true, 100);
+                            }
+                        });
+
+                    } else {
+                        editor.cancelEdit();
+                        e.record.commit();
+                        me.getVnoqtyField().setValue(1);
+                        const comboxProduit = me.getVnoproduitCombo();
+                        comboxProduit.clearValue();
+                        comboxProduit.setValue(null);
+                        me.updateStockField(0);
+                        me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
+                        me.refresh();
+
+
+                    }
+                }
+            });
+
+        } else {
+            me.toRecalculate = true;
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: url,
+                params: Ext.JSON.encode(params),
+                success: function (response, options) {
+                    progress.hide();
+                    let result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        e.record.commit();
+                        me.current = result.data;
+
+                        me.getTotalField().setValue(me.getCurrent().intPRICE);
+
+                        if (e.field === 'intQUANTITYSERVED' && (parseInt(record.get('intQUANTITYSERVED')) < parseInt(record.get('intQUANTITY')))) {
+                            if (!me.getClient()) {
+                                me.showAndHideInfosStandardClient(true);
+                            }
+                        }
+                        me.refresh();
+                        me.autoComputeNetAfterChange();
+
+                    } else {
+                        // Refus metier du serveur (ex. produit detail au-dela du stock vendable : plus aucune
+                        // boite a deconditionner) : sans ce traitement, la grille gardait la valeur saisie alors
+                        // que la base la refusait, laissant l'ecran incoherent et la vente se validant sur
+                        // l'ancienne quantite. On retablit la valeur precedente et on affiche le message du serveur.
+                        if (e.originalValue !== undefined && e.originalValue !== null) {
+                            e.record.set(e.field, e.originalValue);
+                        }
+                        e.record.commit();
+                        me.refresh();
+                        me.autoComputeNetAfterChange();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg || 'Modification refusée.',
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR,
+                            fn: function (buttonId) {
+                                if (buttonId === 'ok') {
+                                    me.redonnerFocusQuantite();
+                                }
+                            }
+                        });
+                    }
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    editor.cancelEdit();
+                    e.record.commit();
+                    Ext.Msg.alert("Message", "L'opération a échoué " + response.status);
+                }
+
+            });
+        }
+
+
+    },
+    onGridEdit: function (editor, e) {
+        const me = this;
+        me.toRecalculate = true;
+        let record = e.record;
+        let params = {};
+        let url = '../api/v1/vente/update/item/vno';
+        let qteServie = record.get('intQUANTITYSERVED');
+        if (e.field === 'intQUANTITY') {
+            qteServie = record.get('intQUANTITY');
+            params = {
+                "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
+                "itemPu": record.get('intPRICEUNITAIR'),
+                "qte": record.get('intQUANTITY'),
+                "qteServie": qteServie,
+                "produitId": record.get('lgFAMILLEID')
+            };
+            // Pre-controle du stock vendable AVANT l'appel de modification : pour un produit detail, une
+            // quantite au-dela du stock vendable (rayon + boites deconditionnables) est bloquee des la saisie,
+            // sans aller-retour d'update. Le controle interroge le serveur (source unique de la regle) ; en cas
+            // d'echec de ce pre-controle (reseau, produit non deconditionnable), on retombe sur le flux normal
+            // et la barriere serveur de validation reste en place. Zero regression : rien n'est retire.
+            me.controlerVendableAvantModif(record.get('lgFAMILLEID'), parseInt(record.get('intQUANTITY')), e,
+                    function () { me.updateventeOngrid(editor, e, url, params); });
+        } else if (e.field === 'intQUANTITYSERVED') {
+            if (parseInt(record.get('intQUANTITYSERVED')) > parseInt(record.get('intQUANTITY'))) {
+                editor.cancelEdit();
+                record.commit();
+                me.refresh();
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: 'La quantité servie ne peut pas être supérieure à la quantité demandée',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function (buttonId) {
+
+                    }
+                });
+                return false;
+            } else {
+                params = {
+                    "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
+                    "itemPu": record.get('intPRICEUNITAIR'),
+                    "qte": record.get('intQUANTITY'),
+                    "qteServie": qteServie,
+                    "produitId": record.get('lgFAMILLEID')
+                };
+                me.updateventeOngrid(editor, e, url, params);
+
+            }
+
+
+        } else if (e.field === 'intPRICEUNITAIR') {
+            if (!me.canModifyPu) {
+                editor.cancelEdit();
+                record.commit();
+                me.refresh();
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: "Vous n'êts pas autorisé à modifier le prix de vente",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            me.getVnoproduitCombo().focus(true, 100);
+
+                        }
+                    }
+                });
+
+            } else {
+                params = {
+                    "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
+                    "itemPu": record.get('intPRICEUNITAIR'),
+                    "qte": record.get('intQUANTITY'),
+                    "qteServie": qteServie,
+                    "produitId": record.get('lgFAMILLEID')
+                };
+                me.updateventeOngrid(editor, e, url, params);
+
+            }
+
+        }
+
+    },
+    updateComboxFields: function (lgTYPEVENTEID, lgNATUREVENTEID, lgUSERVENDEURID, typeReglementId, lgREMISEID) {
+        const me = this;
+
+        // --- Type règlement ---
+        const regCmp = me.getVnotypeReglement && me.getVnotypeReglement();
+        const _typeReglementId = (typeReglementId ? typeReglementId : '1');
+        if (regCmp && !regCmp.destroyed) {
+            regCmp.getStore().load({
+                scope: me,
+                callback: function () {
+                    const cmp = me.getVnotypeReglement && me.getVnotypeReglement();
+                    if (!cmp || cmp.destroyed) {
+                        return;
+                    }
+                    cmp.setValue(_typeReglementId);
+                    me._appliedTypeReglement = _typeReglementId;
+                    // setValue ne déclenche pas l'événement select : on
+                    // réapplique l'état d'écran du mode restauré (montant
+                    // forcé/verrouillé, bloc chèque/CB, bouton mobile...)
+                    if (_typeReglementId !== '1' && me.getCurrent()) {
+                        me.typeReglementSelectEvent(cmp);
+                    }
+                    // visibilite du bouton « associer un client » alignee sur le mode restauré
+                    me.refreshBtnClientComptant();
+                }
+            });
+        }
+
+        // --- Type vente / Nature vente ---
+        const _typeVenteId = (lgTYPEVENTEID ? lgTYPEVENTEID : '1');
+        const _natureVenteId = (lgNATUREVENTEID ? lgNATUREVENTEID : '1');
+
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (typeVenteCmp && !typeVenteCmp.destroyed) {
+            typeVenteCmp.getStore().load({
+                scope: me,
+                callback: function () {
+                    const cmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+                    if (!cmp || cmp.destroyed) {
+                        return;
+                    }
+                    cmp.setValue(_typeVenteId);
+                }
+            });
+        }
+
+        const natureCmp = me.getNatureCombo && me.getNatureCombo();
+        if (natureCmp && !natureCmp.destroyed) {
+            natureCmp.getStore().load({
+                scope: me,
+                callback: function () {
+                    const cmp = me.getNatureCombo && me.getNatureCombo();
+                    if (!cmp || cmp.destroyed) {
+                        return;
+                    }
+                    cmp.setValue(_natureVenteId);
+                }
+            });
+        }
+
+        // --- Vendeur ---
+        const userCmp = me.getUserCombo && me.getUserCombo();
+        if (lgUSERVENDEURID) {
+            if (userCmp && !userCmp.destroyed) {
+                userCmp.getStore().load({
+                    scope: me,
+                    callback: function () {
+                        const cmp = me.getUserCombo && me.getUserCombo();
+                        if (!cmp || cmp.destroyed) {
+                            return;
+                        }
+                        cmp.setValue(lgUSERVENDEURID);
+                    }
+                });
+            }
+        } else {
+            if (userCmp && !userCmp.destroyed) {
+                userCmp.clearValue();
+                userCmp.setValue(null);
+            }
+        }
+
+        // --- Remise ---
+        const remiseCmp = me.getVnoremise && me.getVnoremise();
+        if (lgREMISEID) {
+            if (remiseCmp && !remiseCmp.destroyed) {
+                remiseCmp.getStore().load({
+                    scope: me,
+                    callback: function () {
+                        const cmp = me.getVnoremise && me.getVnoremise();
+                        if (!cmp || cmp.destroyed) {
+                            return;
+                        }
+                        cmp.setValue(lgREMISEID);
+                    }
+                });
+            }
+        } else {
+            if (remiseCmp && !remiseCmp.destroyed) {
+                remiseCmp.clearValue();
+                remiseCmp.setValue(null);
+            }
+        }
+    },
+    updateAmountFields: function (montantNet, remise, total) {
+        const me = this;
+        me.getMontantNet().setValue(montantNet);
+        me.getVnomontantRemise().setValue(remise);
+        me.getTotalField().setValue(total);
+    },
+
+    goBack: function () {
+        const me = this;
+        // Sortie d'ecran : la vente rappelee redevient disponible pour les autres caisses
+        me.libererRappelVente();
+        // Abandon d'une modification de vente clôturée : la copie en attente est supprimée pour ne pas
+        // laisser traîner une vente orpheline qu'un autre utilisateur pourrait reprendre et clôturer.
+        // (Le bouton ATTENTE reste le moyen de conserver volontairement la copie.)
+        if (me.getCategorie() === 'COPY' && me.current && me.current.lgPREENREGISTREMENTID) {
+            const copieId = me.current.lgPREENREGISTREMENTID;
+            Ext.Ajax.request({
+                method: 'DELETE',
+                url: '../api/v1/vente/copie/' + copieId,
+                callback: function () {
+                    me.resetAll();
+                    testextjs.app.getController('App')
+                            .onLoadNewComponentWithDataSource('cloturerventemanager', "", "", "");
+                }
+            });
+            return;
+        }
+        me.resetAll();
+        let xtype = 'cloturerventemanager';
+        if (me.getCategorie() === 'PREVENTE') {
+            xtype = 'preenregistrementmanager';
+        }
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+    },
+    loadClientAssurance: function (clientData, lgTYPEVENTEID, ayantDroit) {
+        const me = this;
+        me.client = new testextjs.model.caisse.ClientAssurance(clientData);
+        me.showAssureContainer(lgTYPEVENTEID);
+        // Le type de vente est passe explicitement : la combo type de vente est repositionnee par un
+        // rappel ASYNCHRONE (updateComboxFields) et vaut encore « comptant » a cet instant du
+        // rechargement - les blocs carnet (encours/plafond/caution) ne se construisaient jamais.
+        me.buildtierspayantContainer(lgTYPEVENTEID);
+        me.updateAssurerCmp();
+        me.ayantDroit = ayantDroit;
+        if (lgTYPEVENTEID === '2') {
+            if (ayantDroit) {
+                me.getNomAyantDroit().setValue(ayantDroit.strFIRSTNAME);
+                me.getPrenomAyantDroit().setValue(ayantDroit.strLASTNAME);
+                me.getNumAyantDroit().setValue(ayantDroit.strNUMEROSECURITESOCIAL);
+            } else {
+                me.updateAyantDroitCmp();
+            }
+        }
+
+    },
+    getTypeReglementToDisplay: function (reglements) {
+        if (reglements && reglements.length > 0) {
+            if (reglements.length === 1) {
+                return reglements[0].typeReglement;
+            } else {
+                const hasCach = reglements.find((e) => e.typeReglement === "1");
+                if (hasCach) {
+                    return '1';
+                } else {
+                    return reglements[0].typeReglement;
+                }
+            }
+        } else {
+            return '1';
+        }
+    },
+    loadVenteData: function (venteId) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/' + venteId,
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    let record = result.data;
+                    let lgTYPEVENTEID = record.lgTYPEVENTEID, lgREMISEID = record.lgREMISEID,
+                            lgUSERVENDEURID = record.lgUSERVENDEURID;
+                    let lgNATUREVENTEID = record.lgNATUREVENTEID, intPRICEREMISE = record.intPRICEREMISE,
+                            intPRICE = record.intPRICE,
+                            ayantDroit = record.ayantDroit, client = record.client;
+                    const reglements = record.reglements;
+                    me.current = {
+                        'intPRICE': record.intPRICE,
+                        'lgPREENREGISTREMENTID': record.lgPREENREGISTREMENTID,
+                        // rappelee en bas de l'ecran, sous la liste des articles
+                        'dateHeureCreation': record.dateHeureCreation
+                    };
+                    me.netAmountToPay = null;
+                    me.ayantDroit = ayantDroit;
+                    // Vente en attente : pas encore de règlements en base, on
+                    // restaure le mode mémorisé à la mise en attente : d'abord
+                    // celui persisté côté serveur, sinon celui du poste (localStorage)
+                    let typeReglementARestaurer = me.getTypeReglementToDisplay(reglements);
+                    if ((!reglements || reglements.length === 0) && typeReglementARestaurer === '1') {
+                        typeReglementARestaurer = record.typeReglementAttente
+                                || me.getRememberedPreventeMode(record.lgPREENREGISTREMENTID)
+                                || typeReglementARestaurer;
+                    }
+                    me.updateComboxFields(lgTYPEVENTEID, lgNATUREVENTEID, lgUSERVENDEURID, typeReglementARestaurer, lgREMISEID);
+                    me.updateAmountFields((parseInt(intPRICE) - parseInt(intPRICEREMISE)), intPRICEREMISE, intPRICE);
+                    if (lgTYPEVENTEID === '2' || lgTYPEVENTEID === '3') {
+                        me.loadClientAssurance(client, lgTYPEVENTEID, ayantDroit);
+                    }
+                    if (lgTYPEVENTEID === '1' && client) {
+                        me.client = new testextjs.model.caisse.ClientLambda(record.client);
+                        me.updateClientLambdInfos();
+                        me.showAndHideInfosStandardClient(true);
+                        // Vente rappelee avec son client : le bouton « associer un client » n'a plus d'objet
+                        me.refreshBtnClientComptant();
+                    }
+                    me.refresh();
+                    me.controlerDetailPanier(record.lgPREENREGISTREMENTID);
+
+
+                }
+
+            }
+        });
+
+    },
+    /**
+     * Re-contrôle du panier à son ouverture : entre la mise en attente et la reprise, le stock a pu
+     * changer (autre caisse, vente de la boîte). Prévient tout de suite si un produit détail n'est
+     * plus couvert par le stock vendable (rayon + boîtes à déconditionner), plutôt que d'attendre le
+     * refus à l'encaissement.
+     */
+    controlerDetailPanier: function (venteId) {
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/controle-detail/' + venteId,
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success && result.produits && result.produits.length > 0) {
+                    Ext.MessageBox.show({
+                        title: 'Stock insuffisant',
+                        width: 550,
+                        msg: 'Stock insuffisant pour :<br/><b>' + result.produits.join('</b><br/><b>')
+                                + '</b><br/>Plus aucune boîte à déconditionner : veuillez modifier les quantités avant de valider la vente.',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.WARNING
+                    });
+                }
+            }
+        });
+    },
+    loadExistantSale: function (venteId) {
+        const me = this, contenu = me.getContenu();
+        contenu.removeAll();
+        const vno = Ext.create('testextjs.view.vente.VenteVNO');
+        contenu.add(vno);
+        me.loadVenteData(venteId);
+    },
+    /**
+     * Nomme le bloc et le montant selon le type de vente : « assurance » en vente assurance, « carnet » en
+     * vente carnet. « Tiers payant » est le terme du modele de donnees, pas celui de la caissiere, et il
+     * designait la meme chose dans les deux cas.
+     *
+     * Appele depuis resetTitle (changement de type par la combo) et depuis showAssureContainer (rappel
+     * d'une vente existante, ou la combo est repositionnee sans evenement select).
+     */
+    /**
+     * Entree sur un numero de bon : on passe au numero de bon de l'assurance SUIVANTE s'il y en a une,
+     * sinon au champ de selection du produit. Une vente peut porter deux ou trois assurances ; il fallait
+     * jusqu'ici viser chaque champ a la souris.
+     *
+     * Les champs sont pris dans leur ordre d'AFFICHAGE, et non par le numero d'ordre porte par leur itemId :
+     * ce numero vient du serveur et peut sauter une valeur quand une assurance a ete retiree de la vente.
+     */
+    bonSuivantOuProduit: function (champCourant) {
+        const me = this;
+        const formulaire = me.getTpContainerForm && me.getTpContainerForm();
+        const bons = formulaire ? formulaire.query('textfield').filter(function (c) {
+            return c.itemId && c.itemId.indexOf('refBon') === 0;
+        }) : [];
+        const position = bons.indexOf(champCourant);
+        if (position !== -1 && position + 1 < bons.length) {
+            bons[position + 1].focus(false, 100);
+            return;
+        }
+        const produit = me.getVnoproduitCombo && me.getVnoproduitCombo();
+        if (produit) {
+            produit.focus(true, 100);
+        }
+    },
+    appliquerLibellesTiersPayant: function (typeVente) {
+        const me = this;
+        const carnet = (typeVente === '3');
+        const bloc = me.getTpContainer && me.getTpContainer();
+        if (bloc && bloc.setTitle) {
+            bloc.setTitle('<span style="color:blue;">'
+                    + (carnet ? 'INFOS COMPTE CARNET' : 'INFOS ASSURANCE') + '</span>');
+        }
+        const montant = me.getMontantTp && me.getMontantTp();
+        if (montant && montant.setFieldLabel) {
+            montant.setFieldLabel(carnet ? 'PART CARNET:' : 'PART ASSURANCE:');
+        }
+        // En vente carnet, la carte du client ne concerne pas un assure : elle prend le nom du metier.
+        const carteClient = me.getAssureCmp && me.getAssureCmp();
+        if (carteClient && carteClient.setTitle) {
+            carteClient.setTitle('<span style="color:blue;">'
+                    + (carnet ? 'INFOS CLIENT CARNET' : 'INFOS ASSURE') + '</span>');
+        }
+    },
+    /**
+     * Titre de l'ecran. Il annonce toujours « VENTE EN DEPOT », et nomme le depot des qu'il est choisi : deux
+     * ecrans se ressemblent trait pour trait, c'est le titre qui dit lequel on a sous les yeux. Se tromper
+     * d'ecran deciderait du stock que l'on destocke.
+     */
+    resetTitle: function (typeVente) {
+        const me = this;
+        let nature = 'VENTE AU COMPTANT';
+        if (typeVente === '2') {
+            nature = 'VENTE ASSURANCE';
+        } else if (typeVente === '3') {
+            nature = 'VENTE CARNET';
+        }
+        let titre = 'VENTE EN D\u00c9P\u00d4T \u2013 ' + nature;
+        const combo = me.getDepotVenteCombo();
+        if (combo && !combo.isDestroyed && combo.getValue()) {
+            const enr = combo.getStore().findRecord('id', combo.getValue());
+            if (enr) {
+                titre += ' \u2013 ' + enr.get('nom');
+            }
+        }
+        me.getDoventeendepot().setTitle(titre);
+        me.appliquerLibellesTiersPayant(typeVente);
+
+    },
+    chargerCopieDeVenteAmodifier: function (venteId) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/vente/modifier-vente-terme/' + venteId,
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    const record = result.data;
+                    me.loadExistantSale(record.lgPREENREGISTREMENTID);
+                }
+
+            }
+        });
+
+    },
+
+    goToVenteView: function () {
+        const me = this, view = me.getDoventeendepot(), contenu = me.getContenu();
+        const data = view.getData();
+        if (data) {
+            const isEdit = data.isEdit;
+            me.categorie = data.categorie;
+            if (isEdit && me.getCategorie() === 'VENTE') {
+                const record = data.record;
+                me.loadExistantSale(record.lgPREENREGISTREMENTID);
+            } else if (me.getCategorie() === 'PREVENTE' && !isEdit) {
+                me.current = null;
+                me.netAmountToPay = null;
+                me.client = null;
+                contenu.removeAll();
+                const vno = Ext.create('testextjs.view.vente.VenteVNO');
+                contenu.add(vno);
+                me.componentsToHidePresales();
+                me.updateComboxFields(null, null, null, null, null);
+                me.getVnobtnCloture().hide();
+                if (me.getCategorie() === 'PREVENTE') {
+                    me.getBtnClosePrevente().show();
+                }
+            } else if (isEdit && me.getCategorie() === 'PREVENTE') {
+                const record = data.record;
+                me.loadExistantSale(record.lgPREENREGISTREMENTID);
+                me.componentsToHidePresales();
+                me.getVnobtnCloture().hide();
+                if (me.getCategorie() === 'PREVENTE') {
+                    me.getBtnClosePrevente().show();
+                }
+
+
+            } else if (isEdit && me.getCategorie() === 'COPY') {
+                const record = data.record;
+                me.chargerCopieDeVenteAmodifier(record.lgPREENREGISTREMENTID);
+
+
+            } else {
+                me.current = null;
+                me.netAmountToPay = null;
+                me.client = null;
+                contenu.removeAll();
+                const vno = Ext.create('testextjs.view.vente.VenteVNO');
+                contenu.add(vno);
+                me.updateComboxFields(null, null, null, null, null);
+            }
+        } else {
+            me.current = null;
+            me.netAmountToPay = null;
+            me.client = null;
+            contenu.removeAll();
+            const vno = Ext.create('testextjs.view.vente.VenteVNO');
+            contenu.add(vno);
+            me.updateComboxFields(null, null, null, null, null);
+        }
+    },
+    componentsToHidePresales: function () {
+        const me = this, typeRegle = me.getVnotypeReglement(), encaissement = me.getEncaissement();
+        typeRegle.hide();
+        encaissement.hide();
+
+    },
+
+    checkSansBon: function () {
+        let me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/common/vente-sansbon',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.venteSansBon = result.data;
+                }
+            }
+
+        });
+    },
+    checkModificationPrixU: function () {
+        let me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/common/autorisation-prix-vente',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.canModifyPu = result.data;
+                }
+            }
+
+        });
+    },
+    checkShowStock: function () {
+        let me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/common/autorisations/showstock',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.showStock = result.data;
+                }
+            }
+
+        });
+    },
+
+    onPrintTicketCopy: function (id) {
+        let url = '../api/v1/vente/copy/' + id;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            headers: {'Content-Type': 'application/json'},
+            method: 'POST',
+            url: url,
+            success: function (response, options) {
+                progress.hide();
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+            }
+
+        });
+    },
+    onPrintTicket: function (params, typeVenteCombo) {
+        const me = this;
+        let url = (typeVenteCombo === '1' ? '../api/v1/vente/ticket/vno' : '../api/v1/vente/ticket/vo');
+        Ext.Ajax.request({
+            headers: {'Content-Type': 'application/json'},
+            method: 'POST',
+            url: url,
+            params: Ext.JSON.encode(params),
+            success: function (response, options) {
+                // Ticket refusé par le serveur (vente incomplète) : le dire, au lieu de laisser la
+                // caissière attendre un ticket qui ne sortira pas.
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success === false && result.venteIncomplete && result.msg) {
+                    Ext.MessageBox.show({
+                        title: 'Vente incomplète',
+                        width: 560,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+                    });
+                }
+                me.getVnoproduitCombo()
+                        .focus(true, 100);
+            },
+            failure: function (response, options) {
+                me.getVnoproduitCombo()
+                        .focus(true, 100);
+            }
+
+        });
+    },
+    resetAll: function (montantRemis) {
+        const me = this;
+        me.current = null;
+        me._pendingModeNeedsClient = false;
+        me._appliedTypeReglement = '1';
+        me.resetExtraModeCmp();
+        if (montantRemis !== undefined) {
+            me.getDernierMonnaie().setValue(montantRemis);
+        }
+        me.getMontantRecu().enable();
+        me.getMontantRecu().setReadOnly(false);
+        me.getVnogrid().getStore().loadPage(1, {
+            params: {
+                venteId: null,
+                query: null,
+                statut: null
+            }
+        });
+        me.netAmountToPay = null;
+
+        me.client = null;
+        me.ayantDroit = null;
+        me.ancienTierspayant = null;
+        me.getMontantNet().setValue(0);
+        me.getMonnaie().setValue(0);
+        me.getVnomontantRemise().setValue(0);
+        me.getTotalField().setValue(0);
+        me.getMontantRecu().setValue(0);
+        me.getUserCombo().clearValue();
+        me.getUserCombo().setValue(null);
+        // Le depot est redemande a chaque vente : on ne veut pas enchainer sur le depot precedent sans
+        // l'avoir voulu. C'est la portee choisie par l'officine.
+        me.depotVente = null;
+        var depotCombo = me.getDepotVenteCombo();
+        if (depotCombo && !depotCombo.isDestroyed) {
+            depotCombo.clearValue();
+            depotCombo.setValue(null);
+        }
+        me.orienterLecturesSurLeDepot();
+        me.getVnobtnCloture().enable();
+        if (me.getInfosClientStandard().isVisible()) {
+            me.resetClientLambdaInfos();
+        }
+        if (me.getCbContainer().isVisible()) {
+            me.resetCbCompoent();
+        }
+        me.getTpContainerForm().removeAll();
+        me.hideAssureContainer();
+        me.updateComboxFields(null, null, null, null, null);
+        me.resetTitle(null);
+        me.toRecalculate = true;
+
+    },
+    resetClientLambdaInfos: function () {
+        const me = this;
+        me.client = null;
+        me.getNomClient().setValue('');
+        me.getPrenomClient().setValue('');
+        me.getTelephoneClient().setValue('');
+        me.getCommentaire().setValue('');
+        me.getInfosClientStandard().hide();
+        me.toRecalculate = true;
+    },
+    resetCbCompoent: function () {
+        const me = this;
+        me.getRefCb().setValue('');
+        me.getBanque().setValue('');
+        me.getLieuxBanque().setValue('');
+        me.getCbContainer().hide();
+        me.toRecalculate = true;
+    },
+    restetRemiseCmb: function (lgREMISEID) {
+        const me = this;
+        if (lgREMISEID) {
+            const remiseCombo = me.getVnoremise();
+            remiseCombo.getStore().load(function (records, operation, success) {
+                remiseCombo.setValue(lgREMISEID);
+            });
+
+        } else {
+            me.getVnoremise().clearValue();
+            me.getVnoremise().setValue(null);
+        }
+    },
+    onClientSearchTextField: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            const me = this;
+            let current = me.getCurrent();
+            if (field.getValue() && field.getValue().trim() !== '') {
+                if (current) {
+                    Ext.Ajax.request({
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/vente/retmoveClient/' + current.lgPREENREGISTREMENTID,
+                        success: function (response, options) {
+                        }
+                    });
+                    me.getMontantRecu().enable();
+                    me.getMontantRecu().setReadOnly(false);
+
+                }
+                me.client = null;
+                me.restetRemiseCmb(null);
+                me.updateAssurerResetCmp();
+                me.updateAyantDroitResetCmp();
+                let tpContainerForm = me.getTpContainerForm();
+                tpContainerForm.removeAll();
+                me.loadAssuranceClient(field.getValue());
+                field.setValue('');
+
+            }
+            field.setValue('');
+        }
+    },
+    /**
+     * Caisse fermee au moment de valider : plutot que d'annoncer l'impasse et de laisser l'operateur
+     * quitter la vente pour aller au menu, on propose de l'ouvrir sur place. La reponse "oui" ouvre
+     * l'ecran d'ouverture de caisse en fenetre modale, exactement comme si on s'y etait rendu.
+     *
+     * Meme motif que DoReglement.afficherErreurReglement, qui traitait deja ce cas cote reglement de
+     * facture : un seul comportement pour une meme situation.
+     */
+    /*
+     * Finalisation d'une vente, la caisse etant ouverte. Extrait tel quel du gestionnaire du bouton
+     * « Terminer la vente » pour pouvoir etre rejoue apres une ouverture de caisse faite depuis la vente.
+     */
+    finaliserVenteCaisseOuverte: function (typeVenteCombo, typeRegle) {
+        const me = this;
+        if (typeVenteCombo === '1') {
+            if (typeRegle === '1') {
+                me.onbtncloturerVnoComptant(typeRegle);
+            } else {
+                let client = me.getClient();
+                if (client) {
+                    me.onbtncloturerVnoComptant(typeRegle);
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Veuillez ajouter un client à la vente',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.showAndHideInfosStandardClient(true);
+                            }
+                        }
+                    });
+                }
+            }
+        } else {
+            me.onbtncloturerAssurance(typeRegle);
+        }
+    },
+
+    proposerOuvertureCaisse: function (suite) {
+        const me = this;
+        Ext.Msg.confirm('Caisse fermée', 'Votre caisse est fermée, voulez-vous l\'ouvrir ?', function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            Ext.create('Ext.window.Window', {
+                title: 'Ouverture de caisse',
+                modal: true,
+                width: 470,
+                autoScroll: true,
+                layout: 'fit',
+                items: [{xtype: 'ouverturecaissemanger'}],
+                listeners: {
+                    /*
+                     * La fenetre refermee, la caisse vient peut-etre d'etre ouverte : on relit son
+                     * etat avant de reprendre. Sans cela l'ecran de vente gardait « caisse fermee »
+                     * en memoire et reposait la meme question a chaque clic sur « Terminer la vente ».
+                     */
+                    close: function () {
+                        me.cheickCaisse(suite);
+                    }
+                }
+            }).show();
+        });
+    },
+
+    onQueryClientAssurance: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            this.rechercherClientAssurance(field);
+        }
+    },
+
+    /**
+     * Recherche automatique des 2 caracteres saisis. Le seuil evite d'interroger le serveur sur une
+     * seule lettre, qui ramenerait presque tout le fichier client ; le buffer declare a l'ecoute de
+     * l'evenement laisse finir la frappe, pour n'envoyer qu'une requete.
+     *
+     * En dessous de 2 caracteres on ne fait rien : la grille garde le dernier resultat plutot que de
+     * se vider sous les yeux de la caissiere pendant qu'elle corrige sa saisie.
+     */
+    onQueryClientAssuranceKeyUp: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            // Deja traite par specialkey : ne pas lancer deux fois la meme recherche.
+            return;
+        }
+        if ((field.getValue() || '').trim().length < 2) {
+            return;
+        }
+        this.rechercherClientAssurance(field);
+    },
+
+    /** Chemin unique de recherche : bouton, touche Entree et saisie automatique passent tous par ici. */
+    rechercherClientAssurance: function (field) {
+        const me = this, grid = me.getGridClientAss();
+        let typeVenteId = me.getTypeVenteCombo().getValue();
+        let typeClientId = '';
+        if (typeVenteId === '2') {
+            typeClientId = '1';
+        } else if (typeVenteId === '3') {
+            typeClientId = '2';
+        }
+        if (field.getValue() && field.getValue().trim() !== '') {
+            grid.getStore().load({
+                params: {
+                    'query': field.getValue(),
+                    'typeClientId': typeClientId
+                }
+            });
+        }
+    },
+    loadAssuranceClient: function (queryString) {
+        const me = this;
+        const typeVenteId = me.getTypeVenteCombo().getValue();
+        if (typeVenteId === "1") {
+            return false;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        let clientStore = Ext.create('testextjs.store.caisse.RechercheClientAss');
+        let typeClientId = '';
+        if (typeVenteId === '2') {
+            typeClientId = '1';
+        } else if (typeVenteId === '3') {
+            typeClientId = '2';
+        }
+        clientStore.load(
+                {
+                    params: {
+                        'query': queryString,
+                        'typeClientId': typeClientId
+                    },
+                    callback: function (records, operation, successful) {
+                        progress.hide();
+                        if (successful) {
+                            if (records.length > 1) {
+                                Ext.create('testextjs.view.vente.endepot.ClientGrid', {data: clientStore}).show();
+                            } else if (records.length === 1) {
+                                me.client = records[0];
+                                me.onSelectClientAssurance();
+                            } else {
+                                Ext.MessageBox.show({
+                                    title: 'INFOS',
+                                    msg: 'Voulez-vous ajouter un nouveau client ?',
+                                    buttons: Ext.MessageBox.YESNO,
+                                    fn: function (button) {
+                                        if ('yes' == button) {
+                                            me.onbtnClientAssurence();
+                                        }
+                                    },
+                                    icon: Ext.MessageBox.QUESTION
+                                });
+                            }
+
+                        } else {
+                            me.onBtnCancelClient();
+                        }
+                    }
+                });
+
+
+    },
+    onBtnCancelClient: function () {
+        const me = this;
+        me.getAssuranceClient().destroy();
+        me.getClientSearchTextField().setValue('');
+    },
+    onGridRowSelect: function (g, record) {
+        const me = this;
+        me.client = record[0];
+        me.onSelectClientAssurance();
+        me.onBtnCancelClient();
+    },
+    updateCurrentVenteClientData: function (client, tierspayant) {
+        const me = this;
+        const current = me.getCurrent();
+        let ayantDroitId = null;
+
+        const ayantDroits = client.get('ayantDroits');
+        Ext.each(ayantDroits, function (item) {
+            if (client.get('strNUMEROSECURITESOCIAL') === item.strNUMEROSECURITESOCIAL) {
+                ayantDroitId = item.lgAYANTSDROITSID;
+            }
+
+        });
+
+        const datas = {
+            tierspayants: [tierspayant],
+            clientId: client.get('lgCLIENTID'),
+            ayantDroitId: ayantDroitId
+        };
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/client/' + current.lgPREENREGISTREMENTID,
+            params: Ext.JSON.encode(datas),
+            success: function (response, options) {
+            }
+        });
+    },
+
+    onSelectClientAssurance: function () {
+        const me = this;
+        const typeVenteId = me.getTypeVenteCombo().getValue();
+        const client = me.getClient();
+        if (client) {
+            const tierspayants = client.get('tiersPayants');
+            if (me.getCurrent()) {
+                me.updateCurrentVenteClientData(client, tierspayants[0]);
+            }
+            me.updateAssurerResetCmp();
+            me.updateAyantDroitResetCmp();
+            me.updateAssurerCmp();
+            if (typeVenteId === '2') {
+                me.updateAyantDroitCmp();
+                me.addTpCmp(tierspayants[0]);
+                me.buildBtnAddTierspayant();
+            } else {
+                me.addTpCmp(tierspayants[0]);
+                me.restetRemiseCmb(client.get('remiseId'));
+            }
+
+        }
+    },
+
+    onNewClientAssurance: function () {
+        const me = this;
+        let client = me.getClient();
+        if (client) {
+            const tierspayants = client.get('tiersPayants');
+            me.updateAssurerCmp();
+            me.updateAyantDroitCmp();
+            me.addTpCmp(tierspayants[0]);
+            me.buildBtnAddTierspayant();
+        }
+
+    },
+    onClientAssuranceUpdate: function () {
+        const me = this;
+        const client = me.getClient();
+        if (client) {
+            const tierspayants = client.get('tiersPayants');
+            me.updateAssurerCmp();
+            me.addTpCmp(tierspayants[0]);
+        }
+
+    },
+    updateAssurerCmp: function () {
+        const me = this;
+        const client = me.getClient();
+        if (client) {
+            me.getNomAssure().setValue(client.get('strFIRSTNAME'));
+            me.getPrenomAssure().setValue(client.get('strLASTNAME'));
+            me.getNumAssure().setValue(client.get('strNUMEROSECURITESOCIAL'));
+        }
+    },
+    updateAssurerResetCmp: function () {
+        const me = this;
+        me.getNomAssure().setValue('');
+        me.getPrenomAssure().setValue('');
+        me.getNumAssure().setValue('');
+    },
+    updateAyantDroitResetCmp: function () {
+        const me = this;
+        me.ayantDroit = null;
+        me.getNomAyantDroit().setValue('');
+        me.getPrenomAyantDroit().setValue('');
+        me.getNumAyantDroit().setValue('');
+    },
+    updateAyantDroitCmp: function () {
+        const me = this;
+        const client = me.getClient();
+        if (client) {
+            let ayantDroits = client.get('ayantDroits'), ayantDroit = null;
+            if (ayantDroits.length === 1) {
+                ayantDroit = ayantDroits[0];
+            } else {
+                Ext.each(ayantDroits, function (item) {
+                    if ((client.get('strNUMEROSECURITESOCIAL') === item.strNUMEROSECURITESOCIAL) || (client.get('strCODEINTERNE') === item.strCODEINTERNE)
+                            || (client.get('fullName') === item.fullName)) {
+                        ayantDroit = item;
+                        return;
+                    }
+                });
+            }
+            me.ayantDroit = ayantDroit;
+            if (ayantDroit) {
+                me.getNomAyantDroit().setValue(ayantDroit.strFIRSTNAME);
+                me.getPrenomAyantDroit().setValue(ayantDroit.strLASTNAME);
+                me.getNumAyantDroit().setValue(ayantDroit.strNUMEROSECURITESOCIAL);
+            }
+
+        }
+    },
+    onBtnClientAssuranceClick: function (grid, rowIndex, colIndex) {
+        const me = this;
+        const record = grid.getStore().getAt(colIndex);
+        me.client = record;
+        me.onSelectClientAssurance();
+        me.onBtnCancelClient();
+    },
+    addTpCmp: function (record) {
+        let me = this, tpContainerForm = me.getTpContainerForm();
+        // Ne pas perdre le numero de bon deja saisi : la reconstruction du bloc (apres
+        // enregistrement de la fiche client par exemple) repart du record serveur, qui ne
+        // connait pas encore ce bon - il vidait la saisie de la caissiere.
+        if (!record.numBon) {
+            const bonExistant = me.champDuBlocTp(tpContainerForm, 'textfield', 'refBon');
+            if (bonExistant && bonExistant.getValue()) {
+                record.numBon = bonExistant.getValue();
+            }
+        }
+        tpContainerForm.removeAll();
+        let cmp = me.buildCmp(record);
+        tpContainerForm.add(cmp);
+    },
+
+    onbtnModifierInfo: function () {
+        const me = this;
+        let      typeVenteCombo = me.getTypeVenteCombo().getValue();
+        let client = me.getClient();
+
+        if (!client) {
+            return;
+        }
+        // Le record retenu vient de la recherche precedente : entre-temps le client a pu changer
+        // (propagation d'un plafond depuis la fiche du tiers payant, modification sur un autre
+        // poste). On recharge depuis la base avant d'alimenter le formulaire ; si la lecture
+        // echoue, on garde le record en memoire plutot que d'empecher la modification.
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/client/client-assurance/' + client.get('lgCLIENTID') + '/0',
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success && result.data) {
+                    client = new testextjs.model.caisse.ClientAssurance(result.data);
+                    me.client = client;
+                }
+                me.ouvrirModificationClient(typeVenteCombo, client);
+            },
+            failure: function () {
+                me.ouvrirModificationClient(typeVenteCombo, client);
+            }
+        });
+    },
+
+    ouvrirModificationClient: function (typeVenteCombo, client) {
+        const me = this;
+        me.ancienTierspayant = client.get('lgTIERSPAYANTID');
+        let clientwin;
+        if (typeVenteCombo === '2') {
+            clientwin = Ext.create('testextjs.view.vente.endepot.addClientAssurance');
+            me.getTpComplementaireGrid().getStore().load({
+                params: {"clientId": client.get('lgCLIENTID')}
+            });
+            me.getClientAssuranceForm().loadRecord(client);
+            clientwin.show();
+            me.getNomAssClient().focus(false, 50);
+        } else if (typeVenteCombo === '3') {
+            clientwin = Ext.create('testextjs.view.vente.endepot.AddCarnet');
+            me.getClientCarnetForm().loadRecord(client);
+            clientwin.show();
+            me.getNomCarnetClient().focus(false, 100);
+        }
+    },
+    onbtnClientAssurence: function () {
+        let clientwin;
+        let me = this,
+                typeVenteCombo = me.getTypeVenteCombo().getValue();
+        if (typeVenteCombo === '2') {
+            clientwin = Ext.create('testextjs.view.vente.endepot.addClientAssurance');
+            clientwin.show();
+            me.getNomAssClient().focus(false, 100);
+        } else if (typeVenteCombo === '3') {
+            clientwin = Ext.create('testextjs.view.vente.endepot.AddCarnet');
+            clientwin.show();
+            me.getNomCarnetClient().focus(false, 50);
+        }
+    },
+    onBtnCancelAssClient: function () {
+        const me = this, addaddclientwindow = me.getAddaddclientwindow();
+        addaddclientwindow.destroy();
+    },
+    onBtnCancelCarnet: function () {
+        const me = this, addCarnetwindow = me.getAddCarnetwindow();
+        addCarnetwindow.destroy();
+    },
+    onRemoveTierspayantCompl: function (grid, rowIndex, colIndex) {
+        const me = this;
+        const store = grid.getStore();
+        store.removeAt(colIndex);
+        me.toRecalculate = true;
+
+    },
+    onBtnAddClientAssuranceClick: function () {
+        const me = this;
+        let form = me.getClientAssuranceForm(), grid = me.getTpComplementaireGrid();
+        me.toRecalculate = true;
+        if (form.isValid()) {
+            let client = form.getValues();
+            let record = new testextjs.model.caisse.ClientAssurance(client);
+            let tiersPayants = [];
+            let storeTp = grid.getStore();
+
+            if (storeTp.getRange()) {
+                Ext.each(storeTp.getRange(), function (item) {
+                    tiersPayants.push({
+                        "compteTp": item.get('compteTp'),
+                        "lgTIERSPAYANTID": item.get('lgTIERSPAYANTID'),
+                        "numSecurity": item.get('numSecurity'),
+                        "order": item.get('order'),
+                        "taux": item.get('taux'),
+                        "bIsAbsolute": item.get('bIsAbsolute'),
+                        "dbPLAFONDENCOURS": item.get('dbPLAFONDENCOURS'),
+                        "tpFullName": item.get('tpFullName')
+
+                    });
+                });
+            }
+            let datas = {
+                "bIsAbsolute": record.get('bIsAbsolute'),
+                "dbPLAFONDENCOURS": record.get('dbPLAFONDENCOURS'),
+                "dblQUOTACONSOMENSUELLE": record.get('dblQUOTACONSOMENSUELLE'),
+                "dtNAISSANCE": record.get('dtNAISSANCE'),
+                "intPOURCENTAGE": record.get('intPOURCENTAGE'),
+                "intPRIORITY": record.get('intPRIORITY'),
+                "lgCATEGORIEAYANTDROITID": record.get('lgCATEGORIEAYANTDROITID'),
+                "lgCLIENTID": record.get('lgCLIENTID'),
+                "lgCOMPANYID": record.get('lgCOMPANYID'),
+                "lgRISQUEID": record.get('lgRISQUEID'),
+                "lgTIERSPAYANTID": record.get('lgTIERSPAYANTID'),
+                "lgTYPECLIENTID": record.get('lgTYPECLIENTID'),
+                "lgVILLEID": record.get('lgVILLEID'),
+                "strADRESSE": record.get('strADRESSE'),
+                "strCODEPOSTAL": record.get('strCODEPOSTAL'),
+                "strFIRSTNAME": record.get('strFIRSTNAME'),
+                "strLASTNAME": record.get('strLASTNAME'),
+                "compteTp": record.get('compteTp'),
+                "strNUMEROSECURITESOCIAL": record.get('strNUMEROSECURITESOCIAL'),
+                "strSEXE": record.get('strSEXE'),
+                "tiersPayants": tiersPayants
+            };
+            // L'envoi est nomme afin de pouvoir etre rejoue tel quel apres confirmation d'un
+            // doublon d'identite signale par le serveur.
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/assurance',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelAssClient();
+                            let recordR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = recordR;
+                            if (me.getCurrent()) {
+                                me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+
+                            } else {
+                                me.onNewClientAssurance();
+                            }
+
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
+                        }
+
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
+                    }
+
+                });
+            };
+            envoyer();
+        }
+
+    },
+    /**
+     * Le serveur a trouve un ou plusieurs clients actifs portant deja cette identite.
+     * On les nomme et on demande confirmation, plutot que de creer un second enregistrement
+     * en silence. « Non » laisse le formulaire ouvert : l'utilisateur peut aller chercher
+     * le client existant au lieu d'en creer un doublon.
+     */
+    confirmerDoublonClient: function (result, datas, renvoyer) {
+        const items = (result.doublons || []).map(function (c) {
+            /*
+             * NOM puis PRENOMS, et non l'inverse.
+             *
+             * Dans cette base, « strFIRSTNAME » porte le NOM de famille et « strLASTNAME » les
+             * prenoms : les colonnes portent des noms trompeurs. Les concatener dans l'ordre
+             * apparent donnait « HERMANN NZI » au lieu de « NZI HERMANN ».
+             */
+            const identite = ((c.strFIRSTNAME || '') + ' ' + (c.strLASTNAME || '')).trim();
+            // « Matricule » plutot que « code » : c'est le terme employe au comptoir.
+            const matricule = c.strCODEINTERNE
+                    ? ' (Matricule: ' + Ext.String.htmlEncode(c.strCODEINTERNE) + ')' : '';
+            // L'assurance distingue deux homonymes mieux que tout le reste.
+            const assurance = c.assurance ? ' de ' + Ext.String.htmlEncode(c.assurance) : '';
+            return '<li>' + Ext.String.htmlEncode(identite) + matricule + assurance + '</li>';
+        }).join('');
+        Ext.MessageBox.show({
+            title: 'Doublon possible',
+            width: 550,
+            msg: result.msg + '<ul style="margin: 6px 0 6px 18px;">' + items + '</ul>'
+                    + 'Voulez-vous quand même créer un nouveau client ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes') {
+                    // Rejoue le meme envoi, cette fois avec l'accord explicite de l'utilisateur.
+                    datas.forcerCreation = true;
+                    renvoyer();
+                }
+            }
+        });
+    },
+    updateClientAssurance: function (clientData) {
+        const me = this;
+        me.client = new testextjs.model.caisse.ClientAssurance(clientData);
+        me.getTpContainerForm().removeAll();
+        me.buildtierspayantContainer();
+        me.updateAssurerCmp();
+
+
+
+    },
+    removetierspayanttp: function (tpId, _newTp) {
+        const me = this, current = me.getCurrent();
+        me.toRecalculate = true;
+        if (current) {
+            Ext.Ajax.request({
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/tp/' + current.lgPREENREGISTREMENTID,
+                params: Ext.JSON.encode({"typeVenteId": tpId,
+                    "ayantDroitId": _newTp}),
+                success: function (response, options) {
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    me.updateClientAssurance(result.data);
+                }
+            });
+        }
+    },
+
+    onBtnAddClientCarnteClick: function () {
+        const me = this;
+        let    form = me.getClientCarnetForm();
+        if (form.isValid()) {
+            const client = form.getValues();
+            const record = new testextjs.model.caisse.ClientAssurance(client);
+            const pourcentage = parseInt(record.get('intPOURCENTAGE'));
+            if (pourcentage !== 0 && pourcentage !== 100) {
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 400,
+                    msg: "Vous devez saisir 100 ou 0",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+
+                });
+                return;
+            }
+
+            const datas = {
+                "bIsAbsolute": record.get('bIsAbsolute'),
+                "dbPLAFONDENCOURS": record.get('dbPLAFONDENCOURS'),
+                "dblQUOTACONSOMENSUELLE": record.get('dblQUOTACONSOMENSUELLE'),
+                "dtNAISSANCE": record.get('dtNAISSANCE'),
+                "intPOURCENTAGE": record.get('intPOURCENTAGE'),
+                "intPRIORITY": 1,
+                "lgCATEGORIEAYANTDROITID": record.get('lgCATEGORIEAYANTDROITID'),
+                "lgCLIENTID": record.get('lgCLIENTID'),
+                "lgCOMPANYID": record.get('lgCOMPANYID'),
+                "lgRISQUEID": record.get('lgRISQUEID'),
+                "lgTIERSPAYANTID": record.get('lgTIERSPAYANTID'),
+                "lgTYPECLIENTID": record.get('lgTYPECLIENTID'),
+                "lgVILLEID": record.get('lgVILLEID'),
+                "strADRESSE": record.get('strADRESSE'),
+                "strCODEPOSTAL": record.get('strCODEPOSTAL'),
+                "strFIRSTNAME": record.get('strFIRSTNAME'),
+                "strLASTNAME": record.get('strLASTNAME'),
+                "compteTp": record.get('compteTp'),
+                "strNUMEROSECURITESOCIAL": record.get('strNUMEROSECURITESOCIAL'),
+                "strSEXE": record.get('strSEXE'),
+                "remiseId": record.get('remiseId')
+
+            };
+            const envoyer = function () {
+                const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/client/add/carnet',
+                    params: Ext.JSON.encode(datas),
+                    success: function (response, options) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true);
+                        if (result.success) {
+                            me.onBtnCancelCarnet();
+                            let clientR = new testextjs.model.caisse.ClientAssurance(result.data);
+                            me.client = clientR;
+                            if (me.getCurrent()) {
+                                if (me.getAncienTierspayant() && me.getAncienTierspayant() !== record.get('lgTIERSPAYANTID')) {
+                                    me.removetierspayanttp(me.getAncienTierspayant(), record.get('lgTIERSPAYANTID'));
+                                }
+                            }
+
+                            me.onClientAssuranceUpdate();
+                        } else if (result.doublonClient) {
+                            me.confirmerDoublonClient(result, datas, envoyer);
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+
+                            });
+                        }
+
+                    },
+                    failure: function (response, options) {
+                        progress.hide();
+                        Ext.Msg.alert("Message", 'Erreur de création du client');
+                    }
+
+                });
+            };
+            envoyer();
+        }
+
+    },
+    onAssociertpsClick: function () {
+        const me = this;
+        let grid = me.getTpComplementaireGrid();
+        if (grid.getStore().getCount() <= 3) {
+            me.createForm();
+        }
+    },
+    createForm: function () {
+        const me = this;
+        let grid = me.getTpComplementaireGrid();
+        let tierspayantss = new Ext.data.Store({
+            idProperty: 'lgTIERSPAYANTID',
+            fields: [
+                {name: 'lgTIERSPAYANTID', type: 'string'},
+                {name: 'strFULLNAME', type: 'string'}
+            ],
+            pageSize: null,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/client/tiers-payants',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        let form = Ext.create('Ext.window.Window',
+                {
+
+                    autoShow: true,
+                    height: 240,
+                    width: '60%',
+                    modal: true,
+                    title: 'Associer tiers-payant',
+                    closeAction: 'hide',
+                    closable: false,
+                    maximizable: false,
+                    layout: {
+                        type: 'fit'
+
+                    },
+                    dockedItems: [
+                        {
+                            xtype: 'toolbar',
+                            dock: 'bottom',
+                            ui: 'footer',
+                            layout: {
+                                pack: 'end',
+                                type: 'hbox'
+                            },
+                            items: [
+                                {
+                                    xtype: 'button',
+                                    text: 'Enregistrer',
+                                    handler: function (btn) {
+                                        let _this = btn.up('window'), _form = _this.down('form');
+                                        if (_form.isValid()) {
+                                            grid.getStore().add(_form.getValues());
+                                            form.destroy();
+                                        }
+
+                                    }
+                                },
+                                {
+                                    xtype: 'button',
+                                    iconCls: 'cancelicon',
+                                    handler: function (btn) {
+                                        form.destroy();
+                                    },
+                                    text: 'Annuler'
+
+                                }
+                            ]
+                        }
+                    ],
+                    items: [{
+                            xtype: 'form',
+                            bodyPadding: 5,
+                            layout: {
+                                type: 'fit'
+
+                            },
+                            items: [
+                                {
+                                    xtype: 'fieldset',
+                                    layout: {
+                                        type: 'vbox',
+                                        align: 'stretch'
+                                    },
+                                    collapsible: false,
+                                    title: 'Information tiers-payant complémentaires',
+                                    items: [
+                                        {
+                                            xtype: 'fieldcontainer',
+                                            flex: 1, bodyPadding: 5, margin: '0 0 10 0',
+                                            layout: {type: 'hbox', align: 'stretch'},
+                                            items: [
+                                                {
+                                                    xtype: 'combobox',
+                                                    margin: '0 0 5 0',
+                                                    fieldLabel: 'Tiers.Payant',
+                                                    name: 'lgTIERSPAYANTID',
+                                                    flex: 1,
+                                                    minChars: 2,
+                                                    forceSelection: true,
+                                                    store: tierspayantss,
+                                                    valueField: 'lgTIERSPAYANTID',
+                                                    displayField: 'strFULLNAME',
+                                                    typeAhead: false,
+                                                    allowBlank: false,
+                                                    queryMode: 'remote',
+                                                    emptyText: 'Choisir un tierspayant...',
+                                                    listeners: {
+                                                        'select': function (cmp) {
+                                                            let form = cmp.up('form');
+                                                            let tpName = form.query('hiddenfield:first');
+                                                            let record = cmp.findRecord("lgTIERSPAYANTID", cmp.getValue());
+                                                            tpName[0].setValue(record.get('strFULLNAME'));
+                                                        }
+                                                    }
+                                                }
+                                                , {xtype: 'splitter'},
+                                                {
+                                                    xtype: 'textfield',
+                                                    fieldLabel: 'Matricule/SS',
+                                                    margin: '0 0 5 0',
+                                                    emptyText: 'Numéro de matricule ',
+                                                    name: 'numSecurity',
+                                                    flex: 1,
+                                                    enableKeyEvents: true
+                                                },
+                                                {
+                                                    xtype: 'hiddenfield',
+                                                    name: 'tpFullName'
+                                                },
+                                                {
+                                                    xtype: 'hiddenfield',
+                                                    name: 'canRemove',
+                                                    value: 1
+                                                }
+
+                                            ]
+                                        },
+                                        {
+                                            xtype: 'fieldcontainer',
+                                            flex: 1, bodyPadding: 5, margin: '0 0 10 0',
+                                            layout: {type: 'hbox', align: 'stretch'},
+                                            items: [
+                                                {
+                                                    xtype: 'numberfield',
+                                                    flex: 1,
+                                                    fieldLabel: 'Pourcentage',
+                                                    margin: '0 0 5 0',
+                                                    allowDecimals: false,
+                                                    hideTrigger: true,
+                                                    allowBlank: false,
+                                                    name: 'taux', minValue: 0,
+                                                    maxValue: 100,
+                                                    maskRe: /[0-100.]/,
+                                                    emptyText: 'Pourcentage'
+                                                }
+                                                , {xtype: 'splitter'},
+                                                {
+                                                    xtype: 'numberfield',
+                                                    hideTrigger: true,
+                                                    flex: 1,
+                                                    margin: '0 0 5 0',
+                                                    allowDecimals: false,
+                                                    fieldLabel: 'Plafond.Vente',
+                                                    name: 'dblQUOTACONSOMENSUELLE', minValue: 0,
+                                                    emptyText: 'Plafond.Vente'
+                                                }
+
+                                            ]
+                                        },
+                                        {
+                                            xtype: 'fieldcontainer',
+                                            flex: 1, bodyPadding: 5, margin: '0 0 10 0',
+                                            layout: {type: 'hbox', align: 'stretch'},
+                                            items: [
+                                                {
+                                                    xtype: 'numberfield',
+                                                    flex: 1,
+                                                    margin: '0 0 5 0',
+                                                    hideTrigger: true,
+                                                    allowDecimals: false,
+                                                    fieldLabel: 'Plafond.Encours',
+                                                    name: 'dbPLAFONDENCOURS', minValue: 0,
+                                                    maxValue: 100,
+                                                    maskRe: /[0-100.]/,
+                                                    emptyText: 'Plafond.Encours'
+                                                },
+                                                {xtype: 'splitter'}, {xtype: 'splitter'}, {xtype: 'splitter'},
+                                                {
+                                                    xtype: 'checkbox',
+                                                    boxLabel: 'Le plafond est-il absolu ?',
+                                                    labelAlign: 'right',
+                                                    flex: 1,
+                                                    height: 30,
+                                                    name: 'bIsAbsolute'
+//                                                    checked: false
+
+                                                },
+                                                {
+                                                    xtype: 'numberfield',
+                                                    name: 'order',
+                                                    minValue: 2,
+                                                    maxValue: 4,
+                                                    maskRe: /[2-4.]/,
+                                                    fieldLabel: 'Priorité',
+                                                    value: 2
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+
+                    ]
+                });
+    },
+
+    createAyantDroitForm: function () {
+        const me = this, client = me.getClient();
+        if (!client) {
+            return false;
+        }
+
+        const villeStore = new Ext.data.Store({
+            idProperty: 'lgVILLEID',
+            fields: [
+                {name: 'lgVILLEID', type: 'string'},
+                {name: 'strName', type: 'string'}
+            ],
+            pageSize: null,
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/villes',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        const form = Ext.create('Ext.window.Window',
+                {
+
+                    autoShow: true,
+                    height: 340,
+                    width: 600,
+                    modal: true,
+                    title: "Ajout d'ayant droit",
+                    closeAction: 'hide',
+                    closable: false,
+                    maximizable: false,
+                    layout: {
+                        type: 'fit'
+
+                    },
+                    dockedItems: [
+                        {
+                            xtype: 'toolbar',
+                            dock: 'bottom',
+                            ui: 'footer',
+                            layout: {
+                                pack: 'end',
+                                type: 'hbox'
+                            },
+                            items: [
+                                {
+                                    xtype: 'button',
+                                    text: 'Enregistrer',
+                                    handler: function (btn) {
+                                        const _this = btn.up('window'), _form = _this.down('form');
+                                        if (_form.isValid()) {
+                                            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                            Ext.Ajax.request({
+                                                method: 'POST',
+                                                headers: {'Content-Type': 'application/json'},
+                                                url: '../api/v1/client/ayant-droits/' + client.get('lgCLIENTID'),
+                                                params: Ext.JSON.encode(_form.getValues()),
+                                                success: function (response, options) {
+                                                    progress.hide();
+                                                    const result = Ext.JSON.decode(response.responseText, true);
+                                                    if (result.success) {
+                                                        form.destroy();
+                                                        me.onBtnCancelBtnAyantDroit();
+                                                        let ayant = result.data;
+                                                        me.ayantDroit = ayant;
+                                                        me.getNomAyantDroit().setValue(ayant.strFIRSTNAME);
+                                                        me.getPrenomAyantDroit().setValue(ayant.strLASTNAME);
+                                                        me.getNumAyantDroit().setValue(ayant.strNUMEROSECURITESOCIAL);
+                                                    } else {
+                                                        Ext.MessageBox.show({
+                                                            title: 'Message d\'erreur',
+                                                            width: 550,
+                                                            msg: result.msg,
+                                                            buttons: Ext.MessageBox.OK,
+                                                            icon: Ext.MessageBox.ERROR
+
+                                                        });
+                                                    }
+
+                                                },
+                                                failure: function (response, options) {
+                                                    progress.hide();
+                                                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                                                }
+
+                                            });
+                                        }
+
+
+                                    }
+                                },
+                                {
+                                    xtype: 'button',
+                                    iconCls: 'cancelicon',
+                                    handler: function (btn) {
+                                        form.destroy();
+                                    },
+                                    text: 'Annuler'
+
+                                }
+                            ]
+                        }
+                    ],
+                    items: [{
+                            xtype: 'form',
+                            bodyPadding: 5,
+                            layout: {
+                                type: 'fit'
+
+                            },
+                            items: [
+                                {
+                                    xtype: 'fieldset',
+                                    title: 'Ayant.Droits',
+                                    defaultType: 'textfield',
+                                    defaults: {
+                                        anchor: '100%'
+                                    },
+                                    items: [
+                                        {
+                                            xtype: 'textfield',
+                                            fieldLabel: 'Nom',
+                                            emptyText: 'Nom',
+                                            name: 'strFIRSTNAME',
+                                            itemId: 'strFIRSTNAME',
+                                            height: 30, flex: 1,
+                                            allowBlank: false,
+                                            enableKeyEvents: true,
+                                            listeners: {
+                                                afterrender: function (field) {
+                                                    field.focus(false, 100);
+                                                }
+                                            }
+
+                                        },
+                                        {
+                                            xtype: 'textfield',
+                                            fieldLabel: 'Prénom',
+                                            emptyText: 'Prénom',
+                                            name: 'strLASTNAME',
+                                            height: 30, flex: 1,
+                                            allowBlank: false,
+                                            enableKeyEvents: true
+
+                                        },
+                                        {
+                                            xtype: 'textfield',
+                                            fieldLabel: 'Matricule/SS',
+                                            emptyText: 'Numéro de matricule ',
+                                            name: 'strNUMEROSECURITESOCIAL',
+                                            height: 30, flex: 1,
+                                            enableKeyEvents: true
+
+                                        },
+                                        {
+                                            xtype: "radiogroup",
+                                            fieldLabel: "Genre",
+                                            allowBlank: true,
+                                            vertical: true,
+                                            flex: 1,
+                                            items: [
+                                                {boxLabel: 'Féminin', name: 'strSEXE', inputValue: 'F'},
+                                                {boxLabel: 'Masculin', name: 'strSEXE', inputValue: 'M'}
+                                            ]
+                                        },
+                                        {
+                                            xtype: 'datefield',
+                                            fieldLabel: 'Date.Naiss',
+                                            emptyText: 'Date de naissance',
+                                            name: 'dtNAISSANCE',
+                                            height: 30, flex: 1,
+                                            submitFormat: 'Y-m-d',
+                                            format: 'd/m/Y',
+                                            maxValue: new Date(),
+                                            enableKeyEvents: true
+
+                                        },
+                                        {
+                                            xtype: 'combobox',
+                                            fieldLabel: 'Ville',
+                                            flex: 1,
+                                            height: 30,
+                                            minChars: 2,
+                                            name: 'lgVILLEID',
+                                            forceSelection: true,
+                                            store: villeStore,
+                                            valueField: 'lgVILLEID',
+                                            displayField: 'strName',
+                                            queryMode: 'remote',
+                                            emptyText: 'Choisir une ville...'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+
+                    ]
+                });
+    },
+    onAyantDroitGridRowSelect: function (g, record) {
+        const me = this;
+        me.ayantDroit = record[0].data;
+        me.onSelectAyantDroit();
+    },
+    onSelectAyantDroit: function () {
+        const me = this;
+        const ayantDroit = me.getAyantDroit();
+        if (ayantDroit) {
+            me.getNomAyantDroit().setValue(ayantDroit.strFIRSTNAME);
+            me.getPrenomAyantDroit().setValue(ayantDroit.strLASTNAME);
+            me.getNumAyantDroit().setValue(ayantDroit.strNUMEROSECURITESOCIAL);
+        }
+
+        me.onBtnCancelBtnAyantDroit();
+    },
+    onBtnClientAyantDroitClick: function (grid, rowIndex, colIndex) {
+        const me = this;
+        const record = grid.getStore().getAt(colIndex);
+        me.ayantDroit = record.data;
+        me.onSelectAyantDroit();
+    },
+    buildRecord: function (array, tp) {
+        let e = array;
+        Ext.each(array, function (tierpayantRecord) {
+
+            if (tierpayantRecord.lgTIERSPAYANTID === tp) {
+                e = Ext.Array.remove(array, tierpayantRecord);
+                return false;
+            }
+
+        });
+        return e;
+    },
+    buildtierspayantContainer: function (typeVente) {
+        var me = this, tpContainerForm = me.getTpContainerForm(), client = me.getClient();
+        var tierspayants = client.get('preenregistrementstp');
+        Ext.each(tierspayants, function (item) {
+            var cmp = me.buildCmp(item, typeVente);
+            tpContainerForm.add(cmp);
+        });
+        me.buildBtnAddTierspayant();
+    },
+    buildBtnAddTierspayant: function () {
+        var me = this, tpContainerForm = me.getTpContainerForm(), client = me.getClient(),
+                typeVente = me.getTypeVenteCombo().getValue();
+        if (typeVente === '2') {
+            var tierspayants = client.get('tiersPayants');
+            if (tierspayants.length > 1) {
+
+                const btnAddTp = {
+                    xtype: 'button',
+                    text: 'Ajouter une Assurance complémentaire',
+                    icon: 'resources/images/icons/fam/add.png',
+                    margin: '35 5 5 5',
+                    style: 'background-color:green !important;border-color:green !important; background:green !important;',
+                    handler: function (btn) {
+                        let newStore = Array.from(tierspayants);
+                        let items = tpContainerForm.items;
+                        Ext.each(items.items, function (item) {
+                            // Recherche par itemId : la position des enfants du bloc n'est pas stable.
+                            const champTp = me.champDuBlocTp(item, 'hiddenfield', 'lgTIERSPAYANTID');
+                            if (champTp) {
+                                newStore = me.buildRecord(newStore, champTp.getValue());
+                            }
+                        });
+                        let tpclientStore = new Ext.data.Store({
+                            model: 'testextjs.model.caisse.ClientTiersPayant',
+                            data: newStore,
+                            pageSize: null,
+                            autoLoad: false,
+                            proxy: {
+                                type: 'memory',
+                                reader: {
+                                    model: 'testextjs.model.caisse.ClientTiersPayant',
+                                    type: 'json'
+                                }
+                            }
+                        });
+                        let slectedRecord = null;
+                        let form = Ext.create('Ext.window.Window',
+                                {
+
+                                    autoShow: true,
+                                    height: 230,
+                                    width: 500,
+                                    modal: true,
+                                    title: "TIERS-PAYANTS ASSOCIES",
+                                    closeAction: 'hide',
+                                    closable: true,
+                                    maximizable: false,
+                                    layout: {
+                                        type: 'fit'
+
+                                    },
+                                    dockedItems: [
+                                        {
+                                            xtype: 'toolbar',
+                                            dock: 'bottom',
+                                            ui: 'footer',
+                                            layout: {
+                                                pack: 'end',
+                                                type: 'hbox'
+                                            },
+                                            items: [
+                                                {
+                                                    xtype: 'button',
+                                                    handler: function (btn) {
+                                                        if (slectedRecord) {
+                                                            var parent = btn.up('window');
+                                                            var field = parent.down('numberfield');
+                                                            slectedRecord.set('taux', field.getValue());
+                                                            var record = slectedRecord.data;
+                                                            var cmp = me.buildCmp(record);
+                                                            tpContainerForm.insert(items.length - 1, cmp);
+                                                            me.addtierspayant(slectedRecord.get('compteTp'), field.getValue());
+                                                            form.destroy();
+                                                        }
+
+                                                    },
+                                                    text: 'Valider'
+
+                                                },
+                                                {
+                                                    xtype: 'button',
+                                                    handler: function (btn) {
+                                                        form.destroy();
+                                                    },
+                                                    text: 'Annuler'
+
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    items: [{
+                                            xtype: 'form',
+                                            bodyPadding: 5,
+                                            layout: {
+                                                type: 'fit'
+
+                                            },
+                                            items: [
+                                                {
+                                                    xtype: 'fieldset',
+                                                    title: 'Tiers-payans',
+                                                    defaultType: 'textfield',
+                                                    defaults: {
+                                                        anchor: '100%'
+                                                    },
+                                                    items: [
+                                                        {
+                                                            xtype: 'combobox',
+                                                            fieldLabel: 'Tiers-payant',
+                                                            flex: 1,
+                                                            height: 30,
+                                                            minChars: 2,
+                                                            forceSelection: true,
+                                                            store: tpclientStore,
+                                                            name: 'compteTp',
+                                                            valueField: 'compteTp',
+                                                            displayField: 'tpFullName',
+                                                            queryMode: 'remote',
+                                                            allowBlank: false,
+                                                            emptyText: 'Choisir un tiers-payant...',
+                                                            listeners: {
+                                                                select: function (field) {
+                                                                    const parent = field.up('fieldset');
+                                                                    const numberField = parent.down('numberfield');
+                                                                    const record = field.findRecord("compteTp", field.getValue());
+                                                                    slectedRecord = record;
+                                                                    numberField.setValue(record.get('taux'));
+                                                                    numberField.focus(false, 50);
+                                                                }
+                                                            }
+                                                        },
+                                                        {
+                                                            xtype: 'numberfield',
+                                                            fieldLabel: 'Pourcentage',
+                                                            name: 'taux',
+                                                            height: 30, flex: 1,
+                                                            allowDecimals: false,
+                                                            hideTrigger: true,
+                                                            allowBlank: false,
+                                                            minValue: 1,
+                                                            maxValue: 100,
+                                                            maskRe: /[1-100.]/,
+                                                            enableKeyEvents: true,
+                                                            listeners: {
+                                                                specialKey: function (field, e, options) {
+                                                                    if (e.getKey() === e.ENTER) {
+                                                                        if (slectedRecord) {
+                                                                            slectedRecord.set('taux', field.getValue());
+                                                                            let record = slectedRecord.data;
+                                                                            let cmp = me.buildCmp(record);
+                                                                            tpContainerForm.insert(items.length - 1, cmp);
+                                                                            me.addtierspayant(slectedRecord.get('compteTp'), field.getValue());
+                                                                            form.destroy();
+                                                                        }
+
+
+                                                                    }
+                                                                }
+                                                            }
+
+                                                        }
+
+                                                    ]
+                                                }
+                                            ]
+                                        }
+
+                                    ]
+                                });
+                    }
+                };
+                tpContainerForm.add(btnAddTp);
+            }
+        }
+
+    },
+    /**
+     * Etat du plafond d'un compte carnet.
+     *
+     * Attention au nommage historique des colonnes : le VRAI encours du compte est
+     * db_CONSOMMATION_MENSUELLE - c'est elle que la cloture d'une vente incremente et que la
+     * fiche tiers payant affiche dans sa colonne Encours - tandis que db_PLAFOND_ENCOURS est le
+     * PLAFOND de consommation du compte (celui du blocage bCANBEUSE cote serveur). L'ecran
+     * lisait db_PLAFOND_ENCOURS comme un encours : il restait a 0 apres chaque vente.
+     *
+     * Un plafond a zero, absent ou nul veut dire « pas de plafond » : le compte n'est alors jamais
+     * signale comme atteint, sans quoi tous les carnets sans plafond declencheraient l'alerte.
+     */
+    etatDuPlafondCarnet: function (record) {
+        const encours = Number(record.dbCONSOMMATIONMENSUELLE || 0);
+        // Plafond affiche : celui du COMPTE du client (champ « Plafond.Encours » de sa fiche
+        // carnet) s'il est pose, sinon le plafond CREDIT de la fiche du tiers payant (plafond
+        // global de l'organisme). Sans l'un ni l'autre : « aucun ».
+        const plafond = Number(record.dbPLAFONDENCOURS || 0) > 0
+                ? Number(record.dbPLAFONDENCOURS)
+                : Number(record.dblPLAFONDCREDIT || 0);
+        const sansPlafond = !(plafond > 0);
+        return {
+            encours: encours,
+            plafond: plafond,
+            sansPlafond: sansPlafond,
+            atteint: !sansPlafond && encours >= plafond
+        };
+    },
+
+    montantCarnet: function (v) {
+        // Espace insecable : le « F » ne doit jamais passer seul a la ligne sous le montant.
+        return Ext.util.Format.number(v, '0,000') + ' F';
+    },
+
+    /**
+     * Une information du compte carnet (icone + libelle + valeur), en police agrandie : ces montants
+     * se lisent de loin par la caissiere, sur la meme ligne que le numero de bon.
+     */
+    texteInfoCarnet: function (icone, libelle, valeur, couleur) {
+        return '<img src="resources/images/icons/fam/' + icone + '" style="vertical-align:-2px;margin-right:5px;">'
+                + '<span style="font-size:15px;font-weight:bold;color:#333;">' + libelle + ' : </span>'
+                + '<span style="font-size:17px;font-weight:800;color:' + couleur + ';">' + valeur + '</span>';
+    },
+
+    /**
+     * Champs « Encours / Plafond / Caution » du compte carnet, places sur la MEME ligne que le numero
+     * de bon (l'espace a droite du bouton Retirer etait perdu), avec l'avertissement quand le plafond
+     * est atteint. Uniquement en carnet : la vente assurance n'a pas de compte a plafonner ainsi.
+     */
+    champsCompteCarnet: function (record) {
+        const me = this;
+        const etat = me.etatDuPlafondCarnet(record);
+        const items = [{
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                itemId: 'encoursCarnet' + record.order,
+                margin: '0 10 0 0',
+                // Encours en VERT (retour d'officine) ; il passe au rouge quand le plafond est atteint.
+                value: me.texteInfoCarnet('cash.png', 'Encours',
+                        me.montantCarnet(etat.encours), etat.atteint ? 'red' : '#1E8449')
+            }, {
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                itemId: 'plafondCarnet' + record.order,
+                margin: '0 10 0 0',
+                // Les valeurs de plafond sont en ROUGE (retour d'officine).
+                value: me.texteInfoCarnet('chart_bar.png', 'Plafond',
+                        etat.sansPlafond ? 'aucun' : me.montantCarnet(etat.plafond), '#C0392B')
+            },
+            // Plafond par vente (celui de la fiche tiers payant, herite sur le compte) : distinct du
+            // plafond de consommation ci-dessus, il borne chaque passage en caisse. Affiche seulement
+            // s'il est pose, avec la meme presentation qu'en vente assurance.
+            ...me.champPlafondVenteAssurance(record), {
+                // Caution du compte (celle du menu « Gestion de cautions carnet », pas le champ de la
+                // fiche tiers payant) : le champ reste cache tant que la requete lancee au rendu n'a
+                // pas confirme qu'une caution existe pour ce compte.
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                hidden: true,
+                itemId: 'cautionCarnet' + record.order,
+                margin: '0 10 0 0',
+                listeners: {
+                    afterrender: function (champ) {
+                        me.rappelerCautionCarnet(champ, record);
+                    }
+                }
+            }];
+        return items;
+    },
+
+    /**
+     * Avertissement du compte carnet (plafond atteint) : sur la ligne du numero de bon, a sa droite —
+     * sous les infos encours/plafonds de la ligne du dessus, sans ligne supplementaire (retour
+     * d'officine). Rien n'est rendu tant qu'il n'y a pas de message.
+     */
+    ligneAlerteCarnet: function (record) {
+        const me = this;
+        const etat = me.etatDuPlafondCarnet(record);
+        if (!etat.atteint) {
+            return [];
+        }
+        return [{
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1,
+                itemId: 'alertePlafond' + record.order,
+                cls: 'vp-alerte-plafond',
+                margin: '0 0 0 20',
+                value: 'attention!!! ce client payera en especes'
+            }];
+    },
+
+    /**
+     * Rappel du plafond vente en vente assurance, a droite du bouton Retirer de chaque tiers
+     * payant : uniquement quand un plafond est pose sur le compte (0 = pas de plafond, rien ne
+     * s'affiche). Contrairement au carnet, on ne rappelle QUE le plafond.
+     */
+    champPlafondVenteAssurance: function (record) {
+        const me = this;
+        const plafond = Number(record.dblPLAFOND || 0);
+        if (!(plafond > 0)) {
+            return [];
+        }
+        return [{
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 1.2,
+                itemId: 'plafondVenteTp' + record.order,
+                margin: '0 5 0 0',
+                fieldStyle: 'white-space:nowrap;',
+                // Valeur de plafond : en rouge, comme les autres plafonds de l'ecran de vente.
+                value: me.texteInfoCarnet('chart_bar.png', 'Plafond vente',
+                        me.montantCarnet(plafond), '#C0392B')
+            }];
+    },
+
+    /**
+     * Interroge les cautions du compte carnet et affiche le solde si une caution existe ; sans
+     * caution, le champ reste invisible. Best-effort : un echec de la requete laisse simplement la
+     * ligne sans rappel de caution.
+     */
+    rappelerCautionCarnet: function (champ, record) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/cautions',
+            params: {tiersPayantId: record.lgTIERSPAYANTID, start: 0, limit: 20},
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                const cautions = (result && result.data) || [];
+                if (!cautions.length || champ.isDestroyed) {
+                    return;
+                }
+                let solde = 0;
+                Ext.each(cautions, function (c) {
+                    solde += Number(c.montant || 0);
+                });
+                champ.setValue(me.texteInfoCarnet('argent.png', 'Caution',
+                        me.montantCarnet(solde), solde > 0 ? '#1E8449' : 'red'));
+                champ.show();
+            }
+        });
+    },
+
+    buildCmp: function (record, typeVenteForce) {
+        let percent = '30%';
+        // typeVenteForce : fourni par le rechargement d'une vente existante, ou la combo type de
+        // vente n'est pas encore repositionnee (rappel asynchrone) au moment de construire le bloc.
+        let me = this, typeVente = typeVenteForce || me.getTypeVenteCombo().getValue();
+        const carnet = (typeVente === '3');
+        if (carnet) {
+            // Un seul compte en carnet : toute la largeur, pour loger encours, plafond et caution
+            // sur la ligne du numero de bon au lieu d'une ligne supplementaire.
+            percent = '100%';
+        } else if (Number(record.dblPLAFOND || 0) > 0) {
+            // Assurance avec plafond vente : un peu plus large, pour que le rappel du plafond
+            // tienne a droite du bouton Retirer sans ecraser le champ du numero de bon.
+            percent = '40%';
+        }
+        const cmp = {
+            xtype: 'container',
+            width: percent,
+            margin: '0 10 0 0',
+            layout: {type: 'vbox', align: 'stretch'},
+            items: [
+                {
+                    xtype: 'fieldcontainer',
+                    layout: {type: 'hbox', align: 'middle'},
+                    items: [{
+                            xtype: 'displayfield',
+                            fieldLabel: 'TP' + record.order,
+                            // En carnet : largeur au plus juste pour que le taux reste COLLE au nom
+                            // du compte, et que les infos (encours/plafonds) occupent la droite de
+                            // cette meme ligne (retour d'officine).
+                            ...(carnet ? {width: 320} : {flex: 1.5}),
+                            labelWidth: 30,
+                            fieldStyle: "color:blue;font-weight:bold;",
+                            value: record.tpFullName,
+                            margin: '0 10 0 0'
+                        },
+                        {
+                            xtype: 'displayfield',
+                            fieldLabel: 'Taux:',
+                            ...(carnet ? {width: 120} : {flex: 0.5}),
+                            labelWidth: 30,
+                            name: 'taux' + record.order,
+                            itemId: 'taux' + record.order,
+                            fieldStyle: "color:blue;font-weight:bold;",
+                            value: record.taux + '%',
+                            margin: '0 10 0 0'
+                        },
+                        // Compte carnet : encours, plafond, plafond vente et caution a DROITE de la
+                        // ligne du tiers payant (retour d'officine)
+                        ...(carnet ? me.champsCompteCarnet(record) : [])]
+                }
+                ,
+                {
+                    xtype: 'fieldcontainer',
+                    layout: {type: 'hbox', align: 'middle'},
+                    items: [{
+                            xtype: 'textfield',
+                            fieldLabel: 'Numéro de bon:',
+                            allowBlank: true,
+                            labelWidth: 100,
+                            name: 'refBon' + record.order,
+                            itemId: 'refBon' + record.order,
+                            // En carnet le conteneur occupe toute la largeur : le champ garde une
+                            // largeur raisonnable et laisse la place aux infos du compte a sa droite
+                            // (raccourci — retour d'officine : la zone etait trop longue).
+                            ...(carnet ? {width: 380} : {flex: 1}),
+                            height: 30,
+                            margin: '0 10 0 0',
+                            value: record.numBon,
+                            listeners: {
+                                afterrender: function (field) {
+                                    field.focus(false, 100);
+                                },
+                                specialkey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        e.stopEvent();
+                                        me.bonSuivantOuProduit(field);
+                                    }
+                                }
+                            }
+                        },
+                        // Retirer : pas en carnet (retour d'officine) — le compte unique du carnet
+                        // se remplace en rappelant un autre client, il ne se « retire » pas.
+                        ...(carnet ? [] : [{
+                                xtype: 'button',
+                                text: 'Retirer',
+                                icon: 'resources/images/icons/fam/delete.png',
+                                margin: '0 10 0 0',
+                                handler: function (btn) {
+                                    const cp = btn.up('fieldcontainer');
+                                    const container = cp.up('container');
+                                    const compteTp = container.query('hiddenfield:first');
+                                    me.removetierspayant(compteTp[0].value);
+                                    container.destroy();
+                                }
+                            }]),
+                        // Carnet : l'eventuel avertissement (plafond atteint) occupe la droite de la
+                        // ligne du bon, sous les infos de la ligne du dessus — pas de ligne en plus.
+                        // Assurance : rappel du plafond vente, seulement s'il est pose.
+                        ...(carnet ? me.ligneAlerteCarnet(record) : me.champPlafondVenteAssurance(record))
+                    ]
+                },
+                {
+                    xtype: 'hiddenfield',
+                    name: 'compteTp' + record.order,
+                    itemId: 'compteTp' + record.order,
+                    value: record.compteTp
+                },
+                {
+                    xtype: 'hiddenfield',
+                    name: 'lgTIERSPAYANTID' + record.order,
+                    itemId: 'lgTIERSPAYANTID' + record.order,
+                    value: record.lgTIERSPAYANTID
+                },
+
+                {
+                    xtype: 'numberfield',
+                    itemId: 'tauxValeur' + record.order,
+                    value: record.taux,
+                    hidden: true
+                },
+                {
+                    xtype: 'hiddenfield',
+                    name: 'cmu' + record.order,
+                    itemId: 'cmu' + record.order,
+                    value: record.cmu
+                }
+            ]
+        };
+        return cmp;
+    },
+    /*
+     * Ticket synthetique de la prevente : montants selon le type de vente et QR code qui rappelle la vente
+     * a la caisse, sans les produits. Propose a l'enregistrement, et disponible en reimpression depuis
+     * la liste des preventes (meme route). L'ecran a deja ete remis a zero quand la question se pose :
+     * l'identifiant est donc capture avant.
+     */
+    proposerTicketPrevente: function (venteId) {
+        if (!venteId) {
+            return;
+        }
+        Ext.MessageBox.confirm('Ticket de prévente', 'Voulez-vous imprimer le ticket de la prévente ?', function (choix) {
+            if (choix !== 'yes') {
+                return;
+            }
+            const attente = Ext.MessageBox.wait('Impression du ticket . . .', 'Veuillez patienter');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/ticket/prevente/' + venteId,
+                success: function (response) {
+                    attente.hide();
+                    const lu = Ext.JSON.decode(response.responseText, true);
+                    if (!lu || !lu.success) {
+                        Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                            msg: (lu && lu.msg) || 'L\'impression n\'a pas abouti.',
+                            buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                    }
+                },
+                failure: function (response) {
+                    attente.hide();
+                    Ext.MessageBox.show({title: 'Ticket de prévente', width: 420,
+                        msg: 'Le serveur n\'a pas répondu (' + response.status + ').',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                }
+            });
+        });
+    },
+
+    closePrevente: function () {
+        const me = this;
+        let venteId = me.getCurrent().lgPREENREGISTREMENTID;
+        let url = '../api/v1/vente/terminerprevente/' + venteId;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: url,
+            success: function (response, options) {
+                progress.hide();
+                let result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.resetAll();
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                    me.proposerTicketPrevente(venteId);
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+
+                    });
+                }
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+            }
+
+        });
+
+    },
+
+    // Wrapper: confirmation montant élevé + sécurité anti-scan avant clôture
+    /*
+     * Verrou de cloture.
+     *
+     * « Terminer vente » part de deux endroits - le bouton et la touche Entree dans « Montant reçu » - et le voile
+     * d'attente n'apparait qu'au tout dernier moment, apres les controles de saisie, la confirmation des montants
+     * eleves et le controle de caisse. Pendant tout cet intervalle, rien n'empechait une seconde demande de partir.
+     * Deux cloture de la meme vente se croisaient alors cote serveur : l'une encaissait, l'autre butait sur la
+     * contrainte d'unicite du mouvement de caisse, et la caissiere voyait une erreur sur une vente pourtant validee.
+     *
+     * Le verrou est pris juste avant l'envoi et rendu dans les deux issues, succes comme echec.
+     */
+    clotureEnCours: false,
+
+    /* Une cloture ecrit la vente, le stock, la caisse et le ticket : trois minutes, la ou le defaut d'ExtJS
+     * (30 secondes) abandonnait cote poste une cloture que le serveur menait pourtant a son terme. */
+    delaiCloture: 180000,
+
+    prendreVerrouCloture: function () {
+        const me = this;
+        if (me.clotureEnCours) {
+            return false;
+        }
+        me.clotureEnCours = true;
+        return true;
+    },
+
+    rendreVerrouCloture: function () {
+        this.clotureEnCours = false;
+    },
+
+    /* Un abandon cote poste porte le statut 0 : ne pas le presenter comme une erreur du serveur, et dire quoi faire
+     * plutot que d'inviter a revalider une vente peut-etre deja encaissee. */
+    messageEchecCloture: function (response) {
+        if (!response || response.status === 0 || response.timedout) {
+            return 'La réponse du serveur n\'est pas arrivée. <b>Ne revalidez pas cette vente&nbsp;:</b> '
+                    + 'vérifiez d\'abord dans les ventes terminées si elle est déjà enregistrée.';
+        }
+        return 'Erreur du serveur ' + response.status;
+    },
+
+    /* ------------------------------------------------------------------
+     * Cloture dont la reponse n'est pas revenue
+     *
+     * Reseau coupe, delai depasse : le poste ne sait pas si la vente est passee. Il DEMANDE au serveur au lieu de
+     * renvoyer la caissiere chercher dans les ventes terminees - ce qui la laissait sans ticket et lui avouait un
+     * defaut sur une vente pourtant encaissee.
+     * ------------------------------------------------------------------ */
+
+    /* Nombre de fois qu'on redemande, et l'attente entre deux. La cloture peut etre ENCORE EN COURS cote serveur au
+     * moment ou l'on interroge : conclure « pas enregistree » sur une seule reponse ferait revalider une vente sur le
+     * point d'aboutir. On laisse donc plusieurs chances avant de conclure. */
+    essaisVerificationCloture: 3,
+    attenteVerificationCloture: 2500,
+
+    /**
+     * Demande au serveur si la vente est encaissee, puis appelle la suite.
+     *
+     * @param venteId identifiant de la vente
+     * @param essais nombre de tentatives restantes
+     * @param suite fonction appelee avec 'cloturee', 'nonCloturee' ou 'inconnue'
+     */
+    verifierSiVenteCloturee: function (venteId, essais, suite) {
+        const me = this;
+        if (!venteId) {
+            suite('inconnue');
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/statut/' + encodeURIComponent(venteId),
+            timeout: 20000,
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success && result.cloturee) {
+                    suite('cloturee');
+                    return;
+                }
+                /* Ni cloturee, ni erreur : elle est peut-etre encore en cours d'enregistrement. On redemande
+                 * plutot que de conclure trop vite. */
+                if (essais > 1) {
+                    Ext.defer(function () {
+                        me.verifierSiVenteCloturee(venteId, essais - 1, suite);
+                    }, me.attenteVerificationCloture);
+                    return;
+                }
+                suite(result.success ? 'nonCloturee' : 'inconnue');
+            },
+            failure: function () {
+                // Le serveur ne repond toujours pas : on retente, puis on renonce a savoir.
+                if (essais > 1) {
+                    Ext.defer(function () {
+                        me.verifierSiVenteCloturee(venteId, essais - 1, suite);
+                    }, me.attenteVerificationCloture);
+                    return;
+                }
+                suite('inconnue');
+            }
+        });
+    },
+
+    /**
+     * Signale au Centre de Support qu'une reponse de cloture s'est perdue.
+     *
+     * Ce n'est PAS une double cloture - le serveur, lui, n'a rien vu d'anormal : il a mene une cloture a son terme.
+     * Sans cette trace depuis le poste, le cas serait rendu invisible a l'utilisateur ET au support. D'ou son propre
+     * libelle : la reponse s'est perdue entre le serveur et le poste.
+     */
+    signalerReponsePerdue: function (chemin, venteId, issue) {
+        try {
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/support/events',
+                headers: {'Content-Type': 'application/json'},
+                params: Ext.JSON.encode({
+                    type: 'APPLICATION',
+                    niveau: 'WARN',
+                    module: 'VENTE',
+                    messageCourt: 'Reponse de cloture non revenue au poste',
+                    urlOuEcran: 'POST ' + chemin,
+                    stack: 'Le poste n\'a pas recu la reponse de sa cloture et a interroge le serveur.'
+                            + ' Issue : ' + issue + '.',
+                    payloadJson: Ext.JSON.encode({
+                        vente: venteId,
+                        issue: issue,
+                        explication: 'Le serveur n\'a rien vu d\'anormal : c\'est la reponse qui ne lui est pas'
+                                + ' revenue. A surveiller : si le compteur monte, chercher du cote du reseau, du'
+                                + ' delai de la cloture, ou de la saturation du poste (fils HTTP, pool de connexions).'
+                    })
+                }),
+                failure: Ext.emptyFn
+            });
+        } catch (ignore) {
+            // Une trace ne doit jamais peser sur une vente.
+        }
+    },
+
+    /**
+     * L'ecran de vente est-il toujours la ?
+     *
+     * La verification puis la question posee a la caissiere peuvent prendre plusieurs secondes, et sa reponse
+     * davantage encore. Pendant ce temps elle peut avoir quitte l'ecran de vente. Reprendre alors la vente, la
+     * reinitialiser ou rendre le focus a un champ disparu leverait une erreur JavaScript sur une vente qui, elle,
+     * s'est peut-etre parfaitement bien passee.
+     */
+    ecranDeVenteVivant: function () {
+        const ecran = Ext.ComponentQuery.query('doventeendepot')[0];
+        return !!(ecran && !ecran.isDestroyed && ecran.rendered);
+    },
+
+    /**
+     * Ce que fait l'ecran quand la reponse d'une cloture n'est pas revenue.
+     *
+     * L'objectif est que la caissiere ne voie JAMAIS d'anomalie sur une vente qui est passee : elle doit recevoir la
+     * meme question qu'a l'ordinaire, « voulez-vous imprimer le ticket ? ».
+     */
+    apresEchecCloture: function (chemin, venteId, response, apresSucces, reessayer) {
+        const me = this;
+        // Une vraie erreur du serveur (400, 500...) garde son message : elle porte une cause, elle n'est pas perdue.
+        if (response && response.status > 0 && !response.timedout) {
+            Ext.Msg.alert('Message', me.messageEchecCloture(response));
+            return;
+        }
+        const attente = Ext.MessageBox.wait('Vérification de la vente . . .', 'Un instant');
+        me.verifierSiVenteCloturee(venteId, me.essaisVerificationCloture, function (issue) {
+            attente.hide();
+            me.signalerReponsePerdue(chemin, venteId, issue);
+            const ecranLa = me.ecranDeVenteVivant();
+            if (issue === 'cloturee') {
+                if (!ecranLa) {
+                    // L'ecran a ete quitte entre-temps : on ne le reinitialise pas, on informe simplement.
+                    Ext.Msg.alert('Vente enregistrée', 'La vente a bien été enregistrée.');
+                    return;
+                }
+                // La vente EST passee : on enchaine comme apres une cloture ordinaire.
+                apresSucces();
+                return;
+            }
+            if (issue === 'nonCloturee') {
+                if (!ecranLa) {
+                    // Sans l'ecran, il n'y a plus de vente a reprendre : proposer de reessayer n'aurait pas de sens.
+                    Ext.Msg.alert('Vente non enregistrée',
+                            'La vente n\'a pas été enregistrée : aucun encaissement n\'a eu lieu.');
+                    return;
+                }
+                Ext.MessageBox.show({
+                    title: 'Vente non enregistrée',
+                    width: 480,
+                    msg: 'La vente n\'a pas été enregistrée : aucun encaissement n\'a eu lieu.'
+                            + '<br/>Voulez-vous réessayer&nbsp;?',
+                    buttons: Ext.MessageBox.YESNO,
+                    icon: Ext.MessageBox.QUESTION,
+                    fn: function (bouton) {
+                        // Le temps de repondre, l'ecran a pu etre quitte : on le verifie de nouveau, pas avant.
+                        if (!me.ecranDeVenteVivant()) {
+                            return;
+                        }
+                        if (bouton === 'yes') {
+                            reessayer();
+                            return;
+                        }
+                        const champ = me.getMontantRecu();
+                        if (champ) {
+                            champ.focus(true, 100);
+                        }
+                    }
+                });
+                return;
+            }
+            // On n'a pas pu savoir : on reste prudent, c'est le seul cas ou l'ancien message garde son sens.
+            Ext.Msg.alert('Message', me.messageEchecCloture(response));
+        });
+    },
+
+    doCloture: function () {
+        const me = this;
+
+        const field = me.getMontantRecu ? me.getMontantRecu() : null;
+        const raw = field ? String(field.getValue() || '').replace(/\D/g, '') : '';
+        const digits = raw.length;
+
+        // Si un "Annuler" de sécurité est actif pour cette valeur => stop (évite boucle)
+        if (field && field._blockedSecurityValue && String(field._blockedSecurityValue) === raw) {
+            me.focusSelectMontantRecu();
+            return;
+        }
+
+        // Si invalide (anti-scan) => stop
+        if (field && digits > 0 && digits > me.antiBarcodeMaxDigits) {
+            field.markInvalid('Quantité trop grande ! (Code barre scanné ?)');
+            return;
+        }
+
+        // Si 5 digits et pas confirmé => redemander (au cas où l’utilisateur clique sans repasser par le change)
+        // (uniquement si la saisie dépasse le montant de la vente)
+        const data = me.getNetAmountToPay ? me.getNetAmountToPay() : null;
+        const netTopay = data && data.montantNet != null ? parseInt(data.montantNet, 10) : 0;
+        const numericValue = parseInt(raw, 10) || 0;
+        const exceedsSaleAmount = netTopay > 0 && numericValue > netTopay;
+
+        if (field && me.confirmAtMaxDigits && digits === me.antiBarcodeMaxDigits && exceedsSaleAmount && field._confirmedMaxDigitsValue !== raw) {
+            Ext.Msg.show({
+                title: 'Confirmation',
+                msg: '⚠️ Montant à 5 chiffres détecté (' + raw + ') et supérieur au montant de la vente (' + netTopay + '). Confirmez-vous ?',
+                buttons: Ext.Msg.YESNO,
+                icon: Ext.Msg.WARNING,
+                defaultFocus: 'no',
+                buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        field._confirmedMaxDigitsValue = raw;
+                        me.doCloture(); // relance après confirmation
+                    } else {
+                        field._confirmedMaxDigitsValue = null;
+                        me.blockMontantRecuUntilChange(raw, 'Saisie annulée. Corrigez le montant reçu.');
+                    }
+                    // Dans tous les cas, revenir sur le champ avec le texte sélectionné
+                    me.focusSelectMontantRecu();
+                }
+            });
+            me.focusMsgBoxCancelButton();
+            return;
+        }
+
+        // Montant suspect => confirmation avant de continuer
+        let totalSaisie = 0;
+        if (field && raw.length > 0) {
+            totalSaisie = parseInt(raw, 10) || 0;
+        }
+        if (me.getExtraModeReglementId && me.getExtraModeReglementId()) {
+            const montantExtraField = me.getMontantExtra ? me.getMontantExtra() : null;
+            const extraRaw = montantExtraField ? String(montantExtraField.getValue() || '').replace(/\D/g, '') : '';
+            const extra = extraRaw.length ? (parseInt(extraRaw, 10) || 0) : 0;
+            totalSaisie += extra;
+        }
+
+        // Pas de contrôle "montant élevé" pour les règlements mobile money :
+        // le montant est renseigné automatiquement (aucune saisie utilisateur).
+        const typeRegleCloture = me.getVnotypeReglement ? me.getVnotypeReglement().getValue() : null;
+        const isMobileCloture = typeRegleCloture && me.isMobileMode(typeRegleCloture);
+
+        if (!isMobileCloture && totalSaisie >= me.suspectInputThreshold) {
+            Ext.Msg.show({
+                title: 'Alerte',
+                msg: '⚠️ Montant élevé : vous allez encaisser ' + totalSaisie + '. Confirmez-vous ?',
+                buttons: Ext.Msg.YESNO,
+                icon: Ext.Msg.ERROR,
+                defaultFocus: 'no',
+                buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        me.doClotureCore();
+                    } else {
+                        // Annuler => on ferme uniquement la confirmation : la vente
+                        // reste modifiable (montant et mode de règlement inchangés)
+                        // et "Terminer vente" reste actif. La confirmation sera
+                        // redemandée au prochain essai de finalisation.
+                        if (me.getVnobtnCloture) {
+                            try {
+                                me.getVnobtnCloture().enable();
+                            } catch (e) {
+                            }
+                        }
+                        me.focusSelectMontantRecu();
+                    }
+                }
+            });
+            me.focusMsgBoxCancelButton();
+            return;
+        }
+
+        me.doClotureCore();
+    },
+
+    doClotureCore: function () {
+        const me = this;
+
+        // ✅ Sécurité finale (au cas où doClotureCore est appelé directement)
+        const field = me.getMontantRecu ? me.getMontantRecu() : null;
+        const rawTxt = field ? String((field.getRawValue && field.getRawValue()) || field.getValue() || '').replace(/\D/g, '') : '';
+        const digits = rawTxt.length;
+        const dataNet = me.getNetAmountToPay ? me.getNetAmountToPay() : null;
+        const netTopay = dataNet && dataNet.montantNet != null ? parseInt(dataNet.montantNet, 10) : 0;
+        const numericValue = parseInt(rawTxt, 10) || 0;
+        const monnaieARendre = (netTopay > 0 && numericValue > netTopay) ? (numericValue - netTopay) : 0;
+
+        // Si un "Annuler" de sécurité est actif pour cette valeur => stop (évite boucle)
+        if (field && field._blockedSecurityValue && String(field._blockedSecurityValue) === rawTxt) {
+            me.focusSelectMontantRecu();
+            return;
+        }
+
+        if (field && digits > 0 && digits > me.antiBarcodeMaxDigits) {
+            field.markInvalid('Quantité trop grande ! (Code barre scanné ?)');
+            me.focusSelectMontantRecu();
+            return;
+        }
+        if (field && monnaieARendre > me.maxChangeAllowed && me._changeConfirmedForValue !== rawTxt) {
+            Ext.Msg.show({
+                title: 'Alerte',
+                msg: '⚠️ Monnaie à rendre anormalement élevée : ' + monnaieARendre + ' (seuil ' + me.maxChangeAllowed + ').\\n' +
+                        'Montant reçu : ' + rawTxt + ' / Montant vente : ' + netTopay + '.\\n' +
+                        'Probable scan ou erreur de saisie. Confirmez-vous ?',
+                buttons: Ext.Msg.YESNO,
+                icon: Ext.Msg.ERROR,
+                defaultFocus: 'no',
+                buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        me._changeConfirmedForValue = rawTxt;
+                        me.doClotureCore(); // relance
+                    } else {
+                        me._changeConfirmedForValue = null;
+                        me.blockMontantRecuUntilChange(rawTxt, 'Saisie annulée. Corrigez le montant reçu.');
+                    }
+                    me.focusSelectMontantRecu();
+                }
+            });
+            me.focusMsgBoxCancelButton();
+            return;
+        }
+
+        let typeRegle = me.getVnotypeReglement().getValue(),
+                typeVenteCombo = me.getTypeVenteCombo().getValue();
+
+        if (me.getMontantRecu().getValue() != null) {
+            if (me.getToRecalculate()) {
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: 'Le net à payer sera recalculer',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            if (typeVenteCombo === '1') {
+                                me.showNetPaidVno();
+                            } else {
+                                me.showNetPaidAssurance();
+                            }
+                        }
+                    }
+                });
+
+            } else {
+                if (me.getCaisse()) {
+                    me.finaliserVenteCaisseOuverte(typeVenteCombo, typeRegle);
+                } else {
+                    /* Caisse fermee : on propose de l'ouvrir sur place, puis on reprend la
+                     * finalisation la ou elle s'est arretee — l'utilisateur n'a pas a recliquer
+                     * sur « Terminer la vente ». */
+                    me.proposerOuvertureCaisse(function (caisseOuverte) {
+                        if (caisseOuverte) {
+                            me.finaliserVenteCaisseOuverte(typeVenteCombo, typeRegle);
+                        }
+                    });
+                }
+            }
+        } else {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez saisir le montant à payer',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getMontantRecu().focus(true, 50);
+                    }
+                }
+            });
+        }
+    },
+    onbtncloturerAssurance: function (typeRegleId) {
+        const me = this;
+        let sansBon = me.getSansBon().getValue(), montantTp = me.getMontantTp().getValue();
+        const vente = me.getCurrent();
+        const client = me.getClient();
+        let clientId = null;
+        let commentaire = '';
+        if (client) {
+            clientId = client.get('lgCLIENTID');
+            commentaire = me.getCommentaire().getValue();
+        }
+        let nom = "", banque = "", lieux = "";
+        if (typeRegleId !== '1' && typeRegleId !== '4') {
+            if (me.getRefCb()) {
+                nom = me.getRefCb().getValue();
+                banque = me.getBanque().getValue();
+                lieux = me.getLieuxBanque().getValue();
+            }
+        }
+        if (vente) {
+            let venteId = vente.lgPREENREGISTREMENTID;
+            let url = '../api/v1/vente/cloturer/assurance';
+            const data = me.getNetAmountToPay();
+            let netTopay = data.montantNet;
+            let typeVenteCombo = me.getTypeVenteCombo().getValue(),
+                    remiseId = me.getVnoremise().getValue(),
+                    natureCombo = me.getNatureCombo().getValue(),
+                    userCombo = me.getUserCombo().getValue(),
+                    montantRecu = me.getMontantRecu().getValue();
+            let montantExtra = 0;
+            const montantExtraCmp = me.getMontantExtra();
+            if (!montantExtraCmp?.hidden) {
+                // Même garde que la clôture comptant : champ du second mode vide -> refus
+                // explicite plutôt qu'un montant NaN envoyé « null » au serveur.
+                if (me.montantExtraVide(montantExtraCmp)) {
+                    me.showMontantExtraRequisMessage();
+                    return false;
+                }
+                montantExtra = parseInt(montantExtraCmp.getValue(), 10) || 0;
+            }
+            montantRecu = (parseInt(montantRecu, 10) || 0) + montantExtra;
+
+            let medecinId = me.getMedecinId();
+            if (typeRegleId === '1' && parseInt(montantRecu) < parseInt(netTopay)) {
+                me.handleExtraModePayment(netTopay);
+                return false;
+            }
+            if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && ((parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0
+                            || (montantExtra > 0 && montantExtra >= parseInt(netTopay)))) {
+                // Même verrou que la clôture VNO : pas de vente espèces + mobile
+                // avec une part espèces nulle (vente 100% mobile déguisée) —
+                // montant reçu vide/0, ou part mobile couvrant toute la part client
+                me.showMontantRecuRequisMessage();
+                return false;
+            }
+            let ayantDroit = me.getAyantDroit(), ayantDroitId = null;
+            if (ayantDroit) {
+                ayantDroitId = ayantDroit.lgAYANTSDROITSID;
+            }
+            let montantRemis = (montantRecu > netTopay) ? montantRecu - netTopay : 0;
+            let totalRecap = data.montant, montantPaye = montantRecu - montantRemis;
+            let param = {
+                "typeVenteId": typeVenteCombo,
+                "ayantDroitId": ayantDroitId,
+                "natureVenteId": natureCombo,
+                "devis": false,
+                "remiseId": remiseId,
+                "venteId": venteId,
+                "userVendeurId": userCombo,
+                "montantRecu": montantRecu,
+                "montantRemis": montantRemis,
+                "montantPaye": montantPaye,
+                "totalRecap": totalRecap,
+                "typeRegleId": typeRegleId,
+                "clientId": clientId,
+                "nom": nom,
+                "sansBon": sansBon,
+                "commentaire": commentaire,
+                "banque": banque,
+                "lieux": lieux,
+                "tierspayants": data.tierspayants,
+                "partTP": montantTp,
+                "marge": data.marge,
+                "medecinId": medecinId,
+                "reglements": me.buildModeReglements(typeRegleId, netTopay)
+            };
+            if (!me.prendreVerrouCloture()) {
+                return;
+            }
+            /* Meme raison que sur la cloture au comptant : la suite d'une cloture reussie est nommee une fois,
+             * pour que le cas « reponse perdue mais vente retrouvee encaissee » aboutisse au meme ecran. */
+            const apresSucces = function () {
+                if (!me.getTicketCaisse()) {
+                    me.onPrintTicket(param, typeVenteCombo);
+                    me.resetAll(montantRemis);
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                    return;
+                }
+                Ext.MessageBox.show({
+                    title: 'Impression du ticket',
+                    msg: 'Voulez-vous imprimer le ticket ?',
+                    buttons: Ext.MessageBox.YESNO,
+                    fn: function (button) {
+                        if ('yes' == button) {
+                            me.onPrintTicket(param, typeVenteCombo);
+                        }
+                        me.resetAll(montantRemis);
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    },
+                    icon: Ext.MessageBox.QUESTION
+                });
+            };
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: url,
+                params: Ext.JSON.encode(param),
+                timeout: me.delaiCloture,
+                success: function (response, options) {
+                    me.rendreVerrouCloture();
+                    let result = Ext.JSON.decode(response.responseText, true);
+                    progress.hide();
+                    if (result.success) {
+                        apresSucces();
+                    } else {
+                        let codeError = result.codeError;
+                        //il faut ajouter un medecin à la vente 
+                        if (codeError === 1) {
+                            me.ouvrirParcoursOrdonnance();
+                        } else {
+                            Ext.MessageBox.show({
+                                title: 'Message d\'erreur',
+                                width: 550,
+                                msg: result.msg,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR,
+                                fn: function (buttonId) {
+                                    if (buttonId === "ok") {
+                                        me.getMontantRecu().focus(true, 100, function () {
+                                        });
+                                    }
+                                }
+                            });
+                        }
+
+                    }
+
+                },
+                failure: function (response, options) {
+                    me.rendreVerrouCloture();
+                    progress.hide();
+                    me.apresEchecCloture('/api/v1/vente/cloturer/assurance', venteId, response, apresSucces,
+                            function () {
+                                me.onbtncloturerAssurance(typeRegleId);
+                            });
+                }
+
+            });
+        }
+    },
+    /**
+     * Retrouve un champ d'un bloc tiers payant par son type et le prefixe de son itemId
+     * (les itemId portent le numero d'ordre du tiers payant : refBon1, compteTp2...).
+     *
+     * Les blocs etaient lus par POSITION dans la liste des enfants : le moindre composant
+     * ajoute ou retire du bloc (ligne encours/plafond du carnet, rappel du plafond vente)
+     * decalait les indices et cassait l'ajout de produit et la cloture avec un
+     * « cmtp.getValue is not a function ». La recherche par itemId est insensible a la
+     * mise en page.
+     */
+    champDuBlocTp: function (bloc, xtype, prefixe) {
+        if (!bloc || !bloc.query) {
+            return null;
+        }
+        const candidats = bloc.query(xtype) || [];
+        for (let i = 0; i < candidats.length; i++) {
+            if (candidats[i].itemId && candidats[i].itemId.indexOf(prefixe) === 0) {
+                return candidats[i];
+            }
+        }
+        return null;
+    },
+    checkEmptyBonRef: function () {
+        const me = this;
+        let tpContainerForm = me.getTpContainerForm();
+        let items = tpContainerForm.items;
+        let result = null;
+        Ext.each(items.items, function (item) {
+            const numBonField = me.champDuBlocTp(item, 'textfield', 'refBon');
+            if (numBonField && numBonField.getValue().trim() === '') {
+                result = numBonField;
+                return false;
+            }
+        });
+        return result;
+    },
+    buildAssuranceData: function () {
+        let me = this, tpContainerForm = me.getTpContainerForm();
+        let items = tpContainerForm.items;
+        let tierspayants = [];
+        Ext.each(items.items, function (item) {
+            const cmtp = me.champDuBlocTp(item, 'hiddenfield', 'compteTp');
+            if (!cmtp) {
+                // bouton « Ajouter une assurance complémentaire » ou composant etranger au bloc
+                return;
+            }
+            const numBonField = me.champDuBlocTp(item, 'textfield', 'refBon');
+            const taux = me.champDuBlocTp(item, 'numberfield', 'tauxValeur');
+            const cmu = me.champDuBlocTp(item, 'hiddenfield', 'cmu');
+            tierspayants.push(
+                    {
+                        "compteTp": cmtp.getValue(),
+                        "numBon": numBonField ? numBonField.getValue() : '',
+                        "taux": parseInt(taux ? taux.getValue() : 0, 10),
+                        "cmu": cmu ? cmu.getValue() : 'false'
+                    }
+            );
+        });
+        return tierspayants;
+    },
+
+    showNetPaidAssurance: function () {
+        const me = this;
+        let sansBon = me.getVenteSansBon();
+        let result = me.checkEmptyBonRef();
+        if (result && !sansBon) {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: "Veuillez renseigner le numéro de bon",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        result.focus(true, 50);
+                    }
+                }
+            });
+
+        } else {
+            if (result && sansBon && !me.getSansBon().getValue()) {
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: "Veuillez cocher la vente sans bon ou renseigner le numéro de bon",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.WARNING,
+                    fn: function (buttonId) {
+                        if (buttonId === "ok") {
+                            result.focus(true, 50);
+                        }
+                    }
+                });
+                return;
+            } else {
+                let vente = me.getCurrent(), remiseId = me.getVnoremise().getValue();
+                if (vente) {
+                    let venteId = vente.lgPREENREGISTREMENTID;
+                    let tierspayants = me.buildAssuranceData();
+                    if (tierspayants.length === 0) {
+                        Ext.Msg.alert("Message", 'Veuillez ajouter un tiers-payant à la vente');
+                        return false;
+                    }
+                    let data = {
+                        "remiseId": remiseId,
+                        "venteId": venteId,
+                        "tierspayants": tierspayants
+                    };
+                    const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/vente/net/assurance',
+                        params: Ext.JSON.encode(data),
+                        success: function (response, options) {
+                            progress.hide();
+                            const result = Ext.JSON.decode(response.responseText, true);
+                            if (result.success) {
+
+
+                                me.netAmountToPay = result.data;
+                                me.toRecalculate = false;
+                                let montantNet = me.getNetAmountToPay().montantNet;
+                                me.getMontantNet().setValue(me.getNetAmountToPay().montantNet);
+                                me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                                me.getMontantTp().setValue(me.getNetAmountToPay().montantTp);
+                                if (montantNet === 0) {
+                                    me.getMontantRecu().disable();
+                                    me.getVnobtnCloture().enable();
+                                    me.getVnobtnCloture().focus();
+                                } else {
+                                    me.getMontantRecu().enable();
+                                    me.handleMontantField(montantNet);
+                                    me.getMontantRecu().setReadOnly(false);
+                                    me.getMontantRecu().focus(true, 50);
+                                }
+                                const message = result.msg;
+                                const restructuring = result.data.restructuring;
+                                if (restructuring === true) {
+                                    Ext.MessageBox.show({
+                                        // Avertissement, pas une erreur : la vente continue, la
+                                        // difference ecretee est a payer en especes ou autrement.
+                                        title: 'Avertissement plafond',
+                                        width: 500,
+                                        msg: message,
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.WARNING,
+                                        fn: function (buttonId) {
+                                            if (buttonId === "ok") {
+                                                me.getMontantRecu().focus(true, 50);
+                                            }
+                                        }
+                                    });
+                                }
+                            } else {
+                                /* Calcul refusé (vente disparue ou clôturée entre-temps) : le motif est affiché,
+                                 * sinon la caissière voyait le bouton sans effet. */
+                                if (result && result.msg) {
+                                    Ext.MessageBox.show({
+                                        title: 'Net à payer',
+                                        width: 550,
+                                        msg: result.msg,
+                                        buttons: Ext.MessageBox.OK,
+                                        icon: Ext.MessageBox.WARNING
+                                    });
+                                }
+                                me.getMontantRecu().focus(true, 50);
+
+                            }
+
+                        },
+                        failure: function (response, options) {
+                            progress.hide();
+                            Ext.Msg.alert('Net à payer',
+                                    'Le serveur n\'a pas répondu (erreur ' + response.status + '). Réessayez.');
+                        }
+
+                    });
+                }
+            }
+
+        }
+    },
+    /* ================================================================================
+     * Contexte depot : propre a cet ecran.
+     * ================================================================================ */
+
+    /** Identifiant du depot choisi, ou null. Source unique de verite pour tout l'ecran. */
+    depotIdDeVente: function () {
+        var combo = this.getDepotVenteCombo();
+        var valeur = combo ? combo.getValue() : null;
+        return valeur ? valeur : null;
+    },
+
+    /**
+     * Refuse une saisie tant que le depot n'est pas choisi, et remet le focus dessus. La vente se joue « comme si
+     * on etait dans le depot » : sans lieu, il n'y a pas de stock a lire ni a destocker.
+     */
+    exigerDepot: function () {
+        var me = this;
+        if (me.depotIdDeVente()) {
+            return true;
+        }
+        Ext.MessageBox.show({
+            title: 'D\u00e9p\u00f4t non choisi',
+            width: 420,
+            msg: 'Veuillez d\'abord choisir le d\u00e9p\u00f4t dans lequel vous saisissez la vente.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.WARNING,
+            fn: function () {
+                var combo = me.getDepotVenteCombo();
+                if (combo && !combo.isDestroyed) {
+                    combo.focus(false, 100);
+                }
+            }
+        });
+        return false;
+    },
+
+    /**
+     * Choix du depot. On ne change pas de depot au milieu d'une vente : le stock deja engage serait celui de
+     * l'ancien depot. Le store des produits est reoriente sur le depot choisi, pour que la recherche montre le
+     * stock du depot et non celui de l'officine.
+     */
+    onDepotVenteSelect: function (combo) {
+        var me = this;
+        if (me.getCurrent()) {
+            combo.setValue(me.getDepotVente());
+            Ext.MessageBox.show({
+                title: 'Vente en cours',
+                width: 460,
+                msg: 'Veuillez terminer la vente en cours avant de changer de d\u00e9p\u00f4t.',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING
+            });
+            return;
+        }
+        me.depotVente = combo.getValue();
+        me.orienterLecturesSurLeDepot();
+        me.resetTitle(me.getSafeComboValue('getTypeVenteCombo', '1'));
+        var produit = me.getVnoproduitCombo();
+        if (produit && !produit.isDestroyed) {
+            produit.focus(false, 120);
+        }
+    },
+
+    /**
+     * Pose le depot sur le store des produits de CET ecran. Le store est cree par instance dans VenteVNO : le
+     * parametre ne fuit donc pas vers l'ecran de vente de l'officine.
+     */
+    orienterLecturesSurLeDepot: function () {
+        var me = this, combo = me.getVnoproduitCombo();
+        if (!combo || combo.isDestroyed) {
+            return;
+        }
+        var store = combo.getStore();
+        if (!store) {
+            return;
+        }
+        var proxy = store.getProxy();
+        if (!proxy) {
+            return;
+        }
+        var extra = proxy.extraParams || {};
+        extra.depot = me.depotIdDeVente() || '';
+        proxy.extraParams = extra;
+        store.removeAll();
+        combo.clearValue();
+    },
+
+    /** Suffixe « ?depot=... » des lectures de stock de cet ecran. Vide sans depot : lecture d'officine. */
+    parametreDepot: function (dejaUnParametre) {
+        var id = this.depotIdDeVente();
+        if (!id) {
+            return '';
+        }
+        return (dejaUnParametre ? '&' : '?') + 'depot=' + encodeURIComponent(id);
+    },
+
+    buildSaleParams: function (record, qte, typeVente) {
+        const me = this;
+        let params = null;
+        let client = me.getClient();
+        let clientId = null;
+        if (client) {
+            clientId = client.get('lgCLIENTID');
+        }
+        const vente = me.getCurrent();
+        let venteId = null;
+        if (vente) {
+            venteId = vente.lgPREENREGISTREMENTID;
+        }
+        if (record) {
+            let user = me.getUserCombo().getValue(),
+                    nature = me.getNatureCombo().getValue()
+                    , remiseId = me.getVnoremise().getValue();
+            const isPrevente = me.getCategorie() === 'PREVENTE';
+            if (typeVente === '1') {
+                params = {
+                    "typeVenteId": typeVente,
+                    "natureVenteId": nature,
+                    "produitId": record.get('lgFAMILLEID'),
+                    "itemPu": record.get('intPRICE'),
+                    "qte": qte,
+                    "qteServie": qte,
+                    "devis": false,
+                    "remiseId": remiseId,
+                    "venteId": venteId,
+                    "userVendeurId": user,
+                    "depotVenteId": me.depotIdDeVente(),
+                    "prevente": isPrevente
+                };
+            } else {
+                let ayantDroit = me.getAyantDroit(), ayantDroitId = null;
+                if (ayantDroit) {
+                    ayantDroitId = ayantDroit.lgAYANTSDROITSID;
+                }
+                let tierspayants = me.buildAssuranceData();
+                params = {
+                    "typeVenteId": typeVente,
+                    "natureVenteId": nature,
+                    "produitId": record.get('lgFAMILLEID'),
+                    "itemPu": record.get('intPRICE'),
+                    "qte": qte,
+                    "qteServie": qte,
+                    "devis": false,
+                    "remiseId": remiseId,
+                    "venteId": venteId,
+                    "userVendeurId": user,
+                    "depotVenteId": me.depotIdDeVente(),
+                    "tierspayants": tierspayants,
+                    "clientId": clientId,
+                    "ayantDroitId": ayantDroitId,
+                    "prevente": isPrevente
+                };
+            }
+
+        }
+        return params;
+    },
+    addVenteAssuarnce: function (data, url, field, comboxProduit) {
+        const me = this;
+        let client = me.getClient();
+        if (!client) {
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 550,
+                msg: "Veuillez ajouter un client à la vente",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getClientSearchTextField().focus(true, 50);
+                    }
+                }
+            });
+            return false;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: url,
+            params: Ext.JSON.encode(data),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.updateStockField(0);
+                    me.getVnoemplacementField().setValue('');
+                        me.afficherPeremptionProche(null);
+                    me.current = result.data;
+
+                    // ✅ IMPORTANT : après ajout article, forcer recalcul net
+                    me.toRecalculate = true;
+                    me.netAmountToPay = null;
+
+                    me.getTotalField().setValue(me.getCurrent().intPRICE);
+                    field.setValue(1);
+                    me.resetProduitCombo(comboxProduit);
+                    comboxProduit.focus(true, 100);
+                    me.refresh();
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                field.focus(true, 100, function () {
+                                });
+                            }
+                        }
+                    });
+                }
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'Un problème avec le serveur');
+            }
+        });
+    },
+    removetierspayant: function (compteClientTpId) {
+        const me = this;
+        let current = me.getCurrent();
+        if (current) {
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/removetp/' + compteClientTpId + '/' + current.lgPREENREGISTREMENTID,
+                success: function (response, options) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    } else {
+                        Ext.Msg.alert("Message", 'Le tiers-payant n\'est pas supprimé');
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                }
+            });
+        }
+    },
+    addtierspayant: function (compteClientId, taux) {
+        const me = this;
+        let current = me.getCurrent();
+        if (current) {
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            let data = {"typeVenteId": compteClientId, "qte": taux};
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/addtp/' + current.lgPREENREGISTREMENTID,
+                params: Ext.JSON.encode(data),
+                success: function (response, options) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (!result.success) {
+                        Ext.Msg.alert("Message", 'Le tiers-payant n\'a pas été ajouté');
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'Un problème avec le serveur');
+                }
+            });
+        }
+
+    },
+    montantRecuFocus: function () {
+        const me = this;
+
+        // Confirmation implicite de la part mobile (flux espèces + mobile,
+        // comptant) : entrer dans le montant reçu alors qu'une répartition
+        // espèces (> 0) + part mobile (> 0) est affichée vaut acceptation —
+        // même effet qu'Entrée dans le champ mobile (verrou + cadenas). Le
+        // focus précède toujours la frappe : les espèces tendues (ex. 2 000 F)
+        // ne recalculeront plus la part, seule la monnaie bouge. Si aucune
+        // espèce n'a été déclarée (part proposée = tout le net), on ne
+        // verrouille pas : le complément automatique et le retour en espèces
+        // simple gardent leur comportement historique.
+        if (!me.extraModeManualAmount && me.getExtraModeReglementId()
+                && me.getVnotypeReglement().getValue() === '1') {
+            const montantExtraCmp = me.getMontantExtra();
+            const partMobile = (montantExtraCmp && montantExtraCmp.isVisible() && !montantExtraCmp.readOnly)
+                    ? (parseInt(montantExtraCmp.getValue(), 10) || 0) : 0;
+            const especesDeclarees = parseInt(me.getMontantRecu().getValue(), 10) || 0;
+            if (partMobile > 0 && especesDeclarees > 0) {
+                me.extraModeManualAmount = true;
+                me.updateExtraModeLockIndicator(true);
+            }
+        }
+
+        // ✅ Anti-scan robuste : capte scan/paste/saisie rapide même si "change" ne déclenche pas correctement
+        const field = me.getMontantRecu ? me.getMontantRecu() : null;
+        if (field && !field._antiScanBound) {
+            field._antiScanBound = true;
+
+            const fireCheck = function () {
+                try {
+                    // on réutilise la logique de change existante (anti-codebarres + confirmations)
+                    me.montantRecuChangeListener(field, field.getValue());
+                } catch (e) {
+                }
+            };
+
+            // listeners Ext + DOM
+            Ext.defer(function () {
+                try {
+                    if (field.inputEl) {
+                        field.inputEl.on('input', fireCheck);
+                        field.inputEl.on('keyup', fireCheck);
+                        field.inputEl.on('paste', fireCheck);
+                    }
+                } catch (e) {
+                }
+            }, 50);
+        }
+
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (me.getToRecalculate()) {
+            if (typeVente === '1') {
+                me.showNetPaidVno();
+            } else {
+                me.showNetPaidAssurance();
+            }
+        }
+    },
+
+    buildMedecinGrid: function () {
+        const me = this;
+        me.getMedecinform().setVisible(false);
+        let grid = {
+            xtype: 'grid',
+            itemId: 'medecinGrid',
+            selModel: {
+                selType: 'rowmodel',
+                mode: 'SINGLE'
+            },
+            store: Ext.create('Ext.data.Store', {
+                autoLoad: false,
+                pageSize: null,
+                model: 'testextjs.model.caisse.MedecinModel',
+                proxy: {
+                    type: 'ajax',
+                    url: '../api/v1/medecin/medecins',
+                    reader: {
+                        type: 'json',
+                        root: 'data',
+                        totalProperty: 'total'
+                    }
+                }
+
+            }),
+            height: 'auto',
+            minHeight: 250,
+            columns: [
+                {
+                    text: '#',
+                    width: 45,
+                    dataIndex: 'id',
+                    hidden: true
+
+                },
+                {
+                    xtype: 'rownumberer',
+                    text: 'LG',
+                    width: 45,
+                    sortable: true
+                }, {
+                    text: 'Nom',
+                    flex: 1,
+                    sortable: true,
+                    dataIndex: 'nom'
+                }, {
+                    header: 'Numéro ordre',
+                    dataIndex: 'numOrdre',
+                    flex: 1
+
+                },
+                {
+                    header: 'Commentaire',
+                    dataIndex: 'commentaire',
+                    flex: 1
+
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [
+                        {
+                            icon: 'resources/images/icons/add16.gif',
+                            tooltip: 'Ajouter',
+                            scope: this
+
+                        }]
+                }],
+            dockedItems: [
+
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    ui: 'footer',
+                    items: [
+                        {
+                            xtype: 'textfield',
+                            itemId: 'queryMedecin',
+                            emptyText: 'Taper ici pour rechercher',
+                            width: '70%',
+                            height: 45,
+                            enableKeyEvents: true
+                        }, '-', {
+                            text: 'rechercher',
+                            tooltip: 'rechercher',
+                            scope: this,
+                            itemId: 'btnRechercheMedecin',
+                            iconCls: 'searchicon'
+
+                        },
+                        '-', {
+                            text: 'Nouveau',
+                            scope: this,
+                            itemId: 'btnAddNewMedecin',
+                            icon: 'resources/images/icons/add16.gif'
+
+                        }
+                    ]
+                }
+            ]
+
+
+        };
+        return grid;
+    },
+    closeMedecinWindow: function () {
+        const me = this;
+        me.getMedecin().destroy();
+
+    },
+    addMedecinForm: function () {
+        const me = this;
+        me.getMedecinGrid().setVisible(false);
+        me.getMedecinform().setVisible(true);
+        me.getNomMedecin().focus(true, 100);
+        me.getBtnNewMedecin().enable();
+    },
+    btnAjouterMedecin: function (grid, rowIndex, colIndex) {
+        const me = this;
+
+        const record = grid.getStore().getAt(colIndex);
+        me.closeMedecinWindow();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteMedecin(record.get('id'), progress);
+    },
+    updateVenteMedecin: function (medecinId, progress) {
+        const me = this;
+        let venteId = me.getCurrent().lgPREENREGISTREMENTID;
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/update/medecin',
+            params: Ext.JSON.encode({
+                "medecinId": medecinId, "venteId": venteId
+            }),
+            success: function (response, options) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.medecinId = medecinId;
+                    if (!result.clientExist) {
+                        Ext.MessageBox.show({
+                            title: 'Message ',
+                            width: 550,
+                            msg: 'Opération effectuée avec succes. Veuillez ajouter le client',
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.INFO,
+                            fn: function (buttonId) {
+                                if (buttonId === "ok") {
+                                    me.openClientLambdaSearchWindow();
+                                }
+                            }
+                        });
+                    } else {
+                        me.getMontantRecu().focus(true, 50);
+                    }
+
+                } else {
+
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+
+                    });
+                }
+
+            },
+            failure: function (response, options) {
+                progress.hide();
+                Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+            }
+
+        });
+    },
+    onMedecinSpecialKey: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            const me = this;
+            me.registerNewMedecin();
+        }
+
+    },
+
+    registerNewMedecin: function () {
+        const me = this, form = me.getMedecinform();
+        if (form.isValid()) {
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/add/medecin/' + me.getCurrent().lgPREENREGISTREMENTID,
+                params: Ext.JSON.encode(form.getValues()),
+                success: function (response, options) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        me.medecinId = result.medecinId;
+                        me.closeMedecinWindow();
+                        if (!result.clientExist) {
+                            Ext.MessageBox.show({
+                                title: 'Message ',
+                                width: 550,
+                                msg: 'Opération effectuée avec succes. Veuillez ajouter le client',
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.INFO,
+                                fn: function (buttonId) {
+                                    if (buttonId === "ok") {
+                                        me.openClientLambdaSearchWindow();
+                                    }
+                                }
+                            });
+                        } else {
+                            me.getMontantRecu().focus(true, 50);
+                        }
+
+
+                    } else {
+
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 550,
+                            msg: result.msg,
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+
+                        });
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
+                }
+
+            });
+        }
+
+    },
+    /*
+     * ====== Parcours client + medecin d'une vente ordonnanciere (retour du 08/09, point 4) ======
+     *
+     * Ouvert quand la validation reclame un medecin (codeError 1). Un seul ecran, deux volets :
+     * le client d'abord, le medecin ensuite. Si la vente a deja un client, on ouvre directement
+     * sur le medecin. Chaque choix est enregistre sur la vente aussitot, par les memes services
+     * que les fenetres historiques - qui restent en place pour les autres parcours.
+     */
+    ouvrirParcoursOrdonnance: function () {
+        const me = this;
+        const existant = me.getParcoursOrdonnance && me.getParcoursOrdonnance();
+        if (existant) {
+            existant.close();
+        }
+        const fenetre = Ext.create('testextjs.view.vente.endepot.OrdonnanceParcours');
+        fenetre.show();
+        fenetre.medecinStore.load({params: {query: ''}});
+        if (me.getClient()) {
+            fenetre.clientAcquis();
+            fenetre.allerAuVolet(1);
+        } else {
+            fenetre.allerAuVolet(0);
+        }
+    },
+
+    parcoursRechercheClient: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheClient').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheClientParcoursDifferee) {
+            me._rechercheClientParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.clientStore.load({params: {query: (f.down('#rechercheClient').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheClientParcoursDifferee();
+    },
+
+    /* Le client est rattache a la vente aussitot, puis l'on passe au medecin. */
+    parcoursClientChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        me._pendingModeNeedsClient = false;
+        me.client = record;
+        if (me.getInfosClientStandard()) {
+            me.getInfosClientStandard().show();
+        }
+        me.updateClientLambdInfos();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteClient(record.get('lgCLIENTID'), progress);
+        fenetre.clientAcquis();
+        fenetre.allerAuVolet(1);
+    },
+
+    parcoursEnregistrerClient: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireClient');
+        if (!formulaire || !formulaire.isValid()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/client/add/lambda',
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    fenetre.basculerFormulaire('client', false);
+                    me.parcoursClientChoisi(new testextjs.model.caisse.ClientLambda(result.data));
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du client a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
+    parcoursRechercheMedecin: function (champ, e) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!fenetre) {
+            return;
+        }
+        const saisie = (fenetre.down('#rechercheMedecin').getValue() || '').trim();
+        const entree = e && e.getKey && e.getKey() === e.ENTER;
+        const bouton = !e || !e.getKey;
+        if (!(entree || bouton) && saisie.length !== 0 && saisie.length < 2) {
+            return;
+        }
+        if (!me._rechercheMedecinParcoursDifferee) {
+            me._rechercheMedecinParcoursDifferee = Ext.Function.createBuffered(function () {
+                const f = me.getParcoursOrdonnance();
+                if (f) {
+                    f.medecinStore.load({params: {query: (f.down('#rechercheMedecin').getValue() || '').trim()}});
+                }
+            }, 300, me);
+        }
+        me._rechercheMedecinParcoursDifferee();
+    },
+
+    /* Le medecin est rattache a la vente : le parcours est termine, l'ecran se ferme. */
+    parcoursMedecinChoisi: function (record) {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        if (!record || !fenetre) {
+            return;
+        }
+        fenetre.close();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        me.updateVenteMedecin(record.get('id'), progress);
+    },
+
+    parcoursEnregistrerMedecin: function () {
+        const me = this;
+        const fenetre = me.getParcoursOrdonnance();
+        const formulaire = fenetre && fenetre.down('#formulaireMedecin');
+        if (!formulaire || !formulaire.isValid() || !me.getCurrent()) {
+            return;
+        }
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/add/medecin/' + me.getCurrent().lgPREENREGISTREMENTID,
+            params: Ext.JSON.encode(formulaire.getValues()),
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success) {
+                    me.medecinId = result.medecinId;
+                    fenetre.close();
+                    me.getMontantRecu().focus(true, 50);
+                } else {
+                    Ext.MessageBox.alert('Message', result.msg || 'La création du médecin a échoué');
+                }
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Erreur de serveur (' + response.status + ')');
+            }
+        });
+    },
+
+    showMedicinWindow: function () {
+        const me = this;
+        const win = Ext.create('testextjs.view.vente.endepot.Medecin');
+        win.add(me.buildMedecinGrid());
+        win.show();
+        /* Retour du 08/09 : la fenetre s'ouvre sur TOUS les medecins, et le champ de recherche
+           a le focus des l'affichage - on tape, la liste se trie. */
+        me.getMedecinGrid().getStore().load({params: {query: ''}});
+        const champ = me.getQueryMedecin();
+        if (champ) {
+            champ.focus(false, 150);
+        }
+    },
+
+    queryMedecin: function () {
+        const me = this, query = (me.getQueryMedecin().getValue() || '').trim();
+        // Champ vide : la liste complete, comme a l'ouverture.
+        me.getMedecinGrid().getStore().load({
+            params: {
+                query: query
+            }
+        });
+    },
+    onMedecinKey: function (field, e, options) {
+        const me = this;
+        if (e.getKey() === e.ENTER) {
+            me.queryMedecin();
+            return;
+        }
+        /* Recherche automatique a partir de deux caracteres, sans attendre ENTREE ni le bouton.
+           Temporisee : une requete par frappe encombrerait le serveur pour rien. Le champ vide
+           ramene la liste complete. */
+        const saisie = (field.getValue() || '').trim();
+        if (saisie.length >= 2 || saisie.length === 0) {
+            if (!me._rechercheMedecinDifferee) {
+                me._rechercheMedecinDifferee = Ext.Function.createBuffered(me.queryMedecin, 300, me);
+            }
+            me._rechercheMedecinDifferee();
+        }
+    },
+    /*
+     * Libere le verrou de rappel de la vente courante (lot 3). Appele a la
+     * remise en attente et au retour a la liste ; sans effet si la vente n'est
+     * pas verrouillee par ce poste (le serveur ne libere que son detenteur).
+     */
+    libererRappelVente: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente || !vente.lgPREENREGISTREMENTID) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/vente/rappel/liberer/' + vente.lgPREENREGISTREMENTID
+        });
+    },
+    putToStandBy: function () {
+        const me = this;
+        me.rememberPreventeMode();
+        me.saveModeReglementAttente();
+        me.libererRappelVente();
+        me.resetAll();
+        me.getVnoproduitCombo().focus(false, 100, function () {
+        });
+    },
+    /*
+     * Persiste cote serveur le mode de reglement au moment de la mise en attente
+     * (colonne str_TYPE_REGLEMENT_ATTENTE de t_preenregistrement) afin que le
+     * rappel restaure le mode a l'identique (ex: Differe), quel que soit le poste.
+     */
+    saveModeReglementAttente: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente || !vente.lgPREENREGISTREMENTID) {
+            return;
+        }
+        const mode = me.getVnotypeReglement().getValue();
+        if (!mode) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/ventestats/attente/mode-reglement/' + vente.lgPREENREGISTREMENTID + '/' + mode
+        });
+    },
+    /*
+     * Le mode de règlement d'une vente mise en attente n'est stocké en base
+     * qu'à la clôture (vente_reglement) : on le mémorise donc côté poste
+     * (localStorage) pour le restaurer au rappel. Taille bornée à 30 entrées,
+     * espèces (défaut) non mémorisé.
+     */
+    rememberPreventeMode: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente) {
+            return;
+        }
+        const mode = me.getVnotypeReglement().getValue();
+        if (!mode || mode === '1') {
+            return;
+        }
+        try {
+            const map = Ext.JSON.decode(window.localStorage.getItem('prestigeModesAttente') || '{}', true) || {};
+            map[vente.lgPREENREGISTREMENTID] = mode;
+            const keys = Object.keys(map);
+            while (keys.length > 30) {
+                delete map[keys.shift()];
+            }
+            window.localStorage.setItem('prestigeModesAttente', Ext.JSON.encode(map));
+        } catch (e) {
+        }
+    },
+    getRememberedPreventeMode: function (venteId) {
+        try {
+            const map = Ext.JSON.decode(window.localStorage.getItem('prestigeModesAttente') || '{}', true) || {};
+            return map[venteId] || null;
+        } catch (e) {
+            return null;
+        }
+    },
+    oncheckUg: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/common/checkug',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.checkUg = result.data;
+                }
+            }
+
+        });
+    },
+
+    checkParamImpressionTicketCaisse: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/app-params/key/KEY_IMPRIMER_TICKET_CAISSE',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.ticketCaisse = result.data;
+                }
+            }
+
+        });
+    },
+
+    onbtnModifierAyantDroitInfo: function () {
+        const me = this, client = me.getClient();
+        if (client) {
+            me.loadAyantDroits(client.get('lgCLIENTID'));
+
+        }
+
+    },
+    onBtnCancelBtnAyantDroit: function () {
+        const me = this;
+        const win = me.getAyantdroitView();
+        win.destroy();
+    },
+    loadAyantDroits: function (clientId) {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/client/ayant-droits',
+            params: {"clientId": clientId},
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                const ayantDroitWin = Ext.create('testextjs.view.vente.endepot.AyantDroitGrid');
+                me.getAyantdroiGrid().getStore().loadData(result.data);
+                ayantDroitWin.show();
+            }
+
+        });
+    },
+
+    /*
+     * Verrou anti-brèche « espèces = 0 » : le message est bloquant et guide
+     * vers le bon geste. Une vente réglée entièrement en mobile money doit
+     * passer par le mode mobile choisi comme mode principal — pas par le
+     * fractionnement espèces + mobile avec 0 F d'espèces (ligne espèces
+     * poubelle en base et mode principal erroné dans les stats).
+     */
+    showMontantRecuRequisMessage: function () {
+        const me = this;
+        Ext.MessageBox.show({
+            title: 'Message d\'erreur',
+            width: 550,
+            msg: 'Veuillez saisir un montant reçu en espèces supérieur à 0.<br/>'
+                    + 'Si le client règle entièrement en mobile money, choisissez directement ce mode '
+                    + 'dans la liste des modes de règlement.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.ERROR,
+            fn: function (buttonId) {
+                if (buttonId === 'ok') {
+                    me.getMontantRecu().focus(true, 50);
+                }
+            }
+        });
+    },
+
+    /* Champ du second mode de règlement (mobile money) affiché mais sans montant valide. */
+    montantExtraVide: function (champ) {
+        const valeur = champ.getValue();
+        return valeur === null || valeur === undefined || valeur === '' || isNaN(parseInt(valeur, 10));
+    },
+
+    showMontantExtraRequisMessage: function () {
+        const me = this;
+        Ext.MessageBox.show({
+            title: 'Message d\'erreur',
+            width: 550,
+            msg: 'Saisissez le montant du second mode de règlement (mobile money) avant de valider la vente.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.ERROR,
+            fn: function (buttonId) {
+                if (buttonId === 'ok') {
+                    me.getMontantExtra().focus(true, 50);
+                }
+            }
+        });
+    },
+    handleExtraModePayment: function (netTopay) {
+        const me = this;
+        // Le fractionnement suppose des espèces réellement reçues : à 0, on ne
+        // propose pas de second mode (verrou : Entrée sur le 0 par défaut puis
+        // choix d'un mode mobile = vente 100% mobile déguisée en espèces)
+        const especesSaisies = parseInt(me.getMontantRecu().getValue(), 10) || 0;
+        if (especesSaisies <= 0) {
+            me.showMontantRecuRequisMessage();
+            return;
+        }
+        // Message explicite (retour lot 3, point 4) : montant de la vente, montant
+        // saisi en rouge gras, et la difference a couvrir en gras.
+        const difference = netTopay - especesSaisies;
+        Ext.MessageBox.show({
+            title: 'Avertissement',
+            width: 560,
+            msg: '⚠ Le montant de la vente est de <span style="font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(netTopay, '0,000.') + ' F</span>, vous avez saisi '
+                    + '<span style="color:#C0392B;font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(especesSaisies, '0,000.') + ' F</span>.<br/>'
+                    + 'Voulez-vous associer un autre mode de paiement pour la différence de '
+                    + '<span style="font-weight:900;font-size:1.05rem;">'
+                    + Ext.util.Format.number(difference, '0,000.') + ' F</span> ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.WARNING,
+            fn: function (buttonId) {
+
+                if (buttonId === "yes") {
+                    Ext.create('testextjs.view.vente.endepot.ReglementGrid').show();
+
+                } else {
+                    me.getMontantRecu().focus(true, 50);
+                }
+            }
+        });
+    },
+    onModeReglementGridRowSelect: function (g, record) {
+        const me = this;
+        const modeRegelement = record[0].data;
+        me.onModeReglementSelect(modeRegelement);
+    },
+    onClientStandarGridRowSelect: function (g, record) {
+        const me = this;
+        console.warn(record);
+        const client = record[0].data;
+        me.updateClientStandard(client);
+
+    },
+
+    /* Logo de l'operateur sur le bouton « Associer un autre paiement mobile » : celui du second mode choisi,
+       l'icone generique sinon ou si le fichier manque. */
+    poserLogoBoutonExtra: function (libelle) {
+        const me = this;
+        const bouton = me.getBtnExtraMode();
+        if (!bouton) {
+            return;
+        }
+        const generique = 'resources/images/icons/fam/paiement-mobile.png';
+        const nom = String(libelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!nom) {
+            bouton.setIcon(generique);
+            return;
+        }
+        const image = new Image();
+        image.onload = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon('resources/images/modes/' + nom + '.png');
+            }
+        };
+        image.onerror = function () {
+            if (!bouton.isDestroyed) {
+                bouton.setIcon(generique);
+            }
+        };
+        image.src = 'resources/images/modes/' + nom + '.png';
+    },
+
+    onModeReglementSelect: function (modeRegelement) {
+        const me = this;
+        if (Ext.isEmpty(me.getClient())) {
+            me.showAndHideInfosStandardClient(true);
+        }
+        me.extraModeReglementId = modeRegelement.id;
+        const montantExtra = me.getMontantExtra();
+        montantExtra.show();
+        me.onBtnCancelModeReglement();
+        montantExtra.labelWidth = modeRegelement.libelle.length + 2;
+        me._extraModeBaseLabel = modeRegelement.libelle.toUpperCase();
+        montantExtra.setFieldLabel(me._extraModeBaseLabel);
+        // le bouton du second mode prend le logo de l'operateur choisi
+        me.poserLogoBoutonExtra(modeRegelement.libelle);
+        if (me.isMobileMode(me.getVnotypeReglement().getValue())) {
+            // Fractionnement mobile + mobile : on déverrouille la saisie de la part
+            // du mode principal, le complément se calcule dans montantExtra
+            const montantRecu = me.getMontantRecu();
+            montantRecu.setReadOnly(false);
+            montantRecu.setValue(0);
+        } else if (me.getVnotypeReglement().getValue() === '1') {
+            // Espèces + mobile : le montant mobile devient saisissable
+            // (pré-rempli avec le complément), quel que soit le type de vente
+            // (comptant, assurance, carnet) — même écran règlement partout.
+            // Permet le cas « espèces tendues supérieures à la part due » :
+            // la monnaie se rend sur les espèces. Toute la mécanique de
+            // confirmation (Entrée, cadenas, verrou implicite) suit ce flag.
+            montantExtra.setReadOnly(false);
+        }
+        me.handleExtraAmountInputValue();
+        // second mode engagé : le bouton « associer un client » n'a plus lieu d'etre
+        me.refreshBtnClientComptant();
+        if (Ext.isEmpty(me.getClient())) {
+            // La fenêtre « client lié » vient de s'ouvrir : le focus est dans
+            // son champ de recherche ; il reviendra à l'encaissement après le
+            // choix du client (focusAfterClientAction). Ne pas voler le focus
+            // sous la fenêtre modale.
+            return;
+        }
+        me.focusEncaissement();
+    },
+
+    resetExtraModeCmp: function () {
+        const me = this;
+        const montantExtra = me.getMontantExtra();
+        montantExtra.setFieldLabel('');
+        me._extraModeBaseLabel = null;
+        me._extraAutoSetting = true;
+        montantExtra.setValue(null);
+        me._extraAutoSetting = false;
+        montantExtra.setReadOnly(true); // re-verrouille (saisissable seulement en espèces comptant)
+        montantExtra.hide();
+        me.extraModeReglementId = null;
+        me.poserLogoBoutonExtra(null);
+        me.extraModeManualAmount = false;
+        me.getBtnExtraMode()?.hide();
+        // plus de second mode engagé : le bouton « associer un client » revient si especes pures
+        me.refreshBtnClientComptant();
+        // Ne pas voler le focus si la fenêtre « client lié » est ouverte
+        // (son champ de recherche doit garder la main)
+        if (!Ext.ComponentQuery.query('clientLambdadepot').length) {
+            me.getMontantRecu().focus(true, 50);
+        }
+    },
+
+    handleExtraAmountInputValue: function () {
+        const me = this;
+        if (me.getExtraModeReglementId()) {
+            const data = me.getNetAmountToPay();
+            const netTopay = data.montantNet;
+            const montantRecu = me.getMontantRecu().getValue();
+            // Montant mobile confirmé (flux espèces comptant) : on ne l'écrase
+            // plus, on rafraîchit seulement la monnaie affichée. Exception : si
+            // le net à payer est repassé SOUS la part mobile (article retiré,
+            // remise...), la répartition n'a plus de sens — on la déverrouille
+            // et on repasse en complément automatique (nouvelle validation).
+            if (me.extraModeManualAmount) {
+                const extraConfirme = parseInt(me.getMontantExtra().getValue(), 10) || 0;
+                if (!(netTopay > 0 && extraConfirme > parseInt(netTopay, 10))) {
+                    const totalSaisie = (parseInt(montantRecu, 10) || 0) + extraConfirme;
+                    me.montantRecuHandler(me, me.getVnotypeReglement().getValue(), totalSaisie, data);
+                    return;
+                }
+                me.extraModeManualAmount = false;
+                me.updateExtraModeLockIndicator(false);
+            }
+            // montant reçu effacé (champ vide) : complément calculé sur 0, jamais sur NaN
+            const montantExtraValue = netTopay - (parseInt(montantRecu, 10) || 0);
+            const montantExtra = me.getMontantExtra();
+            me._extraAutoSetting = true;
+            if (montantExtraValue <= 0) {
+                montantExtra.setValue(0);
+                montantExtra.hide();
+            } else {
+                if (!montantExtra.isVisible()) {
+                    montantExtra.show();
+                }
+                montantExtra.setValue(montantExtraValue);
+
+            }
+            me._extraAutoSetting = false;
+
+        }
+
+    },
+    /*
+     * Saisie manuelle du montant du second mode (espèces + mobile, comptant) :
+     * le client fixe sa part mobile ; les espèces tendues peuvent dépasser la
+     * part due, la monnaie (total - net) se rend en espèces. Le montant mobile
+     * est plafonné au net (pas de monnaie sur du mobile).
+     */
+    montantExtraChangeListener: function (field) {
+        const me = this;
+        if (me._extraAutoSetting) {
+            return; // écriture programmatique (complément automatique)
+        }
+        if (!me.getExtraModeReglementId() || me.getVnotypeReglement().getValue() !== '1') {
+            return; // saisissable uniquement dans le flux espèces
+        }
+        const data = me.getNetAmountToPay();
+        if (!data) {
+            return;
+        }
+        const netTopay = parseInt(data.montantNet, 10) || 0;
+        const saisie = parseInt(field.getValue(), 10) || 0;
+        if (netTopay > 0 && saisie > netTopay) {
+            field.setValue(netTopay); // re-déclenche le change avec la valeur plafonnée
+            return;
+        }
+        me.extraModeManualAmount = true;
+        me.updateExtraModeLockIndicator(true);
+        // met à jour la monnaie affichée : total saisi (espèces + mobile) vs net
+        const totalSaisie = (parseInt(me.getMontantRecu().getValue(), 10) || 0) + saisie;
+        me.montantRecuHandler(me, '1', totalSaisie, data);
+    },
+    /*
+     * Entrée dans le champ du 2e mode.
+     * Flux espèces + mobile (comptant) : confirme la part mobile proposée (elle
+     * ne sera plus recalculée quand les espèces tendues dépasseront le net) et
+     * renvoie le focus dans le montant reçu — la caissière y saisit le billet
+     * remis (ex. 2 000 F) et la monnaie se calcule sur les espèces uniquement.
+     * Autres flux (mobile + mobile...) : comportement historique, même clôture
+     * que le bouton « Terminer la vente ».
+     */
+    onMontantExtraKey: function (field, e, options) {
+        const me = this;
+        if (e.getKey() !== e.ENTER) {
+            return;
+        }
+        if (me.getExtraModeReglementId() && me.getVnotypeReglement().getValue() === '1'
+                && !field.readOnly) {
+            const saisie = parseInt(field.getValue(), 10) || 0;
+            if (saisie > 0) {
+                me.extraModeManualAmount = true;
+                me.updateExtraModeLockIndicator(true);
+            }
+            me.getMontantRecu().focus(true, 50);
+            return;
+        }
+        me.onMontantRecuVnoKey(field, e, options);
+    },
+    /*
+     * Cadenas sur le libellé de la part mobile : signale à la caissière que le
+     * montant est confirmé et ne sera plus modifié automatiquement.
+     */
+    updateExtraModeLockIndicator: function (locked) {
+        const me = this;
+        const montantExtra = me.getMontantExtra();
+        if (!montantExtra || !me._extraModeBaseLabel) {
+            return;
+        }
+        montantExtra.setFieldLabel(me._extraModeBaseLabel + (locked ? ' 🔒' : ''));
+    },
+    onBtnCancelModeReglement: function () {
+        const me = this;
+        const win = me.getReglementGrid();
+        // La grille des modes peut ne pas etre ouverte : bascule d'operateur par
+        // une tuile de la selection rapide (retour lot 3, point 2)
+        if (win && !win.destroyed) {
+            win.destroy();
+        }
+    },
+    onBtnModeReglementClick: function (grid, rowIndex, colIndex) {
+        const me = this;
+        const modeRegelement = grid.getStore().getAt(colIndex);
+        me.onModeReglementSelect(modeRegelement?.data);
+    },
+
+    buildModeReglements: function (typeReglement, netToPay) {
+        const me = this;
+        let reglements = [];
+        if (typeReglement === '1') {
+            const extraModeId = me.getExtraModeReglementId();
+            const montantRecu = me.getMontantRecu().getValue();
+            const montantExtra = me.getMontantExtra()?.getValue();
+            if (!Ext.isEmpty(extraModeId) && montantExtra) {
+                // Part espèces réellement due = net - part mobile : si les espèces
+                // tendues dépassent (monnaie à rendre), on n'enregistre que la part
+                // due — la monnaie est portée par montantRecu/montantRemis.
+                // Cas exact (total = net) : partEspeces = montantRecu, comme avant.
+                const partEspeces = Math.min(montantRecu, netToPay - montantExtra);
+
+                reglements.push(
+                        {
+                            "typeReglement": extraModeId,
+                            "montant": montantExtra,
+                            "montantAttentu": montantExtra,
+                            "montantVerse": montantExtra
+                        },
+                        {
+                            "typeReglement": typeReglement,
+                            "montant": partEspeces,
+                            "montantAttentu": partEspeces,
+                            // Montant réellement tendu par le client : c'est lui
+                            // qui s'imprime sur le ticket (la monnaie figure en bas).
+                            "montantVerse": montantRecu
+                        }
+                );
+            } else {
+                reglements.push(
+                        {
+                            "typeReglement": typeReglement,
+                            "montant": montantRecu,
+                            "montantAttentu": montantRecu
+                        }
+                );
+
+            }
+        } else if (me.isMobileMode(typeReglement) && !Ext.isEmpty(me.getExtraModeReglementId())
+                && me.getMontantExtra()?.getValue() && me.getTypeVenteCombo().getValue() === '1') {
+            // Fractionnement mobile + mobile (vente comptant uniquement) :
+            // part du mode principal saisie + complément sur le mode extra
+            const extraModeId = me.getExtraModeReglementId();
+            const montantExtra = me.getMontantExtra().getValue();
+            const montantPrincipal = me.getMontantRecu().getValue();
+            reglements.push(
+                    {
+                        "typeReglement": extraModeId,
+                        "montant": montantExtra,
+                        "montantAttentu": montantExtra,
+                        "montantVerse": montantExtra
+                    },
+                    {
+                        "typeReglement": typeReglement,
+                        "montant": montantPrincipal,
+                        "montantAttentu": montantPrincipal,
+                        "montantVerse": montantPrincipal
+                    }
+            );
+        } else {
+            reglements.push(
+                    {
+                        "typeReglement": typeReglement,
+                        "montant": netToPay,
+                        "montantAttentu": netToPay
+                    }
+            );
+        }
+
+        return reglements;
+    },
+
+    /**
+     * Recherche une prévente par N° ticket (strREF) ou UUID et recharge via loadExistantSale(...).
+     */
+    onPreventeSearchClick: function () {
+        var me = this,
+                field = me.getPreventeSearchField(),
+                value = (field && field.getValue ? Ext.String.trim(field.getValue()) : '');
+
+        if (!value) {
+            // Si aucun critère de recherche, ouvrir la fenêtre avec toutes les préventes
+            me.openPreventeSearchWindow();
+            return;
+        }
+
+        // Recherche directe si une valeur est spécifiée
+        me.searchAndLoadPrevente(value);
+    },
+
+    onPreventeFieldSpecialKey: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            this.onPreventeSearchClick();
+        }
+    },
+
+    searchAndLoadPrevente: function (value) {
+        var me = this;
+
+        var isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+        if (isUuid) {
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/ventestats/' + value,
+                success: function (response) {
+                    var result = Ext.decode(response.responseText, true);
+                    if (result && result.data && result.data.lgPREENREGISTREMENTID) {
+                        me.loadExistantSale(result.data.lgPREENREGISTREMENTID);
+                    } else {
+                        Ext.Msg.alert('Info', 'Aucune prévente trouvée pour cet identifiant.');
+                    }
+                },
+                failure: function () {
+                    Ext.Msg.alert('Erreur', 'Impossible de récupérer la prévente demandée.');
+                }
+            });
+            return;
+        }
+
+        // Recherche par référence
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/preventes',
+            params: {
+                statut: 'is_Process',
+                query: value,
+                page: 1,
+                start: 0,
+                limit: 50
+            },
+            success: function (response) {
+                var result = Ext.decode(response.responseText, true) || {},
+                        data = result.data || [];
+
+                if (!data.length) {
+                    Ext.Msg.alert('Info', 'Aucune prévente correspondante.');
+                    return;
+                }
+
+                if (data.length === 1) {
+                    // Si un seul résultat, charger directement
+                    me.loadExistantSale(data[0].lgPREENREGISTREMENTID);
+                } else {
+                    // Si plusieurs résultats, ouvrir la fenêtre de sélection
+                    me.openPreventeSearchWindow();
+                    // Appliquer le filtre
+                    const searchWindow = me.getPreventeSearchWindow();
+                    if (searchWindow) {
+                        searchWindow.down('#preventeFilterField').setValue(value);
+                        me.filterPreventes(value);
+                    }
+                }
+            },
+            failure: function () {
+                Ext.Msg.alert('Erreur', 'La recherche a échoué.');
+            }
+        });
+    },
+
+    openPreventePicker: function (rows) {
+        var me = this;
+
+        var store = Ext.create('Ext.data.Store', {
+            fields: [
+                'lgPREENREGISTREMENTID', 'strREF', 'userFullName', 'heure', 'intPRICE'
+            ],
+            data: rows
+        });
+
+        var grid = Ext.create('Ext.grid.Panel', {
+            store: store,
+            border: true,
+            columns: [{
+                    text: 'N° Ticket',
+                    dataIndex: 'strREF',
+                    flex: 1
+                }, {
+                    text: 'Heure',
+                    dataIndex: 'heure',
+                    width: 100
+                }, {
+                    text: 'Caissier',
+                    dataIndex: 'userFullName',
+                    flex: 1
+                }, {
+                    text: 'Montant',
+                    dataIndex: 'intPRICE',
+                    width: 110,
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000') + ' F';
+                    }
+                }],
+            listeners: {
+                itemdblclick: function (view, rec) {
+                    me.loadExistantSale(rec.get('lgPREENREGISTREMENTID'));
+                    view.up('window').close();
+                }
+            }
+        });
+
+        var win = Ext.create('Ext.window.Window', {
+            title: 'Sélectionnez une prévente',
+            modal: true,
+            width: 700,
+            height: 400,
+            layout: 'fit',
+            items: [grid],
+            buttons: [{
+                    text: 'Charger',
+                    handler: function () {
+                        var rec = grid.getSelectionModel().getSelection()[0];
+                        if (rec) {
+                            me.loadExistantSale(rec.get('lgPREENREGISTREMENTID'));
+                            win.close();
+                        } else {
+                            Ext.Msg.alert('Info', 'Sélectionnez une ligne.');
+                        }
+                    }
+                }, {
+                    text: 'Annuler',
+                    handler: function () {
+                        win.close();
+                    }
+                }]
+        });
+        win.show();
+    },
+
+    openPreventeSearchWindow: function () {
+        const me = this;
+
+        // Créer la fenêtre de recherche de préventes
+        const searchWindow = Ext.create('Ext.window.Window', {
+            title: 'RÉSULTATS DE RECHERCHE DES PRÉVENTES',
+            layout: 'fit',
+            width: 1500, // Plus large pour accommoder les nouvelles colonnes et la zone agrandie
+            height: 750, // Légèrement plus haute
+            modal: true,
+            closable: true,
+            maximizable: true,
+            items: [{
+                    xtype: 'container',
+                    /* align: 'stretch' est ce qui donne aux deux panneaux la hauteur de la
+                     * fenetre. Sans lui, une rangee hbox laisse chaque panneau prendre la
+                     * hauteur de son contenu : avec trente-cinq articles, le panneau de detail
+                     * depassait la fenetre et emportait ses boutons hors de l'ecran. */
+                    layout: {
+                        type: 'hbox',
+                        align: 'stretch'
+                    },
+                    padding: 15, // Plus de padding
+                    items: [
+                        me.buildPreventeListPanel(),
+                        me.buildPreventeDetailPanel()
+                    ]
+                }],
+            listeners: {
+                afterrender: function () {
+                    // Charger les préventes au démarrage
+                    me.loadAllPreventes();
+                }
+            }
+        });
+
+        searchWindow.show();
+        return searchWindow;
+    },
+
+    buildPreventeListPanel: function () {
+        const me = this;
+
+        return {
+            xtype: 'panel',
+            title: 'LISTE DES PRÉVENTES',
+            width: 650, // Légèrement plus large pour les nouvelles colonnes
+            margin: '0 15 0 0', // Plus de marge à droite
+            layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    itemId: 'preventeListGrid',
+                    selModel: {
+                        selType: 'rowmodel',
+                        mode: 'SINGLE'
+                    },
+                    store: Ext.create('Ext.data.Store', {
+                        fields: [
+                            'lgPREENREGISTREMENTID', 'strREF', 'intPRICE', 'lgTYPEVENTEID', 'strTYPEVENTENAME',
+                            'userFullName', 'dtUPDATED', 'heure', 'items', 'userCaissierName'
+                        ],
+                        pageSize: 20,
+                        proxy: {
+                            type: 'ajax',
+                            url: '../api/v1/ventestats/preventes',
+                            reader: {
+                                type: 'json',
+                                root: 'data',
+                                totalProperty: 'total'
+                            }
+                        },
+                        sorters: [{
+                                property: 'heure',
+                                direction: 'DESC' // ou 'DESC' pour ordre décroissant
+                            }]
+                    }),
+                    columns: [{
+                            text: 'N° Ticket',
+                            dataIndex: 'strREF',
+                            flex: 1
+                        }, {
+                            text: 'Montant',
+                            dataIndex: 'intPRICE',
+                            width: 100,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000') + ' F';
+                            }
+                        }, {
+                            text: 'Type',
+                            dataIndex: 'strTYPEVENTENAME',
+                            width: 120,
+                            renderer: function (v, meta, record) {
+                                // Utiliser strTYPEVENTENAME si disponible, sinon mapper lgTYPEVENTEID
+                                if (v)
+                                    return v;
+
+                                var typeId = record.get('lgTYPEVENTEID');
+                                var typeMap = {
+                                    '1': 'AU COMPTANT',
+                                    '2': 'ASSURANCE_MUTUELLE',
+                                    '3': 'CARNET',
+                                    '4': 'DEPOT AGRE',
+                                    '5': 'DEPOT EXTENSION'
+                                };
+                                return typeMap[typeId] || typeId;
+                            }
+                        }, {
+                            text: 'Date',
+                            dataIndex: 'dtUPDATED',
+                            width: 100,
+                            renderer: function (v) {
+                                if (!v)
+                                    return '';
+                                // Formater la date si nécessaire
+                                return v.length > 10 ? v.substring(0, 10) : v;
+                            }
+                        }, {
+                            text: 'Heure',
+                            dataIndex: 'heure',
+                            width: 80,
+                            sortable: true,
+                            renderer: function (v, meta, record) {
+                                if (v)
+                                    return v;
+                                // Extraire l'heure de dtUPDATED si disponible
+                                var dateStr = record.get('dtUPDATED');
+                                if (dateStr && dateStr.length > 10) {
+                                    return dateStr.substring(11, 16); // HH:MM
+                                }
+                                return '';
+                            }
+                        }, {
+                            text: 'Caissier',
+                            dataIndex: 'userFullName',
+                            flex: 1
+                        }],
+                    listeners: {
+                        selectionchange: function (selModel, selected) {
+                            if (selected.length > 0) {
+                                const record = selected[0];
+                                console.log('Prévente sélectionnée:', record.data);
+                                console.log('ID de la prévente:', record.get('lgPREENREGISTREMENTID'));
+
+                                // VÉRIFICATION AVANT CHARGEMENT
+                                const preventeId = record.get('lgPREENREGISTREMENTID');
+                                if (!preventeId) {
+                                    console.error('ID de prévente non trouvé dans le record:', record.data);
+                                    Ext.Msg.alert('Erreur', 'Impossible de récupérer l\'identifiant de la prévente.');
+                                    return;
+                                }
+
+                                me.loadPreventeDetails(record);
+                            }
+                        }
+                    },
+                    dockedItems: [{
+                            xtype: 'pagingtoolbar',
+                            dock: 'bottom',
+                            store: this.store,
+                            displayInfo: true
+                        }, {
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            items: [{
+                                    xtype: 'textfield',
+                                    itemId: 'preventeFilterField',
+                                    emptyText: 'Rechercher dans les résultats...',
+                                    width: 300,
+                                    enableKeyEvents: true,
+                                    listeners: {
+                                        specialkey: function (field, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                me.filterPreventes(field.getValue());
+                                            }
+                                        }
+                                    }
+                                }, {
+                                    xtype: 'button',
+                                    text: 'Actualiser',
+                                    iconCls: 'refresh',
+                                    handler: function () {
+                                        me.loadAllPreventes();
+                                    }
+                                }]
+                        }]
+                }]
+        };
+    },
+
+// Dans buildPreventeDetailPanel, modifiez la hauteur et les marges :
+    buildPreventeDetailPanel: function () {
+        const me = this;
+
+        return {
+            xtype: 'panel',
+            title: 'DÉTAILS DE LA PRÉVENTE',
+            flex: 1.3,
+            margin: '0 0 0 10',
+            layout: 'fit',
+            items: [{
+                    /* Un panneau et non un simple conteneur : c'est ce qui permet d'AMARRER les
+                     * deux boutons en bas (voir dockedItems), tout en restant le composant que le
+                     * reste du code retrouve par down('#preventeDetailContainer'). */
+                    xtype: 'panel',
+                    border: false,
+                    itemId: 'preventeDetailContainer',
+                    layout: {
+                        type: 'vbox',
+                        align: 'stretch'
+                    },
+                    /* Le defilement est confie a ExtJS, plus a une hauteur maximale en CSS.
+                     *
+                     * Une prevente de trente-cinq articles faisait deborder ce conteneur : le CSS
+                     * bornait la hauteur de l'element sans qu'ExtJS en sache rien, et le bas de la
+                     * pile - les boutons - sortait de la zone visible. Avec autoScroll, c'est la
+                     * mise en page qui borne le conteneur et fait defiler le trop-plein. */
+                    autoScroll: true,
+                    items: [{
+                            xtype: 'container',
+                            layout: 'hbox',
+                            height: 250, // AUGMENTER la hauteur pour les informations générales
+                            style: {
+                                'min-height': '250px' // Garantir une hauteur minimale
+                            },
+                            items: [{
+                                    xtype: 'container',
+                                    flex: 1,
+                                    layout: 'vbox',
+                                    items: [{
+                                            xtype: 'fieldset',
+                                            title: 'Informations générales',
+                                            flex: 1,
+                                            width: 350,
+                                            margin: '0 5 10 3',
+                                            layout: 'anchor',
+                                            cls: 'centered-fieldset-title', // Classe pour centrer le titre
+                                            defaults: {
+                                                anchor: '100%',
+                                                labelWidth: 120
+                                            },
+                                            items: [{
+                                                    xtype: 'displayfield',
+                                                    itemId: 'preventeIdField',
+                                                    fieldLabel: 'Prévente #'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'typeField',
+                                                    fieldLabel: 'Type'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'montantField',
+                                                    fieldLabel: 'Montant total'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'articlesField',
+                                                    fieldLabel: 'Articles'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'caissierField',
+                                                    fieldLabel: 'Caissier'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'heureField',
+                                                    fieldLabel: 'Heure'
+                                                }]
+                                        }]
+                                }, {
+                                    xtype: 'container',
+                                    flex: 1,
+                                    layout: 'vbox',
+                                    items: [{
+                                            xtype: 'fieldset',
+                                            title: 'Informations client et assurance',
+                                            flex: 1,
+                                            width: 350,
+                                            margin: '0 5 10 0',
+                                            layout: 'anchor',
+                                            cls: 'centered-fieldset-title', // Classe pour centrer le titre
+                                            style: {
+                                                'border-right': '1px solid #B5B8C8' // Forcer l'affichage du bord droit
+                                            },
+                                            defaults: {
+                                                anchor: '100%',
+                                                labelWidth: 120
+                                            },
+                                            items: [{
+                                                    xtype: 'displayfield',
+                                                    itemId: 'matriculeField',
+                                                    fieldLabel: 'Matricule'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'clientField',
+                                                    fieldLabel: 'Client'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'assuranceField',
+                                                    fieldLabel: 'Assurance'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'pourcentageField',
+                                                    fieldLabel: 'Pourcentage'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'numBonField',
+                                                    fieldLabel: 'N° Bon'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'partClientField',
+                                                    fieldLabel: 'Part Client'
+                                                }, {
+                                                    xtype: 'displayfield',
+                                                    itemId: 'partTPField',
+                                                    fieldLabel: 'Part TP'
+                                                }]
+                                        }]
+                                }]
+                        }, {
+                            xtype: 'grid',
+                            itemId: 'articlesGrid',
+                            title: 'Articles de la prévente',
+                            flex: 1,
+                            margin: '25 0 10 0', // AUGMENTER la marge supérieure pour descendre la grille
+                            minHeight: 200, // Hauteur minimale
+                            style: {
+                                'margin-top': '25px' // Forcer la marge supérieure
+                            },
+                            store: Ext.create('Ext.data.Store', {
+                                fields: [
+                                    'intCIP', 'strDESCRIPTION', 'intPRICEUNITAIR',
+                                    'intQUANTITY', 'intPRICE', 'produit'
+                                ]
+                            }),
+                            columns: [{
+                                    text: 'Code CIP',
+                                    dataIndex: 'intCIP',
+                                    width: 100,
+                                    renderer: function (v, meta, record) {
+                                        if (v)
+                                            return v;
+                                        var produit = record.get('produit');
+                                        return produit ? produit.intCIP : '';
+                                    }
+                                }, {
+                                    text: 'Désignation',
+                                    dataIndex: 'strDESCRIPTION',
+                                    flex: 2,
+                                    renderer: function (v, meta, record) {
+                                        if (v)
+                                            return v;
+                                        var produit = record.get('produit');
+                                        return produit ? produit.strDESCRIPTION : '';
+                                    }
+                                }, {
+                                    text: 'Prix unitaire',
+                                    dataIndex: 'intPRICEUNITAIR',
+                                    width: 100,
+                                    renderer: function (v) {
+                                        return v ? Ext.util.Format.number(v, '0,000') + ' F' : '';
+                                    }
+                                }, {
+                                    text: 'Qté',
+                                    dataIndex: 'intQUANTITY',
+                                    width: 60
+                                }, {
+                                    text: 'Total',
+                                    dataIndex: 'intPRICE',
+                                    width: 100,
+                                    renderer: function (v) {
+                                        return v ? Ext.util.Format.number(v, '0,000') + ' F' : '';
+                                    }
+                                }]
+                        }],
+                    /* Les deux boutons sont AMARRES au bas du panneau : ils ne font plus partie
+                     * de la pile qui defile. Quel que soit le nombre d'articles de la prevente,
+                     * ils restent a leur place et visibles. Amarres ICI, sur le composant que le
+                     * reste du code interroge, ils continuent d'etre trouves par
+                     * detailContainer.down('#recallPreventeBtn'). */
+                    dockedItems: [{
+                            xtype: 'container',
+                            dock: 'bottom',
+                            layout: 'hbox',
+                            padding: '10 0 0 0',
+                            items: [{
+                                    xtype: 'button',
+                                    text: 'Rappeler cette prévente',
+                                    itemId: 'recallPreventeBtn',
+                                    flex: 1,
+                                    margin: '0 5 0 0',
+                                    disabled: true,
+                                    handler: function () {
+                                        me.recallSelectedPrevente();
+                                    }
+                                }, {
+                                    xtype: 'button',
+                                    text: 'Fermer',
+                                    flex: 1,
+                                    margin: '0 0 0 5',
+                                    handler: function () {
+                                        this.up('window').close();
+                                    }
+                                }]
+                        }]
+                }]
+        };
+    },
+
+    loadAllPreventes: function () {
+        const me = this;
+        const searchWindow = me.getPreventeSearchWindow();
+        if (searchWindow) {
+            const grid = searchWindow.down('#preventeListGrid');
+            grid.getStore().load({
+                params: {
+                    statut: 'is_Process',
+                    page: 1,
+                    start: 0,
+                    limit: 20
+                },
+                callback: function (records, operation, success) {
+                    if (success && records.length > 0) {
+                        // Assurer l'unicité des préventes
+                        const uniquePreventes = [];
+                        const seenIds = new Set();
+
+                        records.forEach(function (record) {
+                            const preventeId = record.get('lgPREENREGISTREMENTID');
+                            if (!seenIds.has(preventeId)) {
+                                seenIds.add(preventeId);
+                                uniquePreventes.push(record);
+                            }
+                        });
+
+                        // Recharger le store avec les préventes uniques
+                        grid.getStore().loadData(uniquePreventes);
+                    }
+                }
+            });
+        }
+    },
+
+    filterPreventes: function (query) {
+        const me = this;
+        const grid = me.getPreventeSearchWindow().down('#preventeListGrid');
+        grid.getStore().load({
+            params: {
+                statut: 'is_Process',
+                query: query,
+                page: 1,
+                start: 0,
+                limit: 50 // Augmenter la limite pour mieux gérer les doublons
+            },
+            callback: function (records, operation, success) {
+                if (success && records.length > 0) {
+                    // Assurer l'unicité des préventes
+                    const uniquePreventes = [];
+                    const seenIds = new Set();
+
+                    records.forEach(function (record) {
+                        const preventeId = record.get('lgPREENREGISTREMENTID');
+                        if (!seenIds.has(preventeId)) {
+                            seenIds.add(preventeId);
+                            uniquePreventes.push(record);
+                        }
+                    });
+
+                    // Recharger le store avec les préventes uniques
+                    grid.getStore().loadData(uniquePreventes);
+                }
+            }
+        });
+    },
+
+    loadPreventeDetails: function (record) {
+        const me = this;
+        const detailContainer = me.getPreventeSearchWindow().down('#preventeDetailContainer');
+
+        // STOCKER LES DONNÉES BRUTES DU RECORD
+        me.selectedPreventeData = record.data;
+
+        console.log('Record sélectionné:', record);
+        console.log('Record data:', record.data);
+        console.log('ID du record:', record.get('lgPREENREGISTREMENTID'));
+
+        // RÉCUPÉRER L'ID CORRECTEMENT
+        const preventeId = record.get('lgPREENREGISTREMENTID'); // ← Déclarer la variable ici
+
+        // Réinitialiser les champs en attendant le chargement
+        detailContainer.down('#preventeIdField').setValue('Chargement...');
+        detailContainer.down('#typeField').setValue('Chargement...');
+        detailContainer.down('#montantField').setValue('Chargement...');
+        detailContainer.down('#articlesField').setValue('Chargement...');
+        detailContainer.down('#caissierField').setValue('Chargement...');
+        detailContainer.down('#heureField').setValue('Chargement...');
+
+        // Réinitialiser les champs client/assurance
+        const matriculeField = detailContainer.down('#matriculeField');
+        const clientField = detailContainer.down('#clientField');
+        const assuranceField = detailContainer.down('#assuranceField');
+        const pourcentageField = detailContainer.down('#pourcentageField');
+        const numBonField = detailContainer.down('#numBonField');
+        const partClientField = detailContainer.down('#partClientField');
+        const partTPField = detailContainer.down('#partTPField');
+
+        matriculeField.setValue('');
+        clientField.setValue('');
+        assuranceField.setValue('');
+        pourcentageField.setValue('');
+        numBonField.setValue('');
+        partClientField.setValue('');
+        partTPField.setValue('');
+
+        // UTILISER L'API find-one QUI FONCTIONNE
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/find-one/' + preventeId, // ← Utiliser la variable déclarée
+            success: function (response) {
+                const result = Ext.decode(response.responseText, true);
+                console.log('Réponse API find-one:', result);
+
+                if (result && result.data) {
+                    const preventeData = result.data;
+                    me.selectedPreventeData = preventeData;
+
+                    console.log('Données prévente complètes:', preventeData);
+                    console.log('Articles reçus:', preventeData.items);
+
+                    // Mettre à jour les informations générales
+                    detailContainer.down('#preventeIdField').setValue(preventeData.strREF || '');
+                    detailContainer.down('#typeField').setValue(
+                            preventeData.typeVente?.libelle ||
+                            preventeData.strTYPEVENTE ||
+                            'N/A'
+                            );
+                    detailContainer.down('#montantField').setValue(
+                            Ext.util.Format.number(preventeData.intPRICE || 0, '0,000') + ' F'
+                            );
+
+                    // Compter le nombre d'articles
+                    const articleCount = preventeData.items ? preventeData.items.length : 0;
+                    detailContainer.down('#articlesField').setValue(articleCount + ' article(s)');
+
+                    detailContainer.down('#caissierField').setValue(
+                            preventeData.caissier?.fullName ||
+                            preventeData.user?.fullName ||
+                            preventeData.vendeur?.fullName ||
+                            ''
+                            );
+
+                    detailContainer.down('#heureField').setValue(preventeData.dtUPDATED || '');
+
+                    // UTILISER VOTRE FONCTION QUI FONCTIONNE POUR LES DONNÉES CLIENT/ASSURANCE
+                    me.updateClientAssuranceInfo(preventeData, detailContainer);
+
+                    // CHARGEMENT DES ARTICLES
+                    const articlesGrid = detailContainer.down('#articlesGrid');
+                    if (preventeData.items && preventeData.items.length > 0) {
+                        console.log('Articles à charger:', preventeData.items);
+
+                        const articlesData = preventeData.items.map(item => {
+                            const produit = item.produit || {};
+                            return {
+                                intCIP: produit.intCIP ? produit.intCIP.trim() : '',
+                                strDESCRIPTION: produit.strDESCRIPTION || produit.strNAME || '',
+                                intPRICEUNITAIR: item.intPRICEUNITAIR || 0,
+                                intQUANTITY: item.intQUANTITY || 0,
+                                intPRICE: item.intPRICE || 0,
+                                produit: produit
+                            };
+                        });
+
+                        console.log('Articles formatés pour la grille:', articlesData);
+                        articlesGrid.getStore().loadData(articlesData);
+                    } else {
+                        console.log('Aucun article trouvé');
+                        articlesGrid.getStore().removeAll();
+                    }
+
+                    // Activer le bouton rappeler
+                    detailContainer.down('#recallPreventeBtn').enable();
+                } else {
+                    Ext.Msg.alert('Erreur', 'Aucune donnée valide dans la réponse de l\'API.');
+                }
+            },
+            failure: function (response) {
+                console.error('Erreur API:', response);
+                Ext.Msg.alert('Erreur', 'Impossible de charger les détails de la prévente. Statut: ' + response.status);
+            }
+        });
+    },
+
+// FONCTION AVEC LOGS DÉTAILLÉS POUR DIAGNOSTIQUER
+    updateClientAssuranceInfo: function (preventeData, detailContainer) {
+        const me = this;
+
+        const matriculeField = detailContainer.down('#matriculeField');
+        const clientField = detailContainer.down('#clientField');
+        const assuranceField = detailContainer.down('#assuranceField');
+        const pourcentageField = detailContainer.down('#pourcentageField');
+        const numBonField = detailContainer.down('#numBonField');
+        const partClientField = detailContainer.down('#partClientField');
+        const partTPField = detailContainer.down('#partTPField');
+
+        console.log('=== DÉBUT updateClientAssuranceInfo ===');
+        console.log('Type de vente:', preventeData.strTYPEVENTE, 'ID:', preventeData.lgTYPEVENTEID);
+        console.log('Client présent:', !!preventeData.client);
+        console.log('Assurances présentes:', preventeData.assurances ? preventeData.assurances.length : 0);
+
+        // Vérifier que les champs existent avant de les utiliser
+        if (!matriculeField || !clientField) {
+            console.log('Champs manquants - matriculeField:', !!matriculeField, 'clientField:', !!clientField);
+            return;
+        }
+
+        // Vente assurance (VO) - Type 2
+        if (preventeData.strTYPEVENTE === 'VO' || preventeData.lgTYPEVENTEID === '2') {
+            console.log('Type VO détecté');
+
+            if (preventeData.client) {
+                matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+                clientField.setValue(preventeData.client.fullName || '');
+
+                // RECHERCHE DÉTAILLÉE DES DONNÉES ASSURANCE
+                let tauxPourcentage = 0;
+                let nomAssurance = '';
+                let numeroBon = '';
+                let partTP = 0;
+
+                console.log('=== RECHERCHE ASSURANCE DÉTAILLÉE ===');
+
+                // 1. Chercher dans assurances[0] (NOUVELLE SOURCE)
+                if (preventeData.assurances && preventeData.assurances.length > 0) {
+                    const assuranceInfo = preventeData.assurances[0];
+                    console.log('Données assurances[0] COMPLÈTES:', assuranceInfo);
+                    console.log('Structure tiersPayant:', assuranceInfo.tiersPayant);
+                    console.log('intPERCENT:', assuranceInfo.intPERCENT);
+                    console.log('strREFBON:', assuranceInfo.strREFBON);
+                    console.log('intPRICE:', assuranceInfo.intPRICE);
+
+                    // EXTRACTION AVEC FALLBACKS
+                    nomAssurance = assuranceInfo.tiersPayant ?
+                            (assuranceInfo.tiersPayant.strFULLNAME || assuranceInfo.tiersPayant.strNAME || '') : '';
+                    tauxPourcentage = assuranceInfo.intPERCENT || assuranceInfo.taux || 0;
+                    numeroBon = assuranceInfo.strREFBON || preventeData.strREFBON || '';
+                    partTP = assuranceInfo.intPRICE || 0;
+
+                    console.log('Résultats extraction:');
+                    console.log('- Nom Assurance:', nomAssurance);
+                    console.log('- Taux:', tauxPourcentage);
+                    console.log('- Numéro Bon:', numeroBon);
+                    console.log('- Part TP:', partTP);
+                } else {
+                    console.log('Aucune donnée dans assurances');
+                }
+
+                // 2. Fallback sur preenregistrementstp
+                if ((!nomAssurance || tauxPourcentage === 0) && preventeData.client.preenregistrementstp && preventeData.client.preenregistrementstp.length > 0) {
+                    const assuranceInfo = preventeData.client.preenregistrementstp[0];
+                    console.log('Fallback sur preenregistrementstp:', assuranceInfo);
+
+                    if (!nomAssurance)
+                        nomAssurance = assuranceInfo.tpFullName || '';
+                    if (tauxPourcentage === 0)
+                        tauxPourcentage = assuranceInfo.taux || 0;
+                    if (!numeroBon)
+                        numeroBon = assuranceInfo.numBon || '';
+                    if (partTP === 0)
+                        partTP = assuranceInfo.tpnet || 0;
+
+                    console.log('Résultats après fallback:');
+                    console.log('- Nom Assurance:', nomAssurance);
+                    console.log('- Taux:', tauxPourcentage);
+                    console.log('- Numéro Bon:', numeroBon);
+                    console.log('- Part TP:', partTP);
+                }
+
+                console.log('=== FIN RECHERCHE ASSURANCE ===');
+
+                // AFFICHAGE FINAL
+                console.log('Valeurs à afficher:');
+                console.log('- Assurance:', nomAssurance);
+                console.log('- Pourcentage:', tauxPourcentage);
+                console.log('- Numéro Bon:', numeroBon);
+                console.log('- Part Client:', preventeData.intCUSTPART);
+                console.log('- Part TP:', partTP);
+
+                if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                    assuranceField.setValue(nomAssurance);
+                    pourcentageField.setValue(tauxPourcentage > 0 ? tauxPourcentage + '%' : '0%');
+                    numBonField.setValue(numeroBon);
+                    partClientField.setValue(Ext.util.Format.number(preventeData.intCUSTPART || 0, '0,000') + ' F');
+                    partTPField.setValue(Ext.util.Format.number(partTP || 0, '0,000') + ' F');
+
+                    console.log('Champs mis à jour avec succès');
+                } else {
+                    console.log('Champs manquants:', {
+                        assuranceField: !!assuranceField,
+                        pourcentageField: !!pourcentageField,
+                        numBonField: !!numBonField,
+                        partClientField: !!partClientField,
+                        partTPField: !!partTPField
+                    });
+                }
+            } else {
+                console.log('Aucun client trouvé');
+            }
+        }
+        // Vente carnet (Type 3) - Part TP = Montant total
+        else if (preventeData.lgTYPEVENTEID === '3') {
+            console.log('Type CARNET détecté - Part TP = Montant total');
+
+            if (preventeData.client) {
+                matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+                clientField.setValue(preventeData.client.fullName || '');
+
+                // RECHERCHE DES DONNÉES ASSURANCE POUR CARNET
+                let tauxPourcentage = 0;
+                let nomAssurance = '';
+                let numeroBon = '';
+                let partTP = preventeData.intPRICE || 0; // Part TP = Montant total pour carnet
+
+                console.log('=== RECHERCHE ASSURANCE CARNET ===');
+
+                // Chercher dans différentes sources
+                if (preventeData.assurances && preventeData.assurances.length > 0) {
+                    const assuranceInfo = preventeData.assurances[0];
+                    nomAssurance = assuranceInfo.tiersPayant ?
+                            (assuranceInfo.tiersPayant.strFULLNAME || assuranceInfo.tiersPayant.strNAME || '') : '';
+                    tauxPourcentage = assuranceInfo.intPERCENT || assuranceInfo.taux || 0;
+                    numeroBon = assuranceInfo.strREFBON || preventeData.strREFBON || '';
+                } else if (preventeData.client && preventeData.client.preenregistrementstp && preventeData.client.preenregistrementstp.length > 0) {
+                    const assuranceInfo = preventeData.client.preenregistrementstp[0];
+                    nomAssurance = assuranceInfo.tpFullName || '';
+                    tauxPourcentage = assuranceInfo.taux || 0;
+                    numeroBon = assuranceInfo.numBon || '';
+                }
+
+                console.log('Résultats carnet:');
+                console.log('- Nom Assurance:', nomAssurance);
+                console.log('- Taux:', tauxPourcentage);
+                console.log('- Numéro Bon:', numeroBon);
+                console.log('- Part TP (montant total):', partTP);
+
+                // AFFICHAGE FINAL POUR CARNET
+                if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                    assuranceField.setValue(nomAssurance);
+                    pourcentageField.setValue(tauxPourcentage > 0 ? tauxPourcentage + '%' : '100%');
+                    numBonField.setValue(numeroBon);
+                    partClientField.setValue('0 F'); // Part client = 0 pour carnet
+                    partTPField.setValue(Ext.util.Format.number(partTP, '0,000') + ' F');
+
+                    console.log('Champs carnet mis à jour avec succès');
+                }
+            }
+        }
+        // Vente au comptant (VNO) avec client - Type 1
+        else if (preventeData.client && matriculeField && clientField) {
+            console.log('Type VNO détecté');
+            matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+            clientField.setValue(preventeData.client.fullName || '');
+
+            // Vider les champs assurance pour les ventes VNO
+            if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                assuranceField.setValue('');
+                pourcentageField.setValue('');
+                numBonField.setValue('');
+                partClientField.setValue('');
+                partTPField.setValue('');
+            }
+        }
+
+        console.log('=== FIN updateClientAssuranceInfo ===');
+    },
+// FONCTION POUR AFFICHER LES DÉTAILS (séparée pour réutilisation)
+    displayPreventeDetails: function (preventeData, detailContainer, fields, apiName) {
+        const me = this;
+
+        console.log(`Affichage des détails avec l'API: ${apiName}`, preventeData);
+
+        me.selectedPreventeData = preventeData;
+
+        // Mettre à jour les informations générales
+        detailContainer.down('#preventeIdField').setValue(preventeData.strREF || '');
+        detailContainer.down('#typeField').setValue(
+                preventeData.typeVente?.libelle ||
+                preventeData.strTYPEVENTENAME ||
+                preventeData.strTYPEVENTE ||
+                'N/A'
+                );
+        detailContainer.down('#montantField').setValue(
+                Ext.util.Format.number(preventeData.intPRICE || 0, '0,000') + ' F'
+                );
+
+        // RECHERCHER LES ARTICLES DANS DIFFÉRENTES PROPRIÉTÉS
+        let articles = [];
+        const possibleArticleProperties = ['items', 'articles', 'produits', 'lignes', 'preEnregistrementDetails'];
+
+        for (let prop of possibleArticleProperties) {
+            if (preventeData[prop] && Array.isArray(preventeData[prop]) && preventeData[prop].length > 0) {
+                articles = preventeData[prop];
+                console.log(`Articles trouvés dans "${prop}":`, articles);
+                break;
+            }
+        }
+
+        // Compter le nombre d'articles
+        const articleCount = articles.length;
+        detailContainer.down('#articlesField').setValue(articleCount + ' article(s)');
+
+        detailContainer.down('#caissierField').setValue(
+                preventeData.userCaissierName ||
+                preventeData.caissier?.fullName ||
+                preventeData.user?.fullName ||
+                preventeData.vendeur?.fullName ||
+                ''
+                );
+
+        detailContainer.down('#heureField').setValue(preventeData.dtUPDATED || '');
+
+        // GESTION DES DONNÉES ASSURANCE
+        me.populateAssuranceData(preventeData, fields);
+
+        // CHARGEMENT DES ARTICLES
+        const articlesGrid = detailContainer.down('#articlesGrid');
+        if (articles.length > 0) {
+            console.log('Articles à charger:', articles);
+
+            // Préparer les données selon la structure trouvée
+            const articlesData = articles.map(item => {
+                const produit = item.produit || {};
+                return {
+                    // Code CIP
+                    intCIP: produit.intCIP ? produit.intCIP.trim() : (item.intCIP || ''),
+                    // Description
+                    strDESCRIPTION: produit.strDESCRIPTION || produit.strNAME || item.strDESCRIPTION || '',
+                    // Prix unitaire
+                    intPRICEUNITAIR: item.intPRICEUNITAIR || item.prixUnitaire || 0,
+                    // Quantité
+                    intQUANTITY: item.intQUANTITY || item.quantite || 0,
+                    // Prix total
+                    intPRICE: item.intPRICE || item.montant || 0,
+                    // Garder l'objet produit
+                    produit: produit
+                };
+            });
+
+            console.log('Articles formatés:', articlesData);
+            articlesGrid.getStore().loadData(articlesData);
+        } else {
+            console.log('Aucun article trouvé dans les données');
+            articlesGrid.getStore().removeAll();
+        }
+
+        // Activer le bouton rappeler
+        detailContainer.down('#recallPreventeBtn').enable();
+    },
+
+// FONCTION POUR GÉRER LES DONNÉES ASSURANCE
+    populateAssuranceData: function (preventeData, fields) {
+        const me = this;
+        const {
+            matriculeField,
+            clientField,
+            assuranceField,
+            pourcentageField,
+            numBonField,
+            partClientField,
+            partTPField
+        } = fields;
+
+        // Vérifier si c'est une vente avec assurance
+        const isAssuranceVente = preventeData.strTYPEVENTE === 'VO' ||
+                preventeData.lgTYPEVENTEID === '2' ||
+                preventeData.lgTYPEVENTEID === '3' ||
+                (preventeData.typeVente && preventeData.typeVente.libelle &&
+                        preventeData.typeVente.libelle.includes('ASSURANCE'));
+
+        if (!isAssuranceVente) {
+            console.log('Vente non-assurance détectée');
+            // Pour les ventes non-assurance, vider les champs spécifiques
+            assuranceField.setValue('');
+            pourcentageField.setValue('');
+            numBonField.setValue('');
+            partClientField.setValue('');
+            partTPField.setValue('');
+            return;
+        }
+
+        console.log('Vente assurance détectée, recherche des données...');
+
+        // RECHERCHE DES DONNÉES CLIENT
+        if (preventeData.client) {
+            matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+            clientField.setValue(preventeData.client.fullName || '');
+        } else {
+            matriculeField.setValue('');
+            clientField.setValue('');
+        }
+
+        // RECHERCHE DES DONNÉES ASSURANCE
+        let tauxPourcentage = 0;
+        let nomAssurance = '';
+        let numeroBon = '';
+        let partClient = preventeData.intCUSTPART || 0;
+        let partTP = (preventeData.intPRICE || 0) - partClient;
+
+        // Chercher dans différentes sources
+        if (preventeData.assurances && preventeData.assurances.length > 0) {
+            const assuranceInfo = preventeData.assurances[0];
+            nomAssurance = assuranceInfo.nom || assuranceInfo.tpFullName || '';
+            tauxPourcentage = assuranceInfo.taux || assuranceInfo.intPOURCENTAGE || 0;
+            numeroBon = assuranceInfo.numBon || '';
+        } else if (preventeData.tierspayants && preventeData.tierspayants.length > 0) {
+            const assuranceInfo = preventeData.tierspayants[0];
+            nomAssurance = assuranceInfo.tpFullName || '';
+            tauxPourcentage = assuranceInfo.taux || 0;
+            numeroBon = assuranceInfo.numBon || '';
+        } else if (preventeData.client && preventeData.client.tiersPayants && preventeData.client.tiersPayants.length > 0) {
+            const assuranceInfo = preventeData.client.tiersPayants[0];
+            nomAssurance = assuranceInfo.tpFullName || '';
+            tauxPourcentage = assuranceInfo.taux || (preventeData.client.intPOURCENTAGE || 0);
+            numeroBon = preventeData.strREFBON || '';
+        }
+
+        // AFFICHAGE FINAL
+        assuranceField.setValue(nomAssurance);
+        pourcentageField.setValue(tauxPourcentage > 0 ? tauxPourcentage + '%' : '');
+        numBonField.setValue(numeroBon);
+        partClientField.setValue(partClient > 0 ? Ext.util.Format.number(partClient, '0,000') + ' F' : '');
+        partTPField.setValue(partTP > 0 ? Ext.util.Format.number(partTP, '0,000') + ' F' : '');
+
+        console.log('Données assurance affichées:', {nomAssurance, tauxPourcentage, numeroBon, partClient, partTP});
+    },
+
+// Fallback avec les données de base
+    updateWithBasicData: function (record, detailContainer) {
+        const preventeData = record.data;
+
+        detailContainer.down('#preventeIdField').setValue(preventeData.strREF || '');
+        detailContainer.down('#typeField').setValue(preventeData.strTYPEVENTENAME || 'N/A');
+        detailContainer.down('#montantField').setValue(Ext.util.Format.number(preventeData.intPRICE || 0, '0,000') + ' F');
+        detailContainer.down('#articlesField').setValue('0 article(s)');
+        detailContainer.down('#caissierField').setValue(preventeData.userFullName || '');
+        detailContainer.down('#heureField').setValue((preventeData.dtUPDATED || '') + (preventeData.heure ? ' ' + preventeData.heure : ''));
+
+        // Vider la grille d'articles
+        detailContainer.down('#articlesGrid').getStore().removeAll();
+        detailContainer.down('#recallPreventeBtn').enable();
+    },
+
+// Fonction pour mettre à jour l'interface avec les données COMPLÈTES de find-one
+    updatePreventeDetails: function (preventeData, detailContainer) {
+        const me = this;
+
+        console.log('Mise à jour interface avec données find-one:', preventeData);
+
+        // Mettre à jour les informations générales
+        detailContainer.down('#preventeIdField').setValue(preventeData.strREF || 'N/A');
+        detailContainer.down('#typeField').setValue(preventeData.strTYPEVENTE || preventeData.typeVente?.libelle || 'N/A');
+        detailContainer.down('#montantField').setValue(Ext.util.Format.number(preventeData.intPRICE || 0, '0,000') + ' F');
+
+        // Compter les articles - IMPORTANT: les articles sont dans preventeData.items
+        const articleCount = preventeData.items ? preventeData.items.length : 0;
+        detailContainer.down('#articlesField').setValue(articleCount + ' article(s)');
+
+        detailContainer.down('#caissierField').setValue(
+                preventeData.caissier?.fullName ||
+                preventeData.user?.fullName ||
+                preventeData.userFullName ||
+                'N/A'
+                );
+
+        detailContainer.down('#heureField').setValue(preventeData.dtUPDATED || '');
+
+        // Remplir les informations client/assurance
+        me.updateClientAssuranceInfo(preventeData, detailContainer);
+
+        // CHARGER LES ARTICLES DANS LA GRILLE - CORRECTION ICI
+        const articlesGrid = detailContainer.down('#articlesGrid');
+        if (preventeData.items && preventeData.items.length > 0) {
+            console.log('Articles trouvés dans find-one:', preventeData.items);
+            articlesGrid.getStore().loadData(preventeData.items);
+        } else {
+            console.log('Aucun article dans find-one');
+            articlesGrid.getStore().removeAll();
+        }
+
+        // Activer le bouton rappeler
+        detailContainer.down('#recallPreventeBtn').enable();
+    },
+
+// Nouvelle fonction pour essayer l'API find-one
+    tryFindOneAPI: function (preventeId, detailContainer) {
+        const me = this;
+
+        console.log('Essai API find-one pour:', preventeId);
+
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/find-one/' + preventeId,
+            success: function (response) {
+                try {
+                    const result = Ext.decode(response.responseText, true);
+                    console.log('Réponse API find-one:', result);
+
+                    if (result.success && result.data) {
+                        me.selectedPreventeData = result.data;
+                        me.updatePreventeDetails(result.data, detailContainer);
+                    } else {
+                        Ext.Msg.alert('Erreur', 'Aucune donnée trouvée pour cette prévente');
+                    }
+                } catch (e) {
+                    console.error('Erreur parsing JSON find-one:', e);
+                    Ext.Msg.alert('Erreur', 'Impossible de charger les détails de la prévente');
+                }
+            },
+            failure: function (response) {
+                console.error('Erreur API find-one:', response);
+                Ext.Msg.alert('Erreur', 'Impossible de se connecter au serveur');
+            }
+        });
+    },
+
+// Fonction pour mettre à jour l'interface avec les données
+    updatePreventeDetails: function (preventeData, detailContainer) {
+        const me = this;
+
+        console.log('Mise à jour interface avec:', preventeData);
+
+        // Mettre à jour les informations générales
+        detailContainer.down('#preventeIdField').setValue(preventeData.strREF || 'N/A');
+        detailContainer.down('#typeField').setValue(preventeData.strTYPEVENTENAME || preventeData.strTYPEVENTE || 'N/A');
+        detailContainer.down('#montantField').setValue(Ext.util.Format.number(preventeData.intPRICE || 0, '0,000') + ' F');
+
+        // Compter les articles
+        const articleCount = preventeData.items ? preventeData.items.length : 0;
+        detailContainer.down('#articlesField').setValue(articleCount + ' article(s)');
+
+        detailContainer.down('#caissierField').setValue(
+                preventeData.userCaissierName ||
+                preventeData.caissier?.fullName ||
+                preventeData.user?.fullName ||
+                preventeData.userFullName ||
+                'N/A'
+                );
+
+        detailContainer.down('#heureField').setValue(
+                (preventeData.dtUPDATED || '') +
+                (preventeData.heure ? ' ' + preventeData.heure : '')
+                );
+
+        // Remplir les informations client/assurance
+        me.updateClientAssuranceInfo(preventeData, detailContainer);
+
+        // Charger les articles dans la grille
+        const articlesGrid = detailContainer.down('#articlesGrid');
+        if (preventeData.items && preventeData.items.length > 0) {
+            console.log('Chargement des articles:', preventeData.items);
+            articlesGrid.getStore().loadData(preventeData.items);
+        } else {
+            console.log('Aucun article à charger');
+            articlesGrid.getStore().removeAll();
+        }
+
+        // Activer le bouton rappeler
+        detailContainer.down('#recallPreventeBtn').enable();
+    },
+
+// FONCTION AVEC LOGS DÉTAILLÉS POUR DIAGNOSTIQUER
+    updateClientAssuranceInfo: function (preventeData, detailContainer) {
+        const me = this;
+
+        const matriculeField = detailContainer.down('#matriculeField');
+        const clientField = detailContainer.down('#clientField');
+        const assuranceField = detailContainer.down('#assuranceField');
+        const pourcentageField = detailContainer.down('#pourcentageField');
+        const numBonField = detailContainer.down('#numBonField');
+        const partClientField = detailContainer.down('#partClientField');
+        const partTPField = detailContainer.down('#partTPField');
+
+        console.log('=== DÉBUT updateClientAssuranceInfo ===');
+        console.log('Type de vente:', preventeData.strTYPEVENTE, 'ID:', preventeData.lgTYPEVENTEID);
+        console.log('Montant total:', preventeData.intPRICE);
+        console.log('Client présent:', !!preventeData.client);
+        console.log('Assurances présentes:', preventeData.assurances ? preventeData.assurances.length : 0);
+        console.log('Tiers payants présents:', preventeData.tierspayants ? preventeData.tierspayants.length : 0);
+
+        // Vérifier que les champs existent avant de les utiliser
+        if (!matriculeField || !clientField) {
+            console.log('Champs manquants - matriculeField:', !!matriculeField, 'clientField:', !!clientField);
+            return;
+        }
+
+        // DÉTECTION DU TYPE DE VENTE - PRIORITÉ À lgTYPEVENTEID
+        const typeVenteId = preventeData.lgTYPEVENTEID;
+        const typeVenteStr = preventeData.strTYPEVENTE;
+        const isCarnet = typeVenteId === '3' || typeVenteStr === 'CARNET';
+        const isVO = typeVenteId === '2' || typeVenteStr === 'VO';
+        const isVNO = typeVenteId === '1' || typeVenteStr === 'VNO';
+
+        console.log('Détection type:', {typeVenteId, typeVenteStr, isCarnet, isVO, isVNO});
+
+        // Vente carnet (Type 3) - Part TP = Montant total
+        if (isCarnet) {
+            console.log('Type CARNET détecté - Part TP = Montant total');
+
+            if (preventeData.client) {
+                matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+                clientField.setValue(preventeData.client.fullName || '');
+
+                // POUR CARNET : Part TP = Montant total, Part Client = 0
+                const montantTotal = preventeData.intPRICE || 0;
+                const partTP = montantTotal; // Part TP = Montant total
+                const partClient = 0; // Part client = 0
+
+                // RECHERCHE DES INFORMATIONS ASSURANCE POUR CARNET
+                let tauxPourcentage = 100; // Par défaut 100% pour carnet
+                let nomAssurance = '';
+                let numeroBon = '';
+
+                console.log('=== RECHERCHE ASSURANCE CARNET ===');
+
+                // Chercher dans différentes sources pour le nom de l'assurance
+                if (preventeData.assurances && preventeData.assurances.length > 0) {
+                    const assuranceInfo = preventeData.assurances[0];
+                    nomAssurance = assuranceInfo.tiersPayant ?
+                            (assuranceInfo.tiersPayant.strFULLNAME || assuranceInfo.tiersPayant.strNAME || '') :
+                            (assuranceInfo.nom || '');
+                    tauxPourcentage = assuranceInfo.intPERCENT || assuranceInfo.taux || 100;
+                    numeroBon = assuranceInfo.strREFBON || preventeData.strREFBON || '';
+                    console.log('Données trouvées dans assurances:', assuranceInfo);
+                } else if (preventeData.tierspayants && preventeData.tierspayants.length > 0) {
+                    const assuranceInfo = preventeData.tierspayants[0];
+                    nomAssurance = assuranceInfo.tpFullName || assuranceInfo.nom || '';
+                    tauxPourcentage = assuranceInfo.taux || 100;
+                    numeroBon = assuranceInfo.numBon || '';
+                    console.log('Données trouvées dans tierspayants:', assuranceInfo);
+                } else if (preventeData.client && preventeData.client.tiersPayants && preventeData.client.tiersPayants.length > 0) {
+                    const assuranceInfo = preventeData.client.tiersPayants[0];
+                    nomAssurance = assuranceInfo.tpFullName || '';
+                    tauxPourcentage = assuranceInfo.taux || (preventeData.client.intPOURCENTAGE || 100);
+                    numeroBon = preventeData.strREFBON || '';
+                    console.log('Données trouvées dans client.tiersPayants:', assuranceInfo);
+                } else {
+                    // Fallback : utiliser le nom du client comme assurance pour carnet
+                    nomAssurance = preventeData.client.fullName || 'CARNET CLIENT';
+                    console.log('Utilisation du nom client comme assurance');
+                }
+
+                console.log('Résultats carnet:');
+                console.log('- Montant total:', montantTotal);
+                console.log('- Nom Assurance:', nomAssurance);
+                console.log('- Taux:', tauxPourcentage);
+                console.log('- Numéro Bon:', numeroBon);
+                console.log('- Part TP (montant total):', partTP);
+                console.log('- Part Client:', partClient);
+
+                // AFFICHAGE FINAL POUR CARNET
+                if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                    assuranceField.setValue(nomAssurance);
+                    pourcentageField.setValue(tauxPourcentage + '%');
+                    numBonField.setValue(numeroBon);
+                    partClientField.setValue(Ext.util.Format.number(partClient, '0,000') + ' F');
+                    partTPField.setValue(Ext.util.Format.number(partTP, '0,000') + ' F');
+
+                    console.log('Champs carnet mis à jour avec succès');
+                }
+            }
+        }
+        // Vente assurance (VO) - Type 2
+        else if (isVO) {
+            console.log('Type VO détecté');
+
+            if (preventeData.client) {
+                matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+                clientField.setValue(preventeData.client.fullName || '');
+
+                // RECHERCHE DÉTAILLÉE DES DONNÉES ASSURANCE
+                let tauxPourcentage = 0;
+                let nomAssurance = '';
+                let numeroBon = '';
+                let partTP = 0;
+
+                console.log('=== RECHERCHE ASSURANCE DÉTAILLÉE ===');
+
+                // 1. Chercher dans assurances[0] (NOUVELLE SOURCE)
+                if (preventeData.assurances && preventeData.assurances.length > 0) {
+                    const assuranceInfo = preventeData.assurances[0];
+                    console.log('Données assurances[0] COMPLÈTES:', assuranceInfo);
+
+                    // EXTRACTION AVEC FALLBACKS
+                    nomAssurance = assuranceInfo.tiersPayant ?
+                            (assuranceInfo.tiersPayant.strFULLNAME || assuranceInfo.tiersPayant.strNAME || '') : '';
+                    tauxPourcentage = assuranceInfo.intPERCENT || assuranceInfo.taux || 0;
+                    numeroBon = assuranceInfo.strREFBON || preventeData.strREFBON || '';
+
+                    // CORRECTION : Si intPRICE = 0, utiliser le calcul basé sur le pourcentage
+                    if (assuranceInfo.intPRICE === 0 && tauxPourcentage > 0) {
+                        partTP = Math.round((preventeData.intPRICE || 0) * (tauxPourcentage / 100));
+                    } else {
+                        partTP = assuranceInfo.intPRICE || 0;
+                    }
+
+                    console.log('Résultats extraction:');
+                    console.log('- Nom Assurance:', nomAssurance);
+                    console.log('- Taux:', tauxPourcentage);
+                    console.log('- Numéro Bon:', numeroBon);
+                    console.log('- Part TP (calculée):', partTP);
+                } else {
+                    console.log('Aucune donnée dans assurances');
+                }
+
+                // 2. Fallback sur preenregistrementstp
+                if ((!nomAssurance || tauxPourcentage === 0) && preventeData.client.preenregistrementstp && preventeData.client.preenregistrementstp.length > 0) {
+                    const assuranceInfo = preventeData.client.preenregistrementstp[0];
+                    console.log('Fallback sur preenregistrementstp:', assuranceInfo);
+
+                    if (!nomAssurance)
+                        nomAssurance = assuranceInfo.tpFullName || '';
+                    if (tauxPourcentage === 0)
+                        tauxPourcentage = assuranceInfo.taux || 0;
+                    if (!numeroBon)
+                        numeroBon = assuranceInfo.numBon || '';
+                    if (partTP === 0)
+                        partTP = assuranceInfo.tpnet || 0;
+
+                    console.log('Résultats après fallback:');
+                    console.log('- Nom Assurance:', nomAssurance);
+                    console.log('- Taux:', tauxPourcentage);
+                    console.log('- Numéro Bon:', numeroBon);
+                    console.log('- Part TP:', partTP);
+                }
+
+                console.log('=== FIN RECHERCHE ASSURANCE ===');
+
+                // AFFICHAGE FINAL
+                if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                    assuranceField.setValue(nomAssurance);
+                    pourcentageField.setValue(tauxPourcentage > 0 ? tauxPourcentage + '%' : '0%');
+                    numBonField.setValue(numeroBon);
+                    partClientField.setValue(Ext.util.Format.number(preventeData.intCUSTPART || 0, '0,000') + ' F');
+                    partTPField.setValue(Ext.util.Format.number(partTP || 0, '0,000') + ' F');
+                }
+            }
+        }
+        // Vente au comptant (VNO) avec client - Type 1
+        else if (isVNO && preventeData.client && matriculeField && clientField) {
+            console.log('Type VNO détecté');
+            matriculeField.setValue(preventeData.client.strNUMEROSECURITESOCIAL || '');
+            clientField.setValue(preventeData.client.fullName || '');
+
+            // Vider les champs assurance pour les ventes VNO
+            if (assuranceField && pourcentageField && numBonField && partClientField && partTPField) {
+                assuranceField.setValue('');
+                pourcentageField.setValue('');
+                numBonField.setValue('');
+                partClientField.setValue('');
+                partTPField.setValue('');
+            }
+        }
+        // Aucun client trouvé
+        else {
+            console.log('Aucun client trouvé pour cette prévente');
+            // Vider tous les champs
+            if (matriculeField)
+                matriculeField.setValue('');
+            if (clientField)
+                clientField.setValue('');
+            if (assuranceField)
+                assuranceField.setValue('');
+            if (pourcentageField)
+                pourcentageField.setValue('');
+            if (numBonField)
+                numBonField.setValue('');
+            if (partClientField)
+                partClientField.setValue('');
+            if (partTPField)
+                partTPField.setValue('');
+        }
+
+        console.log('=== FIN updateClientAssuranceInfo ===');
+    },
+
+    recallSelectedPrevente: function () {
+        const me = this;
+
+        console.log('Données de la prévente sélectionnée:', me.selectedPreventeData);
+
+        if (!me.selectedPreventeData) {
+            Ext.Msg.alert('Erreur', 'Aucune prévente sélectionnée.');
+            return;
+        }
+
+        // Récupérer l'ID depuis différentes sources possibles
+        const preventeId = me.selectedPreventeData.lgPREENREGISTREMENTID ||
+                me.selectedPreventeData.id ||
+                (me.selectedPreventeData.data && me.selectedPreventeData.data.lgPREENREGISTREMENTID);
+
+        console.log('ID récupéré:', preventeId);
+
+        if (!preventeId) {
+            // Essayer de récupérer depuis la grille sélectionnée
+            const searchWindow = Ext.ComponentQuery.query('window[title="RÉSULTATS DE RECHERCHE DES PRÉVENTES"]')[0];
+            if (searchWindow) {
+                const grid = searchWindow.down('#preventeListGrid');
+                const selected = grid.getSelectionModel().getSelection();
+                if (selected.length > 0) {
+                    const gridPreventeId = selected[0].get('lgPREENREGISTREMENTID');
+                    console.log('ID récupéré depuis la grille:', gridPreventeId);
+
+                    if (gridPreventeId) {
+                        // Fermer la fenêtre et charger la prévente
+                        searchWindow.close();
+                        me.loadExistantSale(gridPreventeId);
+                        //Ext.Msg.alert('Succès', 'Prévente rappelée avec succès.');
+                        return;
+                    }
+                }
+            }
+
+            Ext.Msg.alert('Erreur', 'ID de prévente invalide. Impossible de rappeler cette prévente.');
+            return;
+        }
+
+        // Fermer la fenêtre de recherche
+        const searchWindow = Ext.ComponentQuery.query('window[title="RÉSULTATS DE RECHERCHE DES PRÉVENTES"]')[0];
+        if (searchWindow) {
+            searchWindow.close();
+        }
+
+        // Charger la prévente dans l'interface principale
+        me.loadExistantSale(preventeId);
+
+        //Ext.Msg.alert('Succès', 'Prévente rappelée avec succès.');
+    },
+
+    getPreventeSearchWindow: function () {
+        return Ext.ComponentQuery.query('window[title="RÉSULTATS DE RECHERCHE DES PRÉVENTES"]')[0];
+    }
+
+    ,
+    /**
+     * MessageBox YES/NO prioritaire :
+     * - Empêche la saisie en arrière-plan (ENTER ne déclenche plus le champ produit/qté)
+     * - Focus par défaut sur "Oui" (ENTER => Oui)
+     * - Désactive temporairement des composants (combo produit, champ qté, etc.)
+     */
+    showYesNoPriority: function (cfg, toDisable) {
+        var me = this;
+
+        // couper le focus clavier derrière
+        try {
+            if (document && document.activeElement) {
+                document.activeElement.blur();
+            }
+        } catch (e) {
+        }
+
+        // désactiver temporairement composants
+        var comps = Ext.isArray(toDisable) ? toDisable : (toDisable ? [toDisable] : []);
+        Ext.Array.each(comps, function (c) {
+            if (c && c.setDisabled) {
+                c.setDisabled(true);
+            }
+        });
+
+        // sécuriser : modal + focus sur YES
+        cfg = cfg || {};
+        cfg.modal = true;
+        cfg.defaultFocus = cfg.defaultFocus || 'yes';
+        cfg.buttons = cfg.buttons || Ext.MessageBox.YESNO;
+
+        // wrapper fn pour réactiver
+        var userFn = cfg.fn;
+        cfg.fn = function (btn) {
+            Ext.Array.each(comps, function (c) {
+                if (c && c.setDisabled) {
+                    c.setDisabled(false);
+                }
+            });
+            if (Ext.isFunction(userFn)) {
+                userFn(btn);
+            }
+        };
+
+        // listeners show/hide : focus + keymap ENTER bloquant arrière-plan
+        cfg.listeners = cfg.listeners || {};
+        var prevShow = cfg.listeners.show;
+        cfg.listeners.show = function (mb) {
+            if (Ext.isFunction(prevShow)) {
+                prevShow(mb);
+            }
+            try {
+                mb.toFront();
+                mb.focus(false, 10);
+                if (mb.getEl) {
+                    mb.getEl().focus();
+                }
+            } catch (e) {
+            }
+
+            // bloque ENTER sur le body pendant la popup (évite que le champ produit capte ENTER)
+            try {
+                mb.__prioKeyMap = new Ext.util.KeyMap(Ext.getBody(), [{
+                        key: Ext.EventObject.ENTER,
+                        fn: function () {
+                            return false;
+                        },
+                        stopEvent: true
+                    }]);
+            } catch (e) {
+            }
+
+            // focus forcé sur le bouton "Oui"
+            Ext.defer(function () {
+                try {
+                    var yesBtn = mb.down && mb.down('button[itemId=yes]');
+                    if (yesBtn && yesBtn.focus) {
+                        yesBtn.focus(false, 10);
+                    }
+                } catch (e) {
+                }
+            }, 80);
+        };
+
+        var prevHide = cfg.listeners.hide;
+        cfg.listeners.hide = function (mb) {
+            if (Ext.isFunction(prevHide)) {
+                prevHide(mb);
+            }
+            // cleanup keymap
+            try {
+                if (mb && mb.__prioKeyMap) {
+                    mb.__prioKeyMap.destroy();
+                    mb.__prioKeyMap = null;
+                }
+            } catch (e) {
+            }
+            // sécurité réactivation
+            Ext.Array.each(comps, function (c) {
+                if (c && c.setDisabled) {
+                    c.setDisabled(false);
+                }
+            });
+        };
+
+        Ext.MessageBox.show(cfg);
+    }
+
+}
+);

@@ -1119,7 +1119,29 @@ public class SalesServiceImpl implements SalesService {
      * au comportement d'avant, plutot que de jouer la vente sur un emplacement arbitraire.
      */
     private TEmplacement depotDeVente(SalesParams salesParams) {
-        String depotId = salesParams == null ? null : salesParams.getDepotVenteId();
+        return depotExtension(salesParams == null ? null : salesParams.getDepotVenteId());
+    }
+
+    /**
+     * Emplacement a consulter pour une lecture de stock : le depot d'extension s'il est valide, l'emplacement de
+     * l'operateur sinon. Sert l'ecran de vente en depot, qui doit montrer le stock du depot et non celui de l'officine.
+     * Sans depot, la lecture est celle d'avant.
+     */
+    private String emplacementDeConsultation(String depotId) {
+        TEmplacement depot = depotExtension(depotId);
+        if (depot != null) {
+            return depot.getLgEMPLACEMENTID();
+        }
+        return this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+    }
+
+    /** Comme emplacementDeConsultation, mais rend l'entite : certains controles ont besoin du TEmplacement. */
+    private TEmplacement emplacementDeLecture(String depotId) {
+        TEmplacement depot = depotExtension(depotId);
+        return depot != null ? depot : this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+    }
+
+    private TEmplacement depotExtension(String depotId) {
         if (StringUtils.isBlank(depotId)) {
             return null;
         }
@@ -1132,7 +1154,7 @@ public class SalesServiceImpl implements SalesService {
             }
             return depot;
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "depotDeVente " + depotId, e);
+            LOG.log(Level.SEVERE, "depotExtension " + depotId, e);
             return null;
         }
     }
@@ -1215,9 +1237,14 @@ public class SalesServiceImpl implements SalesService {
      */
     @Override
     public JSONObject stockVendableProduit(String produitId) throws JSONException {
+        return stockVendableProduit(produitId, null);
+    }
+
+    @Override
+    public JSONObject stockVendableProduit(String produitId, String depotId) throws JSONException {
         JSONObject json = new JSONObject();
         try {
-            TEmplacement emplacement = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+            TEmplacement emplacement = emplacementDeLecture(depotId);
             TFamille famille = this.getEm().find(TFamille.class, produitId);
             if (famille == null) {
                 return json.put("success", false).put("msg", "Produit introuvable");
@@ -3382,7 +3409,12 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     public JSONObject produits(String produitId) throws JSONException {
-        String emplacementId = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        return produits(produitId, null);
+    }
+
+    @Override
+    public JSONObject produits(String produitId, String depotId) throws JSONException {
+        String emplacementId = emplacementDeConsultation(depotId);
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
@@ -3416,7 +3448,9 @@ public class SalesServiceImpl implements SalesService {
     public JSONObject produits(QueryDTO params, boolean all) throws JSONException {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
-        String emplacementId = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        // Le depot voyage sur le QueryDTO : l'ecran de vente en depot doit lister le stock du depot. Sans depot,
+        // c'est l'emplacement de l'operateur, comme avant.
+        String emplacementId = emplacementDeConsultation(params.getDepotVenteId());
         params.setEmplacementId(emplacementId);
         try {
 
