@@ -780,6 +780,8 @@ Ext.application({
         'VenteCtr',
         // Ecran « vente en depot » : duplication de l'ecran de vente, oriente « je suis dans le depot ».
         'VenteEnDepotCtr',
+        // Analyse Posos : l'ecran ne parle qu'au serveur, jamais a Posos directement.
+        'PososCtr',
         'PendingCtr',
         'PreVentesCtr',
         'ProduitDesactivesCtr',

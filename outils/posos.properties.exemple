@@ -1,0 +1,43 @@
+# =====================================================================
+# Configuration de la passerelle Posos - EXEMPLE
+# ---------------------------------------------------------------------
+# NE PAS mettre de vraies valeurs dans ce fichier : il est dans le depot
+# de code. C'est un modele a recopier sur le serveur, a l'emplacement
+#
+#     /opt/CONF/LABOREX/CONF/posos.properties
+#
+# a cote de la configuration du site, hors du depot. Les droits de ce
+# fichier doivent le reserver au compte de service (chmod 600).
+#
+# La passerelle lit sa configuration dans cet ordre de priorite :
+#   1. une variable d'environnement du serveur ;
+#   2. une propriete systeme de la JVM, de meme nom ;
+#   3. ce fichier.
+# Une variable d'environnement est donc preferable : elle ne laisse pas
+# le secret sur le disque.
+#
+# Rien de tout cela n'est expose au navigateur : le service
+# v1/posos/status ne rend que l'adresse, les chemins, l'identifiant
+# MASQUE et des booleans.
+# =====================================================================
+
+# Adresse de base de l'API, sans slash final.
+POSOS_API_URL=https://api.posos.example
+
+# Identifiants OAuth2 (client_credentials), fournis par Posos.
+POSOS_CLIENT_ID=a-renseigner
+POSOS_CLIENT_SECRET=a-renseigner
+
+# Chemins, a ajuster si Posos les nomme autrement.
+POSOS_TOKEN_PATH=/oauth/token
+POSOS_ANALYSIS_PATH=/v1/analysis
+
+# Facultatif : portee demandee au jeton.
+#POSOS_SCOPE=
+
+# Facultatif : identifiants en en-tete Basic (1, defaut) ou dans le
+# corps du formulaire (0).
+#POSOS_TOKEN_BASIC_AUTH=1
+
+# Facultatif : delai d'attente en millisecondes (defaut 15000).
+#POSOS_TIMEOUT_MS=15000
