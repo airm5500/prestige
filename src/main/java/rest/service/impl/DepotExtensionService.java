@@ -31,6 +31,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.report.ReportUtil;
+import rest.service.dto.DepotEmplacementLigneDTO;
 import rest.service.dto.DepotStockLigneDTO;
 
 /**
@@ -53,6 +54,9 @@ public class DepotExtensionService {
 
     /** Modele embarque : aucun fichier a poser sur les sites pour que l'edition fonctionne. */
     public static final String MODELE = "depot_stock";
+
+    /** Modele de l'edition de la valorisation ventilee par emplacement, egalement embarque. */
+    public static final String MODELE_EMPLACEMENT = "depot_valorisation_emplacement";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -106,25 +110,42 @@ public class DepotExtensionService {
         return e == null ? "" : StringUtils.defaultString(e.getStrNAME());
     }
 
-    private Query appliquer(Query q, String depotId, String recherche, String familleId) {
+    private Query appliquer(Query q, String depotId, DepotStockSql.Criteres c) {
         q.setParameter(DepotStockSql.P_DEPOT, depotId);
-        if (StringUtils.isNotBlank(recherche)) {
-            q.setParameter(DepotStockSql.P_RECHERCHE, "%" + recherche.trim() + "%");
+        if (StringUtils.isNotBlank(c.recherche)) {
+            q.setParameter(DepotStockSql.P_RECHERCHE, "%" + c.recherche.trim() + "%");
         }
-        if (StringUtils.isNotBlank(familleId)) {
-            q.setParameter(DepotStockSql.P_FAMILLE, familleId);
+        if (StringUtils.isNotBlank(c.familleId)) {
+            q.setParameter(DepotStockSql.P_FAMILLE, c.familleId);
+        }
+        if (StringUtils.isNotBlank(c.zoneGeoId)) {
+            q.setParameter(DepotStockSql.P_ZONE, c.zoneGeoId);
         }
         return q;
     }
 
+    /**
+     * Criteres de la valorisation, construits en un seul endroit.
+     *
+     * <p>
+     * « ALL » est la valeur que les combos de la maison envoient pour « Tous » : elle vaut absence de filtre, et la
+     * laisser passer telle quelle chercherait un identifiant de famille nomme ALL, donc zero ligne.
+     */
+    public static DepotStockSql.Criteres criteresDe(String recherche, String familleId, String zoneGeoId,
+            String filtreStock, boolean masquerLesZeros) {
+        return new DepotStockSql.Criteres(recherche, sansTous(familleId), sansTous(zoneGeoId), filtreStock,
+                masquerLesZeros);
+    }
+
+    private static String sansTous(String valeur) {
+        return StringUtils.isBlank(valeur) || "ALL".equalsIgnoreCase(valeur.trim()) ? null : valeur.trim();
+    }
+
     @SuppressWarnings("unchecked")
-    public List<DepotStockLigneDTO> lignes(String depotId, String recherche, String familleId, boolean seulementEnStock,
-            int start, int limit) {
+    public List<DepotStockLigneDTO> lignes(String depotId, DepotStockSql.Criteres criteres, int start, int limit) {
         List<DepotStockLigneDTO> out = new ArrayList<>();
         try {
-            Query q = appliquer(
-                    em.createNativeQuery(DepotStockSql.liste(recherche, familleId, seulementEnStock), Tuple.class),
-                    depotId, recherche, familleId);
+            Query q = appliquer(em.createNativeQuery(DepotStockSql.liste(criteres), Tuple.class), depotId, criteres);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
             }
@@ -142,11 +163,10 @@ public class DepotExtensionService {
         return out;
     }
 
-    public int compter(String depotId, String recherche, String familleId, boolean seulementEnStock) {
+    public int compter(String depotId, DepotStockSql.Criteres criteres) {
         try {
-            return ((Number) appliquer(
-                    em.createNativeQuery(DepotStockSql.comptage(recherche, familleId, seulementEnStock)), depotId,
-                    recherche, familleId).getSingleResult()).intValue();
+            return ((Number) appliquer(em.createNativeQuery(DepotStockSql.comptage(criteres)), depotId, criteres)
+                    .getSingleResult()).intValue();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "comptage du stock du depot " + depotId, e);
             return 0;
@@ -157,11 +177,10 @@ public class DepotExtensionService {
      * Valorisation calculee par la base sur TOUTES les lignes retenues : additionner la page affichee donnerait un
      * total faux des la deuxieme page.
      */
-    public JSONObject valorisation(String depotId, String recherche, String familleId, boolean seulementEnStock) {
+    public JSONObject valorisation(String depotId, DepotStockSql.Criteres criteres) {
         try {
-            Tuple t = (Tuple) appliquer(em
-                    .createNativeQuery(DepotStockSql.valorisation(recherche, familleId, seulementEnStock), Tuple.class),
-                    depotId, recherche, familleId).getSingleResult();
+            Tuple t = (Tuple) appliquer(em.createNativeQuery(DepotStockSql.valorisation(criteres), Tuple.class),
+                    depotId, criteres).getSingleResult();
             return new JSONObject().put("articles", entier(t.get("articles")))
                     .put("quantite", entier(t.get("quantite"))).put("valeurAchat", longueur(t.get("valeurAchat")))
                     .put("valeurVente", longueur(t.get("valeurVente")));
@@ -178,38 +197,55 @@ public class DepotExtensionService {
      * Le total du depot est joint a la ventilation : c'est ce qui permet de verifier d'un coup d'oeil que la somme des
      * lignes fait bien le total. Sans lui, une ligne oubliee passerait inapercue.
      */
-    public JSONObject valorisationParEmplacement(String depotId, String recherche, String familleId,
-            boolean seulementEnStock) {
+    public JSONObject valorisationParEmplacement(String depotId, DepotStockSql.Criteres criteres) {
         JSONArray lignes = new JSONArray();
         try {
             @SuppressWarnings("unchecked")
-            List<Tuple> resultats = appliquer(em.createNativeQuery(
-                    DepotStockSql.valorisationParEmplacement(recherche, familleId, seulementEnStock), Tuple.class),
-                    depotId, recherche, familleId).getResultList();
+            List<Tuple> resultats = appliquer(
+                    em.createNativeQuery(DepotStockSql.valorisationParEmplacement(criteres), Tuple.class), depotId,
+                    criteres).getResultList();
             for (Tuple t : resultats) {
                 lignes.put(new JSONObject()
                         .put("emplacement", StringUtils.defaultString(t.get("emplacement", String.class)))
                         .put("articles", entier(t.get("articles"))).put("quantite", entier(t.get("quantite")))
-                        .put("valeurAchat", longueur(t.get("valeurAchat")))
+                        // « unites » est le nom qui dit ce que c'est : la somme des QUANTITES du rayon, a ne pas
+                        // confondre avec « articles », qui compte les REFERENCES. « quantite » est conserve pour
+                        // ne rien casser de ce qui le lit deja.
+                        .put("unites", entier(t.get("quantite"))).put("valeurAchat", longueur(t.get("valeurAchat")))
                         .put("valeurVente", longueur(t.get("valeurVente"))));
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "valorisation par emplacement du depot " + depotId, e);
         }
         return new JSONObject().put("success", true).put("total", lignes.length()).put("data", lignes)
-                .put("valorisation", valorisation(depotId, recherche, familleId, seulementEnStock));
+                .put("valorisation", valorisation(depotId, criteres));
     }
 
-    public JSONObject stock(String depotId, String recherche, String familleId, boolean seulementEnStock, int start,
-            int limit) {
-        return new JSONObject().put("success", true)
-                .put("total", compter(depotId, recherche, familleId, seulementEnStock))
-                .put("valorisation", valorisation(depotId, recherche, familleId, seulementEnStock))
-                .put("data", new JSONArray(lignes(depotId, recherche, familleId, seulementEnStock, start, limit)));
+    /** Lignes de la ventilation par emplacement, pour l'edition : la meme chose que ce que l'ecran affiche. */
+    public List<DepotEmplacementLigneDTO> lignesParEmplacement(String depotId, DepotStockSql.Criteres criteres) {
+        List<DepotEmplacementLigneDTO> out = new ArrayList<>();
+        JSONObject reponse = valorisationParEmplacement(depotId, criteres);
+        JSONArray data = reponse.optJSONArray("data");
+        if (data == null) {
+            return out;
+        }
+        for (int i = 0; i < data.length(); i++) {
+            JSONObject l = data.getJSONObject(i);
+            out.add(new DepotEmplacementLigneDTO(l.optString("emplacement", ""), l.optInt("articles"),
+                    l.optInt("quantite"), l.optLong("valeurAchat"), l.optLong("valeurVente")));
+        }
+        return out;
+    }
+
+    public JSONObject stock(String depotId, DepotStockSql.Criteres criteres, int start, int limit) {
+        return new JSONObject().put("success", true).put("total", compter(depotId, criteres))
+                .put("valorisation", valorisation(depotId, criteres))
+                .put("data", new JSONArray(lignes(depotId, criteres, start, limit)));
     }
 
     /** Rappel des criteres : une edition sans ses criteres n'est pas relisible un mois plus tard. */
-    public String criteres(String depotId, String recherche, String familleLibelle, boolean seulementEnStock) {
+    public String criteres(String depotId, String recherche, String familleLibelle, String emplacementLibelle,
+            String filtreStock, boolean masquerLesZeros) {
         StringBuilder sb = new StringBuilder("Dépôt : ").append(nomDepot(depotId));
         if (StringUtils.isNotBlank(recherche)) {
             sb.append(" - Recherche : ").append(recherche.trim());
@@ -217,14 +253,26 @@ public class DepotExtensionService {
         if (StringUtils.isNotBlank(familleLibelle)) {
             sb.append(" - Famille : ").append(familleLibelle);
         }
-        // Meme formulation que la case a cocher de l'ecran : une edition doit se relire avec les memes
-        // mots que l'ecran qui l'a produite.
-        sb.append(seulementEnStock ? " - articles à 0 masqués" : " - tous les articles du référentiel");
+        if (StringUtils.isNotBlank(emplacementLibelle)) {
+            sb.append(" - Emplacement : ").append(emplacementLibelle);
+        }
+        // Memes mots que les controles de l'ecran : une edition doit se relire avec le vocabulaire de
+        // l'ecran qui l'a produite. Le filtre de stock l'emporte sur la case, comme dans le SQL.
+        String filtre = DepotStockSql.normaliserFiltre(filtreStock);
+        if (DepotStockSql.NEGATIF.equals(filtre)) {
+            sb.append(" - stock négatif seulement");
+        } else if (DepotStockSql.ZERO.equals(filtre)) {
+            sb.append(" - stock à zéro seulement");
+        } else if (DepotStockSql.POSITIF.equals(filtre)) {
+            sb.append(" - stock positif seulement");
+        } else {
+            sb.append(masquerLesZeros ? " - articles à 0 masqués" : " - tous les articles du référentiel");
+        }
         return sb.toString();
     }
 
-    public byte[] excel(String depotId, String recherche, String familleId, boolean seulementEnStock) {
-        List<DepotStockLigneDTO> data = lignes(depotId, recherche, familleId, seulementEnStock, 0, 0);
+    public byte[] excel(String depotId, DepotStockSql.Criteres criteres) {
+        List<DepotStockLigneDTO> data = lignes(depotId, criteres, 0, 0);
         try (Workbook classeur = new HSSFWorkbook(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             Sheet feuille = classeur.createSheet("Stock depot");
             int r = 0;
@@ -259,23 +307,43 @@ public class DepotExtensionService {
     }
 
     /** PDF rendu en memoire : servi en flux dans l'onglet ouvert par le clic, sans fichier temporaire. */
-    public byte[] pdf(TUser operateur, String depotId, String recherche, String familleId, String familleLibelle,
-            boolean seulementEnStock) throws JRException {
+    public byte[] pdf(TUser operateur, String depotId, DepotStockSql.Criteres criteres, String familleLibelle,
+            String emplacementLibelle) throws JRException {
+        return editer(operateur, MODELE, "STOCK DU DEPOT - " + nomDepot(depotId).toUpperCase(), criteres(depotId,
+                criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock, criteres.masquerLesZeros),
+                lignes(depotId, criteres, 0, 0));
+    }
+
+    /**
+     * Edition de la valorisation ventilee par emplacement (retour du 17/09 : « par emplacement, on doit pouvoir
+     * imprimer »). Meme en-tete, memes criteres et meme total que l'ecran : c'est la meme requete.
+     */
+    public byte[] pdfParEmplacement(TUser operateur, String depotId, DepotStockSql.Criteres criteres,
+            String familleLibelle, String emplacementLibelle) throws JRException {
+        return editer(operateur, MODELE_EMPLACEMENT,
+                "VALORISATION PAR EMPLACEMENT - " + nomDepot(depotId).toUpperCase(),
+                criteres(depotId, criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock,
+                        criteres.masquerLesZeros),
+                lignesParEmplacement(depotId, criteres));
+    }
+
+    /** PDF rendu en memoire : servi en flux dans l'onglet ouvert par le clic, sans fichier temporaire. */
+    private byte[] editer(TUser operateur, String modeleNom, String titre, String rappelCriteres, List<?> lignes)
+            throws JRException {
         Map<String, Object> parametres = new HashMap<>();
         try {
             parametres.putAll(reportUtil.officineData(operateur));
         } catch (RuntimeException e) {
-            LOG.log(Level.WARNING, "en-tete de l'officine indisponible pour le stock du depot", e);
+            LOG.log(Level.WARNING, "en-tete de l'officine indisponible pour l'edition du depot", e);
         }
-        parametres.put("P_TITRE", "STOCK DU DEPOT - " + nomDepot(depotId).toUpperCase());
-        parametres.put("P_CRITERES", criteres(depotId, recherche, familleLibelle, seulementEnStock));
+        parametres.put("P_TITRE", titre);
+        parametres.put("P_CRITERES", rappelCriteres);
 
-        JasperReport modele = reportUtil.compileFromClasspath(MODELE);
+        JasperReport modele = reportUtil.compileFromClasspath(modeleNom);
         if (modele == null) {
-            throw new JRException("Modele embarque " + MODELE + ".jrxml introuvable dans l'application");
+            throw new JRException("Modele embarque " + modeleNom + ".jrxml introuvable dans l'application");
         }
-        JasperPrint print = JasperFillManager.fillReport(modele, parametres,
-                new JRBeanCollectionDataSource(lignes(depotId, recherche, familleId, seulementEnStock, 0, 0)));
+        JasperPrint print = JasperFillManager.fillReport(modele, parametres, new JRBeanCollectionDataSource(lignes));
         try (ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             JRPdfExporter exporteur = new JRPdfExporter();
             exporteur.setExporterInput(new SimpleExporterInput(print));

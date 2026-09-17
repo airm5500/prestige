@@ -7,6 +7,10 @@
  * l'officine, distinguee par son emplacement. Les donnees existaient donc deja ; ce qui manquait, c'est de pouvoir
  * les consulter depot par depot, avec la valorisation de ce que le depot detient, et de l'emporter en Excel ou en PDF.
  *
+ * Cette vue est « Liste des articles » : le detail article par article. Sa jumelle, depotextensionemplacement,
+ * montre la meme chose ventilee par rayon. Les CRITERES ne sont pas ici mais dans la barre partagee de l'ecran
+ * (DepotExtensionManager) : les deux vues doivent regarder exactement le meme perimetre.
+ *
  * La valorisation affichee en haut vient du serveur et porte sur TOUTES les lignes retenues : additionner la page
  * affichee donnerait un total faux des la deuxieme page.
  */
@@ -17,11 +21,10 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionStock', 
      * qualifies par le seul xtype de l'ecran les rencontreraient tous. */
     xtype: 'depotextensionstock',
 
-    title: 'Valorisation',
+    title: 'Liste des articles',
     cls: 'custompanel',
     forceFit: true,
     columnLines: true,
-    viewConfig: { stripeRows: true, enableTextSelection: true },
 
     initComponent: function () {
         var me = this;
@@ -39,102 +42,46 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionStock', 
                 type: 'ajax',
                 url: '../api/v1/depot-extension/stock',
                 reader: { type: 'json', root: 'data', totalProperty: 'total' },
-                extraParams: { depotId: '', query: '', familleId: '', enStock: true },
+                extraParams: { depotId: '', query: '', familleId: '', zoneGeoId: '', filtreStock: 'TOUS',
+                    enStock: false },
                 timeout: 180000
             }
         });
 
-        me.depotStore = Ext.create('Ext.data.Store', {
-            fields: ['id', 'nom', 'localite', 'telephone', 'responsable'],
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/depot-extension/depots',
-                reader: { type: 'json', root: 'data', totalProperty: 'total' }
-            }
-        });
-
-        me.familleStore = Ext.create('Ext.data.Store', {
-            fields: ['id', 'libelle'],
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/common/famillearticles',
-                reader: { type: 'json', root: 'data', totalProperty: 'total' }
-            }
-        });
-
         Ext.apply(me, {
+            /*
+             * Couleurs demandees par l'officine : stock NEGATIF en rouge, stock A ZERO en violet.
+             *
+             * La classe est posee sur la LIGNE et non sur la seule cellule du stock : c'est l'article entier qui
+             * est en anomalie, et on doit le reperer en parcourant la colonne des designations. Les couleurs sont
+             * dans vente-theme.css, avec leur variante pour la ligne selectionnee - sans quoi la selection
+             * bleue effacerait l'information au moment meme ou l'on clique sur la ligne qui intrigue.
+             */
+            viewConfig: {
+                stripeRows: true,
+                enableTextSelection: true,
+                getRowClass: function (enregistrement) {
+                    var stock = enregistrement.get('stock');
+                    if (stock < 0) {
+                        return 'depot-stock-negatif';
+                    }
+                    if (stock === 0) {
+                        return 'depot-stock-zero';
+                    }
+                    return '';
+                }
+            },
             dockedItems: [{
-                    xtype: 'toolbar',
-                    dock: 'top',
-                    itemId: 'barreCriteres',
-                    items: [{
-                            xtype: 'textfield',
-                            itemId: 'recherche',
-                            flex: 1,
-                            emptyText: 'Rechercher (CIP ou désignation)...',
-                            enableKeyEvents: true
-                        }, {
-                            xtype: 'combobox',
-                            itemId: 'famille',
-                            fieldLabel: 'Famille',
-                            labelWidth: 55,
-                            width: 250,
-                            store: me.familleStore,
-                            valueField: 'id',
-                            displayField: 'libelle',
-                            queryMode: 'local',
-                            editable: false,
-                            emptyText: 'Toutes'
-                        }, {
-                            xtype: 'checkbox',
-                            itemId: 'enStock',
-                            // « détenus seulement » ne disait pas ce que fait la case, et cachait un cas : un
-                            // stock NEGATIF passe aussi le filtre. Le libellé décrit maintenant exactement
-                            // l'effet, et il est assez court pour la barre.
-                            boxLabel: 'masquer les articles à 0',
-                            checked: true,
-                            // Un depot partage le referentiel articles de l'officine : sans ce filtre, la liste
-                            // sortirait les milliers d'articles que le depot ne detient pas.
-                            tooltip: 'Cochée : seuls les articles dont le stock du dépôt n\'est pas zéro. '
-                                    + 'Un stock négatif reste visible, c\'est une anomalie à voir. '
-                                    + 'Décochée : tout le catalogue de l\'officine, pour saisir un article que '
-                                    + 'le dépôt ne détient pas encore.'
-                        }, {
-                            xtype: 'button',
-                            itemId: 'rechercher',
-                            text: 'Rechercher',
-                            iconCls: 'icon-find'
-                        }]
-                }, {
-                    xtype: 'toolbar',
-                    dock: 'top',
-                    itemId: 'barreActions',
-                    items: [{
-                            xtype: 'component',
-                            itemId: 'valorisation',
-                            flex: 1,
-                            cls: 'depot-valorisation',
-                            html: 'Choisissez un dépôt pour voir ce qu\'il détient.'
-                        }, {
-                            xtype: 'button',
-                            itemId: 'exporterExcel',
-                            text: 'Exporter Excel',
-                            iconCls: 'icon-excel',
-                            disabled: true
-                        }, {
-                            xtype: 'button',
-                            itemId: 'imprimer',
-                            text: 'Imprimer',
-                            iconCls: 'printable',
-                            disabled: true
-                        }]
-                }, {
                     xtype: 'pagingtoolbar',
                     dock: 'bottom',
                     store: me.store,
-                    displayInfo: true
+                    displayInfo: true,
+                    items: ['-', {
+                            xtype: 'component',
+                            itemId: 'legende',
+                            html: '<span class="depot-legende-negatif">stock négatif</span>'
+                                    + ' <span class="depot-legende-zero">stock à zéro</span>'
+                        }]
                 }],
 
             columns: [

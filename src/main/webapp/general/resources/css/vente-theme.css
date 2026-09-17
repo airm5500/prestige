@@ -1433,3 +1433,54 @@ body.x-body,
 .vp-champ-impose .x-form-trigger {
     display: none !important;
 }
+
+/* =====================================================================================
+ * « Gestion depots extensions » - liste des articles : stock negatif en ROUGE, stock a
+ * zero en VIOLET (retour du 17/09).
+ *
+ * La couleur est portee par la LIGNE et non par la seule cellule du stock : c'est
+ * l'article entier qui est en anomalie, et on doit le reperer en parcourant la colonne
+ * des designations. Trois precautions :
+ *
+ *  1. le selecteur descend jusqu'a .x-grid-cell-inner, sinon la couleur du theme, posee
+ *     plus bas dans la cascade, l'emporterait sur la couleur de la ligne ;
+ *  2. un fond tres pale accompagne la couleur du texte : sur un ecran de comptoir mal
+ *     regle, un rouge seul se distingue mal d'un noir ;
+ *  3. la ligne SELECTIONNEE garde sa couleur. Sans cette regle, cliquer sur la ligne qui
+ *     intrigue effacerait justement l'information que l'on venait verifier.
+ * ===================================================================================== */
+.depot-stock-negatif .x-grid-cell-inner {
+    color: #c0392b !important;
+    background-color: #fdf0ee;
+}
+.depot-stock-negatif.x-grid-item-selected .x-grid-cell-inner,
+.depot-stock-negatif.x-grid-row-selected .x-grid-cell-inner {
+    color: #96281b !important;
+    font-weight: bold;
+}
+.depot-stock-zero .x-grid-cell-inner {
+    color: #7b3fa0 !important;
+    background-color: #f6f0fa;
+}
+.depot-stock-zero.x-grid-item-selected .x-grid-cell-inner,
+.depot-stock-zero.x-grid-row-selected .x-grid-cell-inner {
+    color: #5b2e78 !important;
+    font-weight: bold;
+}
+
+/* Legende, au pied de la liste : une couleur sans legende se devine, elle ne se lit pas. */
+.depot-legende-negatif,
+.depot-legende-zero {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+}
+.depot-legende-negatif {
+    color: #c0392b;
+    background-color: #fdf0ee;
+}
+.depot-legende-zero {
+    color: #7b3fa0;
+    background-color: #f6f0fa;
+}

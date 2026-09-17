@@ -49,6 +49,29 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
             }
         });
 
+        /* Criteres partages par les deux vues : les stores vivent donc sur l'ecran, pas dans une grille. */
+        me.familleStore = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/famillearticles',
+                reader: { type: 'json', root: 'data', totalProperty: 'total' }
+            }
+        });
+
+        /* Le meme service que le filtre famille, cote emplacements : les rayons de l'officine
+         * (t_zone_geographique), avec l'entree « Tous » que le service ajoute lui-meme. */
+        me.emplacementStore = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/rayons',
+                reader: { type: 'json', root: 'data', totalProperty: 'total' }
+            }
+        });
+
         Ext.apply(me, {
             dockedItems: [{
                     xtype: 'toolbar',
@@ -100,24 +123,137 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                                     itemId: 'vues',
                                     layout: 'card',
                                     activeItem: 0,
+                                    /*
+                                     * Les criteres sont ICI, au-dessus des deux vues, et non dans l'une d'elles.
+                                     *
+                                     * Retour du 17/09 : « la recherche sur valorisation simple joue sur l'option par
+                                     * emplacement ». Tant que la barre de recherche vivait dans la grille des
+                                     * articles, elle disparaissait avec elle : passer en vue par emplacement faisait
+                                     * perdre de vue les criteres appliques, et rien ne permettait de les changer
+                                     * sans revenir en arriere. Un seul jeu de criteres, au-dessus, et les deux vues
+                                     * regardent forcement la meme chose.
+                                     */
                                     dockedItems: [{
+                                            xtype: 'toolbar',
+                                            dock: 'top',
+                                            itemId: 'barreCriteres',
+                                            items: [{
+                                                    xtype: 'textfield',
+                                                    itemId: 'recherche',
+                                                    flex: 1,
+                                                    minWidth: 160,
+                                                    emptyText: 'Rechercher (CIP ou désignation)...',
+                                                    enableKeyEvents: true
+                                                }, {
+                                                    xtype: 'combobox',
+                                                    itemId: 'famille',
+                                                    fieldLabel: 'Famille',
+                                                    labelWidth: 50,
+                                                    width: 210,
+                                                    store: me.familleStore,
+                                                    valueField: 'id',
+                                                    displayField: 'libelle',
+                                                    queryMode: 'local',
+                                                    editable: false,
+                                                    emptyText: 'Toutes'
+                                                }, {
+                                                    // « comme le filtre famille », demande de l'officine : meme
+                                                    // service de la maison (v1/common/rayons), meme presentation.
+                                                    xtype: 'combobox',
+                                                    itemId: 'emplacement',
+                                                    fieldLabel: 'Emplacement',
+                                                    labelWidth: 78,
+                                                    width: 250,
+                                                    store: me.emplacementStore,
+                                                    valueField: 'id',
+                                                    displayField: 'libelle',
+                                                    queryMode: 'local',
+                                                    editable: false,
+                                                    emptyText: 'Tous',
+                                                    tooltip: 'Rayon de l\'article (le dépôt, lui, est choisi en haut)'
+                                                }, {
+                                                    xtype: 'combobox',
+                                                    itemId: 'filtreStock',
+                                                    fieldLabel: 'Stock',
+                                                    labelWidth: 42,
+                                                    width: 170,
+                                                    valueField: 'id',
+                                                    displayField: 'libelle',
+                                                    queryMode: 'local',
+                                                    editable: false,
+                                                    value: 'TOUS',
+                                                    tooltip: 'Les trois choix autres que « tous » correspondent aux '
+                                                            + 'trois couleurs de la liste : rouge pour un stock '
+                                                            + 'négatif, violet pour un stock à zéro.',
+                                                    store: Ext.create('Ext.data.Store', {
+                                                        fields: ['id', 'libelle'],
+                                                        data: [
+                                                            { id: 'TOUS', libelle: 'Tous' },
+                                                            { id: 'NEGATIF', libelle: 'Négatif' },
+                                                            { id: 'ZERO', libelle: 'À zéro' },
+                                                            { id: 'POSITIF', libelle: 'Positif' }
+                                                        ]
+                                                    })
+                                                }, {
+                                                    xtype: 'checkbox',
+                                                    itemId: 'enStock',
+                                                    // « détenus seulement » ne disait pas ce que fait la case, et
+                                                    // cachait un cas : un stock NEGATIF passe aussi le filtre.
+                                                    boxLabel: 'masquer les articles à 0',
+                                                    // Decochee au depart (retour du 17/09) : l'officine veut voir
+                                                    // la liste complete en arrivant, y compris les articles a zero,
+                                                    // qui sont justement ceux qu'elle vient chercher en violet.
+                                                    checked: false,
+                                                    tooltip: 'Cochée : les articles dont le stock du dépôt est zéro '
+                                                            + 'sont masqués. Un stock négatif reste visible, c\'est '
+                                                            + 'une anomalie à voir. Sans effet quand un filtre de '
+                                                            + 'stock est choisi : c\'est alors lui qui décide.'
+                                                }, {
+                                                    xtype: 'button',
+                                                    itemId: 'rechercher',
+                                                    text: 'Rechercher',
+                                                    iconCls: 'icon-find'
+                                                }]
+                                        }, {
                                             xtype: 'toolbar',
                                             dock: 'top',
                                             itemId: 'barreVues',
                                             items: [{
                                                     xtype: 'button',
                                                     itemId: 'vueSimple',
-                                                    text: 'Valorisation simple',
+                                                    text: 'Liste des articles',
                                                     toggleGroup: 'vueValorisation',
                                                     allowDepress: false,
-                                                    pressed: true
+                                                    pressed: true,
+                                                    tooltip: 'Le détail article par article'
                                                 }, {
                                                     xtype: 'button',
                                                     itemId: 'vueEmplacement',
-                                                    text: 'Par emplacement',
+                                                    text: 'Valorisation par emplacement',
                                                     toggleGroup: 'vueValorisation',
                                                     allowDepress: false,
                                                     tooltip: 'Répartition par rayon de l\'article'
+                                                }, {
+                                                    xtype: 'component',
+                                                    itemId: 'valorisation',
+                                                    flex: 1,
+                                                    cls: 'depot-valorisation',
+                                                    html: 'Choisissez un dépôt pour voir ce qu\'il détient.'
+                                                }, {
+                                                    xtype: 'button',
+                                                    itemId: 'exporterExcel',
+                                                    text: 'Exporter Excel',
+                                                    iconCls: 'icon-excel',
+                                                    disabled: true
+                                                }, {
+                                                    // Une seule commande d'impression pour les deux vues : elle
+                                                    // edite CE QUI EST AFFICHE. « Par emplacement, on doit pouvoir
+                                                    // imprimer » - c'est la meme, avec son propre modele.
+                                                    xtype: 'button',
+                                                    itemId: 'imprimer',
+                                                    text: 'Imprimer',
+                                                    iconCls: 'printable',
+                                                    disabled: true
                                                 }]
                                         }],
                                     items: [

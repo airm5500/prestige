@@ -9,6 +9,14 @@
  *
  * Les articles sans rayon renseigné sont regroupés sous « Sans emplacement » plutôt que d'être perdus : leur
  * valeur compte dans le total du dépôt, la somme des lignes doit donc faire ce total.
+ *
+ * Deux grandeurs distinctes par ligne, et l'officine a eu raison de demander à quoi servait la seconde :
+ * RÉFÉRENCES compte les articles différents présents dans le rayon, UNITÉS additionne les quantités détenues.
+ * Un rayon peut porter 40 références pour 900 unités ; aucun des deux chiffres ne se déduit de l'autre, et c'est
+ * le second qui dit le volume à manipuler lors d'un inventaire.
+ *
+ * Les critères viennent de la barre partagée de l'écran : cette vue et la liste des articles regardent
+ * exactement le même périmètre, une recherche faite dans l'une valant pour l'autre.
  */
 Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionEmplacement', {
     extend: 'Ext.grid.Panel',
@@ -29,7 +37,7 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionEmplacem
         me.store = Ext.create('Ext.data.Store', {
             fields: ['emplacement',
                 { name: 'articles', type: 'int' },
-                { name: 'quantite', type: 'int' },
+                { name: 'unites', type: 'int' },
                 { name: 'valeurAchat', type: 'int' },
                 { name: 'valeurVente', type: 'int' }],
             autoLoad: false,
@@ -37,7 +45,8 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionEmplacem
                 type: 'ajax',
                 url: '../api/v1/depot-extension/valorisation-emplacement',
                 reader: { type: 'json', root: 'data', totalProperty: 'total' },
-                extraParams: { depotId: '', query: '', familleId: '', enStock: true },
+                extraParams: { depotId: '', query: '', familleId: '', zoneGeoId: '', filtreStock: 'TOUS',
+                    enStock: false },
                 timeout: 180000
             }
         });
@@ -46,9 +55,11 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionEmplacem
             store: me.store,
             columns: [
                 { text: 'EMPLACEMENT', dataIndex: 'emplacement', flex: 2 },
-                { text: 'ARTICLES', dataIndex: 'articles', width: 100, align: 'right',
+                { text: 'RÉFÉRENCES', dataIndex: 'articles', width: 110, align: 'right',
+                    tooltip: 'Nombre d\'articles différents présents dans ce rayon',
                     renderer: montant },
-                { text: 'QUANTITÉ', dataIndex: 'quantite', width: 110, align: 'right',
+                { text: 'UNITÉS', dataIndex: 'unites', width: 110, align: 'right',
+                    tooltip: 'Somme des quantités détenues dans ce rayon, toutes références confondues',
                     renderer: montant },
                 { text: 'VALEUR D\'ACHAT', dataIndex: 'valeurAchat', flex: 1, align: 'right',
                     renderer: montant },

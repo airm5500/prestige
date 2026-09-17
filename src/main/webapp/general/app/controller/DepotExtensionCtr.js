@@ -25,19 +25,24 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         { ref: 'depotEcran', selector: 'depotextension #depotEcran' },
         { ref: 'grilleStock', selector: 'depotextension depotextensionstock' },
         { ref: 'grilleEmplacement', selector: 'depotextension depotextensionemplacement' },
-        { ref: 'ongletCa', selector: 'depotextension depotextensionca' }
+        { ref: 'ongletCa', selector: 'depotextension depotextensionca' },
+        /* Criteres partages par les deux vues de la valorisation : ils vivent au-dessus d'elles. */
+        { ref: 'criteresBarre', selector: 'depotextension #barreCriteres' },
+        { ref: 'barreVues', selector: 'depotextension #barreVues' }
     ],
 
     init: function () {
         var me = this;
         me.control({
             'depotextension #depotEcran': { select: me.surChangementDepot },
-            'depotextension depotextensionstock combobox[itemId=famille]': { select: me.rechercher },
-            'depotextension depotextensionstock checkbox[itemId=enStock]': { change: me.rechercher },
-            'depotextension depotextensionstock button[itemId=rechercher]': { click: me.rechercher },
-            'depotextension depotextensionstock textfield[itemId=recherche]': { specialkey: me.surTouche },
-            'depotextension depotextensionstock button[itemId=exporterExcel]': { click: me.exporterExcel },
-            'depotextension depotextensionstock button[itemId=imprimer]': { click: me.imprimer },
+            'depotextension #barreCriteres combobox[itemId=famille]': { select: me.rechercher },
+            'depotextension #barreCriteres combobox[itemId=emplacement]': { select: me.rechercher },
+            'depotextension #barreCriteres combobox[itemId=filtreStock]': { select: me.surFiltreStock },
+            'depotextension #barreCriteres checkbox[itemId=enStock]': { change: me.rechercher },
+            'depotextension #barreCriteres button[itemId=rechercher]': { click: me.rechercher },
+            'depotextension #barreCriteres textfield[itemId=recherche]': { specialkey: me.surTouche },
+            'depotextension #barreVues button[itemId=exporterExcel]': { click: me.exporterExcel },
+            'depotextension #barreVues button[itemId=imprimer]': { click: me.imprimer },
             'depotextension #vueSimple': { click: me.montrerVueSimple },
             'depotextension #vueEmplacement': { click: me.montrerVueEmplacement },
             'depotextension depotextensionca button[itemId=caRechercher]': { click: me.chargerCa },
@@ -73,16 +78,48 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         return combo ? (combo.getRawValue() || '') : '';
     },
 
-    /** Critères courants de la valorisation, partagés par les deux vues et les deux éditions. */
+    /**
+     * Critères courants de la valorisation, lus à UN SEUL endroit : la barre partagée.
+     *
+     * C'est ce qui rend vrai le retour du 17/09 — « la recherche sur valorisation simple joue sur l'option par
+     * emplacement » : les deux vues, les deux éditions et l'export lisent la même fonction, il n'existe donc pas
+     * deux jeux de critères susceptibles de diverger.
+     *
+     * « ALL » est la valeur que les combos de la maison envoient pour « Tous » : elle vaut absence de filtre. Le
+     * serveur la neutralise aussi, mais autant ne pas l'envoyer.
+     */
     criteres: function () {
-        var stock = this.getGrilleStock();
-        var famille = stock ? stock.down('#famille').getValue() : '';
+        var barre = this.getCriteresBarre();
+        var valeur = function (selecteur) {
+            var champ = barre ? barre.down(selecteur) : null;
+            var v = champ ? champ.getValue() : '';
+            return (!v || v === 'ALL') ? '' : v;
+        };
+        var recherche = barre ? barre.down('#recherche') : null;
+        var filtre = barre && barre.down('#filtreStock') ? (barre.down('#filtreStock').getValue() || 'TOUS') : 'TOUS';
         return {
             depotId: this.depotId(),
-            query: stock ? (stock.down('#recherche').getValue() || '').trim() : '',
-            familleId: (!famille || famille === 'ALL') ? '' : famille,
-            enStock: (stock && stock.down('#enStock').getValue()) ? 'true' : 'false'
+            query: recherche ? (recherche.getValue() || '').trim() : '',
+            familleId: valeur('#famille'),
+            zoneGeoId: valeur('#emplacement'),
+            filtreStock: filtre,
+            enStock: (barre && barre.down('#enStock') && barre.down('#enStock').getValue()) ? 'true' : 'false'
         };
+    },
+
+    /**
+     * Le filtre de stock l'emporte sur la case « masquer les articles à 0 », et la case est grisée tant qu'il est
+     * posé : les deux se contrediraient sinon — masquer les zéros ET ne garder que les zéros ne ramènerait jamais
+     * rien, et l'utilisateur chercherait longtemps pourquoi sa liste est vide. Le SQL applique la même règle.
+     */
+    surFiltreStock: function () {
+        var barre = this.getCriteresBarre();
+        var filtre = barre && barre.down('#filtreStock') ? barre.down('#filtreStock').getValue() : 'TOUS';
+        var caseZero = barre ? barre.down('#enStock') : null;
+        if (caseZero) {
+            caseZero.setDisabled(filtre && filtre !== 'TOUS');
+        }
+        this.rechercher();
     },
 
     surChangementDepot: function () {
@@ -141,11 +178,21 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
     },
 
     majActions: function () {
-        var stock = this.getGrilleStock();
-        if (!stock) { return; }
+        var barre = this.getBarreVues();
+        if (!barre) { return; }
         var actif = !!this.depotId();
-        stock.down('#exporterExcel').setDisabled(!actif);
-        stock.down('#imprimer').setDisabled(!actif);
+        barre.down('#imprimer').setDisabled(!actif);
+        // L'export Excel ne vaut que pour la liste des articles : la ventilation par emplacement tient en
+        // quelques lignes, elle s'imprime. Le bouton suit donc la vue affichee.
+        barre.down('#exporterExcel').setDisabled(!actif || this.vueCourante() === 'depotextensionemplacement');
+    },
+
+    /** xtype de la vue de valorisation actuellement affichée. */
+    vueCourante: function () {
+        var ecran = this.getEcran();
+        var vues = ecran ? ecran.down('#vues') : null;
+        var courante = vues ? vues.getLayout().getActiveItem() : null;
+        return courante ? courante.getXType() : '';
     },
 
     rechercher: function () {
@@ -174,10 +221,7 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
 
     chargerVueValorisation: function () {
         var me = this;
-        var ecran = me.getEcran();
-        var vues = ecran ? ecran.down('#vues') : null;
-        var courante = vues ? vues.getLayout().getActiveItem() : null;
-        if (courante && courante.getXType() === 'depotextensionemplacement') {
+        if (me.vueCourante() === 'depotextensionemplacement') {
             me.chargerEmplacement();
         } else {
             me.chargerStock();
@@ -200,11 +244,20 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         grille.getStore().load();
     },
 
+    /*
+     * Passer d'une vue a l'autre RECHARGE la vue d'arrivee avec les criteres courants.
+     *
+     * C'est exactement le scenario decrit par l'officine : on cherche « doliprane » dans la liste des articles,
+     * on passe par emplacement et on ne doit voir que le rayon COMPRIMES ; on revient, on efface la recherche,
+     * et la vue par emplacement remontre tous les rayons. Comme les criteres sont partages, il suffit de
+     * recharger a l'arrivee - aucune synchronisation a maintenir entre deux jeux de critères.
+     */
     montrerVueSimple: function () {
         var ecran = this.getEcran();
         var vues = ecran ? ecran.down('#vues') : null;
         if (!vues) { return; }
         vues.getLayout().setActiveItem(0);
+        this.majActions();
         this.chargerStock();
     },
 
@@ -213,6 +266,7 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         var vues = ecran ? ecran.down('#vues') : null;
         if (!vues) { return; }
         vues.getLayout().setActiveItem(1);
+        this.majActions();
         this.chargerEmplacement();
     },
 
@@ -263,8 +317,8 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
     },
 
     majValorisation: function (valorisation, message) {
-        var stock = this.getGrilleStock();
-        var zone = stock ? stock.down('#valorisation') : null;
+        var barre = this.getBarreVues();
+        var zone = barre ? barre.down('#valorisation') : null;
         if (!zone) { return; }
         if (!valorisation) {
             zone.update(Ext.String.htmlEncode(message || 'Choisissez un dépôt pour voir ce qu\'il détient.'));
@@ -374,14 +428,38 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
 
     exporterExcel: function () {
         window.location = '../api/v1/depot-extension/stock/excel?'
-                + Ext.Object.toQueryString(this.criteres());
+                + Ext.Object.toQueryString(this.criteresEdition());
     },
 
-    /** PDF servi en flux : il s'ouvre une seule fois, dans l'onglet ouvert par le clic. */
-    imprimer: function () {
+    /**
+     * Critères de l'édition : ceux de l'écran, plus les LIBELLÉS des filtres choisis.
+     *
+     * Le rappel de critères imprimé doit se relire sans avoir l'écran sous les yeux : « Famille : SPECIALITES
+     * PUBLIQUES » se comprend, un identifiant technique non.
+     */
+    criteresEdition: function () {
         var criteres = this.criteres();
-        var stock = this.getGrilleStock();
-        criteres.familleLibelle = stock ? (stock.down('#famille').getRawValue() || '') : '';
-        window.open('../api/v1/depot-extension/stock/pdf?' + Ext.Object.toQueryString(criteres));
+        var barre = this.getCriteresBarre();
+        var brut = function (selecteur) {
+            var champ = barre ? barre.down(selecteur) : null;
+            var v = champ ? (champ.getRawValue() || '') : '';
+            return (v === 'Tous' || v === 'Toutes') ? '' : v;
+        };
+        criteres.familleLibelle = criteres.familleId ? brut('#famille') : '';
+        criteres.emplacementLibelle = criteres.zoneGeoId ? brut('#emplacement') : '';
+        return criteres;
+    },
+
+    /**
+     * PDF servi en flux : il s'ouvre une seule fois, dans l'onglet ouvert par le clic.
+     *
+     * Une seule commande pour les deux vues : elle édite CE QUI EST AFFICHÉ. « Par emplacement, on doit pouvoir
+     * imprimer » — c'est le même bouton, avec le modèle de la vue courante.
+     */
+    imprimer: function () {
+        var chemin = this.vueCourante() === 'depotextensionemplacement'
+                ? '../api/v1/depot-extension/valorisation-emplacement/pdf?'
+                : '../api/v1/depot-extension/stock/pdf?';
+        window.open(chemin + Ext.Object.toQueryString(this.criteresEdition()));
     }
 });
