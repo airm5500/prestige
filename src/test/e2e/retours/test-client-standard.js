@@ -22,6 +22,11 @@ const TEL = '0708473750';
 const TEL2 = '0508473751';
 
 function nettoyer() {
+  // Le client saisi entierement au clavier est retire lui aussi. Son compte client d'abord : la cle
+  // etrangere refuserait l'inverse.
+  exec("DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN"
+    + " (SELECT lg_CLIENT_ID FROM t_client WHERE str_FIRST_NAME='E2ECS-CLAVIER');"
+    + "DELETE FROM t_client WHERE str_FIRST_NAME='E2ECS-CLAVIER';");
   exec("DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE str_FIRST_NAME LIKE '" + NOM + "%');"
     + "DELETE FROM t_client WHERE str_FIRST_NAME LIKE '" + NOM + "%';"
     + "DELETE FROM t_client WHERE str_TELEPHONE IN ('" + TEL + "', '" + TEL2 + "') AND str_LAST_NAME LIKE 'E2E%';");
@@ -205,6 +210,127 @@ function nettoyer() {
     }, NOM + '-A');
     ok('La recherche par numéro retrouve le client, et la grille affiche son téléphone',
       !!trouve.ligne && trouve.ligne.tel === TEL, JSON.stringify(trouve));
+
+    /* ---------- retour du 17/09 : Entree ENCHAINE les champs, et l animation de la vente ----------
+     *
+     * Joue au CLAVIER, comme au comptoir : on tape, on appuie sur Entree, on regarde ou va le focus. Un test
+     * qui appellerait focus() en JavaScript ne prouverait rien de l enchainement. */
+    await ouvrir();
+    const focusCourant = () => p.evaluate(() => {
+      const w = Ext.ComponentQuery.query('addclientstandard')[0];
+      if (!w) { return null; }
+      const actif = document.activeElement;
+      const trouve = ['nom', 'prenoms', 'telephone'].filter((id) => {
+        const c = w.down('#' + id);
+        return c && c.inputEl && c.inputEl.dom === actif;
+      });
+      const bouton = w.down('#enregistrer');
+      if (trouve.length) { return trouve[0]; }
+      if (bouton && bouton.el && bouton.el.dom.contains(actif)) { return 'bouton'; }
+      return 'autre';
+    });
+
+    await p.waitForFunction(() => {
+      const w = Ext.ComponentQuery.query('addclientstandard')[0];
+      const c = w && w.down('#nom');
+      return c && c.inputEl && c.inputEl.dom === document.activeElement;
+    }, null, { timeout: 15000 });
+    ok('À l ouverture, le curseur est dans le champ Nom', await focusCourant() === 'nom');
+
+    await p.keyboard.type('E2ECS-CLAVIER', { delay: 20 });
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(400);
+    ok('Entrée depuis le Nom passe aux Prénoms', await focusCourant() === 'prenoms',
+      String(await focusCourant()));
+
+    await p.keyboard.type('Awa', { delay: 20 });
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(400);
+    ok('Entrée depuis les Prénoms passe au Téléphone', await focusCourant() === 'telephone',
+      String(await focusCourant()));
+
+    await p.keyboard.type('0708473777', { delay: 20 });
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(400);
+    ok('Entrée depuis le Téléphone passe au bouton Enregistrer', await focusCourant() === 'bouton',
+      String(await focusCourant()));
+
+    /* Rien ne doit s etre enregistre : le bouton est une ETAPE, pas un raccourci. */
+    ok('Arriver sur le bouton n enregistre rien : la fenêtre est toujours ouverte',
+      (await etatFenetre()).ouverte === true);
+    ok('Et aucun client n a encore été créé',
+      q("SELECT COUNT(*) FROM t_client WHERE str_FIRST_NAME='E2ECS-CLAVIER'") === '0');
+
+    /* L animation : celle de l ecran de vente, verifiee dans le style calcule et non dans le code. */
+    const animation = await p.evaluate(() => {
+      const w = Ext.ComponentQuery.query('addclientstandard')[0];
+      const bouton = w.down('#enregistrer');
+      const champ = w.down('#telephone');
+      return {
+        zone: String(w.el.dom.className).indexOf('vp-focus-zone') >= 0,
+        boutonPret: String(bouton.el.dom.className).indexOf('vp-bouton-pret') >= 0,
+        animationBouton: getComputedStyle(bouton.el.dom).animationName,
+        /* La regle de l ecran de vente est LUE DANS LA FEUILLE DE STYLE, et non en focalisant un champ
+         * temporaire : une premiere version de ce controle creait un input, le focalisait puis le
+         * retirait - ce qui volait le focus au bouton et faisait echouer la frappe d Entree suivante.
+         * Le test se trompait, pas le produit. */
+        regleChamp: (function () {
+          const cible = '.vp-focus-zone .x-form-field:not(.x-form-checkbox):focus';
+          for (let i = 0; i < document.styleSheets.length; i++) {
+            let regles;
+            try { regles = document.styleSheets[i].cssRules; } catch (e) { continue; }
+            if (!regles) { continue; }
+            for (let j = 0; j < regles.length; j++) {
+              if (regles[j].selectorText === cible) {
+                return regles[j].style.animationName || regles[j].style.animation || '';
+              }
+            }
+          }
+          return '';
+        }())
+      };
+    });
+    ok('La fenêtre porte la zone d animation de l écran de vente', animation.zone === true,
+      JSON.stringify(animation));
+    ok('Le champ actif y bat comme dans la vente (vp-focus-beat)',
+      /vp-focus-beat/.test(animation.regleChamp), JSON.stringify(animation));
+    ok('Le bouton Enregistrer bat quand le focus l atteint (vp-bouton-beat)',
+      animation.boutonPret === true && animation.animationBouton === 'vp-bouton-beat',
+      JSON.stringify(animation));
+
+    /* Une seconde frappe d Entree, sur le bouton, enregistre. */
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(4500);
+    ok('Entrée sur le bouton enregistre le client', (await etatFenetre()).ouverte === false,
+      JSON.stringify(await etatFenetre()));
+    ok('Le client saisi entièrement au clavier est bien créé',
+      q("SELECT CONCAT(str_FIRST_NAME,'|',str_LAST_NAME,'|',str_TELEPHONE) FROM t_client"
+        + " WHERE str_FIRST_NAME='E2ECS-CLAVIER'") === 'E2ECS-CLAVIER|Awa|0708473777');
+
+    /* Revenir dans un champ eteint le battement du bouton : deux battements ne diraient plus ou l on est.
+     *
+     * La creation precedente a recharge la grille des clients : on attend que ce rechargement soit fini
+     * avant de rouvrir la fenetre, sinon l evaluation suivante tombe pendant le remplacement du contenu. */
+    await p.waitForTimeout(2500);
+    await ouvrir();
+    await p.waitForTimeout(1000);
+    const battement = await p.evaluate(() => {
+      const w = Ext.ComponentQuery.query('addclientstandard')[0];
+      const b = w.down('#enregistrer');
+      w.donnerLeFocusAuBouton();
+      const surLeBouton = String(b.el.dom.className).indexOf('vp-bouton-pret') >= 0;
+      w.down('#nom').focus();
+      return { surLeBouton: surLeBouton,
+        apresRetourDansLeChamp: String(b.el.dom.className).indexOf('vp-bouton-pret') >= 0 };
+    });
+    ok('Le battement s allume sur le bouton et s éteint dès qu on revient dans un champ',
+      battement.surLeBouton === true && battement.apresRetourDansLeChamp === false,
+      JSON.stringify(battement));
+    await p.evaluate(() => {
+      const w = Ext.ComponentQuery.query('addclientstandard')[0];
+      if (w) { w.close(); }
+    });
+    await p.waitForTimeout(800);
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err.slice(0, 3)));
   } catch (e) {
