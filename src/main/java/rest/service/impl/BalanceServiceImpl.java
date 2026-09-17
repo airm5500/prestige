@@ -508,7 +508,33 @@ public class BalanceServiceImpl implements BalanceService {
      * gardent leur predicat tel quel - elles n'ont pas de « p » a interroger.
      */
     private String appliquerPerimetreDeVente(String sql, BalanceParamsDTO balanceParams) {
-        return PerimetreVenteSql.appliquer(sql, estDepotExtension(balanceParams.getEmplacementId()));
+        String emplacementId = balanceParams.getEmplacementId();
+        boolean depot = estDepotExtension(emplacementId);
+        return PerimetreVenteSql.appliquer(sql, depot, depot && desMouvementsSurCeMagasin(emplacementId));
+    }
+
+    /**
+     * Vrai s'il existe au moins un mouvement de caisse portant cet emplacement comme magasin.
+     *
+     * <p>
+     * C'est le cas d'un utilisateur rattache au depot, qui encaisse sur place. Quand il ne s'en est jamais produit - la
+     * situation courante, ou toutes les ventes du depot viennent de l'officine - la branche correspondante est retiree
+     * du perimetre : un OR entre deux tables empeche l'usage de l'index (lg_EMPLACEMENT_ID, createdAt), et l'officine a
+     * mesure 6,8 secondes pour un depot sans aucune vente.
+     *
+     * <p>
+     * Le controle est une lecture indexee bornee a une ligne. Rien n'est perdu : si un tel mouvement existe, ne
+     * serait-ce qu'un seul et ancien, la branche est conservee.
+     */
+    private boolean desMouvementsSurCeMagasin(String emplacementId) {
+        try {
+            return !em.createNativeQuery("SELECT 1 FROM mvttransaction m WHERE m.lg_EMPLACEMENT_ID = ?1 LIMIT 1")
+                    .setParameter(1, emplacementId).getResultList().isEmpty();
+        } catch (Exception e) {
+            // Dans le doute on garde la branche : mieux vaut une requete lente qu'un chiffre incomplet.
+            LOG.log(Level.SEVERE, "controle des mouvements du magasin " + emplacementId, e);
+            return true;
+        }
     }
 
     /** Vrai si l'emplacement demande est un depot d'extension (t_typedepot = 2), faux pour l'officine. */

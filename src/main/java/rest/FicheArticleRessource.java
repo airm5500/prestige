@@ -768,8 +768,12 @@ public class FicheArticleRessource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         try {
-            java.util.List<commonTasks.dto.ArticleDTO> articles = ficheArticleService.comparaisonStock(tu, query,
-                    filtreStock, filtreSeuil, codeFamile, codeRayon, codeGrossiste, stock, seuil, 0, 0, true);
+            // Sans enrichissement : cette edition n'affiche ni consommation, ni bon de livraison, ni
+            // inventaire, ni derniere vente. Les demander coutait SIX requetes par article - 327 secondes de
+            // blocage constatees chez l'officine sur un catalogue entier.
+            java.util.List<commonTasks.dto.ArticleDTO> articles = ficheArticleService
+                    .comparaisonStockSansEnrichissement(tu, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
+                            codeGrossiste, stock, seuil);
             byte[] pdf = stockReserveEditionService.editer(tu, "COMPARAISON DE STOCK - RAYON, RESERVE ET TOTAL",
                     criteresComparaison(query, codeFamile, codeRayon, codeGrossiste),
                     stockReserveEditionService.lignesComparaison(articles));

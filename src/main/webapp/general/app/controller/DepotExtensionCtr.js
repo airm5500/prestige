@@ -58,6 +58,8 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         }
         me.rappeler('Choisissez un dépôt.');
         me.majActions();
+        // Des l'affichage : la saisie de vente part d'un depot vide et d'un titre sans nom de depot.
+        me.imposerLeDepotALaVente();
     },
 
     /** Identifiant du dépôt choisi pour l'écran, ou chaîne vide. */
@@ -96,32 +98,39 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         me.viderCa();
         me.rappeler('');
         me.majActions();
-        me.prerenseignerLaVente();
+        me.imposerLeDepotALaVente();
         me.rechargerOngletCourant();
     },
 
     /**
-     * Prérenseigne le dépôt dans la saisie de vente, sans dispenser de le confirmer : la vente le redemande à
-     * chaque fois, et son contrôleur refuse toute saisie tant qu'il n'est pas posé.
+     * Impose à la saisie de vente le dépôt choisi en haut de l'écran.
+     *
+     * Le dépôt appartient à l'écran : dans l'onglet de vente il n'est plus saisissable, il est affiché en
+     * lecture seule et grisé. Deux retours de l'officine viennent de là — le dépôt disparaissait, encadré de
+     * rouge, après chaque vente validée, et le titre gardait le nom d'un dépôt précédent alors que plus rien
+     * n'était choisi. Un reflet ne peut ni disparaître ni retarder.
+     *
+     * Passer une valeur vide est volontairement permis : c'est ce qui remet le champ ET le titre à zéro quand
+     * on désélectionne le dépôt en haut.
      */
-    prerenseignerLaVente: function () {
-        var ecran = this.getEcran();
+    imposerLeDepotALaVente: function () {
+        var me = this;
+        var ecran = me.getEcran();
         if (!ecran) { return; }
         var combo = ecran.down('doventeendepot #depotVente');
-        var id = this.depotId();
-        if (!combo || combo.isDestroyed || !id) { return; }
+        if (!combo || combo.isDestroyed) { return; }
+        var ctr = me.application.getController('VenteEnDepotCtr');
+        var id = me.depotId();
         var poser = function () {
-            if (combo.getStore().findExact('id', id) >= 0) {
-                combo.setValue(id);
-                var ctr = Ext.ComponentQuery.query('doventeendepot').length
-                        ? this.application.getController('VenteEnDepotCtr') : null;
-                if (ctr) { ctr.onDepotVenteSelect(combo); }
-            }
+            if (!ctr || combo.isDestroyed) { return; }
+            ctr.imposerLeDepot(id && combo.getStore().findExact('id', id) >= 0 ? id : null);
         };
-        if (combo.getStore().getCount() === 0) {
-            combo.getStore().on('load', poser, this, { single: true });
+        // Le store des dépôts de la vente peut ne pas être encore chargé : on attend, une seule fois.
+        if (id && combo.getStore().getCount() === 0) {
+            combo.getStore().on('load', poser, me, { single: true });
+            combo.getStore().load();
         } else {
-            poser.call(this);
+            poser();
         }
     },
 
@@ -217,7 +226,7 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         if (id === 'ongletValorisation') {
             me.chargerVueValorisation();
         } else if (id === 'ongletVente') {
-            me.prerenseignerLaVente();
+            me.imposerLeDepotALaVente();
         }
         // L'onglet Chiffre d'affaires ne se charge pas tout seul : la période est à choisir.
     },

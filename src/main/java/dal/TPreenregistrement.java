@@ -177,8 +177,14 @@ public class TPreenregistrement implements Serializable {
      * l'utilisateur de la vente, comme avant l'introduction de ce champ. A ne pas confondre avec pkBrand, qui designe
      * le depot CLIENT d'une vente a un depot.
      */
+    /*
+     * PARESSEUSE, et ce n'est pas un detail : @ManyToOne est EAGER par defaut, et mvttransaction charge eagerement sa
+     * vente. Laissee eager, cette association ajoutait UN SELECT PAR VENTE a tout le monde - ticket Z, balance,
+     * journaux. Mesure sur 300 ventes : 2,1 a 4,4 s pour un ticket Z qui doit etre instantane. Personne n'a besoin de
+     * cet emplacement au chargement : il est lu a la demande.
+     */
     @JoinColumn(name = "lg_EMPLACEMENT_VENTE_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
-    @ManyToOne
+    @ManyToOne(fetch = javax.persistence.FetchType.LAZY)
     private TEmplacement emplacementVente;
     @JoinColumn(name = "lg_REGLEMENT_ID", referencedColumnName = "lg_REGLEMENT_ID")
     @ManyToOne

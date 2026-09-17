@@ -186,6 +186,53 @@ function poser() {
         return !!v && !!v.down('#typeVente') && !!v.down('#contenu');
       }));
 
+    /* ------------------------------------------- le dépôt de la vente est un REFLET de l écran
+     * Deux retours de l'officine : le titre gardait le nom d'un dépôt précédent alors que plus rien n'était
+     * choisi, et le dépôt disparaissait, encadré de rouge, après chaque vente validée. */
+    const etatVente = () => p.evaluate(() => {
+      const v = Ext.ComponentQuery.query('depotextension doventeendepot')[0];
+      const cv = v.down('#depotVente');
+      return { titre: v.title, valeur: cv.getValue(), lectureSeule: cv.readOnly === true,
+        enErreur: !cv.isValid(), grise: !!(cv.el && cv.el.hasCls('vp-champ-impose')) };
+    });
+
+    let ev = await etatVente();
+    ok('Le dépôt de la vente est en lecture seule : il vient de l écran, il ne se saisit pas ici',
+      ev.lectureSeule === true && ev.grise === true, JSON.stringify(ev));
+    ok('Il porte le dépôt choisi en haut, et le titre le nomme',
+      ev.valeur === DEPOT && ev.titre.indexOf(NOM) >= 0, JSON.stringify(ev));
+    ok('Il n est jamais en erreur : ce n est plus une saisie, c est un rappel', ev.enErreur === false);
+
+    // remise à zéro, comme après une vente validée
+    await p.evaluate(() => {
+      const ctr = testextjs.app.getController('VenteEnDepotCtr');
+      ctr.current = null;
+      ctr.resetAll();
+    });
+    await p.waitForTimeout(1500);
+    ev = await etatVente();
+    ok('Après une vente validée, le dépôt en cours est CONSERVÉ et reste grisé',
+      ev.valeur === DEPOT && ev.lectureSeule === true && ev.enErreur === false, JSON.stringify(ev));
+    ok('Et le titre nomme toujours le dépôt', ev.titre.indexOf(NOM) >= 0, ev.titre);
+
+    // on désélectionne en haut : le titre ne doit plus nommer aucun dépôt
+    await p.evaluate(() => {
+      Ext.ComponentQuery.query('depotextension #depotEcran')[0].setValue(null);
+      testextjs.app.getController('DepotExtensionCtr').imposerLeDepotALaVente();
+    });
+    await p.waitForTimeout(1800);
+    ev = await etatVente();
+    ok('Sans dépôt choisi, le titre n en nomme aucun : il ne retarde jamais',
+      !ev.valeur && ev.titre.indexOf(NOM) < 0 && ev.titre.indexOf('VENTE EN D') >= 0, JSON.stringify(ev));
+
+    // on le remet pour la suite
+    await p.evaluate((d) => {
+      const c = Ext.ComponentQuery.query('depotextension #depotEcran')[0];
+      const rec = c.getStore().findRecord('id', d);
+      c.setValue(d); c.fireEvent('select', c, [rec]);
+    }, DEPOT);
+    await p.waitForTimeout(2000);
+
     /* ------------------------------------------- l onglet chiffre d affaires */
     await p.evaluate(() => {
       Ext.ComponentQuery.query('depotextension #onglets')[0].setActiveTab(2);

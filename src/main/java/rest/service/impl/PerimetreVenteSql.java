@@ -40,7 +40,23 @@ public final class PerimetreVenteSql {
      *            vrai si l'emplacement demande est un depot d'extension
      */
     public static String clause(String clauseMagasin, String parametre, boolean depot) {
+        return clause(clauseMagasin, parametre, depot, true);
+    }
+
+    /**
+     * @param magasinPossible
+     *            faux quand aucun mouvement de caisse ne porte ce depot comme magasin. La branche correspondante est
+     *            alors retiree : elle ne peut rien ramener, et un OR entre deux tables empeche l'usage des index.
+     *            Mesure de l'officine : 6,8 secondes pour un depot sans aucune vente, faute de pouvoir utiliser l'index
+     *            (lg_EMPLACEMENT_ID, createdAt).
+     */
+    public static String clause(String clauseMagasin, String parametre, boolean depot, boolean magasinPossible) {
         if (depot) {
+            if (!magasinPossible) {
+                // Le cas courant : aucun utilisateur n'est rattache au depot, toutes ses ventes viennent de
+                // l'officine. Une egalite simple sur une colonne indexee, donc immediate.
+                return " " + COLONNE + " = " + parametre + " ";
+            }
             return " (" + clauseMagasin + " OR " + COLONNE + " = " + parametre + ") ";
         }
         return " " + clauseMagasin + " AND " + COLONNE + " IS NULL ";
@@ -59,13 +75,17 @@ public final class PerimetreVenteSql {
      * rendue telle quelle : elle n'a pas de « p » a interroger.
      */
     public static String appliquer(String sql, boolean depot) {
+        return appliquer(sql, depot, true);
+    }
+
+    public static String appliquer(String sql, boolean depot, boolean magasinPossible) {
         if (sql == null || !sql.contains("t_preenregistrement")) {
             return sql;
         }
         String resultat = sql;
         for (String[] predicat : PREDICATS) {
             if (resultat.contains(predicat[0])) {
-                resultat = resultat.replace(predicat[0], clause(predicat[0], predicat[1], depot));
+                resultat = resultat.replace(predicat[0], clause(predicat[0], predicat[1], depot, magasinPossible));
             }
         }
         return resultat;

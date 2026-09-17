@@ -2022,21 +2022,58 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     /**
-     * Ventile la part des encaissements de cet operateur qui vient d'une vente jouee dans un depot d'extension.
+     * Ventile, par caissier et par depot, la part des encaissements qui vient d'une vente jouee dans un depot
+     * d'extension. UNE seule requete pour tout le ticket.
      *
      * <p>
-     * L'argent de ces ventes est dans le tiroir de l'operateur, et il est donc bien compte dans les totaux du ticket Z.
-     * Mais le chiffre d'affaires, lui, appartient au depot : sans cette ligne, l'operateur verrait un total qu'il ne
-     * saurait pas rattacher. On ne touche a aucun total - on ajoute une lecture.
+     * La premiere version parcourait les entites ({@code mvt.getPreenregistrement().getEmplacementVente()}), ce qui
+     * forcait un chargement par vente : mesure sur 300 ventes, 2 a 4 secondes pour un ticket Z qui doit etre
+     * instantane, et bien davantage sur une vraie journee. L'agregat ci-dessous coute une requete, quel que soit le
+     * nombre de ventes.
+     *
+     * <p>
+     * L'argent de ces ventes est dans le tiroir du caissier et compte donc dans ses totaux : on ne touche a aucun
+     * total, on ajoute une lecture.
      */
-    private void releverVenteEnDepot(TicketZDTO ticket, MvtTransaction mvt) {
+    private void ventilerVentesEnDepot(Set<TicketZDTO> tickets, Params params) {
+        if (tickets == null || tickets.isEmpty()) {
+            return;
+        }
         try {
-            if (mvt.getPreenregistrement() == null || mvt.getPreenregistrement().getEmplacementVente() == null) {
-                return;
+            StringBuilder sql = new StringBuilder("SELECT m.caisse AS caissier, e.str_NAME AS depot,"
+                    + " COALESCE(SUM(m.montantRegle), 0) AS montant" + " FROM mvttransaction m"
+                    + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.pkey"
+                    + " JOIN t_emplacement e ON e.lg_EMPLACEMENT_ID = p.lg_EMPLACEMENT_VENTE_ID"
+                    + " WHERE m.createdAt BETWEEN ?1 AND ?2 AND m.checked = TRUE"
+                    + " AND m.lg_EMPLACEMENT_ID = ?3 AND m.typeTransaction IN (?4, ?5)");
+            boolean unSeulUtilisateur = StringUtils.isNotEmpty(params.getUserId()) && !"ALL".equals(params.getUserId());
+            if (unSeulUtilisateur) {
+                sql.append(" AND m.caisse = ?6");
             }
-            dal.TEmplacement depot = mvt.getPreenregistrement().getEmplacementVente();
-            Integer regle = mvt.getMontantRegle();
-            ticket.ajouterVenteEnDepot(depot.getStrNAME(), regle == null ? 0L : regle.longValue());
+            sql.append(" GROUP BY m.caisse, e.str_NAME");
+            LocalDateTime debut = LocalDate.parse(params.getDtStart(), DateTimeFormatter.ISO_DATE)
+                    .atTime(LocalTime.parse(params.getHrStart()));
+            LocalDateTime fin = LocalDate.parse(params.getDtEnd(), DateTimeFormatter.ISO_DATE)
+                    .atTime(LocalTime.parse(params.getHrEnd().concat(":59")));
+            javax.persistence.Query q = getEntityManager().createNativeQuery(sql.toString(), Tuple.class)
+                    .setParameter(1, java.sql.Timestamp.valueOf(debut)).setParameter(2, java.sql.Timestamp.valueOf(fin))
+                    .setParameter(3, params.getOperateur().getLgEMPLACEMENTID().getLgEMPLACEMENTID())
+                    .setParameter(4, TypeTransaction.VENTE_COMPTANT.ordinal())
+                    .setParameter(5, TypeTransaction.VENTE_CREDIT.ordinal());
+            if (unSeulUtilisateur) {
+                q.setParameter(6, params.getUserId());
+            }
+            for (Object o : q.getResultList()) {
+                Tuple t = (Tuple) o;
+                String caissier = t.get("caissier", String.class);
+                String depot = t.get("depot", String.class);
+                Number montant = (Number) t.get("montant");
+                for (TicketZDTO ticket : tickets) {
+                    if (ticket.getUserId() != null && ticket.getUserId().equals(caissier)) {
+                        ticket.ajouterVenteEnDepot(depot, montant == null ? 0L : montant.longValue());
+                    }
+                }
+            }
         } catch (Exception e) {
             // Une ventilation illisible ne doit jamais empecher l'edition du ticket Z : le caissier doit
             // pouvoir fermer sa caisse.
@@ -2047,7 +2084,6 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private void computeVenteTicketZDataByUser(TicketZDTO ticket, List<MvtTransaction> list) {
 
         for (MvtTransaction b : list) {
-            releverVenteEnDepot(ticket, b);
             if (b.getTypeTransaction() == TypeTransaction.VENTE_CREDIT) {
                 ticket.setTotalCredit(ticket.getTotalCredit() + b.getMontantCredit());
             }
@@ -2344,7 +2380,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
                 });
 
-        return tickes.stream().collect(Collectors.toSet());
+        Set<TicketZDTO> resultat = tickes.stream().collect(Collectors.toSet());
+        // Ventilation « dont vente depot » : UNE requete pour tout le ticket, une fois les
+        // caissiers connus. Jamais dans la boucle des mouvements, ce serait un chargement par vente.
+        ventilerVentesEnDepot(resultat, params);
+        return resultat;
 
     }
 

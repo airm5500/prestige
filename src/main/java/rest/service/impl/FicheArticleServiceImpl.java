@@ -738,10 +738,34 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         }
     }
 
+    /**
+     * Comparaison de stock sans aucune lecture ligne a ligne : on rend les articles retenus avec leurs stocks rayon et
+     * reserve, et rien d'autre.
+     *
+     * <p>
+     * L'enrichissement de comparaisonStock (consommation des six derniers mois, bons de livraison, inventaires,
+     * derniere vente) coute SIX requetes PAR ARTICLE. Sur un catalogue entier cela fait des dizaines de milliers de
+     * requetes : l'officine a vu l'edition de la reserve bloquer un fil HTTP pendant 327 secondes. Cette edition
+     * n'affiche aucun de ces champs - elle ne doit donc pas les payer.
+     */
+    @Override
+    public List<ArticleDTO> comparaisonStockSansEnrichissement(TUser u, String query, MargeEnum filtreStock,
+            MargeEnum filtreSeuil, String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) {
+        return comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon, codeGrossiste, stock, seuil,
+                0, 0, true, false);
+    }
+
     @Override
     public List<ArticleDTO> comparaisonStock(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
             String codeFamile, String codeRayon, String codeGrossiste, int qty, int seuil, int start, int limit,
             boolean all) {
+        return comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon, codeGrossiste, qty, seuil,
+                start, limit, all, true);
+    }
+
+    private List<ArticleDTO> comparaisonStock(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
+            String codeFamile, String codeRayon, String codeGrossiste, int qty, int seuil, int start, int limit,
+            boolean all, boolean enrichir) {
 
         try {
             final String emId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
@@ -784,6 +808,10 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             // avecStockReserve : une seule requete pour toute la page (ou tout l'export), plutot qu'une
             // lecture par ligne. Le stock deja porte par resultList est le stock RAYON.
             List<ArticleDTO> resultList = avecStockReserve(typedQuery.getResultList(), emId);
+            if (!enrichir) {
+                // Aucune lecture ligne a ligne : c'est tout l'objet de cette variante.
+                return resultList;
+            }
             if (all) {
                 return resultList.stream().map(x -> {
                     Map<String, Integer> conso = consomationArticle(x.getId() + "", emId, 6);

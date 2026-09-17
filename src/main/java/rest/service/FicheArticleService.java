@@ -96,6 +96,18 @@ public interface FicheArticleService {
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil, int start, int limit,
             boolean all);
 
+    /**
+     * Meme comparaison, mais SANS l'enrichissement ligne a ligne (consommation des six derniers mois, bons de
+     * livraison, inventaires, derniere vente).
+     *
+     * <p>
+     * Cet enrichissement coute SIX requetes par article : sur un catalogue entier il en fait des dizaines de milliers,
+     * et l'officine a vu une edition bloquer un fil HTTP pendant 327 secondes. Les editions qui n'ont besoin que des
+     * stocks et des prix passent par ici.
+     */
+    List<ArticleDTO> comparaisonStockSansEnrichissement(TUser u, String query, MargeEnum filtreStock,
+            MargeEnum filtreSeuil, String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil);
+
     Date getDateDerniereVente(String idProduit, String empl);
 
     Date getDateEntreeStock(String idProduit);

@@ -4357,15 +4357,19 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         me.getMontantRecu().setValue(0);
         me.getUserCombo().clearValue();
         me.getUserCombo().setValue(null);
-        // Le depot est redemande a chaque vente : on ne veut pas enchainer sur le depot precedent sans
-        // l'avoir voulu. C'est la portee choisie par l'officine.
-        me.depotVente = null;
-        var depotCombo = me.getDepotVenteCombo();
-        if (depotCombo && !depotCombo.isDestroyed) {
-            depotCombo.clearValue();
-            depotCombo.setValue(null);
+        // Embarque, le depot appartient a l'ecran : on le GARDE apres la vente, et il reste grise. L'effacer
+        // faisait disparaitre le depot en cours, encadre de rouge, apres chaque vente validee.
+        if (!me.estEmbarque()) {
+            // Ecran autonome : le depot est redemande a chaque vente, pour ne pas enchainer sur le precedent
+            // sans l'avoir voulu.
+            me.depotVente = null;
+            var depotCombo = me.getDepotVenteCombo();
+            if (depotCombo && !depotCombo.isDestroyed) {
+                depotCombo.clearValue();
+                depotCombo.setValue(null);
+            }
+            me.orienterLecturesSurLeDepot();
         }
-        me.orienterLecturesSurLeDepot();
         me.getVnobtnCloture().enable();
         if (me.getInfosClientStandard().isVisible()) {
             me.resetClientLambdaInfos();
@@ -6873,11 +6877,57 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
      * Contexte depot : propre a cet ecran.
      * ================================================================================ */
 
+    /**
+     * Vrai quand l'ecran de vente est embarque dans « Gestion depots extensions ». Le depot est alors choisi une
+     * fois en haut de cet ecran et ne se saisit plus ici : le champ n'en est que le reflet, en lecture seule.
+     *
+     * Deux retours de l'officine viennent de la : le depot disparaissait, encadre de rouge, apres chaque vente
+     * validee, et le titre gardait le nom d'un depot precedent alors que plus rien n'etait choisi.
+     */
+    estEmbarque: function () {
+        var ecran = this.getDoventeendepot();
+        return !!(ecran && ecran.up && ecran.up('depotextension'));
+    },
+
     /** Identifiant du depot choisi, ou null. Source unique de verite pour tout l'ecran. */
     depotIdDeVente: function () {
         var combo = this.getDepotVenteCombo();
         var valeur = combo ? combo.getValue() : null;
         return valeur ? valeur : null;
+    },
+
+    /**
+     * Pose le depot decide par l'ecran porteur : valeur, verrouillage, lectures de stock et titre. Passer une
+     * valeur vide remet le champ a zero ET retire le nom du titre, pour qu'il ne garde jamais un depot qui
+     * n'est plus choisi.
+     */
+    imposerLeDepot: function (depotId) {
+        var me = this;
+        var combo = me.getDepotVenteCombo();
+        if (!combo || combo.isDestroyed) {
+            return;
+        }
+        // Lecture seule plutot que desactive : un champ desactive n'affiche plus lisiblement sa valeur, et
+        // l'officine veut voir sur quel depot elle saisit.
+        combo.setReadOnly(true);
+        combo.addCls('vp-champ-impose');
+        // Plus d'encadrement rouge : le champ n'est plus une saisie, c'est un rappel. « allowBlank: false »
+        // le faisait passer en erreur des qu'il etait vide, ce que l'officine voyait apres chaque vente.
+        combo.allowBlank = true;
+        combo.clearInvalid();
+        combo.emptyText = 'Dépôt à choisir en haut de l\'écran';
+        if (combo.inputEl) {
+            combo.applyEmptyText();
+        }
+        if (depotId) {
+            combo.setValue(depotId);
+            me.depotVente = depotId;
+        } else {
+            combo.setValue(null);
+            me.depotVente = null;
+        }
+        me.orienterLecturesSurLeDepot();
+        me.resetTitle(me.getSafeComboValue('getTypeVenteCombo', '1'));
     },
 
     /**

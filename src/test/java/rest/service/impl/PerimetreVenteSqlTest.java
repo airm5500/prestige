@@ -49,6 +49,39 @@ public class PerimetreVenteSqlTest {
     }
 
     @Test
+    public void quandAucunMouvementNePorteLeDepotLaBrancheInutileEstRetiree() {
+        // Retour de l'officine : 6,8 secondes pour un depot SANS AUCUNE vente. Le OR entre deux tables
+        // empechait l'usage des index - EXPLAIN donnait un balayage complet de table (type=ALL, aucune cle).
+        // Quand aucun mouvement de caisse ne porte ce depot comme magasin, la branche correspondante ne peut
+        // rien ramener : on la retire, et il reste une egalite sur colonne indexee.
+        String clause = PerimetreVenteSql.clause("m.lg_EMPLACEMENT_ID = ?2", "?2", true, false);
+
+        assertFalse(clause.contains("OR"), clause);
+        assertFalse(clause.contains("m.lg_EMPLACEMENT_ID"), clause);
+        assertTrue(clause.contains("p.`lg_EMPLACEMENT_VENTE_ID` = ?2"), clause);
+    }
+
+    @Test
+    public void desQuUnMouvementPorteLeDepotLaBrancheEstConservee() {
+        // Un seul mouvement, meme ancien, suffit : on ne perd jamais d'historique pour aller plus vite.
+        String clause = PerimetreVenteSql.clause("m.lg_EMPLACEMENT_ID = ?2", "?2", true, true);
+
+        assertTrue(clause.contains("OR"), clause);
+        assertTrue(clause.contains("m.lg_EMPLACEMENT_ID = ?2"), clause);
+        assertTrue(clause.contains("p.`lg_EMPLACEMENT_VENTE_ID` = ?2"), clause);
+    }
+
+    @Test
+    public void lePerimetreDeLOfficineNeDependPasDeCeControle() {
+        // L'officine retire toujours les ventes de depot, que des mouvements portent un depot ou non.
+        String avec = PerimetreVenteSql.clause("m.lg_EMPLACEMENT_ID = ?2", "?2", false, true);
+        String sans = PerimetreVenteSql.clause("m.lg_EMPLACEMENT_ID = ?2", "?2", false, false);
+
+        assertEquals(avec, sans);
+        assertTrue(avec.contains(OFFICINE), avec);
+    }
+
+    @Test
     public void uneRequeteSansVenteResteIntacte() {
         // Achats et autres mouvements de caisse n'ont pas de vente a leur cote : ils n'ont pas de « p ».
         String sql = "SELECT SUM(m.montant) FROM mvttransaction m WHERE m.`typeTransaction` =2"
