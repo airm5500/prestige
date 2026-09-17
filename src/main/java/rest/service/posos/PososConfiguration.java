@@ -207,6 +207,93 @@ public final class PososConfiguration {
         return d;
     }
 
+    /**
+     * Modele de configuration, ecrit dans le fichier cree au deploiement. Les valeurs sont VIDES : un secret ne se
+     * trouve ni dans Git ni dans un fichier livre. Les commentaires disent quoi mettre, et ou.
+     */
+    static final String MODELE = "# =====================================================================\n"
+            + "# Configuration de la passerelle Posos.\n"
+            + "# ---------------------------------------------------------------------\n"
+            + "# Ce fichier a ete cree automatiquement au deploiement parce qu'il\n"
+            + "# n'existait pas encore. Il est VIDE de toute valeur : renseignez les\n"
+            + "# trois premieres lignes avec les identifiants fournis par Posos, puis\n"
+            + "# redemarrez l'application.\n" + "#\n"
+            + "# Ce fichier n'est jamais ecrase : une fois renseigne, il reste tel quel\n"
+            + "# a tous les deploiements suivants.\n" + "#\n"
+            + "# Les droits de ce fichier doivent le reserver au compte de service : il\n" + "# porte un secret.\n"
+            + "#\n" + "# La passerelle lit sa configuration dans cet ordre de priorite :\n"
+            + "#   1. une variable d'environnement du serveur ;\n"
+            + "#   2. une propriete systeme de la JVM, de meme nom ;\n" + "#   3. ce fichier.\n"
+            + "# Une variable d'environnement est preferable : elle ne laisse pas le\n" + "# secret sur le disque.\n"
+            + "#\n" + "# Rien de tout cela n'est expose au navigateur : le service\n"
+            + "# v1/posos/status ne rend que l'adresse, les chemins, l'identifiant\n"
+            + "# MASQUE et des booleans. L'ecran Analyse Posologie affiche le chemin\n"
+            + "# exact de ce fichier et dit s'il est present.\n"
+            + "# =====================================================================\n" + "\n"
+            + "# Adresse de base de l'API, sans slash final. Exemple : https://api.posos.co\n"
+            + PososConfiguration.CLE_URL + "=\n" + "\n"
+            + "# Identifiants OAuth2 (client_credentials), fournis par Posos.\n" + PososConfiguration.CLE_CLIENT_ID
+            + "=\n" + PososConfiguration.CLE_CLIENT_SECRET + "=\n" + "\n"
+            + "# Chemins, a ajuster si Posos les nomme autrement.\n" + PososConfiguration.CLE_TOKEN_PATH + "="
+            + TOKEN_PATH_DEFAUT + "\n" + PososConfiguration.CLE_ANALYSIS_PATH + "=" + ANALYSIS_PATH_DEFAUT + "\n" + "\n"
+            + "# Facultatif : portee demandee au jeton.\n" + "#" + PososConfiguration.CLE_SCOPE + "=\n" + "\n"
+            + "# Facultatif : identifiants en en-tete Basic (1, defaut) ou dans le corps\n" + "# du formulaire (0).\n"
+            + "#" + PososConfiguration.CLE_BASIC + "=1\n" + "\n"
+            + "# Facultatif : delai d'attente en millisecondes (defaut " + DELAI_DEFAUT_MS + ").\n" + "#"
+            + PososConfiguration.CLE_DELAI + "=" + DELAI_DEFAUT_MS + "\n";
+
+    /**
+     * Cree {@code posos.properties} au deploiement s'il n'existe pas, dans le dossier de {@code dicisms.properties} -
+     * exactement comme l'application cree ce dernier a son premier demarrage.
+     *
+     * <p>
+     * Retour de l'officine : « je ne le vois nulle part ». Attendre de l'exploitant qu'il recopie un modele depuis le
+     * depot de code ne marche pas : le fichier doit apparaitre tout seul, a l'endroit ou l'ecran dit qu'il le cherche,
+     * avec les bonnes cles et les explications dedans.
+     *
+     * <p>
+     * Un fichier DEJA PRESENT n'est jamais touche, quel que soit son contenu : la configuration du site ne doit pas
+     * etre effacee par un deploiement. Rien n'est ecrit non plus quand l'emplacement a ete impose par
+     * {@code POSOS_CONFIG_FILE} : l'exploitant a alors choisi lui-meme ou se trouve le fichier.
+     *
+     * @return le chemin du fichier cree, ou {@code null} si rien n'a ete ecrit
+     */
+    public static Path creerModeleSiAbsent() {
+        if (System.getenv(CLE_FICHIER) != null || System.getProperty(CLE_FICHIER) != null) {
+            return null;
+        }
+        try {
+            return creerModeleSiAbsent(util.StockageDisque.fichierConfiguration(NOM_FICHIER));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Configuration Posos non creee : " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Meme chose sur un fichier donne. Separee pour etre verifiable sans ecrire dans le dossier de configuration de la
+     * machine qui fait tourner les tests.
+     */
+    static Path creerModeleSiAbsent(Path fichier) {
+        try {
+            if (fichier == null || Files.exists(fichier)) {
+                return null;
+            }
+            Path dossier = fichier.getParent();
+            if (dossier != null) {
+                Files.createDirectories(dossier);
+            }
+            Files.write(fichier, MODELE.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1));
+            LOG.log(Level.INFO, "Configuration Posos creee, a renseigner : {0}", fichier);
+            return fichier;
+        } catch (Exception e) {
+            // Un fichier de configuration qu'on n'a pas pu creer n'empeche pas l'application de demarrer :
+            // la passerelle se declare simplement « non configuree », et l'ecran dit ou deposer le fichier.
+            LOG.log(Level.WARNING, "Configuration Posos non creee : " + e.getMessage());
+            return null;
+        }
+    }
+
     /** Chemin du fichier de configuration effectivement consulte, pour que l'ecran puisse le dire. */
     public String fichierAttendu() {
         String choisi = lire(CLE_FICHIER);

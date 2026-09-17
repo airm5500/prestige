@@ -466,10 +466,15 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     iconCls: 'printable',
                     handler: this.onPrintClick
                 }, '-', {
+                    // Retour du 17/09 (point 5) : cet import cree lui aussi des clients en masse.
+                    // Il passe donc sous le meme privilege que l'import « colonnes au choix »
+                    // (P_IMPORT_CLIENTS). Le service ws_transaction.jsp le reverifie : masquer un
+                    // bouton n'est pas un controle d'acces.
                     text: 'Importer',
                     tooltip: 'Importer',
                     id: 'btn_import',
                     iconCls: 'importicon',
+                    hidden: true, // visible seulement avec le privilege, voir plus bas
                     scope: this,
                     handler: this.onbtnimport
                 }, {
@@ -561,10 +566,15 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             method: 'GET',
             success: function (response) {
                 var objet = Ext.JSON.decode(response.responseText, true);
-                var bouton = ecran.down('#btnImportClientStandard');
-                if (objet && objet.authorize === true && bouton) {
-                    bouton.show();
-                }
+                var autorise = !!(objet && objet.authorize === true);
+                // Les DEUX imports de clients suivent le meme privilege : l'un sans l'autre
+                // laisserait une porte ouverte sur la meme operation.
+                Ext.Array.each(['#btnImportClientStandard', '#btn_import'], function (selecteur) {
+                    var bouton = ecran.down(selecteur);
+                    if (bouton && autorise) {
+                        bouton.show();
+                    }
+                });
             }
         });
     },

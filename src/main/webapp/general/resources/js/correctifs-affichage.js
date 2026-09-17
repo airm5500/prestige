@@ -379,9 +379,49 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
         return true;
     }
 
+    /*
+     * Jamais d'exception vers l'appelant : cette fonction est abonnee au redimensionnement de
+     * la fenetre, et une exception y empechait le viewport de suivre la fenetre (section 6).
+     * Le correctif de la section 6 isole deja les ecouteurs ; on ne compte pas dessus pour
+     * autant - un ecran mal en point ne doit pas retracter la page entiere.
+     */
     function ajusterPuisVerifier() {
-        if (ajuster()) {
-            Ext.Function.defer(ajuster, 50);
+        try {
+            if (ajuster()) {
+                Ext.Function.defer(function () {
+                    try {
+                        ajuster();
+                    } catch (e) {
+                        signalerAjustement(e);
+                    }
+                }, 50);
+            }
+        } catch (erreur) {
+            signalerAjustement(erreur);
+        }
+    }
+
+    function signalerAjustement(erreur) {
+        try {
+            if (window.console && console.error) {
+                console.error('[Prestige] ajustement de l\'ecran colle impossible : '
+                        + (panneau.getXType ? panneau.getXType() : ''), erreur);
+            }
+        } catch (e) {
+        }
+        try {
+            if (window.__prestigeSupport && window.__prestigeSupport.signaler) {
+                window.__prestigeSupport.signaler({
+                    type: 'JS',
+                    niveau: 'ERROR',
+                    module: 'FRONTEND',
+                    messageCourt: ('Ajustement de l\'ecran colle impossible : '
+                            + (erreur && erreur.message ? erreur.message : String(erreur))).substring(0, 500),
+                    urlOuEcran: (panneau.getXType ? panneau.getXType() : '').substring(0, 255),
+                    stack: erreur && erreur.stack ? String(erreur.stack).substring(0, 8000) : null
+                });
+            }
+        } catch (e) {
         }
     }
 
@@ -560,6 +600,143 @@ window.PrestigeAffichage.resynchroniserMiseEnPage = (function () {
     return resynchroniser;
 }());
 
+/*
+ * =====================================================================================
+ * 6) LA PAGE "SE REDUIT" ET NE SUIT PLUS LA FENETRE (bande blanche a droite)
+ *
+ * Symptome constate par l'officine, capture a l'appui : la page entiere se retracte, le
+ * contenu garde une ancienne largeur et une large bande blanche apparait a droite. Plus
+ * aucun redimensionnement n'est pris en compte, jusqu'au rechargement (F5). C'est le
+ * defaut qui revenait "malgre toutes les corrections" des sections 4 et 5.
+ *
+ * Cause, reproduite et mesuree au banc, dans le source d'ExtJS 4.2 (Ext.util.Event.fire) :
+ * tous les ecouteurs de redimensionnement de fenetre sont appeles dans une simple boucle,
+ * SANS try/catch. Si l'un d'eux leve une exception, la boucle est abandonnee : les
+ * ecouteurs suivants ne sont jamais appeles. Or l'ecouteur du viewport - celui qui donne
+ * sa nouvelle taille a toute l'application - est le DERNIER de la liste :
+ *
+ *     1. masque de chargement   2. resynchronisation (section 5)
+ *     3. ecran colle (section 3)   4. VIEWPORT  <-- le seul qui redimensionne la page
+ *
+ * Mesure, fenetre passee de 1200 a 1700 px avec un ecouteur fautif en tete de liste :
+ *
+ *     fenetre 1700 | viewport 1700 (etire par le CSS) | panneau de contenu 1167  <-- fige
+ *
+ * Soit 533 px de bande blanche, exactement la capture recue. Et le defaut est DEFINITIF :
+ * Ext.EventManager.fireResize memorise la nouvelle taille (curWidth/curHeight) AVANT de
+ * declencher les ecouteurs. La taille etant deja notee, aucun nouvel evenement ne sera
+ * emis pour cette largeur ; il faut recharger la page. Le drapeau "firing" de l'evenement
+ * reste lui aussi bloque a true.
+ *
+ * C'est different des sections 4 et 5 : le moteur de mise en page va bien, sa memoire est
+ * juste - personne ne lui a simplement DIT que la fenetre avait change de taille. Aucun de
+ * nos deux correctifs ne pouvait donc voir ce defaut. Pire : nos propres correctifs y
+ * exposent, puisque chaque ecran colle (section 3) ajoute son ecouteur AVANT celui du
+ * viewport ; une exception dans l'ajustement d'un seul ecran figeait toute l'application.
+ *
+ * Correctif : les ecouteurs de redimensionnement sont isoles les uns des autres. Chacun
+ * est appele dans son propre try/catch ; celui qui echoue est journalise (console et
+ * Centre de Support, avec sa pile d'appels) et les autres - le viewport en premier lieu -
+ * recoivent tout de meme la nouvelle taille. Le drapeau "firing" est toujours remis a
+ * plat. La semantique d'ExtJS est conservee : un ecouteur qui renvoie false interrompt
+ * toujours la chaine, et l'ordre des appels ne change pas.
+ *
+ * Portee volontairement minuscule : la substitution porte sur le SEUL objet evenement du
+ * redimensionnement de fenetre (Ext.EventManager.resizeEvent), pas sur Ext.util.Event.
+ * Tout le reste du framework continue de fonctionner a l'identique.
+ */
+window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
+    'use strict';
+
+    var EventManager = Ext.EventManager,
+        evenement;
+
+    if (!EventManager || !EventManager.onWindowResize) {
+        return false;
+    }
+    // resizeEvent n'est cree qu'au premier abonnement : on s'assure qu'il existe.
+    EventManager.onWindowResize(Ext.emptyFn);
+    evenement = EventManager.resizeEvent;
+    if (!evenement || evenement.fire.isolationPrestige) {
+        return false;
+    }
+
+    function journaliser(erreur, ecouteur) {
+        var origine = '';
+        try {
+            origine = String(ecouteur && ecouteur.fn ? ecouteur.fn : '').replace(/\s+/g, ' ').substring(0, 120);
+        } catch (e) {
+        }
+        var message = 'LAYOUT: ecouteur de redimensionnement en erreur, ignore : '
+                + (erreur && erreur.message ? erreur.message : String(erreur));
+        try {
+            if (window.console && console.error) {
+                console.error('[Prestige] ' + message + ' - les autres ecouteurs ont bien ete appeles',
+                        origine, erreur);
+            }
+        } catch (e) {
+        }
+        try {
+            if (window.__prestigeSupport && window.__prestigeSupport.signaler) {
+                window.__prestigeSupport.signaler({
+                    type: 'JS',
+                    niveau: 'ERROR',
+                    module: 'FRONTEND',
+                    messageCourt: ('Redimensionnement : ecouteur en erreur, ignore ('
+                            + (erreur && erreur.message ? erreur.message : String(erreur))
+                            + ')').substring(0, 500),
+                    urlOuEcran: origine.substring(0, 255),
+                    stack: erreur && erreur.stack ? String(erreur.stack).substring(0, 8000) : null
+                });
+            }
+        } catch (e) {
+        }
+    }
+
+    evenement.fire = function () {
+        var me = this,
+            // copie : un ecouteur peut se desabonner pendant l'appel (un ecran detruit)
+            ecouteurs = me.listeners ? me.listeners.slice(0) : [],
+            nombre = ecouteurs.length,
+            args = arguments.length ? Array.prototype.slice.call(arguments, 0) : [],
+            longueur = args.length,
+            arret = false,
+            i,
+            ecouteur;
+
+        if (me.suspended || nombre === 0) {
+            return true;
+        }
+        me.firing = true;
+        try {
+            for (i = 0; i < nombre; i++) {
+                ecouteur = ecouteurs[i];
+                if (!ecouteur || !ecouteur.fireFn) {
+                    continue;
+                }
+                if (ecouteur.o) {
+                    args[longueur] = ecouteur.o;
+                }
+                try {
+                    if (ecouteur.fireFn.apply(ecouteur.scope || me.observable, args) === false) {
+                        arret = true;
+                        break;
+                    }
+                } catch (erreur) {
+                    journaliser(erreur, ecouteur);
+                }
+            }
+        } finally {
+            // Toujours remis a plat : laisse a true, il fait recopier la liste des ecouteurs
+            // a chaque abonnement et desabonnement pour le reste de la session.
+            me.firing = false;
+        }
+        return !arret;
+    };
+    evenement.fire.isolationPrestige = true;
+    return true;
+};
+
 /**
  * Ecrans concernes, par leur xtype.
  *
@@ -658,6 +835,13 @@ Ext.onReady(function () {
 
     corrigerInfobulles();
     corrigerBoitesDeMessage();
+
+    // ---------------------------------------------------------------------------------
+    // 6) un ecouteur de redimensionnement fautif ne doit plus empecher le viewport de
+    //    suivre la fenetre (cf. l'explication detaillee plus haut). Pose AVANT nos
+    //    propres abonnements ci-dessous, pour qu'ils soient deja isoles.
+    // ---------------------------------------------------------------------------------
+    window.PrestigeAffichage.isolerEcouteursRedimensionnement();
 
     // ---------------------------------------------------------------------------------
     // 5) rabat apres redimensionnement (cf. l'explication detaillee plus haut)

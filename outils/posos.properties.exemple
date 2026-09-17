@@ -1,8 +1,15 @@
 # =====================================================================
-# Configuration de la passerelle Posos - EXEMPLE
+# Configuration de la passerelle Posos - EXEMPLE (pour memoire)
+# ---------------------------------------------------------------------
+# Depuis le 17/09, ce fichier n a plus a etre recopie a la main :
+# l application CREE elle-meme posos.properties au deploiement s il
+# n existe pas, dans le meme dossier que dicisms.properties, avec les
+# memes cles et des valeurs vides. Il suffit de l ouvrir et de le
+# renseigner. L ecran « Analyse Posologie » affiche son chemin exact.
+# Ce modele reste ici pour documentation.
 # ---------------------------------------------------------------------
 # NE PAS mettre de vraies valeurs dans ce fichier : il est dans le depot
-# de code. C'est un modele a recopier sur le serveur, sous le nom
+# de code. C est un modele a recopier sur le serveur, sous le nom
 #
 #     posos.properties
 #

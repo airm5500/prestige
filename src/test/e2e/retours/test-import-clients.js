@@ -107,6 +107,26 @@ const connexion = async (p, login) => {
     ok('Le service d import refuse ce profil même appelé directement',
       /ne permet pas d.importer/.test(refus), refus.slice(0, 200));
 
+    /* Retour du 17/09 (point 5) : l import HISTORIQUE cree les memes clients en masse. Il suit
+     * desormais le meme privilege - le bouton ET le service. */
+    const historiqueCache = await p.evaluate(() => {
+      const btn = Ext.getCmp('btn_import');
+      return btn ? btn.isHidden() : null;
+    });
+    ok('L import historique lui est caché aussi : les deux imports suivent le même privilège',
+      historiqueCache === true, String(historiqueCache));
+
+    const refusHistorique = await p.evaluate(async () => {
+      const fd = new FormData();
+      fd.append('str_TYPE_TRANSACTION_IMPORT', 'IMPORTATION');
+      fd.append('fichier', new Blob(['NOM;PRENOMS;TEL\nA;B;0708473750'], { type: 'text/csv' }), 'x.csv');
+      const r = await fetch('../webservices/sm_user/migration/ws_transaction.jsp?table_name=TABLE_CLIENT&mode=importfile',
+        { method: 'POST', body: fd });
+      return (await r.text());
+    });
+    ok('Le service d import historique refuse ce profil : masquer le bouton ne suffirait pas',
+      /ne permet pas d.importer des clients/.test(refusHistorique), refusHistorique.replace(/\s+/g, ' ').slice(0, 250));
+
     /* ---------- 2. le profil autorise : lecture des colonnes ---------- */
     p = await nouvelOnglet();
     await connexion(p, 'admin');
@@ -124,8 +144,12 @@ const connexion = async (p, login) => {
       return btn ? !btn.isHidden() : null;
     });
     ok('Le bouton d import lui est proposé, à côté de l import historique', visible === true, String(visible));
-    const importHistorique = await p.evaluate(() => !!Ext.getCmp('btn_import'));
-    ok('L import historique est conservé', importHistorique === true);
+    const importHistorique = await p.evaluate(() => {
+      const btn = Ext.getCmp('btn_import');
+      return { existe: !!btn, visible: btn ? !btn.isHidden() : null };
+    });
+    ok('L import historique est conservé, et proposé à ce profil qui porte le privilège',
+      importHistorique.existe === true && importHistorique.visible === true, JSON.stringify(importHistorique));
 
     await p.evaluate(() => {
       const btn = Ext.ComponentQuery.query('clientgestion #btnImportClientStandard')[0];

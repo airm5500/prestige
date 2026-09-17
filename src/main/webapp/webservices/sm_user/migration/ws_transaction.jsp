@@ -63,10 +63,21 @@
     boolean bImportArticleAutorise = lstPrivImport != null
             && util.DateConverter.hasAuthorityByName(lstPrivImport, util.Constant.P_BTN_IMPORT_ARTICLE);
 
+    // Retour du 17/09 (point 5) : l'import de clients est reserve aux profils portant
+    // P_IMPORT_CLIENTS. Le nouvel import - celui qui fait choisir les colonnes - le verifiait
+    // deja a chacune de ses trois etapes ; cet import-ci, l'historique, cree les memes clients
+    // en masse et n'etait sous aucun privilege. Masquer le bouton ne serait pas un controle
+    // d'acces : c'est ici, sur le service, que la decision se prend.
+    boolean bImportClientAutorise = lstPrivImport != null
+            && util.DateConverter.hasAuthorityByName(lstPrivImport, util.DateConverter.P_IMPORT_CLIENTS);
+
     if ((Parameter.TABLE_FAMILLE.equals(table_name) || Parameter.TABLE_MISEAJOUR_STOCKDEPOT.equals(table_name))
             && !bImportArticleAutorise) {
         ObllBase.setMessage(commonparameter.PROCESS_FAILED);
         ObllBase.setDetailmessage("Vous n'avez pas le privilège requis pour importer des articles");
+    } else if (Parameter.TABLE_CLIENT.equals(table_name) && !bImportClientAutorise) {
+        ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+        ObllBase.setDetailmessage("Votre profil ne permet pas d'importer des clients.");
     } else if (request.getParameter("mode") != null) {
         if (request.getParameter("mode").equals("importfile")) {
 

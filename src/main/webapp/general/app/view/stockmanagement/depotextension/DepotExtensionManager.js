@@ -31,8 +31,9 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
     title: 'GESTION DÉPÔTS EXTENSIONS',
     frame: true,
     cls: 'custompanel',
-    width: '97%',
-    minHeight: 570,
+    /* Pas de largeur en pourcentage : PrestigeAffichage.collerAuConteneur pose une taille explicite en
+     * pixels, a l'ouverture et a chaque redimensionnement. Une largeur en pourcentage ne ferait que la
+     * concurrencer, et c'est ce genre de concurrence qui laisse une bande de fond a droite. */
     layout: 'fit',
 
     initComponent: function () {
@@ -131,7 +132,14 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                             layout: 'fit',
                             // « data » est indispensable : l'ecran de vente lit me.getData().isEdit sans garde,
                             // et planterait si on l'embarquait sans. Le menu lui passe {} de la meme facon.
-                            items: [{ xtype: 'doventeendepot', data: {} }]
+                            // La largeur et la hauteur mini heritees de l'ecran de vente (99% et 570 px)
+                            // sont neutralisees : dans un onglet, c'est la disposition « fit » qui donne la
+                            // taille, et une largeur en pourcentage la contredirait au moindre ascenseur.
+                            // (Les 5 px de debordement mesures a l'interieur de la vente ne viennent PAS de
+                            // la : c'est le cadre du panneau « frame: true », que l'ecran de vente de
+                            // l'officine presente aussi, a l'identique, hors de tout onglet.)
+                            items: [{ xtype: 'doventeendepot', data: {}, width: undefined, minHeight: undefined,
+                                    autoScroll: true }]
                         }, {
                             xtype: 'panel',
                             itemId: 'ongletCa',

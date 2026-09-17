@@ -299,12 +299,19 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             var hauteurProduit = hauteurNecessaire(grilleProduit, produitsStore.getCount());
             // Les deux grilles prennent leur taille en une seule mise en page, sinon la colonne
             // de gauche serait mesuree avant que la grille des produits ait la sienne.
+            // try/finally obligatoire : une exception entre suspendLayouts et resumeLayouts
+            // laisserait le compteur de suspension a 1 pour le reste de la session. Toute mise
+            // en page serait alors mise en attente indefiniment et l'affichage resterait fige a
+            // sa derniere taille, sans la moindre erreur visible.
             Ext.suspendLayouts();
-            grilleBon.setHeight(hauteurBon);
-            if (grilleProduit) {
-                grilleProduit.setHeight(hauteurProduit);
+            try {
+                grilleBon.setHeight(hauteurBon);
+                if (grilleProduit) {
+                    grilleProduit.setHeight(hauteurProduit);
+                }
+            } finally {
+                Ext.resumeLayouts(true);
             }
-            Ext.resumeLayouts(true);
             var visibleProduit = grilleProduit && !grilleProduit.isHidden();
             // Colonne de gauche : nom, description, tri, presentation, police, bons par page,
             // detail des ventes, puis les colonnes des produits quand elles sont demandees.
