@@ -1,6 +1,8 @@
 package rest;
 
+import dal.TPrivilege;
 import dal.TUser;
+import java.util.List;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -15,7 +17,9 @@ import org.json.JSONObject;
 import rest.service.impl.DepotExtensionService;
 import rest.service.impl.DepotStockSql;
 import toolkits.parameters.commonparameter;
+import util.CommonUtils;
 import util.Constant;
+import util.DateConverter;
 
 /**
  * Depots d'extension (evolution 5, point 1) : consultation, depuis l'officine, de ce que chaque depot detient.
@@ -53,6 +57,76 @@ public class DepotExtensionRessource {
                 .put("message", "Choisissez un dépôt d'extension.").toString()).build();
     }
 
+    @SuppressWarnings("unchecked")
+    private List<TPrivilege> privilegesSession() {
+        return (List<TPrivilege>) servletRequest.getSession().getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+    }
+
+    private boolean autorise(String privilege) {
+        return CommonUtils.hasAuthorityByName(privilegesSession(), privilege);
+    }
+
+    private static Response refusPrivilege() {
+        return Response.ok()
+                .entity(new JSONObject().put("success", false).put("total", 0)
+                        .put("message", "Votre profil ne donne pas accès à cette partie de l'écran.").toString())
+                .build();
+    }
+
+    /**
+     * Onglets auxquels l'operateur connecte a droit.
+     *
+     * <p>
+     * Retour du 17/09 : « ajouter un privilege sur chaque onglet de sorte a ne pas permettre que tout le monde voie
+     * tout ». L'ecran s'en sert pour n'afficher que les onglets concernes. Le controle qui compte est celui des
+     * services, qui le refont chacun : masquer un onglet n'est pas un controle d'acces.
+     *
+     * <p>
+     * Une nuance a connaitre, et elle est dite ici plutot que cachee : les deux services que cet ecran PARTAGE avec les
+     * ecrans « Balance Depot » et « Point Caisse Depot » gardent leurs propres privileges, ceux de ces ecrans. Le
+     * privilege d'onglet decide donc de l'acces par cet ecran-ci ; il ne retire pas a quelqu'un ce qu'il peut deja
+     * consulter par son propre menu, et il n'y pretend pas.
+     */
+    @GET
+    @Path("onglets")
+    public Response onglets() {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("success", true)
+                        .put("valorisation", autorise(DateConverter.P_DEPOT_EXT_VALORISATION))
+                        .put("vente", autorise(DateConverter.P_VENTE_DEPOT_EXTENSION))
+                        .put("ca", autorise(DateConverter.P_DEPOT_EXT_CA))
+                        .put("pointCaisse", autorise(DateConverter.P_DEPOT_EXT_POINT_CAISSE)).toString())
+                .build();
+    }
+
+    /**
+     * Chiffre d'affaires du depot pour l'onglet, sous son propre privilege.
+     *
+     * <p>
+     * Ce service existe pour que l'onglet ait une porte a lui, controlable : l'ecran lisait directement
+     * {@code v1/balance/balancesalecashdepot}, partage avec l'ecran « Balance Depot », dont on ne peut pas resserrer le
+     * privilege sans casser cet autre ecran. Les chiffres, eux, sortent de la MEME balance : rien n'est recalcule, les
+     * deux ecrans ne peuvent donc pas se contredire.
+     */
+    @GET
+    @Path("ca")
+    public Response ca(@QueryParam("depotId") String depotId, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_DEPOT_EXT_CA)) {
+            return refusPrivilege();
+        }
+        if (!depotExtensionService.estDepotExtension(depotId)) {
+            return depotInvalide();
+        }
+        return Response.ok().entity(depotExtensionService.ca(depotId, dtStart, dtEnd).toString()).build();
+    }
+
     /** Depots d'extension actifs, pour le choix de l'ecran. */
     @GET
     @Path("depots")
@@ -75,6 +149,9 @@ public class DepotExtensionRessource {
             @DefaultValue("false") @QueryParam("enStock") boolean enStock) {
         if (utilisateur() == null) {
             return deconnecte();
+        }
+        if (!autorise(DateConverter.P_DEPOT_EXT_VALORISATION)) {
+            return refusPrivilege();
         }
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return depotInvalide();
@@ -111,6 +188,9 @@ public class DepotExtensionRessource {
         if (utilisateur() == null) {
             return deconnecte();
         }
+        if (!autorise(DateConverter.P_DEPOT_EXT_VALORISATION)) {
+            return refusPrivilege();
+        }
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return depotInvalide();
         }
@@ -131,6 +211,9 @@ public class DepotExtensionRessource {
         }
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        if (!autorise(DateConverter.P_DEPOT_EXT_VALORISATION)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
         }
         byte[] contenu = depotExtensionService.excel(depotId,
                 criteres(query, familleId, zoneGeoId, filtreStock, enStock));
@@ -153,6 +236,9 @@ public class DepotExtensionRessource {
         }
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        if (!autorise(DateConverter.P_DEPOT_EXT_VALORISATION)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
             byte[] pdf = depotExtensionService.pdf(user, depotId,
@@ -186,6 +272,9 @@ public class DepotExtensionRessource {
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
+        if (!autorise(DateConverter.P_DEPOT_EXT_CA)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
         try {
             byte[] pdf = depotExtensionService.pdfCa(user, depotId, dtStart, dtEnd);
             return Response.ok(pdf, "application/pdf")
@@ -217,6 +306,9 @@ public class DepotExtensionRessource {
         }
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        if (!autorise(DateConverter.P_DEPOT_EXT_VALORISATION)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
             byte[] pdf = depotExtensionService.pdfParEmplacement(user, depotId,

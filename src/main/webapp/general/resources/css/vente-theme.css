@@ -1484,3 +1484,51 @@ body.x-body,
     color: #7b3fa0;
     background-color: #f6f0fa;
 }
+
+/* =====================================================================================
+ * « Gestion depots extensions » : une couleur par onglet (retour du 17/09).
+ *
+ * Ce n'est pas de la decoration. L'ecran reunit quatre choses de nature differente -
+ * on y saisit de l'argent dans l'une et on consulte des totaux dans les autres - et la
+ * couleur dit d'un coup d'oeil dans laquelle on se trouve, sans avoir a lire l'onglet.
+ *
+ * Le trait de couleur est pose sur le BORD SUPERIEUR de l'onglet et la couleur du texte
+ * sur son libelle : le fond, lui, reste celui du theme, sinon l'onglet actif ne se
+ * distinguerait plus des inactifs. L'onglet actif recoit le fond teinte, pale, et son
+ * libelle passe en gras.
+ *
+ * Les selecteurs descendent jusqu'a .x-tab-inner : la couleur du texte du theme est
+ * posee la, et une regle placee plus haut ne l'emporterait pas.
+ * ===================================================================================== */
+.depot-onglet-vente,
+.depot-onglet-valorisation,
+.depot-onglet-ca,
+.depot-onglet-caisse {
+    border-top-width: 3px !important;
+    border-top-style: solid !important;
+}
+
+/* Saisie de vente : vert, comme les boutons d'encaissement de l'ecran de vente. */
+.depot-onglet-vente { border-top-color: #1e8449 !important; }
+.depot-onglet-vente .x-tab-inner { color: #1e8449 !important; }
+.depot-onglet-vente.x-tab-active { background-color: #eafaf1 !important; }
+.depot-onglet-vente.x-tab-active .x-tab-inner { font-weight: bold; }
+
+/* Valorisation : bleu, la couleur des ecrans de consultation du stock. */
+.depot-onglet-valorisation { border-top-color: #2e75b6 !important; }
+.depot-onglet-valorisation .x-tab-inner { color: #2e75b6 !important; }
+.depot-onglet-valorisation.x-tab-active { background-color: #eaf2fb !important; }
+.depot-onglet-valorisation.x-tab-active .x-tab-inner { font-weight: bold; }
+
+/* Chiffre d'affaires : orange. */
+.depot-onglet-ca { border-top-color: #b9770e !important; }
+.depot-onglet-ca .x-tab-inner { color: #b9770e !important; }
+.depot-onglet-ca.x-tab-active { background-color: #fdf5e6 !important; }
+.depot-onglet-ca.x-tab-active .x-tab-inner { font-weight: bold; }
+
+/* Point de caisse : violet, comme la ligne des articles a zero - c'est la meme famille
+ * de teinte pour tout ce qui parle de caisse et de controle. */
+.depot-onglet-caisse { border-top-color: #7b3fa0 !important; }
+.depot-onglet-caisse .x-tab-inner { color: #7b3fa0 !important; }
+.depot-onglet-caisse.x-tab-active { background-color: #f6f0fa !important; }
+.depot-onglet-caisse.x-tab-active .x-tab-inner { font-weight: bold; }

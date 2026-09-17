@@ -363,6 +363,35 @@ public class DepotExtensionService {
         return out;
     }
 
+    /**
+     * Chiffre d'affaires du depot pour l'onglet : les lignes, et le recapitulatif de la periode.
+     *
+     * <p>
+     * Les totaux sont la somme des lignes, calculee ici une fois pour toutes : l'ecran les affiche, l'edition les
+     * imprime, et aucun des deux ne refait l'addition de son cote.
+     */
+    public JSONObject ca(String depotId, String dtStart, String dtEnd) {
+        List<DepotCaLigneDTO> lignes = lignesCa(depotId, dtStart, dtEnd);
+        long ttc = 0;
+        long net = 0;
+        long marge = 0;
+        long ventes = 0;
+        long especes = 0;
+        long tiersPayant = 0;
+        for (DepotCaLigneDTO l : lignes) {
+            ttc += l.getMontantTTC();
+            net += l.getMontantNet();
+            marge += l.getMarge();
+            ventes += l.getNbreVente();
+            especes += l.getMontantEspeces();
+            tiersPayant += l.getMontantTiersPayant();
+        }
+        JSONObject meta = new JSONObject().put("montantTTC", ttc).put("montantNet", net).put("marge", marge)
+                .put("nbreVente", ventes).put("montantEsp", especes).put("montantTp", tiersPayant);
+        return new JSONObject().put("success", true).put("total", lignes.size()).put("data", new JSONArray(lignes))
+                .put("metaData", meta).put("depot", nomDepot(depotId));
+    }
+
     /** Edition du chiffre d'affaires, servie en flux comme les deux autres. */
     public byte[] pdfCa(TUser operateur, String depotId, String dtStart, String dtEnd) throws JRException {
         return editer(operateur, MODELE_CA, "CHIFFRE D'AFFAIRES - " + nomDepot(depotId).toUpperCase(),

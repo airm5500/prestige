@@ -122,8 +122,10 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     /* le sous-menu existe et porte son privilege */
     const menu = q("SELECT CONCAT(str_VALUE, '|', str_COMPOSANT, '|', P_KEY, '|', lg_MENU_ID)"
       + " FROM t_sous_menu WHERE str_COMPOSANT='depotextension'");
-    ok('Le sous-menu « Gestion depots extensions » est posé sous la gestion du stock, avec son privilège',
-      menu === 'Gestion depots extensions|depotextension|P_SM_DEPOT_EXTENSION|55111546114940284023', menu);
+    // Retour du 17/09 : l ecran ne parle plus seulement de stock (vente, chiffre d affaires, point de
+    // caisse), il est passe dans GESTION DES TIERS-PAYANTS.
+    ok('Le sous-menu « Gestion depots extensions » est posé dans GESTION DES TIERS-PAYANTS, avec son privilège',
+      menu === 'Gestion depots extensions|depotextension|P_SM_DEPOT_EXTENSION|53251827585053722655', menu);
     // Regle de la maison : les libelles et descriptions de menus sont affiches dans une place etroite.
     const longueurs = q("SELECT CONCAT(CHAR_LENGTH(str_VALUE), '|', CHAR_LENGTH(str_DESCRIPTION))"
       + " FROM t_sous_menu WHERE str_COMPOSANT='depotextension'").split('|').map(Number);
@@ -136,6 +138,18 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('depotextension', {}); });
     await p.waitForFunction(() => Ext.ComponentQuery.query('depotextension').length > 0, null, { timeout: 25000 });
     await p.waitForTimeout(4000);
+    /* L ecran s ouvre desormais sur la saisie de vente (retour du 17/09 : « l onglet Saisir vente depot en
+     * premier »). Ce test-ci porte sur la valorisation : on va sur son onglet, comme le ferait
+     * l utilisateur, et on attend qu il soit rendu - un onglet non active n existe pas encore. */
+    await p.evaluate(() => {
+      const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      ong.setActiveTab(ong.down('#ongletValorisation'));
+    });
+    await p.waitForFunction(() => {
+      const b = Ext.ComponentQuery.query('depotextension #barreVues')[0];
+      return b && b.rendered;
+    }, null, { timeout: 25000 });
+    await p.waitForTimeout(1500);
 
     /* Les criteres et les actions vivent au-dessus des DEUX vues, et non dans l une d elles. */
     const criteres = () => Ext.ComponentQuery.query('depotextension #barreCriteres')[0];

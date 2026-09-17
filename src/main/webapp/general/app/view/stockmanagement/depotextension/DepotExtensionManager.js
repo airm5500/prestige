@@ -25,7 +25,9 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
     requires: [
         'testextjs.view.stockmanagement.depotextension.DepotExtensionStock',
         'testextjs.view.stockmanagement.depotextension.DepotExtensionEmplacement',
-        'testextjs.view.stockmanagement.depotextension.DepotExtensionCa'
+        'testextjs.view.stockmanagement.depotextension.DepotExtensionCa',
+        /* L'onglet « Point de caisse » embarque l'ecran existant : il doit etre charge avant le rendu. */
+        'testextjs.view.caisseManager.balance.PointCaisseView'
     ],
 
     title: 'GESTION DÉPÔTS EXTENSIONS',
@@ -110,7 +112,34 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                     xtype: 'tabpanel',
                     itemId: 'onglets',
                     activeTab: 0,
+                    /*
+                     * Ordre demande par l'officine (retour du 17/09) : « l'onglet Saisir vente depot en PREMIER
+                     * onglet ». C'est le geste du quotidien ; la consultation vient apres.
+                     *
+                     * « Chaque onglet doit avoir sa couleur » : chacun porte une classe via tabConfig, et les
+                     * couleurs sont dans vente-theme.css. Elles ne sont pas decoratives - sur un ecran ou l'on
+                     * saisit de l'argent, la couleur dit d'un coup d'oeil dans quelle partie on se trouve.
+                     *
+                     * Chaque onglet est de plus sous SON privilege : le controleur retire ceux auxquels
+                     * l'operateur n'a pas droit, et les services les refusent de leur cote.
+                     */
                     items: [{
+                            xtype: 'panel',
+                            itemId: 'ongletVente',
+                            title: 'Saisir vente dépôt',
+                            layout: 'fit',
+                            tabConfig: { cls: 'depot-onglet-vente' },
+                            // « data » est indispensable : l'ecran de vente lit me.getData().isEdit sans garde,
+                            // et planterait si on l'embarquait sans. Le menu lui passe {} de la meme facon.
+                            // La largeur et la hauteur mini heritees de l'ecran de vente (99% et 570 px)
+                            // sont neutralisees : dans un onglet, c'est la disposition « fit » qui donne la
+                            // taille, et une largeur en pourcentage la contredirait au moindre ascenseur.
+                            // (Les 5 px de debordement mesures a l'interieur de la vente ne viennent PAS de
+                            // la : c'est le cadre du panneau « frame: true », que l'ecran de vente de
+                            // l'officine presente aussi, a l'identique, hors de tout onglet.)
+                            items: [{ xtype: 'doventeendepot', data: {}, width: undefined, minHeight: undefined,
+                                    autoScroll: true }]
+                        }, {
                             // Onglet 1 : valorisation. Deux vues de la meme chose, en disposition « card » :
                             // setActiveItem gere l'affichage sans toucher a des composants non rendus, ce qui
                             // eviterait l'erreur JavaScript classique de setVisible avant rendu.
@@ -118,6 +147,7 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                             itemId: 'ongletValorisation',
                             title: 'Valorisation',
                             layout: 'fit',
+                            tabConfig: { cls: 'depot-onglet-valorisation' },
                             items: [{
                                     xtype: 'panel',
                                     itemId: 'vues',
@@ -263,25 +293,31 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                                 }]
                         }, {
                             xtype: 'panel',
-                            itemId: 'ongletVente',
-                            title: 'Saisir vente dépôt',
-                            layout: 'fit',
-                            // « data » est indispensable : l'ecran de vente lit me.getData().isEdit sans garde,
-                            // et planterait si on l'embarquait sans. Le menu lui passe {} de la meme facon.
-                            // La largeur et la hauteur mini heritees de l'ecran de vente (99% et 570 px)
-                            // sont neutralisees : dans un onglet, c'est la disposition « fit » qui donne la
-                            // taille, et une largeur en pourcentage la contredirait au moindre ascenseur.
-                            // (Les 5 px de debordement mesures a l'interieur de la vente ne viennent PAS de
-                            // la : c'est le cadre du panneau « frame: true », que l'ecran de vente de
-                            // l'officine presente aussi, a l'identique, hors de tout onglet.)
-                            items: [{ xtype: 'doventeendepot', data: {}, width: undefined, minHeight: undefined,
-                                    autoScroll: true }]
-                        }, {
-                            xtype: 'panel',
                             itemId: 'ongletCa',
                             title: 'Chiffre d\'affaires',
                             layout: 'fit',
+                            tabConfig: { cls: 'depot-onglet-ca' },
                             items: [{ xtype: 'depotextensionca' }]
+                        }, {
+                            /*
+                             * Onglet « Point de caisse » (retour du 17/09, point 5), demande « comme
+                             * pointcaisseview afin qu'on ait un menu GESTION DEPOT EXTENSION complet ».
+                             *
+                             * L'ecran existant est EMBARQUE tel quel, et non recopie : son controleur le pilote
+                             * par ses propres selecteurs, et l'onglet herite donc de son comportement sans qu'on
+                             * ait a le maintenir en double. Ses composants portent des identifiants fixes, ce qui
+                             * interdirait deux instances simultanees - mais le panneau central n'affiche qu'un
+                             * ecran a la fois : ouvrir le menu « Point Caisse Depot » detruit celui-ci d'abord.
+                             *
+                             * Le controleur lui impose ensuite le depot choisi en haut de l'ecran, pour que
+                             * l'onglet parle du meme depot que ses voisins.
+                             */
+                            xtype: 'panel',
+                            itemId: 'ongletPointCaisse',
+                            title: 'Point de caisse',
+                            layout: 'fit',
+                            tabConfig: { cls: 'depot-onglet-caisse' },
+                            items: [{ xtype: 'pointcaisseview', width: undefined, autoScroll: true }]
                         }]
                 }]
         });

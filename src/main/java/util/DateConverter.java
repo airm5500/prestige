@@ -174,6 +174,19 @@ public final class DateConverter {
     public static final String P_BTN_DESACTIVER_CLIENT = "P_BTN_DESACTIVER_CLIENT";
     /** Import de clients depuis un fichier : creation en masse, reservee aux profils qui la portent. */
     public static final String P_IMPORT_CLIENTS = "P_IMPORT_CLIENTS";
+    /*
+     * « Gestion depots extensions » : un privilege PAR ONGLET.
+     *
+     * Demande de l'officine (retour du 17/09) : l'ecran reunit quatre choses de sensibilite tres differente - ce que le
+     * depot detient, la saisie de ses ventes, son chiffre d'affaires, le point de caisse par caissiere. Un magasinier a
+     * besoin de la premiere ; le chiffre d'affaires, non.
+     *
+     * P_VENTE_DEPOT_EXTENSION existait deja (V6.9.43) : il sert desormais d'autorisation de l'onglet de vente.
+     */
+    public static final String P_DEPOT_EXT_VALORISATION = "P_DEPOT_EXT_VALORISATION";
+    public static final String P_VENTE_DEPOT_EXTENSION = "P_VENTE_DEPOT_EXTENSION";
+    public static final String P_DEPOT_EXT_CA = "P_DEPOT_EXT_CA";
+    public static final String P_DEPOT_EXT_POINT_CAISSE = "P_DEPOT_EXT_POINT_CAISSE";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
     public static final String TIERS_PAYANT_CARNET_ID = "2";
     public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE = "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";

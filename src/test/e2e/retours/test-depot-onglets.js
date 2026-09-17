@@ -109,6 +109,42 @@ function poser() {
     ok('Son privilège est conservé : il garde son sens pour l onglet',
       q("SELECT COUNT(*) FROM t_privilege WHERE str_NAME='P_VENTE_DEPOT_EXTENSION'") === '1');
 
+    /* Retour du 17/09 : « deplacer le menu gestion depot extension dans GESTION DES TIERS-PAYANTS ». */
+    const rubrique = q("SELECT CONCAT(m.lg_MENU_ID, '|', m.str_VALUE) FROM t_sous_menu s"
+      + " JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID WHERE s.str_COMPOSANT='depotextension'");
+    ok('Le menu est passé dans GESTION DES TIERS-PAYANTS',
+      rubrique === '53251827585053722655|GESTION DES TIERS-PAYANTS', rubrique);
+    // Le sous-menu garde son identite : seule sa rubrique a change.
+    const identite = q("SELECT CONCAT(lg_SOUS_MENU_ID, '|', P_KEY) FROM t_sous_menu"
+      + " WHERE str_COMPOSANT='depotextension'");
+    ok('Il garde son identifiant et son privilège : seule la rubrique a changé',
+      identite === '20260917|P_SM_DEPOT_EXTENSION', identite);
+
+    /* Un privilege par onglet, attribue d apres la configuration du site et non devine. */
+    const privileges = q("SELECT GROUP_CONCAT(CONCAT(p.str_NAME, '=',"
+      + " (SELECT COUNT(*) FROM t_role_privelege rp WHERE rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID))"
+      + " ORDER BY p.str_NAME SEPARATOR ' ') FROM t_privilege p"
+      + " WHERE p.str_NAME IN ('P_DEPOT_EXT_VALORISATION','P_VENTE_DEPOT_EXTENSION','P_DEPOT_EXT_CA',"
+      + "'P_DEPOT_EXT_POINT_CAISSE')");
+    ok('Les quatre onglets ont chacun leur privilège', (privileges.match(/=/g) || []).length === 4, privileges);
+    /* AUCUNE REGRESSION LE JOUR DE LA LIVRAISON : mettre les onglets sous privilege ne doit rien retirer
+     * a personne. Tous ceux qui peuvent ouvrir l ecran portent donc les quatre privileges ; c est ensuite,
+     * depuis l ecran des roles, que l officine resserre. L inverse - livrer l ecran deja cloisonne sur une
+     * repartition que personne n a demandee - ferait disparaitre des onglets sous les yeux de gens qui les
+     * avaient hier. Mesure au banc de la premiere version : le compte administrateur perdait aussitot deux
+     * onglets sur quatre. */
+    const manquants = (privilege) => q("SELECT COUNT(*) FROM t_role_privelege ecran"
+      + " JOIN t_privilege pe ON pe.lg_PRIVELEGE_ID = ecran.lg_PRIVILEGE_ID"
+      + " AND pe.str_NAME = 'P_SM_DEPOT_EXTENSION'"
+      + " WHERE NOT EXISTS (SELECT 1 FROM t_role_privelege onglet"
+      + " JOIN t_privilege po ON po.lg_PRIVELEGE_ID = onglet.lg_PRIVILEGE_ID"
+      + " AND po.str_NAME = '" + privilege + "' WHERE onglet.lg_ROLE_ID = ecran.lg_ROLE_ID)");
+    ['P_DEPOT_EXT_VALORISATION', 'P_VENTE_DEPOT_EXTENSION', 'P_DEPOT_EXT_CA', 'P_DEPOT_EXT_POINT_CAISSE']
+      .forEach((priv) => {
+        ok('Qui ouvre l écran garde l onglet ' + priv, manquants(priv) === '0',
+          manquants(priv) + ' rôle(s) privé(s) de cet onglet');
+      });
+
     /* ------------------------------------------- l écran et ses trois onglets */
     const ouvert = await p.evaluate(() => {
       try { testextjs.app.getController('App').onRedirectTo('depotextension', {}); return 'ok'; }
@@ -130,18 +166,62 @@ function poser() {
         recherchesHorsStock: Ext.ComponentQuery.query('depotextension textfield[itemId=recherche]').length
       };
     });
-    ok('Les trois onglets demandés sont là, dans l ordre',
-      structure.onglets.join(' | ') === 'Valorisation | Saisir vente dépôt | Chiffre d\'affaires',
+    /* Retour du 17/09 : « l onglet Saisir vente depot EN PREMIER », et un onglet Point de caisse de plus. */
+    ok('Les quatre onglets sont là, la saisie de vente en premier',
+      structure.onglets.join(' | ')
+        === 'Saisir vente dépôt | Valorisation | Chiffre d\'affaires | Point de caisse',
       JSON.stringify(structure.onglets));
+    ok('L écran s ouvre donc sur la saisie de vente',
+      await p.evaluate(() => {
+        const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+        return ong.getActiveTab().getItemId();
+      }) === 'ongletVente');
+
+    /* « Chaque onglet doit avoir sa couleur » : une classe par onglet, et une couleur reellement appliquee. */
+    const couleursOnglets = await p.evaluate(() => {
+      const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      return ong.items.items.map((o) => {
+        const tab = o.tab;
+        const interieur = tab && tab.el ? tab.el.dom.querySelector('.x-tab-inner') : null;
+        return { onglet: o.getItemId(),
+          classe: tab && tab.el ? String(tab.el.dom.className) : '',
+          couleur: interieur ? getComputedStyle(interieur).color : null,
+          bord: tab && tab.el ? getComputedStyle(tab.el.dom).borderTopColor : null };
+      });
+    });
+    ok('Chaque onglet porte sa propre classe de couleur',
+      couleursOnglets.length === 4 && couleursOnglets.every((o) => /depot-onglet-/.test(o.classe)),
+      JSON.stringify(couleursOnglets.map((o) => o.classe)));
+    const teintes = couleursOnglets.map((o) => o.couleur);
+    ok('Les quatre couleurs sont appliquées et toutes différentes',
+      teintes.every((c) => !!c) && new Set(teintes).size === 4, JSON.stringify(teintes));
+
+    /* Un privilege par onglet, vu depuis l ecran : le service dit a quoi l operateur a droit. */
+    const droits = await p.evaluate(async () => {
+      const r = await fetch('../api/v1/depot-extension/onglets');
+      return JSON.parse(await r.text());
+    });
+    ok('Le service dit, onglet par onglet, à quoi l opérateur a droit',
+      droits.success === true && droits.valorisation === true && droits.vente === true
+      && droits.ca === true && droits.pointCaisse === true, JSON.stringify(droits));
     ok('Un seul sélecteur de dépôt pilote l écran', structure.unSeulSelecteurEcran === 1);
     ok('La saisie de vente garde son propre sélecteur (dépôt redemandé à chaque vente)',
       structure.selecteurDansLaVente === 1);
 
-    /* ------------------------------------------- choix du dépôt, puis vue simple */
+    /* ------------------------------------------- choix du dépôt, puis vue simple
+     *
+     * L écran s ouvre desormais sur la saisie de vente : on passe donc explicitement sur l onglet
+     * Valorisation, comme le ferait l utilisateur. Seul l onglet AFFICHE interroge le serveur - un onglet
+     * cache n a pas a charger quoi que ce soit. */
     await p.waitForFunction(() => {
       const c = Ext.ComponentQuery.query('depotextension #depotEcran')[0];
       return c && c.getStore().getCount() > 0;
     }, null, { timeout: 20000 });
+    await p.evaluate(() => {
+      const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      ong.setActiveTab(ong.down('#ongletValorisation'));
+    });
+    await p.waitForTimeout(1500);
     const choisi = await p.evaluate((d) => {
       const c = Ext.ComponentQuery.query('depotextension #depotEcran')[0];
       const rec = c.getStore().findRecord('id', d);
@@ -192,7 +272,8 @@ function poser() {
     /* ------------------------------------------- l onglet de vente, dépôt prérenseigné */
     await p.evaluate(() => {
       const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
-      ong.setActiveTab(1);
+      // par itemId et non par position : l ordre des onglets a change, et un privilege peut en retirer un
+      ong.setActiveTab(ong.down('#ongletVente'));
     });
     await p.waitForTimeout(2500);
     ok('Le dépôt de l écran prérenseigne la saisie de vente',
@@ -255,7 +336,8 @@ function poser() {
 
     /* ------------------------------------------- l onglet chiffre d affaires */
     await p.evaluate(() => {
-      Ext.ComponentQuery.query('depotextension #onglets')[0].setActiveTab(2);
+      const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      ong.setActiveTab(ong.down('#ongletCa'));
     });
     await p.waitForTimeout(1200);
     ok('L onglet Chiffre d affaires propose une période et ne charge rien tout seul',
@@ -359,6 +441,113 @@ function poser() {
         const r = await fetch('../api/v1/depot-extension/ca/pdf?depotId=1&dtStart=2026-01-01&dtEnd=2026-01-01');
         return r.status;
       }) === 400);
+
+    /* ------------------------------------------- l onglet Point de caisse */
+    await p.evaluate(() => {
+      const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      ong.setActiveTab(ong.down('#ongletPointCaisse'));
+    });
+    await p.waitForTimeout(3500);
+    const pointCaisse = await p.evaluate(() => {
+      const vue = Ext.ComponentQuery.query('depotextension pointcaisseview')[0];
+      if (!vue) { return null; }
+      const combo = vue.down('combobox');
+      const grille = vue.down('gridpanel');
+      return { rendu: vue.rendered, depot: combo ? combo.getValue() : null,
+        grille: !!grille, colonnes: grille ? grille.columns.map((c) => c.text) : [] };
+    });
+    ok('L onglet Point de caisse embarque l écran existant, rendu et fonctionnel',
+      !!pointCaisse && pointCaisse.rendu === true && pointCaisse.grille === true,
+      JSON.stringify(pointCaisse && { rendu: pointCaisse.rendu, grille: pointCaisse.grille }));
+    ok('Il porte les colonnes de l écran Point Caisse Dépôt, sans recopie',
+      !!pointCaisse && pointCaisse.colonnes.indexOf('Caissière') >= 0
+      && pointCaisse.colonnes.indexOf('Montant Net') >= 0, JSON.stringify(pointCaisse && pointCaisse.colonnes));
+    // Le depot choisi en haut vaut pour cet onglet aussi : quatre onglets sous un seul titre doivent parler
+    // du meme depot, sinon on lit des chiffres qui ne vont pas ensemble.
+    ok('Le dépôt choisi en haut de l écran est imposé au point de caisse',
+      !!pointCaisse && pointCaisse.depot === DEPOT, String(pointCaisse && pointCaisse.depot));
+
+    /* ------------------------------------------- un privilege retire retire l onglet, ET ferme le service
+     *
+     * Masquer un onglet n est pas un controle d acces : on verifie les deux. Le privilege est retire au role
+     * de l operateur le temps du controle, puis rendu. */
+    const rolesCa = q("SELECT GROUP_CONCAT(rp.lg_ROLE_PRIVILEGE) FROM t_role_privelege rp"
+      + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID AND p.str_NAME = 'P_DEPOT_EXT_CA'"
+      + " JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID"
+      + " JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID AND u.str_LOGIN = 'admin'");
+    if (rolesCa) {
+      /* Les lignes a rendre sont relues et gardees EN MEMOIRE, et non dans une table temporaire :
+       * chaque appel au client mariadb ouvre sa propre connexion, et une table temporaire meurt avec
+       * la connexion qui l a creee. Mesure faite : la restauration echouait, et le privilege restait
+       * retire au compte administrateur. */
+      const sauvegarde = q("SELECT GROUP_CONCAT(CONCAT_WS('~', lg_ROLE_PRIVILEGE, lg_ROLE_ID,"
+        + " lg_PRIVILEGE_ID) SEPARATOR '|') FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE IN ('"
+        + rolesCa.split(',').join("','") + "')").split('|').filter(Boolean)
+        .map((l) => l.split('~'));
+      const rendreLePrivilege = () => {
+        sauvegarde.forEach((r) => {
+          exec("INSERT IGNORE INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID,"
+            + " dt_CREATED, dt_UPDATED) VALUES ('" + r[0] + "','" + r[1] + "','" + r[2] + "', NOW(), NOW());");
+        });
+      };
+      exec("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE IN ('"
+        + rolesCa.split(',').join("','") + "');");
+      /* Contexte de navigation NEUF, et non un onglet de plus : la liste des privileges est mise en
+       * cache dans la session HTTP a la connexion. Un second onglet partagerait le cookie, donc la
+       * session, donc les privileges d avant le retrait - et le controle ne prouverait rien. */
+      const ctx2 = await b.newContext({ viewport: { width: 1700, height: 1000 } });
+      const p2 = await ctx2.newPage();
+      try {
+        await p2.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr',
+          { waitUntil: 'domcontentloaded' });
+        await p2.fill('#str_login', 'admin'); await p2.fill('#str_password', 'e2etest');
+        await p2.click('#login');
+        await p2.waitForURL('**/general/**', { timeout: 40000 });
+        await p2.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
+        await p2.waitForTimeout(1500);
+        const refuse = await p2.evaluate(async () => {
+          const r = await fetch('../api/v1/depot-extension/onglets');
+          return JSON.parse(await r.text());
+        });
+        ok('Sans le privilège, le service ne propose plus cet onglet', refuse.ca === false,
+          JSON.stringify(refuse));
+        await p2.evaluate(() => { testextjs.app.getController('App').onRedirectTo('depotextension', {}); });
+        await p2.waitForFunction(() => Ext.ComponentQuery.query('depotextension #onglets').length > 0,
+          null, { timeout: 30000 });
+        await p2.waitForTimeout(3500);
+        const restants = await p2.evaluate(() => {
+          const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+          return { onglets: ong.items.items.map((o) => o.getItemId()), actif: ong.getActiveTab().getItemId() };
+        });
+        ok('L onglet est retiré de l écran, pas seulement grisé',
+          restants.onglets.indexOf('ongletCa') < 0 && restants.onglets.length === 3,
+          JSON.stringify(restants));
+        ok('L écran reste utilisable et s ouvre sur un onglet existant',
+          restants.onglets.indexOf(restants.actif) >= 0, JSON.stringify(restants));
+        const donnees = await p2.evaluate(async (d) => {
+          const r = await fetch('../api/v1/depot-extension/ca?depotId=' + encodeURIComponent(d)
+            + '&dtStart=2026-01-01&dtEnd=2026-12-31');
+          return await r.text();
+        }, DEPOT);
+        ok('Et le service refuse les données, même appelé directement',
+          /"success":false/.test(donnees) && /ne donne pas acc/.test(donnees), donnees.slice(0, 160));
+        const editionRefusee = await p2.evaluate(async (d) => {
+          const r = await fetch('../api/v1/depot-extension/ca/pdf?depotId=' + encodeURIComponent(d)
+            + '&dtStart=2026-01-01&dtEnd=2026-12-31');
+          return r.status;
+        }, DEPOT);
+        ok('L édition est refusée elle aussi', editionRefusee === 403, String(editionRefusee));
+      } finally {
+        rendreLePrivilege();
+        await ctx2.close();
+      }
+      ok('Le privilège est rendu à la fin du contrôle',
+        q("SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE IN ('"
+          + rolesCa.split(',').join("','") + "')") === String(rolesCa.split(',').length));
+    } else {
+      ok('Sans le privilège, le service ne propose plus cet onglet', false,
+        'le role de l operateur ne porte pas P_DEPOT_EXT_CA : controle impossible');
+    }
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, err.join(' | '));
   } catch (e) {

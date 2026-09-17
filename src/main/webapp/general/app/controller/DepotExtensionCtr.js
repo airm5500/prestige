@@ -28,7 +28,9 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         { ref: 'ongletCa', selector: 'depotextension depotextensionca' },
         /* Criteres partages par les deux vues de la valorisation : ils vivent au-dessus d'elles. */
         { ref: 'criteresBarre', selector: 'depotextension #barreCriteres' },
-        { ref: 'barreVues', selector: 'depotextension #barreVues' }
+        { ref: 'barreVues', selector: 'depotextension #barreVues' },
+        { ref: 'onglets', selector: 'depotextension #onglets' },
+        { ref: 'pointCaisse', selector: 'depotextension pointcaisseview' }
     ],
 
     init: function () {
@@ -66,6 +68,58 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         me.majActions();
         // Des l'affichage : la saisie de vente part d'un depot vide et d'un titre sans nom de depot.
         me.imposerLeDepotALaVente();
+        me.appliquerPrivilegesOnglets();
+    },
+
+    /**
+     * Retire les onglets auxquels l'opérateur n'a pas droit.
+     *
+     * Retour du 17/09 : « ajouter un privilège sur chaque onglet de sorte à ne pas permettre que tout le monde
+     * voie tout ». Retirer l'onglet, et non le désactiver : un onglet grisé donne l'impression d'un défaut, alors
+     * qu'il s'agit d'une décision de l'officine.
+     *
+     * Ce n'est PAS le contrôle d'accès — masquer un onglet n'en est pas un. Les services refusent de leur côté,
+     * chacun sur son privilège ; ceci ne fait que présenter à chacun l'écran qui le concerne. Si l'appel échoue,
+     * on ne retire rien : mieux vaut un onglet de trop, que les services refuseront, qu'un écran vide sans
+     * explication.
+     */
+    appliquerPrivilegesOnglets: function () {
+        var me = this;
+        Ext.Ajax.request({
+            url: '../api/v1/depot-extension/onglets',
+            method: 'GET',
+            success: function (reponse) {
+                var droits = Ext.JSON.decode(reponse.responseText, true);
+                if (!droits || droits.success === false) { return; }
+                me.retirerOngletsInterdits(droits);
+            }
+        });
+    },
+
+    retirerOngletsInterdits: function (droits) {
+        var me = this;
+        var onglets = me.getOnglets();
+        if (!onglets || onglets.isDestroyed) { return; }
+        var correspondance = {
+            ongletVente: 'vente',
+            ongletValorisation: 'valorisation',
+            ongletCa: 'ca',
+            ongletPointCaisse: 'pointCaisse'
+        };
+        var aRetirer = [];
+        onglets.items.each(function (onglet) {
+            var cle = correspondance[onglet.getItemId()];
+            if (cle && droits[cle] === false) { aRetirer.push(onglet); }
+        });
+        Ext.Array.each(aRetirer, function (onglet) {
+            onglets.remove(onglet, true);
+        });
+        // Le premier onglet restant devient l'onglet courant : sans cela, l'ecran s'ouvrirait sur un
+        // onglet retire et n'afficherait rien.
+        if (onglets.items.getCount() > 0 && !onglets.getActiveTab()) {
+            onglets.setActiveTab(0);
+        }
+        me.ongletsRetires = Ext.Array.map(aRetirer, function (o) { return o.getItemId(); });
     },
 
     /** Identifiant du dépôt choisi pour l'écran, ou chaîne vide. */
@@ -215,8 +269,13 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         if (!ecran) { return; }
         var onglets = ecran.down('#onglets');
         var actif = onglets ? onglets.getActiveTab() : null;
-        if (!actif || actif.getItemId() === 'ongletValorisation') {
+        var id = actif ? actif.getItemId() : '';
+        if (!actif || id === 'ongletValorisation') {
             me.chargerVueValorisation();
+        } else if (id === 'ongletPointCaisse') {
+            // Changer de dépôt doit se voir dans l'onglet affiché, quel qu'il soit : sinon le point de
+            // caisse continuerait d'afficher le dépôt précédent sous le nom du nouveau.
+            me.orienterLePointDeCaisse();
         }
     },
 
@@ -282,8 +341,41 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
             me.chargerVueValorisation();
         } else if (id === 'ongletVente') {
             me.imposerLeDepotALaVente();
+        } else if (id === 'ongletPointCaisse') {
+            me.orienterLePointDeCaisse();
         }
         // L'onglet Chiffre d'affaires ne se charge pas tout seul : la période est à choisir.
+    },
+
+    /**
+     * Impose au point de caisse le dépôt choisi en haut de l'écran, puis relance sa recherche.
+     *
+     * L'écran « Point Caisse Dépôt » est embarqué tel quel et s'ouvre sur « TOUT » : dans cet onglet, il doit
+     * parler du même dépôt que ses voisins, sinon les quatre onglets donneraient quatre périmètres différents
+     * sous le même titre. Le choix reste modifiable dans l'onglet — on ne verrouille pas un écran emprunté.
+     */
+    orienterLePointDeCaisse: function () {
+        var me = this;
+        var vue = me.getPointCaisse();
+        if (!vue || vue.isDestroyed) { return; }
+        var combo = vue.down('combobox');
+        if (!combo || combo.isDestroyed) { return; }
+        var id = me.depotId();
+        var poser = function () {
+            if (combo.isDestroyed) { return; }
+            // Le dépôt d'extension n'est proposé que s'il figure dans la liste de cet écran ; sinon on laisse
+            // le choix tel quel plutôt que d'imposer une valeur qui ne ramènerait rien.
+            if (id && combo.getStore().findExact(combo.valueField, id) >= 0) {
+                combo.setValue(id);
+            }
+            var bouton = Ext.getCmp('searchBtnPointCaisseFiltre');
+            if (bouton && !bouton.isDestroyed) { bouton.fireEvent('click', bouton); }
+        };
+        if (combo.getStore().getCount() === 0) {
+            combo.getStore().on('load', poser, me, { single: true });
+        } else {
+            poser();
+        }
     },
 
     /**
@@ -390,11 +482,17 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         onglet.down('#caTotaux').update('Lecture en cours...');
         Ext.Ajax.request({
             method: 'GET',
-            url: '../api/v1/balance/balancesalecashdepot',
+            /*
+             * Service propre à cet écran, et non le v1/balance/balancesalecashdepot partagé avec l'écran
+             * « Balance Dépôt » : l'onglet a besoin d'une porte à lui pour que son privilège s'applique, et on
+             * ne peut pas resserrer celui de l'autre écran sans le casser. Les chiffres sortent de la MÊME
+             * balance — rien n'est recalculé, les deux écrans ne peuvent pas se contredire.
+             */
+            url: '../api/v1/depot-extension/ca',
             params: {
                 dtStart: Ext.Date.format(debut, 'Y-m-d'),
                 dtEnd: Ext.Date.format(fin, 'Y-m-d'),
-                emplacementId: me.depotId()
+                depotId: me.depotId()
             },
             timeout: 180000,
             success: function (reponse) {
@@ -425,9 +523,12 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         onglet.down('#caImprimer').setDisabled(!me.depotId());
         var meta = r.metaData || {};
         var n = me.montant;
+        // Le rappel reprend les grandeurs des colonnes demandées : net, marge, et la part tiers payant, qui
+        // dit ce qui reste à encaisser auprès d'un organisme.
         onglet.down('#caTotaux').update('<b>' + Ext.String.htmlEncode(me.nomDepot()) + '</b> — '
                 + n(meta.nbreVente) + ' vente(s) — net <b>' + n(meta.montantNet) + '</b> CFA '
-                + '(TTC ' + n(meta.montantTTC) + ', remise ' + n(meta.montantRemise) + ')');
+                + '(TTC ' + n(meta.montantTTC) + ', marge ' + n(meta.marge)
+                + ', tiers payant ' + n(meta.montantTp) + ')');
     },
 
     /**
