@@ -1532,3 +1532,33 @@ body.x-body,
 .depot-onglet-caisse .x-tab-inner { color: #7b3fa0 !important; }
 .depot-onglet-caisse.x-tab-active { background-color: #f6f0fa !important; }
 .depot-onglet-caisse.x-tab-active .x-tab-inner { font-weight: bold; }
+
+/* =====================================================================================
+ * Bouton « ÉCLATER » de la liste des suggestions (retour du 17/09, point 8).
+ *
+ * Il n'existe pas d'icone d'eclatement dans le jeu d'images du theme - seule mix.png,
+ * celle de la fusion. Plutot que d'ajouter un fichier image a installer, l'icone est
+ * DESSINEE en CSS : trois barres qui s'ecartent, l'inverse visuel de la fusion. Elle
+ * suit la taille des autres icones de barre d'outils (16 px).
+ * ===================================================================================== */
+.eclatericon {
+    background-image: none !important;
+    position: relative;
+}
+.eclatericon::before,
+.eclatericon::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    width: 12px;
+    height: 2px;
+    background-color: #1b2a3a;
+}
+.eclatericon::before {
+    top: 4px;
+    transform: rotate(-16deg);
+}
+.eclatericon::after {
+    bottom: 4px;
+    transform: rotate(16deg);
+}

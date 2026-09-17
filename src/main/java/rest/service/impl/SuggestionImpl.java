@@ -1761,6 +1761,118 @@ public class SuggestionImpl implements SuggestionService {
         }
     }
 
+    /**
+     * Eclate UNE suggestion en plusieurs, decoupees par NOMBRE DE LIGNES.
+     *
+     * <p>
+     * Demande de l'officine (retour du 17/09, point 8) : « permettre pour une commande trop grande en terme de ligne
+     * d'eclater en un nombre voulu - eclater en 3 fois une commande de 1500 lignes creera 3 suggestions manuelles de
+     * 500 lignes ». C'est l'inverse du bouton FUSIONNER, et le besoin est concret : un grossiste qui refuse, ou ne sait
+     * pas traiter, un bon de 1 500 lignes d'un seul coup.
+     *
+     * <p>
+     * Ce qui est garanti ici :
+     * <ul>
+     * <li>AUCUNE ligne perdue ni dupliquee. Les lignes sont deplacees, jamais recopiees en double : la somme des lignes
+     * des morceaux egale exactement le nombre de lignes de depart. C'est la seule chose qui compte vraiment - une ligne
+     * perdue, c'est un article qui ne sera pas commande, et personne ne s'en apercevra avant la rupture.</li>
+     * <li>La suggestion de depart GARDE sa reference et devient le premier morceau. On ne la supprime pas pour en
+     * recreer trois : sa reference circule peut-etre deja sur un papier.</li>
+     * <li>Tous les morceaux portent le MEME grossiste que l'original - on decoupe un volume, on ne change pas de
+     * fournisseur - et passent en suggestion MANUELLE, comme le fait deja la fusion : le contenu a ete decide par une
+     * personne, il ne doit plus etre repris par le calcul automatique.</li>
+     * <li>Le reste de la division est reparti sur les premiers morceaux : 1 501 lignes en 3 donnent 501, 500 et 500, et
+     * non 500, 500, 500 et une ligne oubliee.</li>
+     * <li>Les lignes sont decoupees dans l'ordre des designations, pour que chaque morceau soit lisible et que deux
+     * eclatements de la meme suggestion donnent le meme resultat.</li>
+     * </ul>
+     *
+     * @param suggestionId
+     *            suggestion a eclater
+     * @param nombre
+     *            nombre de morceaux voulu, au moins deux et au plus le nombre de lignes
+     */
+    @Override
+    public JSONObject eclaterSuggestion(String suggestionId, int nombre) {
+        try {
+            if (StringUtils.isBlank(suggestionId)) {
+                return new JSONObject().put("success", false).put("msg", "Aucune suggestion à éclater");
+            }
+            if (nombre < 2) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Indiquez en combien de suggestions éclater (au moins 2)");
+            }
+            TSuggestionOrder source = this.em.find(TSuggestionOrder.class, suggestionId);
+            if (source == null) {
+                return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+            }
+            if (Constant.STATUT_ENABLE.equals(source.getStrSTATUT())) {
+                return new JSONObject().put("success", false).put("msg",
+                        "La suggestion " + source.getStrREF() + " est déjà commandée : éclatement impossible");
+            }
+            List<TSuggestionOrderDetails> lignes = new ArrayList<>(source.getTSuggestionOrderDetailsCollection());
+            // Ordre des designations : chaque morceau est lisible, et deux eclatements de la meme
+            // suggestion donnent le meme decoupage.
+            lignes.sort((a, b) -> {
+                String na = a.getLgFAMILLEID() == null ? ""
+                        : StringUtils.defaultString(a.getLgFAMILLEID().getStrNAME());
+                String nb = b.getLgFAMILLEID() == null ? ""
+                        : StringUtils.defaultString(b.getLgFAMILLEID().getStrNAME());
+                return na.compareToIgnoreCase(nb);
+            });
+            int total = lignes.size();
+            if (total < 2) {
+                return new JSONObject().put("success", false).put("msg",
+                        total == 0 ? "Cette suggestion ne porte aucune ligne : il n'y a rien à éclater"
+                                : "Cette suggestion ne porte qu'une ligne : il n'y a rien à éclater");
+            }
+            if (nombre > total) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Cette suggestion porte " + total + " ligne(s) : on ne peut pas l'éclater en " + nombre);
+            }
+
+            // Tailles des morceaux : le reste de la division va aux premiers, aucune ligne ne reste dehors.
+            int base = total / nombre;
+            int reste = total % nombre;
+            int[] tailles = new int[nombre];
+            for (int i = 0; i < nombre; i++) {
+                tailles[i] = base + (i < reste ? 1 : 0);
+            }
+
+            Date maintenant = new Date();
+            JSONArray morceaux = new JSONArray();
+            // Morceau 1 : la suggestion de depart, qui garde sa reference et ses premieres lignes.
+            source.setStrSTATUT(STATUT_IS_PROGRESS);
+            source.setDtUPDATED(maintenant);
+            morceaux.put(new JSONObject().put("ref", source.getStrREF())
+                    .put("suggestionId", source.getLgSUGGESTIONORDERID()).put("lignes", tailles[0]));
+
+            int position = tailles[0];
+            for (int i = 1; i < nombre; i++) {
+                TSuggestionOrder cible = createSuggestionOrder(source.getLgGROSSISTEID(), STATUT_IS_PROGRESS);
+                for (int j = 0; j < tailles[i]; j++) {
+                    TSuggestionOrderDetails ligne = lignes.get(position++);
+                    // DEPLACEMENT et non copie : la ligne change de suggestion, elle n'est pas dupliquee.
+                    source.getTSuggestionOrderDetailsCollection().remove(ligne);
+                    ligne.setLgSUGGESTIONORDERID(cible);
+                    ligne.setDtUPDATED(maintenant);
+                    this.em.merge(ligne);
+                    cible.getTSuggestionOrderDetailsCollection().add(ligne);
+                }
+                cible.setDtUPDATED(maintenant);
+                this.em.merge(cible);
+                morceaux.put(new JSONObject().put("ref", cible.getStrREF())
+                        .put("suggestionId", cible.getLgSUGGESTIONORDERID()).put("lignes", tailles[i]));
+            }
+            this.em.merge(source);
+            return new JSONObject().put("success", true).put("total", total).put("nombre", nombre)
+                    .put("ref", source.getStrREF()).put("morceaux", morceaux);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Eclatement de la suggestion " + suggestionId + " impossible", e);
+            return new JSONObject().put("success", false).put("msg", "L'éclatement a échoué");
+        }
+    }
+
     private TSuggestionOrderDetails createMergeDetails(TSuggestionOrder suggestionOrder, TSuggestionOrderDetails ite) {
         TSuggestionOrderDetails cloned = ite.clone();
         cloned.setLgSUGGESTIONORDERID(suggestionOrder);

@@ -348,6 +348,20 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     handler: this.onFusionnerSuggestions
                 }, '-',
                 {
+                    /*
+                     * Retour du 17/09, point 8 : « je ne vois pas le bouton d'eclatement de suggestion ».
+                     * Il n'existait effectivement pas. C'est l'inverse de FUSIONNER, et le besoin est
+                     * concret : un grossiste qui ne sait pas traiter un bon de 1 500 lignes d'un seul coup.
+                     * On decoupe par NOMBRE DE LIGNES, en autant de morceaux que demande.
+                     */
+                    text: 'ÉCLATER',
+                    itemId: 'eclaterSuggestion',
+                    iconCls: 'eclatericon',
+                    tooltip: 'Éclater la suggestion cochée en plusieurs suggestions de même nombre de lignes',
+                    scope: this,
+                    handler: this.onEclaterSuggestion
+                }, '-',
+                {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'suggestion',
@@ -682,6 +696,85 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     /* Lot 3 : fusion des suggestions cochees — miroir de la fusion des commandes.
      * Quand la selection mele plusieurs grossistes, le serveur renvoie la liste et
      * on fait CHOISIR celui qui porte la fusion, au lieu de refuser (retour point 6). */
+    /**
+     * Eclate la suggestion cochee en N suggestions de meme nombre de lignes.
+     *
+     * Une SEULE suggestion cochee : eclater plusieurs suggestions a la fois en autant de morceaux chacune
+     * donnerait un resultat que personne ne peut verifier. On demande ensuite le nombre de morceaux, avec le
+     * nombre de lignes rappele dans la question - « eclater en combien ? » ne veut rien dire si l'on ne sait
+     * pas combien de lignes on a.
+     */
+    onEclaterSuggestion: function () {
+        const me = this;
+        if (suggCheckedIds.length !== 1) {
+            Ext.MessageBox.alert('Avertissement',
+                    suggCheckedIds.length === 0
+                    ? 'Cochez la suggestion à éclater.'
+                    : 'Cochez UNE SEULE suggestion : l\'éclatement porte sur une suggestion à la fois.');
+            return;
+        }
+        const id = suggCheckedIds[0];
+        const enregistrement = me.getStore().findRecord('lg_SUGGESTION_ORDER_ID', id);
+        const lignes = enregistrement ? Number(enregistrement.get('int_NOMBRE_ARTICLES') || 0) : 0;
+        const reference = enregistrement ? (enregistrement.get('str_REF') || '') : '';
+
+        Ext.MessageBox.prompt('Éclater la suggestion ' + reference,
+                'En combien de suggestions éclater'
+                + (lignes > 0 ? ' les ' + lignes + ' lignes de cette suggestion' : '') + ' ?',
+                function (btn, texte) {
+                    if (btn !== 'ok') {
+                        return;
+                    }
+                    const nombre = parseInt(texte, 10);
+                    if (!nombre || nombre < 2) {
+                        Ext.MessageBox.alert('Avertissement', 'Indiquez un nombre de suggestions, au moins 2.');
+                        return;
+                    }
+                    if (lignes > 0 && nombre > lignes) {
+                        Ext.MessageBox.alert('Avertissement', 'Cette suggestion porte ' + lignes
+                                + ' ligne(s) : on ne peut pas l\'éclater en ' + nombre + '.');
+                        return;
+                    }
+                    me.envoyerEclatement(id, nombre);
+                }, me, false, '2');
+    },
+
+    envoyerEclatement: function (suggestionId, nombre) {
+        const me = this;
+        testextjs.app.getController('App').ShowWaitingProcess();
+        Ext.Ajax.request({
+            method: 'POST',
+            /* Parametres dans l'URL, comme le service « clean » voisin : la ressource les lit en
+             * @QueryParam, un corps de formulaire ne serait pas lu. */
+            url: '../api/v1/suggestion/eclater?suggestionId=' + encodeURIComponent(suggestionId)
+                    + '&nombre=' + encodeURIComponent(nombre),
+            timeout: 2400000,
+            success: function (response) {
+                testextjs.app.getController('App').StopWaitingProcess();
+                const resultat = Ext.JSON.decode(response.responseText, true);
+                if (!resultat || !resultat.success) {
+                    Ext.MessageBox.alert('Avertissement',
+                            (resultat && resultat.msg) || 'L\'éclatement a échoué');
+                    return;
+                }
+                suggCheckedIds = [];
+                Me.majCompteurCoches();
+                // On NOMME les morceaux obtenus, avec leur nombre de lignes : l'operateur doit pouvoir
+                // les retrouver dans la liste sans les chercher.
+                const details = (resultat.morceaux || []).map(function (m) {
+                    return m.ref + ' (' + m.lignes + ' ligne(s))';
+                }).join('<br>');
+                Ext.MessageBox.alert('Info', resultat.total + ' ligne(s) éclatée(s) en '
+                        + resultat.nombre + ' suggestion(s) :<br>' + details);
+                me.getStore().load();
+            },
+            failure: function (response) {
+                testextjs.app.getController('App').StopWaitingProcess();
+                Ext.MessageBox.alert('Error Message', 'L\'éclatement a échoué (' + response.status + ')');
+            }
+        });
+    },
+
     onFusionnerSuggestions: function () {
         const me = this;
         if (suggCheckedIds.length < 2) {

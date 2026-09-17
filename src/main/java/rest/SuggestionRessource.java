@@ -23,6 +23,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -260,6 +261,28 @@ public class SuggestionRessource {
                 .entity(this.suggestionService.mergeSuggestionSelection(ids == null ? null : ids.getSuggestionId(),
                         ids == null ? null : ids.getGrossisteId()).toString())
                 .build();
+    }
+
+    /**
+     * Eclate une suggestion en plusieurs, decoupees par nombre de lignes (retour du 17/09, point 8).
+     *
+     * <p>
+     * Le nombre de morceaux est celui que l'operateur a saisi. Les controles - suggestion deja commandee, nombre
+     * inferieur a deux, nombre superieur au nombre de lignes - sont faits par le service, qui rend un message explicite
+     * plutot qu'un refus muet.
+     */
+    @POST
+    @Path("eclater")
+    /*
+     * FORM_URLENCODED comme le service « clean » voisin, et parametres dans l'URL : la classe declare
+     *
+     * @Consumes("application/json") au niveau du type, et un POST sans corps JSON se ferait refuser en 415 - l'appelant
+     * recevrait une page HTML d'erreur au lieu d'un message.
+     */
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response eclater(@QueryParam("suggestionId") String suggestionId,
+            @DefaultValue("0") @QueryParam("nombre") int nombre) {
+        return Response.ok().entity(this.suggestionService.eclaterSuggestion(suggestionId, nombre).toString()).build();
     }
 
     @POST

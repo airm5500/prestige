@@ -103,4 +103,14 @@ public interface SuggestionService {
      */
     JSONObject mergeSuggestionSelection(List<String> suggestionIds, String grossisteCibleId);
 
+    /**
+     * Eclate une suggestion en {@code nombre} suggestions manuelles, decoupees par nombre de lignes.
+     *
+     * <p>
+     * L'inverse de la fusion : une commande trop grande en nombre de lignes pour etre traitee d'un seul coup est
+     * decoupee en morceaux egaux. Aucune ligne n'est perdue ni dupliquee, et la suggestion de depart garde sa reference
+     * en devenant le premier morceau.
+     */
+    JSONObject eclaterSuggestion(String suggestionId, int nombre);
+
 }
