@@ -18,6 +18,26 @@
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
 
+// Texte affiche par un PDF : les flux sont deflates, on en extrait les chaines.
+function texteDuPdf(octets) {
+  const zlib = require('zlib');
+  const d = Buffer.from(octets);
+  const brut = d.toString('latin1');
+  let out = '';
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(brut)) !== null) {
+    const debut = m.index + m[0].length;
+    const fin = brut.indexOf('endstream', debut);
+    if (fin < 0) { continue; }
+    try {
+      const clair = zlib.inflateSync(d.slice(debut, fin)).toString('latin1');
+      out += (clair.match(/\((?:[^()\\]|\\.)*\)/g) || []).join(' ');
+    } catch (e) { /* flux non compresse ou police */ }
+  }
+  return out;
+}
+
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 340) + ']' : '')); }
 const BASE = process.env.DB_TEST || 'capitale';
@@ -244,6 +264,33 @@ function poser() {
         return !!o.down('#caDebut').getValue() && !!o.down('#caFin').getValue()
           && o.down('#caGrille').getStore().getCount() === 0;
       }));
+
+    /* Retour du 17/09 : « par defaut mettre les dates du jour en periode ». */
+    const periode = await p.evaluate(() => {
+      const o = Ext.ComponentQuery.query('depotextension depotextensionca')[0];
+      const jour = (d) => Ext.Date.format(d, 'Y-m-d');
+      return { debut: jour(o.down('#caDebut').getValue()), fin: jour(o.down('#caFin').getValue()),
+        aujourdhui: jour(new Date()), imprimer: o.down('#caImprimer').isDisabled() };
+    });
+    ok('La période part des dates DU JOUR',
+      periode.debut === periode.aujourdhui && periode.fin === periode.aujourdhui, JSON.stringify(periode));
+    ok('L impression reste inactive avant toute recherche : on n imprime pas une grille vide',
+      periode.imprimer === true);
+
+    /* Colonnes demandees par l officine, dans son ordre, et la colonne « reglement » retiree. */
+    const colonnes = await p.evaluate(() => {
+      const g = Ext.ComponentQuery.query('depotextension depotextensionca #caGrille')[0];
+      return g.columns.map((c) => ({ texte: c.text, champ: c.dataIndex, somme: c.summaryType || '' }));
+    });
+    ok('Les colonnes sont celles demandées, dans l ordre demandé',
+      JSON.stringify(colonnes.map((c) => c.champ))
+        === JSON.stringify(['typeVente', 'montantTTC', 'montantNet', 'marge', 'nbreVente', 'montantEsp',
+          'montantTp']), JSON.stringify(colonnes.map((c) => c.champ)));
+    // « a quoi sert la colonne reglement ? » - a rien : le service ne la renseigne jamais pour ces lignes.
+    ok('La colonne « règlement » a disparu',
+      !colonnes.some((c) => c.champ === 'reglement'), JSON.stringify(colonnes.map((c) => c.champ)));
+    ok('Chaque colonne de montant porte son total',
+      colonnes.filter((c) => c.somme === 'sum').length === 6, JSON.stringify(colonnes));
     await p.evaluate(() => {
       Ext.ComponentQuery.query('depotextension depotextensionca #caRechercher')[0].el.dom.click();
     });
@@ -264,6 +311,54 @@ function poser() {
         const t = o.down('#caNote').el.dom.textContent;
         return /caisse de l'opérateur/.test(t) && /appartient au dépôt/.test(t);
       }));
+
+    /* La ligne TOTAL est affichee sous la grille, et c est bien la somme des lignes. */
+    const totalAffiche = await p.evaluate(() => {
+      const g = Ext.ComponentQuery.query('depotextension depotextensionca #caGrille')[0];
+      const chiffres = (t) => String(t).replace(/[^0-9-]/g, '');
+      let sommeNet = 0;
+      g.getStore().each((r) => { sommeNet += r.get('montantNet'); });
+      const pied = g.el.dom.querySelector('.x-grid-row-summary');
+      return { lignes: g.getStore().getCount(), sommeNet: sommeNet,
+        pied: pied ? pied.textContent.replace(/\s+/g, ' ').trim() : null,
+        piedChiffres: pied ? chiffres(pied.textContent) : null };
+    });
+    ok('Une ligne TOTAL est affichée sous les lignes',
+      !!totalAffiche.pied && /TOTAL/.test(totalAffiche.pied), JSON.stringify(totalAffiche));
+    ok('Le total du net est bien la somme des lignes',
+      totalAffiche.lignes === 0
+      || String(totalAffiche.piedChiffres).indexOf(String(Math.abs(totalAffiche.sommeNet))) >= 0,
+      JSON.stringify(totalAffiche));
+
+    /* L edition du chiffre d affaires : servie en flux, avec son modele jrxml. */
+    ok('L impression devient active après la recherche',
+      await p.evaluate(() =>
+        Ext.ComponentQuery.query('depotextension depotextensionca #caImprimer')[0].isDisabled()) === false);
+    const edition = await p.evaluate(async (d) => {
+      const o = Ext.ComponentQuery.query('depotextension depotextensionca')[0];
+      const jour = (x) => Ext.Date.format(o.down(x).getValue(), 'Y-m-d');
+      const url = '../api/v1/depot-extension/ca/pdf?depotId=' + encodeURIComponent(d)
+        + '&dtStart=' + jour('#caDebut') + '&dtEnd=' + jour('#caFin');
+      const r = await fetch(url);
+      const b = await r.arrayBuffer();
+      return { statut: r.status, type: r.headers.get('content-type'),
+        disposition: r.headers.get('content-disposition'), octets: Array.from(new Uint8Array(b)) };
+    }, DEPOT);
+    ok('Le chiffre d affaires s imprime, servi en flux dans l onglet',
+      edition.statut === 200 && /application\/pdf/.test(edition.type) && /inline/.test(edition.disposition),
+      JSON.stringify({ statut: edition.statut, type: edition.type, disposition: edition.disposition }));
+    ok('Le document est un vrai PDF', Buffer.from(edition.octets).slice(0, 5).toString() === '%PDF-');
+    const texteCa = texteDuPdf(edition.octets);
+    /* Ce parcours ne produit pas de vente comptee par la balance (la caisse n'est pas cloturee) : l'edition
+     * doit alors le DIRE, et non rendre un document vide que l'on prendrait pour une erreur. Le contenu
+     * chiffre de cette edition est verifie par test-ca-depot, qui pose de vraies ventes. */
+    ok('Sans vente sur la période, l édition le dit au lieu de rendre une page vide',
+      /aucune vente sur la p.riode/.test(texteCa), texteCa.slice(0, 260));
+    ok('L édition du chiffre d affaires refuse l officine',
+      await p.evaluate(async () => {
+        const r = await fetch('../api/v1/depot-extension/ca/pdf?depotId=1&dtStart=2026-01-01&dtEnd=2026-01-01');
+        return r.status;
+      }) === 400);
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, err.join(' | '));
   } catch (e) {

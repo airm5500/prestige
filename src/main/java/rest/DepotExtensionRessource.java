@@ -166,6 +166,37 @@ public class DepotExtensionRessource {
     }
 
     /**
+     * Edition du chiffre d'affaires du depot (retour du 17/09 : « on doit pouvoir imprimer le chiffre d'affaire,
+     * prevoir le fichier jrxml »).
+     *
+     * <p>
+     * Servie en flux dans l'onglet ouvert par le clic, comme toutes les editions de cet ecran. Les chiffres sont ceux
+     * de la balance du depot, sans recalcul : l'ecran, l'edition et l'ecran « Balance Depot » doivent dire la meme
+     * chose.
+     */
+    @GET
+    @Path("ca/pdf")
+    @Produces("application/pdf")
+    public Response pdfCa(@QueryParam("depotId") String depotId, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!depotExtensionService.estDepotExtension(depotId)) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        try {
+            byte[] pdf = depotExtensionService.pdfCa(user, depotId, dtStart, dtEnd);
+            return Response.ok(pdf, "application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"chiffre_affaires_depot.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "edition du chiffre d'affaires du depot " + depotId, e);
+            return Response.serverError().build();
+        }
+    }
+
+    /**
      * Edition de la valorisation ventilee par emplacement (retour du 17/09).
      *
      * <p>

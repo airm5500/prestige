@@ -17,6 +17,26 @@
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
 
+// Texte affiche par un PDF : les flux sont deflates, on en extrait les chaines.
+function texteDuPdf(octets) {
+  const zlib = require('zlib');
+  const d = Buffer.from(octets);
+  const brut = d.toString('latin1');
+  let out = '';
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(brut)) !== null) {
+    const debut = m.index + m[0].length;
+    const fin = brut.indexOf('endstream', debut);
+    if (fin < 0) { continue; }
+    try {
+      const clair = zlib.inflateSync(d.slice(debut, fin)).toString('latin1');
+      out += (clair.match(/\((?:[^()\\]|\\.)*\)/g) || []).join(' ');
+    } catch (e) { /* flux non compresse ou police */ }
+  }
+  return out;
+}
+
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 340) + ']' : '')); }
 const BASE = process.env.DB_TEST || 'capitale';
@@ -174,6 +194,34 @@ function poser() {
       montantDepot !== null && montantOfficine !== null && montantDepot + montantOfficine
       === vDepot.montant + vOfficine.montant,
       montantDepot + ' + ' + montantOfficine + ' = ' + (montantDepot + montantOfficine));
+
+    /* ------------------------------------------- l edition du chiffre d affaires (retour du 17/09) */
+    // « on doit pouvoir imprimer le chiffre d'affaire, prevoir le fichier jrxml ». L'edition doit porter
+    // EXACTEMENT les chiffres de l'ecran : elle repart de la meme balance, sans recalcul.
+    const pdfCa = await p.evaluate(async (a) => {
+      const r = await fetch('../api/v1/depot-extension/ca/pdf?depotId=' + encodeURIComponent(a.depot)
+        + '&dtStart=' + a.jour + '&dtEnd=' + a.jour);
+      const b = await r.arrayBuffer();
+      return { statut: r.status, type: r.headers.get('content-type'),
+        disposition: r.headers.get('content-disposition'), octets: Array.from(new Uint8Array(b)) };
+    }, { depot: DEPOT, jour: JOUR });
+    ok('le chiffre d affaires du depot s imprime, servi en flux dans l onglet',
+      pdfCa.statut === 200 && /application\/pdf/.test(pdfCa.type) && /inline/.test(pdfCa.disposition),
+      JSON.stringify({ statut: pdfCa.statut, type: pdfCa.type, disposition: pdfCa.disposition }));
+    ok('c est un vrai PDF', Buffer.from(pdfCa.octets).slice(0, 5).toString() === '%PDF-');
+    const texteCa = texteDuPdf(pdfCa.octets);
+    ok('l edition nomme le depot, la periode, et porte les colonnes demandees',
+      texteCa.indexOf('CHIFFRE D\'AFFAIRES - ' + NOM_DEPOT) >= 0 && /p.riode du/.test(texteCa)
+      && /MONTANT TTC/.test(texteCa) && /MONTANT NET/.test(texteCa) && /MARGE/.test(texteCa)
+      && /NBRE VENTES/.test(texteCa) && /MONTANT ESP/.test(texteCa) && /TIERS PAYANT/.test(texteCa),
+      texteCa.slice(0, 340));
+    ok('l edition ne reprend pas la colonne « reglement », qui n etait jamais renseignee',
+      !/R.GLEMENT/.test(texteCa), texteCa.slice(0, 340));
+    ok('l edition porte sa ligne TOTAL et le montant de la vente du depot',
+      /TOTAL/.test(texteCa) && texteCa.replace(/[^0-9]/g, '').indexOf(String(vDepot.montant)) >= 0,
+      'attendu ' + vDepot.montant + ' dans ' + texteCa.slice(-340));
+    ok('l edition est paginee et rappelle ou est l argent',
+      /Page 1/.test(texteCa) && /caisse de l'op.rateur/.test(texteCa), texteCa.slice(-260));
 
     /* ------------------------------------------------------------- la ventilation du ticket Z */
     // « fetch-tickez » rend le recapitulatif affiche a l'ecran (le ticket Z imprime, lui, part sur

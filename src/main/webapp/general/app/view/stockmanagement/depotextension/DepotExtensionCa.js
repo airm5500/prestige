@@ -14,6 +14,11 @@
  * Rappel utile à la lecture : l'argent de ces ventes est dans la caisse de l'opérateur de l'officine, pas dans
  * une caisse du dépôt. Le chiffre appartient au dépôt, l'encaissement à l'officine — c'est pourquoi le ticket Z
  * de l'opérateur porte une ligne « dont vente dépôt ».
+ *
+ * Retour du 17/09 : la période part des dates DU JOUR, les colonnes sont celles demandées par l'officine (avec
+ * la marge, les espèces et le tiers payant, et une ligne TOTAL), et le tout s'imprime. La colonne « règlement »
+ * a disparu : l'officine a demandé à quoi elle servait, et la réponse est qu'elle ne servait à rien — le service
+ * ne la renseigne jamais pour ces lignes, elle était systématiquement vide.
  */
 Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionCa', {
     extend: 'Ext.panel.Panel',
@@ -24,8 +29,15 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionCa', {
 
     initComponent: function () {
         var me = this;
+        // Dates du JOUR au départ (retour du 17/09) : c'est la question posée dix fois par jour ; le mois
+        // entier, quand on le veut, se demande en deux clics.
         var jour = new Date();
-        var premier = Ext.Date.getFirstDateOfMonth(jour);
+        var montant = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        var sommeMontant = function (valeur) {
+            return '<b>' + Ext.util.Format.number(valeur || 0, '0,000') + '</b>';
+        };
 
         Ext.apply(me, {
             dockedItems: [{
@@ -39,7 +51,7 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionCa', {
                             labelWidth: 20,
                             width: 150,
                             format: 'd/m/Y',
-                            value: premier
+                            value: jour
                         }, {
                             xtype: 'datefield',
                             itemId: 'caFin',
@@ -54,6 +66,15 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionCa', {
                             itemId: 'caRechercher',
                             text: 'Rechercher',
                             iconCls: 'icon-find'
+                        }, {
+                            // Edition servie en flux dans l'onglet ouvert par le clic, comme toutes les
+                            // editions de cet ecran : aucune fenetre intermediaire.
+                            xtype: 'button',
+                            itemId: 'caImprimer',
+                            text: 'Imprimer',
+                            iconCls: 'printable',
+                            margin: '0 0 0 10',
+                            disabled: true
                         }, '->', {
                             xtype: 'component',
                             itemId: 'caTotaux',
@@ -69,25 +90,39 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionCa', {
                     viewConfig: { stripeRows: true,
                         emptyText: '<div style="padding:12px;color:#888;">Choisissez un dépôt et une période, '
                                 + 'puis lancez la recherche.</div>', deferEmptyText: false },
+                    // La ligne TOTAL est calculee par la grille sur les lignes chargees. Elle est juste ici
+                    // sans reserve : la balance ne rend qu'une ligne par type de vente, il n'y a pas de
+                    // pagination sous laquelle une ligne pourrait se cacher.
+                    features: [{ ftype: 'summary' }],
                     store: Ext.create('Ext.data.Store', {
-                        // Champs du BalanceDTO servi par v1/balance/balancesalecashdepot.
-                        fields: ['typeVente', 'reglement',
+                        // Champs du BalanceDTO servi par v1/balance/balancesalecashdepot. « reglement » n'est
+                        // pas lu : le service ne le renseigne jamais pour ces lignes.
+                        fields: ['typeVente',
                             { name: 'montantTTC', type: 'int' },
                             { name: 'montantNet', type: 'int' },
-                            { name: 'montantRemise', type: 'int' },
-                            { name: 'nbreVente', type: 'int' }],
+                            { name: 'marge', type: 'int' },
+                            { name: 'nbreVente', type: 'int' },
+                            { name: 'montantEsp', type: 'int' },
+                            { name: 'montantTp', type: 'int' }],
                         autoLoad: false
                     }),
+                    /* Colonnes et ordre demandes par l'officine. */
                     columns: [
-                        { text: 'TYPE DE VENTE', dataIndex: 'typeVente', flex: 2 },
-                        { text: 'RÈGLEMENT', dataIndex: 'reglement', flex: 1 },
-                        { text: 'VENTES', dataIndex: 'nbreVente', width: 100, align: 'right' },
+                        { text: 'TYPE DE VENTE', dataIndex: 'typeVente', flex: 1.6,
+                            summaryRenderer: function () { return '<b>TOTAL</b>'; } },
                         { text: 'MONTANT TTC', dataIndex: 'montantTTC', flex: 1, align: 'right',
-                            renderer: function (v) { return Ext.util.Format.number(v || 0, '0,000'); } },
-                        { text: 'REMISE', dataIndex: 'montantRemise', flex: 1, align: 'right',
-                            renderer: function (v) { return Ext.util.Format.number(v || 0, '0,000'); } },
+                            renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant },
                         { text: 'MONTANT NET', dataIndex: 'montantNet', flex: 1, align: 'right',
-                            renderer: function (v) { return Ext.util.Format.number(v || 0, '0,000'); } }
+                            renderer: function (v) { return '<b>' + montant(v) + '</b>'; },
+                            summaryType: 'sum', summaryRenderer: sommeMontant },
+                        { text: 'MARGE', dataIndex: 'marge', flex: 1, align: 'right',
+                            renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant },
+                        { text: 'NBRE VENTES', dataIndex: 'nbreVente', width: 110, align: 'right',
+                            summaryType: 'sum', summaryRenderer: sommeMontant },
+                        { text: 'MONTANT ESPÈCES', dataIndex: 'montantEsp', flex: 1, align: 'right',
+                            renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant },
+                        { text: 'MONTANT TIERS PAYANT', dataIndex: 'montantTp', flex: 1.1, align: 'right',
+                            renderer: montant, summaryType: 'sum', summaryRenderer: sommeMontant }
                     ]
                 }, {
                     xtype: 'component',

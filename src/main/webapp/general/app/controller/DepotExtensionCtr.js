@@ -46,6 +46,7 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
             'depotextension #vueSimple': { click: me.montrerVueSimple },
             'depotextension #vueEmplacement': { click: me.montrerVueEmplacement },
             'depotextension depotextensionca button[itemId=caRechercher]': { click: me.chargerCa },
+            'depotextension depotextensionca button[itemId=caImprimer]': { click: me.imprimerCa },
             'depotextension #onglets': { tabchange: me.surChangementOnglet },
             'depotextension': { afterrender: me.surAffichage }
         });
@@ -364,6 +365,8 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
         if (!onglet) { return; }
         onglet.down('#caGrille').getStore().removeAll();
         onglet.down('#caTotaux').update('');
+        // L'edition n'a de sens qu'apres une recherche : on n'imprime pas une grille vide.
+        onglet.down('#caImprimer').setDisabled(true);
     },
 
     chargerCa: function () {
@@ -419,11 +422,32 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
             return;
         }
         onglet.down('#caGrille').getStore().loadData(r.data || []);
+        onglet.down('#caImprimer').setDisabled(!me.depotId());
         var meta = r.metaData || {};
         var n = me.montant;
         onglet.down('#caTotaux').update('<b>' + Ext.String.htmlEncode(me.nomDepot()) + '</b> — '
                 + n(meta.nbreVente) + ' vente(s) — net <b>' + n(meta.montantNet) + '</b> CFA '
                 + '(TTC ' + n(meta.montantTTC) + ', remise ' + n(meta.montantRemise) + ')');
+    },
+
+    /**
+     * Edition du chiffre d'affaires, servie en flux dans l'onglet ouvert par le clic.
+     *
+     * Les chiffres ne sont pas ceux de la grille mais ceux que le serveur recalcule sur la MEME periode et le
+     * meme depot : imprimer ce que le navigateur a en memoire donnerait un document qui ne correspond a rien
+     * dès que quelqu'un a vendu entre-temps.
+     */
+    imprimerCa: function () {
+        var onglet = this.getOngletCa();
+        if (!onglet) { return; }
+        var debut = onglet.down('#caDebut').getValue();
+        var fin = onglet.down('#caFin').getValue();
+        if (!this.depotId() || !debut || !fin) { return; }
+        window.open('../api/v1/depot-extension/ca/pdf?' + Ext.Object.toQueryString({
+            depotId: this.depotId(),
+            dtStart: Ext.Date.format(debut, 'Y-m-d'),
+            dtEnd: Ext.Date.format(fin, 'Y-m-d')
+        }));
     },
 
     exporterExcel: function () {

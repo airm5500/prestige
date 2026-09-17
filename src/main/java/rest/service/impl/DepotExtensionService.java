@@ -31,6 +31,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.report.ReportUtil;
+import rest.service.BalanceService;
+import rest.service.dto.DepotCaLigneDTO;
 import rest.service.dto.DepotEmplacementLigneDTO;
 import rest.service.dto.DepotStockLigneDTO;
 
@@ -58,11 +60,17 @@ public class DepotExtensionService {
     /** Modele de l'edition de la valorisation ventilee par emplacement, egalement embarque. */
     public static final String MODELE_EMPLACEMENT = "depot_valorisation_emplacement";
 
+    /** Modele de l'edition du chiffre d'affaires du depot, embarque comme les deux autres. */
+    public static final String MODELE_CA = "depot_chiffre_affaires";
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
     @EJB
     private ReportUtil reportUtil;
+
+    @EJB
+    private BalanceService balanceService;
 
     /** Depots d'extension actifs, pour le choix de l'ecran. */
     @SuppressWarnings("unchecked")
@@ -325,6 +333,42 @@ public class DepotExtensionService {
                 criteres(depotId, criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock,
                         criteres.masquerLesZeros),
                 lignesParEmplacement(depotId, criteres));
+    }
+
+    /**
+     * Chiffre d'affaires du depot sur une periode, dans la presentation demandee par l'officine.
+     *
+     * <p>
+     * Les chiffres viennent de la balance - {@code v1/balance/balancesalecashdepot}, dont le perimetre a ete corrige
+     * pour reunir les ventes saisies par un utilisateur rattache au depot ET celles jouees dans le depot depuis
+     * l'officine. On ne recalcule rien ici : l'ecran, l'edition et l'ecran « Balance Depot » doivent donner le meme
+     * chiffre, et deux calculs finissent toujours par diverger.
+     *
+     * <p>
+     * La colonne « reglement » de l'ancienne presentation n'est pas reprise : le service ne la renseigne jamais pour
+     * ces lignes, elle etait systematiquement vide.
+     */
+    public List<DepotCaLigneDTO> lignesCa(String depotId, String dtStart, String dtEnd) {
+        List<DepotCaLigneDTO> out = new ArrayList<>();
+        try {
+            rest.service.dto.BalanceParamsDTO params = rest.service.dto.BalanceParamsDTO.builder().dtStart(dtStart)
+                    .dtEnd(dtEnd).emplacementId(depotId).build();
+            for (commonTasks.dto.BalanceDTO b : balanceService.getBalanceVenteCaisseData(params).getBalances()) {
+                out.add(new DepotCaLigneDTO(StringUtils.defaultString(b.getTypeVente()), b.getMontantTTC(),
+                        b.getMontantNet(), b.getMarge(), b.getNbreVente(), b.getMontantEsp(), b.getMontantTp()));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "chiffre d'affaires du depot " + depotId, e);
+        }
+        return out;
+    }
+
+    /** Edition du chiffre d'affaires, servie en flux comme les deux autres. */
+    public byte[] pdfCa(TUser operateur, String depotId, String dtStart, String dtEnd) throws JRException {
+        return editer(operateur, MODELE_CA, "CHIFFRE D'AFFAIRES - " + nomDepot(depotId).toUpperCase(),
+                "Dépôt : " + nomDepot(depotId) + " - période du " + StringUtils.defaultString(dtStart) + " au "
+                        + StringUtils.defaultString(dtEnd),
+                lignesCa(depotId, dtStart, dtEnd));
     }
 
     /** PDF rendu en memoire : servi en flux dans l'onglet ouvert par le clic, sans fichier temporaire. */
