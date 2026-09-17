@@ -1561,7 +1561,25 @@ public class BalanceServiceImpl implements BalanceService {
         return venteReglement;
     }
 
-    private BalanceDTO buildVenteBalance(List<BalanceVenteItemDTO> values, boolean checkUg, boolean showAllAmount,
+    /**
+     * Totaux d'un type de vente : les montants, la marge, et la ventilation par mode de reglement.
+     *
+     * <p>
+     * DEFAUT PRE-EXISTANT CORRIGE ICI (constate en mesurant la balance du depot le 16/09, signale alors, corrige
+     * aujourd'hui). Deux valeurs nulles faisaient tomber la methode en NullPointerException, et avec elle tout l'ecran
+     * de balance :
+     * <ol>
+     * <li>{@code reglementReports} vaut NULL quand aucune vente de ce type n'a de ligne dans {@code vente_reglement} -
+     * ce qui arrive des qu'une vente est cloturee sans reglement enregistre, cas rare mais reel. L'appelant passe le
+     * resultat d'un {@code Map.remove()}, qui rend null pour une cle absente ;</li>
+     * <li>{@code getTypeReglement()} peut etre null sur une ligne de reglement sans mode, et un {@code switch} sur une
+     * chaine nulle leve la meme exception.</li>
+     * </ol>
+     * Dans les deux cas la bonne reponse n'est pas de tomber : une vente sans reglement enregistre compte dans le
+     * chiffre d'affaires, elle ne compte simplement dans aucun mode de reglement. C'est ce que fait le code ci-dessous,
+     * et le total des modes est alors inferieur au net - ce qui est l'information exacte.
+     */
+    BalanceDTO buildVenteBalance(List<BalanceVenteItemDTO> values, boolean checkUg, boolean showAllAmount,
             List<VenteReglementReportDTO> reglementReports) {
         long montantTTC = 0;
         long montantNet = 0;
@@ -1610,14 +1628,19 @@ public class BalanceServiceImpl implements BalanceService {
             // montantPaye += montantPaye1;
 
         }
-        for (VenteReglementReportDTO reglementReport : reglementReports) {
+        // Liste nulle : aucune vente de ce type n'a de ligne de reglement. On ne ventile rien, on ne tombe pas.
+        for (VenteReglementReportDTO reglementReport : reglementReports == null
+                ? java.util.Collections.<VenteReglementReportDTO> emptyList() : reglementReports) {
             long ugNetAmount = checkUg ? reglementReport.getUgNetAmount() : 0;
             // long amount = ((reglementReport.getMontant() - reglementReport.getFlagedAmount()) - ugNetAmount)
             // - reglementReport.getAmountNonCa();
             long amount = ((reglementReport.getMontantAttentu() - reglementReport.getFlagedAmount()) - ugNetAmount)
                     - reglementReport.getAmountNonCa();
             totalModeReglement += amount;
-            switch (reglementReport.getTypeReglement()) {
+            // Mode absent : le montant compte dans le total encaisse, mais dans aucune colonne de mode -
+            // un switch sur une chaine nulle levait une NullPointerException.
+            String modeReglement = StringUtils.defaultString(reglementReport.getTypeReglement());
+            switch (modeReglement) {
 
             case Constant.MODE_ESP:
                 montantEsp += amount;
@@ -1654,7 +1677,7 @@ public class BalanceServiceImpl implements BalanceService {
 
                 break;
             default:
-                if (util.MobileMoney.est(reglementReport.getTypeReglement())) {
+                if (util.MobileMoney.est(modeReglement)) {
                     montantAutresMobile += amount;
                 }
                 break;
