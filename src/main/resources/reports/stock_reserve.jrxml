@@ -168,6 +168,29 @@
             </textField>
         </band>
     </detail>
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="0" y="2" width="700" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY}) + "  -  liste triée par emplacement"]]></textFieldExpression>
+            </textField>
+            <!-- Pagination demandee par l'officine sur les deux editions de reserve : ces listes font des
+                 dizaines de pages, on compte en marchant devant les etageres, et une page tombee par terre
+                 doit pouvoir se remettre a sa place. « Page X / Y » exige deux passes de Jasper :
+                 evaluationTime="Report" sur le second champ, sinon Y vaudrait la page en cours. -->
+            <textField>
+                <reportElement x="700" y="2" width="62" height="11"/>
+                <textElement textAlignment="Right"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="762" y="2" width="40" height="11"/>
+                <textElement textAlignment="Left"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[String.valueOf($V{PAGE_NUMBER})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
     <summary>
         <band height="34">
             <frame>

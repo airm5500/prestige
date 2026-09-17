@@ -47,6 +47,42 @@ public class StockReserveEditionService {
     @EJB
     private ReportUtil reportUtil;
 
+    /**
+     * Trie les lignes PAR EMPLACEMENT, puis par designation.
+     *
+     * <p>
+     * Retour du 17/09 sur les deux editions de reserve : « trier par emplacement les produits ». Un releve de stock se
+     * fait rayon par rayon, en marchant devant les etageres ; une liste dans l'ordre alphabetique des medicaments
+     * oblige a traverser l'officine a chaque ligne. C'est la difference entre une feuille utilisable et une feuille
+     * qu'on recopie a la main avant de s'en servir.
+     *
+     * <p>
+     * Les articles sans emplacement renseigne passent EN DERNIER : leur libelle vide les placerait en tete, la ou l'on
+     * commence a compter. Le tri ignore la casse et les espaces de bord, faute de quoi « T3 » et « t3 » formeraient
+     * deux rayons distincts.
+     *
+     * <p>
+     * Le tri est fait ici, dans l'edition, et non dans les requetes des deux ecrans : ceux-ci affichent leurs lignes
+     * dans l'ordre que l'utilisateur a choisi a l'ecran, et cet ordre-la ne doit pas changer.
+     */
+    static void trierParEmplacement(List<StockReserveLigneDTO> lignes) {
+        if (lignes == null) {
+            return;
+        }
+        lignes.sort((a, b) -> {
+            String ea = StringUtils.trimToEmpty(a.getEmplacement());
+            String eb = StringUtils.trimToEmpty(b.getEmplacement());
+            if (ea.isEmpty() != eb.isEmpty()) {
+                return ea.isEmpty() ? 1 : -1;
+            }
+            int parEmplacement = ea.compareToIgnoreCase(eb);
+            if (parEmplacement != 0) {
+                return parEmplacement;
+            }
+            return StringUtils.trimToEmpty(a.getLibelle()).compareToIgnoreCase(StringUtils.trimToEmpty(b.getLibelle()));
+        });
+    }
+
     /** Lignes de l'edition a partir des lignes de « comparaison stock article ». */
     public List<StockReserveLigneDTO> lignesComparaison(List<ArticleDTO> articles) {
         List<StockReserveLigneDTO> lignes = new ArrayList<>();
@@ -86,6 +122,7 @@ public class StockReserveEditionService {
      */
     public byte[] editer(TUser operateur, String titre, String criteres, List<StockReserveLigneDTO> lignes)
             throws JRException {
+        trierParEmplacement(lignes);
         Map<String, Object> parametres = new HashMap<>();
         try {
             parametres.putAll(reportUtil.officineData(operateur));

@@ -222,7 +222,41 @@ const appeler = (p, url) => p.evaluate(async (u) => {
         new RegExp('TOTAL : 1 article').test(texte), texte.slice(-140));
       ok(e.nom + ' : les criteres de l ecran sont rappeles sur l edition',
         texte.indexOf(cipUn) >= 0, texte.slice(0, 260));
+      /* Retour du 17/09 (points 6 et 7) : « ajouter la pagination » sur les deux editions de reserve. */
+      ok(e.nom + ' : l edition est paginee', /Page 1/.test(texte), texte.slice(-200));
+      ok(e.nom + ' : le pied rappelle que la liste est triee par emplacement',
+        /tri.e par emplacement/.test(texte), texte.slice(-200));
     }
+
+    /* ---------- « trier par emplacement les produits », verifie sur une VRAIE liste ----------
+     *
+     * Le controle ci-dessus porte sur un seul article : il ne peut rien dire d un ordre. On demande donc une
+     * edition large, puis on releve dans le texte du PDF les libelles de rayon, dans leur ordre d apparition,
+     * et on verifie que cette suite est croissante.
+     *
+     * Les libelles retenus sont ceux des rayons QUI NE SONT PAS aussi des libelles de famille : sinon une
+     * occurrence dans la colonne famille serait prise pour un rayon, et le controle se tromperait. */
+    const rayons = q("SELECT GROUP_CONCAT(z.str_LIBELLEE SEPARATOR '|') FROM t_zone_geographique z"
+      + " WHERE TRIM(COALESCE(z.str_LIBELLEE,'')) <> ''"
+      + " AND NOT EXISTS (SELECT 1 FROM t_famillearticle f WHERE f.str_LIBELLE = z.str_LIBELLEE)")
+      .split('|').filter(Boolean);
+    ok('Précondition : le banc a des libellés de rayon non ambigus', rayons.length >= 2, rayons.length);
+    const large = await recupererPdf(p, '../api/v1/etat-stock/pdf-reserve?search_value=&int_NUMBER=');
+    ok('Etat de stock : l edition large repond', large.statut === 200, String(large.statut));
+    const texteLarge = texteDuPdf(large.octets);
+    // occurrences des libelles de rayon, dans l ordre ou elles apparaissent dans le document
+    const trouves = [];
+    const motif = new RegExp('\\((' + rayons.map((r) =>
+      r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\)', 'g');
+    let m;
+    while ((m = motif.exec(texteLarge)) !== null) { trouves.push(m[1]); }
+    const croissant = trouves.every((r, i) =>
+      i === 0 || trouves[i - 1].toLowerCase() <= r.toLowerCase());
+    ok('Etat de stock : les produits sont triés PAR EMPLACEMENT dans l édition',
+      trouves.length >= 2 && croissant,
+      trouves.length + ' rayon(s) relevé(s) : ' + trouves.slice(0, 12).join(' > '));
+    ok('Etat de stock : l édition large est paginée sur plusieurs pages',
+      /Page 1/.test(texteLarge), texteLarge.slice(-200));
 
     /* les boutons : l edition historique est conservee et la nouvelle s ajoute a cote.
        Un seul ecran est ouvert a la fois, on les controle donc l un puis l autre. */
