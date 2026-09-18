@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Historique des ordonnances clients (evolution 6, point 2, vague 3). Modele EMBARQUE dans l'application.
+
+  « Imprimer l'historique des ordonnances d'un client ou la liste filtree. » C'est le MEME etat dans les deux
+  cas : un client est un critere comme un autre, et le rappel des criteres imprime dit lequel a ete pose. Deux
+  etats distincts auraient divergé au premier ajout de colonne.
+
+  Paysage et pagine : l'historique d'une officine se compte en centaines de lignes.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="ordonnance_historique" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <style name="ligne" fontSize="7.5">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F5F8FB"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <parameter name="P_TITRE" class="java.lang.String"/>
+    <parameter name="P_CRITERES" class="java.lang.String"/>
+    <field name="numero" class="java.lang.String"/>
+    <field name="date" class="java.lang.String"/>
+    <field name="client" class="java.lang.String"/>
+    <field name="typeClient" class="java.lang.String"/>
+    <field name="medecin" class="java.lang.String"/>
+    <field name="etablissement" class="java.lang.String"/>
+    <field name="nbProduits" class="java.lang.Integer"/>
+    <field name="nbPieces" class="java.lang.Integer"/>
+    <field name="creePar" class="java.lang.String"/>
+    <field name="etat" class="java.lang.String"/>
+    <variable name="totalProduits" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[Long.valueOf($F{nbProduits})]]></variableExpression>
+    </variable>
+    <variable name="totalPieces" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[Long.valueOf($F{nbPieces})]]></variableExpression>
+    </variable>
+    <title>
+        <band height="72">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="14" width="802" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="25" width="802" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_AUTRE_DESC}]]></textFieldExpression>
+            </textField>
+            <frame>
+                <reportElement mode="Opaque" x="0" y="40" width="802" height="16" backcolor="#2E75B6"/>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="6" y="0" width="790" height="16" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TITRE}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="58" width="802" height="12"/>
+                <textElement textAlignment="Center"><font size="7.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_CRITERES}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="15">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="14" backcolor="#E4EAF0"/>
+                <staticText><reportElement x="4" y="0" width="96" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[N° ordonnance]]></text></staticText>
+                <staticText><reportElement x="100" y="0" width="60" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Date]]></text></staticText>
+                <staticText><reportElement x="160" y="0" width="170" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Client]]></text></staticText>
+                <staticText><reportElement x="330" y="0" width="66" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Type]]></text></staticText>
+                <staticText><reportElement x="396" y="0" width="140" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Prescripteur]]></text></staticText>
+                <staticText><reportElement x="536" y="0" width="120" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Établissement]]></text></staticText>
+                <staticText><reportElement x="656" y="0" width="44" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Prod.]]></text></staticText>
+                <staticText><reportElement x="700" y="0" width="38" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Pièces]]></text></staticText>
+                <staticText><reportElement x="738" y="0" width="64" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[État]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="12">
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="4" y="0" width="96" height="12"/>
+                <textElement><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{numero}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="100" y="0" width="60" height="12"/>
+                <textFieldExpression><![CDATA[$F{date}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="160" y="0" width="170" height="12"/>
+                <textFieldExpression><![CDATA[$F{client}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="330" y="0" width="66" height="12"/>
+                <textFieldExpression><![CDATA[$F{typeClient}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="396" y="0" width="140" height="12"/>
+                <textFieldExpression><![CDATA[$F{medecin}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="536" y="0" width="120" height="12"/>
+                <textFieldExpression><![CDATA[$F{etablissement}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="ligne" x="656" y="0" width="44" height="12"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$F{nbProduits}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="ligne" x="700" y="0" width="38" height="12"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$F{nbPieces}]]></textFieldExpression>
+            </textField>
+            <!-- Une ordonnance annulee se lit comme telle sur le papier : en rouge, et nommee. -->
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="738" y="0" width="64" height="12" forecolor="#C0392B"/>
+                <textElement><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{etat}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="0" y="2" width="700" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY}) + " - ordonnances de la plus récente à la plus ancienne"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="700" y="2" width="62" height="11"/>
+                <textElement textAlignment="Right"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="762" y="2" width="40" height="11"/>
+                <textElement textAlignment="Left"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[String.valueOf($V{PAGE_NUMBER})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="34">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="3" width="802" height="15" backcolor="#E4EAF0"/>
+                <textField>
+                    <reportElement x="4" y="0" width="652" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["TOTAL : " + $V{REPORT_COUNT} + " ordonnance(s)"]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="656" y="0" width="44" height="15"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{totalProduits}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="700" y="0" width="38" height="15"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{totalPieces}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="20" width="802" height="11"/>
+                <textElement><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

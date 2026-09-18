@@ -12,6 +12,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -43,8 +45,17 @@ public class OrdonnanceClientService {
 
     private static final Logger LOG = Logger.getLogger(OrdonnanceClientService.class.getName());
 
+    private static final java.time.format.DateTimeFormatter FR_JOUR = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy");
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @javax.ejb.EJB
+    private rest.report.ReportUtil reportUtil;
+
+    @javax.ejb.EJB
+    private rest.service.utils.ReportExcelExportService excelService;
 
     /**
      * Historique, du plus recent au plus ancien, avec ses filtres.
@@ -301,6 +312,254 @@ public class OrdonnanceClientService {
                 OrdonnanceClientSaisie.sequenceSuivante(dernier == null ? null : String.valueOf(dernier)));
     }
 
+    /*
+     * EDITIONS ET EXPORT (vague 3)
+     *
+     * « Imprimer la fiche detaillee d'une ordonnance. Imprimer l'historique des ordonnances d'un client ou la liste
+     * filtree. Exporter en Excel la liste des ordonnances et les produits prescrits, en tenant compte des filtres
+     * selectionnes. »
+     *
+     * Les editions relisent la MEME requete que l'ecran, avec les MEMES criteres : l'imprime et l'affiche ne peuvent
+     * donc pas montrer des lignes differentes. C'est la seule facon de rendre un total imprime defendable devant un
+     * controle.
+     */
+
+    /** Modeles embarques : aucun fichier a poser sur les sites pour que les editions fonctionnent. */
+    public static final String MODELE_FICHE = "ordonnance_fiche";
+    public static final String MODELE_HISTORIQUE = "ordonnance_historique";
+
+    /** L'historique sous forme de lignes, pour l'edition : la liste complete, sans pagination. */
+    @SuppressWarnings("unchecked")
+    public List<rest.service.dto.OrdonnanceLigneDTO> lignesHistorique(Criteres criteres) {
+        List<rest.service.dto.OrdonnanceLigneDTO> out = new ArrayList<>();
+        try {
+            Query q = em.createNativeQuery(OrdonnanceClientSql.liste(criteres), Tuple.class);
+            OrdonnanceClientSql.lier(q, criteres);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                out.add(new rest.service.dto.OrdonnanceLigneDTO(t.get("numero", String.class),
+                        jourFr(t.get("dateOrdonnance")), StringUtils.trimToEmpty(t.get("client", String.class)),
+                        StringUtils.defaultString(t.get("typeClient", String.class)),
+                        StringUtils.trimToEmpty(t.get("medecin", String.class)),
+                        StringUtils.defaultString(t.get("etablissement", String.class)), entier(t.get("nbProduits")),
+                        entier(t.get("nbPieces")), StringUtils.defaultString(t.get("statut", String.class)),
+                        StringUtils.trimToEmpty(t.get("creePar", String.class))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "historique des ordonnances pour edition", e);
+        }
+        return out;
+    }
+
+    /**
+     * Les produits prescrits des ordonnances retenues, UNE LIGNE PAR PRODUIT.
+     *
+     * <p>
+     * C'est la forme de l'export Excel : l'officine peut trier, filtrer et croiser sur les produits, ce qu'un fichier a
+     * une ligne par ordonnance avec les produits concatenes n'aurait pas permis.
+     *
+     * <p>
+     * La jointure sur les produits est LACHE : une ordonnance sans produit - cas theorique, la saisie l'interdit -
+     * sortirait quand meme. Mieux vaut une ordonnance visible sans produit qu'une ordonnance absente de l'export.
+     */
+    @SuppressWarnings("unchecked")
+    public List<rest.service.dto.OrdonnanceProduitDTO> produitsHistorique(Criteres criteres) {
+        List<rest.service.dto.OrdonnanceProduitDTO> out = new ArrayList<>();
+        try {
+            String sql = "SELECT o.str_NUMERO AS numero, o.dt_ORDONNANCE AS dateOrdonnance,"
+                    + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME, ''), ' ', COALESCE(c.str_LAST_NAME, ''))) AS client,"
+                    + " tc.str_NAME AS typeClient,"
+                    + " TRIM(CONCAT(COALESCE(m.str_FIRST_NAME, ''), ' ', COALESCE(m.str_LAST_NAME, ''))) AS medecin,"
+                    + " o.str_ETABLISSEMENT AS etablissement, o.str_STATUT AS statut,"
+                    + " d.str_LIBELLE AS produit, f.int_CIP AS cip, d.int_QUANTITE AS quantite,"
+                    + " d.str_POSOLOGIE AS posologie, d.str_DUREE AS duree" + " FROM t_ordonnance_client o"
+                    + " JOIN t_client c ON c.lg_CLIENT_ID = o.lg_CLIENT_ID"
+                    + " LEFT JOIN t_type_client tc ON tc.lg_TYPE_CLIENT_ID = c.lg_TYPE_CLIENT_ID"
+                    + " LEFT JOIN t_medecin m ON m.lg_MEDECIN_ID = o.lg_MEDECIN_ID"
+                    + " LEFT JOIN t_user uc ON uc.lg_USER_ID = o.lg_USER_CREATED"
+                    + " LEFT JOIN t_user uu ON uu.lg_USER_ID = o.lg_USER_UPDATED"
+                    + " LEFT JOIN t_ordonnance_client_detail d ON d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+                    + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                    + OrdonnanceClientSql.conditions(criteres)
+                    + " ORDER BY o.dt_ORDONNANCE DESC, o.dt_CREATED DESC, d.int_ORDRE ASC";
+            Query q = em.createNativeQuery(sql, Tuple.class);
+            OrdonnanceClientSql.lier(q, criteres);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                out.add(new rest.service.dto.OrdonnanceProduitDTO(t.get("numero", String.class),
+                        jourFr(t.get("dateOrdonnance")), StringUtils.trimToEmpty(t.get("client", String.class)),
+                        StringUtils.defaultString(t.get("typeClient", String.class)),
+                        StringUtils.trimToEmpty(t.get("medecin", String.class)),
+                        StringUtils.defaultString(t.get("etablissement", String.class)),
+                        StringUtils.defaultString(t.get("produit", String.class)),
+                        t.get("cip") == null ? "" : String.valueOf(t.get("cip")), entier(t.get("quantite")),
+                        StringUtils.defaultString(t.get("posologie", String.class)),
+                        StringUtils.defaultString(t.get("duree", String.class)),
+                        StringUtils.defaultString(t.get("statut", String.class))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produits prescrits pour export", e);
+        }
+        return out;
+    }
+
+    /**
+     * Rappel des criteres imprime.
+     *
+     * <p>
+     * Une edition qui tait ses filtres laisse croire qu'elle porte sur tout l'historique : celle-ci nomme le client, le
+     * type, la periode et le prescripteur tels qu'ils ont ete poses, et dit si les annulees sont comprises.
+     */
+    public String rappelCriteres(Criteres criteres, String clientLibelle, String typeLibelle, String medecinLibelle) {
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.isNotBlank(clientLibelle)) {
+            sb.append("Client : ").append(clientLibelle.trim());
+        } else {
+            sb.append("Tous les clients");
+        }
+        if (StringUtils.isNotBlank(typeLibelle)) {
+            sb.append(" - Type : ").append(typeLibelle.trim());
+        }
+        if (StringUtils.isNotBlank(medecinLibelle)) {
+            sb.append(" - Prescripteur : ").append(medecinLibelle.trim());
+        }
+        if (criteres.debut != null || criteres.fin != null) {
+            sb.append(" - Période du ").append(criteres.debut == null ? "origine" : criteres.debut.format(FR_JOUR))
+                    .append(" au ").append(criteres.fin == null ? "aujourd'hui" : criteres.fin.format(FR_JOUR));
+        } else {
+            sb.append(" - Toutes périodes");
+        }
+        if (StringUtils.isNotBlank(criteres.recherche)) {
+            sb.append(" - Recherche : ").append(criteres.recherche.trim());
+        }
+        sb.append(criteres.inclureAnnulees ? " - annulées comprises" : " - annulées exclues");
+        return sb.toString();
+    }
+
+    /** Edition de l'historique : la liste filtree, ou celle d'un seul client - c'est le meme etat. */
+    public byte[] pdfHistorique(TUser operateur, Criteres criteres, String clientLibelle, String typeLibelle,
+            String medecinLibelle) throws net.sf.jasperreports.engine.JRException {
+        String titre = StringUtils.isNotBlank(clientLibelle)
+                ? "ORDONNANCES DU CLIENT - " + clientLibelle.trim().toUpperCase()
+                : "HISTORIQUE DES ORDONNANCES CLIENTS";
+        return editer(operateur, MODELE_HISTORIQUE, titre,
+                rappelCriteres(criteres, clientLibelle, typeLibelle, medecinLibelle), lignesHistorique(criteres),
+                new HashMap<String, Object>());
+    }
+
+    /**
+     * Fiche detaillee d'une ordonnance.
+     *
+     * <p>
+     * Les pieces jointes ne sont pas imprimees, seulement comptees : ce sont des scans et des photos, dont l'impression
+     * dans une fiche de synthese ne servirait personne. Elles restent consultables et telechargeables dans
+     * l'application, comme l'officine l'a demande.
+     */
+    public byte[] pdfFiche(TUser operateur, String ordonnanceId) throws net.sf.jasperreports.engine.JRException {
+        JSONObject detail = detail(ordonnanceId);
+        if (!detail.optBoolean("success", false)) {
+            throw new net.sf.jasperreports.engine.JRException("Ordonnance introuvable");
+        }
+        JSONObject o = detail.getJSONObject("ordonnance");
+        List<rest.service.dto.OrdonnanceProduitDTO> produits = new ArrayList<>();
+        JSONArray lignes = detail.optJSONArray("produits");
+        for (int i = 0; lignes != null && i < lignes.length(); i++) {
+            JSONObject p = lignes.getJSONObject(i);
+            produits.add(new rest.service.dto.OrdonnanceProduitDTO(o.optString("numero"), "", "", "", "", "",
+                    p.optString("libelle"), p.optString("cip"), p.optInt("quantite", 1), p.optString("posologie"),
+                    p.optString("duree"), o.optString("statut")));
+        }
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("P_CLIENT", o.optString("client"));
+        extra.put("P_TYPE_CLIENT", o.optString("typeClient"));
+        extra.put("P_TELEPHONE", o.optString("telephone"));
+        extra.put("P_DATE", jourFrDepuisIso(o.optString("dateOrdonnance")));
+        extra.put("P_PRESCRIPTEUR", StringUtils.defaultIfBlank(o.optString("medecin"), "Non renseigné"));
+        extra.put("P_ETABLISSEMENT", StringUtils.defaultIfBlank(o.optString("etablissement"), "Non renseigné"));
+        extra.put("P_OBSERVATIONS", StringUtils.defaultIfBlank(o.optString("observations"), "-"));
+        int nbPieces = o.optInt("nbPieces", 0);
+        extra.put("P_PIECES", nbPieces == 0 ? "Aucune pièce jointe"
+                : nbPieces + " pièce(s) jointe(s), consultables dans l'application");
+        extra.put("P_ANNULATION", "annulee".equals(o.optString("statut"))
+                ? "ORDONNANCE ANNULÉE - " + o.optString("motifAnnulation") : "");
+        StringBuilder trace = new StringBuilder("Saisie le ").append(o.optString("creeLe")).append(" par ")
+                .append(StringUtils.defaultIfBlank(o.optString("creePar"), "?"));
+        if (StringUtils.isNotBlank(o.optString("modifieLe"))) {
+            trace.append(" - dernière modification le ").append(o.optString("modifieLe")).append(" par ")
+                    .append(StringUtils.defaultIfBlank(o.optString("modifiePar"), "?"));
+        }
+        extra.put("P_TRACABILITE", trace.toString());
+        return editer(operateur, MODELE_FICHE, "ORDONNANCE " + o.optString("numero"),
+                "Fiche détaillée - " + o.optString("client"), produits, extra);
+    }
+
+    /**
+     * Export Excel : une ligne par produit prescrit, les colonnes de l'ordonnance repetees, filtres compris.
+     *
+     * <p>
+     * « Les pieces jointes restent consultables dans l'application ; l'export Excel contient les donnees renseignees. »
+     * Le fichier ne porte donc que du texte et des nombres - aucun fichier joint n'y est embarque.
+     */
+    public byte[] excelHistorique(Criteres criteres) throws java.io.IOException {
+        String[] entetes = { "N° ORDONNANCE", "DATE", "CLIENT", "TYPE CLIENT", "PRESCRIPTEUR", "ÉTABLISSEMENT",
+                "PRODUIT PRESCRIT", "CIP", "QUANTITÉ", "POSOLOGIE", "DURÉE", "ÉTAT" };
+        return excelService.createLandscapeExcelReport("Ordonnances clients", entetes, produitsHistorique(criteres),
+                (ligne, p) -> {
+                    int c = 0;
+                    ligne.createCell(c++).setCellValue(p.getNumero());
+                    ligne.createCell(c++).setCellValue(p.getDate());
+                    ligne.createCell(c++).setCellValue(p.getClient());
+                    ligne.createCell(c++).setCellValue(p.getTypeClient());
+                    ligne.createCell(c++).setCellValue(p.getMedecin());
+                    ligne.createCell(c++).setCellValue(p.getEtablissement());
+                    ligne.createCell(c++).setCellValue(p.getProduit());
+                    ligne.createCell(c++).setCellValue(p.getCip());
+                    ligne.createCell(c++).setCellValue(p.getQuantite());
+                    ligne.createCell(c++).setCellValue(p.getPosologie());
+                    ligne.createCell(c++).setCellValue(p.getDuree());
+                    ligne.createCell(c).setCellValue(p.getEtat());
+                });
+    }
+
+    /** PDF rendu en memoire : servi en flux dans l'onglet ouvert par le clic, sans fichier temporaire. */
+    private byte[] editer(TUser operateur, String modeleNom, String titre, String rappel, List<?> lignes,
+            Map<String, Object> extra) throws net.sf.jasperreports.engine.JRException {
+        Map<String, Object> parametres = new HashMap<>();
+        try {
+            parametres.putAll(reportUtil.officineData(operateur));
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "en-tete de l'officine indisponible pour l'edition des ordonnances", e);
+        }
+        parametres.put("P_TITRE", titre);
+        parametres.put("P_CRITERES", rappel);
+        parametres.putAll(extra);
+        net.sf.jasperreports.engine.JasperReport modele = reportUtil.compileFromClasspath(modeleNom);
+        if (modele == null) {
+            throw new net.sf.jasperreports.engine.JRException(
+                    "Modele embarque " + modeleNom + ".jrxml introuvable dans l'application");
+        }
+        net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(modele,
+                parametres, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+        try (java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream()) {
+            net.sf.jasperreports.engine.export.JRPdfExporter exporteur = new net.sf.jasperreports.engine.export.JRPdfExporter();
+            exporteur.setExporterInput(new net.sf.jasperreports.export.SimpleExporterInput(print));
+            exporteur.setExporterOutput(new net.sf.jasperreports.export.SimpleOutputStreamExporterOutput(sortie));
+            exporteur.exportReport();
+            return sortie.toByteArray();
+        } catch (java.io.IOException e) {
+            throw new net.sf.jasperreports.engine.JRException(e);
+        }
+    }
+
+    private static String jourFr(Object valeur) {
+        if (valeur instanceof java.sql.Date) {
+            return ((java.sql.Date) valeur).toLocalDate().format(FR_JOUR);
+        }
+        return jour(valeur);
+    }
+
+    private static String jourFrDepuisIso(String iso) {
+        LocalDate jour = OrdonnanceClientSaisie.date(iso);
+        return jour == null ? "" : jour.format(FR_JOUR);
+    }
     /*
      * ============================================================================================= PIECES
      * JUSTIFICATIVES (vague 2)

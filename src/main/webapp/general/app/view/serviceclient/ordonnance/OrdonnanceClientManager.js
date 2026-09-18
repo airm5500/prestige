@@ -365,6 +365,22 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             text: 'Annuler l\'ordonnance',
                             iconCls: 'delete',
                             disabled: true
+                        }, {
+                            xtype: 'button',
+                            itemId: 'imprimerFiche',
+                            text: 'Imprimer la fiche',
+                            iconCls: 'printable',
+                            disabled: true
+                        }, {
+                            xtype: 'button',
+                            itemId: 'imprimerHistorique',
+                            text: 'Imprimer l\'historique',
+                            iconCls: 'printable'
+                        }, {
+                            xtype: 'button',
+                            itemId: 'exporterExcel',
+                            text: 'Exporter Excel',
+                            iconCls: 'icon-excel'
                         }, '->', {
                             xtype: 'displayfield',
                             itemId: 'rappelHistorique',
@@ -416,7 +432,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 }, {
                     xtype: 'toolbar',
                     dock: 'bottom',
-                    items: ['->', {
+                    items: [{
+                            xtype: 'button',
+                            itemId: 'imprimerFicheOuverte',
+                            text: 'Imprimer cette ordonnance',
+                            iconCls: 'printable',
+                            disabled: true
+                        }, '->', {
                             xtype: 'button',
                             itemId: 'enregistrer',
                             text: 'Enregistrer',

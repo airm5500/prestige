@@ -51,6 +51,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueFiche button[itemId=abandonner]': {click: me.retourHistorique},
             'ordonnanceclient #vueFiche button[itemId=enregistrer]': {click: me.enregistrer},
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
+            'ordonnanceclient #grilleOrdonnances button[itemId=imprimerFiche]': {click: me.imprimerFiche},
+            'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
+            'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
+            'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
             'ordonnanceclient #grillePieces button[itemId=joindrePiece]': {click: me.joindrePiece},
             'ordonnanceclient #grillePieces button[itemId=voirPiece]': {click: me.voirPiece},
             'ordonnanceclient #grillePieces button[itemId=telechargerPiece]': {click: me.telechargerPiece},
@@ -186,6 +190,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             }
         };
         actif('#grilleOrdonnances button[itemId=consulter]', !!une);
+        /* L impression de la fiche est possible meme pour une ordonnance annulee : le document existe. */
+        actif('#grilleOrdonnances button[itemId=imprimerFiche]', !!une);
         /*
          * Une ordonnance annulée est un document clos : elle se consulte mais ne se modifie plus, et ne
          * s'annule pas deux fois. Le serveur le refuse aussi.
@@ -482,6 +488,58 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 }, me, true);
     },
 
+    /* ----------------------------------------------------------------------- éditions */
+
+    /*
+     * Les éditions s'ouvrent EN FLUX dans un onglet du navigateur, dans le clic qui les demande : « je ne veux
+     * pas de pop up pour aucune édition ». Rien n'est écrit sur le serveur, rien n'est téléchargé pour être
+     * ensuite ouvert à la main.
+     */
+    imprimerFiche: function () {
+        var grille = this.getGrille();
+        var ligne = grille ? grille.getSelectionModel().getSelection()[0] : null;
+        if (!ligne) {
+            return;
+        }
+        window.open('../api/v1/ordonnance-client/' + encodeURIComponent(ligne.get('id')) + '/pdf');
+    },
+
+    imprimerFicheOuverte: function () {
+        var id = this.ordonnanceOuverte();
+        if (!id) {
+            return;
+        }
+        window.open('../api/v1/ordonnance-client/' + encodeURIComponent(id) + '/pdf');
+    },
+
+    /**
+     * L'historique imprimé porte les MÊMES critères que la grille, et les libellés lisibles avec : une édition
+     * qui tait ses filtres laisse croire qu'elle porte sur tout l'historique.
+     */
+    parametresEdition: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var parametres = me.parametres();
+        var libelle = function (selecteur) {
+            var c = ecran.down('#barreCriteres ' + selecteur);
+            return c && c.getValue() ? (c.getRawValue ? c.getRawValue() : '') : '';
+        };
+        parametres.clientLibelle = libelle('#client');
+        parametres.typeLibelle = libelle('#typeClient');
+        parametres.medecinLibelle = libelle('#medecin');
+        return parametres;
+    },
+
+    imprimerHistorique: function () {
+        window.open('../api/v1/ordonnance-client/historique/pdf?'
+            + Ext.Object.toQueryString(this.parametresEdition()));
+    },
+
+    exporterExcel: function () {
+        window.location = '../api/v1/ordonnance-client/historique/excel?'
+            + Ext.Object.toQueryString(this.parametres());
+    },
+
     /* ------------------------------------------------------------------- pièces jointes */
 
     /** Identifiant de l'ordonnance ouverte dans la fiche, ou une chaîne vide pour une saisie en cours. */
@@ -504,6 +562,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var grille = ecran.down('#grillePieces');
         var rappel = grille ? grille.down('#rappelPieces') : null;
         var peutEcrire = !!(me.droits && me.droits.modifier);
+        me.majImpressionFiche();
         if (!id) {
             ecran.storePieces.removeAll();
             if (rappel) {
@@ -517,9 +576,19 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 ? 'JPG, PNG, TIFF ou PDF, 10 Mo au plus. « Voir » ouvre la pièce dans un onglet.'
                 : 'Consultation seule : votre profil ne permet pas de joindre ni de retirer une pièce.');
         }
+        me.majImpressionFiche();
         ecran.storePieces.getProxy().url = '../api/v1/ordonnance-client/pieces/' + encodeURIComponent(id);
         ecran.storePieces.load();
         me.basculerBoutonsPieces(peutEcrire && !me.ficheVerrouillee, false);
+    },
+
+    /** Le bouton d'impression de la fiche n'a de sens que sur une ordonnance déjà enregistrée. */
+    majImpressionFiche: function () {
+        var ecran = this.getEcran();
+        var bouton = ecran ? ecran.down('#vueFiche button[itemId=imprimerFicheOuverte]') : null;
+        if (bouton) {
+            bouton.setDisabled(!this.ordonnanceOuverte());
+        }
     },
 
     basculerBoutonsPieces: function (envoiPossible, pieceChoisie) {

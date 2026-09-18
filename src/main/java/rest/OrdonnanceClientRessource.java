@@ -323,6 +323,97 @@ public class OrdonnanceClientRessource {
         return Response.ok().entity(ordonnanceService.medecins(query).toString()).build();
     }
 
+    /*
+     * ============================================================================================= EDITIONS ET EXPORT
+     * (vague 3)
+     *
+     * Les PDF sont servis EN FLUX, inline, dans l'onglet ouvert par le clic : « je ne veux pas de pop up pour aucune
+     * edition ». Aucun fichier temporaire n'est ecrit sur le serveur.
+     * =============================================================================================
+     */
+
+    /** Fiche detaillee d'une ordonnance, en PDF. */
+    @GET
+    @Path("{id}/pdf")
+    @Produces("application/pdf")
+    public Response fichePdf(@PathParam("id") String id) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        try {
+            byte[] pdf = ordonnanceService.pdfFiche(operateur, id);
+            return Response.ok(pdf).type("application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"ordonnance.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "edition de la fiche d'ordonnance", e);
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+    }
+
+    /**
+     * Historique en PDF : la liste filtree, ou celle d'un seul client.
+     *
+     * <p>
+     * C'est le MEME etat dans les deux cas - un client est un critere comme un autre - et le rappel des criteres
+     * imprime dit lequel a ete pose. Deux etats distincts auraient diverge au premier ajout de colonne.
+     */
+    @GET
+    @Path("historique/pdf")
+    @Produces("application/pdf")
+    public Response historiquePdf(@QueryParam("query") String query, @QueryParam("clientId") String clientId,
+            @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("annulees") @DefaultValue("false") boolean annulees,
+            @QueryParam("clientLibelle") String clientLibelle, @QueryParam("typeLibelle") String typeLibelle,
+            @QueryParam("medecinLibelle") String medecinLibelle) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        try {
+            byte[] pdf = ordonnanceService.pdfHistorique(operateur,
+                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees), clientLibelle,
+                    typeLibelle, medecinLibelle);
+            return Response.ok(pdf).type("application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"ordonnances_historique.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "edition de l'historique des ordonnances", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /** Export Excel de l'historique : une ligne par produit prescrit, filtres compris. */
+    @GET
+    @Path("historique/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response historiqueExcel(@QueryParam("query") String query, @QueryParam("clientId") String clientId,
+            @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("annulees") @DefaultValue("false") boolean annulees) {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        try {
+            byte[] classeur = ordonnanceService
+                    .excelHistorique(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees));
+            return Response.ok(classeur).type("application/vnd.ms-excel")
+                    .header("Content-Disposition", "attachment; filename=\"ordonnances_clients.xls\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "export Excel des ordonnances", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     /** Types de client (carnet, assurance, standard) pour le filtre de l'historique. */
     @GET
     @Path("types-client")

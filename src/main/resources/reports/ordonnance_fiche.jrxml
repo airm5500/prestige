@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fiche detaillee d'une ordonnance client (evolution 6, point 2, vague 3). Modele EMBARQUE dans
+  l'application : aucun fichier a poser sur les sites pour que l'edition fonctionne.
+
+  Portrait, parce qu'une ordonnance se lit et se classe comme un document, pas comme un tableau.
+
+  Ce qui est imprime : l'identite du document (numero, date), le client, le prescripteur et
+  l'etablissement, les produits prescrits avec posologie et duree, les observations, le nombre de pieces
+  jointes, et la tracabilite. Les pieces elles-memes ne sont PAS imprimees : ce sont des scans et des
+  photos, dont l'impression dans une fiche de synthese ne servirait personne - elles restent consultables
+  et telechargeables dans l'application, comme l'officine l'a demande.
+
+  Une ordonnance annulee porte son etat et son motif EN TETE, en rouge : sur une feuille posee sur un
+  comptoir, rien ne dit qu'un document est annule si le document ne le dit pas lui-meme.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="ordonnance_fiche" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <style name="ligne" fontSize="8">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F5F8FB"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <parameter name="P_TITRE" class="java.lang.String"/>
+    <parameter name="P_CRITERES" class="java.lang.String"/>
+    <parameter name="P_CLIENT" class="java.lang.String"/>
+    <parameter name="P_TYPE_CLIENT" class="java.lang.String"/>
+    <parameter name="P_TELEPHONE" class="java.lang.String"/>
+    <parameter name="P_DATE" class="java.lang.String"/>
+    <parameter name="P_PRESCRIPTEUR" class="java.lang.String"/>
+    <parameter name="P_ETABLISSEMENT" class="java.lang.String"/>
+    <parameter name="P_OBSERVATIONS" class="java.lang.String"/>
+    <parameter name="P_PIECES" class="java.lang.String"/>
+    <parameter name="P_ANNULATION" class="java.lang.String"/>
+    <parameter name="P_TRACABILITE" class="java.lang.String"/>
+    <field name="produit" class="java.lang.String"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="quantite" class="java.lang.Integer"/>
+    <field name="posologie" class="java.lang.String"/>
+    <field name="duree" class="java.lang.String"/>
+    <title>
+        <band height="172">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="555" height="14"/>
+                <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="14" width="555" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="25" width="555" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_AUTRE_DESC}]]></textFieldExpression>
+            </textField>
+            <frame>
+                <reportElement mode="Opaque" x="0" y="40" width="555" height="16" backcolor="#2E75B6"/>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="6" y="0" width="543" height="16" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TITRE}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <!-- L'annulation en tete, en rouge : une feuille posee sur un comptoir ne dit rien de ce
+                 qu'elle ne porte pas. Le champ disparait pour une ordonnance en vigueur. -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="58" width="555" height="13" forecolor="#C0392B">
+                    <printWhenExpression><![CDATA[$P{P_ANNULATION} != null && $P{P_ANNULATION}.length() > 0]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Center"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_ANNULATION}]]></textFieldExpression>
+            </textField>
+            <frame>
+                <reportElement mode="Opaque" x="0" y="74" width="555" height="58" backcolor="#F2F5F8"/>
+                <staticText><reportElement x="6" y="4" width="70" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Client]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="76" y="4" width="240" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_CLIENT}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="322" y="4" width="60" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Type]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="382" y="4" width="167" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TYPE_CLIENT}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="6" y="18" width="70" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Téléphone]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="76" y="18" width="240" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TELEPHONE}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="322" y="18" width="60" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Date]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="382" y="18" width="167" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_DATE}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="6" y="32" width="70" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Prescripteur]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="76" y="32" width="240" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_PRESCRIPTEUR}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="322" y="32" width="60" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Pièces]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="382" y="32" width="167" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_PIECES}]]></textFieldExpression>
+                </textField>
+                <staticText><reportElement x="6" y="44" width="70" height="12"/>
+                    <textElement><font size="8" isBold="true"/></textElement><text><![CDATA[Établissement]]></text></staticText>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="76" y="44" width="473" height="12"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_ETABLISSEMENT}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <staticText><reportElement x="0" y="140" width="555" height="12"/>
+                <textElement><font size="8.5" isBold="true"/></textElement><text><![CDATA[PRODUITS PRESCRITS]]></text></staticText>
+            <staticText><reportElement x="0" y="152" width="555" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <text><![CDATA[Quantités PRESCRITES : cette fiche n'est pas un document de vente et ne constate aucune délivrance.]]></text></staticText>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="15">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="555" height="14" backcolor="#E4EAF0"/>
+                <staticText><reportElement x="4" y="0" width="200" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Produit]]></text></staticText>
+                <staticText><reportElement x="204" y="0" width="64" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="268" y="0" width="34" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Qté]]></text></staticText>
+                <staticText><reportElement x="306" y="0" width="160" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Posologie]]></text></staticText>
+                <staticText><reportElement x="466" y="0" width="85" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Durée]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="13">
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="4" y="0" width="200" height="13"/>
+                <textFieldExpression><![CDATA[$F{produit}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="204" y="0" width="64" height="13"/>
+                <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="ligne" x="268" y="0" width="34" height="13"/>
+                <textElement textAlignment="Right"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="306" y="0" width="160" height="13"/>
+                <textFieldExpression><![CDATA[$F{posologie}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="466" y="0" width="85" height="13"/>
+                <textFieldExpression><![CDATA[$F{duree}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="0" y="2" width="460" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="460" y="2" width="55" height="11"/>
+                <textElement textAlignment="Right"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="515" y="2" width="36" height="11"/>
+                <textElement textAlignment="Left"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[String.valueOf($V{PAGE_NUMBER})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="104">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="2" width="555" height="15" backcolor="#E4EAF0"/>
+                <textField>
+                    <reportElement x="4" y="0" width="547" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["TOTAL : " + $V{REPORT_COUNT} + " produit(s) prescrit(s)"]]></textFieldExpression>
+                </textField>
+            </frame>
+            <staticText><reportElement x="0" y="24" width="555" height="12"/>
+                <textElement><font size="8.5" isBold="true"/></textElement><text><![CDATA[OBSERVATIONS]]></text></staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="36" width="555" height="34" isPrintWhenDetailOverflows="true"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_OBSERVATIONS}]]></textFieldExpression>
+            </textField>
+            <!-- « Conserver la date de creation, l'auteur et les informations de derniere modification. » -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="74" width="555" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_TRACABILITE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="88" width="555" height="11"/>
+                <textElement><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>
