@@ -55,6 +55,8 @@ public class PilotageService {
     public static final String ONGLET_CAISSE = "caisse";
     public static final String ONGLET_STOCK = "stock";
     public static final String ONGLET_QUALITE = "qualite";
+    public static final String ONGLET_KPI = "kpi";
+    public static final String ONGLET_COMPARATEUR = "comparateur";
 
     private static final long CACHE_TTL_MS = 5L * 60L * 1000L;
 
@@ -112,11 +114,35 @@ public class PilotageService {
     /** Variante avec les filtres de l'onglet Achats. */
     public JSONObject donnees(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
             Filtres filtres) {
+        return donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres, null);
+    }
+
+    /**
+     * Variante complete : les filtres des achats, et le choix des KPI ou du comparateur.
+     *
+     * @param choix
+     *            pour l'onglet KPI, la liste des indicateurs coches ; pour le comparateur, son type et ses deux objets
+     */
+    public JSONObject donnees(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
+            Filtres filtres, Choix choix) {
         Axe axe = PilotagePeriodes.calculer(codeAxe, LocalDate.now(), OrdonnanceClientSaisie.date(debutPerso),
                 OrdonnanceClientSaisie.date(finPerso));
         String cle = (operateur == null ? "?" : operateur.getLgUSERID()) + "|" + onglet + "|" + axe.code + "|"
                 + StringUtils.defaultString(debutPerso) + "|" + StringUtils.defaultString(finPerso) + "|"
-                + filtres.cle();
+                + filtres.cle() + "|" + (choix == null ? "" : choix.cle());
+        if (ONGLET_STOCK.equals(onglet)) {
+            /*
+             * La photo du mois est prise a l'ouverture de l'onglet Stock, et AVANT la lecture du cache.
+             *
+             * Defaut vu au banc : placee dans le calcul, elle etait sautee des que la reponse venait du cache -
+             * c'est-a-dire la plupart du temps, puisque c'est justement le cas ou l'on rouvre l'ecran. La photo ne se
+             * serait donc prise qu'une fois par periode de cache et par utilisateur, au hasard.
+             *
+             * L'ecriture est idempotente (le mois est la cle), donc la prendre a chaque ouverture ne coute qu'une ligne
+             * remplacee.
+             */
+            photographierStock();
+        }
         Entree cache = CACHE.get(cle);
         if (cache != null && cache.frais()) {
             return new JSONObject(cache.json);
@@ -137,15 +163,17 @@ public class PilotageService {
                 reponse = caisse(axe);
                 break;
             case ONGLET_STOCK:
-                /*
-                 * La photo du mois est prise a l'ouverture de l'onglet : c'est ce qui fait que l'historique se
-                 * constitue sans que l'officine ait a y penser. Idempotent, une ligne par mois.
-                 */
-                photographierStock();
                 reponse = stock(axe);
                 break;
             case ONGLET_QUALITE:
                 reponse = qualite(axe);
+                break;
+            case ONGLET_KPI:
+                reponse = kpiAnalyse(axe, choix == null ? null : choix.kpis);
+                break;
+            case ONGLET_COMPARATEUR:
+                reponse = comparateur(axe, choix == null ? null : choix.type, choix == null ? null : choix.objetA,
+                        choix == null ? null : choix.objetB, choix == null ? null : choix.grandeur);
                 break;
             default:
                 reponse = synthese(axe);
@@ -462,6 +490,36 @@ public class PilotageService {
         return 0d;
     }
 
+    /**
+     * Ce que l'operateur a choisi dans les onglets KPI et Comparateur.
+     *
+     * <p>
+     * Rassemble dans un seul objet plutot que passe en six parametres : la signature du service resterait lisible
+     * aujourd'hui, mais pas au troisieme onglet qui aura ses propres choix.
+     */
+    public static final class Choix {
+
+        public final List<String> kpis;
+        public final String type;
+        public final String objetA;
+        public final String objetB;
+        public final String grandeur;
+
+        public Choix(List<String> kpis, String type, String objetA, String objetB, String grandeur) {
+            this.kpis = kpis;
+            this.type = StringUtils.trimToNull(type);
+            this.objetA = StringUtils.trimToNull(objetA);
+            this.objetB = StringUtils.trimToNull(objetB);
+            this.grandeur = StringUtils.trimToNull(grandeur);
+        }
+
+        String cle() {
+            return (kpis == null ? "" : String.join(",", kpis)) + "/" + StringUtils.defaultString(type) + "/"
+                    + StringUtils.defaultString(objetA) + "/" + StringUtils.defaultString(objetB) + "/"
+                    + StringUtils.defaultString(grandeur);
+        }
+    }
+
     /** Filtres de l'onglet Achats. */
     public static final class Filtres {
 
@@ -757,6 +815,351 @@ public class PilotageService {
         return a;
     }
 
+    /* ============================================================================ onglet KPI Analyse */
+
+    /**
+     * Catalogue des KPI cochables.
+     *
+     * <p>
+     * La liste vient du SERVEUR : l'ecran ne connait pas les indicateurs, il affiche ceux qu'on lui donne. Un
+     * indicateur ajoute ici apparait dans l'ecran sans qu'on touche au JavaScript, et surtout il ne peut pas exister
+     * dans la liste sans exister dans le calcul.
+     */
+    public JSONObject catalogueKpi() {
+        JSONArray data = new JSONArray();
+        data.put(kpi("caTTC", "Chiffre d'affaires TTC", "FCFA", "Activité"));
+        data.put(kpi("caHT", "Chiffre d'affaires HT", "FCFA", "Activité"));
+        data.put(kpi("nbVentes", "Nombre de clients servis", "", "Activité"));
+        data.put(kpi("panier", "Panier moyen", "FCFA", "Activité"));
+        data.put(kpi("marge", "Marge", "FCFA", "Rentabilité"));
+        data.put(kpi("tauxMarge", "Taux de marge", "%", "Rentabilité"));
+        data.put(kpi("remises", "Remises accordées", "FCFA", "Rentabilité"));
+        data.put(kpi("tauxRemise", "Taux de remise", "%", "Rentabilité"));
+        data.put(kpi("partTiersPayant", "Part tiers payant", "FCFA", "Encaissement"));
+        data.put(kpi("encaisse", "Encaissé au comptoir", "FCFA", "Encaissement"));
+        data.put(kpi("credit", "Porté à crédit", "FCFA", "Encaissement"));
+        data.put(kpi("achatTTC", "Achats TTC", "FCFA", "Achats"));
+        data.put(kpi("nbBons", "Bons de livraison", "", "Achats"));
+        data.put(kpi("ratioVA", "Ratio ventes / achats", "", "Achats"));
+        data.put(kpi("frequentation", "Fréquentation horaire", "", "Activité"));
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    private static JSONObject kpi(String cle, String libelle, String unite, String famille) {
+        return new JSONObject().put("cle", cle).put("libelle", libelle).put("unite", unite).put("famille", famille)
+                /* La frequentation horaire ne se lit pas par mois : l'ecran la presente a part. */
+                .put("mensuel", !"frequentation".equals(cle));
+    }
+
+    /**
+     * Analyse des KPI coches.
+     *
+     * <p>
+     * « Si je coche panier moyen et nombre de clients, l'analyse sera sur les 2 selon la periode et la courbe
+     * d'evolution. » Les KPI coches donnent donc : une tuile chacun avec sa variation sur l'axe choisi, une ligne par
+     * mois avec une colonne chacun, et la courbe.
+     *
+     * <p>
+     * Tous les indicateurs sont calcules, coches ou non - ils viennent des memes quatre requetes que les autres
+     * onglets, et en calculer trois de moins ne ferait rien gagner. Ce sont les TUILES et les COLONNES qui suivent la
+     * coche.
+     */
+    private JSONObject kpiAnalyse(Axe axe, List<String> coches) {
+        List<String> retenus = coches == null || coches.isEmpty()
+                ? java.util.Arrays.asList("caTTC", "nbVentes", "panier") : coches;
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        double encaisseCourant = valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse");
+        Double encaisseReference = axe.reference == null ? null
+                : valeur(axe.reference, PilotageSql.totalEncaisse(), "encaisse");
+
+        JSONArray tuiles = new JSONArray();
+        for (String cle : retenus) {
+            if ("frequentation".equals(cle)) {
+                continue;
+            }
+            tuiles.put(tuile(cle, libelleKpi(cle), valeurKpi(cle, courant, encaisseCourant),
+                    reference == null ? null
+                            : valeurKpi(cle, reference, encaisseReference == null ? 0 : encaisseReference),
+                    uniteKpi(cle), null));
+        }
+
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
+        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
+            int ventes = entier(t.get("nbVentes"));
+            double ca = nombre(t.get("caTTC"));
+            ligne(lignes, t.get("mois", String.class)).put("caTTC", ca).put("nbVentes", ventes)
+                    .put("remises", nombre(t.get("remises"))).put("partTiersPayant", nombre(t.get("partTiersPayant")))
+                    .put("panier", ventes == 0 ? 0 : Math.round(ca / ventes))
+                    .put("tauxRemise", ca == 0 ? 0 : arrondi(nombre(t.get("remises")) / ca * 100d));
+        }
+        for (Tuple t : liste(PilotageSql.margeParMois(), axe.graphique)) {
+            double caHT = nombre(t.get("caHT"));
+            double cout = nombre(t.get("coutAchat"));
+            ligne(lignes, t.get("mois", String.class)).put("caHT", Math.round(caHT))
+                    .put("marge", Math.round(caHT - cout))
+                    .put("tauxMarge", caHT == 0 ? 0 : arrondi((caHT - cout) / caHT * 100d));
+        }
+        for (Tuple t : liste(PilotageSql.achatsParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("achatTTC", nombre(t.get("achatTTC"))).put("nbBons",
+                    entier(t.get("nbBons")));
+        }
+        for (Tuple t : liste(PilotageSql.encaisseParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("encaisse", nombre(t.get("encaisse")));
+        }
+        JSONArray mois = finaliser(lignes);
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject m = mois.getJSONObject(i);
+            double ca = m.optDouble("caTTC", 0d);
+            double achats = m.optDouble("achatTTC", 0d);
+            m.put("credit", arrondi(ca - m.optDouble("encaisse", 0d)));
+            m.put("ratioVA", achats == 0 ? 0 : arrondi(ca / achats));
+        }
+
+        JSONObject reponse = new JSONObject().put("tuiles", tuiles).put("mois", mois).put("coches",
+                new JSONArray(retenus));
+        /* La frequentation horaire, seulement si elle est cochee : c'est une requete de plus. */
+        if (retenus.contains("frequentation")) {
+            reponse.put("horaire", frequentation(axe.courante));
+        }
+        return reponse;
+    }
+
+    private JSONArray frequentation(Periode periode) {
+        JSONArray data = new JSONArray();
+        for (Tuple t : liste(PilotageSql.frequentationHoraire(), periode)) {
+            int heure = entier(t.get("heure"));
+            data.put(new JSONObject().put("heure", heure).put("libelle", String.format("%02dh", heure))
+                    .put("nbVentes", entier(t.get("nbVentes"))).put("caTTC", nombre(t.get("caTTC"))));
+        }
+        return data;
+    }
+
+    private static double valeurKpi(String cle, Totaux t, double encaisse) {
+        switch (cle) {
+        case "caTTC":
+            return t.caTTC;
+        case "caHT":
+            return t.caHT;
+        case "nbVentes":
+            return t.nbVentes;
+        case "panier":
+            return t.panierMoyen();
+        case "marge":
+            return t.marge;
+        case "tauxMarge":
+            return t.tauxMarge();
+        case "remises":
+            return t.remises;
+        case "tauxRemise":
+            return t.caTTC == 0 ? 0 : t.remises / t.caTTC * 100d;
+        case "partTiersPayant":
+            return t.partTiersPayant;
+        case "encaisse":
+            return encaisse;
+        case "credit":
+            return t.caTTC - encaisse;
+        case "achatTTC":
+            return t.achatTTC;
+        case "nbBons":
+            return t.nbBons;
+        case "ratioVA":
+            return t.ratioVA();
+        default:
+            return 0d;
+        }
+    }
+
+    private String libelleKpi(String cle) {
+        JSONArray catalogue = catalogueKpi().getJSONArray("data");
+        for (int i = 0; i < catalogue.length(); i++) {
+            if (cle.equals(catalogue.getJSONObject(i).optString("cle"))) {
+                return catalogue.getJSONObject(i).optString("libelle");
+            }
+        }
+        return cle;
+    }
+
+    private String uniteKpi(String cle) {
+        JSONArray catalogue = catalogueKpi().getJSONArray("data");
+        for (int i = 0; i < catalogue.length(); i++) {
+            if (cle.equals(catalogue.getJSONObject(i).optString("cle"))) {
+                return catalogue.getJSONObject(i).optString("unite");
+            }
+        }
+        return "";
+    }
+
+    /* ============================================================================ onglet Comparateur */
+
+    /** Types d'objets comparables. */
+    public static final String COMPARER_GRANDEURS = "GRANDEUR";
+    public static final String COMPARER_FAMILLES = "FAMILLE";
+    public static final String COMPARER_RAYONS = "RAYON";
+    public static final String COMPARER_GROSSISTES = "GROSSISTE";
+
+    /**
+     * Comparateur : deux objets, la meme grandeur, la meme periode.
+     *
+     * <p>
+     * Deux usages demandes le 18/09, et les deux sont servis ici :
+     *
+     * <ul>
+     * <li>comparer deux OBJETS de meme nature - deux familles, deux rayons, deux grossistes - sur une meme grandeur
+     * ;</li>
+     * <li>comparer deux GRANDEURS entre elles, « par exemple les achats aux ventes sur une periode ».</li>
+     * </ul>
+     *
+     * <p>
+     * Dans les deux cas, les deux series passent par la MEME requete parametree : comparer deux chiffres obtenus par
+     * deux requetes differentes est le meilleur moyen de conclure a un ecart qui n'existe pas.
+     */
+    private JSONObject comparateur(Axe axe, String type, String a, String b, String grandeur) {
+        String genre = StringUtils.defaultIfBlank(type, COMPARER_GRANDEURS);
+        String mesure = StringUtils.defaultIfBlank(grandeur, "caTTC");
+        Serie serieA;
+        Serie serieB;
+        if (COMPARER_GRANDEURS.equals(genre)) {
+            /* Deux grandeurs de l'officine entiere : « les achats aux ventes ». */
+            serieA = serieGrandeur(axe, StringUtils.defaultIfBlank(a, "caTTC"));
+            serieB = serieGrandeur(axe, StringUtils.defaultIfBlank(b, "achatTTC"));
+        } else if (COMPARER_GROSSISTES.equals(genre)) {
+            /*
+             * Un grossiste ne vend rien : la seule grandeur qui a un sens pour lui est ce qu'on lui achete. On force
+             * donc la mesure plutot que de rendre un tableau de zeros sans explication.
+             */
+            serieA = serieAchats(axe, a);
+            serieB = serieAchats(axe, b);
+            mesure = "achatTTC";
+        } else {
+            boolean rayon = COMPARER_RAYONS.equals(genre);
+            serieA = serieVentes(axe, rayon ? null : a, rayon ? a : null, mesure);
+            serieB = serieVentes(axe, rayon ? null : b, rayon ? b : null, mesure);
+        }
+
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("a", serieA.libelle, serieA.total, null, uniteKpi(mesure), null));
+        tuiles.put(tuile("b", serieB.libelle, serieB.total, null, uniteKpi(mesure), null));
+        Double variation = PilotagePeriodes.variation(serieA.total, serieB.total);
+        JSONObject ecart = new JSONObject().put("cle", "ecart").put("libelle", "Écart A - B")
+                .put("valeur", arrondi(serieA.total - serieB.total)).put("unite", uniteKpi(mesure));
+        if (variation != null) {
+            ecart.put("sousTitre",
+                    "A vaut " + String.format(java.util.Locale.FRANCE, "%+.1f", variation) + " % de plus que B");
+        }
+        tuiles.put(ecart);
+
+        /* Une ligne par mois : A, B, leur ecart et leur rapport. */
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
+        serieA.parMois.forEach((mois, valeur) -> ligne(lignes, mois).put("a", arrondi(valeur)));
+        serieB.parMois.forEach((mois, valeur) -> ligne(lignes, mois).put("b", arrondi(valeur)));
+        JSONArray mois = finaliser(lignes);
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject m = mois.getJSONObject(i);
+            double va = m.optDouble("a", 0d);
+            double vb = m.optDouble("b", 0d);
+            m.put("a", arrondi(va)).put("b", arrondi(vb)).put("ecart", arrondi(va - vb)).put("rapport",
+                    vb == 0 ? 0 : arrondi(va / vb));
+        }
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois)
+                .put("comparaison",
+                        new JSONObject().put("type", genre).put("grandeur", mesure).put("libelleA", serieA.libelle)
+                                .put("libelleB", serieB.libelle).put("libelleGrandeur", libelleKpi(mesure)))
+                .put("note",
+                        COMPARER_GROSSISTES.equals(genre)
+                                ? "Deux grossistes se comparent sur ce qu'on leur achète : un grossiste ne vend rien."
+                                : "Les deux séries sont calculées par la même requête, sur la même période.");
+    }
+
+    /** Une serie comparee : son libelle, son total sur la periode, et sa valeur par mois. */
+    private static final class Serie {
+        final String libelle;
+        double total;
+        final Map<String, Double> parMois = new LinkedHashMap<>();
+
+        Serie(String libelle) {
+            this.libelle = libelle;
+        }
+    }
+
+    /** Serie d'une grandeur de l'officine entiere. */
+    private Serie serieGrandeur(Axe axe, String grandeur) {
+        Serie serie = new Serie(libelleKpi(grandeur));
+        Totaux total = totaux(axe.courante);
+        serie.total = valeurKpi(grandeur, total, valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse"));
+        JSONArray mois = kpiAnalyse(axe, java.util.Collections.singletonList(grandeur)).getJSONArray("mois");
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject m = mois.getJSONObject(i);
+            serie.parMois.put(m.getString("mois"), m.optDouble(grandeur, 0d));
+        }
+        return serie;
+    }
+
+    /** Serie de ventes restreinte a une famille ou a un rayon. */
+    private Serie serieVentes(Axe axe, String familleId, String rayonId, String grandeur) {
+        Serie serie = new Serie(libelleObjet(familleId, rayonId));
+        String sql = PilotageSql.ventesLignesParMois(familleId, rayonId);
+        for (Tuple t : lignesFiltrees(sql, axe.graphique, new Filtres(null, familleId, rayonId))) {
+            double valeur = "unites".equals(grandeur) ? nombre(t.get("unites"))
+                    : "marge".equals(grandeur) ? nombre(t.get("marge")) : nombre(t.get("caTTC"));
+            serie.parMois.put(t.get("mois", String.class), valeur);
+        }
+        for (Tuple t : lignesFiltrees(sql, axe.courante, new Filtres(null, familleId, rayonId))) {
+            serie.total += "unites".equals(grandeur) ? nombre(t.get("unites"))
+                    : "marge".equals(grandeur) ? nombre(t.get("marge")) : nombre(t.get("caTTC"));
+        }
+        return serie;
+    }
+
+    /** Serie d'achats restreinte a un grossiste. */
+    private Serie serieAchats(Axe axe, String grossisteId) {
+        Serie serie = new Serie(libelleGrossiste(grossisteId));
+        Filtres filtres = new Filtres(grossisteId, null, null);
+        for (Tuple t : listeAchats(axe.graphique, filtres)) {
+            serie.parMois.merge(t.get("mois", String.class), nombre(t.get("montant")), Double::sum);
+        }
+        serie.total = sommeAchats(axe.courante, filtres);
+        return serie;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Tuple> lignesFiltrees(String sql, Periode periode, Filtres filtres) {
+        Query q = em.createNativeQuery(sql, Tuple.class);
+        bornes(q, sql, periode);
+        lierFiltres(q, sql, filtres);
+        return q.getResultList();
+    }
+
+    private String libelleObjet(String familleId, String rayonId) {
+        if (StringUtils.isNotBlank(familleId)) {
+            return libelleSimple("SELECT str_LIBELLE FROM t_famillearticle WHERE lg_FAMILLEARTICLE_ID = ?1", familleId,
+                    "Famille");
+        }
+        if (StringUtils.isNotBlank(rayonId)) {
+            return libelleSimple("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = ?1", rayonId,
+                    "Rayon");
+        }
+        return "Toute l'officine";
+    }
+
+    private String libelleGrossiste(String grossisteId) {
+        return libelleSimple("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1", grossisteId,
+                "Grossiste");
+    }
+
+    private String libelleSimple(String sql, String id, String defaut) {
+        if (StringUtils.isBlank(id)) {
+            return defaut + " (non choisi)";
+        }
+        try {
+            Object libelle = em.createNativeQuery(sql).setParameter(1, id).getSingleResult();
+            return libelle == null ? defaut : String.valueOf(libelle);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "libelle introuvable", e);
+            return defaut;
+        }
+    }
+
     /*
      * EDITIONS
      *
@@ -783,6 +1186,27 @@ public class PilotageService {
                 colonnes.add(new String[] { g.getString("cle"), g.getString("libelle").toUpperCase() });
             }
             break;
+        case ONGLET_KPI: {
+            /* Les colonnes imprimees sont EXACTEMENT les KPI coches : l'edition suit l'ecran. */
+            JSONArray coches = donnees == null ? null : donnees.optJSONArray("coches");
+            for (int i = 0; coches != null && i < coches.length(); i++) {
+                String cle = coches.getString(i);
+                if (!"frequentation".equals(cle)) {
+                    colonnes.add(new String[] { cle, cle.toUpperCase() });
+                }
+            }
+            break;
+        }
+        case ONGLET_COMPARATEUR: {
+            JSONObject comparaison = donnees == null ? null : donnees.optJSONObject("comparaison");
+            String a = comparaison == null ? "A" : comparaison.optString("libelleA", "A");
+            String bb = comparaison == null ? "B" : comparaison.optString("libelleB", "B");
+            colonnes.add(new String[] { "a", a.toUpperCase() });
+            colonnes.add(new String[] { "b", bb.toUpperCase() });
+            colonnes.add(new String[] { "ecart", "ÉCART" });
+            colonnes.add(new String[] { "rapport", "RAPPORT" });
+            break;
+        }
         case ONGLET_STOCK:
             colonnes.add(new String[] { "valeurAchat", "VALEUR STOCK" });
             colonnes.add(new String[] { "entrees", "ENTRÉES" });
@@ -851,6 +1275,10 @@ public class PilotageService {
             return "PILOTAGE - STOCK";
         case ONGLET_QUALITE:
             return "PILOTAGE - QUALITÉ D'EXPLOITATION";
+        case ONGLET_KPI:
+            return "PILOTAGE - ANALYSE DES KPI";
+        case ONGLET_COMPARATEUR:
+            return "PILOTAGE - COMPARATEUR";
         default:
             return "PILOTAGE - SYNTHÈSE";
         }
@@ -896,8 +1324,8 @@ public class PilotageService {
 
     /** PDF de l'onglet, rendu en memoire : servi en flux dans l'onglet ouvert par le clic. */
     public byte[] pdf(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
-            Filtres filtres) throws net.sf.jasperreports.engine.JRException {
-        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres);
+            Filtres filtres, Choix choix) throws net.sf.jasperreports.engine.JRException {
+        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres, choix);
         List<String[]> colonnes = colonnes(onglet, donnees);
         JSONArray mois = donnees.optJSONArray("mois");
         List<LignePilotage> lignes = new ArrayList<>();
@@ -946,8 +1374,8 @@ public class PilotageService {
      * l'officine en encaisse une douzaine.
      */
     public byte[] excel(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
-            Filtres filtres) throws java.io.IOException {
-        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres);
+            Filtres filtres, Choix choix) throws java.io.IOException {
+        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres, choix);
         List<String[]> colonnes = colonnes(onglet, donnees);
         String[] entetes = new String[colonnes.size() + 1];
         entetes[0] = "MOIS";

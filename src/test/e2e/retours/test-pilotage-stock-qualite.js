@@ -73,8 +73,9 @@ function texteDuPdf(octets) {
 
     const onglets = await p.evaluate(() =>
       Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => o.title));
-    ok('Les sept onglets demandés sont là', onglets.length === 7
-      && onglets[0] === 'Synthèse' && onglets[5] === 'Stock' && onglets[6] === 'Qualité–Exploitation',
+    /* Le test porte sur les onglets de SA vague et sur leur place, pas sur un nombre total qui grandit. */
+    ok('Les deux onglets de cette vague sont là, à leur place',
+      onglets[5] === 'Stock' && onglets[6] === 'Qualité–Exploitation' && onglets[0] === 'Synthèse',
       JSON.stringify(onglets));
 
     const changerOnglet = async (titre) => {

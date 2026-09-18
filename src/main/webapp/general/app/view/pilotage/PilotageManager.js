@@ -41,7 +41,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         {cle: 'achats', titre: 'Achats'},
         {cle: 'caisse', titre: 'Caisse & tiers-payant'},
         {cle: 'stock', titre: 'Stock'},
-        {cle: 'qualite', titre: 'Qualité–Exploitation'}
+        {cle: 'qualite', titre: 'Qualité–Exploitation'},
+        {cle: 'kpi', titre: 'KPI Analyse'},
+        {cle: 'comparateur', titre: 'Comparateur'}
     ],
 
     initComponent: function () {
@@ -83,6 +85,26 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 url: '../api/v1/common/rayons',
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}
             }
+        });
+
+        /* Le catalogue des KPI vient du SERVEUR : l'ecran ne connait pas les indicateurs. */
+        me.storeKpis = new Ext.data.Store({
+            fields: [{name: 'cle', type: 'string'}, {name: 'libelle', type: 'string'},
+                {name: 'unite', type: 'string'}, {name: 'famille', type: 'string'},
+                {name: 'mensuel', type: 'boolean'}],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/pilotage/kpis',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
+        /* Frequentation horaire : le seul indicateur qui ne se lit pas par mois. */
+        me.storeHoraire = new Ext.data.Store({
+            fields: [{name: 'heure', type: 'int'}, {name: 'libelle', type: 'string'},
+                {name: 'nbVentes', type: 'int'}, {name: 'caTTC', type: 'float'}],
+            data: []
         });
 
         me.storeAxes = new Ext.data.Store({
@@ -128,7 +150,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         {name: 'variationStock', type: 'float'}, {name: 'unites', type: 'float'},
                         {name: 'mesure', type: 'boolean'},
                         {name: 'nbAnnulees', type: 'int'}, {name: 'montantAnnule', type: 'float'},
-                        {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'}],
+                        {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'},
+                        {name: 'ratioVA', type: 'float'},
+                        /* Comparateur : les deux objets compares et leur ecart. */
+                        {name: 'a', type: 'float'}, {name: 'b', type: 'float'},
+                        {name: 'ecart', type: 'float'}, {name: 'rapport', type: 'float'}],
                     data: []
                 })
             };
@@ -237,6 +263,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'achats') {
             contenu.push(me.filtresAchats());
         }
+        if (onglet.cle === 'kpi') {
+            contenu.push(me.casesKpi());
+        }
+        if (onglet.cle === 'comparateur') {
+            contenu.push(me.choixComparateur());
+        }
         contenu.push(me.tuiles(onglet.cle));
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
@@ -252,6 +284,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             });
         }
         contenu.push(me.graphique(onglet.cle));
+        if (onglet.cle === 'kpi') {
+            contenu.push(me.frequentation());
+        }
         contenu.push(me.detail(onglet.cle));
         return {
             xtype: 'panel',
@@ -408,11 +443,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     graphique: function (cle) {
         var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
-            caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees'};
+            caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees', kpi: 'caTTC',
+            comparateur: 'a'};
         var titres = {synthese: 'Chiffre d\'affaires TTC mensuel', ventes: 'Chiffre d\'affaires TTC mensuel',
             marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois',
             stock: 'Valeur du stock au prix d\'achat, fin de mois',
-            qualite: 'Ventes annulées par mois'};
+            qualite: 'Ventes annulées par mois', kpi: 'Évolution du premier indicateur coché',
+            comparateur: 'Évolution de l\'objet A'};
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
@@ -483,6 +520,140 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         };
     },
 
+    /*
+     * KPI cochables.
+     *
+     * « On devra avoir tous les KPI cochables ; celui qui est coche fera l'objet de l'analyse sur le selecteur
+     * de periode choisi et on verra sa courbe d'evolution. » Les cases sont construites a partir du catalogue
+     * rendu par le serveur, regroupees par famille d'indicateurs : l'ecran n'en connait pas la liste.
+     */
+    casesKpi: function () {
+        return {
+            xtype: 'panel',
+            itemId: 'casesKpi',
+            title: 'Indicateurs à analyser (cochez ce que vous voulez suivre)',
+            bodyPadding: 6,
+            layout: {type: 'table', columns: 5},
+            items: [],
+            height: 140,
+            autoScroll: true
+        };
+    },
+
+    /* La courbe de frequentation horaire : elle n'apparait que si l'indicateur est coche. */
+    frequentation: function () {
+        return {
+            xtype: 'gridpanel',
+            itemId: 'frequentation',
+            title: 'Fréquentation horaire de la période',
+            store: this.storeHoraire,
+            height: 170,
+            hidden: true,
+            columnLines: true,
+            columns: [
+                {text: 'HEURE', dataIndex: 'libelle', width: 90, itemId: 'col-heure'},
+                {text: 'CLIENTS SERVIS', dataIndex: 'nbVentes', width: 140, align: 'right',
+                    itemId: 'col-clients',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    summaryType: 'sum'},
+                {text: 'CHIFFRE D\'AFFAIRES', dataIndex: 'caTTC', flex: 1, align: 'right',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    }}
+            ],
+            features: [{ftype: 'summary'}]
+        };
+    },
+
+    /*
+     * Comparateur : deux objets, la meme grandeur, la meme periode.
+     *
+     * Deux usages : deux objets de meme nature (deux familles, deux rayons, deux grossistes), ou deux
+     * GRANDEURS entre elles - « par exemple les achats aux ventes sur une periode ».
+     */
+    choixComparateur: function () {
+        var me = this;
+        return {
+            xtype: 'toolbar',
+            itemId: 'choixComparateur',
+            padding: 4,
+            items: [{
+                    xtype: 'combobox',
+                    itemId: 'typeComparaison',
+                    fieldLabel: 'Comparer',
+                    labelWidth: 62,
+                    width: 230,
+                    editable: false,
+                    value: 'GRANDEUR',
+                    store: new Ext.data.Store({
+                        fields: ['id', 'libelle'],
+                        data: [
+                            {id: 'GRANDEUR', libelle: 'Deux grandeurs'},
+                            {id: 'FAMILLE', libelle: 'Deux familles'},
+                            {id: 'RAYON', libelle: 'Deux rayons'},
+                            {id: 'GROSSISTE', libelle: 'Deux grossistes'}
+                        ]
+                    }),
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local'
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'objetA',
+                    fieldLabel: 'A',
+                    labelWidth: 16,
+                    width: 230,
+                    editable: false,
+                    store: me.storeKpis,
+                    displayField: 'libelle',
+                    valueField: 'cle',
+                    queryMode: 'local',
+                    value: 'caTTC'
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'objetB',
+                    fieldLabel: 'B',
+                    labelWidth: 16,
+                    width: 230,
+                    editable: false,
+                    store: me.storeKpis,
+                    displayField: 'libelle',
+                    valueField: 'cle',
+                    queryMode: 'local',
+                    value: 'achatTTC'
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'grandeurComparee',
+                    fieldLabel: 'Sur',
+                    labelWidth: 26,
+                    width: 190,
+                    editable: false,
+                    disabled: true,
+                    store: new Ext.data.Store({
+                        fields: ['id', 'libelle'],
+                        data: [
+                            {id: 'caTTC', libelle: 'Chiffre d\'affaires'},
+                            {id: 'marge', libelle: 'Marge'},
+                            {id: 'unites', libelle: 'Unités vendues'}
+                        ]
+                    }),
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local',
+                    value: 'caTTC'
+                }, {
+                    xtype: 'component',
+                    flex: 1
+                }, {
+                    xtype: 'displayfield',
+                    itemId: 'noteComparateur',
+                    value: ''
+                }]
+        };
+    },
+
     /** Colonnes du detail mensuel, par onglet. Les montants portent leur total en pied de grille. */
     colonnes: function (cle) {
         var montant = function (texte, champ, largeur) {
@@ -514,6 +685,19 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (cle === 'achats') {
             /* Les colonnes de grossistes s'ajoutent au chargement : elles dependent de qui a livre. */
             return [mois, montant('ACHATS', 'achatTTC'), montant('BONS', 'nbBons', 80)];
+        }
+        if (cle === 'kpi') {
+            /* Les colonnes suivent les cases cochees : elles sont posees au chargement. */
+            return [mois];
+        }
+        if (cle === 'comparateur') {
+            return [mois, montant('OBJET A', 'a', 150), montant('OBJET B', 'b', 150),
+                montant('ÉCART', 'ecart', 150),
+                {text: 'RAPPORT A / B', dataIndex: 'rapport', width: 130, align: 'right',
+                    itemId: 'col-rapport',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.00');
+                    }}];
         }
         if (cle === 'stock') {
             return [mois, montant('VALEUR DU STOCK', 'valeurAchat', 150), montant('ENTRÉES', 'entrees'),

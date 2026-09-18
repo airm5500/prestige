@@ -32,13 +32,26 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #filtresAchats combobox[itemId=grossiste]': {select: me.actualiser},
             'pilotage #filtresAchats combobox[itemId=famille]': {select: me.actualiser},
             'pilotage #filtresAchats combobox[itemId=emplacement]': {select: me.actualiser},
-            'pilotage #filtresAchats button[itemId=reinitialiserAchats]': {click: me.reinitialiserAchats}
+            'pilotage #filtresAchats button[itemId=reinitialiserAchats]': {click: me.reinitialiserAchats},
+            'pilotage #casesKpi checkbox': {change: me.surCaseKpi},
+            'pilotage #choixComparateur combobox[itemId=typeComparaison]': {select: me.surTypeComparaison},
+            'pilotage #choixComparateur combobox[itemId=objetA]': {select: me.actualiser},
+            'pilotage #choixComparateur combobox[itemId=objetB]': {select: me.actualiser},
+            'pilotage #choixComparateur combobox[itemId=grandeurComparee]': {select: me.actualiser}
         });
     },
 
     surAffichage: function (ecran) {
         var me = this;
         ecran.storeFamilles.load();
+        /*
+         * Le catalogue des KPI vient du serveur : on construit les cases a cocher a partir de lui, et non
+         * d'une liste ecrite dans l'ecran - un indicateur ne peut donc pas exister dans la liste sans exister
+         * dans le calcul.
+         */
+        ecran.storeKpis.load({callback: function () {
+                me.construireCasesKpi();
+            }});
         ecran.storeEmplacements.load();
         ecran.storeAxes.load({
             callback: function () {
@@ -114,7 +127,101 @@ Ext.define('testextjs.controller.PilotageCtr', {
             parametres.familleId = filtres.down('#famille').getValue() || '';
             parametres.emplacementId = filtres.down('#emplacement').getValue() || '';
         }
+        var cases = ecran.down('#casesKpi');
+        if (cases) {
+            var coches = [];
+            Ext.each(cases.query('checkbox'), function (c) {
+                if (c.getValue()) {
+                    coches.push(c.cleKpi);
+                }
+            });
+            parametres.kpis = coches.join(',');
+        }
+        var comparateur = ecran.down('#choixComparateur');
+        if (comparateur) {
+            parametres.type = comparateur.down('#typeComparaison').getValue() || 'GRANDEUR';
+            parametres.objetA = comparateur.down('#objetA').getValue() || '';
+            parametres.objetB = comparateur.down('#objetB').getValue() || '';
+            parametres.grandeur = comparateur.down('#grandeurComparee').getValue() || 'caTTC';
+        }
         return parametres;
+    },
+
+    /**
+     * Les cases à cocher des KPI, construites depuis le catalogue du serveur et groupées par famille
+     * d'indicateurs. Trois sont cochées au départ — chiffre d'affaires, clients servis, panier moyen — parce
+     * qu'un écran d'analyse qui s'ouvre vide ne dit rien à personne.
+     */
+    construireCasesKpi: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var cases = ecran ? ecran.down('#casesKpi') : null;
+        if (!cases || cases.items.getCount() > 0) {
+            return;
+        }
+        var parDefaut = ['caTTC', 'nbVentes', 'panier'];
+        var items = [];
+        ecran.storeKpis.each(function (r) {
+            items.push({
+                xtype: 'checkbox',
+                cleKpi: r.get('cle'),
+                itemId: 'kpi-' + r.get('cle'),
+                boxLabel: r.get('libelle') + (r.get('famille') ? ' <span style="color:#8a99a8">('
+                        + r.get('famille') + ')</span>' : ''),
+                checked: parDefaut.indexOf(r.get('cle')) >= 0,
+                margin: '0 12 2 0'
+            });
+        });
+        cases.add(items);
+    },
+
+    /* Chaque coche relance l'analyse : c'est le geste attendu, et le serveur garde son résultat quelques
+     * minutes, donc l'aller-retour est court. */
+    surCaseKpi: function () {
+        if (this.ongletCourant() === 'kpi') {
+            this.actualiser();
+        }
+    },
+
+    /**
+     * Le type de comparaison décide de ce que sont A et B : deux grandeurs (le choix se fait dans le catalogue
+     * des KPI), ou deux objets de même nature — et il faut alors dire SUR QUOI on les compare.
+     */
+    surTypeComparaison: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var barre = ecran.down('#choixComparateur');
+        var type = barre.down('#typeComparaison').getValue();
+        var a = barre.down('#objetA');
+        var bb = barre.down('#objetB');
+        var grandeur = barre.down('#grandeurComparee');
+        var poser = function (champ, store, affiche, valeur, premier) {
+            champ.bindStore(store);
+            champ.displayField = affiche;
+            champ.valueField = valeur;
+            champ.setValue(premier);
+        };
+        if (type === 'GRANDEUR') {
+            poser(a, ecran.storeKpis, 'libelle', 'cle', 'caTTC');
+            poser(bb, ecran.storeKpis, 'libelle', 'cle', 'achatTTC');
+            grandeur.setDisabled(true);
+        } else if (type === 'FAMILLE') {
+            poser(a, ecran.storeFamilles, 'libelle', 'id', null);
+            poser(bb, ecran.storeFamilles, 'libelle', 'id', null);
+            grandeur.setDisabled(false);
+        } else if (type === 'RAYON') {
+            poser(a, ecran.storeEmplacements, 'libelle', 'id', null);
+            poser(bb, ecran.storeEmplacements, 'libelle', 'id', null);
+            grandeur.setDisabled(false);
+        } else {
+            /* Un grossiste ne vend rien : la grandeur est imposée, et l'écran le dit. */
+            ecran.storeGrossistes.getProxy().extraParams = me.parametres();
+            ecran.storeGrossistes.load();
+            poser(a, ecran.storeGrossistes, 'libelle', 'id', null);
+            poser(bb, ecran.storeGrossistes, 'libelle', 'id', null);
+            grandeur.setDisabled(true);
+        }
+        me.actualiser();
     },
 
     reinitialiserAchats: function () {
@@ -140,17 +247,32 @@ Ext.define('testextjs.controller.PilotageCtr', {
         if (onglet) {
             onglet.setLoading('Rassemblement des chiffres...');
         }
+        /*
+         * NUMÉRO DE DEMANDE, par onglet.
+         *
+         * Cocher trois indicateurs de suite lance trois requêtes, et rien ne garantit que les réponses
+         * arrivent dans l'ordre : l'écran pouvait donc afficher le résultat d'une demande dépassée — trois
+         * tuiles alors que cinq indicateurs étaient cochés. Chaque réponse porte son numéro et n'est appliquée
+         * que si c'est encore la dernière demandée. Défaut vu au banc.
+         */
+        me.demandes = me.demandes || {};
+        me.demandes[cle] = (me.demandes[cle] || 0) + 1;
+        var numero = me.demandes[cle];
         Ext.Ajax.request({
             url: '../api/v1/pilotage/onglet/' + encodeURIComponent(cle),
             method: 'GET',
             params: me.parametres(),
             timeout: 180000,
             callback: function () {
-                if (onglet) {
+                if (onglet && numero === me.demandes[cle]) {
                     onglet.setLoading(false);
                 }
             },
             success: function (reponse) {
+                if (numero !== me.demandes[cle]) {
+                    /* Une demande plus récente est partie : cette réponse est périmée. */
+                    return;
+                }
                 var r = Ext.decode(reponse.responseText, true) || {};
                 if (r.success !== true) {
                     Ext.Msg.alert('Pilotage', r.message || 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -162,6 +284,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 me.ajusterColonnesModes(cle, r.modes);
                 me.afficherAchats(cle, r);
                 me.afficherNote(cle, r);
+                me.afficherKpi(cle, r);
+                me.afficherComparateur(cle, r);
             },
             failure: function () {
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -223,6 +347,100 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }});
         });
         grille.reconfigure(store, colonnes);
+    },
+
+    /**
+     * Onglet KPI : les colonnes du détail et la courbe suivent les cases cochées, et la fréquentation horaire
+     * n'apparaît que si elle est demandée — c'est une requête de plus, et une lecture qui n'a rien à voir avec
+     * les autres.
+     */
+    afficherKpi: function (cle, reponse) {
+        if (cle !== 'kpi') {
+            return;
+        }
+        var ecran = this.getEcran();
+        var coches = reponse.coches || [];
+        var store = ecran.stores.kpi.mois;
+        var config = ecran.colonnes('kpi');
+        var libelles = {};
+        ecran.storeKpis.each(function (r) {
+            libelles[r.get('cle')] = {libelle: r.get('libelle'), unite: r.get('unite')};
+        });
+        Ext.each(coches, function (k) {
+            if (k === 'frequentation') {
+                return;
+            }
+            var info = libelles[k] || {libelle: k, unite: ''};
+            config.push({text: info.libelle.toUpperCase(), dataIndex: k, width: 150, align: 'right',
+                itemId: 'col-' + k,
+                renderer: function (v) {
+                    return info.unite === '%' ? Ext.util.Format.number(v, '0,000.0') + ' %'
+                            : Ext.util.Format.number(v, '0,000.##');
+                }});
+        });
+        ecran.down('#detail-kpi').reconfigure(store, config);
+
+        /*
+         * La fréquentation horaire est traitée AVANT la courbe, et la courbe est isolée dans un try/catch.
+         * Sans cela, un redessin de graphique qui échoue (une série vide, une échelle impossible) emportait
+         * tout ce qui venait après : la fréquentation restait masquée alors qu'elle avait été cochée. C'est
+         * exactement la leçon des écouteurs de redimensionnement du 17/09 — une erreur isolée ne doit pas
+         * annuler le reste du rafraîchissement.
+         */
+        var horaire = ecran.down('#frequentation');
+        if (horaire) {
+            var demandee = coches.indexOf('frequentation') >= 0;
+            ecran.storeHoraire.loadData(reponse.horaire || []);
+            horaire.setVisible(demandee);
+        }
+
+        /* La courbe suit le PREMIER indicateur coché : superposer des grandeurs d'échelles différentes
+         * (un panier moyen et un chiffre d'affaires) donnerait une courbe illisible. */
+        var premier = coches.filter(function (k) {
+            return k !== 'frequentation';
+        })[0];
+        var graphique = ecran.down('#graphique-kpi');
+        if (graphique && premier) {
+            try {
+                graphique.series.getAt(0).yField = premier;
+                graphique.axes.getAt(0).fields = [premier];
+                graphique.redraw();
+            } catch (e) {
+                /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+            }
+            var panneau = ecran.down('#graphiquePanneau-kpi');
+            if (panneau) {
+                panneau.setTitle('Évolution : ' + ((libelles[premier] || {}).libelle || premier));
+            }
+        }
+    },
+
+    /** Onglet Comparateur : les deux colonnes portent le NOM des objets comparés, pas « A » et « B ». */
+    afficherComparateur: function (cle, reponse) {
+        if (cle !== 'comparateur') {
+            return;
+        }
+        var ecran = this.getEcran();
+        var comparaison = reponse.comparaison || {};
+        var grille = ecran.down('#detail-comparateur');
+        if (grille) {
+            var colonnes = grille.headerCt.getGridColumns();
+            if (colonnes[1]) {
+                colonnes[1].setText((comparaison.libelleA || 'A').toUpperCase());
+            }
+            if (colonnes[2]) {
+                colonnes[2].setText((comparaison.libelleB || 'B').toUpperCase());
+            }
+        }
+        var note = ecran.down('#choixComparateur #noteComparateur');
+        if (note) {
+            note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
+        }
+        var panneau = ecran.down('#graphiquePanneau-comparateur');
+        if (panneau) {
+            panneau.setTitle('Évolution : ' + (comparaison.libelleA || 'objet A') + ' sur '
+                    + (comparaison.libelleGrandeur || ''));
+        }
     },
 
     /**

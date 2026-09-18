@@ -78,6 +78,36 @@ public class PilotageRessource {
     }
 
     /**
+     * Les KPI coches arrivent en une seule chaine separee par des virgules : une liste de parametres repetes serait
+     * plus « propre » en theorie, mais illisible dans un journal d'acces et penible a relire.
+     */
+    private static PilotageService.Choix choix(String kpis, String type, String objetA, String objetB,
+            String grandeur) {
+        java.util.List<String> coches = new java.util.ArrayList<>();
+        if (kpis != null) {
+            for (String cle : kpis.split(",")) {
+                if (!cle.trim().isEmpty()) {
+                    coches.add(cle.trim());
+                }
+            }
+        }
+        return new PilotageService.Choix(coches, type, objetA, objetB, grandeur);
+    }
+
+    /** Catalogue des KPI cochables : la liste vient du serveur, pour que l'ecran et le calcul ne divergent pas. */
+    @GET
+    @Path("kpis")
+    public Response kpis() {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        return Response.ok().entity(pilotageService.catalogueKpi().toString()).build();
+    }
+
+    /**
      * Grossistes qui ont reellement livre sur la fenetre regardee.
      *
      * <p>
@@ -104,7 +134,9 @@ public class PilotageRessource {
     public Response pdf(@QueryParam("onglet") String onglet, @QueryParam("axe") String axe,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
-            @QueryParam("emplacementId") String emplacementId) {
+            @QueryParam("emplacementId") String emplacementId, @QueryParam("kpis") String kpis,
+            @QueryParam("type") String type, @QueryParam("objetA") String objetA, @QueryParam("objetB") String objetB,
+            @QueryParam("grandeur") String grandeur) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -115,7 +147,8 @@ public class PilotageRessource {
         try {
             return Response
                     .ok(pilotageService.pdf(operateur, onglet, axe, debut, fin,
-                            new PilotageService.Filtres(grossisteId, familleId, emplacementId)))
+                            new PilotageService.Filtres(grossisteId, familleId, emplacementId),
+                            choix(kpis, type, objetA, objetB, grandeur)))
                     .type("application/pdf").header("Content-Disposition", "inline; filename=\"pilotage.pdf\"").build();
         } catch (Exception e) {
             LOG.log(java.util.logging.Level.SEVERE, "pilotage : edition " + onglet, e);
@@ -130,7 +163,9 @@ public class PilotageRessource {
     public Response excel(@QueryParam("onglet") String onglet, @QueryParam("axe") String axe,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
-            @QueryParam("emplacementId") String emplacementId) {
+            @QueryParam("emplacementId") String emplacementId, @QueryParam("kpis") String kpis,
+            @QueryParam("type") String type, @QueryParam("objetA") String objetA, @QueryParam("objetB") String objetB,
+            @QueryParam("grandeur") String grandeur) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -141,7 +176,8 @@ public class PilotageRessource {
         try {
             return Response
                     .ok(pilotageService.excel(operateur, onglet, axe, debut, fin,
-                            new PilotageService.Filtres(grossisteId, familleId, emplacementId)))
+                            new PilotageService.Filtres(grossisteId, familleId, emplacementId),
+                            choix(kpis, type, objetA, objetB, grandeur)))
                     .type("application/vnd.ms-excel")
                     .header("Content-Disposition", "attachment; filename=\"pilotage.xls\"").build();
         } catch (Exception e) {
@@ -164,7 +200,9 @@ public class PilotageRessource {
     public Response onglet(@PathParam("onglet") String onglet, @QueryParam("axe") String axe,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
-            @QueryParam("emplacementId") String emplacementId) {
+            @QueryParam("emplacementId") String emplacementId, @QueryParam("kpis") String kpis,
+            @QueryParam("type") String type, @QueryParam("objetA") String objetA, @QueryParam("objetB") String objetB,
+            @QueryParam("grandeur") String grandeur) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return deconnecte();
@@ -173,8 +211,11 @@ public class PilotageRessource {
             return refus();
         }
         try {
-            return Response.ok().entity(pilotageService.donnees(operateur, onglet, axe, debut, fin,
-                    new PilotageService.Filtres(grossisteId, familleId, emplacementId)).toString()).build();
+            return Response.ok()
+                    .entity(pilotageService.donnees(operateur, onglet, axe, debut, fin,
+                            new PilotageService.Filtres(grossisteId, familleId, emplacementId),
+                            choix(kpis, type, objetA, objetB, grandeur)).toString())
+                    .build();
         } catch (Exception e) {
             LOG.log(java.util.logging.Level.SEVERE, "pilotage : onglet " + onglet, e);
             return Response.ok().entity(new JSONObject().put("success", false)

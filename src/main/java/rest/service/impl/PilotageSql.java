@@ -346,6 +346,54 @@ public final class PilotageSql {
                 + " WHERE p.b_IS_CANCEL = 1 AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
     }
 
+    /*
+     * COMPARATEUR ET KPI (vague 4)
+     *
+     * Deux besoins exprimes le 18/09 : « 2 periodes et aussi 2 objets, ce sera au choix - je peux par exemple comparer
+     * les achats aux ventes sur une periode », et « on devra avoir tous les KPI cochables ; celui qui est coche fera
+     * l'objet de l'analyse sur le selecteur de periode choisi et on verra sa courbe d'evolution ».
+     *
+     * Le comparateur d'objets se ramene a une seule question : la MEME grandeur, sur la meme periode, restreinte a deux
+     * perimetres differents. Une seule requete parametree suffit donc, et c'est la garantie que les deux colonnes
+     * comparees sont calculees de la meme facon - comparer deux chiffres obtenus par deux requetes differentes est le
+     * meilleur moyen de conclure a un ecart qui n'existe pas.
+     */
+
+    /**
+     * Ventes par mois, restreintes a une famille ou a un rayon.
+     *
+     * <p>
+     * Au niveau du DETAIL de vente, seul endroit ou l'on sait quel article a ete vendu : l'en-tete de vente ne porte ni
+     * famille ni rayon. Le chiffre d'affaires est donc la somme des lignes, ce qui est exactement la grandeur
+     * comparable entre deux familles.
+     */
+    public static String ventesLignesParMois(String familleId, String rayonId) {
+        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois,"
+                + " COALESCE(SUM(d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)), 0) AS caTTC,"
+                + " COALESCE(SUM(d.int_QUANTITY), 0) AS unites,"
+                + " COALESCE(SUM((d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)) / (1 + (v.int_VALUE / 100))"
+                + "     - (f.int_PAF * d.int_QUANTITY)), 0) AS marge" + " FROM t_preenregistrement_detail d"
+                + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                + " JOIN t_code_tva v ON v.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID" + " WHERE" + VENTES_OU
+                + (StringUtils.isBlank(familleId) ? "" : " AND f.lg_FAMILLEARTICLE_ID = :famille ")
+                + (StringUtils.isBlank(rayonId) ? "" : " AND f.lg_ZONE_GEO_ID = :emplacement ")
+                + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    /**
+     * Frequentation horaire : les ventes et le chiffre d'affaires par heure de la journee, sur la periode.
+     *
+     * <p>
+     * Le seul indicateur de cet ecran qui ne se lit pas par mois : il repond a « a quelle heure les gens viennent-ils
+     * », et sert a placer les equipes. Le decouper par mois n'aurait aucun sens ; il porte donc sur la periode entiere.
+     */
+    public static String frequentationHoraire() {
+        return "SELECT HOUR(p.dt_UPDATED) AS heure, COUNT(*) AS nbVentes,"
+                + " COALESCE(SUM(p.int_PRICE - COALESCE(p.int_PRICE_REMISE, 0)), 0) AS caTTC"
+                + " FROM t_preenregistrement p WHERE" + VENTES_OU + " GROUP BY heure ORDER BY heure ASC";
+    }
+
     /** Grossistes proposes au filtre : ceux qui ont reellement livre sur la periode regardee. */
     public static String grossistesDeLaPeriode() {
         return "SELECT DISTINCT g.lg_GROSSISTE_ID AS id, g.str_LIBELLE AS libelle" + " FROM t_bon_livraison b"
