@@ -862,6 +862,7 @@ Ext.application({
         'BalanceSaleCashDepotController',
         'PointCaisseController',
         'DepotExtensionCtr',
+        'OrdonnanceClientCtr',
         'ArticleMvtController',
         'SupportContactCtr',
         'SupportTicketsCtr',

@@ -187,6 +187,13 @@ public final class DateConverter {
     public static final String P_VENTE_DEPOT_EXTENSION = "P_VENTE_DEPOT_EXTENSION";
     public static final String P_DEPOT_EXT_CA = "P_DEPOT_EXT_CA";
     public static final String P_DEPOT_EXT_POINT_CAISSE = "P_DEPOT_EXT_POINT_CAISSE";
+    /*
+     * Ordonnances clients (evolution 6, point 2). Deux privileges et non un : consulter une ordonnance et la corriger
+     * ne sont pas le meme geste. Une preparatrice peut avoir besoin de relire une posologie sans pouvoir recrire le
+     * document.
+     */
+    public static final String P_ORDONNANCE_CLIENT = "P_ORDONNANCE_CLIENT";
+    public static final String P_ORDONNANCE_CLIENT_MAJ = "P_ORDONNANCE_CLIENT_MAJ";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
     public static final String TIERS_PAYANT_CARNET_ID = "2";
     public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE = "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";
