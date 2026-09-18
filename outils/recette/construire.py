@@ -47,13 +47,15 @@ en evaluant les memes comptages en Python sur le classeur produit. Sur un poste 
 LibreOffice fonctionne, lancer le recalcul avant diffusion.
 """
 import importlib.util
+import os
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.properties import PageSetupProperties
 from openpyxl.utils import get_column_letter
 
-spec = importlib.util.spec_from_file_location('cas', 'cas.py')
+ICI = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location('cas', os.path.join(ICI, 'cas.py'))
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 CAS = mod.CAS
@@ -288,6 +290,9 @@ ws.oddFooter.right.font = POLICE
 ws.freeze_panes = 'A%d' % (ligne_entetes + 1)
 ws.sheet_view.zoomScale = 100
 
-wb.save('Cahier_de_recette_evolution5.xlsx')
+# Le classeur se depose toujours dans outils/, quel que soit le repertoire d'appel.
+SORTIE = os.path.join(os.path.dirname(ICI), 'Cahier_de_recette_evolution5.xlsx')
+wb.save(SORTIE)
+print('classeur :', SORTIE)
 print('cas : %d, lignes %d a %d' % (len(lignes_cas), premiere_ligne_cas, derniere_ligne_cas))
 print('en-tetes repetes : ligne %d' % ligne_entetes)

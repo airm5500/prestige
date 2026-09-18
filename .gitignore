@@ -15,3 +15,4 @@ nb-configuration.xml
 *.properties
 src/main/resources/build.properties
 *.md
+__pycache__/
