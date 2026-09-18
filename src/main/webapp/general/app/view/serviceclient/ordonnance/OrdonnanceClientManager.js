@@ -136,6 +136,24 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             }
         });
 
+        /* Pieces justificatives de l'ordonnance ouverte (vague 2). */
+        me.storePieces = new Ext.data.Store({
+            fields: [
+                {name: 'id', type: 'string'},
+                {name: 'nom', type: 'string'},
+                {name: 'type', type: 'string'},
+                {name: 'taille', type: 'int'},
+                {name: 'deposeeLe', type: 'string'},
+                {name: 'deposeePar', type: 'string'}
+            ],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/ordonnance-client/pieces/0',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
         /* Produits de l'ordonnance en cours de saisie : store local, ecrit seulement a l'enregistrement. */
         me.storeProduits = new Ext.data.Store({
             fields: [
@@ -381,7 +399,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     labelWidth: 110,
                     height: 70,
                     maxLength: 2000
-                }],
+                }, me.grillePieces()],
             dockedItems: [{
                     xtype: 'toolbar',
                     dock: 'top',
@@ -497,6 +515,86 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             forceSelection: false,
                             emptyText: 'Si connu (saisie libre)',
                             maxLength: 100
+                        }]
+                }]
+        };
+    },
+
+    /*
+     * Pieces justificatives (vague 2).
+     *
+     * « Ces pieces doivent pouvoir etre visualisees et telechargees depuis la fiche de l'ordonnance. » La
+     * consultation ouvre le document EN FLUX dans un onglet du navigateur : aucune fenetre surgissante, aucun
+     * telechargement force pour simplement regarder une ordonnance scannee.
+     *
+     * L'envoi passe par un formulaire ExtJS classique (iframe cachee) : c'est le seul montage qui fonctionne
+     * pour un fichier dans cette version d'ExtJS, et c'est deja celui de l'import du panier de reappro.
+     */
+    grillePieces: function () {
+        var me = this;
+        return {
+            xtype: 'gridpanel',
+            itemId: 'grillePieces',
+            title: 'Pièces justificatives (images, PDF, documents numérisés)',
+            store: me.storePieces,
+            height: 170,
+            columnLines: true,
+            columns: [
+                {text: 'FICHIER', dataIndex: 'nom', flex: 3, itemId: 'colPieceNom'},
+                {text: 'TYPE', dataIndex: 'type', width: 130},
+                {text: 'TAILLE', dataIndex: 'taille', width: 100, align: 'right', itemId: 'colPieceTaille',
+                    renderer: function (v) {
+                        return v ? (v / 1024 / 1024).toFixed(1).replace('.', ',') + ' Mo' : '';
+                    }},
+                {text: 'DÉPOSÉE LE', dataIndex: 'deposeeLe', width: 130},
+                {text: 'PAR', dataIndex: 'deposeePar', flex: 2}
+            ],
+            dockedItems: [{
+                    xtype: 'form',
+                    itemId: 'formPiece',
+                    dock: 'top',
+                    border: false,
+                    bodyPadding: 4,
+                    layout: {type: 'hbox', align: 'middle'},
+                    defaults: {margin: '0 6 0 0'},
+                    items: [{
+                            xtype: 'filefield',
+                            itemId: 'fichierPiece',
+                            name: 'fichier',
+                            buttonText: 'Choisir un fichier...',
+                            buttonOnly: false,
+                            width: 380,
+                            emptyText: 'JPG, PNG, TIFF ou PDF - 10 Mo au plus'
+                        }, {
+                            xtype: 'button',
+                            itemId: 'joindrePiece',
+                            text: 'Joindre',
+                            iconCls: 'add',
+                            disabled: true
+                        }, {
+                            xtype: 'button',
+                            itemId: 'voirPiece',
+                            text: 'Voir',
+                            iconCls: 'preview',
+                            disabled: true
+                        }, {
+                            xtype: 'button',
+                            itemId: 'telechargerPiece',
+                            text: 'Télécharger',
+                            disabled: true
+                        }, {
+                            xtype: 'button',
+                            itemId: 'retirerPiece',
+                            text: 'Retirer',
+                            iconCls: 'delete',
+                            disabled: true
+                        }, {
+                            xtype: 'component',
+                            flex: 1
+                        }, {
+                            xtype: 'displayfield',
+                            itemId: 'rappelPieces',
+                            value: 'Enregistrez l\'ordonnance pour pouvoir y joindre une pièce.'
                         }]
                 }]
         };

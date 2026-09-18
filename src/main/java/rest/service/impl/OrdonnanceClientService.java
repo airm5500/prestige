@@ -5,12 +5,14 @@ import dal.TFamille;
 import dal.TMedecin;
 import dal.TOrdonnanceClient;
 import dal.TOrdonnanceClientDetail;
+import dal.TOrdonnanceClientPiece;
 import dal.TUser;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -297,6 +299,224 @@ public class OrdonnanceClientService {
                 .setParameter(1, prefixe + "%").getSingleResult();
         return OrdonnanceClientSaisie.numero(jour,
                 OrdonnanceClientSaisie.sequenceSuivante(dernier == null ? null : String.valueOf(dernier)));
+    }
+
+    /*
+     * ============================================================================================= PIECES
+     * JUSTIFICATIVES (vague 2)
+     *
+     * « Permettre de joindre une ou plusieurs pieces justificatives : images, fichiers PDF ou documents numerises. Ces
+     * pieces doivent pouvoir etre visualisees et telechargees depuis la fiche. »
+     *
+     * Le fichier va sur DISQUE, sous la racine de stockage du logiciel ; seul son chemin relatif est en base. Des scans
+     * en base, c'est une sauvegarde qui triple de volume et une base qui ralentit pour tout le monde.
+     * =============================================================================================
+     */
+
+    /**
+     * Depose une piece sur une ordonnance.
+     *
+     * <p>
+     * L'ordre des operations n'est pas indifferent : on ECRIT LE FICHIER D'ABORD, la ligne ensuite. Dans l'autre sens,
+     * un disque plein laisserait en base une piece qui n'existe pas, et la fiche afficherait un document introuvable.
+     * Ici, le pire cas est un fichier sans ligne - invisible, et que la purge ramasse.
+     */
+    public JSONObject ajouterPiece(String ordonnanceId, String nomOrigine, java.io.InputStream flux, long taille,
+            TUser operateur) {
+        String refus = OrdonnancePieces.refus(nomOrigine, taille);
+        if (refus != null) {
+            return new JSONObject().put("success", false).put("message", refus);
+        }
+        try {
+            TOrdonnanceClient ordonnance = em.find(TOrdonnanceClient.class, ordonnanceId);
+            if (ordonnance == null) {
+                return new JSONObject().put("success", false).put("message", "Ordonnance inconnue.");
+            }
+            if (ordonnance.estAnnulee()) {
+                return new JSONObject().put("success", false).put("message",
+                        "Cette ordonnance est annulée : on n'y joint plus de pièce.");
+            }
+            String pieceId = identifiant();
+            String nomPropre = OrdonnancePieces.assainir(nomOrigine);
+            String relatif = OrdonnancePieces.cheminRelatif(java.time.LocalDate.now(),
+                    OrdonnancePieces.nomSurDisque(pieceId, nomPropre));
+            java.nio.file.Path cible = util.StockageDisque.racine().resolve(relatif);
+            java.nio.file.Files.createDirectories(cible.getParent());
+            long ecrits = java.nio.file.Files.copy(flux, cible, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            if (ecrits > OrdonnancePieces.TAILLE_MAX) {
+                /*
+                 * La taille annoncee par le navigateur n'est pas une information de confiance : on revere sur ce qui a
+                 * REELLEMENT ete ecrit, et on retire le fichier si la limite est franchie.
+                 */
+                java.nio.file.Files.deleteIfExists(cible);
+                return new JSONObject().put("success", false).put("message",
+                        "Le fichier fait " + OrdonnancePieces.mega(ecrits) + " ; la limite est de "
+                                + OrdonnancePieces.mega(OrdonnancePieces.TAILLE_MAX) + ".");
+            }
+            TOrdonnanceClientPiece piece = new TOrdonnanceClientPiece();
+            piece.setLgPIECEID(pieceId);
+            piece.setOrdonnance(ordonnance);
+            piece.setStrNOMORIGINE(OrdonnanceClientSaisie.tronquer(nomPropre, 150));
+            piece.setStrTYPEMIME(OrdonnancePieces.typeMime(nomPropre));
+            piece.setIntTAILLE(ecrits);
+            piece.setStrCHEMIN(relatif);
+            piece.setLgUSERID(operateur == null ? null : operateur.getLgUSERID());
+            piece.setDtCREATED(new Date());
+            em.persist(piece);
+            em.flush();
+            return new JSONObject().put("success", true).put("id", pieceId).put("nom", nomPropre).put("message",
+                    "Pièce « " + nomPropre + " » jointe à l'ordonnance.");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "depot d'une piece d'ordonnance", e);
+            return new JSONObject().put("success", false).put("message", "La pièce n'a pas pu être enregistrée.");
+        }
+    }
+
+    /** Les pieces d'une ordonnance, de la plus ancienne a la plus recente (l'ordre du dossier). */
+    @SuppressWarnings("unchecked")
+    public JSONObject pieces(String ordonnanceId) {
+        JSONArray data = new JSONArray();
+        try {
+            Query q = em.createNativeQuery("SELECT p.lg_PIECE_ID AS id, p.str_NOM_ORIGINE AS nom,"
+                    + " p.str_TYPE_MIME AS type, p.int_TAILLE AS taille, p.dt_CREATED AS deposeeLe,"
+                    + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS deposeePar"
+                    + " FROM t_ordonnance_client_piece p" + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+                    + " WHERE p.lg_ORDONNANCE_ID = :ordonnance ORDER BY p.dt_CREATED ASC", Tuple.class);
+            q.setParameter("ordonnance", ordonnanceId);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                data.put(new JSONObject().put("id", t.get("id", String.class))
+                        .put("nom", StringUtils.defaultString(t.get("nom", String.class)))
+                        .put("type", StringUtils.defaultString(t.get("type", String.class)))
+                        .put("taille", t.get("taille") == null ? 0 : ((Number) t.get("taille")).longValue())
+                        .put("deposeeLe", horodatage(t.get("deposeeLe")))
+                        .put("deposeePar", StringUtils.trimToEmpty(t.get("deposeePar", String.class))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pieces d'une ordonnance", e);
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    /** La piece elle-meme, pour la consultation et le telechargement ; null si elle n'existe pas. */
+    public TOrdonnanceClientPiece piece(String pieceId) {
+        if (StringUtils.isBlank(pieceId)) {
+            return null;
+        }
+        try {
+            return em.find(TOrdonnanceClientPiece.class, pieceId);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "lecture d'une piece d'ordonnance", e);
+            return null;
+        }
+    }
+
+    /**
+     * Fichier d'une piece, ou null si le chemin n'est pas sur ou si le fichier n'est plus la.
+     *
+     * <p>
+     * Le controle du chemin est fait ICI, a chaque lecture, et pas seulement a l'ecriture : une base restauree d'un
+     * autre site ou modifiee a la main ne doit pas pouvoir transformer ce service en lecteur de fichiers du serveur.
+     */
+    public java.nio.file.Path fichierDeLaPiece(TOrdonnanceClientPiece piece) {
+        if (piece == null || !OrdonnancePieces.cheminSur(piece.getStrCHEMIN())) {
+            return null;
+        }
+        java.nio.file.Path chemin = util.StockageDisque.racine().resolve(piece.getStrCHEMIN()).normalize();
+        if (!chemin.startsWith(util.StockageDisque.racine().normalize())) {
+            return null;
+        }
+        return java.nio.file.Files.isRegularFile(chemin) ? chemin : null;
+    }
+
+    /**
+     * Retire une piece : la ligne et le fichier.
+     *
+     * <p>
+     * C'est la seule suppression de tout ce menu, et elle est necessaire : une piece jointe au mauvais patient est un
+     * probleme de confidentialite, pas une coquille. L'ordonnance, elle, ne se supprime toujours pas.
+     */
+    public JSONObject retirerPiece(String pieceId, TUser operateur) {
+        try {
+            TOrdonnanceClientPiece piece = piece(pieceId);
+            if (piece == null) {
+                return new JSONObject().put("success", false).put("message", "Pièce inconnue.");
+            }
+            String nom = piece.getStrNOMORIGINE();
+            java.nio.file.Path fichier = fichierDeLaPiece(piece);
+            em.remove(piece);
+            em.flush();
+            if (fichier != null) {
+                /*
+                 * Le fichier est efface APRES la ligne : si l'effacement echoue (fichier verrouille), la piece a malgre
+                 * tout disparu de la fiche, et le fichier restant sera ramasse par la purge.
+                 */
+                java.nio.file.Files.deleteIfExists(fichier);
+            }
+            LOG.log(Level.INFO, "Piece d''ordonnance retiree : {0} par {1}",
+                    new Object[] { nom, operateur == null ? "?" : operateur.getStrLOGIN() });
+            return new JSONObject().put("success", true).put("message", "Pièce « " + nom + " » retirée.");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "retrait d'une piece d'ordonnance", e);
+            return new JSONObject().put("success", false).put("message", "La pièce n'a pas pu être retirée.");
+        }
+    }
+
+    /**
+     * Purge les fichiers du dossier des pieces qui ne correspondent a aucune ligne en base.
+     *
+     * <p>
+     * Ils peuvent exister : un fichier ecrit juste avant une coupure, ou dont la ligne n'a pas pu etre creee. Sans
+     * cette purge, ils resteraient indefiniment sur le disque de l'officine sans que personne sache a quoi ils servent
+     * - et personne n'oserait les effacer a la main.
+     *
+     * <p>
+     * Ne touche QUE le dossier des ordonnances, ne suit pas les liens, et ignore les fichiers du jour : un fichier tout
+     * juste ecrit peut appartenir a un enregistrement encore en cours.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject purgerPiecesOrphelines() {
+        int supprimes = 0;
+        int examines = 0;
+        try {
+            java.nio.file.Path racine = util.StockageDisque.racine().resolve(OrdonnancePieces.DOSSIER);
+            if (!java.nio.file.Files.isDirectory(racine)) {
+                return new JSONObject().put("success", true).put("examines", 0).put("supprimes", 0).put("message",
+                        "Aucun dossier de pièces à purger.");
+            }
+            Set<String> connus = new java.util.HashSet<>();
+            for (Object chemin : em.createNativeQuery("SELECT p.str_CHEMIN FROM t_ordonnance_client_piece p")
+                    .getResultList()) {
+                if (chemin != null) {
+                    connus.add(String.valueOf(chemin).replace('\\', '/'));
+                }
+            }
+            long limite = System.currentTimeMillis() - 24L * 3600L * 1000L;
+            java.util.List<java.nio.file.Path> aSupprimer = new ArrayList<>();
+            try (java.util.stream.Stream<java.nio.file.Path> fichiers = java.nio.file.Files.walk(racine)) {
+                for (java.nio.file.Path f : (Iterable<java.nio.file.Path>) fichiers
+                        .filter(java.nio.file.Files::isRegularFile)::iterator) {
+                    examines++;
+                    String relatif = util.StockageDisque.racine().relativize(f).toString().replace('\\', '/');
+                    if (connus.contains(relatif)) {
+                        continue;
+                    }
+                    if (f.toFile().lastModified() > limite) {
+                        continue;
+                    }
+                    aSupprimer.add(f);
+                }
+            }
+            for (java.nio.file.Path f : aSupprimer) {
+                if (java.nio.file.Files.deleteIfExists(f)) {
+                    supprimes++;
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "purge des pieces orphelines", e);
+            return new JSONObject().put("success", false).put("message", "La purge n'a pas pu être menée à bien.");
+        }
+        return new JSONObject().put("success", true).put("examines", examines).put("supprimes", supprimes)
+                .put("message", supprimes + " fichier(s) orphelin(s) supprimé(s) sur " + examines + " examiné(s).");
     }
 
     /**

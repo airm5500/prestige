@@ -17,6 +17,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.json.JSONObject;
 import rest.service.impl.OrdonnanceClientSaisie;
 import rest.service.impl.OrdonnanceClientService;
@@ -41,6 +44,9 @@ import util.DateConverter;
 @Produces("application/json")
 @Consumes("application/json")
 public class OrdonnanceClientRessource {
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(OrdonnanceClientRessource.class.getName());
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -167,6 +173,141 @@ public class OrdonnanceClientRessource {
             return refusEcriture();
         }
         return Response.ok().entity(ordonnanceService.annuler(id, motif, operateur).toString()).build();
+    }
+
+    /*
+     * ============================================================================================= PIECES
+     * JUSTIFICATIVES (vague 2)
+     * =============================================================================================
+     */
+
+    /**
+     * Depot d'une piece sur une ordonnance.
+     *
+     * <p>
+     * Reponse en {@code text/html} : l'envoi de fichier d'ExtJS passe par une iframe cachee, qui n'accepte pas
+     * {@code application/json}. C'est le meme montage que l'import du panier de reappro.
+     */
+    @POST
+    @Path("pieces/{ordonnanceId}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.TEXT_HTML)
+    public Response deposerPiece(@PathParam("ordonnanceId") String ordonnanceId) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        try {
+            ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory());
+            for (FileItem item : upload.parseRequest(servletRequest)) {
+                if (!item.isFormField()) {
+                    JSONObject json = ordonnanceService.ajouterPiece(ordonnanceId, item.getName(),
+                            item.getInputStream(), item.getSize(), operateur);
+                    return Response.ok().entity(json.toString()).build();
+                }
+            }
+            return refus("Aucun fichier reçu.");
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "depot d'une piece d'ordonnance", e);
+            return refus("Le fichier n'a pas pu être lu.");
+        }
+    }
+
+    /** Les pieces d'une ordonnance. */
+    @GET
+    @Path("pieces/{ordonnanceId}")
+    public Response pieces(@PathParam("ordonnanceId") String ordonnanceId) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(ordonnanceService.pieces(ordonnanceId).toString()).build();
+    }
+
+    /**
+     * Consultation d'une piece, servie EN FLUX dans un onglet du navigateur.
+     *
+     * <p>
+     * {@code inline} et non {@code attachment} : l'officine ne veut aucune fenetre surgissante ni telechargement pour
+     * regarder un document. Le type MIME est celui deduit de l'extension a l'enregistrement, jamais celui annonce par
+     * le navigateur qui a envoye le fichier.
+     */
+    @GET
+    @Path("piece/{pieceId}")
+    @Produces(MediaType.WILDCARD)
+    public Response voirPiece(@PathParam("pieceId") String pieceId) {
+        return servirPiece(pieceId, false);
+    }
+
+    /** Telechargement de la meme piece, sous son nom d'origine. */
+    @GET
+    @Path("piece/{pieceId}/telecharger")
+    @Produces(MediaType.WILDCARD)
+    public Response telechargerPiece(@PathParam("pieceId") String pieceId) {
+        return servirPiece(pieceId, true);
+    }
+
+    private Response servirPiece(String pieceId, boolean telechargement) {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            /*
+             * 403 et non un JSON d'erreur : ce service rend un fichier, et un corps JSON servi a la place d'une image
+             * s'afficherait comme un document illisible sans dire pourquoi.
+             */
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        dal.TOrdonnanceClientPiece piece = ordonnanceService.piece(pieceId);
+        java.nio.file.Path fichier = ordonnanceService.fichierDeLaPiece(piece);
+        if (fichier == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        String nom = rest.service.impl.OrdonnancePieces.assainir(piece.getStrNOMORIGINE());
+        return Response.ok(fichier.toFile()).type(rest.service.impl.OrdonnancePieces.typeMime(nom))
+                .header("Content-Disposition",
+                        (telechargement ? "attachment" : "inline") + "; filename=\"" + nom + "\"")
+                .build();
+    }
+
+    /**
+     * Retrait d'une piece.
+     *
+     * <p>
+     * C'est la seule suppression de ce menu : une piece jointe au mauvais patient est un probleme de confidentialite,
+     * pas une coquille. L'ordonnance, elle, ne se supprime toujours pas.
+     */
+    @POST
+    @Path("piece/{pieceId}/retirer")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response retirerPiece(@PathParam("pieceId") String pieceId) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(ordonnanceService.retirerPiece(pieceId, operateur).toString()).build();
+    }
+
+    /** Purge des fichiers de pieces qui ne correspondent a aucune ordonnance. */
+    @POST
+    @Path("pieces/purger")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response purgerPieces() {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(ordonnanceService.purgerPiecesOrphelines().toString()).build();
     }
 
     /** Prescripteurs actifs (referentiel medecins existant). */

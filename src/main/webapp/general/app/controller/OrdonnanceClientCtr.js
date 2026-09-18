@@ -24,7 +24,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         {ref: 'grille', selector: 'ordonnanceclient #grilleOrdonnances'},
         {ref: 'grilleProduits', selector: 'ordonnanceclient #grilleProduits'},
         {ref: 'fiche', selector: 'ordonnanceclient #vueFiche'},
-        {ref: 'criteres', selector: 'ordonnanceclient #barreCriteres'}
+        {ref: 'criteres', selector: 'ordonnanceclient #barreCriteres'},
+        {ref: 'grillePieces', selector: 'ordonnanceclient #grillePieces'}
     ],
 
     init: function () {
@@ -50,6 +51,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueFiche button[itemId=abandonner]': {click: me.retourHistorique},
             'ordonnanceclient #vueFiche button[itemId=enregistrer]': {click: me.enregistrer},
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
+            'ordonnanceclient #grillePieces button[itemId=joindrePiece]': {click: me.joindrePiece},
+            'ordonnanceclient #grillePieces button[itemId=voirPiece]': {click: me.voirPiece},
+            'ordonnanceclient #grillePieces button[itemId=telechargerPiece]': {click: me.telechargerPiece},
+            'ordonnanceclient #grillePieces button[itemId=retirerPiece]': {click: me.retirerPiece},
+            'ordonnanceclient #grillePieces filefield[itemId=fichierPiece]': {change: me.surChoixFichier},
+            'ordonnanceclient #grillePieces': {selectionchange: me.surSelectionPiece},
             'ordonnanceclient #grilleProduits button[itemId=ajouterProduit]': {click: me.ajouterProduit},
             'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle}
         });
@@ -105,6 +112,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#grilleOrdonnances button[itemId=annuler]');
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=nouveauClient]');
+        basculer('#grillePieces button[itemId=joindrePiece]');
+        basculer('#grillePieces button[itemId=retirerPiece]');
+        basculer('#grillePieces filefield[itemId=fichierPiece]');
     },
 
     /* ----------------------------------------------------------------- historique */
@@ -207,6 +217,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.lectureSeule(false);
         me.montrer(1);
         me.ajouterProduit();
+        me.chargerPieces();
     },
 
     viderFiche: function () {
@@ -225,6 +236,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     /** Consultation : la fiche s'ouvre en lecture, sans qu'on puisse la modifier par inadvertance. */
     lectureSeule: function (verrou) {
         var ecran = this.getEcran();
+        /* Memorise : les boutons des pieces suivent le meme verrou que le reste de la fiche. */
+        this.ficheVerrouillee = verrou === true;
         var fiche = ecran.down('#vueFiche');
         Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations'],
                 function (s) {
@@ -338,6 +351,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         fiche.down('#titreFiche').setValue('Ordonnance ' + (o.numero || '') + ' — ' + (o.client || '')
                 + (o.statut === 'annulee' ? ' (ANNULÉE : ' + (o.motifAnnulation || '') + ')' : ''));
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
+        me.chargerPieces();
         me.montrer(1);
     },
 
@@ -413,7 +427,14 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                     Ext.Msg.alert('Ordonnances', r.message || "L'ordonnance n'a pas pu être enregistrée.");
                     return;
                 }
-                me.retourHistorique();
+                /*
+                 * On RESTE sur la fiche, avec l'ordonnance desormais enregistree : une piece se rattache a un
+                 * document, et repartir vers l'historique obligerait a rouvrir la fiche pour joindre le scan
+                 * qu'on a sous la main. Le retour a l'historique reste a un clic.
+                 */
+                fiche.down('#ordonnanceId').setValue(r.id || '');
+                fiche.down('#titreFiche').setValue('Ordonnance ' + (r.numero || '') + ' enregistrée');
+                me.chargerPieces();
             },
             failure: function () {
                 Ext.Msg.alert('Ordonnances', "L'ordonnance n'a pas pu être enregistrée.");
@@ -459,6 +480,183 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                         }
                     });
                 }, me, true);
+    },
+
+    /* ------------------------------------------------------------------- pièces jointes */
+
+    /** Identifiant de l'ordonnance ouverte dans la fiche, ou une chaîne vide pour une saisie en cours. */
+    ordonnanceOuverte: function () {
+        var ecran = this.getEcran();
+        var champ = ecran ? ecran.down('#vueFiche #ordonnanceId') : null;
+        return champ ? (champ.getValue() || '') : '';
+    },
+
+    /**
+     * Recharge les pièces de l'ordonnance ouverte.
+     *
+     * Tant qu'aucune ordonnance n'est enregistrée, il n'y a rien à charger et rien à joindre : une pièce se
+     * rattache à un document, pas à une saisie en cours.
+     */
+    chargerPieces: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var id = me.ordonnanceOuverte();
+        var grille = ecran.down('#grillePieces');
+        var rappel = grille ? grille.down('#rappelPieces') : null;
+        var peutEcrire = !!(me.droits && me.droits.modifier);
+        if (!id) {
+            ecran.storePieces.removeAll();
+            if (rappel) {
+                rappel.setValue('Enregistrez l\'ordonnance pour pouvoir y joindre une pièce.');
+            }
+            me.basculerBoutonsPieces(false, false);
+            return;
+        }
+        if (rappel) {
+            rappel.setValue(peutEcrire
+                ? 'JPG, PNG, TIFF ou PDF, 10 Mo au plus. « Voir » ouvre la pièce dans un onglet.'
+                : 'Consultation seule : votre profil ne permet pas de joindre ni de retirer une pièce.');
+        }
+        ecran.storePieces.getProxy().url = '../api/v1/ordonnance-client/pieces/' + encodeURIComponent(id);
+        ecran.storePieces.load();
+        me.basculerBoutonsPieces(peutEcrire && !me.ficheVerrouillee, false);
+    },
+
+    basculerBoutonsPieces: function (envoiPossible, pieceChoisie) {
+        var ecran = this.getEcran();
+        var grille = ecran ? ecran.down('#grillePieces') : null;
+        if (!grille) {
+            return;
+        }
+        var actif = function (selecteur, etat) {
+            var b = grille.down(selecteur);
+            if (b) {
+                b.setDisabled(!etat);
+            }
+        };
+        var fichier = grille.down('#fichierPiece');
+        if (fichier) {
+            fichier.setDisabled(!envoiPossible);
+        }
+        actif('button[itemId=joindrePiece]', envoiPossible && !!(fichier && fichier.getValue()));
+        actif('button[itemId=voirPiece]', pieceChoisie);
+        actif('button[itemId=telechargerPiece]', pieceChoisie);
+        actif('button[itemId=retirerPiece]', envoiPossible && pieceChoisie);
+    },
+
+    surChoixFichier: function () {
+        var me = this;
+        me.basculerBoutonsPieces(!!(me.droits && me.droits.modifier) && !me.ficheVerrouillee,
+            me.pieceSelectionnee() !== null);
+    },
+
+    pieceSelectionnee: function () {
+        var grille = this.getGrillePieces();
+        var lignes = grille ? grille.getSelectionModel().getSelection() : [];
+        return lignes.length === 1 ? lignes[0] : null;
+    },
+
+    surSelectionPiece: function () {
+        var me = this;
+        me.basculerBoutonsPieces(!!(me.droits && me.droits.modifier) && !me.ficheVerrouillee,
+            me.pieceSelectionnee() !== null);
+    },
+
+    /**
+     * Envoi du fichier.
+     *
+     * Le formulaire ExtJS passe par une iframe cachée : c'est le seul montage qui fonctionne pour un fichier
+     * dans cette version, et le service répond donc en text/html. Le contrôle de type et de taille est fait
+     * côté serveur — celui du navigateur n'est qu'une politesse.
+     */
+    joindrePiece: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var id = me.ordonnanceOuverte();
+        if (!id) {
+            Ext.Msg.alert('Pièces jointes', "Enregistrez d'abord l'ordonnance.");
+            return;
+        }
+        var formulaire = ecran.down('#grillePieces #formPiece');
+        var fichier = formulaire.down('#fichierPiece');
+        if (!fichier.getValue()) {
+            Ext.Msg.alert('Pièces jointes', 'Choisissez un fichier.');
+            return;
+        }
+        formulaire.getForm().submit({
+            url: '../api/v1/ordonnance-client/pieces/' + encodeURIComponent(id),
+            waitMsg: 'Envoi de la pièce...',
+            success: function (form, action) {
+                var r = Ext.decode(action.response.responseText, true) || {};
+                if (r.success !== true) {
+                    Ext.Msg.alert('Pièces jointes', r.message || "La pièce n'a pas pu être enregistrée.");
+                    return;
+                }
+                fichier.reset();
+                me.chargerPieces();
+            },
+            failure: function (form, action) {
+                /*
+                 * ExtJS considère en échec toute réponse dont le JSON ne porte pas success:true — y compris nos
+                 * refus légitimes (type non accepté, fichier trop gros). On lit donc le message du serveur au
+                 * lieu d'afficher une erreur générique qui n'apprendrait rien à l'opérateur.
+                 */
+                var texte = action && action.response ? action.response.responseText : '';
+                var r = Ext.decode(texte, true) || {};
+                Ext.Msg.alert('Pièces jointes', r.message || "La pièce n'a pas pu être enregistrée.");
+            }
+        });
+    },
+
+    /** « Voir » ouvre la pièce EN FLUX dans un onglet du navigateur : ni fenêtre surgissante, ni téléchargement. */
+    voirPiece: function () {
+        var piece = this.pieceSelectionnee();
+        if (!piece) {
+            return;
+        }
+        window.open('../api/v1/ordonnance-client/piece/' + encodeURIComponent(piece.get('id')), '_blank');
+    },
+
+    telechargerPiece: function () {
+        var piece = this.pieceSelectionnee();
+        if (!piece) {
+            return;
+        }
+        window.location = '../api/v1/ordonnance-client/piece/' + encodeURIComponent(piece.get('id'))
+            + '/telecharger';
+    },
+
+    /**
+     * Retrait d'une pièce : la seule suppression de ce menu, et elle est nécessaire — une pièce jointe au
+     * mauvais patient est un problème de confidentialité, pas une coquille. L'ordonnance ne se supprime pas.
+     */
+    retirerPiece: function () {
+        var me = this;
+        var piece = me.pieceSelectionnee();
+        if (!piece) {
+            return;
+        }
+        Ext.Msg.confirm('Retirer la pièce', 'Retirer « ' + Ext.String.htmlEncode(piece.get('nom'))
+            + ' » de cette ordonnance ?', function (bouton) {
+            if (bouton !== 'yes') {
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/ordonnance-client/piece/' + encodeURIComponent(piece.get('id')) + '/retirer',
+                method: 'POST',
+                success: function (reponse) {
+                    var r = Ext.decode(reponse.responseText, true) || {};
+                    if (r.success !== true) {
+                        Ext.Msg.alert('Pièces jointes', r.message || "La pièce n'a pas pu être retirée.");
+                        return;
+                    }
+                    me.chargerPieces();
+                },
+                failure: function () {
+                    Ext.Msg.alert('Pièces jointes', "La pièce n'a pas pu être retirée.");
+                }
+            });
+        });
     },
 
     /**
