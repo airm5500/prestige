@@ -39,7 +39,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         {cle: 'ventes', titre: 'Ventes'},
         {cle: 'marge', titre: 'Marge'},
         {cle: 'achats', titre: 'Achats'},
-        {cle: 'caisse', titre: 'Caisse & tiers-payant'}
+        {cle: 'caisse', titre: 'Caisse & tiers-payant'},
+        {cle: 'stock', titre: 'Stock'},
+        {cle: 'qualite', titre: 'Qualité–Exploitation'}
     ],
 
     initComponent: function () {
@@ -120,7 +122,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         {name: 'partTiersPayant', type: 'float'},
                         {name: 'encaisse', type: 'float'}, {name: 'credit', type: 'float'},
                         {name: 'partComptant', type: 'float'}, {name: 'partCredit', type: 'float'},
-                        {name: 'tpRegle', type: 'float'}],
+                        {name: 'tpRegle', type: 'float'},
+                        {name: 'valeurAchat', type: 'float'}, {name: 'valeurVente', type: 'float'},
+                        {name: 'entrees', type: 'float'}, {name: 'sorties', type: 'float'},
+                        {name: 'variationStock', type: 'float'}, {name: 'unites', type: 'float'},
+                        {name: 'mesure', type: 'boolean'},
+                        {name: 'nbAnnulees', type: 'int'}, {name: 'montantAnnule', type: 'float'},
+                        {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'}],
                     data: []
                 })
             };
@@ -232,6 +240,16 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         contenu.push(me.tuiles(onglet.cle));
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
+        }
+        if (onglet.cle === 'stock' || onglet.cle === 'qualite') {
+            /* La note dit d'ou viennent les chiffres : reconstitues ou mesures pour le stock, etat du jour
+             * ou periode pour la qualite. Sans elle, deux lectures differentes seraient confondues. */
+            contenu.push({
+                xtype: 'toolbar',
+                itemId: 'note-' + onglet.cle,
+                padding: 4,
+                items: [{xtype: 'displayfield', itemId: 'texteNote', flex: 1, value: ''}]
+            });
         }
         contenu.push(me.graphique(onglet.cle));
         contenu.push(me.detail(onglet.cle));
@@ -390,9 +408,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     graphique: function (cle) {
         var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
-            caisse: 'encaisse'};
+            caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees'};
         var titres = {synthese: 'Chiffre d\'affaires TTC mensuel', ventes: 'Chiffre d\'affaires TTC mensuel',
-            marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois'};
+            marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois',
+            stock: 'Valeur du stock au prix d\'achat, fin de mois',
+            qualite: 'Ventes annulées par mois'};
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
@@ -494,6 +514,21 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (cle === 'achats') {
             /* Les colonnes de grossistes s'ajoutent au chargement : elles dependent de qui a livre. */
             return [mois, montant('ACHATS', 'achatTTC'), montant('BONS', 'nbBons', 80)];
+        }
+        if (cle === 'stock') {
+            return [mois, montant('VALEUR DU STOCK', 'valeurAchat', 150), montant('ENTRÉES', 'entrees'),
+                montant('SORTIES', 'sorties'), montant('VARIATION', 'variationStock'),
+                {text: 'SOURCE', dataIndex: 'mesure', width: 110, itemId: 'col-mesure',
+                    renderer: function (v) {
+                        /* Une valeur mesurée et une valeur reconstituée ne se lisent pas de la même façon :
+                         * l'écran le dit ligne par ligne plutôt qu'une fois en note. */
+                        return v ? 'Photo' : '<span style="color:#8a6d3b">Reconstituée</span>';
+                    }}];
+        }
+        if (cle === 'qualite') {
+            return [mois, montant('CA TTC', 'caTTC'), montant('VENTES', 'nbVentes', 90),
+                montant('ANNULÉES', 'nbAnnulees', 100), taux('% ANNUL.', 'tauxAnnulation'),
+                montant('REMISES', 'remises'), taux('% REMISE', 'tauxRemise')];
         }
         if (cle === 'caisse') {
             return [mois, montant('CA TTC', 'caTTC'), montant('ENCAISSÉ', 'encaisse'),

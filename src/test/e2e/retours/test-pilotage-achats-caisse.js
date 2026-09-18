@@ -57,8 +57,10 @@ function texteDuPdf(octets) {
 
     const onglets = await p.evaluate(() =>
       Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => o.title));
-    ok('Les cinq onglets livrés sont là',
-      onglets.join(' | ') === 'Synthèse | Ventes | Marge | Achats | Caisse & tiers-payant',
+    /* Le test porte sur les onglets de SA vague, pas sur une liste figee qui casserait a la suivante. */
+    ok('Les deux onglets de cette vague sont là, après ceux de la vague précédente',
+      ['Achats', 'Caisse & tiers-payant'].every((t) => onglets.indexOf(t) >= 0)
+      && onglets.indexOf('Achats') === 3 && onglets.indexOf('Caisse & tiers-payant') === 4,
       JSON.stringify(onglets));
 
     /* La tuile Achats de la synthese, pour la comparer ensuite a l onglet Achats. */

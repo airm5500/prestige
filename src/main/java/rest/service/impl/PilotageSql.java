@@ -227,6 +227,125 @@ public final class PilotageSql {
                 + " WHERE r.dt_REGLEMENT >= :debut AND r.dt_REGLEMENT < :fin";
     }
 
+    /*
+     * STOCK ET QUALITE D'EXPLOITATION (vague 3)
+     *
+     * Ce que le logiciel sait du stock : ce qu'il vaut AUJOURD'HUI. Ce qu'il ne garde pas : ce qu'il valait le mois
+     * dernier. Les tables d'historique de mouvements de cette officine sont vides (HMvtProduit, t_mouvement,
+     * t_mouvement_snapshot, stock_snapshot), il n'y a donc rien a reconstituer a partir d'elles.
+     *
+     * Deux chemins, dans cet ordre de preference :
+     *
+     * 1. la PHOTO du mois, si elle a ete prise (pilotage_stock_mensuel) : c'est une mesure ; 2. sinon la RECONSTITUTION
+     * a rebours depuis l'etat du jour, avec les entrees (lignes de bons) et les sorties (lignes de ventes) du mois -
+     * toutes deux presentes. Les regularisations d'inventaire n'y figurent pas, et l'ecran le dit.
+     */
+
+    /** Emplacement de l'officine : le stock du pilotage est celui de l'officine, pas des depots d'extension. */
+    public static final String EMPLACEMENT_OFFICINE = "1";
+
+    /** Etat du stock aujourd'hui : unites, valeur d'achat, valeur de vente, ruptures, negatifs, sous seuil. */
+    public static String etatStock() {
+        return "SELECT COUNT(*) AS lignes, COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) AS unites,"
+                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PAF), 0) AS valeurAchat,"
+                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE), 0) AS valeurVente,"
+                + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE = 0 THEN 1 ELSE 0 END) AS ruptures,"
+                + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE < 0 THEN 1 ELSE 0 END) AS negatifs,"
+                /*
+                 * « Sous le seuil » ne compte QUE les articles dont le seuil est reellement parametre : compter ceux
+                 * dont le seuil vaut 0 mettrait tout le referentiel sous le seuil et l'alerte ne voudrait plus rien
+                 * dire. Le nombre d'articles sans seuil est donne a part, comme un chantier a mener.
+                 */
+                + " SUM(CASE WHEN f.int_SEUIL_MIN > 0 AND s.int_NUMBER_AVAILABLE < f.int_SEUIL_MIN"
+                + "     THEN 1 ELSE 0 END) AS sousSeuil,"
+                + " SUM(CASE WHEN f.int_SEUIL_MIN IS NULL OR f.int_SEUIL_MIN = 0 THEN 1 ELSE 0 END) AS sansSeuil"
+                + " FROM t_famille_stock s" + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+                + " WHERE s.lg_EMPLACEMENT_ID = :emplacement";
+    }
+
+    /** Entrees de stock par mois, valorisees au prix d'achat de la ligne du bon. */
+    public static String entreesStockParMois() {
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois,"
+                + " COALESCE(SUM(d.int_PAF * d.int_QTE_RECUE), 0) AS montant,"
+                + " COALESCE(SUM(d.int_QTE_RECUE), 0) AS unites" + " FROM t_bon_livraison_detail d"
+                + " JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID" + " WHERE" + ACHATS_OU
+                + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    /** Sorties de stock par mois : les quantites vendues, valorisees au prix d'achat du referentiel. */
+    public static String sortiesStockParMois() {
+        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois,"
+                + " COALESCE(SUM(f.int_PAF * d.int_QUANTITY), 0) AS montant,"
+                + " COALESCE(SUM(d.int_QUANTITY), 0) AS unites" + " FROM t_preenregistrement_detail d"
+                + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID" + " WHERE" + VENTES_OU
+                + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    /** Photos mensuelles deja prises. */
+    public static String photosStock() {
+        return "SELECT p.str_MOIS AS mois, p.int_UNITES AS unites, p.int_VALEUR_ACHAT AS valeurAchat,"
+                + " p.int_VALEUR_VENTE AS valeurVente, p.int_REFERENCES AS refs, p.int_RUPTURES AS ruptures,"
+                + " p.int_NEGATIFS AS negatifs, p.int_SOUS_SEUIL AS sousSeuil" + " FROM pilotage_stock_mensuel p"
+                + " WHERE p.lg_EMPLACEMENT_ID = :emplacement AND p.str_MOIS >= :moisDebut"
+                + " AND p.str_MOIS <= :moisFin ORDER BY p.str_MOIS ASC";
+    }
+
+    /**
+     * Stock dormant : en stock, et pas une seule vente depuis la date donnee.
+     *
+     * <p>
+     * C'est l'argent qui dort sur les etageres. La requete ne compte que ce qui a du stock : un article a zero qui ne
+     * se vend pas n'immobilise rien.
+     */
+    public static String stockDormant() {
+        return "SELECT COUNT(*) AS lignes, COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PAF), 0) AS valeurAchat"
+                + " FROM t_famille_stock s" + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+                + " WHERE s.lg_EMPLACEMENT_ID = :emplacement AND s.int_NUMBER_AVAILABLE > 0"
+                + " AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d"
+                + "     JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                + "     WHERE d.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND p.str_STATUT = 'is_Closed'"
+                + "     AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= :depuis)";
+    }
+
+    /**
+     * Anomalies de referentiel qui salissent les chiffres : pas de prix, pas de rayon, pas de seuil.
+     *
+     * <p>
+     * Un article en stock sans prix d'achat fausse toute valorisation ; sans rayon, il echappe aux inventaires
+     * tournants ; sans seuil, il n'entre dans aucune suggestion de reappro. Ce sont trois chantiers concrets.
+     */
+    public static String anomaliesReferentiel() {
+        return "SELECT" + " SUM(CASE WHEN f.int_PAF IS NULL OR f.int_PAF = 0 THEN 1 ELSE 0 END) AS sansPrixAchat,"
+                + " SUM(CASE WHEN f.int_PRICE IS NULL OR f.int_PRICE = 0 THEN 1 ELSE 0 END) AS sansPrixVente,"
+                + " SUM(CASE WHEN f.lg_ZONE_GEO_ID IS NULL OR f.lg_ZONE_GEO_ID = '' THEN 1 ELSE 0 END)"
+                + "     AS sansRayon,"
+                + " SUM(CASE WHEN f.int_SEUIL_MIN IS NULL OR f.int_SEUIL_MIN = 0 THEN 1 ELSE 0 END) AS sansSeuil,"
+                + " COUNT(*) AS enStock" + " FROM t_famille_stock s"
+                + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+                + " WHERE s.lg_EMPLACEMENT_ID = :emplacement AND s.int_NUMBER_AVAILABLE > 0";
+    }
+
+    /**
+     * Ventes annulees par mois : nombre et montant.
+     *
+     * <p>
+     * Les annulations ne sont pas une anomalie en soi - une vente se corrige - mais leur part dans l'activite se
+     * surveille : elle monte quand une caisse tatonne ou qu'un parcours coince.
+     */
+    public static String annulationsParMois() {
+        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois, COUNT(*) AS nbAnnulees,"
+                + " COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule" + " FROM t_preenregistrement p"
+                + " WHERE p.b_IS_CANCEL = 1 AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin"
+                + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    public static String totalAnnulations() {
+        return "SELECT COUNT(*) AS nbAnnulees, COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule"
+                + " FROM t_preenregistrement p"
+                + " WHERE p.b_IS_CANCEL = 1 AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
+    }
+
     /** Grossistes proposes au filtre : ceux qui ont reellement livre sur la periode regardee. */
     public static String grossistesDeLaPeriode() {
         return "SELECT DISTINCT g.lg_GROSSISTE_ID AS id, g.str_LIBELLE AS libelle" + " FROM t_bon_livraison b"

@@ -161,6 +161,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 stores.mois.loadData(r.mois || []);
                 me.ajusterColonnesModes(cle, r.modes);
                 me.afficherAchats(cle, r);
+                me.afficherNote(cle, r);
             },
             failure: function () {
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -222,6 +223,23 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }});
         });
         grille.reconfigure(store, colonnes);
+    },
+
+    /**
+     * La note des onglets Stock et Qualité : elle dit d'où viennent les chiffres. Pour le stock, une valeur
+     * reconstituée et une valeur mesurée ne se lisent pas de la même façon ; pour la qualité, les indicateurs
+     * de référentiel décrivent l'état du jour et non la période choisie.
+     */
+    afficherNote: function (cle, reponse) {
+        var ecran = this.getEcran();
+        var barre = ecran.down('#note-' + cle);
+        if (!barre) {
+            return;
+        }
+        var texte = barre.down('#texteNote');
+        if (texte) {
+            texte.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
+        }
     },
 
     /**

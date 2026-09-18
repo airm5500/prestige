@@ -53,6 +53,8 @@ public class PilotageService {
     public static final String ONGLET_MARGE = "marge";
     public static final String ONGLET_ACHATS = "achats";
     public static final String ONGLET_CAISSE = "caisse";
+    public static final String ONGLET_STOCK = "stock";
+    public static final String ONGLET_QUALITE = "qualite";
 
     private static final long CACHE_TTL_MS = 5L * 60L * 1000L;
 
@@ -134,6 +136,17 @@ public class PilotageService {
             case ONGLET_CAISSE:
                 reponse = caisse(axe);
                 break;
+            case ONGLET_STOCK:
+                /*
+                 * La photo du mois est prise a l'ouverture de l'onglet : c'est ce qui fait que l'historique se
+                 * constitue sans que l'officine ait a y penser. Idempotent, une ligne par mois.
+                 */
+                photographierStock();
+                reponse = stock(axe);
+                break;
+            case ONGLET_QUALITE:
+                reponse = qualite(axe);
+                break;
             default:
                 reponse = synthese(axe);
                 break;
@@ -182,7 +195,7 @@ public class PilotageService {
 
     /** Une ligne par mois de la fenetre : ventes, achats et marge cote a cote. */
     private JSONArray moisSynthese(Periode fenetre) {
-        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, JSONObject> lignes = moisDeLaFenetre(fenetre);
         for (Tuple t : liste(PilotageSql.ventesParMois(), fenetre)) {
             String mois = t.get("mois", String.class);
             ligne(lignes, mois).put("caTTC", nombre(t.get("caTTC"))).put("nbVentes", entier(t.get("nbVentes")))
@@ -225,7 +238,7 @@ public class PilotageService {
          * Le mix de reglement : une colonne par mode REELLEMENT rencontre sur la periode, et non une liste ecrite en
          * dur. Une officine qui active un nouveau mode le voit apparaitre sans qu'on touche au code.
          */
-        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         Set<String> modes = new LinkedHashSet<>();
         for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
             String mois = t.get("mois", String.class);
@@ -262,7 +275,7 @@ public class PilotageService {
         tuiles.put(tuile("ratioVA", "Ratio ventes / achats", courant.ratioVA(),
                 reference == null ? null : reference.ratioVA(), "", null));
 
-        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         for (Tuple t : liste(PilotageSql.margeParMois(), axe.graphique)) {
             double caHT = nombre(t.get("caHT"));
             double cout = nombre(t.get("coutAchat"));
@@ -310,7 +323,7 @@ public class PilotageService {
                 "FCFA", null));
 
         /* Une colonne par grossiste REELLEMENT rencontre sur la fenetre, plus le total du mois. */
-        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         Map<String, String> libelles = new LinkedHashMap<>();
         Map<String, Double> parts = new LinkedHashMap<>();
         for (Tuple t : listeAchats(axe.graphique, filtres)) {
@@ -417,7 +430,7 @@ public class PilotageService {
         tuiles.put(tuile("caTTC", "Chiffre d'affaires TTC", courant.caTTC, reference == null ? null : reference.caTTC,
                 "FCFA", null));
 
-        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
             ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC"))).put("partTiersPayant",
                     nombre(t.get("partTiersPayant")));
@@ -476,6 +489,274 @@ public class PilotageService {
         }
     }
 
+    /* ================================================================================= onglet Stock */
+
+    /**
+     * Stock : ce qu'il vaut aujourd'hui, et son evolution.
+     *
+     * <p>
+     * L'evolution vient de la PHOTO du mois quand elle existe, et de la RECONSTITUTION a rebours sinon. La reponse
+     * porte {@code sourceEvolution} et {@code note} pour que l'ecran le dise : une valeur reconstituee et une valeur
+     * mesuree ne se lisent pas de la meme facon, et cacher la difference serait malhonnete.
+     */
+    private JSONObject stock(Axe axe) {
+        Etat etat = etatDuStock();
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("valeurAchat", "Valeur du stock (achat)", etat.valeurAchat, null, "FCFA",
+                etat.lignes + " références, " + Math.round(etat.unites) + " unités"));
+        tuiles.put(tuile("valeurVente", "Valeur du stock (vente)", etat.valeurVente, null, "FCFA",
+                etat.valeurAchat == 0 ? null : "coefficient "
+                        + String.format(java.util.Locale.FRANCE, "%.2f", etat.valeurVente / etat.valeurAchat)));
+        tuiles.put(tuile("ruptures", "Références en rupture", etat.ruptures, null, "",
+                etat.lignes == 0 ? null : pourcent(etat.ruptures / (double) etat.lignes * 100d) + " du stock"));
+        tuiles.put(tuile("sousSeuil", "Sous le seuil de réappro", etat.sousSeuil, null, "",
+                etat.sansSeuil + " article(s) sans seuil paramétré"));
+        tuiles.put(tuile("negatifs", "Stock négatif (anomalie)", etat.negatifs, null, "",
+                "à corriger côté saisie : un stock négatif n'existe pas"));
+        Dormant dormant = stockDormant(LocalDate.now().minusMonths(12));
+        tuiles.put(tuile("dormant", "Stock dormant (12 mois)", dormant.valeurAchat, null, "FCFA",
+                dormant.lignes + " référence(s) en stock sans une seule vente"));
+
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
+        for (Tuple t : liste(PilotageSql.entreesStockParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("entrees", nombre(t.get("montant"))).put("unitesEntrees",
+                    nombre(t.get("unites")));
+        }
+        for (Tuple t : liste(PilotageSql.sortiesStockParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("sorties", nombre(t.get("montant"))).put("unitesSorties",
+                    nombre(t.get("unites")));
+        }
+        JSONArray mois = finaliser(lignes);
+
+        /* Les photos deja prises, indexees par mois : elles l'emportent sur la reconstitution. */
+        Map<String, JSONObject> photos = photos(axe.graphique);
+
+        /*
+         * RECONSTITUTION A REBOURS. On part de la valeur d'aujourd'hui et on remonte le temps : la valeur a la fin du
+         * mois precedent est celle d'aujourd'hui, moins les entrees du mois, plus les sorties du mois. On parcourt donc
+         * les mois du plus recent au plus ancien.
+         */
+        double valeur = etat.valeurAchat;
+        boolean reconstitue = false;
+        for (int i = mois.length() - 1; i >= 0; i--) {
+            JSONObject m = mois.getJSONObject(i);
+            JSONObject photo = photos.get(m.getString("mois"));
+            if (photo != null) {
+                m.put("valeurAchat", photo.optDouble("valeurAchat", 0d))
+                        .put("valeurVente", photo.optDouble("valeurVente", 0d))
+                        .put("unites", photo.optDouble("unites", 0d)).put("mesure", true);
+                valeur = photo.optDouble("valeurAchat", 0d);
+            } else {
+                m.put("valeurAchat", arrondi(valeur)).put("mesure", false);
+                reconstitue = true;
+            }
+            m.put("variationStock", arrondi(m.optDouble("entrees", 0d) - m.optDouble("sorties", 0d)));
+            valeur = valeur - m.optDouble("entrees", 0d) + m.optDouble("sorties", 0d);
+        }
+
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois)
+                .put("sourceEvolution", reconstitue ? (photos.isEmpty() ? "reconstitution" : "mixte") : "photos")
+                .put("photos", photos.size()).put("note",
+                        reconstitue
+                                ? "Valeur du stock RECONSTITUÉE à rebours depuis l'état du jour, avec les entrées "
+                                        + "(bons de livraison) et les sorties (ventes) de chaque mois. Les "
+                                        + "régularisations d'inventaire n'y figurent pas. Une photo mensuelle est "
+                                        + "enregistrée à chaque ouverture de cet onglet : à partir du mois prochain, "
+                                        + "l'évolution sera mesurée et non plus reconstituée."
+                                : "Valeur du stock MESURÉE : chaque mois affiché vient d'une photo enregistrée.");
+    }
+
+    /** Etat du stock de l'officine, aujourd'hui. */
+    Etat etatDuStock() {
+        Etat etat = new Etat();
+        try {
+            Query q = em.createNativeQuery(PilotageSql.etatStock(), Tuple.class);
+            q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                etat.lignes = entier(t.get("lignes"));
+                etat.unites = nombre(t.get("unites"));
+                etat.valeurAchat = nombre(t.get("valeurAchat"));
+                etat.valeurVente = nombre(t.get("valeurVente"));
+                etat.ruptures = entier(t.get("ruptures"));
+                etat.negatifs = entier(t.get("negatifs"));
+                etat.sousSeuil = entier(t.get("sousSeuil"));
+                etat.sansSeuil = entier(t.get("sansSeuil"));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : etat du stock", e);
+        }
+        return etat;
+    }
+
+    /** Etat du stock a un instant : ce que le logiciel sait aujourd'hui, et ce qu'une photo enregistre. */
+    static final class Etat {
+        int lignes;
+        double unites;
+        double valeurAchat;
+        double valeurVente;
+        int ruptures;
+        int negatifs;
+        int sousSeuil;
+        int sansSeuil;
+    }
+
+    static final class Dormant {
+        int lignes;
+        double valeurAchat;
+    }
+
+    private Dormant stockDormant(LocalDate depuis) {
+        Dormant dormant = new Dormant();
+        try {
+            Query q = em.createNativeQuery(PilotageSql.stockDormant(), Tuple.class);
+            q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+            q.setParameter("depuis", java.sql.Timestamp.valueOf(depuis.atStartOfDay()));
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                dormant.lignes = entier(t.get("lignes"));
+                dormant.valeurAchat = nombre(t.get("valeurAchat"));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : stock dormant", e);
+        }
+        return dormant;
+    }
+
+    private Map<String, JSONObject> photos(Periode fenetre) {
+        Map<String, JSONObject> photos = new LinkedHashMap<>();
+        try {
+            Query q = em.createNativeQuery(PilotageSql.photosStock(), Tuple.class);
+            q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+            q.setParameter("moisDebut", fenetre.debut.toString().substring(0, 7));
+            q.setParameter("moisFin", fenetre.fin.toString().substring(0, 7));
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                photos.put(t.get("mois", String.class),
+                        new JSONObject().put("unites", nombre(t.get("unites")))
+                                .put("valeurAchat", nombre(t.get("valeurAchat")))
+                                .put("valeurVente", nombre(t.get("valeurVente"))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : photos du stock", e);
+        }
+        return photos;
+    }
+
+    /**
+     * Enregistre la photo du stock pour le mois en cours, si elle n'existe pas deja.
+     *
+     * <p>
+     * Appelee a l'ouverture de l'onglet Stock. Ecrire a la lecture n'est pas anodin, et c'est assume : sans cela,
+     * l'officine devrait penser a declencher la photo elle-meme, et l'historique ne se constituerait jamais. L'ecriture
+     * est idempotente - le mois est la cle - donc ouvrir l'ecran dix fois dans la journee n'ecrit qu'une ligne.
+     *
+     * <p>
+     * La photo du mois est ECRASEE tant que le mois est en cours, pour qu'elle reflete le dernier etat connu ; une fois
+     * le mois passe, elle ne bouge plus.
+     */
+    public JSONObject photographierStock() {
+        try {
+            Etat etat = etatDuStock();
+            String mois = LocalDate.now().toString().substring(0, 7);
+            em.createNativeQuery(
+                    "DELETE FROM pilotage_stock_mensuel WHERE str_MOIS = ?1" + " AND lg_EMPLACEMENT_ID = ?2")
+                    .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
+            em.createNativeQuery("INSERT INTO pilotage_stock_mensuel (str_MOIS, int_UNITES, int_VALEUR_ACHAT,"
+                    + " int_VALEUR_VENTE, int_REFERENCES, int_RUPTURES, int_NEGATIFS, int_SOUS_SEUIL,"
+                    + " lg_EMPLACEMENT_ID, dt_CREATED) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NOW())")
+                    .setParameter(1, mois).setParameter(2, Math.round(etat.unites))
+                    .setParameter(3, Math.round(etat.valeurAchat)).setParameter(4, Math.round(etat.valeurVente))
+                    .setParameter(5, etat.lignes).setParameter(6, etat.ruptures).setParameter(7, etat.negatifs)
+                    .setParameter(8, etat.sousSeuil).setParameter(9, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
+            return new JSONObject().put("success", true).put("mois", mois).put("message",
+                    "Photo du stock enregistrée pour " + libelleMois(mois) + ".");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : photo du stock", e);
+            return new JSONObject().put("success", false).put("message",
+                    "La photo du stock n'a pas pu être enregistrée.");
+        }
+    }
+
+    /* ================================================================ onglet Qualite-Exploitation */
+
+    /**
+     * Qualite d'exploitation : ce qui salit les chiffres, et qu'on peut corriger.
+     *
+     * <p>
+     * Chaque indicateur est un CHANTIER, pas une statistique : un article en stock sans prix d'achat fausse toute
+     * valorisation, un stock negatif n'existe pas, un article sans rayon echappe aux inventaires tournants, un article
+     * sans seuil n'entre dans aucune suggestion de reappro.
+     */
+    private JSONObject qualite(Axe axe) {
+        Etat etat = etatDuStock();
+        Anomalies anomalies = anomalies();
+        double annuleesCourant = valeur(axe.courante, PilotageSql.totalAnnulations(), "nbAnnulees");
+        double montantAnnuleCourant = valeur(axe.courante, PilotageSql.totalAnnulations(), "montantAnnule");
+        Double annuleesReference = axe.reference == null ? null
+                : valeur(axe.reference, PilotageSql.totalAnnulations(), "nbAnnulees");
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("negatifs", "Stock négatif", etat.negatifs, null, "", "lignes à corriger côté saisie"));
+        tuiles.put(tuile("sansPrix", "En stock sans prix", anomalies.sansPrixAchat + anomalies.sansPrixVente, null, "",
+                "fausse toute valorisation"));
+        tuiles.put(tuile("sansRayon", "En stock sans rayon", anomalies.sansRayon, null, "",
+                "échappe aux inventaires tournants"));
+        tuiles.put(tuile("sansSeuil", "En stock sans seuil", anomalies.sansSeuil, null, "",
+                "n'entre dans aucune suggestion de réappro"));
+        tuiles.put(tuile("annulees", "Ventes annulées", annuleesCourant, annuleesReference, "",
+                Math.round(montantAnnuleCourant) + " FCFA annulés sur la période"));
+        tuiles.put(tuile("remises", "Remises accordées", courant.remises, reference == null ? null : reference.remises,
+                "FCFA", courant.caTTC == 0 ? null : pourcent(courant.remises / courant.caTTC * 100d) + " du CA"));
+
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
+        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC")))
+                    .put("nbVentes", entier(t.get("nbVentes"))).put("remises", nombre(t.get("remises")));
+        }
+        for (Tuple t : liste(PilotageSql.annulationsParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("nbAnnulees", entier(t.get("nbAnnulees")))
+                    .put("montantAnnule", nombre(t.get("montantAnnule")));
+        }
+        JSONArray mois = finaliser(lignes);
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject m = mois.getJSONObject(i);
+            double ca = m.optDouble("caTTC", 0d);
+            int ventes = m.optInt("nbVentes", 0);
+            m.put("tauxRemise", ca == 0 ? 0 : arrondi(m.optDouble("remises", 0d) / ca * 100d));
+            m.put("tauxAnnulation", ventes == 0 ? 0 : arrondi(m.optInt("nbAnnulees", 0) / (double) ventes * 100d));
+        }
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("note",
+                "Les indicateurs de référentiel (prix, rayon, seuil) décrivent l'ÉTAT DU JOUR et ne dépendent "
+                        + "pas de la période ; les annulations et les remises, elles, suivent la période "
+                        + "choisie.");
+    }
+
+    static final class Anomalies {
+        int sansPrixAchat;
+        int sansPrixVente;
+        int sansRayon;
+        int sansSeuil;
+        int enStock;
+    }
+
+    private Anomalies anomalies() {
+        Anomalies a = new Anomalies();
+        try {
+            Query q = em.createNativeQuery(PilotageSql.anomaliesReferentiel(), Tuple.class);
+            q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                a.sansPrixAchat = entier(t.get("sansPrixAchat"));
+                a.sansPrixVente = entier(t.get("sansPrixVente"));
+                a.sansRayon = entier(t.get("sansRayon"));
+                a.sansSeuil = entier(t.get("sansSeuil"));
+                a.enStock = entier(t.get("enStock"));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : anomalies de referentiel", e);
+        }
+        return a;
+    }
+
     /*
      * EDITIONS
      *
@@ -501,6 +782,20 @@ public class PilotageService {
                 JSONObject g = grossistes.getJSONObject(i);
                 colonnes.add(new String[] { g.getString("cle"), g.getString("libelle").toUpperCase() });
             }
+            break;
+        case ONGLET_STOCK:
+            colonnes.add(new String[] { "valeurAchat", "VALEUR STOCK" });
+            colonnes.add(new String[] { "entrees", "ENTRÉES" });
+            colonnes.add(new String[] { "sorties", "SORTIES" });
+            colonnes.add(new String[] { "variationStock", "VARIATION" });
+            break;
+        case ONGLET_QUALITE:
+            colonnes.add(new String[] { "caTTC", "CA TTC" });
+            colonnes.add(new String[] { "nbVentes", "VENTES" });
+            colonnes.add(new String[] { "nbAnnulees", "ANNULÉES" });
+            colonnes.add(new String[] { "tauxAnnulation", "% ANNUL." });
+            colonnes.add(new String[] { "remises", "REMISES" });
+            colonnes.add(new String[] { "tauxRemise", "% REMISE" });
             break;
         case ONGLET_CAISSE:
             colonnes.add(new String[] { "caTTC", "CA TTC" });
@@ -552,6 +847,10 @@ public class PilotageService {
             return "PILOTAGE - ACHATS";
         case ONGLET_CAISSE:
             return "PILOTAGE - CAISSE ET TIERS-PAYANT";
+        case ONGLET_STOCK:
+            return "PILOTAGE - STOCK";
+        case ONGLET_QUALITE:
+            return "PILOTAGE - QUALITÉ D'EXPLOITATION";
         default:
             return "PILOTAGE - SYNTHÈSE";
         }
@@ -829,6 +1128,25 @@ public class PilotageService {
             }
         }
         return json;
+    }
+
+    /**
+     * Amorce une ligne pour CHAQUE mois de la fenetre, avant tout remplissage.
+     *
+     * <p>
+     * Sans cela, un mois sans aucun mouvement disparaissait purement et simplement de la serie : la courbe sautait le
+     * mois et le detail ne le montrait pas. Vu au banc sur le mois en cours, dont la photo de stock n'avait aucune
+     * ligne a laquelle se rattacher. Un mois sans activite est une information - il vaut zero, il ne vaut pas rien.
+     */
+    private static Map<String, JSONObject> moisDeLaFenetre(Periode fenetre) {
+        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        LocalDate curseur = fenetre.debut.withDayOfMonth(1);
+        LocalDate fin = fenetre.fin;
+        while (curseur.isBefore(fin)) {
+            ligne(lignes, curseur.toString().substring(0, 7));
+            curseur = curseur.plusMonths(1);
+        }
+        return lignes;
     }
 
     private static JSONObject ligne(Map<String, JSONObject> lignes, String mois) {
