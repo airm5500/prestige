@@ -145,7 +145,8 @@ public class DepotExtensionRessource {
     @Path("valorisation-emplacement")
     public Response valorisationParEmplacement(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
             @QueryParam("familleId") String familleId, @QueryParam("zoneGeoId") String zoneGeoId,
-            @QueryParam("filtreStock") String filtreStock,
+            @QueryParam("filtreStock") String filtreStock, @QueryParam("operateurStock") String operateurStock,
+            @QueryParam("valeurStock") Integer valeurStock,
             @DefaultValue("false") @QueryParam("enStock") boolean enStock) {
         if (utilisateur() == null) {
             return deconnecte();
@@ -156,9 +157,11 @@ public class DepotExtensionRessource {
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return depotInvalide();
         }
-        return Response.ok().entity(depotExtensionService
-                .valorisationParEmplacement(depotId, criteres(query, familleId, zoneGeoId, filtreStock, enStock))
-                .toString()).build();
+        return Response.ok()
+                .entity(depotExtensionService.valorisationParEmplacement(depotId,
+                        criteres(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock, enStock))
+                        .toString())
+                .build();
     }
 
     /**
@@ -170,8 +173,9 @@ public class DepotExtensionRessource {
      * que l'ecran montre.
      */
     private static DepotStockSql.Criteres criteres(String query, String familleId, String zoneGeoId, String filtreStock,
-            boolean enStock) {
-        return DepotExtensionService.criteresDe(query, familleId, zoneGeoId, filtreStock, enStock);
+            String operateurStock, Integer valeurStock, boolean enStock) {
+        return DepotExtensionService.criteresDe(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock,
+                enStock);
     }
 
     /**
@@ -182,7 +186,8 @@ public class DepotExtensionRessource {
     @Path("stock")
     public Response stock(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
             @QueryParam("familleId") String familleId, @QueryParam("zoneGeoId") String zoneGeoId,
-            @QueryParam("filtreStock") String filtreStock,
+            @QueryParam("filtreStock") String filtreStock, @QueryParam("operateurStock") String operateurStock,
+            @QueryParam("valeurStock") Integer valeurStock,
             @DefaultValue("false") @QueryParam("enStock") boolean enStock,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
         if (utilisateur() == null) {
@@ -194,8 +199,10 @@ public class DepotExtensionRessource {
         if (!depotExtensionService.estDepotExtension(depotId)) {
             return depotInvalide();
         }
-        return Response.ok().entity(depotExtensionService
-                .stock(depotId, criteres(query, familleId, zoneGeoId, filtreStock, enStock), start, limit).toString())
+        return Response.ok()
+                .entity(depotExtensionService.stock(depotId,
+                        criteres(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock, enStock), start,
+                        limit).toString())
                 .build();
     }
 
@@ -204,7 +211,8 @@ public class DepotExtensionRessource {
     @Produces("application/vnd.ms-excel")
     public Response excel(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
             @QueryParam("familleId") String familleId, @QueryParam("zoneGeoId") String zoneGeoId,
-            @QueryParam("filtreStock") String filtreStock,
+            @QueryParam("filtreStock") String filtreStock, @QueryParam("operateurStock") String operateurStock,
+            @QueryParam("valeurStock") Integer valeurStock,
             @DefaultValue("false") @QueryParam("enStock") boolean enStock) {
         if (utilisateur() == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -216,7 +224,7 @@ public class DepotExtensionRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         byte[] contenu = depotExtensionService.excel(depotId,
-                criteres(query, familleId, zoneGeoId, filtreStock, enStock));
+                criteres(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock, enStock));
         String nom = "stock_depot_" + depotExtensionService.nomDepot(depotId).replaceAll("[^A-Za-z0-9]+", "_") + ".xls";
         return Response.ok(contenu).header("Content-Disposition", "attachment; filename=\"" + nom + "\"").build();
     }
@@ -228,7 +236,8 @@ public class DepotExtensionRessource {
     public Response pdf(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
             @QueryParam("familleId") String familleId, @QueryParam("familleLibelle") String familleLibelle,
             @QueryParam("zoneGeoId") String zoneGeoId, @QueryParam("emplacementLibelle") String emplacementLibelle,
-            @QueryParam("filtreStock") String filtreStock,
+            @QueryParam("filtreStock") String filtreStock, @QueryParam("operateurStock") String operateurStock,
+            @QueryParam("valeurStock") Integer valeurStock,
             @DefaultValue("false") @QueryParam("enStock") boolean enStock) {
         TUser user = utilisateur();
         if (user == null) {
@@ -242,7 +251,8 @@ public class DepotExtensionRessource {
         }
         try {
             byte[] pdf = depotExtensionService.pdf(user, depotId,
-                    criteres(query, familleId, zoneGeoId, filtreStock, enStock), familleLibelle, emplacementLibelle);
+                    criteres(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock, enStock),
+                    familleLibelle, emplacementLibelle);
             return Response.ok(pdf, "application/pdf")
                     .header("Content-Disposition", "inline; filename=\"stock_depot.pdf\"").build();
         } catch (Exception e) {
@@ -298,7 +308,8 @@ public class DepotExtensionRessource {
     public Response pdfParEmplacement(@QueryParam("depotId") String depotId, @QueryParam("query") String query,
             @QueryParam("familleId") String familleId, @QueryParam("familleLibelle") String familleLibelle,
             @QueryParam("zoneGeoId") String zoneGeoId, @QueryParam("emplacementLibelle") String emplacementLibelle,
-            @QueryParam("filtreStock") String filtreStock,
+            @QueryParam("filtreStock") String filtreStock, @QueryParam("operateurStock") String operateurStock,
+            @QueryParam("valeurStock") Integer valeurStock,
             @DefaultValue("false") @QueryParam("enStock") boolean enStock) {
         TUser user = utilisateur();
         if (user == null) {
@@ -312,7 +323,8 @@ public class DepotExtensionRessource {
         }
         try {
             byte[] pdf = depotExtensionService.pdfParEmplacement(user, depotId,
-                    criteres(query, familleId, zoneGeoId, filtreStock, enStock), familleLibelle, emplacementLibelle);
+                    criteres(query, familleId, zoneGeoId, filtreStock, operateurStock, valeurStock, enStock),
+                    familleLibelle, emplacementLibelle);
             return Response.ok(pdf, "application/pdf")
                     .header("Content-Disposition", "inline; filename=\"valorisation_emplacement.pdf\"").build();
         } catch (Exception e) {

@@ -177,24 +177,36 @@ function poser() {
         return ong.getActiveTab().getItemId();
       }) === 'ongletVente');
 
-    /* « Chaque onglet doit avoir sa couleur » : une classe par onglet, et une couleur reellement appliquee. */
+    /* Retour du 18/09 : « j ai demandé les onglets en couleur pas les textes ». Ce qui doit etre teinte, c est
+     * donc le FOND de l onglet ; le libelle, lui, est blanc sur les quatre. Et l onglet ouvert doit se
+     * distinguer des trois autres, sinon on ne lit plus ou l on est. */
     const couleursOnglets = await p.evaluate(() => {
       const ong = Ext.ComponentQuery.query('depotextension #onglets')[0];
+      const actif = ong.getActiveTab().getItemId();
       return ong.items.items.map((o) => {
         const tab = o.tab;
         const interieur = tab && tab.el ? tab.el.dom.querySelector('.x-tab-inner') : null;
         return { onglet: o.getItemId(),
+          ouvert: o.getItemId() === actif,
           classe: tab && tab.el ? String(tab.el.dom.className) : '',
-          couleur: interieur ? getComputedStyle(interieur).color : null,
-          bord: tab && tab.el ? getComputedStyle(tab.el.dom).borderTopColor : null };
+          fond: tab && tab.el ? getComputedStyle(tab.el.dom).backgroundColor : null,
+          couleurTexte: interieur ? getComputedStyle(interieur).color : null };
       });
     });
     ok('Chaque onglet porte sa propre classe de couleur',
       couleursOnglets.length === 4 && couleursOnglets.every((o) => /depot-onglet-/.test(o.classe)),
       JSON.stringify(couleursOnglets.map((o) => o.classe)));
-    const teintes = couleursOnglets.map((o) => o.couleur);
-    ok('Les quatre couleurs sont appliquées et toutes différentes',
-      teintes.every((c) => !!c) && new Set(teintes).size === 4, JSON.stringify(teintes));
+    const fonds = couleursOnglets.map((o) => o.fond);
+    const transparent = (c) => !c || /transparent|rgba\(0, 0, 0, 0\)/.test(c);
+    ok('C est le fond de l onglet qui est coloré, et les quatre fonds sont différents',
+      fonds.every((c) => !transparent(c)) && new Set(fonds).size === 4, JSON.stringify(fonds));
+    ok('Le libellé reste blanc sur les quatre onglets',
+      couleursOnglets.every((o) => /rgb\(255, 255, 255\)/.test(String(o.couleurTexte))),
+      JSON.stringify(couleursOnglets.map((o) => o.couleurTexte)));
+    const ongletOuvert = couleursOnglets.find((o) => o.ouvert);
+    ok('L onglet ouvert se distingue des onglets fermés (teinte pleine contre teinte claire)',
+      !!ongletOuvert && couleursOnglets.filter((o) => !o.ouvert).every((o) => o.fond !== ongletOuvert.fond),
+      JSON.stringify({ ouvert: ongletOuvert && ongletOuvert.fond, autres: fonds }));
 
     /* Un privilege par onglet, vu depuis l ecran : le service dit a quoi l operateur a droit. */
     const droits = await p.evaluate(async () => {

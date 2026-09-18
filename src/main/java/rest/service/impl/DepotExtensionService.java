@@ -141,8 +141,39 @@ public class DepotExtensionService {
      */
     public static DepotStockSql.Criteres criteresDe(String recherche, String familleId, String zoneGeoId,
             String filtreStock, boolean masquerLesZeros) {
-        return new DepotStockSql.Criteres(recherche, sansTous(familleId), sansTous(zoneGeoId), filtreStock,
-                masquerLesZeros);
+        return criteresDe(recherche, familleId, zoneGeoId, filtreStock, null, null, masquerLesZeros);
+    }
+
+    /**
+     * Criteres avec le filtre de stock sous sa forme demandee le 18/09 : un OPERATEUR et une valeur.
+     *
+     * <p>
+     * Les trois anciennes categories (NEGATIF, ZERO, POSITIF) sont TRADUITES ici en couple (operateur, valeur) : « &lt;
+     * 0 », « = 0 », « &gt; 0 ». Elles ne sont donc pas un second chemin de filtrage a cote du premier - il n'y en a
+     * qu'un, et les appels existants continuent de fonctionner sans changement.
+     *
+     * <p>
+     * L'operateur explicite l'emporte sur la categorie : c'est le controle que l'utilisateur vient de manipuler.
+     */
+    public static DepotStockSql.Criteres criteresDe(String recherche, String familleId, String zoneGeoId,
+            String filtreStock, String operateurStock, Integer valeurStock, boolean masquerLesZeros) {
+        String operateur = DepotStockSql.signe(operateurStock) != null ? operateurStock.trim().toUpperCase() : null;
+        Integer valeur = valeurStock;
+        if (operateur == null) {
+            String categorie = DepotStockSql.normaliserFiltre(filtreStock);
+            if (DepotStockSql.NEGATIF.equals(categorie)) {
+                operateur = DepotStockSql.OP_INFERIEUR;
+                valeur = 0;
+            } else if (DepotStockSql.ZERO.equals(categorie)) {
+                operateur = DepotStockSql.OP_EGAL;
+                valeur = 0;
+            } else if (DepotStockSql.POSITIF.equals(categorie)) {
+                operateur = DepotStockSql.OP_SUPERIEUR;
+                valeur = 0;
+            }
+        }
+        return new DepotStockSql.Criteres(recherche, sansTous(familleId), sansTous(zoneGeoId), filtreStock, operateur,
+                valeur, masquerLesZeros);
     }
 
     private static String sansTous(String valeur) {
@@ -279,6 +310,32 @@ public class DepotExtensionService {
         return sb.toString();
     }
 
+    /**
+     * Rappel des criteres, forme complete : il NOMME le filtre de stock tel qu'il a ete pose, operateur et valeur
+     * compris (« stock >= 10 »). Une edition qui tait son filtre laisse croire qu'elle porte sur tout le depot.
+     */
+    public String criteres(String depotId, DepotStockSql.Criteres criteres, String familleLibelle,
+            String emplacementLibelle) {
+        String signe = DepotStockSql.signe(criteres.operateurStock);
+        if (signe == null) {
+            return criteres(depotId, criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock,
+                    criteres.masquerLesZeros);
+        }
+        StringBuilder sb = new StringBuilder("Dépôt : ").append(nomDepot(depotId));
+        if (StringUtils.isNotBlank(criteres.recherche)) {
+            sb.append(" - Recherche : ").append(criteres.recherche.trim());
+        }
+        if (StringUtils.isNotBlank(familleLibelle)) {
+            sb.append(" - Famille : ").append(familleLibelle);
+        }
+        if (StringUtils.isNotBlank(emplacementLibelle)) {
+            sb.append(" - Emplacement : ").append(emplacementLibelle);
+        }
+        sb.append(" - stock ").append(signe).append(' ')
+                .append(criteres.valeurStock == null ? 0 : criteres.valeurStock.intValue());
+        return sb.toString();
+    }
+
     public byte[] excel(String depotId, DepotStockSql.Criteres criteres) {
         List<DepotStockLigneDTO> data = lignes(depotId, criteres, 0, 0);
         try (Workbook classeur = new HSSFWorkbook(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
@@ -317,9 +374,8 @@ public class DepotExtensionService {
     /** PDF rendu en memoire : servi en flux dans l'onglet ouvert par le clic, sans fichier temporaire. */
     public byte[] pdf(TUser operateur, String depotId, DepotStockSql.Criteres criteres, String familleLibelle,
             String emplacementLibelle) throws JRException {
-        return editer(operateur, MODELE, "STOCK DU DEPOT - " + nomDepot(depotId).toUpperCase(), criteres(depotId,
-                criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock, criteres.masquerLesZeros),
-                lignes(depotId, criteres, 0, 0));
+        return editer(operateur, MODELE, "STOCK DU DEPOT - " + nomDepot(depotId).toUpperCase(),
+                criteres(depotId, criteres, familleLibelle, emplacementLibelle), lignes(depotId, criteres, 0, 0));
     }
 
     /**
@@ -330,8 +386,7 @@ public class DepotExtensionService {
             String familleLibelle, String emplacementLibelle) throws JRException {
         return editer(operateur, MODELE_EMPLACEMENT,
                 "VALORISATION PAR EMPLACEMENT - " + nomDepot(depotId).toUpperCase(),
-                criteres(depotId, criteres.recherche, familleLibelle, emplacementLibelle, criteres.filtreStock,
-                        criteres.masquerLesZeros),
+                criteres(depotId, criteres, familleLibelle, emplacementLibelle),
                 lignesParEmplacement(depotId, criteres));
     }
 

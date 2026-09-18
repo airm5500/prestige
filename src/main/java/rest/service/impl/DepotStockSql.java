@@ -24,14 +24,63 @@ public final class DepotStockSql {
     static final String P_ZONE = "zone";
 
     /**
-     * Filtre sur le stock demande par l'officine (retour du 17/09). Les trois valeurs autres que {@link #TOUS}
-     * correspondent exactement aux trois couleurs de la liste : rouge pour un stock negatif, violet pour un stock a
-     * zero, normal pour un stock positif. On filtre donc sur ce que l'on voit.
+     * Filtre sur le stock, premiere forme (retour du 17/09) : trois categories correspondant aux trois couleurs de la
+     * liste - rouge pour un stock negatif, violet pour un stock a zero, normal pour un stock positif.
+     *
+     * <p>
+     * Conservees : l'officine a demande le 18/09 un OPERATEUR et une valeur, ce qui les englobe (« &lt; 0 », « = 0 », «
+     * &gt; 0 »), mais des appels et des editions existants les emploient encore. Elles sont traduites en couple
+     * (operateur, valeur) a l'entree, et le SQL ne connait plus que ce couple : une seule facon de filtrer, donc une
+     * seule facon de se tromper.
      */
     static final String TOUS = "TOUS";
     static final String NEGATIF = "NEGATIF";
     static final String ZERO = "ZERO";
     static final String POSITIF = "POSITIF";
+
+    /**
+     * Operateurs de comparaison du filtre de stock (retour du 18/09 : « le filtre stock doit avoir un operateur et une
+     * zone de stock a filtrer »).
+     *
+     * <p>
+     * Les libelles sont des CODES et non les signes eux-memes : un « &lt; » qui voyage dans une URL puis dans du SQL
+     * est une porte ouverte, et un code refuse toute valeur qui n'est pas dans cette liste.
+     */
+    static final String OP_EGAL = "EQ";
+    static final String OP_DIFFERENT = "NE";
+    static final String OP_INFERIEUR = "LT";
+    static final String OP_INFERIEUR_EGAL = "LE";
+    static final String OP_SUPERIEUR = "GT";
+    static final String OP_SUPERIEUR_EGAL = "GE";
+
+    /** Le signe SQL d'un operateur, ou null si l'operateur n'est pas reconnu. Aucune autre valeur n'atteint le SQL. */
+    static String signe(String operateur) {
+        if (operateur == null) {
+            return null;
+        }
+        switch (operateur.trim().toUpperCase()) {
+        case OP_EGAL:
+            return "=";
+        case OP_DIFFERENT:
+            return "<>";
+        case OP_INFERIEUR:
+            return "<";
+        case OP_INFERIEUR_EGAL:
+            return "<=";
+        case OP_SUPERIEUR:
+            return ">";
+        case OP_SUPERIEUR_EGAL:
+            return ">=";
+        default:
+            return null;
+        }
+    }
+
+    /** Libelle lisible du filtre, pour le rappel des criteres d'une edition. */
+    static String libelleOperateur(String operateur) {
+        String s = signe(operateur);
+        return s == null ? "" : s;
+    }
 
     private static final String COLONNES = "SELECT f.lg_FAMILLE_ID AS id, CAST(f.int_CIP AS CHAR) AS cip,"
             + " f.str_NAME AS nom, fa.str_LIBELLE AS famille, z.str_LIBELLEE AS emplacement,"
@@ -75,13 +124,18 @@ public final class DepotStockSql {
             // Emplacement de l'ARTICLE (son rayon), pas le depot : le depot est deja choisi en haut de l'ecran.
             sb.append(" AND f.lg_ZONE_GEO_ID = :").append(P_ZONE).append(' ');
         }
-        String filtre = normaliserFiltre(c.filtreStock);
-        if (NEGATIF.equals(filtre)) {
-            sb.append(" AND s.int_NUMBER_AVAILABLE < 0 ");
-        } else if (ZERO.equals(filtre)) {
-            sb.append(" AND s.int_NUMBER_AVAILABLE = 0 ");
-        } else if (POSITIF.equals(filtre)) {
-            sb.append(" AND s.int_NUMBER_AVAILABLE > 0 ");
+        /*
+         * Un SEUL chemin pour le filtre de stock : le couple (operateur, valeur). Les trois anciennes categories y sont
+         * traduites a l'entree (cf. DepotExtensionService.criteresDe), il n'y a donc pas deux facons de filtrer qui
+         * pourraient diverger.
+         *
+         * Le signe vient de signe() et jamais de l'appelant : une valeur inconnue rend null et le filtre est simplement
+         * ignore. La valeur comparee est un ENTIER deja converti, elle ne peut pas porter de SQL.
+         */
+        String operateur = signe(c.operateurStock);
+        if (operateur != null) {
+            sb.append(" AND s.int_NUMBER_AVAILABLE ").append(operateur).append(' ')
+                    .append(c.valeurStock == null ? 0 : c.valeurStock.intValue()).append(' ');
         } else if (c.masquerLesZeros) {
             // Un depot d'extension partage le referentiel articles de l'officine : avec cette case,
             // la liste ne sort pas les milliers d'articles que le depot ne detient pas. Un stock
@@ -107,15 +161,55 @@ public final class DepotStockSql {
         public final String recherche;
         public final String familleId;
         public final String zoneGeoId;
+        /** Ancienne forme du filtre (TOUS / NEGATIF / ZERO / POSITIF), conservee pour le rappel des criteres. */
         public final String filtreStock;
+        /** Operateur de comparaison du stock (EQ, NE, LT, LE, GT, GE), ou null pour aucun filtre. */
+        public final String operateurStock;
+        /** Valeur comparee, entiere. Null vaut zero. */
+        public final Integer valeurStock;
         public final boolean masquerLesZeros;
 
+        /**
+         * Forme heritee : les categories TOUS / NEGATIF / ZERO / POSITIF.
+         *
+         * <p>
+         * La traduction en couple (operateur, valeur) est faite ICI, dans le constructeur, et non seulement a l'entree
+         * du service : tout appelant qui construit ses criteres directement - un test, une edition, un futur service -
+         * obtient ainsi exactement le meme filtre. Les avoir traduites plus haut seulement aurait fait perdre le filtre
+         * a ces appels, silencieusement, en rendant simplement plus de lignes.
+         */
         public Criteres(String recherche, String familleId, String zoneGeoId, String filtreStock,
                 boolean masquerLesZeros) {
+            this(recherche, familleId, zoneGeoId, filtreStock, operateurDeLaCategorie(filtreStock),
+                    valeurDeLaCategorie(filtreStock), masquerLesZeros);
+        }
+
+        private static String operateurDeLaCategorie(String filtreStock) {
+            String categorie = normaliserFiltre(filtreStock);
+            if (NEGATIF.equals(categorie)) {
+                return OP_INFERIEUR;
+            }
+            if (ZERO.equals(categorie)) {
+                return OP_EGAL;
+            }
+            if (POSITIF.equals(categorie)) {
+                return OP_SUPERIEUR;
+            }
+            return null;
+        }
+
+        private static Integer valeurDeLaCategorie(String filtreStock) {
+            return operateurDeLaCategorie(filtreStock) == null ? null : Integer.valueOf(0);
+        }
+
+        public Criteres(String recherche, String familleId, String zoneGeoId, String filtreStock, String operateurStock,
+                Integer valeurStock, boolean masquerLesZeros) {
             this.recherche = recherche;
             this.familleId = familleId;
             this.zoneGeoId = zoneGeoId;
             this.filtreStock = filtreStock;
+            this.operateurStock = operateurStock;
+            this.valeurStock = valeurStock;
             this.masquerLesZeros = masquerLesZeros;
         }
     }

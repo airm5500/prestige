@@ -88,8 +88,8 @@ public class SurstockServiceImpl implements SurstockService {
      * agregation par produit. qteVendue = periode d'historique ; m0..m3 = mois courant et 3 mois precedents.
      */
     private static final String VENTES_CLAUSE = "(SELECT d.lg_FAMILLE_ID AS fid,"
-            + " SUM(CASE WHEN p.dt_UPDATED >= :debut THEN d.int_QUANTITY ELSE 0 END) AS qteVendue,"
-            + " SUM(CASE WHEN p.dt_UPDATED >= :m0 THEN d.int_QUANTITY ELSE 0 END) AS m0,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :debut AND p.dt_UPDATED < :histFin THEN d.int_QUANTITY ELSE 0 END)"
+            + "   AS qteVendue," + " SUM(CASE WHEN p.dt_UPDATED >= :m0 THEN d.int_QUANTITY ELSE 0 END) AS m0,"
             + " SUM(CASE WHEN p.dt_UPDATED >= :m1 AND p.dt_UPDATED < :m0 THEN d.int_QUANTITY ELSE 0 END) AS m1,"
             + " SUM(CASE WHEN p.dt_UPDATED >= :m2 AND p.dt_UPDATED < :m1 THEN d.int_QUANTITY ELSE 0 END) AS m2,"
             + " SUM(CASE WHEN p.dt_UPDATED >= :m3 AND p.dt_UPDATED < :m2 THEN d.int_QUANTITY ELSE 0 END) AS m3"
@@ -98,8 +98,8 @@ public class SurstockServiceImpl implements SurstockService {
             + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " WHERE p.dt_UPDATED >= :scanDebut AND p.dt_UPDATED < :fin"
             + " AND p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL,0) = 0 AND p.int_PRICE > 0"
-            + " GROUP BY d.lg_FAMILLE_ID"
-            + " HAVING SUM(CASE WHEN p.dt_UPDATED >= :debut THEN d.int_QUANTITY ELSE 0 END) > 0) v";
+            + " GROUP BY d.lg_FAMILLE_ID" + " HAVING SUM(CASE WHEN p.dt_UPDATED >= :debut AND p.dt_UPDATED < :histFin"
+            + "   THEN d.int_QUANTITY ELSE 0 END) > 0) v";
 
     /* date de peremption la plus proche : lots actifs, sinon date famille */
     private static final String LOTS_CLAUSE = "(SELECT l.lg_FAMILLE_ID AS fid, MIN(l.dt_PEREMPTION) AS dtp"
@@ -141,20 +141,92 @@ public class SurstockServiceImpl implements SurstockService {
         return sb.toString();
     }
 
-    private void bind(Query q, TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
-            String codeGrossiste, String codeFamille) {
-        LocalDate now = LocalDate.now();
-        LocalDate fin = now.plusDays(1);
-        LocalDate debut = now.minusMonths(moisHistorique);
-        LocalDate m0 = now.withDayOfMonth(1);
+    /**
+     * Les bornes de dates du calcul, sorties de la methode qui les posait pour pouvoir etre VERIFIEES sans base de
+     * donnees : c'est ici que se jouait l'ecart de 34 contre 35 signale le 18/09.
+     */
+    static final class Bornes {
+        final LocalDate fin;
+        final LocalDate m0;
+        final LocalDate m1;
+        final LocalDate m2;
+        final LocalDate m3;
+        final LocalDate debut;
+        final LocalDate histFin;
+        final LocalDate scanDebut;
+
+        Bornes(LocalDate fin, LocalDate m0, LocalDate m1, LocalDate m2, LocalDate m3, LocalDate debut,
+                LocalDate histFin, LocalDate scanDebut) {
+            this.fin = fin;
+            this.m0 = m0;
+            this.m1 = m1;
+            this.m2 = m2;
+            this.m3 = m3;
+            this.debut = debut;
+            this.histFin = histFin;
+            this.scanDebut = scanDebut;
+        }
+    }
+
+    /**
+     * Bornes du calcul pour un jour donne.
+     *
+     * <p>
+     * La periode d'historique est faite de MOIS COMPLETS : du 1er du mois le plus ancien au 1er du mois en cours,
+     * exclu. Elle est donc exactement la somme des mois affiches, et la moyenne divise une somme de mois entiers par un
+     * nombre de mois entiers.
+     *
+     * <p>
+     * Le mois en cours est scanne (il a sa colonne) mais n'entre PAS dans l'historique : incomplet, il tirerait la
+     * moyenne vers le bas et gonflerait le surplus annonce.
+     *
+     * @param jour
+     *            jour de reference (le jour courant en exploitation ; une date fixe dans les tests)
+     * @param moisHistorique
+     *            nombre de mois complets d'historique
+     */
+    static Bornes bornes(LocalDate jour, int moisHistorique) {
+        LocalDate m0 = jour.withDayOfMonth(1);
         LocalDate m1 = m0.minusMonths(1);
         LocalDate m2 = m0.minusMonths(2);
         LocalDate m3 = m0.minusMonths(3);
+        LocalDate debut = m0.minusMonths(moisHistorique);
         // periode scannee = union de la periode d'historique et des 4 mois affiches
         LocalDate scanDebut = debut.isBefore(m3) ? debut : m3;
+        return new Bornes(jour.plusDays(1), m0, m1, m2, m3, debut, m0, scanDebut);
+    }
+
+    private void bind(Query q, TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
+            String codeGrossiste, String codeFamille) {
+        Bornes b = bornes(LocalDate.now(), moisHistorique);
+        LocalDate fin = b.fin;
+        LocalDate m0 = b.m0;
+        LocalDate m1 = b.m1;
+        LocalDate m2 = b.m2;
+        LocalDate m3 = b.m3;
+        LocalDate debut = b.debut;
+        LocalDate histFin = b.histFin;
+        LocalDate scanDebut = b.scanDebut;
+        /*
+         * (voir Bornes.bornes() pour le calcul lui-meme)
+         *
+         * PERIODE D'HISTORIQUE : DES MOIS COMPLETS, du 1er du mois le plus ancien au 1er du mois EN COURS.
+         *
+         * Defaut signale par l'officine le 18/09 : la fiche article donnait juin 11, juillet 15, aout 9, soit 35, et
+         * l'ecran des surstocks affichait 34 sur la meme ligne que ces trois mois. Les deux avaient raison, mais ne
+         * repondaient pas a la meme question : la quantite vendue courait sur une fenetre GLISSANTE de trois mois (du
+         * 18 juin au 18 septembre, donc un juin tronque et un septembre partiel), tandis que les colonnes de mois
+         * etaient, elles, des mois CALENDAIRES. Deux notions de « trois mois » sur la meme ligne.
+         *
+         * Desormais la periode est calendaire comme les colonnes : la quantite vendue est exactement la somme des mois
+         * complets qui la composent, et la moyenne mensuelle divise une somme de mois entiers par un nombre de mois
+         * entiers. Le mois en cours reste affiche pour information mais n'entre NI dans la quantite vendue NI dans la
+         * moyenne : incomplet, il tirerait la moyenne vers le bas et gonflerait le surplus annonce.
+         */
         q.setParameter("emp", user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
         q.setParameter("scanDebut", Timestamp.valueOf(scanDebut.atStartOfDay()));
         q.setParameter("debut", Timestamp.valueOf(debut.atStartOfDay()));
+        q.setParameter("histFin", Timestamp.valueOf(histFin.atStartOfDay()));
         q.setParameter("fin", Timestamp.valueOf(fin.atStartOfDay()));
         q.setParameter("m0", Timestamp.valueOf(m0.atStartOfDay()));
         q.setParameter("m1", Timestamp.valueOf(m1.atStartOfDay()));
@@ -271,7 +343,19 @@ public class SurstockServiceImpl implements SurstockService {
                 int to = Math.min(from + limit, all.size());
                 page = all.subList(from, to);
             }
-            return json.put("total", all.size()).put("totalValeur", totalValeur).put("data",
+            /*
+             * Les libelles des quatre mois voyagent avec les donnees : l'ecran ne peut pas les deviner, et les
+             * recalculer en JavaScript le ferait deriver du serveur au passage d'un mois a l'autre (une recherche
+             * lancee le 31 a 23h59 et affichee le 1er a 00h01 nommerait des mois qui ne sont pas ceux calcules). «
+             * moisEnCours » designe la colonne qui n'entre PAS dans la moyenne.
+             */
+            LocalDate m0 = LocalDate.now().withDayOfMonth(1);
+            JSONObject entetes = new JSONObject().put("mois0", moisLabel(m0)).put("mois1", moisLabel(m0.minusMonths(1)))
+                    .put("mois2", moisLabel(m0.minusMonths(2))).put("mois3", moisLabel(m0.minusMonths(3)))
+                    .put("moisEnCours", moisLabel(m0))
+                    .put("histDebut", moisLabel(m0.minusMonths(sanitize(moisHistorique, 3))))
+                    .put("histFin", moisLabel(m0.minusMonths(1)));
+            return json.put("total", all.size()).put("totalValeur", totalValeur).put("mois", entetes).put("data",
                     new JSONArray(page.stream().map(JSONObject::new).collect(Collectors.toList())));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "surstock fetch", e);
@@ -295,8 +379,10 @@ public class SurstockServiceImpl implements SurstockService {
     }
 
     private String titre(int moisHistorique, int moisProjection) {
-        LocalDate fin = LocalDate.now();
-        LocalDate debut = fin.minusMonths(sanitize(moisHistorique, 3));
+        // Memes bornes que le calcul : des mois complets, le mois en cours exclu.
+        LocalDate m0 = LocalDate.now().withDayOfMonth(1);
+        LocalDate fin = m0.minusDays(1);
+        LocalDate debut = m0.minusMonths(sanitize(moisHistorique, 3));
         return "PRODUITS DONT LE STOCK EST SUPERIEUR A " + sanitize(moisProjection, 3) + " MOIS - HISTORIQUE : "
                 + sanitize(moisHistorique, 3) + " MOIS - PROJECTION : " + sanitize(moisProjection, 3)
                 + " MOIS DE STOCK - PERIODE DU " + debut.format(FR) + " AU " + fin.format(FR);

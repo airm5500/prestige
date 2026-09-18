@@ -39,7 +39,8 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
             'depotextension #depotEcran': { select: me.surChangementDepot },
             'depotextension #barreCriteres combobox[itemId=famille]': { select: me.rechercher },
             'depotextension #barreCriteres combobox[itemId=emplacement]': { select: me.rechercher },
-            'depotextension #barreCriteres combobox[itemId=filtreStock]': { select: me.surFiltreStock },
+            'depotextension #barreCriteres combobox[itemId=operateurStock]': { select: me.surFiltreStock },
+            'depotextension #barreCriteres numberfield[itemId=valeurStock]': { specialkey: me.surTouche },
             'depotextension #barreCriteres checkbox[itemId=enStock]': { change: me.rechercher },
             'depotextension #barreCriteres button[itemId=rechercher]': { click: me.rechercher },
             'depotextension #barreCriteres textfield[itemId=recherche]': { specialkey: me.surTouche },
@@ -151,13 +152,19 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
             return (!v || v === 'ALL') ? '' : v;
         };
         var recherche = barre ? barre.down('#recherche') : null;
-        var filtre = barre && barre.down('#filtreStock') ? (barre.down('#filtreStock').getValue() || 'TOUS') : 'TOUS';
+        var operateur = barre && barre.down('#operateurStock')
+                ? (barre.down('#operateurStock').getValue() || '') : '';
+        var champValeur = barre ? barre.down('#valeurStock') : null;
+        var nombre = champValeur && champValeur.getValue() !== null ? champValeur.getValue() : 0;
         return {
             depotId: this.depotId(),
             query: recherche ? (recherche.getValue() || '').trim() : '',
             familleId: valeur('#famille'),
             zoneGeoId: valeur('#emplacement'),
-            filtreStock: filtre,
+            // L'operateur et sa valeur ne partent QUE si un operateur est choisi : sans cela, un « 0 »
+            // resté dans le champ filtrerait à l'insu de l'utilisateur.
+            operateurStock: operateur,
+            valeurStock: operateur ? nombre : '',
             enStock: (barre && barre.down('#enStock') && barre.down('#enStock').getValue()) ? 'true' : 'false'
         };
     },
@@ -169,10 +176,16 @@ Ext.define('testextjs.controller.DepotExtensionCtr', {
      */
     surFiltreStock: function () {
         var barre = this.getCriteresBarre();
-        var filtre = barre && barre.down('#filtreStock') ? barre.down('#filtreStock').getValue() : 'TOUS';
+        var operateur = barre && barre.down('#operateurStock') ? barre.down('#operateurStock').getValue() : '';
+        var champValeur = barre ? barre.down('#valeurStock') : null;
         var caseZero = barre ? barre.down('#enStock') : null;
+        // La valeur n'est saisissable qu'avec un operateur : sans lui elle ne filtre rien.
+        if (champValeur) {
+            champValeur.setDisabled(!operateur);
+            if (!operateur) { champValeur.setValue(0); }
+        }
         if (caseZero) {
-            caseZero.setDisabled(filtre && filtre !== 'TOUS');
+            caseZero.setDisabled(!!operateur);
         }
         this.rechercher();
     },

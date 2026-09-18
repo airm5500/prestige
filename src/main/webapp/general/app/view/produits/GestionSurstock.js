@@ -36,7 +36,14 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                 {name: 'coefficient', type: 'number'},
                 {name: 'nbMoisStock', type: 'number'},
                 {name: 'qteSurplus', type: 'number'},
-                {name: 'valeurSurplus', type: 'number'}],
+                {name: 'valeurSurplus', type: 'number'},
+                /* Les quatre mois : le mois en cours puis les trois precedents. Ils etaient deja servis par
+                 * l'API et presents dans le PDF et l'export, mais l'ecran ne les declarait pas - donc ne
+                 * pouvait pas les montrer. Demande du 18/09 : « sur la vue rappeler les mois ». */
+                {name: 'mois0', type: 'number'},
+                {name: 'mois1', type: 'number'},
+                {name: 'mois2', type: 'number'},
+                {name: 'mois3', type: 'number'}],
             pageSize: 20,
             autoLoad: false,
             proxy: {
@@ -51,6 +58,16 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
             var cmp = me.down('#totalValeur');
             if (cmp && raw) {
                 cmp.setValue(raw.totalValeur || 0);
+            }
+            /*
+             * Les en-tetes des quatre colonnes de mois prennent les libelles CALCULES PAR LE SERVEUR, et ne
+             * sont pas reconstitues en JavaScript : recalculer les mois ici les ferait deriver du calcul au
+             * passage d'un mois a l'autre - une recherche lancee le 31 a 23h59 et affichee le 1er a 00h01
+             * nommerait des mois qui ne sont pas ceux sur lesquels le chiffre porte.
+             */
+            if (raw && raw.mois) {
+                me.majEntetesDesMois(raw.mois);
+                me.majRappelPeriode(raw.mois);
             }
         });
 
@@ -230,6 +247,23 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                             tooltip: 'Creer un inventaire avec tous les produits de la liste filtree',
                             scope: me,
                             handler: me.onCreateInventaire
+                        }, '-', {
+                            /*
+                             * RAPPEL DE PERIODE, en clair et sur l'ecran.
+                             *
+                             * « 3 mois » ne dit pas LESQUELS. L'ecart signale le 18/09 - 34 contre 35 - venait de
+                             * la : on rapprochait un total et des colonnes de mois sans savoir qu'ils ne
+                             * couvraient pas la meme chose. Le rappel nomme les mois retenus, dit que le mois en
+                             * cours n'y entre pas, et previent quand l'historique demande depasse les trois mois
+                             * affiches.
+                             */
+                            xtype: 'displayfield',
+                            itemId: 'rappelPeriode',
+                            fieldLabel: 'Historique',
+                            labelWidth: 62,
+                            width: 430,
+                            fieldStyle: 'font-weight:700;',
+                            value: '—'
                         }, '->', {
                             xtype: 'displayfield',
                             itemId: 'totalValeur',
@@ -269,10 +303,14 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                             dataIndex: 'qteVendue',
                             align: 'right',
                             flex: 0.45,
-                            tooltip: headerTip('Quantite totale vendue sur la periode d\'historique choisie'),
+                            tooltip: headerTip('Quantite vendue sur les mois COMPLETS de la periode '
+                                    + 'd\'historique. Le mois en cours, incomplet, n\'y entre pas : il est '
+                                    + 'affiche a part, dans sa propre colonne.'),
                             renderer: function (v, metaData, rec) {
-                                tip(metaData, 'Quantite vendue sur la periode d\'historique ('
-                                        + me.down('#moisHistorique').getValue() + ' mois)');
+                                // La periode est nommee par ses MOIS, pas par un nombre : c'est ce qui permet
+                                // de rapprocher ce total des colonnes de mois qui le composent.
+                                tip(metaData, 'Vendus de ' + me.periodeHistorique() + ' : ' + fmt(v)
+                                        + ' — soit la somme des colonnes de mois, mois en cours exclu');
                                 return fmt(v);
                             }
                         },
@@ -281,10 +319,15 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                             dataIndex: 'moyenneMensuelle',
                             align: 'right',
                             flex: 0.5,
-                            tooltip: headerTip('Vente moyenne par mois sur la periode d\'historique'),
+                            // Demande du 18/09 : la moyenne mensuelle en BLEU. C'est la grandeur qui commande
+                            // tout le reste de la ligne (coefficient, mois de stock, surplus).
+                            tdCls: 'surstock-moyenne',
+                            tooltip: headerTip('Vente moyenne par mois, sur les mois complets de la periode '
+                                    + 'd\'historique'),
                             renderer: function (v, metaData, rec) {
-                                tip(metaData, rec.get('qteVendue') + ' vendus / '
-                                        + me.down('#moisHistorique').getValue() + ' mois = ' + fmt2(v) + ' par mois');
+                                tip(metaData, rec.get('qteVendue') + ' vendus de ' + me.periodeHistorique()
+                                        + ' / ' + me.down('#moisHistorique').getValue() + ' mois = ' + fmt2(v)
+                                        + ' par mois');
                                 return fmt2(v);
                             }
                         },
@@ -336,6 +379,9 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                             dataIndex: 'qteSurplus',
                             align: 'right',
                             flex: 0.45,
+                            // Demande du 18/09 : la quantite de surplus en VERT. C'est la conclusion de la
+                            // ligne - ce qu'on peut retirer du stock.
+                            tdCls: 'surstock-surplus',
                             tooltip: headerTip('Quantite en trop par rapport au stock juge normal '
                                     + '(nb de mois de projection)'),
                             renderer: function (v, metaData, rec) {
@@ -356,6 +402,44 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                                         + fmt(rec.get('prixAchat')) + ' = ' + fmt(v));
                                 return fmt(v);
                             }
+                        },
+                        /*
+                         * LES QUATRE MOIS — demande du 18/09 : « sur la vue rappeler les mois (en cours et les
+                         * 3 derniers) ». Ils etaient deja dans le PDF et dans l'export ; ils manquaient a
+                         * l'ecran, c'est-a-dire a l'endroit ou l'on decide.
+                         *
+                         * Les en-tetes portent des libelles provisoires : ils sont remplaces par les vrais noms
+                         * de mois a la premiere lecture, avec ceux que le serveur a calcules (majEntetesDesMois).
+                         *
+                         * Le mois en cours est presente a part, en grise et en italique : il est INCOMPLET et
+                         * n'entre ni dans la quantite vendue ni dans la moyenne. Le confondre avec les autres
+                         * est precisement ce qui a fait chercher un ecart de 34 contre 35.
+                         */
+                        {
+                            header: 'Mois en cours',
+                            itemId: 'colMois0',
+                            dataIndex: 'mois0',
+                            align: 'right',
+                            flex: 0.45,
+                            tdCls: 'surstock-mois-encours',
+                            tooltip: headerTip('Ventes du mois EN COURS. Mois incomplet : il n\'entre pas dans '
+                                    + 'la quantite vendue ni dans la moyenne mensuelle.'),
+                            renderer: function (v, metaData, rec) {
+                                tip(metaData, 'Mois en cours, incomplet : pour information seulement');
+                                return fmt(v);
+                            }
+                        },
+                        {
+                            header: 'M-1', itemId: 'colMois1', dataIndex: 'mois1', align: 'right', flex: 0.42,
+                            tooltip: headerTip('Ventes du mois precedent'), renderer: fmt
+                        },
+                        {
+                            header: 'M-2', itemId: 'colMois2', dataIndex: 'mois2', align: 'right', flex: 0.42,
+                            tooltip: headerTip('Ventes du mois d\'avant'), renderer: fmt
+                        },
+                        {
+                            header: 'M-3', itemId: 'colMois3', dataIndex: 'mois3', align: 'right', flex: 0.42,
+                            tooltip: headerTip('Ventes du troisieme mois precedent'), renderer: fmt
                         }
                     ],
                     bbar: {
@@ -371,6 +455,60 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
         // pas de chargement automatique a l'ouverture : l'utilisateur lance
         // la recherche lui-meme (bouton Rechercher ou touche Entree)
     },
+    /**
+     * Renomme les quatre colonnes de mois avec les libelles calcules par le serveur.
+     *
+     * Le mois en cours garde une mention explicite : « Septembre (en cours) ». Sans elle, on additionne les
+     * quatre colonnes et l'on ne retrouve pas la quantite vendue - c'est exactement le rapprochement qui a
+     * fait chercher un ecart.
+     *
+     * @param {Object} mois libelles servis par l'API : mois0 (en cours) a mois3, plus histDebut / histFin
+     */
+    majEntetesDesMois: function (mois) {
+        var me = this;
+        var poser = function (selecteur, texte) {
+            var colonne = me.down(selecteur);
+            if (colonne && !colonne.isDestroyed) {
+                colonne.setText(texte);
+            }
+        };
+        me.libellesMois = mois;
+        poser('#colMois0', Ext.String.htmlEncode(mois.mois0 || '') + ' <i>(en cours)</i>');
+        poser('#colMois1', Ext.String.htmlEncode(mois.mois1 || 'M-1'));
+        poser('#colMois2', Ext.String.htmlEncode(mois.mois2 || 'M-2'));
+        poser('#colMois3', Ext.String.htmlEncode(mois.mois3 || 'M-3'));
+    },
+
+    /**
+     * Rappelle en clair, dans la barre, sur quels mois porte le calcul.
+     *
+     * Deux precisions qui evitent de chercher un ecart inexistant : le mois en cours n'entre pas dans le
+     * calcul, et lorsque l'historique demande depasse les trois mois affiches, les colonnes de mois ne
+     * couvrent qu'une partie de la periode - la somme des colonnes ne peut alors pas egaler la quantite
+     * vendue, et c'est normal.
+     */
+    majRappelPeriode: function (mois) {
+        var me = this;
+        var champ = me.down('#rappelPeriode');
+        if (!champ || champ.isDestroyed) { return; }
+        var nbMois = me.down('#moisHistorique').getValue() || 3;
+        var texte = me.periodeHistorique() + ' (' + nbMois + ' mois complet'
+                + (nbMois > 1 ? 's' : '') + ', ' + (mois.moisEnCours || '') + ' en cours exclu)';
+        if (nbMois > 3) {
+            texte += ' — les colonnes de mois n\'en montrent que les 3 derniers';
+        }
+        champ.setValue(texte);
+    },
+
+    /** La periode d'historique, nommee par ses mois : « juin à août » plutôt que « 3 mois ». */
+    periodeHistorique: function () {
+        var mois = this.libellesMois;
+        if (!mois || !mois.histDebut) {
+            return this.down('#moisHistorique').getValue() + ' mois complets';
+        }
+        return mois.histDebut === mois.histFin ? mois.histDebut : mois.histDebut + ' à ' + mois.histFin;
+    },
+
     getFilters: function () {
         var me = this;
         return {

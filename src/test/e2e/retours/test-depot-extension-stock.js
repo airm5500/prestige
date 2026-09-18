@@ -164,14 +164,21 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
         pdf: a.down('#imprimer').isDisabled(), message: a.down('#valorisation').el.dom.textContent.trim(),
         // la barre de criteres est commune aux deux vues : elle existe une seule fois
         barres: Ext.ComponentQuery.query('depotextension #barreCriteres').length,
-        masquerLesZeros: c.down('#enStock').getValue(), filtreStock: c.down('#filtreStock').getValue(),
+        masquerLesZeros: c.down('#enStock').getValue(),
+        operateurStock: c.down('#operateurStock').getValue(),
+        valeurStock: c.down('#valeurStock').getValue(),
+        valeurGrisee: c.down('#valeurStock').isDisabled(),
         aFiltreEmplacement: !!c.down('#emplacement') };
     });
     ok('Tant qu aucun dépôt n est choisi, rien n est chargé et les éditions restent inactives',
       depart.lignes === 0 && depart.excel === true && depart.pdf === true && /Choisissez un d/.test(depart.message),
       JSON.stringify(depart));
     ok('« masquer les articles à 0 » est DÉCOCHÉE au départ, et le filtre de stock est sur « tous »',
-      depart.masquerLesZeros === false && depart.filtreStock === 'TOUS', JSON.stringify(depart));
+      depart.masquerLesZeros === false && depart.operateurStock === '', JSON.stringify(depart));
+    /* Retour du 18/09 : « le filtre stock doit avoir un operateur et une zone de stock a filtrer ». Sans
+     * operateur choisi, la zone de valeur ne veut rien dire : elle reste grisee. */
+    ok('La zone de valeur est grisée tant qu aucun opérateur n est choisi',
+      depart.valeurGrisee === true, JSON.stringify(depart));
     ok('Le filtre emplacement est là, à côté du filtre famille',
       depart.aFiltreEmplacement === true);
     ok('Les critères sont partagés : une seule barre pour les deux vues', depart.barres === 1,
@@ -299,32 +306,70 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       total === attendus.length, total + ' attendu ' + attendus.length);
     await poserCritere('#enStock', false);
 
-    /* 5b. le filtre sur le stock : les trois cas, et il l emporte sur la case */
-    await poserCritere('#filtreStock', 'NEGATIF');
+    /* 5b. le filtre sur le stock : un OPERATEUR et une VALEUR (retour du 18/09). On verifie les six
+     * operateurs contre les stocks reellement poses, et le fait que le filtre l emporte sur la case. */
+    const poserFiltreStock = async (operateur, valeur) => {
+      await p.evaluate((a) => {
+        const c = Ext.ComponentQuery.query('depotextension #barreCriteres')[0];
+        const op = c.down('#operateurStock');
+        op.setValue(a.operateur);
+        op.fireEvent('select', op, [op.getStore().findRecord('id', a.operateur)].filter(Boolean));
+        const v = c.down('#valeurStock');
+        v.setValue(a.valeur);
+      }, { operateur: operateur, valeur: valeur });
+      await p.evaluate(() => {
+        // la recherche part sur ENTREE dans la zone de valeur, comme le fait l utilisateur
+        const v = Ext.ComponentQuery.query('depotextension #barreCriteres')[0].down('#valeurStock');
+        v.fireEvent('specialkey', v, { getKey: () => Ext.EventObject.ENTER, ENTER: Ext.EventObject.ENTER });
+      });
+      await p.waitForTimeout(4000);
+    };
+    const compte = (predicat) => arts.filter((a) => predicat(a.stock)).length;
+
+    await poserFiltreStock('LT', 0);
     total = await totalAffiche();
-    ok('Le filtre « négatif » ne garde que les stocks négatifs',
+    ok('Le filtre « stock < 0 » ne garde que les stocks négatifs',
       total === negatifs.length, total + ' attendu ' + negatifs.length);
     const caseGrisee = await p.evaluate(() =>
       Ext.ComponentQuery.query('depotextension #barreCriteres')[0].down('#enStock').isDisabled());
     ok('La case « masquer les articles à 0 » est grisée dès qu un filtre de stock est posé : pas de '
       + 'critère contradictoire', caseGrisee === true, String(caseGrisee));
 
-    await poserCritere('#filtreStock', 'ZERO');
+    await poserFiltreStock('EQ', 0);
     total = await totalAffiche();
-    ok('Le filtre « à zéro » ne garde que les stocks à zéro',
+    ok('Le filtre « stock = 0 » ne garde que les stocks à zéro',
       total === zeros.length, total + ' attendu ' + zeros.length);
 
-    await poserCritere('#filtreStock', 'POSITIF');
+    await poserFiltreStock('GT', 0);
     total = await totalAffiche();
-    ok('Le filtre « positif » ne garde que les stocks positifs',
+    ok('Le filtre « stock > 0 » ne garde que les stocks positifs',
       total === positifs.length, total + ' attendu ' + positifs.length);
 
-    await poserCritere('#filtreStock', 'TOUS');
+    await poserFiltreStock('NE', 0);
+    total = await totalAffiche();
+    ok('Le filtre « stock ≠ 0 » garde les positifs ET les négatifs',
+      total === compte((n) => n !== 0), total + ' attendu ' + compte((n) => n !== 0));
+
+    /* Une VALEUR autre que zero : c est tout l interet du retour du 18/09 (« stock >= 10 »). */
+    const seuil = positifs.length ? Math.max.apply(null, positifs.map((a) => a.stock)) : 1;
+    await poserFiltreStock('GE', seuil);
+    total = await totalAffiche();
+    ok('Le filtre « stock ≥ ' + seuil + ' » compte les articles au-dessus du seuil',
+      total === compte((n) => n >= seuil), total + ' attendu ' + compte((n) => n >= seuil));
+
+    await poserFiltreStock('LE', seuil);
+    total = await totalAffiche();
+    ok('Le filtre « stock ≤ ' + seuil + ' » compte les articles sous le seuil',
+      total === compte((n) => n <= seuil), total + ' attendu ' + compte((n) => n <= seuil));
+
+    await poserFiltreStock('', null);
     total = await totalAffiche();
     ok('Revenir à « tous » remontre les 5 lignes, et la case redevient utilisable', total === 5,
       String(total));
     ok('La case n est plus grisée', await p.evaluate(() =>
       Ext.ComponentQuery.query('depotextension #barreCriteres')[0].down('#enStock').isDisabled()) === false);
+    ok('Et la zone de valeur est grisée de nouveau', await p.evaluate(() =>
+      Ext.ComponentQuery.query('depotextension #barreCriteres')[0].down('#valeurStock').isDisabled()) === true);
 
     /* 5c. le filtre emplacement, comme le filtre famille */
     const zoneCible = arts.map((a) => a.zone).filter(Boolean)[0];
@@ -466,10 +511,25 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       + encodeURIComponent(DEPOT) + '&query=&familleId=&familleLibelle=&zoneGeoId=&emplacementLibelle='
       + '&filtreStock=NEGATIF&enStock=false');
     const texteNegatif = texteDuPdf(pdfNegatif.octets);
+    /* L ancienne categorie NEGATIF est desormais traduite en couple (operateur, valeur) : elle filtre les
+     * memes lignes qu avant, et le rappel imprime l annonce avec le MEME vocabulaire que le nouveau filtre
+     * (« stock < 0 ») plutot qu avec une seconde formulation pour la meme chose. */
     ok('Le rappel des critères imprimé dit quel filtre de stock a été demandé',
-      /stock n.gatif seulement/.test(texteNegatif)
+      /stock\s*<\s*0/.test(texteNegatif)
       && new RegExp('TOTAL : ' + negatifs.length + ' article').test(texteNegatif),
       texteNegatif.slice(0, 300));
+
+    /* Le nouveau filtre a operateur doit lui aussi se relire dans le PDF, en clair (« stock >= 10 »), et
+     * l ancienne forme du filtre reste acceptee par le service : les raccourcis deja enregistres par les
+     * officines ne doivent pas cesser de fonctionner. */
+    const pdfOperateur = await recupererPdf(p, '../api/v1/depot-extension/stock/pdf?depotId='
+      + encodeURIComponent(DEPOT) + '&query=&familleId=&familleLibelle=&zoneGeoId=&emplacementLibelle='
+      + '&operateurStock=GE&valeurStock=' + seuil + '&enStock=false');
+    const texteOperateur = texteDuPdf(pdfOperateur.octets);
+    ok('Le PDF rappelle le filtre de stock avec son opérateur et sa valeur',
+      new RegExp('stock\\s*>=\\s*' + seuil).test(texteOperateur)
+      && new RegExp('TOTAL : ' + compte((n) => n >= seuil) + ' article').test(texteOperateur),
+      texteOperateur.slice(0, 300));
 
     /* 8. l export Excel */
     const excel = await p.evaluate(async (d) => {

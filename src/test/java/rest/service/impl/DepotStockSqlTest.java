@@ -2,6 +2,7 @@ package rest.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import rest.service.impl.DepotStockSql.Criteres;
@@ -134,6 +135,88 @@ public class DepotStockSqlTest {
         assertEquals(DepotStockSql.NEGATIF, DepotStockSql.normaliserFiltre("negatif"));
         assertFalse(predicatsDe(DepotStockSql.liste(c("", "", "", "n'importe quoi", false)))
                 .contains("int_NUMBER_AVAILABLE"));
+    }
+
+    /**
+     * Retour du 18/09 : « le filtre stock doit avoir un operateur et une zone de stock a filtrer ». Les six operateurs
+     * doivent produire exactement leur comparaison, et la valeur comparee apparaitre telle quelle.
+     */
+    @Test
+    public void lesSixOperateursProduisentLeurComparaison() {
+        assertEquals("=", DepotStockSql.signe("EQ"));
+        assertEquals("<>", DepotStockSql.signe("NE"));
+        assertEquals("<", DepotStockSql.signe("LT"));
+        assertEquals("<=", DepotStockSql.signe("LE"));
+        assertEquals(">", DepotStockSql.signe("GT"));
+        assertEquals(">=", DepotStockSql.signe("GE"));
+        // la casse et les espaces ne doivent pas faire perdre le filtre
+        assertEquals(">=", DepotStockSql.signe(" ge "));
+    }
+
+    @Test
+    public void laValeurComparteeApparaitDansLaClause() {
+        String predicats = predicatsDe(
+                DepotStockSql.liste(new Criteres("", "", "", null, DepotStockSql.OP_SUPERIEUR_EGAL, 10, false)));
+
+        assertTrue(predicats.contains("s.int_NUMBER_AVAILABLE >= 10"), predicats);
+    }
+
+    /** Un stock negatif est une valeur legitime a comparer : l'anomalie est justement ce qu'on cherche. */
+    @Test
+    public void uneValeurNegativeEstAcceptee() {
+        String predicats = predicatsDe(
+                DepotStockSql.liste(new Criteres("", "", "", null, DepotStockSql.OP_INFERIEUR, -5, false)));
+
+        assertTrue(predicats.contains("s.int_NUMBER_AVAILABLE < -5"), predicats);
+    }
+
+    /**
+     * AUCUN operateur inconnu n'atteint le SQL. C'est le point sensible : le signe vient d'une table de correspondance
+     * et jamais de l'appelant, sans quoi le filtre serait une porte d'entree.
+     */
+    @Test
+    public void unOperateurInconnuEstIgnoreEtNAtteintPasLeSql() {
+        assertNull(DepotStockSql.signe("OR 1=1 --"));
+        assertNull(DepotStockSql.signe(""));
+        assertNull(DepotStockSql.signe(null));
+
+        String predicats = predicatsDe(DepotStockSql.liste(new Criteres("", "", "", null, "OR 1=1 --", 0, false)));
+        assertFalse(predicats.contains("1=1"), predicats);
+        assertFalse(predicats.contains("int_NUMBER_AVAILABLE"), predicats);
+    }
+
+    /** Une valeur nulle vaut zero : « > » sans valeur saisie doit rester une comparaison valide. */
+    @Test
+    public void uneValeurAbsenteVautZero() {
+        String predicats = predicatsDe(
+                DepotStockSql.liste(new Criteres("", "", "", null, DepotStockSql.OP_SUPERIEUR, null, false)));
+
+        assertTrue(predicats.contains("s.int_NUMBER_AVAILABLE > 0"), predicats);
+    }
+
+    /**
+     * NON-REGRESSION : les trois anciennes categories sont traduites en operateur DANS LE CONSTRUCTEUR, donc pour tout
+     * appelant - un service, une edition, un test. Les traduire plus haut seulement aurait fait perdre le filtre a ces
+     * appels, silencieusement, en rendant simplement plus de lignes qu'attendu.
+     */
+    @Test
+    public void lesAnciennesCategoriesDonnentExactementLesMemesClauses() {
+        assertTrue(predicatsDe(DepotStockSql.liste(c("", "", "", DepotStockSql.NEGATIF, false)))
+                .contains("s.int_NUMBER_AVAILABLE < 0"));
+        assertTrue(predicatsDe(DepotStockSql.liste(c("", "", "", DepotStockSql.ZERO, false)))
+                .contains("s.int_NUMBER_AVAILABLE = 0"));
+        assertTrue(predicatsDe(DepotStockSql.liste(c("", "", "", DepotStockSql.POSITIF, false)))
+                .contains("s.int_NUMBER_AVAILABLE > 0"));
+    }
+
+    /** L'operateur explicite l'emporte sur la categorie : c'est le controle que l'utilisateur vient de poser. */
+    @Test
+    public void lOperateurExpliciteLEmporteSurLAncienneCategorie() {
+        String predicats = predicatsDe(DepotStockSql
+                .liste(new Criteres("", "", "", DepotStockSql.NEGATIF, DepotStockSql.OP_SUPERIEUR_EGAL, 100, false)));
+
+        assertTrue(predicats.contains("s.int_NUMBER_AVAILABLE >= 100"), predicats);
+        assertFalse(predicats.contains("< 0"), predicats);
     }
 
     @Test

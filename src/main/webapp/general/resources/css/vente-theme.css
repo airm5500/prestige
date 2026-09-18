@@ -1486,52 +1486,68 @@ body.x-body,
 }
 
 /* =====================================================================================
- * « Gestion depots extensions » : une couleur par onglet (retour du 17/09).
+ * « Gestion depots extensions » : une couleur par ONGLET (retour du 18/09).
  *
- * Ce n'est pas de la decoration. L'ecran reunit quatre choses de nature differente -
- * on y saisit de l'argent dans l'une et on consulte des totaux dans les autres - et la
- * couleur dit d'un coup d'oeil dans laquelle on se trouve, sans avoir a lire l'onglet.
+ * Correction du 18/09 : « j'ai demandé les onglets en couleur, pas les textes ». La
+ * premiere version ne colorait que le libelle et posait un filet de 3 px sur le bord
+ * superieur — de loin, les quatre onglets restaient gris. C'est l'ONGLET qui porte
+ * desormais la couleur, en fond plein, sur toute sa surface.
  *
- * Le trait de couleur est pose sur le BORD SUPERIEUR de l'onglet et la couleur du texte
- * sur son libelle : le fond, lui, reste celui du theme, sinon l'onglet actif ne se
- * distinguerait plus des inactifs. L'onglet actif recoit le fond teinte, pale, et son
- * libelle passe en gras.
- *
- * Les selecteurs descendent jusqu'a .x-tab-inner : la couleur du texte du theme est
- * posee la, et une regle placee plus haut ne l'emporterait pas.
+ * Trois precautions :
+ *  1. le libelle passe en BLANC sur le fond colore, sinon il devient illisible ;
+ *  2. l'onglet ACTIF est le seul en couleur pleine et soutenue ; les inactifs gardent la
+ *     meme teinte en clair. Sans cette difference, on ne sait plus lequel est ouvert -
+ *     c'est la fonction premiere d'un onglet, avant sa couleur ;
+ *  3. les selecteurs descendent jusqu'a .x-tab-inner pour la couleur du texte, et le fond
+ *     est pose a la fois sur l'element de l'onglet et sur son enveloppe interne : le theme
+ *     Neptune dessine le fond d'un onglet en plusieurs couches, et n'en peindre qu'une
+ *     laisse des bandes grises sur les bords.
  * ===================================================================================== */
 .depot-onglet-vente,
 .depot-onglet-valorisation,
 .depot-onglet-ca,
 .depot-onglet-caisse {
-    border-top-width: 3px !important;
-    border-top-style: solid !important;
+    border-width: 1px !important;
+    border-style: solid !important;
 }
+.depot-onglet-vente .x-tab-inner,
+.depot-onglet-valorisation .x-tab-inner,
+.depot-onglet-ca .x-tab-inner,
+.depot-onglet-caisse .x-tab-inner {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+/* Onglet inactif : la meme teinte, en clair, pour qu'on lise quel onglet est ouvert. */
+.depot-onglet-vente,
+.depot-onglet-vente .x-tab-wrap { background: #7cc6a0 !important; }
+.depot-onglet-valorisation,
+.depot-onglet-valorisation .x-tab-wrap { background: #8fb8dd !important; }
+.depot-onglet-ca,
+.depot-onglet-ca .x-tab-wrap { background: #dcb87a !important; }
+.depot-onglet-caisse,
+.depot-onglet-caisse .x-tab-wrap { background: #b493cd !important; }
 
-/* Saisie de vente : vert, comme les boutons d'encaissement de l'ecran de vente. */
-.depot-onglet-vente { border-top-color: #1e8449 !important; }
-.depot-onglet-vente .x-tab-inner { color: #1e8449 !important; }
-.depot-onglet-vente.x-tab-active { background-color: #eafaf1 !important; }
-.depot-onglet-vente.x-tab-active .x-tab-inner { font-weight: bold; }
-
-/* Valorisation : bleu, la couleur des ecrans de consultation du stock. */
-.depot-onglet-valorisation { border-top-color: #2e75b6 !important; }
-.depot-onglet-valorisation .x-tab-inner { color: #2e75b6 !important; }
-.depot-onglet-valorisation.x-tab-active { background-color: #eaf2fb !important; }
-.depot-onglet-valorisation.x-tab-active .x-tab-inner { font-weight: bold; }
-
-/* Chiffre d'affaires : orange. */
-.depot-onglet-ca { border-top-color: #b9770e !important; }
-.depot-onglet-ca .x-tab-inner { color: #b9770e !important; }
-.depot-onglet-ca.x-tab-active { background-color: #fdf5e6 !important; }
-.depot-onglet-ca.x-tab-active .x-tab-inner { font-weight: bold; }
-
-/* Point de caisse : violet, comme la ligne des articles a zero - c'est la meme famille
- * de teinte pour tout ce qui parle de caisse et de controle. */
-.depot-onglet-caisse { border-top-color: #7b3fa0 !important; }
-.depot-onglet-caisse .x-tab-inner { color: #7b3fa0 !important; }
-.depot-onglet-caisse.x-tab-active { background-color: #f6f0fa !important; }
-.depot-onglet-caisse.x-tab-active .x-tab-inner { font-weight: bold; }
+/* Onglet actif : couleur pleine et soutenue. */
+.depot-onglet-vente.x-tab-active,
+.depot-onglet-vente.x-tab-active .x-tab-wrap {
+    background: #1e8449 !important;
+    border-color: #146235 !important;
+}
+.depot-onglet-valorisation.x-tab-active,
+.depot-onglet-valorisation.x-tab-active .x-tab-wrap {
+    background: #2e75b6 !important;
+    border-color: #205888 !important;
+}
+.depot-onglet-ca.x-tab-active,
+.depot-onglet-ca.x-tab-active .x-tab-wrap {
+    background: #b9770e !important;
+    border-color: #8c5a0a !important;
+}
+.depot-onglet-caisse.x-tab-active,
+.depot-onglet-caisse.x-tab-active .x-tab-wrap {
+    background: #7b3fa0 !important;
+    border-color: #5b2e78 !important;
+}
 
 /* =====================================================================================
  * Bouton « ÉCLATER » de la liste des suggestions (retour du 17/09, point 8).
@@ -1561,4 +1577,31 @@ body.x-body,
 .eclatericon::after {
     bottom: 4px;
     transform: rotate(16deg);
+}
+
+/* =====================================================================================
+ * Gestion des surstocks : les deux grandeurs que l'on vient chercher dans cet écran
+ * (demande du 18/09 — moyenne mensuelle en bleu, quantité de surplus en vert).
+ *
+ * La moyenne mensuelle commande tout le reste de la ligne (coefficient, mois de stock,
+ * surplus) ; la quantité de surplus en est la conclusion, ce qu'on peut retirer du stock.
+ * Les deux sont mises en gras en plus de la couleur : sur une liste de dix-sept colonnes,
+ * la couleur seule ne suffit pas à accrocher l'œil, et elle disparaît à l'impression en
+ * noir et blanc.
+ *
+ * Le mois EN COURS est grisé et en italique : il est incomplet et n'entre ni dans la
+ * quantité vendue ni dans la moyenne. Le confondre avec les trois mois complets est
+ * précisément ce qui a fait chercher un écart de 34 contre 35.
+ * ===================================================================================== */
+.surstock-moyenne .x-grid-cell-inner {
+    color: #1f4e9c !important;
+    font-weight: 700;
+}
+.surstock-surplus .x-grid-cell-inner {
+    color: #1e7a3c !important;
+    font-weight: 700;
+}
+.surstock-mois-encours .x-grid-cell-inner {
+    color: #7a7a7a !important;
+    font-style: italic;
 }

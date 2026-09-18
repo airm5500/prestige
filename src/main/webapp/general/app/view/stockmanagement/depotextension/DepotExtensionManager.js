@@ -202,28 +202,58 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                                                     emptyText: 'Tous',
                                                     tooltip: 'Rayon de l\'article (le dépôt, lui, est choisi en haut)'
                                                 }, {
+                                                    /*
+                                                     * FILTRE DE STOCK : un OPERATEUR et une valeur (retour du
+                                                     * 18/09 : « le filtre stock doit avoir un operateur et une
+                                                     * zone de stock a filtrer »).
+                                                     *
+                                                     * Il REMPLACE la liste Tous / Negatif / A zero / Positif, et
+                                                     * ne s'y ajoute pas : « < 0 », « = 0 » et « > 0 » donnent
+                                                     * exactement les trois anciens choix, et l'operateur permet en
+                                                     * plus ce qu'on ne pouvait pas demander - « >= 10 », « < 5 ».
+                                                     * Deux controles qui filtrent la meme colonne se
+                                                     * contrediraient, et c'est ce qu'on a deja eu a demeler avec
+                                                     * la case « masquer les articles a 0 ».
+                                                     */
                                                     xtype: 'combobox',
-                                                    itemId: 'filtreStock',
+                                                    itemId: 'operateurStock',
                                                     fieldLabel: 'Stock',
                                                     labelWidth: 42,
-                                                    width: 170,
+                                                    width: 132,
                                                     valueField: 'id',
                                                     displayField: 'libelle',
                                                     queryMode: 'local',
                                                     editable: false,
-                                                    value: 'TOUS',
-                                                    tooltip: 'Les trois choix autres que « tous » correspondent aux '
-                                                            + 'trois couleurs de la liste : rouge pour un stock '
-                                                            + 'négatif, violet pour un stock à zéro.',
+                                                    value: '',
+                                                    tooltip: 'Comparaison sur le stock du dépôt. « < 0 » donne les '
+                                                            + 'stocks négatifs (en rouge), « = 0 » les stocks à '
+                                                            + 'zéro (en violet).',
                                                     store: Ext.create('Ext.data.Store', {
                                                         fields: ['id', 'libelle'],
                                                         data: [
-                                                            { id: 'TOUS', libelle: 'Tous' },
-                                                            { id: 'NEGATIF', libelle: 'Négatif' },
-                                                            { id: 'ZERO', libelle: 'À zéro' },
-                                                            { id: 'POSITIF', libelle: 'Positif' }
+                                                            { id: '', libelle: 'Tous' },
+                                                            { id: 'EQ', libelle: '=' },
+                                                            { id: 'NE', libelle: '≠' },
+                                                            { id: 'LT', libelle: '<' },
+                                                            { id: 'LE', libelle: '≤' },
+                                                            { id: 'GT', libelle: '>' },
+                                                            { id: 'GE', libelle: '≥' }
                                                         ]
                                                     })
+                                                }, {
+                                                    xtype: 'numberfield',
+                                                    itemId: 'valeurStock',
+                                                    width: 78,
+                                                    value: 0,
+                                                    // Le stock peut etre negatif : pas de minValue a zero, qui
+                                                    // interdirait justement de chercher les anomalies.
+                                                    hideTrigger: true,
+                                                    // Desactive tant qu'aucun operateur n'est choisi : une valeur
+                                                    // saisie sans operateur ne filtre rien, et le laisser
+                                                    // saisissable laisse croire le contraire.
+                                                    disabled: true,
+                                                    emptyText: '0',
+                                                    tooltip: 'Valeur de stock comparée'
                                                 }, {
                                                     xtype: 'checkbox',
                                                     itemId: 'enStock',
