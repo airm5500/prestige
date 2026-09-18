@@ -1,5 +1,7 @@
 package rest.service.impl;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * Requetes du menu de pilotage (evolution 6, point 1).
  *
@@ -124,6 +126,113 @@ public final class PilotageSql {
                 + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
                 + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                 + " JOIN t_code_tva v ON v.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID" + " WHERE" + VENTES_OU;
+    }
+
+    /*
+     * ACHATS (vague 2)
+     *
+     * Deux bases de calcul, et il faut savoir laquelle on regarde :
+     *
+     * - SANS filtre de famille ni d'emplacement, le montant est celui de l'EN-TETE du bon (int_HTTC), comme le tableau
+     * de bord et comme la tuile Achats de la synthese. Exact et comparable.
+     *
+     * - AVEC un filtre de famille ou d'emplacement, l'en-tete ne peut plus servir : il porte le bon entier. On
+     * additionne alors les LIGNES retenues (prix d'achat x quantite recue). Mesure au banc sur un mois : 55 746 822 en
+     * en-tete contre 53 385 542 en lignes, soit 4 % d'ecart - taxes et frais du bon. L'ecran DIT laquelle des deux
+     * bases il affiche, faute de quoi l'officine croirait avoir perdu 4 % de ses achats en posant un filtre.
+     */
+
+    /** Conditions communes aux bons de livraison. */
+    private static final String ACHATS_OU = " b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= :debut"
+            + " AND b.dt_UPDATED < :fin ";
+
+    /**
+     * Achats par mois et par grossiste, au montant de l'en-tete.
+     *
+     * <p>
+     * Le grossiste se lit par la commande ({@code t_order}), comme le fait l'ecran « Achats mensuels par grossiste » :
+     * c'est la seule chaine qui relie un bon a son fournisseur.
+     */
+    public static String achatsParMoisEtGrossiste(String grossisteId) {
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois, g.lg_GROSSISTE_ID AS grossisteId,"
+                + " g.str_LIBELLE AS grossiste, SUM(b.int_HTTC) AS montant, COUNT(*) AS nbBons"
+                + " FROM t_bon_livraison b" + " JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
+                + (StringUtils.isBlank(grossisteId) ? "" : " AND g.lg_GROSSISTE_ID = :grossiste ")
+                + " GROUP BY mois, grossisteId, grossiste ORDER BY mois ASC, montant DESC";
+    }
+
+    /**
+     * Achats par mois calcules sur les LIGNES, avec les filtres de famille et d'emplacement.
+     *
+     * <p>
+     * La quantite retenue est la quantite RECUE : une ligne commandee mais non livree n'est pas un achat.
+     */
+    public static String achatsLignesParMois(String grossisteId, String familleId, String emplacementId) {
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois,"
+                + " COALESCE(g.lg_GROSSISTE_ID, 'SANS') AS grossisteId,"
+                + " COALESCE(g.str_LIBELLE, 'Sans grossiste') AS grossiste,"
+                + " SUM(d.int_PAF * d.int_QTE_RECUE) AS montant, COUNT(DISTINCT b.lg_BON_LIVRAISON_ID) AS nbBons"
+                + " FROM t_bon_livraison_detail d"
+                + " JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
+                + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = d.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
+                + (StringUtils.isBlank(grossisteId) ? "" : " AND d.lg_GROSSISTE_ID = :grossiste ")
+                + (StringUtils.isBlank(familleId) ? "" : " AND f.lg_FAMILLEARTICLE_ID = :famille ")
+                + (StringUtils.isBlank(emplacementId) ? "" : " AND f.lg_ZONE_GEO_ID = :emplacement ")
+                + " GROUP BY mois, grossisteId, grossiste ORDER BY mois ASC, montant DESC";
+    }
+
+    /*
+     * CAISSE ET TIERS-PAYANT (vague 2)
+     *
+     * Trois grandeurs, trois sources, et aucune n'est recalculee :
+     *
+     * - le TIERS PAYANT FACTURE vient des ventes (ce que le client n'a pas paye au comptoir) ; - le TIERS PAYANT REGLE
+     * vient des reglements de dossiers, a leur date de reglement ; - l'ENCAISSE vient de vente_reglement, la meme
+     * source que la balance et le ticket Z.
+     *
+     * Le CREDIT du mois est alors le chiffre d'affaires moins l'encaisse : ce qui n'a pas ete paye au comptoir, quelle
+     * qu'en soit la raison. Verifie au banc : l'ecart avec la seule part tiers payant est de 0,06 % (arrondis et
+     * avoirs), ce qui confirme que les deux lectures decrivent bien la meme chose.
+     */
+
+    /** Ce que la caisse a reellement encaisse, par mois, tous modes confondus. */
+    public static String encaisseParMois() {
+        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois, SUM(vr.montant) AS encaisse"
+                + " FROM vente_reglement vr" + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
+                + " WHERE" + VENTES_OU + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    public static String totalEncaisse() {
+        return "SELECT SUM(vr.montant) AS encaisse FROM vente_reglement vr"
+                + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id WHERE" + VENTES_OU;
+    }
+
+    /**
+     * Tiers payant REGLE par mois, a la date du reglement.
+     *
+     * <p>
+     * A la date du reglement et non a celle de la facture : c'est la question posee (« combien les organismes nous
+     * ont-ils verse ce mois-ci »), et c'est ce que la tresorerie constate.
+     */
+    public static String tiersPayantRegleParMois() {
+        return "SELECT DATE_FORMAT(r.dt_REGLEMENT, '%Y-%m') AS mois, SUM(r.dbl_AMOUNT) AS regle,"
+                + " COUNT(*) AS nbReglements" + " FROM t_dossier_reglement r"
+                + " WHERE r.dt_REGLEMENT >= :debut AND r.dt_REGLEMENT < :fin" + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    public static String totalTiersPayantRegle() {
+        return "SELECT SUM(r.dbl_AMOUNT) AS regle, COUNT(*) AS nbReglements FROM t_dossier_reglement r"
+                + " WHERE r.dt_REGLEMENT >= :debut AND r.dt_REGLEMENT < :fin";
+    }
+
+    /** Grossistes proposes au filtre : ceux qui ont reellement livre sur la periode regardee. */
+    public static String grossistesDeLaPeriode() {
+        return "SELECT DISTINCT g.lg_GROSSISTE_ID AS id, g.str_LIBELLE AS libelle" + " FROM t_bon_livraison b"
+                + " JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
+                + " ORDER BY libelle ASC";
     }
 
     public static String totauxAchats() {

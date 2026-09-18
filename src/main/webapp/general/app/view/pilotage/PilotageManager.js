@@ -37,11 +37,51 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     ONGLETS: [
         {cle: 'synthese', titre: 'Synthèse'},
         {cle: 'ventes', titre: 'Ventes'},
-        {cle: 'marge', titre: 'Marge'}
+        {cle: 'marge', titre: 'Marge'},
+        {cle: 'achats', titre: 'Achats'},
+        {cle: 'caisse', titre: 'Caisse & tiers-payant'}
     ],
 
     initComponent: function () {
         var me = this;
+
+        /* Grossistes qui ont reellement livre sur la fenetre : le filtre ne propose pas de fournisseur muet. */
+        me.storeGrossistes = new Ext.data.Store({
+            fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/pilotage/grossistes',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
+        /* Part de chaque grossiste sur la fenetre : la lecture que l'officine fait en premier. */
+        me.storeRepartition = new Ext.data.Store({
+            fields: [{name: 'grossiste', type: 'string'}, {name: 'montant', type: 'float'},
+                {name: 'part', type: 'float'}],
+            data: []
+        });
+
+        me.storeFamilles = new Ext.data.Store({
+            fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/famillearticles',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+
+        me.storeEmplacements = new Ext.data.Store({
+            fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/rayons',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
 
         me.storeAxes = new Ext.data.Store({
             fields: [{name: 'code', type: 'string'}, {name: 'libelle', type: 'string'}],
@@ -77,7 +117,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         {name: 'achatTTC', type: 'float'}, {name: 'coutAchat', type: 'float'},
                         {name: 'nbVentes', type: 'int'}, {name: 'nbBons', type: 'int'},
                         {name: 'panier', type: 'float'}, {name: 'remises', type: 'float'},
-                        {name: 'partTiersPayant', type: 'float'}],
+                        {name: 'partTiersPayant', type: 'float'},
+                        {name: 'encaisse', type: 'float'}, {name: 'credit', type: 'float'},
+                        {name: 'partComptant', type: 'float'}, {name: 'partCredit', type: 'float'},
+                        {name: 'tpRegle', type: 'float'}],
                     data: []
                 })
             };
@@ -178,9 +221,20 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         };
     },
 
-    /* Un onglet : les tuiles, le graphique, le detail mensuel. */
+    /* Un onglet : les tuiles, le graphique, le detail mensuel. L'onglet Achats porte en plus ses filtres
+     * et la part de chaque grossiste. */
     onglet: function (onglet) {
         var me = this;
+        var contenu = [];
+        if (onglet.cle === 'achats') {
+            contenu.push(me.filtresAchats());
+        }
+        contenu.push(me.tuiles(onglet.cle));
+        if (onglet.cle === 'achats') {
+            contenu.push(me.repartitionGrossistes());
+        }
+        contenu.push(me.graphique(onglet.cle));
+        contenu.push(me.detail(onglet.cle));
         return {
             xtype: 'panel',
             itemId: 'onglet-' + onglet.cle,
@@ -189,7 +243,93 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             border: false,
             autoScroll: true,
             layout: {type: 'vbox', align: 'stretch'},
-            items: [me.tuiles(onglet.cle), me.graphique(onglet.cle), me.detail(onglet.cle)]
+            items: contenu
+        };
+    },
+
+    /*
+     * Filtres de l'onglet Achats.
+     *
+     * Le filtre grossiste garde le montant des BONS ; les filtres famille et emplacement font passer le
+     * calcul sur les LIGNES, parce que l'en-tete d'un bon porte le bon entier. L'ecran le dit alors en clair :
+     * sans cela, l'officine croirait avoir perdu 4 % de ses achats en posant un filtre.
+     */
+    filtresAchats: function () {
+        var me = this;
+        return {
+            xtype: 'toolbar',
+            itemId: 'filtresAchats',
+            padding: 4,
+            items: [{
+                    xtype: 'combobox',
+                    itemId: 'grossiste',
+                    fieldLabel: 'Grossiste',
+                    labelWidth: 64,
+                    width: 280,
+                    store: me.storeGrossistes,
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local',
+                    editable: false,
+                    emptyText: 'Tous'
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'famille',
+                    fieldLabel: 'Famille',
+                    labelWidth: 54,
+                    width: 250,
+                    store: me.storeFamilles,
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local',
+                    editable: false,
+                    emptyText: 'Toutes'
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'emplacement',
+                    fieldLabel: 'Emplacement',
+                    labelWidth: 84,
+                    width: 250,
+                    store: me.storeEmplacements,
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local',
+                    editable: false,
+                    emptyText: 'Tous'
+                }, {
+                    xtype: 'button',
+                    itemId: 'reinitialiserAchats',
+                    text: 'Réinitialiser'
+                }, {
+                    xtype: 'component',
+                    flex: 1
+                }, {
+                    xtype: 'displayfield',
+                    itemId: 'noteAchats',
+                    value: ''
+                }]
+        };
+    },
+
+    repartitionGrossistes: function () {
+        return {
+            xtype: 'gridpanel',
+            itemId: 'repartition',
+            title: 'Part de chaque grossiste sur la fenêtre',
+            store: this.storeRepartition,
+            height: 150,
+            columnLines: true,
+            columns: [
+                {text: 'GROSSISTE', dataIndex: 'grossiste', flex: 2, itemId: 'col-grossiste'},
+                {text: 'MONTANT', dataIndex: 'montant', width: 150, align: 'right',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    }},
+                {text: 'PART', dataIndex: 'part', width: 100, align: 'right', itemId: 'col-part',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.0') + ' %';
+                    }}
+            ]
         };
     },
 
@@ -249,9 +389,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     },
 
     graphique: function (cle) {
-        var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge'};
+        var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
+            caisse: 'encaisse'};
         var titres = {synthese: 'Chiffre d\'affaires TTC mensuel', ventes: 'Chiffre d\'affaires TTC mensuel',
-            marge: 'Marge mensuelle'};
+            marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois'};
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
@@ -349,6 +490,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             return [mois, montant('CA HT', 'caHT'), montant('COÛT D\'ACHAT', 'coutAchat'),
                 montant('MARGE', 'marge'), taux('TAUX DE MARGE', 'tauxMarge'),
                 montant('CA TTC', 'caTTC'), montant('ACHATS TTC', 'achatTTC')];
+        }
+        if (cle === 'achats') {
+            /* Les colonnes de grossistes s'ajoutent au chargement : elles dependent de qui a livre. */
+            return [mois, montant('ACHATS', 'achatTTC'), montant('BONS', 'nbBons', 80)];
+        }
+        if (cle === 'caisse') {
+            return [mois, montant('CA TTC', 'caTTC'), montant('ENCAISSÉ', 'encaisse'),
+                montant('CRÉDIT', 'credit'), taux('% COMPTANT', 'partComptant'),
+                montant('TP FACTURÉ', 'partTiersPayant'), montant('TP RÉGLÉ', 'tpRegle')];
         }
         if (cle === 'ventes') {
             /* Les colonnes de modes de reglement s'ajoutent au chargement : elles dependent des modes

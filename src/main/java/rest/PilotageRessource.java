@@ -77,12 +77,34 @@ public class PilotageRessource {
         return Response.ok().entity(pilotageService.axes().toString()).build();
     }
 
+    /**
+     * Grossistes qui ont reellement livre sur la fenetre regardee.
+     *
+     * <p>
+     * La liste depend de la periode : proposer au filtre des fournisseurs qui n'ont rien livre depuis deux ans ferait
+     * chercher longtemps pour ne rien trouver.
+     */
+    @GET
+    @Path("grossistes")
+    public Response grossistes(@QueryParam("axe") String axe, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        return Response.ok().entity(pilotageService.grossistes(axe, debut, fin).toString()).build();
+    }
+
     /** PDF de l'onglet, servi EN FLUX dans l'onglet ouvert par le clic : aucune fenetre surgissante. */
     @javax.ws.rs.GET
     @Path("pdf")
     @Produces("application/pdf")
     public Response pdf(@QueryParam("onglet") String onglet, @QueryParam("axe") String axe,
-            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin) {
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
+            @QueryParam("emplacementId") String emplacementId) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -91,8 +113,10 @@ public class PilotageRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
-            return Response.ok(pilotageService.pdf(operateur, onglet, axe, debut, fin)).type("application/pdf")
-                    .header("Content-Disposition", "inline; filename=\"pilotage.pdf\"").build();
+            return Response
+                    .ok(pilotageService.pdf(operateur, onglet, axe, debut, fin,
+                            new PilotageService.Filtres(grossisteId, familleId, emplacementId)))
+                    .type("application/pdf").header("Content-Disposition", "inline; filename=\"pilotage.pdf\"").build();
         } catch (Exception e) {
             LOG.log(java.util.logging.Level.SEVERE, "pilotage : edition " + onglet, e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -104,7 +128,9 @@ public class PilotageRessource {
     @Path("excel")
     @Produces("application/vnd.ms-excel")
     public Response excel(@QueryParam("onglet") String onglet, @QueryParam("axe") String axe,
-            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin) {
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
+            @QueryParam("emplacementId") String emplacementId) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -113,7 +139,9 @@ public class PilotageRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
-            return Response.ok(pilotageService.excel(operateur, onglet, axe, debut, fin))
+            return Response
+                    .ok(pilotageService.excel(operateur, onglet, axe, debut, fin,
+                            new PilotageService.Filtres(grossisteId, familleId, emplacementId)))
                     .type("application/vnd.ms-excel")
                     .header("Content-Disposition", "attachment; filename=\"pilotage.xls\"").build();
         } catch (Exception e) {
@@ -134,7 +162,9 @@ public class PilotageRessource {
     @GET
     @Path("onglet/{onglet}")
     public Response onglet(@PathParam("onglet") String onglet, @QueryParam("axe") String axe,
-            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin) {
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("familleId") String familleId,
+            @QueryParam("emplacementId") String emplacementId) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return deconnecte();
@@ -143,7 +173,8 @@ public class PilotageRessource {
             return refus();
         }
         try {
-            return Response.ok().entity(pilotageService.donnees(operateur, onglet, axe, debut, fin).toString()).build();
+            return Response.ok().entity(pilotageService.donnees(operateur, onglet, axe, debut, fin,
+                    new PilotageService.Filtres(grossisteId, familleId, emplacementId)).toString()).build();
         } catch (Exception e) {
             LOG.log(java.util.logging.Level.SEVERE, "pilotage : onglet " + onglet, e);
             return Response.ok().entity(new JSONObject().put("success", false)

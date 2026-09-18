@@ -106,8 +106,14 @@ function caDeLaBase(debut, finExclue) {
         detail: !!e.down('#detail-synthese')
       };
     });
-    ok('Les trois onglets de cette vague sont là, la Synthèse en premier',
-      structure.onglets.join(' | ') === 'Synthèse | Ventes | Marge' && structure.actif === 'synthese',
+    /*
+     * Les onglets s'ajoutent vague apres vague, et l'ecran s'ouvre TOUJOURS sur la Synthese : c'est la vue
+     * d'ensemble, celle qu'on regarde d'abord. Le test porte donc sur les trois onglets de cette vague et sur
+     * l'onglet d'ouverture, pas sur une liste figee qui casserait a chaque ajout.
+     */
+    ok('Les onglets de cette vague sont là, et l écran s ouvre sur la Synthèse',
+      ['Synthèse', 'Ventes', 'Marge'].every((t) => structure.onglets.indexOf(t) >= 0)
+      && structure.onglets[0] === 'Synthèse' && structure.actif === 'synthese',
       JSON.stringify(structure.onglets));
     ok('Les six axes de comparaison viennent du SERVEUR, pas du JavaScript',
       structure.axes === 6, String(structure.axes));

@@ -28,12 +28,18 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #barrePeriode combobox[itemId=axe]': {select: me.surChangementAxe},
             'pilotage #barrePeriode button[itemId=actualiser]': {click: me.actualiser},
             'pilotage #barrePeriode menuitem[itemId=imprimerPdf]': {click: me.imprimer},
-            'pilotage #barrePeriode menuitem[itemId=exporterExcel]': {click: me.exporter}
+            'pilotage #barrePeriode menuitem[itemId=exporterExcel]': {click: me.exporter},
+            'pilotage #filtresAchats combobox[itemId=grossiste]': {select: me.actualiser},
+            'pilotage #filtresAchats combobox[itemId=famille]': {select: me.actualiser},
+            'pilotage #filtresAchats combobox[itemId=emplacement]': {select: me.actualiser},
+            'pilotage #filtresAchats button[itemId=reinitialiserAchats]': {click: me.reinitialiserAchats}
         });
     },
 
     surAffichage: function (ecran) {
         var me = this;
+        ecran.storeFamilles.load();
+        ecran.storeEmplacements.load();
         ecran.storeAxes.load({
             callback: function () {
                 var axe = ecran.down('#barrePeriode #axe');
@@ -53,7 +59,14 @@ Ext.define('testextjs.controller.PilotageCtr', {
     },
 
     surChangementOnglet: function () {
-        this.actualiser();
+        var me = this;
+        if (me.ongletCourant() === 'achats') {
+            /* La liste des grossistes depend de la fenetre regardee : on la recharge avec l'onglet. */
+            var ecran = me.getEcran();
+            ecran.storeGrossistes.getProxy().extraParams = me.parametres();
+            ecran.storeGrossistes.load();
+        }
+        me.actualiser();
     },
 
     /**
@@ -93,7 +106,26 @@ Ext.define('testextjs.controller.PilotageCtr', {
             var v = lire(selecteur);
             return v ? Ext.Date.format(v, 'Y-m-d') : '';
         };
-        return {axe: lire('#axe') || 'MOIS', dtStart: jour('#dtStart'), dtEnd: jour('#dtEnd')};
+        var parametres = {axe: lire('#axe') || 'MOIS', dtStart: jour('#dtStart'), dtEnd: jour('#dtEnd')};
+        /* Les filtres n'existent que dans l'onglet Achats : ailleurs ils ne sont pas envoyes. */
+        var filtres = ecran.down('#filtresAchats');
+        if (filtres) {
+            parametres.grossisteId = filtres.down('#grossiste').getValue() || '';
+            parametres.familleId = filtres.down('#famille').getValue() || '';
+            parametres.emplacementId = filtres.down('#emplacement').getValue() || '';
+        }
+        return parametres;
+    },
+
+    reinitialiserAchats: function () {
+        var ecran = this.getEcran();
+        Ext.each(['#grossiste', '#famille', '#emplacement'], function (s) {
+            var c = ecran.down('#filtresAchats ' + s);
+            if (c) {
+                c.setValue(null);
+            }
+        });
+        this.actualiser();
     },
 
     actualiser: function () {
@@ -128,6 +160,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 stores.tuiles.loadData(r.tuiles || []);
                 stores.mois.loadData(r.mois || []);
                 me.ajusterColonnesModes(cle, r.modes);
+                me.afficherAchats(cle, r);
             },
             failure: function () {
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -189,6 +222,47 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }});
         });
         grille.reconfigure(store, colonnes);
+    },
+
+    /**
+     * Onglet Achats : la répartition par grossiste, les colonnes par grossiste, et la NOTE qui dit sur quelle
+     * base le montant est calculé — en-tête des bons, ou lignes retenues quand un filtre de famille ou
+     * d'emplacement est posé. Sans cette note, l'officine croirait avoir perdu 4 % de ses achats en filtrant.
+     */
+    afficherAchats: function (cle, reponse) {
+        if (cle !== 'achats') {
+            return;
+        }
+        var ecran = this.getEcran();
+        ecran.storeRepartition.loadData(reponse.repartition || []);
+        var note = ecran.down('#filtresAchats #noteAchats');
+        if (note) {
+            note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
+        }
+        var grille = ecran.down('#detail-achats');
+        var colonnes = reponse.grossistesColonnes || [];
+        if (!grille || !colonnes.length) {
+            return;
+        }
+        var store = ecran.stores.achats.mois;
+        Ext.each(colonnes, function (g) {
+            if (!store.model.prototype.fields.get(g.cle)) {
+                store.model.prototype.fields.add(new Ext.data.Field({name: g.cle, type: 'float'}));
+            }
+        });
+        var config = ecran.colonnes('achats');
+        Ext.each(colonnes, function (g) {
+            config.push({text: g.libelle.toUpperCase(), dataIndex: g.cle, width: 130, align: 'right',
+                itemId: 'col-' + g.cle,
+                renderer: function (v) {
+                    return Ext.util.Format.number(v, '0,000.');
+                },
+                summaryType: 'sum',
+                summaryRenderer: function (v) {
+                    return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
+                }});
+        });
+        grille.reconfigure(store, config);
     },
 
     /*

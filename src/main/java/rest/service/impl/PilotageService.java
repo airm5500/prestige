@@ -51,6 +51,8 @@ public class PilotageService {
     public static final String ONGLET_SYNTHESE = "synthese";
     public static final String ONGLET_VENTES = "ventes";
     public static final String ONGLET_MARGE = "marge";
+    public static final String ONGLET_ACHATS = "achats";
+    public static final String ONGLET_CAISSE = "caisse";
 
     private static final long CACHE_TTL_MS = 5L * 60L * 1000L;
 
@@ -102,10 +104,17 @@ public class PilotageService {
      *            synthese, ventes ou marge
      */
     public JSONObject donnees(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso) {
+        return donnees(operateur, onglet, codeAxe, debutPerso, finPerso, new Filtres(null, null, null));
+    }
+
+    /** Variante avec les filtres de l'onglet Achats. */
+    public JSONObject donnees(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
+            Filtres filtres) {
         Axe axe = PilotagePeriodes.calculer(codeAxe, LocalDate.now(), OrdonnanceClientSaisie.date(debutPerso),
                 OrdonnanceClientSaisie.date(finPerso));
         String cle = (operateur == null ? "?" : operateur.getLgUSERID()) + "|" + onglet + "|" + axe.code + "|"
-                + StringUtils.defaultString(debutPerso) + "|" + StringUtils.defaultString(finPerso);
+                + StringUtils.defaultString(debutPerso) + "|" + StringUtils.defaultString(finPerso) + "|"
+                + filtres.cle();
         Entree cache = CACHE.get(cle);
         if (cache != null && cache.frais()) {
             return new JSONObject(cache.json);
@@ -118,6 +127,12 @@ public class PilotageService {
                 break;
             case ONGLET_MARGE:
                 reponse = marge(axe);
+                break;
+            case ONGLET_ACHATS:
+                reponse = achats(axe, filtres);
+                break;
+            case ONGLET_CAISSE:
+                reponse = caisse(axe);
                 break;
             default:
                 reponse = synthese(axe);
@@ -264,6 +279,203 @@ public class PilotageService {
         return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes));
     }
 
+    /* ================================================================================ onglet Achats */
+
+    /**
+     * Achats : evolution mensuelle, part de chaque grossiste, et filtres grossiste / famille / emplacement.
+     *
+     * <p>
+     * La base de calcul change avec les filtres (voir {@link PilotageSql}) : en-tete des bons sans filtre de famille ni
+     * d'emplacement, lignes retenues sinon. La reponse porte {@code base} et {@code note} pour que l'ecran le DISE -
+     * sans quoi l'officine croirait avoir perdu 4 % de ses achats en posant un filtre.
+     */
+    private JSONObject achats(Axe axe, Filtres filtres) {
+        boolean surLignes = filtres.surLignes();
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        double achatsCourant = surLignes ? sommeAchats(axe.courante, filtres) : courant.achatTTC;
+        Double achatsReference = axe.reference == null ? null
+                : (surLignes ? sommeAchats(axe.reference, filtres) : reference.achatTTC);
+
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("achats", "Achats", achatsCourant, achatsReference, "FCFA",
+                surLignes ? "montant des lignes retenues" : "montant TTC des bons clôturés"));
+        tuiles.put(tuile("nbBons", "Bons de livraison", courant.nbBons,
+                reference == null ? null : (double) reference.nbBons, "", null));
+        tuiles.put(tuile("achatMoyen", "Achat moyen par bon", courant.nbBons == 0 ? 0 : achatsCourant / courant.nbBons,
+                reference == null || reference.nbBons == 0 ? null : achatsReference / reference.nbBons, "FCFA", null));
+        tuiles.put(tuile("ratioVA", "Ratio ventes / achats", courant.ratioVA(),
+                reference == null ? null : reference.ratioVA(), "", "CA TTC rapporté aux achats TTC de la période"));
+        tuiles.put(tuile("caTTC", "Chiffre d'affaires TTC", courant.caTTC, reference == null ? null : reference.caTTC,
+                "FCFA", null));
+
+        /* Une colonne par grossiste REELLEMENT rencontre sur la fenetre, plus le total du mois. */
+        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        Map<String, String> libelles = new LinkedHashMap<>();
+        Map<String, Double> parts = new LinkedHashMap<>();
+        for (Tuple t : listeAchats(axe.graphique, filtres)) {
+            String mois = t.get("mois", String.class);
+            String grossiste = StringUtils.defaultIfBlank(t.get("grossiste", String.class), "Sans grossiste");
+            double montant = nombre(t.get("montant"));
+            libelles.put(cle(grossiste), grossiste);
+            parts.merge(cle(grossiste), montant, Double::sum);
+            JSONObject ligne = ligne(lignes, mois);
+            ligne.put("gros_" + cle(grossiste), montant);
+            ligne.put("achatTTC", ligne.optDouble("achatTTC", 0d) + montant);
+            ligne.put("nbBons", ligne.optInt("nbBons", 0) + entier(t.get("nbBons")));
+        }
+        JSONArray colonnes = new JSONArray();
+        for (Map.Entry<String, String> e : libelles.entrySet()) {
+            colonnes.put(new JSONObject().put("cle", "gros_" + e.getKey()).put("libelle", e.getValue()));
+        }
+        /* La part de chaque grossiste sur la fenetre : c'est la lecture que l'officine fait en premier. */
+        double total = parts.values().stream().mapToDouble(Double::doubleValue).sum();
+        JSONArray repartition = new JSONArray();
+        parts.entrySet().stream().sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+                .forEach(e -> repartition.put(new JSONObject().put("grossiste", libelles.get(e.getKey()))
+                        .put("montant", arrondi(e.getValue()))
+                        .put("part", total == 0 ? 0 : arrondi(e.getValue() / total * 100d))));
+
+        return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes)).put("grossistesColonnes", colonnes)
+                .put("repartition", repartition).put("base", surLignes ? "lignes" : "entete").put("note",
+                        surLignes
+                                ? "Filtre de famille ou d'emplacement actif : le montant est la somme des LIGNES "
+                                        + "retenues (prix d'achat × quantité reçue), et non le total TTC des bons."
+                                : "Montant TTC des bons de livraison clôturés, comme la tuile Achats de la synthèse.");
+    }
+
+    private List<Tuple> listeAchats(Periode periode, Filtres filtres) {
+        String sql = filtres.surLignes()
+                ? PilotageSql.achatsLignesParMois(filtres.grossisteId, filtres.familleId, filtres.emplacementId)
+                : PilotageSql.achatsParMoisEtGrossiste(filtres.grossisteId);
+        Query q = em.createNativeQuery(sql, Tuple.class);
+        bornes(q, sql, periode);
+        lierFiltres(q, sql, filtres);
+        return q.getResultList();
+    }
+
+    private double sommeAchats(Periode periode, Filtres filtres) {
+        double total = 0;
+        for (Tuple t : listeAchats(periode, filtres)) {
+            total += nombre(t.get("montant"));
+        }
+        return total;
+    }
+
+    /** Grossistes qui ont reellement livre sur la fenetre : le filtre ne propose pas des fournisseurs muets. */
+    public JSONObject grossistes(String codeAxe, String debutPerso, String finPerso) {
+        Axe axe = PilotagePeriodes.calculer(codeAxe, LocalDate.now(), OrdonnanceClientSaisie.date(debutPerso),
+                OrdonnanceClientSaisie.date(finPerso));
+        JSONArray data = new JSONArray();
+        try {
+            String sql = PilotageSql.grossistesDeLaPeriode();
+            Query q = em.createNativeQuery(sql, Tuple.class);
+            bornes(q, sql, axe.graphique);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                data.put(new JSONObject().put("id", t.get("id", String.class)).put("libelle",
+                        StringUtils.trimToEmpty(t.get("libelle", String.class))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : liste des grossistes", e);
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    /* ==================================================================== onglet Caisse & tiers-payant */
+
+    /**
+     * Caisse et tiers payant : ce qui est entre dans la caisse, ce qui reste porte par les organismes.
+     *
+     * <p>
+     * Le CREDIT du mois est le chiffre d'affaires moins l'encaisse : ce qui n'a pas ete paye au comptoir, quelle qu'en
+     * soit la raison. Le tiers payant facture et le tiers payant regle sont donnes a cote, parce qu'ils ne decrivent
+     * pas la meme chose - l'un est une creance qui nait, l'autre un virement qui arrive, et ils ne tombent pas le meme
+     * mois.
+     */
+    private JSONObject caisse(Axe axe) {
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        double encaisseCourant = valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse");
+        Double encaisseReference = axe.reference == null ? null
+                : valeur(axe.reference, PilotageSql.totalEncaisse(), "encaisse");
+        double regleCourant = valeur(axe.courante, PilotageSql.totalTiersPayantRegle(), "regle");
+        Double regleReference = axe.reference == null ? null
+                : valeur(axe.reference, PilotageSql.totalTiersPayantRegle(), "regle");
+        double creditCourant = courant.caTTC - encaisseCourant;
+
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("encaisse", "Encaissé au comptoir", encaisseCourant, encaisseReference, "FCFA",
+                courant.caTTC == 0 ? null : pourcent(encaisseCourant / courant.caTTC * 100d) + " du CA"));
+        tuiles.put(tuile("credit", "Porté à crédit", creditCourant,
+                reference == null || encaisseReference == null ? null : reference.caTTC - encaisseReference, "FCFA",
+                courant.caTTC == 0 ? null : pourcent(creditCourant / courant.caTTC * 100d) + " du CA"));
+        tuiles.put(tuile("tpFacture", "Tiers payant facturé", courant.partTiersPayant,
+                reference == null ? null : reference.partTiersPayant, "FCFA",
+                "part non payée au comptoir sur les ventes de la période"));
+        tuiles.put(tuile("tpRegle", "Tiers payant réglé", regleCourant, regleReference, "FCFA",
+                "versements des organismes reçus sur la période"));
+        tuiles.put(tuile("caTTC", "Chiffre d'affaires TTC", courant.caTTC, reference == null ? null : reference.caTTC,
+                "FCFA", null));
+
+        Map<String, JSONObject> lignes = new LinkedHashMap<>();
+        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC"))).put("partTiersPayant",
+                    nombre(t.get("partTiersPayant")));
+        }
+        for (Tuple t : liste(PilotageSql.encaisseParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("encaisse", nombre(t.get("encaisse")));
+        }
+        for (Tuple t : liste(PilotageSql.tiersPayantRegleParMois(), axe.graphique)) {
+            ligne(lignes, t.get("mois", String.class)).put("tpRegle", nombre(t.get("regle")));
+        }
+        /* Le credit et les parts se deduisent des deux precedents : aucune quatrieme requete. */
+        JSONArray mois = finaliser(lignes);
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject m = mois.getJSONObject(i);
+            double ca = m.optDouble("caTTC", 0d);
+            double encaisse = m.optDouble("encaisse", 0d);
+            m.put("credit", arrondi(ca - encaisse));
+            m.put("partComptant", ca == 0 ? 0 : arrondi(encaisse / ca * 100d));
+            m.put("partCredit", ca == 0 ? 0 : arrondi((ca - encaisse) / ca * 100d));
+        }
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois);
+    }
+
+    /** Une valeur unique lue sur une periode (les requetes de totaux ne rendent qu'une ligne). */
+    private double valeur(Periode periode, String sql, String colonne) {
+        for (Tuple t : liste(sql, periode)) {
+            return nombre(t.get(colonne));
+        }
+        return 0d;
+    }
+
+    /** Filtres de l'onglet Achats. */
+    public static final class Filtres {
+
+        public final String grossisteId;
+        public final String familleId;
+        public final String emplacementId;
+
+        public Filtres(String grossisteId, String familleId, String emplacementId) {
+            this.grossisteId = StringUtils.trimToNull(grossisteId);
+            this.familleId = StringUtils.trimToNull(familleId);
+            this.emplacementId = StringUtils.trimToNull(emplacementId);
+        }
+
+        /**
+         * Vrai des qu'un filtre de famille ou d'emplacement est pose : l'en-tete du bon ne peut plus servir, il porte
+         * le bon entier.
+         */
+        boolean surLignes() {
+            return familleId != null || emplacementId != null;
+        }
+
+        String cle() {
+            return StringUtils.defaultString(grossisteId) + "/" + StringUtils.defaultString(familleId) + "/"
+                    + StringUtils.defaultString(emplacementId);
+        }
+    }
+
     /*
      * EDITIONS
      *
@@ -277,9 +489,27 @@ public class PilotageService {
     public static final String MODELE = "pilotage_mensuel";
 
     /** Colonnes imprimees et exportees pour un onglet, dans l'ordre de l'ecran. */
-    static List<String[]> colonnes(String onglet, JSONArray modes) {
+    static List<String[]> colonnes(String onglet, JSONObject donnees) {
         List<String[]> colonnes = new ArrayList<>();
+        JSONArray modes = donnees == null ? null : donnees.optJSONArray("modes");
+        JSONArray grossistes = donnees == null ? null : donnees.optJSONArray("grossistesColonnes");
         switch (StringUtils.defaultString(onglet)) {
+        case ONGLET_ACHATS:
+            colonnes.add(new String[] { "achatTTC", "ACHATS" });
+            colonnes.add(new String[] { "nbBons", "BONS" });
+            for (int i = 0; grossistes != null && i < grossistes.length(); i++) {
+                JSONObject g = grossistes.getJSONObject(i);
+                colonnes.add(new String[] { g.getString("cle"), g.getString("libelle").toUpperCase() });
+            }
+            break;
+        case ONGLET_CAISSE:
+            colonnes.add(new String[] { "caTTC", "CA TTC" });
+            colonnes.add(new String[] { "encaisse", "ENCAISSÉ" });
+            colonnes.add(new String[] { "credit", "CRÉDIT" });
+            colonnes.add(new String[] { "partComptant", "% COMPTANT" });
+            colonnes.add(new String[] { "partTiersPayant", "TP FACTURÉ" });
+            colonnes.add(new String[] { "tpRegle", "TP RÉGLÉ" });
+            break;
         case ONGLET_MARGE:
             colonnes.add(new String[] { "caHT", "CA HT" });
             colonnes.add(new String[] { "coutAchat", "COÛT D'ACHAT" });
@@ -318,6 +548,10 @@ public class PilotageService {
             return "PILOTAGE - MARGE";
         case ONGLET_VENTES:
             return "PILOTAGE - VENTES";
+        case ONGLET_ACHATS:
+            return "PILOTAGE - ACHATS";
+        case ONGLET_CAISSE:
+            return "PILOTAGE - CAISSE ET TIERS-PAYANT";
         default:
             return "PILOTAGE - SYNTHÈSE";
         }
@@ -362,10 +596,10 @@ public class PilotageService {
     }
 
     /** PDF de l'onglet, rendu en memoire : servi en flux dans l'onglet ouvert par le clic. */
-    public byte[] pdf(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso)
-            throws net.sf.jasperreports.engine.JRException {
-        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso);
-        List<String[]> colonnes = colonnes(onglet, donnees.optJSONArray("modes"));
+    public byte[] pdf(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
+            Filtres filtres) throws net.sf.jasperreports.engine.JRException {
+        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres);
+        List<String[]> colonnes = colonnes(onglet, donnees);
         JSONArray mois = donnees.optJSONArray("mois");
         List<LignePilotage> lignes = new ArrayList<>();
         for (int i = 0; mois != null && i < mois.length(); i++) {
@@ -412,10 +646,10 @@ public class PilotageService {
      * L'export n'a pas la limite de sept colonnes de la page A4 : tous les modes de reglement y figurent, meme quand
      * l'officine en encaisse une douzaine.
      */
-    public byte[] excel(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso)
-            throws java.io.IOException {
-        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso);
-        List<String[]> colonnes = colonnes(onglet, donnees.optJSONArray("modes"));
+    public byte[] excel(TUser operateur, String onglet, String codeAxe, String debutPerso, String finPerso,
+            Filtres filtres) throws java.io.IOException {
+        JSONObject donnees = donnees(operateur, onglet, codeAxe, debutPerso, finPerso, filtres);
+        List<String[]> colonnes = colonnes(onglet, donnees);
         String[] entetes = new String[colonnes.size() + 1];
         entetes[0] = "MOIS";
         for (int c = 0; c < colonnes.size(); c++) {
@@ -542,12 +776,35 @@ public class PilotageService {
     @SuppressWarnings("unchecked")
     private List<Tuple> liste(String sql, Periode periode) {
         Query q = em.createNativeQuery(sql, Tuple.class);
+        bornes(q, sql, periode);
+        return q.getResultList();
+    }
+
+    /**
+     * Pose les bornes de la periode, et le type de vente exclu quand la requete en parle.
+     *
+     * <p>
+     * Le parametre n'est lie que si la requete le contient : en lier un de trop leverait une erreur a l'execution, et
+     * toutes les requetes de cet ecran ne parlent pas des ventes.
+     */
+    private static void bornes(Query q, String sql, Periode periode) {
         q.setParameter("debut", java.sql.Timestamp.valueOf(periode.debut.atStartOfDay()));
         q.setParameter("fin", java.sql.Timestamp.valueOf(periode.fin.atStartOfDay()));
         if (sql.contains(":typeExclu")) {
             q.setParameter("typeExclu", PilotageSql.TYPE_VENTE_EXCLU);
         }
-        return q.getResultList();
+    }
+
+    private static void lierFiltres(Query q, String sql, Filtres filtres) {
+        if (sql.contains(":grossiste")) {
+            q.setParameter("grossiste", filtres.grossisteId);
+        }
+        if (sql.contains(":famille")) {
+            q.setParameter("famille", filtres.familleId);
+        }
+        if (sql.contains(":emplacement")) {
+            q.setParameter("emplacement", filtres.emplacementId);
+        }
     }
 
     /**
