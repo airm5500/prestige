@@ -1605,3 +1605,70 @@ body.x-body,
     color: #7a7a7a !important;
     font-style: italic;
 }
+
+/* =====================================================================================
+ * MENU DE PILOTAGE (evolution 6, point 1).
+ *
+ * Habillage CLAIR, celui du logiciel : un ecran sombre au milieu de Prestige ferait tache
+ * et fatiguerait a la lecture d'un tableau de chiffres. La structure, elle, est celle de
+ * la maquette : des tuiles, leur variation, puis la courbe et le detail.
+ * ===================================================================================== */
+.pilotage-tuiles {
+    background: transparent;
+}
+.pilotage-tuile {
+    display: inline-block;
+    vertical-align: top;
+    width: 200px;
+    min-height: 74px;
+    margin: 4px 8px 4px 0;
+    padding: 8px 10px;
+    border: 1px solid #d4dde6;
+    border-radius: 4px;
+    background: #ffffff;
+}
+.pilotage-tuile-libelle {
+    font-size: 10px;
+    font-weight: 700;
+    color: #6b7b8c;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.pilotage-tuile-valeur {
+    font-size: 21px;
+    font-weight: 700;
+    color: #1f3b57;
+    margin-top: 2px;
+}
+/* La variation, la seule couleur de l'ecran : verte a la hausse, rouge a la baisse. */
+.pilotage-tuile-variation {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+.pilotage-tuile-variation.hausse {
+    color: #1e7a3c;
+}
+.pilotage-tuile-variation.baisse {
+    color: #c0392b;
+}
+.pilotage-tuile-ecart {
+    font-weight: 400;
+    color: #6b7b8c;
+}
+.pilotage-tuile-sous {
+    font-size: 10px;
+    color: #6b7b8c;
+    margin-top: 3px;
+}
+.pilotage-vide {
+    padding: 24px;
+    color: #6b7b8c;
+    font-style: italic;
+}
+/* Le mois en cours est incomplet : il se lit en italique pour qu'on ne le compare pas
+   naivement aux mois pleins qui le precedent. */
+.pilotage-mois-encours .x-grid-cell-inner {
+    font-style: italic;
+    color: #55677a;
+}

@@ -863,6 +863,7 @@ Ext.application({
         'PointCaisseController',
         'DepotExtensionCtr',
         'OrdonnanceClientCtr',
+        'PilotageCtr',
         'ArticleMvtController',
         'SupportContactCtr',
         'SupportTicketsCtr',

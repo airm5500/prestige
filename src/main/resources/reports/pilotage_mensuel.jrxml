@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Detail mensuel du menu de pilotage (evolution 6, point 1). Modele EMBARQUE dans l'application.
+
+  UN SEUL modele pour tous les onglets, aux COLONNES PARAMETRABLES : les en-tetes arrivent en parametres
+  (P_C1..P_C7) et une colonne dont l'en-tete est vide ne s'imprime pas. C'est ce qui permet d'imprimer
+  l'onglet Ventes avec ses modes de reglement - qui dependent de ce que l'officine encaisse reellement - sans
+  ecrire un modele par onglet, ni surtout un modele par combinaison de modes.
+
+  Sept colonnes : au-dela, une page A4 paysage ne se lit plus. L'export Excel, lui, n'a pas cette limite.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="pilotage_mensuel" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <style name="ligne" fontSize="8">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+            <style mode="Opaque" backcolor="#F5F8FB"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+    <parameter name="P_TITRE" class="java.lang.String"/>
+    <parameter name="P_CRITERES" class="java.lang.String"/>
+    <parameter name="P_TUILES" class="java.lang.String"/>
+    <parameter name="P_C1" class="java.lang.String"/>
+    <parameter name="P_C2" class="java.lang.String"/>
+    <parameter name="P_C3" class="java.lang.String"/>
+    <parameter name="P_C4" class="java.lang.String"/>
+    <parameter name="P_C5" class="java.lang.String"/>
+    <parameter name="P_C6" class="java.lang.String"/>
+    <parameter name="P_C7" class="java.lang.String"/>
+    <field name="libelle" class="java.lang.String"/>
+    <field name="v1" class="java.lang.Double"/>
+    <field name="v2" class="java.lang.Double"/>
+    <field name="v3" class="java.lang.Double"/>
+    <field name="v4" class="java.lang.Double"/>
+    <field name="v5" class="java.lang.Double"/>
+    <field name="v6" class="java.lang.Double"/>
+    <field name="v7" class="java.lang.Double"/>
+    <variable name="t1" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v1}]]></variableExpression></variable>
+    <variable name="t2" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v2}]]></variableExpression></variable>
+    <variable name="t3" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v3}]]></variableExpression></variable>
+    <variable name="t4" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v4}]]></variableExpression></variable>
+    <variable name="t5" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v5}]]></variableExpression></variable>
+    <variable name="t6" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v6}]]></variableExpression></variable>
+    <variable name="t7" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v7}]]></variableExpression></variable>
+    <title>
+        <band height="112">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="14" width="802" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="25" width="802" height="11"/>
+                <textElement textAlignment="Center"><font size="7.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_AUTRE_DESC}]]></textFieldExpression>
+            </textField>
+            <frame>
+                <reportElement mode="Opaque" x="0" y="40" width="802" height="16" backcolor="#2E75B6"/>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="6" y="0" width="790" height="16" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TITRE}]]></textFieldExpression>
+                </textField>
+            </frame>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="58" width="802" height="22"/>
+                <textElement textAlignment="Center"><font size="7.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_CRITERES}]]></textFieldExpression>
+            </textField>
+            <!-- Les tuiles de l'ecran, imprimees en clair : le detail mensuel sans les totaux de la periode
+                 obligerait le lecteur a refaire l'addition pour retrouver ce qu'il avait sous les yeux. -->
+            <frame>
+                <reportElement mode="Opaque" x="0" y="82" width="802" height="26" backcolor="#F2F5F8"/>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="6" y="2" width="790" height="22"/>
+                    <textElement><font size="8"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_TUILES}]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="15">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="14" backcolor="#E4EAF0"/>
+                <staticText><reportElement x="4" y="0" width="130" height="14"/>
+                    <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[MOIS]]></text></staticText>
+                <textField isBlankWhenNull="true"><reportElement x="134" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C1} != null && $P{P_C1}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C1}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="228" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C2} != null && $P{P_C2}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C2}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="322" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C3} != null && $P{P_C3}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C3}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="416" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C4} != null && $P{P_C4}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C4}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="510" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C5} != null && $P{P_C5}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C5}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="604" y="0" width="94" height="14"><printWhenExpression><![CDATA[$P{P_C6} != null && $P{P_C6}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C6}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="698" y="0" width="100" height="14"><printWhenExpression><![CDATA[$P{P_C7} != null && $P{P_C7}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$P{P_C7}]]></textFieldExpression></textField>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="13">
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="4" y="0" width="130" height="13"/>
+                <textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="134" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C1} != null && $P{P_C1}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v1}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="228" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C2} != null && $P{P_C2}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v2}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="322" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C3} != null && $P{P_C3}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v3}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="416" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C4} != null && $P{P_C4}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v4}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="510" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C5} != null && $P{P_C5}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v5}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="604" y="0" width="94" height="13"><printWhenExpression><![CDATA[$P{P_C6} != null && $P{P_C6}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v6}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement style="ligne" x="698" y="0" width="100" height="13"><printWhenExpression><![CDATA[$P{P_C7} != null && $P{P_C7}.length() > 0]]></printWhenExpression></reportElement>
+                <textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{v7}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="0" y="2" width="700" height="11"/>
+                <textElement><font size="6.5" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY}) + " - mois du plus ancien au plus récent"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="700" y="2" width="62" height="11"/>
+                <textElement textAlignment="Right"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="762" y="2" width="40" height="11"/>
+                <textElement textAlignment="Left"><font size="6.5" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[String.valueOf($V{PAGE_NUMBER})]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="34">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="3" width="802" height="15" backcolor="#E4EAF0"/>
+                <textField>
+                    <reportElement x="4" y="0" width="130" height="15"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA["TOTAL (" + $V{REPORT_COUNT} + " mois)"]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="134" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C1} != null && $P{P_C1}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t1}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="228" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C2} != null && $P{P_C2}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t2}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="322" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C3} != null && $P{P_C3}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t3}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="416" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C4} != null && $P{P_C4}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t4}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="510" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C5} != null && $P{P_C5}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t5}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="604" y="0" width="94" height="15"><printWhenExpression><![CDATA[$P{P_C6} != null && $P{P_C6}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t6}]]></textFieldExpression></textField>
+                <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="698" y="0" width="100" height="15"><printWhenExpression><![CDATA[$P{P_C7} != null && $P{P_C7}.length() > 0]]></printWhenExpression></reportElement>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t7}]]></textFieldExpression></textField>
+            </frame>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="20" width="802" height="11"/>
+                <textElement><font size="6.5"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

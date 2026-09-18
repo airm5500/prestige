@@ -192,6 +192,8 @@ public final class DateConverter {
      * ne sont pas le meme geste. Une preparatrice peut avoir besoin de relire une posologie sans pouvoir recrire le
      * document.
      */
+    /** Menu de pilotage (evolution 6, point 1) : il donne a lire l'activite et les marges de l'officine. */
+    public static final String P_SM_PILOTAGE = "P_SM_PILOTAGE";
     public static final String P_ORDONNANCE_CLIENT = "P_ORDONNANCE_CLIENT";
     public static final String P_ORDONNANCE_CLIENT_MAJ = "P_ORDONNANCE_CLIENT_MAJ";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
