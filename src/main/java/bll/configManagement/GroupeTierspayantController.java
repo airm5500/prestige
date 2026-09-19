@@ -3235,8 +3235,16 @@ public class GroupeTierspayantController implements Serializable {
         return jsono;
     }
 
+    /**
+     * Credits accordes, groupes par tiers payant.
+     *
+     * <p>
+     * Le perimetre est celui de l'EMPLACEMENT de l'operateur, sauf s'il a le privilege « voir toutes les activites » -
+     * la regle deja appliquee par l'etat des ventes annulees et par la balance. Une officine qui saisit des ventes de
+     * depot sous d'autres emplacements ne doit pas voir disparaitre ces credits de son recapitulatif.
+     */
     public JSONArray creditsAccorde(boolean all, String dt_start, String dt_end, String search, String empl, int start,
-            int limit) {
+            int limit, boolean toutesActivites) {
         EntityManager em = this.getEntityManager();
 
         JSONArray array = new JSONArray();
@@ -3262,9 +3270,11 @@ public class GroupeTierspayantController implements Serializable {
                                 pt.get("lgTIERSPAYANTID").get("lgTYPETIERSPAYANTID").get("strLIBELLETYPETIERSPAYANT"),
                                 search + "%")));
             }
-            criteria = cb.and(criteria, cb.equal(
-                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
-                    empl));
+            if (!toutesActivites) {
+                criteria = cb.and(criteria, cb.equal(
+                        root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                        empl));
+            }
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.bISCANCEL), false));
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.strTYPEVENTE), "VO"));
             Predicate pu = cb.greaterThan(or.get(TPreenregistrement_.intPRICE), 0);
@@ -3273,11 +3283,22 @@ public class GroupeTierspayantController implements Serializable {
             // criteria = cb.and(criteria,
             // cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "4"));
             Predicate pu2 = cb.greaterThan(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE), 0);
+            /*
+             * LE GROUPEMENT PORTE TOUTES LES COLONNES NON AGREGEES.
+             *
+             * Le type de tiers payant etait selectionne sans etre groupe. Tant que la base tolere cette ecriture, elle
+             * rend une valeur au hasard parmi celles du groupe ; des que le mode ONLY_FULL_GROUP_BY est actif - c'est
+             * le defaut de MySQL 5.7 et suivants, et une configuration frequente de MariaDB - elle REFUSE la requete
+             * (erreur 1055). L'exception etait alors attrapee plus bas et la methode rendait une liste vide :
+             * l'officine voyait un tableau sans une seule ligne, alors que le pied de page, lui, affichait 3 002 bons
+             * et 25 262 115 F - ces totaux-la sont calcules par une autre requete, sans groupement (defaut du 19/09).
+             */
             cq.multiselect(cb.sumAsLong(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE)),
                     cb.countDistinct(root), pt.get("lgTIERSPAYANTID").get("strNAME"),
                     pt.get("lgTIERSPAYANTID").get("lgTYPETIERSPAYANTID").get("strLIBELLETYPETIERSPAYANT"),
                     cb.countDistinct(pt.get("lgCOMPTECLIENTID").get("lgCLIENTID")))
-                    .groupBy(pt.get("lgTIERSPAYANTID").get("strNAME"));
+                    .groupBy(pt.get("lgTIERSPAYANTID").get("strNAME"),
+                            pt.get("lgTIERSPAYANTID").get("lgTYPETIERSPAYANTID").get("strLIBELLETYPETIERSPAYANT"));
             cq.where(btw, criteria, pu2, pu);
 
             Query q = em.createQuery(cq);
@@ -3305,14 +3326,19 @@ public class GroupeTierspayantController implements Serializable {
             });
 
         } catch (Exception e) {
-            e.printStackTrace();
-
+            /*
+             * Une liste vide rendue sans un mot est ce qui a fait perdre le plus de temps sur ce defaut : l'ecran
+             * affichait un tableau vide, et rien nulle part ne disait pourquoi. L'erreur part desormais au journal.
+             */
+            Logger.getLogger(GroupeTierspayantController.class.getName()).log(Level.SEVERE,
+                    "credits accordes : la requete a echoue", e);
         }
 
         return array;
     }
 
-    public int creditsAccorde(String dt_start, String dt_end, String search, String empl) {
+    /** Nombre de lignes de la grille des credits accordes, sur le meme perimetre qu'elle. */
+    public int creditsAccorde(String dt_start, String dt_end, String search, String empl, boolean toutesActivites) {
         EntityManager em = this.getEntityManager();
         try {
 
@@ -3336,9 +3362,11 @@ public class GroupeTierspayantController implements Serializable {
                                 pt.get("lgTIERSPAYANTID").get("lgTYPETIERSPAYANTID").get("strLIBELLETYPETIERSPAYANT"),
                                 search + "%")));
             }
-            criteria = cb.and(criteria, cb.equal(
-                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
-                    empl));
+            if (!toutesActivites) {
+                criteria = cb.and(criteria, cb.equal(
+                        root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                        empl));
+            }
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.bISCANCEL), false));
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.strTYPEVENTE), "VO"));
             Predicate pu = cb.greaterThan(or.get(TPreenregistrement_.intPRICE), 0);
@@ -3362,7 +3390,9 @@ public class GroupeTierspayantController implements Serializable {
 
     }
 
-    public JSONArray creditsAccordeTotax(String dt_start, String dt_end, String search, String empl) {
+    /** Totaux du pied de page : MEME perimetre que la grille, sans quoi les deux ne parlent pas de la meme chose. */
+    public JSONArray creditsAccordeTotax(String dt_start, String dt_end, String search, String empl,
+            boolean toutesActivites) {
         EntityManager em = this.getEntityManager();
 
         JSONArray array = new JSONArray();
@@ -3388,9 +3418,11 @@ public class GroupeTierspayantController implements Serializable {
                                 pt.get("lgTIERSPAYANTID").get("lgTYPETIERSPAYANTID").get("strLIBELLETYPETIERSPAYANT"),
                                 search + "%")));
             }
-            criteria = cb.and(criteria, cb.equal(
-                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
-                    empl));
+            if (!toutesActivites) {
+                criteria = cb.and(criteria, cb.equal(
+                        root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                        empl));
+            }
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.bISCANCEL), false));
             criteria = cb.and(criteria, cb.equal(or.get(TPreenregistrement_.strTYPEVENTE), "VO"));
             Predicate pu = cb.greaterThan(or.get(TPreenregistrement_.intPRICE), 0);

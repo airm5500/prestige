@@ -63,9 +63,17 @@
         limit = 50;
     }
     String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+    // Perimetre : l'emplacement de l'operateur, SAUF s'il a le privilege « voir toutes les activites ». C'est la
+    // regle deja appliquee par l'etat des ventes annulees et par la balance ; une officine qui saisit des ventes de
+    // depot sous d'autres emplacements ne doit pas voir ces credits disparaitre de son recapitulatif.
+    java.util.List<dal.TPrivilege> lstPrivileges =
+            (java.util.List<dal.TPrivilege>) session.getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+    boolean toutesActivites = lstPrivileges != null
+            && util.DateConverter.hasAuthorityByName(lstPrivileges, util.Constant.P_SHOW_ALL_ACTIVITY);
 
-    JSONArray arrayObj = groupeCtl.creditsAccorde(false, dt_start, dt_end, search_value, empl, start, limit);
-    int count = groupeCtl.creditsAccorde(dt_start, dt_end, search_value, empl);
+    JSONArray arrayObj = groupeCtl.creditsAccorde(false, dt_start, dt_end, search_value, empl, start, limit,
+            toutesActivites);
+    int count = groupeCtl.creditsAccorde(dt_start, dt_end, search_value, empl, toutesActivites);
     JSONObject data = new JSONObject();
 
     data.put("data", arrayObj);

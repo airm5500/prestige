@@ -386,6 +386,38 @@ public final class PilotageSql {
                 + ANNULATIONS_OU + " GROUP BY mois ORDER BY mois ASC";
     }
 
+    /**
+     * CONTROLE D'INTEGRITE des agregats : le nombre de ventes et le chiffre d'affaires de chaque mois, en une seule
+     * lecture.
+     *
+     * <p>
+     * Un mois clos ne change plus... tant que personne n'y touche. Or l'officine corrige : une vente annulee apres
+     * coup, un bon d'assurance saisi en retard, une vente d'un jour passe modifiee. Un agregat calcule la veille serait
+     * alors faux, et rien ne le dirait.
+     *
+     * <p>
+     * Cette requete est le garde-fou : elle rend, pour chaque mois de la fenetre, ce que la base dit AUJOURD'HUI. Le
+     * service la compare aux agregats enregistres et ne recalcule que les mois qui ont bouge. Une seule lecture
+     * agregee, sur l'index de dates - la ou le calcul complet d'un mois en demande huit.
+     *
+     * <p>
+     * Ce qu'elle voit : une vente ajoutee, supprimee, annulee, ou dont le montant a change. Ce qu'elle ne voit pas :
+     * une correction qui ne touche ni le nombre de ventes ni le chiffre d'affaires - un mode de reglement change, par
+     * exemple. Pour celles-la, il reste la reprise quotidienne des deux derniers mois clos et le bouton « Recalculer ».
+     */
+    public static String empreinteParMois() {
+        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois, COUNT(*) AS nbVentes,"
+                + " SUM(p.int_PRICE - COALESCE(p.int_PRICE_REMISE, 0)) AS caTTC" + " FROM t_preenregistrement p"
+                + " WHERE" + VENTES_OU + " GROUP BY mois ORDER BY mois ASC";
+    }
+
+    /** Meme controle, mais journee par journee : c'est ainsi que le mois en cours est verifie. */
+    public static String empreinteParJour() {
+        return "SELECT DATE(p.dt_UPDATED) AS jour, COUNT(*) AS nbVentes,"
+                + " SUM(p.int_PRICE - COALESCE(p.int_PRICE_REMISE, 0)) AS caTTC" + " FROM t_preenregistrement p"
+                + " WHERE" + VENTES_OU + " GROUP BY jour ORDER BY jour ASC";
+    }
+
     public static String totalAnnulations() {
         return "SELECT COUNT(*) AS nbAnnulees, COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule"
                 + " FROM t_preenregistrement p" + " WHERE" + ANNULATIONS_OU;

@@ -50,7 +50,12 @@
     
     String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
-    JSONArray arrayObj = groupeCtl.creditsAccordeTotax( dt_start, dt_end, search_value, empl);
+    // Le pied de page doit parler du MEME perimetre que la grille au-dessus, sans quoi les deux se contredisent.
+    java.util.List<dal.TPrivilege> lstPrivileges =
+            (java.util.List<dal.TPrivilege>) session.getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+    boolean toutesActivites = lstPrivileges != null
+            && util.DateConverter.hasAuthorityByName(lstPrivileges, util.Constant.P_SHOW_ALL_ACTIVITY);
+    JSONArray arrayObj = groupeCtl.creditsAccordeTotax(dt_start, dt_end, search_value, empl, toutesActivites);
     
     JSONObject data = new JSONObject();
 

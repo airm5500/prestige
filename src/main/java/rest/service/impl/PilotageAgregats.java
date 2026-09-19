@@ -70,6 +70,37 @@ public class PilotageAgregats {
     /** Nombre de mois clos recents qui restent sous surveillance quotidienne. */
     private static final int MOIS_CLOS_SURVEILLES = 2;
 
+    /**
+     * Duree pendant laquelle le controle d'integrite d'une fenetre n'est pas refait.
+     *
+     * <p>
+     * Un affichage d'onglet demande les agregats plusieurs fois - la periode regardee, celle a laquelle on la compare,
+     * la fenetre du graphique, la meme decalee. Sans cette memoire, le controle serait relance a chaque fois pour
+     * rendre la meme reponse.
+     */
+    /*
+     * Elle est volontairement COURTE : quelques secondes couvrent un affichage, pas davantage. Reglee a une minute,
+     * elle empechait de voir une correction faite dans la foulee - le controle e2e l'a prise en defaut, et c'etait bien
+     * le defaut : un garde-fou contre les calculs inutiles ne doit jamais retarder la verite.
+     */
+    private static final long MEMOIRE_CONTROLE_MS = 5L * 1000L;
+
+    /** Fenetres deja controlees et l'instant du controle : partagees par tous les operateurs. */
+    private static final Map<String, Long> CONTROLES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * UN SEUL rattrapage en tache de fond a la fois.
+     *
+     * <p>
+     * Le journal de l'officine du 19/09 signale des blocages « pool de connexions JDBC vide ». Plusieurs onglets
+     * ouverts coup sur coup lanceraient autant de rattrapages simultanes, chacun prenant sa connexion : c'est
+     * exactement ce qu'il ne faut pas faire a un serveur deja charge. Les rattrapages se font donc l'un apres l'autre,
+     * et un rattrapage demande pendant qu'un autre tourne est simplement ignore - il sera redemande a la prochaine
+     * ouverture.
+     */
+    private static final java.util.concurrent.atomic.AtomicBoolean RATTRAPAGE_EN_COURS = new java.util.concurrent.atomic.AtomicBoolean(
+            false);
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -113,13 +144,20 @@ public class PilotageAgregats {
      */
     public Map<String, Agregat> agregats(List<String> mois) {
         Map<String, Agregat> connus = lire(mois);
+        /*
+         * CE QUI A BOUGE DEPUIS LE DERNIER CALCUL. Un mois clos ne change plus - tant que personne n'y touche. Or
+         * l'officine corrige : une vente annulee apres coup, un bon d'assurance saisi en retard, une vente d'un jour
+         * passe modifiee. Une seule lecture agregee dit ce que la base compte AUJOURD'HUI pour chaque mois ; les mois
+         * qui ne correspondent plus a leur agregat sont repris, les autres sont lus tels quels.
+         */
+        java.util.Set<String> aRevoirIntegrite = moisDivergents(mois, connus);
         List<String> aCalculer = new ArrayList<>();
         String moisCourant = YearMonth.now().toString();
         String plusVieuxSurveille = YearMonth.now().minusMonths(MOIS_CLOS_SURVEILLES).toString();
         List<String> aRevoir = new ArrayList<>();
         for (String m : mois) {
             Agregat a = connus.get(m);
-            if (a == null) {
+            if (a == null || aRevoirIntegrite.contains(m)) {
                 aCalculer.add(m);
             } else if (m.equals(moisCourant)) {
                 /*
@@ -168,6 +206,57 @@ public class PilotageAgregats {
             moiMeme.completerEnFond(restants);
         }
         return connus;
+    }
+
+    /**
+     * Les mois dont l'agregat ne correspond plus a ce que dit la base.
+     *
+     * <p>
+     * Le controle porte sur le NOMBRE DE VENTES et le CHIFFRE D'AFFAIRES : c'est ce qui bouge quand une vente est
+     * ajoutee, supprimee, annulee ou corrigee. Une difference d'un franc suffit a declencher le recalcul - mieux vaut
+     * un calcul de trop qu'un chiffre faux affiche comme s'il etait juste.
+     *
+     * <p>
+     * Ce controle ne voit pas une correction qui ne touche ni le nombre ni le chiffre d'affaires (un mode de reglement
+     * change, par exemple). Pour celles-la, il reste la reprise quotidienne des deux derniers mois clos et le bouton «
+     * Recalculer ».
+     */
+    private java.util.Set<String> moisDivergents(List<String> mois, Map<String, Agregat> connus) {
+        java.util.Set<String> divergents = new java.util.LinkedHashSet<>();
+        if (mois == null || mois.isEmpty() || connus.isEmpty()) {
+            return divergents;
+        }
+        String cle = mois.get(0) + '|' + mois.get(mois.size() - 1);
+        Long dernier = CONTROLES.get(cle);
+        if (dernier != null && System.currentTimeMillis() - dernier < MEMOIRE_CONTROLE_MS) {
+            return divergents;
+        }
+        CONTROLES.put(cle, System.currentTimeMillis());
+        try {
+            LocalDate debut = LocalDate.parse(mois.get(0) + "-01");
+            LocalDate fin = LocalDate.parse(mois.get(mois.size() - 1) + "-01").plusMonths(1);
+            Map<String, double[]> base = new LinkedHashMap<>();
+            for (Tuple t : lire(PilotageSql.empreinteParMois(), debut, fin)) {
+                base.put(t.get("mois", String.class),
+                        new double[] { entier(t.get("nbVentes")), nombre(t.get("caTTC")) });
+            }
+            for (Map.Entry<String, Agregat> entree : connus.entrySet()) {
+                double[] reel = base.get(entree.getKey());
+                Agregat a = entree.getValue();
+                double ventes = reel == null ? 0 : reel[0];
+                double caTTC = reel == null ? 0 : reel[1];
+                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d) {
+                    divergents.add(entree.getKey());
+                }
+            }
+            if (!divergents.isEmpty()) {
+                LOG.log(Level.INFO, "Pilotage : {0} mois ont change depuis leur calcul et sont repris : {1}",
+                        new Object[] { divergents.size(), divergents });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "pilotage : controle d'integrite des agregats", e);
+        }
+        return divergents;
     }
 
     /** Les mois deja calcules, parmi ceux demandes. */
@@ -221,6 +310,8 @@ public class PilotageAgregats {
      * annulee en septembre - ne se devine pas : l'officine sait quand elle en a fait une, le logiciel non.
      */
     public int recalculer(List<String> mois) {
+        /* Un recalcul demande a la main doit repartir de zero : la memoire du controle d'integrite est effacee. */
+        CONTROLES.clear();
         int faits = 0;
         for (String m : mois) {
             if (moiMeme.calculerEtEnregistrer(m) != null) {
@@ -244,11 +335,18 @@ public class PilotageAgregats {
             LocalDate aujourdHui = LocalDate.now();
             LocalDate finExclue = aujourdHui.plusDays(1);
             Map<String, Agregat> journees = lireJournees(premier, finExclue);
+            /*
+             * LES JOURNEES QUI ONT BOUGE. Une journee close ne change plus - sauf quand on y revient : une vente du 5
+             * annulee le 19, un bon d'assurance saisi en retard, une vente corrigee. Le meme controle que pour les
+             * mois, applique aux journees du mois en cours : une lecture agregee dit ce que la base compte aujourd'hui,
+             * jour par jour, et seules les journees qui ne correspondent plus sont reprises.
+             */
+            java.util.Set<String> journeesDivergentes = journeesDivergentes(premier, finExclue, journees);
             long debut = System.currentTimeMillis();
             List<LocalDate> enRetard = new ArrayList<>();
             for (LocalDate jour = premier; jour.isBefore(finExclue); jour = jour.plusDays(1)) {
                 Agregat connu = journees.get(jour.toString());
-                boolean aReprendre = connu == null
+                boolean aReprendre = connu == null || journeesDivergentes.contains(jour.toString())
                         || (jour.isEqual(aujourdHui) && perimeJour(jour, FRAICHEUR_MOIS_COURANT_MS));
                 if (!aReprendre) {
                     continue;
@@ -309,6 +407,40 @@ public class PilotageAgregats {
         cumul.sortiesStock += j.sortiesStock;
     }
 
+    /** Les journees dont l'agregat ne correspond plus a ce que dit la base - meme controle que pour les mois. */
+    private java.util.Set<String> journeesDivergentes(LocalDate debut, LocalDate finExclue,
+            Map<String, Agregat> journees) {
+        java.util.Set<String> divergentes = new java.util.LinkedHashSet<>();
+        if (journees.isEmpty()) {
+            return divergentes;
+        }
+        try {
+            Map<String, double[]> base = new LinkedHashMap<>();
+            for (Tuple t : lire(PilotageSql.empreinteParJour(), debut, finExclue)) {
+                Object jour = t.get("jour");
+                String cle = jour instanceof java.sql.Date ? ((java.sql.Date) jour).toLocalDate().toString()
+                        : String.valueOf(jour);
+                base.put(cle, new double[] { entier(t.get("nbVentes")), nombre(t.get("caTTC")) });
+            }
+            for (Map.Entry<String, Agregat> entree : journees.entrySet()) {
+                double[] reel = base.get(entree.getKey());
+                Agregat a = entree.getValue();
+                double ventes = reel == null ? 0 : reel[0];
+                double caTTC = reel == null ? 0 : reel[1];
+                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d) {
+                    divergentes.add(entree.getKey());
+                }
+            }
+            if (!divergentes.isEmpty()) {
+                LOG.log(Level.INFO, "Pilotage : {0} journee(s) du mois en cours ont change et sont reprises : {1}",
+                        new Object[] { divergentes.size(), divergentes });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "pilotage : controle d'integrite des journees", e);
+        }
+        return divergentes;
+    }
+
     /** Les journees deja calculees entre deux dates, indexees par jour (AAAA-MM-JJ). */
     @SuppressWarnings("unchecked")
     private Map<String, Agregat> lireJournees(LocalDate debut, LocalDate finExclue) {
@@ -360,15 +492,23 @@ public class PilotageAgregats {
         }
     }
 
-    /** Complete les journees manquantes en tache de fond. */
+    /** Complete les journees manquantes en tache de fond, et UN SEUL rattrapage a la fois. */
     @Asynchronous
     public void completerJourneesEnFond(List<LocalDate> jours) {
-        for (LocalDate j : jours) {
-            try {
-                moiMeme.calculerJournee(j);
-            } catch (Exception e) {
-                LOG.log(Level.WARNING, "pilotage : journee de fond " + j, e);
+        if (!RATTRAPAGE_EN_COURS.compareAndSet(false, true)) {
+            LOG.log(Level.FINE, "Pilotage : un rattrapage est deja en cours, ces journees attendront");
+            return;
+        }
+        try {
+            for (LocalDate j : jours) {
+                try {
+                    moiMeme.calculerJournee(j);
+                } catch (Exception e) {
+                    LOG.log(Level.WARNING, "pilotage : journee de fond " + j, e);
+                }
             }
+        } finally {
+            RATTRAPAGE_EN_COURS.set(false);
         }
     }
 
@@ -517,17 +657,25 @@ public class PilotageAgregats {
                 .setParameter(17, clos ? 1 : 0).executeUpdate();
     }
 
-    /** Complete l'historique en tache de fond, un mois a la fois. */
+    /** Complete l'historique en tache de fond, un mois a la fois, et UN SEUL rattrapage a la fois. */
     @Asynchronous
     public void completerEnFond(List<String> mois) {
-        for (String m : mois) {
-            try {
-                moiMeme.calculerEtEnregistrer(m);
-            } catch (Exception e) {
-                LOG.log(Level.WARNING, "pilotage : agregat de fond " + m, e);
-            }
+        if (!RATTRAPAGE_EN_COURS.compareAndSet(false, true)) {
+            LOG.log(Level.FINE, "Pilotage : un rattrapage est deja en cours, celui-ci est laisse pour plus tard");
+            return;
         }
-        LOG.log(Level.INFO, "Pilotage : {0} mois d''agregats completes en tache de fond", mois.size());
+        try {
+            for (String m : mois) {
+                try {
+                    moiMeme.calculerEtEnregistrer(m);
+                } catch (Exception e) {
+                    LOG.log(Level.WARNING, "pilotage : agregat de fond " + m, e);
+                }
+            }
+            LOG.log(Level.INFO, "Pilotage : {0} mois d''agregats completes en tache de fond", mois.size());
+        } finally {
+            RATTRAPAGE_EN_COURS.set(false);
+        }
     }
 
     @SuppressWarnings("unchecked")

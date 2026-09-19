@@ -232,7 +232,11 @@
         parameters.put("TVA18", "<span style='font-weight:900;'><strong><b>Total TVA 18</b><strong></span> : " + tva18);
         parameters.put("mvts", mvts.toString());
 
-        JSONArray arrayObj = groupeCtl.creditsAccordeTotax(dt_start, dt_end, search, empl);
+        // L'edition suit le meme perimetre que l'ecran : l'emplacement, sauf privilege « toutes les activites ».
+        java.util.List<dal.TPrivilege> lstPrivPdf =
+                (java.util.List<dal.TPrivilege>) session.getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+        JSONArray arrayObj = groupeCtl.creditsAccordeTotax(dt_start, dt_end, search, empl, lstPrivPdf != null
+                && util.DateConverter.hasAuthorityByName(lstPrivPdf, util.Constant.P_SHOW_ALL_ACTIVITY));
 
         JSONObject cr = arrayObj.optJSONObject(0);
 
