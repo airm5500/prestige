@@ -988,9 +988,11 @@ public class ImportationVente {
         } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
                 | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
+            annulerTransaction();
             json.put("success", false);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
+            annulerTransaction();
             json.put("success", false);
         }
         return json;
@@ -1187,10 +1189,11 @@ public class ImportationVente {
         } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
                 | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
-
+            annulerTransaction();
             json.put("success", false);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
+            annulerTransaction();
             json.put("success", false);
         }
         return json;
@@ -1214,6 +1217,27 @@ public class ImportationVente {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Annule la transaction ouverte a la main si elle est encore la.
+     *
+     * <p>
+     * Sans cela, une importation qui echoue laisse sa transaction ATTACHEE AU THREAD. Le serveur rend ce thread au
+     * pool, et la requete suivante servie par ce thread - n'importe quel menu, n'importe quel utilisateur - echoue avec
+     * « Client's transaction aborted » avant meme d'avoir commence. Le thread reste empoisonne jusqu'a son
+     * renouvellement : c'est ce qui donnait a l'officine des erreurs qui vont et viennent sans logique apparente.
+     */
+    private void annulerTransaction() {
+        try {
+            int statut = userTransaction.getStatus();
+            if (statut == javax.transaction.Status.STATUS_ACTIVE
+                    || statut == javax.transaction.Status.STATUS_MARKED_ROLLBACK) {
+                userTransaction.rollback();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "importation : annulation de la transaction", e);
         }
     }
 

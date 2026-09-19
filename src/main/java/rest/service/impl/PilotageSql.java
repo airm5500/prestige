@@ -25,6 +25,9 @@ public final class PilotageSql {
     /** Type de vente exclu partout : c'est le choix deja fait par le tableau de bord et la balance. */
     public static final String TYPE_VENTE_EXCLU = "5";
 
+    /** Mode de reglement « especes », tel que le logiciel le code (util.Constant.MODE_ESP). */
+    private static final String MODE_ESPECES = "1";
+
     /**
      * Conditions communes aux ventes. Ecrites une fois : si l'officine change un jour de definition, elle change au
      * meme endroit pour le chiffre d'affaires, la marge et le mix de reglement.
@@ -333,17 +336,46 @@ public final class PilotageSql {
      * Les annulations ne sont pas une anomalie en soi - une vente se corrige - mais leur part dans l'activite se
      * surveille : elle monte quand une caisse tatonne ou qu'un parcours coince.
      */
+    /*
+     * VENTES ANNULEES : la definition est celle de l'etat « LISTE DES VENTES ANNULEES » du logiciel, et non une
+     * definition de plus. Trois points, et ils expliquent a eux seuls l'ecart constate par l'officine le 19/09 :
+     *
+     * - une annulation compte dans le mois de sa DATE D'ANNULATION (dt_ANNULER), pas dans celui de la vente : une vente
+     * de juillet annulee en aout est une annulation d'aout ; - seules les ventes CLOTUREES sont comptees (str_STATUT =
+     * 'is_Closed'), comme dans l'etat ; - le MONTANT ANNULE est le montant de la vente (int_PRICE, soit VO + VNO du
+     * pied de l'etat). Le « MONTANT ESPECE » de l'etat est autre chose : la part reglee en especes, donc ce qui sort
+     * reellement du tiroir. Les deux sont rendus, l'un a cote de l'autre, pour que l'ecran et l'etat se rapprochent
+     * ligne a ligne.
+     *
+     * Une annulation sans date d'annulation enregistree n'est comptee dans aucun mois - c'est deja le comportement de
+     * l'etat, et en changer ici ferait diverger les deux.
+     */
+    private static final String ANNULATIONS_OU = " p.b_IS_CANCEL = 1 AND p.str_STATUT = 'is_Closed'"
+            + " AND p.dt_ANNULER >= :debut AND p.dt_ANNULER < :fin ";
+
     public static String annulationsParMois() {
-        return "SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois, COUNT(*) AS nbAnnulees,"
-                + " COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule" + " FROM t_preenregistrement p"
-                + " WHERE p.b_IS_CANCEL = 1 AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin"
-                + " GROUP BY mois ORDER BY mois ASC";
+        return "SELECT DATE_FORMAT(p.dt_ANNULER, '%Y-%m') AS mois, COUNT(*) AS nbAnnulees,"
+                + " COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule" + " FROM t_preenregistrement p" + " WHERE"
+                + ANNULATIONS_OU + " GROUP BY mois ORDER BY mois ASC";
     }
 
     public static String totalAnnulations() {
         return "SELECT COUNT(*) AS nbAnnulees, COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule"
-                + " FROM t_preenregistrement p"
-                + " WHERE p.b_IS_CANCEL = 1 AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
+                + " FROM t_preenregistrement p" + " WHERE" + ANNULATIONS_OU;
+    }
+
+    /**
+     * Part des annulations reglee en ESPECES : le « MONTANT ESPECE » du pied de l'etat des ventes annulees.
+     *
+     * <p>
+     * C'est l'argent qui sort reellement du tiroir quand une vente est annulee ; le montant annule, lui, comprend aussi
+     * le tiers payant et les reglements qui ne passent pas par la caisse. Les confondre, c'est se demander pourquoi
+     * l'ecran et l'etat ne disent pas la meme chose.
+     */
+    public static String totalAnnulationsEspece() {
+        return "SELECT COALESCE(SUM(m.montantPaye), 0) AS montantEspece" + " FROM mvttransaction m"
+                + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.pkey" + " WHERE" + ANNULATIONS_OU
+                + " AND m.montantPaye > 0 AND m.typeReglementId = '" + MODE_ESPECES + "'";
     }
 
     /*

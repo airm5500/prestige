@@ -159,10 +159,13 @@ public class PilotageService {
              * c'est-a-dire la plupart du temps, puisque c'est justement le cas ou l'on rouvre l'ecran. La photo ne se
              * serait donc prise qu'une fois par periode de cache et par utilisateur, au hasard.
              *
-             * L'ecriture est idempotente (le mois est la cle), donc la prendre a chaque ouverture ne coute qu'une ligne
-             * remplacee.
+             * L'ecriture est idempotente (le mois est la cle). Elle n'est en revanche PLUS prise a chaque ouverture :
+             * elle compte tout le stock de l'officine, et l'officine a mesure le 19/09 que cet onglet mettait 26
+             * secondes. Une photo par jour suffit - ce qu'elle mesure ne bouge pas d'une minute a l'autre.
              */
-            moiMeme.photographierStock();
+            if (photoDuJourAPrendre()) {
+                moiMeme.photographierStock();
+            }
         }
         Entree cache = CACHE.get(cle);
         if (cache != null && cache.frais()) {
@@ -239,12 +242,12 @@ public class PilotageService {
         tuiles.put(tuile("nbVentes", "Nombre de ventes", courant.nbVentes,
                 reference == null ? null : (double) reference.nbVentes, "",
                 "panier moyen : " + Math.round(courant.panierMoyen()) + " FCFA"));
-        return new JSONObject().put("tuiles", tuiles).put("mois", moisSynthese(axe.graphique));
+        return new JSONObject().put("tuiles", tuiles).put("mois", moisSynthese(axe));
     }
 
     /** Une ligne par mois de la fenetre : ventes, achats et marge cote a cote. */
-    private JSONArray moisSynthese(Periode fenetre) {
-        return moisAgreges(fenetre);
+    private JSONArray moisSynthese(Axe axe) {
+        return moisAgreges(axe);
     }
 
     /* ================================================================================ onglet Ventes */
@@ -272,11 +275,11 @@ public class PilotageService {
         Set<String> modes = new LinkedHashSet<>();
         agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
         /*
-         * Le mix de reglement est la seule grandeur de cet onglet qui ne s'agrege pas en colonnes fixes : les modes
-         * dependent de ce que l'officine encaisse. Il garde donc sa requete - une seule, et elle ne passe pas par le
-         * detail des ventes.
+         * Le mix de reglement ne tient pas dans des colonnes fixes - les modes dependent de ce que l'officine encaisse
+         * - mais il est agrege lui aussi, dans sa propre table : une ligne par mois et par mode. C'etait la derniere
+         * lecture de cet onglet qui parcourait toute la fenetre de detail.
          */
-        for (Tuple t : liste(PilotageSql.reglementsParMois(), axe.graphique)) {
+        for (Tuple t : agregats.reglements(moisDeLaPeriode(axe.graphique))) {
             String mode = StringUtils.defaultIfBlank(t.get("mode", String.class), "Autre");
             modes.add(mode);
             ligne(lignes, t.get("mois", String.class)).put("mode_" + cle(mode), nombre(t.get("montant")));
@@ -285,6 +288,7 @@ public class PilotageService {
         for (String mode : modes) {
             colonnes.put(new JSONObject().put("cle", "mode_" + cle(mode)).put("libelle", mode));
         }
+        poserReference(axe, lignes);
         return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes)).put("modes", colonnes);
     }
 
@@ -305,7 +309,7 @@ public class PilotageService {
         tuiles.put(tuile("ratioVA", "Ratio ventes / achats", courant.ratioVA(),
                 reference == null ? null : reference.ratioVA(), "", null));
 
-        return new JSONObject().put("tuiles", tuiles).put("mois", moisAgreges(axe.graphique));
+        return new JSONObject().put("tuiles", tuiles).put("mois", moisAgreges(axe));
     }
 
     /* ================================================================================ onglet Achats */
@@ -365,6 +369,7 @@ public class PilotageService {
                         .put("montant", arrondi(e.getValue()))
                         .put("part", total == 0 ? 0 : arrondi(e.getValue() / total * 100d))));
 
+        poserReference(axe, lignes);
         return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes)).put("grossistesColonnes", colonnes)
                 .put("repartition", repartition).put("base", surLignes ? "lignes" : "entete").put("note",
                         surLignes
@@ -373,10 +378,19 @@ public class PilotageService {
                                 : "Montant TTC des bons de livraison clôturés, comme la tuile Achats de la synthèse.");
     }
 
+    /**
+     * Les achats par mois et par grossiste.
+     *
+     * <p>
+     * Sans filtre de famille ni d'emplacement - le cas courant - la lecture se fait dans les agregats. Avec un tel
+     * filtre, elle repasse par les LIGNES de bons de livraison : un agregat ne peut pas porter toutes les combinaisons
+     * de filtres possibles, et l'ecran dit deja, par sa note, que la base de calcul change alors.
+     */
     private List<Tuple> listeAchats(Periode periode, Filtres filtres) {
-        String sql = filtres.surLignes()
-                ? PilotageSql.achatsLignesParMois(filtres.grossisteId, filtres.familleId, filtres.emplacementId)
-                : PilotageSql.achatsParMoisEtGrossiste(filtres.grossisteId);
+        if (!filtres.surLignes()) {
+            return agregats.grossistes(moisDeLaPeriode(periode), filtres.grossisteId);
+        }
+        String sql = PilotageSql.achatsLignesParMois(filtres.grossisteId, filtres.familleId, filtres.emplacementId);
         Query q = em.createNativeQuery(sql, Tuple.class);
         bornes(q, sql, periode);
         lierFiltres(q, sql, filtres);
@@ -452,6 +466,7 @@ public class PilotageService {
             ligne(lignes, t.get("mois", String.class)).put("tpRegle", nombre(t.get("regle")));
         }
         /* Le credit et les parts se deduisent des deux precedents : aucune quatrieme requete. */
+        poserReference(axe, lignes);
         JSONArray mois = finaliser(lignes);
         for (int i = 0; i < mois.length(); i++) {
             JSONObject m = mois.getJSONObject(i);
@@ -559,6 +574,7 @@ public class PilotageService {
 
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
+        poserReference(axe, lignes);
         JSONArray mois = finaliser(lignes);
 
         /* Les photos deja prises, indexees par mois : elles l'emportent sur la reconstitution. */
@@ -585,6 +601,20 @@ public class PilotageService {
             }
             m.put("variationStock", arrondi(m.optDouble("entrees", 0d) - m.optDouble("sorties", 0d)));
             valeur = valeur - m.optDouble("entrees", 0d) + m.optDouble("sorties", 0d);
+        }
+
+        /*
+         * La valeur du stock n'est pas un agregat : elle est reconstituee ci-dessus. Sa courbe de reference se prend
+         * donc dans la serie elle-meme, decalee du nombre de mois qui separe les deux periodes comparees.
+         */
+        int decalage = decalageReference(axe);
+        if (decalage > 0) {
+            for (int i = mois.length() - 1; i >= 0; i--) {
+                if (i - decalage >= 0) {
+                    mois.getJSONObject(i).put("valeurAchatRef",
+                            mois.getJSONObject(i - decalage).optDouble("valeurAchat", 0d));
+                }
+            }
         }
 
         return new JSONObject().put("tuiles", tuiles).put("mois", mois)
@@ -685,6 +715,27 @@ public class PilotageService {
      * La photo du mois est ECRASEE tant que le mois est en cours, pour qu'elle reflete le dernier etat connu ; une fois
      * le mois passe, elle ne bouge plus.
      */
+    /**
+     * Vrai si la photo du mois n'a pas encore ete prise aujourd'hui.
+     *
+     * <p>
+     * Une lecture d'une ligne sur cle primaire, la ou la photo elle-meme parcourt tout le stock.
+     */
+    private boolean photoDuJourAPrendre() {
+        try {
+            String mois = LocalDate.now().toString().substring(0, 7);
+            javax.persistence.Query q = em.createNativeQuery("SELECT p.dt_CREATED FROM pilotage_stock_mensuel p"
+                    + " WHERE p.str_MOIS = ?1 AND p.lg_EMPLACEMENT_ID = ?2");
+            Object prise = q.setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).getSingleResult();
+            if (prise instanceof java.sql.Timestamp) {
+                return !((java.sql.Timestamp) prise).toLocalDateTime().toLocalDate().isEqual(LocalDate.now());
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "pilotage : pas de photo du stock pour le mois en cours", e);
+        }
+        return true;
+    }
+
     @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.REQUIRES_NEW)
     public JSONObject photographierStock() {
         try {
@@ -737,16 +788,21 @@ public class PilotageService {
         tuiles.put(tuile("sansSeuil", "En stock sans seuil", anomalies.sansSeuil, null, "",
                 "n'entre dans aucune suggestion de réappro"));
         tuiles.put(tuile("annulees", "Ventes annulées", annuleesCourant, annuleesReference, "",
-                Math.round(montantAnnuleCourant) + " FCFA annulés sur la période"));
+                Math.round(montantAnnuleCourant) + " FCFA annulés, dont " + Math.round(courant.annuleEspece)
+                        + " FCFA rendus en espèces"));
         tuiles.put(tuile("remises", "Remises accordées", courant.remises, reference == null ? null : reference.remises,
                 "FCFA", courant.caTTC == 0 ? null : pourcent(courant.remises / courant.caTTC * 100d) + " du CA"));
 
-        JSONArray mois = moisAgreges(axe.graphique);
+        JSONArray mois = moisAgreges(axe);
 
         return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("note",
                 "Les indicateurs de référentiel (prix, rayon, seuil) décrivent l'ÉTAT DU JOUR et ne dépendent "
                         + "pas de la période ; les annulations et les remises, elles, suivent la période "
-                        + "choisie.");
+                        + "choisie. Une annulation compte dans le mois de SON ANNULATION et non dans celui de la "
+                        + "vente, et seules les ventes clôturées sont comptées : ce sont les règles de l'état "
+                        + "« Liste des ventes annulées », pour que les deux se rapprochent. Le montant annulé est "
+                        + "celui des ventes (part tiers payant comprise) ; le montant rendu en espèces, donné à "
+                        + "côté, est ce qui est réellement ressorti du tiroir.");
     }
 
     static final class Anomalies {
@@ -847,7 +903,7 @@ public class PilotageService {
          * Toutes les grandeurs de cet onglet sont portees par les agregats mensuels : une seule lecture d'agregats
          * remplace les quatre requetes de detail qui parcouraient la fenetre entiere.
          */
-        JSONArray mois = moisAgreges(axe.graphique);
+        JSONArray mois = moisAgreges(axe);
 
         JSONObject reponse = new JSONObject().put("tuiles", tuiles).put("mois", mois).put("coches",
                 new JSONArray(retenus));
@@ -1422,6 +1478,7 @@ public class PilotageService {
             t.encaisse += a.encaisse;
             t.nbAnnulees += a.nbAnnulees;
             t.montantAnnule += a.montantAnnule;
+            t.annuleEspece += a.annuleEspece;
         }
         if (periode.debut.isBefore(premierMoisEntier)) {
             t.ajouter(totauxDirects(new Periode(periode.debut, premierMoisEntier, "")));
@@ -1458,6 +1515,9 @@ public class PilotageService {
             t.nbAnnulees = nombre(l.get("nbAnnulees"));
             t.montantAnnule = nombre(l.get("montantAnnule"));
         }
+        for (Tuple l : liste(PilotageSql.totalAnnulationsEspece(), periode)) {
+            t.annuleEspece = nombre(l.get("montantEspece"));
+        }
         return t;
     }
 
@@ -1474,6 +1534,7 @@ public class PilotageService {
         double encaisse;
         double nbAnnulees;
         double montantAnnule;
+        double annuleEspece;
         int nbVentes;
         int nbBons;
 
@@ -1488,6 +1549,7 @@ public class PilotageService {
             encaisse += autre.encaisse;
             nbAnnulees += autre.nbAnnulees;
             montantAnnule += autre.montantAnnule;
+            annuleEspece += autre.annuleEspece;
             nbVentes += autre.nbVentes;
             nbBons += autre.nbBons;
             marge = caHT - coutAchat;
@@ -1591,17 +1653,36 @@ public class PilotageService {
     }
 
     /**
-     * Les agregats de la fenetre, indexes par mois : UNE lecture pour toute la serie mensuelle, la ou chaque onglet
-     * lancait auparavant trois a cinq requetes sur douze a vingt-quatre mois de detail.
+     * Recalcule les agregats de tous les mois de la fenetre affichee, et vide le cache d'ecran.
+     *
+     * @return le nombre de mois repris
      */
-    private Map<String, PilotageAgregats.Agregat> agregatsDeLaFenetre(Periode fenetre) {
+    public int recalculer(String codeAxe, String debutPerso, String finPerso) {
+        Axe axe = PilotagePeriodes.calculer(codeAxe, LocalDate.now(), OrdonnanceClientSaisie.date(debutPerso),
+                OrdonnanceClientSaisie.date(finPerso));
+        int faits = agregats.recalculer(moisDeLaPeriode(axe.graphique));
+        /* Les chiffres ont change : l'ecran ne doit pas continuer a servir la version d'avant. */
+        CACHE.clear();
+        return faits;
+    }
+
+    /** Les mois couverts par une periode, du plus ancien au plus recent. */
+    private static List<String> moisDeLaPeriode(Periode fenetre) {
         List<String> mois = new ArrayList<>();
         LocalDate curseur = fenetre.debut.withDayOfMonth(1);
         while (curseur.isBefore(fenetre.fin)) {
             mois.add(curseur.toString().substring(0, 7));
             curseur = curseur.plusMonths(1);
         }
-        return agregats.agregats(mois);
+        return mois;
+    }
+
+    /**
+     * Les agregats de la fenetre, indexes par mois : UNE lecture pour toute la serie mensuelle, la ou chaque onglet
+     * lancait auparavant trois a cinq requetes sur douze a vingt-quatre mois de detail.
+     */
+    private Map<String, PilotageAgregats.Agregat> agregatsDeLaFenetre(Periode fenetre) {
+        return agregats.agregats(moisDeLaPeriode(fenetre));
     }
 
     /** Pose sur une ligne de mois toutes les grandeurs d'un agregat : les onglets y puisent ce qui les concerne. */
@@ -1612,7 +1693,8 @@ public class PilotageService {
                 .put("coutAchat", Math.round(a.coutAchat)).put("marge", Math.round(marge))
                 .put("tauxMarge", a.caHT == 0 ? 0 : arrondi(marge / a.caHT * 100d)).put("achatTTC", a.achatTTC)
                 .put("nbBons", a.nbBons).put("encaisse", a.encaisse).put("nbAnnulees", a.nbAnnulees)
-                .put("montantAnnule", a.montantAnnule).put("entrees", a.entreesStock).put("sorties", a.sortiesStock)
+                .put("montantAnnule", a.montantAnnule).put("annuleEspece", a.annuleEspece)
+                .put("entrees", a.entreesStock).put("sorties", a.sortiesStock)
                 .put("panier", a.nbVentes == 0 ? 0 : Math.round(a.caTTC / a.nbVentes))
                 .put("tauxRemise", a.caTTC == 0 ? 0 : arrondi(a.remises / a.caTTC * 100d))
                 .put("tauxAnnulation", a.nbVentes == 0 ? 0 : arrondi(a.nbAnnulees / (double) a.nbVentes * 100d))
@@ -1627,6 +1709,56 @@ public class PilotageService {
         Map<String, JSONObject> lignes = moisDeLaFenetre(fenetre);
         agregatsDeLaFenetre(fenetre).forEach((mois, a) -> poser(ligne(lignes, mois), a));
         return finaliser(lignes);
+    }
+
+    /**
+     * Une ligne par mois, avec EN PLUS le meme mois de la periode de reference.
+     *
+     * <p>
+     * « Si je compare 2 valeurs les 2 doivent se retrouver sur les courbes » (19/09). Choisir « Vs mois precedent » ou
+     * « Vs meme mois l'an dernier » ne changeait que les tuiles : le graphique, lui, ne montrait qu'une seule courbe.
+     * Chaque mois porte donc aussi la valeur du mois correspondant de la periode comparee - decalee d'un mois ou de
+     * douze selon l'axe - et le graphique trace les deux.
+     */
+    private JSONArray moisAgreges(Axe axe) {
+        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
+        agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
+        poserReference(axe, lignes);
+        return finaliser(lignes);
+    }
+
+    /** Le decalage, en mois, entre la periode regardee et celle a laquelle on la compare. Zero s'il n'y en a pas. */
+    private static int decalageReference(Axe axe) {
+        if (axe.reference == null) {
+            return 0;
+        }
+        long mois = java.time.temporal.ChronoUnit.MONTHS.between(axe.reference.debut.withDayOfMonth(1),
+                axe.courante.debut.withDayOfMonth(1));
+        return (int) Math.max(0, mois);
+    }
+
+    /** Pose sur chaque mois la valeur du mois correspondant de la periode de reference. */
+    private void poserReference(Axe axe, Map<String, JSONObject> lignes) {
+        int decalage = decalageReference(axe);
+        if (decalage == 0) {
+            return;
+        }
+        Periode decalee = new Periode(axe.graphique.debut.minusMonths(decalage),
+                axe.graphique.fin.minusMonths(decalage), "");
+        Map<String, PilotageAgregats.Agregat> passe = agregats.agregats(moisDeLaPeriode(decalee));
+        for (Map.Entry<String, JSONObject> entree : lignes.entrySet()) {
+            String moisReference = java.time.YearMonth.parse(entree.getKey()).minusMonths(decalage).toString();
+            PilotageAgregats.Agregat a = passe.get(moisReference);
+            JSONObject ligne = entree.getValue();
+            ligne.put("libelleReference", libelleMois(moisReference));
+            if (a == null) {
+                continue;
+            }
+            ligne.put("caTTCRef", a.caTTC).put("margeRef", Math.round(a.marge())).put("achatTTCRef", a.achatTTC)
+                    .put("encaisseRef", a.encaisse).put("nbVentesRef", a.nbVentes).put("nbAnnuleesRef", a.nbAnnulees)
+                    .put("caHTRef", Math.round(a.caHT))
+                    .put("panierRef", a.nbVentes == 0 ? 0 : Math.round(a.caTTC / a.nbVentes));
+        }
     }
 
     private static JSONObject ligne(Map<String, JSONObject> lignes, String mois) {

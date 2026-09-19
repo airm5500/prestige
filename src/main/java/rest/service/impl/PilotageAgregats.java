@@ -53,8 +53,22 @@ public class PilotageAgregats {
     /** Budget de calcul d'une demande : au-dela, le reste part en tache de fond. */
     private static final long BUDGET_MS = 12_000L;
 
-    /** Au-dela de ce delai, le mois en cours est recalcule (les mois clos, jamais). */
+    /** Au-dela de ce delai, le mois en cours est recalcule. */
     private static final long FRAICHEUR_MOIS_COURANT_MS = 10L * 60L * 1000L;
+
+    /**
+     * Au-dela de ce delai, un mois RECEMMENT CLOS est recalcule une fois par jour, en tache de fond.
+     *
+     * <p>
+     * Un mois clos ne change plus... sauf quand on regularise : une vente annulee apres coup, un bon de livraison saisi
+     * en retard, une correction de caisse. Ces gestes portent presque toujours sur le mois qui vient de finir. Les deux
+     * derniers mois clos sont donc revus une fois par jour ; au-dela, seul un recalcul demande a la main reprend
+     * l'historique - c'est le bouton « Recalculer » de l'ecran.
+     */
+    private static final long FRAICHEUR_MOIS_CLOS_MS = 24L * 60L * 60L * 1000L;
+
+    /** Nombre de mois clos recents qui restent sous surveillance quotidienne. */
+    private static final int MOIS_CLOS_SURVEILLES = 2;
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -77,6 +91,8 @@ public class PilotageAgregats {
         public double encaisse;
         public int nbAnnulees;
         public double montantAnnule;
+        /** Part des annulations reglee en especes : ce qui est ressorti du tiroir. */
+        public double annuleEspece;
         public double entreesStock;
         public double sortiesStock;
 
@@ -99,13 +115,23 @@ public class PilotageAgregats {
         Map<String, Agregat> connus = lire(mois);
         List<String> aCalculer = new ArrayList<>();
         String moisCourant = YearMonth.now().toString();
+        String plusVieuxSurveille = YearMonth.now().minusMonths(MOIS_CLOS_SURVEILLES).toString();
+        List<String> aRevoir = new ArrayList<>();
         for (String m : mois) {
             Agregat a = connus.get(m);
             if (a == null) {
                 aCalculer.add(m);
-            } else if (m.equals(moisCourant) && perime(m)) {
-                aCalculer.add(m);
+            } else if (m.equals(moisCourant)) {
+                if (perime(m, FRAICHEUR_MOIS_COURANT_MS)) {
+                    aCalculer.add(m);
+                }
+            } else if (m.compareTo(plusVieuxSurveille) >= 0 && perime(m, FRAICHEUR_MOIS_CLOS_MS)) {
+                /* Mois clos recent : on le revoit, mais sans faire attendre l'ecran. */
+                aRevoir.add(m);
             }
+        }
+        if (!aRevoir.isEmpty()) {
+            moiMeme.completerEnFond(aRevoir);
         }
         if (aCalculer.isEmpty()) {
             return connus;
@@ -150,8 +176,8 @@ public class PilotageAgregats {
                     + " a.int_NB_VENTES AS nbVentes, a.int_REMISES AS remises, a.int_PART_TP AS partTp,"
                     + " a.int_CA_HT AS caHT, a.int_COUT_ACHAT AS coutAchat, a.int_ACHAT_TTC AS achatTTC,"
                     + " a.int_NB_BONS AS nbBons, a.int_ENCAISSE AS encaisse, a.int_NB_ANNULEES AS nbAnnulees,"
-                    + " a.int_MONTANT_ANNULE AS montantAnnule, a.int_ENTREES_STOCK AS entrees,"
-                    + " a.int_SORTIES_STOCK AS sorties"
+                    + " a.int_MONTANT_ANNULE AS montantAnnule, a.int_ANNULE_ESPECE AS annuleEspece,"
+                    + " a.int_ENTREES_STOCK AS entrees," + " a.int_SORTIES_STOCK AS sorties"
                     + " FROM pilotage_agregat_mensuel a WHERE a.lg_EMPLACEMENT_ID = ?1"
                     + " AND a.str_MOIS >= ?2 AND a.str_MOIS <= ?3", Tuple.class);
             q.setParameter(1, PilotageSql.EMPLACEMENT_OFFICINE);
@@ -170,6 +196,7 @@ public class PilotageAgregats {
                 a.encaisse = nombre(t.get("encaisse"));
                 a.nbAnnulees = entier(t.get("nbAnnulees"));
                 a.montantAnnule = nombre(t.get("montantAnnule"));
+                a.annuleEspece = nombre(t.get("annuleEspece"));
                 a.entreesStock = nombre(t.get("entrees"));
                 a.sortiesStock = nombre(t.get("sorties"));
                 out.put(a.mois, a);
@@ -180,14 +207,31 @@ public class PilotageAgregats {
         return out;
     }
 
-    private boolean perime(String mois) {
+    /**
+     * Recalcule de force les mois demandes : c'est le « Recalculer » de l'ecran.
+     *
+     * <p>
+     * Le seul geste qui reprend un mois clos ancien. Il existe parce qu'une regularisation tardive - une vente de mars
+     * annulee en septembre - ne se devine pas : l'officine sait quand elle en a fait une, le logiciel non.
+     */
+    public int recalculer(List<String> mois) {
+        int faits = 0;
+        for (String m : mois) {
+            if (moiMeme.calculerEtEnregistrer(m) != null) {
+                faits++;
+            }
+        }
+        return faits;
+    }
+
+    private boolean perime(String mois, long fraicheurMs) {
         try {
             Object calcul = em
                     .createNativeQuery("SELECT a.dt_CALCUL FROM pilotage_agregat_mensuel a"
                             + " WHERE a.str_MOIS = ?1 AND a.lg_EMPLACEMENT_ID = ?2")
                     .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).getSingleResult();
             if (calcul instanceof java.sql.Timestamp) {
-                return System.currentTimeMillis() - ((java.sql.Timestamp) calcul).getTime() > FRAICHEUR_MOIS_COURANT_MS;
+                return System.currentTimeMillis() - ((java.sql.Timestamp) calcul).getTime() > fraicheurMs;
             }
         } catch (Exception e) {
             LOG.log(Level.FINE, "fraicheur d'un agregat", e);
@@ -227,11 +271,15 @@ public class PilotageAgregats {
                 a.nbAnnulees = entier(t.get("nbAnnulees"));
                 a.montantAnnule = nombre(t.get("montantAnnule"));
             });
+            lireUneLigne(PilotageSql.totalAnnulationsEspece(), debut, fin,
+                    t -> a.annuleEspece = nombre(t.get("montantEspece")));
             lireUneLigne(PilotageSql.entreesStockParMois(), debut, fin, t -> a.entreesStock = nombre(t.get("montant")));
             lireUneLigne(PilotageSql.sortiesStockParMois(), debut, fin, t -> a.sortiesStock = nombre(t.get("montant")));
             boolean clos = fin.isBefore(LocalDate.now().withDayOfMonth(1).plusDays(1))
                     && !mois.equals(YearMonth.now().toString());
             enregistrer(a, clos);
+            enregistrerReglements(mois, debut, fin);
+            enregistrerGrossistes(mois, debut, fin);
             return a;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "pilotage : calcul de l'agregat " + mois, e);
@@ -279,23 +327,119 @@ public class PilotageAgregats {
     private void enregistrer(Agregat a, boolean clos) {
         em.createNativeQuery("INSERT INTO pilotage_agregat_mensuel (str_MOIS, lg_EMPLACEMENT_ID, int_CA_TTC,"
                 + " int_NB_VENTES, int_REMISES, int_PART_TP, int_CA_HT, int_COUT_ACHAT, int_ACHAT_TTC,"
-                + " int_NB_BONS, int_ENCAISSE, int_NB_ANNULEES, int_MONTANT_ANNULE, int_ENTREES_STOCK,"
-                + " int_SORTIES_STOCK, b_CLOS, dt_CALCUL)"
-                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, NOW())"
+                + " int_NB_BONS, int_ENCAISSE, int_NB_ANNULEES, int_MONTANT_ANNULE, int_ANNULE_ESPECE,"
+                + " int_ENTREES_STOCK, int_SORTIES_STOCK, b_CLOS, dt_CALCUL)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, NOW())"
                 + " ON DUPLICATE KEY UPDATE int_CA_TTC = VALUES(int_CA_TTC), int_NB_VENTES = VALUES(int_NB_VENTES),"
                 + " int_REMISES = VALUES(int_REMISES), int_PART_TP = VALUES(int_PART_TP),"
                 + " int_CA_HT = VALUES(int_CA_HT), int_COUT_ACHAT = VALUES(int_COUT_ACHAT),"
                 + " int_ACHAT_TTC = VALUES(int_ACHAT_TTC), int_NB_BONS = VALUES(int_NB_BONS),"
                 + " int_ENCAISSE = VALUES(int_ENCAISSE), int_NB_ANNULEES = VALUES(int_NB_ANNULEES),"
-                + " int_MONTANT_ANNULE = VALUES(int_MONTANT_ANNULE), int_ENTREES_STOCK = VALUES(int_ENTREES_STOCK),"
+                + " int_MONTANT_ANNULE = VALUES(int_MONTANT_ANNULE),"
+                + " int_ANNULE_ESPECE = VALUES(int_ANNULE_ESPECE), int_ENTREES_STOCK = VALUES(int_ENTREES_STOCK),"
                 + " int_SORTIES_STOCK = VALUES(int_SORTIES_STOCK), b_CLOS = VALUES(b_CLOS), dt_CALCUL = NOW()")
                 .setParameter(1, a.mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE)
                 .setParameter(3, Math.round(a.caTTC)).setParameter(4, a.nbVentes).setParameter(5, Math.round(a.remises))
                 .setParameter(6, Math.round(a.partTiersPayant)).setParameter(7, Math.round(a.caHT))
                 .setParameter(8, Math.round(a.coutAchat)).setParameter(9, Math.round(a.achatTTC))
                 .setParameter(10, a.nbBons).setParameter(11, Math.round(a.encaisse)).setParameter(12, a.nbAnnulees)
-                .setParameter(13, Math.round(a.montantAnnule)).setParameter(14, Math.round(a.entreesStock))
-                .setParameter(15, Math.round(a.sortiesStock)).setParameter(16, clos ? 1 : 0).executeUpdate();
+                .setParameter(13, Math.round(a.montantAnnule)).setParameter(14, Math.round(a.annuleEspece))
+                .setParameter(15, Math.round(a.entreesStock)).setParameter(16, Math.round(a.sortiesStock))
+                .setParameter(17, clos ? 1 : 0).executeUpdate();
+    }
+
+    /**
+     * Le mix de reglement du mois : une ligne par mode reellement encaisse.
+     *
+     * <p>
+     * Le nombre de modes n'est pas connu a l'avance - l'officine peut en activer un nouveau demain - donc ils ne
+     * peuvent pas tenir dans des colonnes de la table mensuelle. Les anciennes lignes du mois sont effacees avant
+     * reecriture : un mode qui disparait d'un mois recalcule doit disparaitre de la table aussi.
+     */
+    private void enregistrerReglements(String mois, LocalDate debut, LocalDate fin) {
+        em.createNativeQuery("DELETE FROM pilotage_agregat_reglement WHERE str_MOIS = ?1 AND lg_EMPLACEMENT_ID = ?2")
+                .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
+        for (Tuple t : lire(PilotageSql.reglementsParMois(), debut, fin)) {
+            String mode = t.get("mode", String.class);
+            if (mode == null || mode.trim().isEmpty()) {
+                mode = "Autre";
+            }
+            em.createNativeQuery("INSERT INTO pilotage_agregat_reglement (str_MOIS, lg_EMPLACEMENT_ID, str_MODE,"
+                    + " int_MONTANT, dt_CALCUL) VALUES (?1, ?2, ?3, ?4, NOW())"
+                    + " ON DUPLICATE KEY UPDATE int_MONTANT = int_MONTANT + VALUES(int_MONTANT), dt_CALCUL = NOW()")
+                    .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(3, mode)
+                    .setParameter(4, Math.round(nombre(t.get("montant")))).executeUpdate();
+        }
+    }
+
+    /** Les achats du mois par grossiste : une ligne par fournisseur qui a reellement livre. */
+    private void enregistrerGrossistes(String mois, LocalDate debut, LocalDate fin) {
+        em.createNativeQuery("DELETE FROM pilotage_agregat_grossiste WHERE str_MOIS = ?1 AND lg_EMPLACEMENT_ID = ?2")
+                .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
+        for (Tuple t : lire(PilotageSql.achatsParMoisEtGrossiste(null), debut, fin)) {
+            String id = t.get("grossisteId", String.class);
+            if (id == null) {
+                continue;
+            }
+            String libelle = t.get("grossiste", String.class);
+            em.createNativeQuery("INSERT INTO pilotage_agregat_grossiste (str_MOIS, lg_EMPLACEMENT_ID,"
+                    + " lg_GROSSISTE_ID, str_GROSSISTE, int_MONTANT, int_NB_BONS, dt_CALCUL)"
+                    + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW())"
+                    + " ON DUPLICATE KEY UPDATE int_MONTANT = VALUES(int_MONTANT),"
+                    + " int_NB_BONS = VALUES(int_NB_BONS), dt_CALCUL = NOW()").setParameter(1, mois)
+                    .setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(3, id)
+                    .setParameter(4, libelle == null ? "Sans grossiste" : libelle)
+                    .setParameter(5, Math.round(nombre(t.get("montant")))).setParameter(6, entier(t.get("nbBons")))
+                    .executeUpdate();
+        }
+    }
+
+    /** Les lignes d'une requete bornee a un mois. */
+    @SuppressWarnings("unchecked")
+    private List<Tuple> lire(String sql, LocalDate debut, LocalDate fin) {
+        Query q = em.createNativeQuery(sql, Tuple.class);
+        q.setParameter("debut", java.sql.Timestamp.valueOf(debut.atStartOfDay()));
+        q.setParameter("fin", java.sql.Timestamp.valueOf(fin.atStartOfDay()));
+        if (sql.contains(":typeExclu")) {
+            q.setParameter("typeExclu", PilotageSql.TYPE_VENTE_EXCLU);
+        }
+        return q.getResultList();
+    }
+
+    /** Le mix de reglement des mois demandes : mois, mode, montant. */
+    @SuppressWarnings("unchecked")
+    public List<Tuple> reglements(List<String> mois) {
+        if (mois == null || mois.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Query q = em.createNativeQuery(
+                "SELECT r.str_MOIS AS mois, r.str_MODE AS mode, r.int_MONTANT AS montant"
+                        + " FROM pilotage_agregat_reglement r WHERE r.lg_EMPLACEMENT_ID = ?1"
+                        + " AND r.str_MOIS >= ?2 AND r.str_MOIS <= ?3 ORDER BY r.str_MOIS ASC, r.str_MODE ASC",
+                Tuple.class);
+        q.setParameter(1, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(2, mois.get(0)).setParameter(3,
+                mois.get(mois.size() - 1));
+        return q.getResultList();
+    }
+
+    /** Les achats par grossiste des mois demandes, eventuellement restreints a un fournisseur. */
+    @SuppressWarnings("unchecked")
+    public List<Tuple> grossistes(List<String> mois, String grossisteId) {
+        if (mois == null || mois.isEmpty()) {
+            return new ArrayList<>();
+        }
+        boolean filtre = grossisteId != null && !grossisteId.trim().isEmpty();
+        Query q = em.createNativeQuery("SELECT g.str_MOIS AS mois, g.lg_GROSSISTE_ID AS grossisteId,"
+                + " g.str_GROSSISTE AS grossiste, g.int_MONTANT AS montant, g.int_NB_BONS AS nbBons"
+                + " FROM pilotage_agregat_grossiste g WHERE g.lg_EMPLACEMENT_ID = ?1"
+                + " AND g.str_MOIS >= ?2 AND g.str_MOIS <= ?3" + (filtre ? " AND g.lg_GROSSISTE_ID = ?4" : "")
+                + " ORDER BY g.str_MOIS ASC, g.int_MONTANT DESC", Tuple.class);
+        q.setParameter(1, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(2, mois.get(0)).setParameter(3,
+                mois.get(mois.size() - 1));
+        if (filtre) {
+            q.setParameter(4, grossisteId);
+        }
+        return q.getResultList();
     }
 
     private static double nombre(Object valeur) {

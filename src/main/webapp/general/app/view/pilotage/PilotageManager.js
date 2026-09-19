@@ -154,6 +154,46 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             }
         });
 
+        /* Les champs d'une ligne de mois, ecrits une fois et donnes aux deux stores qui la portent. */
+        var champsMois = function () {
+            return ['mois', 'libelle',
+                        {name: 'caTTC', type: 'float'}, {name: 'caHT', type: 'float'},
+                        {name: 'marge', type: 'float'}, {name: 'tauxMarge', type: 'float'},
+                        {name: 'achatTTC', type: 'float'}, {name: 'coutAchat', type: 'float'},
+                        {name: 'nbVentes', type: 'int'}, {name: 'nbBons', type: 'int'},
+                        {name: 'panier', type: 'float'}, {name: 'remises', type: 'float'},
+                        {name: 'partTiersPayant', type: 'float'},
+                        {name: 'encaisse', type: 'float'}, {name: 'credit', type: 'float'},
+                        {name: 'partComptant', type: 'float'}, {name: 'partCredit', type: 'float'},
+                        {name: 'tpRegle', type: 'float'},
+                        {name: 'valeurAchat', type: 'float'}, {name: 'valeurVente', type: 'float'},
+                        {name: 'entrees', type: 'float'}, {name: 'sorties', type: 'float'},
+                        {name: 'variationStock', type: 'float'}, {name: 'unites', type: 'float'},
+                        {name: 'mesure', type: 'boolean'},
+                        {name: 'nbAnnulees', type: 'int'}, {name: 'montantAnnule', type: 'float'},
+                        {name: 'annuleEspece', type: 'float'},
+                        {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'},
+                        {name: 'ratioVA', type: 'float'},
+                        /* Comparateur : les deux objets compares et leur ecart. */
+                        {name: 'a', type: 'float'}, {name: 'b', type: 'float'},
+                        {name: 'ecart', type: 'float'}, {name: 'rapport', type: 'float'},
+                        /*
+                         * La PÉRIODE COMPARÉE, mois par mois : « si je compare 2 valeurs les 2 doivent se
+                         * retrouver sur les courbes ». useNull, sans quoi un mois sans référence vaudrait
+                         * zéro et la courbe plongerait au lieu de s'interrompre.
+                         */
+                        {name: 'libelleReference', type: 'string'},
+                        {name: 'caTTCRef', type: 'float', useNull: true},
+                        {name: 'caHTRef', type: 'float', useNull: true},
+                        {name: 'margeRef', type: 'float', useNull: true},
+                        {name: 'achatTTCRef', type: 'float', useNull: true},
+                        {name: 'encaisseRef', type: 'float', useNull: true},
+                        {name: 'nbVentesRef', type: 'float', useNull: true},
+                        {name: 'panierRef', type: 'float', useNull: true},
+                        {name: 'nbAnnuleesRef', type: 'float', useNull: true},
+                        {name: 'valeurAchatRef', type: 'float', useNull: true}];
+        };
+
         /* Un store de tuiles et un store de mois PAR ONGLET : deux onglets ne se pietinent pas. */
         me.stores = {};
         Ext.each(me.ONGLETS, function (onglet) {
@@ -172,28 +212,18 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     data: []
                 }),
                 mois: new Ext.data.Store({
-                    fields: ['mois', 'libelle',
-                        {name: 'caTTC', type: 'float'}, {name: 'caHT', type: 'float'},
-                        {name: 'marge', type: 'float'}, {name: 'tauxMarge', type: 'float'},
-                        {name: 'achatTTC', type: 'float'}, {name: 'coutAchat', type: 'float'},
-                        {name: 'nbVentes', type: 'int'}, {name: 'nbBons', type: 'int'},
-                        {name: 'panier', type: 'float'}, {name: 'remises', type: 'float'},
-                        {name: 'partTiersPayant', type: 'float'},
-                        {name: 'encaisse', type: 'float'}, {name: 'credit', type: 'float'},
-                        {name: 'partComptant', type: 'float'}, {name: 'partCredit', type: 'float'},
-                        {name: 'tpRegle', type: 'float'},
-                        {name: 'valeurAchat', type: 'float'}, {name: 'valeurVente', type: 'float'},
-                        {name: 'entrees', type: 'float'}, {name: 'sorties', type: 'float'},
-                        {name: 'variationStock', type: 'float'}, {name: 'unites', type: 'float'},
-                        {name: 'mesure', type: 'boolean'},
-                        {name: 'nbAnnulees', type: 'int'}, {name: 'montantAnnule', type: 'float'},
-                        {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'},
-                        {name: 'ratioVA', type: 'float'},
-                        /* Comparateur : les deux objets compares et leur ecart. */
-                        {name: 'a', type: 'float'}, {name: 'b', type: 'float'},
-                        {name: 'ecart', type: 'float'}, {name: 'rapport', type: 'float'}],
+                    fields: champsMois(),
                     data: []
-                })
+                }),
+                /*
+                 * DEUX STORES POUR LES MEMES CHIFFRES, et c'est voulu : la COURBE se lit de gauche a droite
+                 * dans le sens du temps, le TABLEAU se lit du mois actuel au plus ancien (demande du 19/09).
+                 * Un seul store ne peut pas porter les deux ordres a la fois.
+                 */
+                detail: new Ext.data.Store({
+                    fields: champsMois(),
+                    data: []
+                }),
             };
         });
 
@@ -252,6 +282,19 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             itemId: 'actualiser',
                             text: 'Actualiser',
                             iconCls: 'search'
+                        }, {
+                            xtype: 'button',
+                            /*
+                             * RECALCULER. Les mois clos ne sont plus recomptés à chaque clic — c'est ce qui rend
+                             * l'écran rapide. Une régularisation tardive (une vente d'un mois passé annulée
+                             * aujourd'hui, un bon de livraison saisi en retard) ne se devine pas : ce bouton
+                             * reprend les mois affichés à partir des ventes et des achats.
+                             */
+                            itemId: 'recalculer',
+                            text: 'Recalculer',
+                            iconCls: 'icon-refresh',
+                            tooltip: 'Reprend les mois affichés à partir des ventes et des achats, après une '
+                                    + 'correction portant sur un mois déjà passé.'
                         }, {
                             xtype: 'component',
                             flex: 1
@@ -502,7 +545,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
            distinguables meme imprimes en noir et blanc. */
         var BLEU = '#1565c0';
         var ORANGE = '#ef6c00';
-        var champsAxe = comparateur ? ['a', 'b'] : [champs[cle]];
+        var champsAxe = comparateur ? ['a', 'b'] : [champs[cle], champs[cle] + 'Ref'];
         var serie = function (champ, couleur, titre) {
             return {
                 type: 'line',
@@ -526,9 +569,16 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 }
             };
         };
+        /*
+         * DEUX COURBES PARTOUT. Hors comparateur, la seconde porte la période de comparaison choisie dans le
+         * sélecteur (« Vs mois précédent », « Vs même mois l'an dernier »...) : le 19/09, choisir une
+         * comparaison ne changeait que les tuiles, et le graphique restait muet là-dessus. Elle est masquée
+         * quand l'axe ne compare rien — c'est le contrôleur qui l'affiche ou la cache au chargement.
+         */
         var series = comparateur
                 ? [serie('a', BLEU, 'Objet A'), serie('b', ORANGE, 'Objet B')]
-                : [serie(champs[cle], BLEU, titres[cle])];
+                : [serie(champs[cle], BLEU, 'Période choisie'),
+                    serie(champs[cle] + 'Ref', ORANGE, 'Période comparée')];
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
@@ -544,7 +594,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     animate: false,
                     shadow: false,
                     /* La legende nomme les courbes : sans elle, deux traits de couleur ne se lisent pas. */
-                    legend: comparateur ? {position: 'top'} : false,
+                    legend: {position: 'top'},
                     store: this.stores[cle].mois,
                     axes: [{
                             type: 'Numeric',
@@ -584,8 +634,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         return {
             xtype: 'gridpanel',
             itemId: 'detail-' + cle,
-            title: 'Détail mensuel',
-            store: this.stores[cle].mois,
+            title: 'Détail mensuel (du mois actuel au plus ancien)',
+            store: this.stores[cle].detail,
             flex: 1,
             minHeight: 200,
             columnLines: true,
@@ -593,9 +643,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             columns: colonnes,
             viewConfig: {
                 /* Le mois en cours est incomplet : il se lit en italique pour qu'on ne le compare pas
-                 * naïvement aux mois pleins qui le precedent. */
-                getRowClass: function (record, index, rowParams, store) {
-                    return index === store.getCount() - 1 ? 'pilotage-mois-encours' : '';
+                 * naïvement aux mois pleins. Il est en TÊTE du tableau, le détail étant trié du mois
+                 * actuel au plus ancien — demande de l'officine du 19/09. */
+                getRowClass: function (record, index) {
+                    return index === 0 ? 'pilotage-mois-encours' : '';
                 }
             }
         };
@@ -793,8 +844,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     }}];
         }
         if (cle === 'qualite') {
+            /* Le montant annulé (ventes) et la part rendue en espèces (caisse) sont deux grandeurs
+               différentes : l'état imprimé donne les deux, l'écran aussi. */
             return [mois, montant('CA TTC', 'caTTC'), montant('VENTES', 'nbVentes', 90),
                 montant('ANNULÉES', 'nbAnnulees', 100), taux('% ANNUL.', 'tauxAnnulation'),
+                montant('MONTANT ANNULÉ', 'montantAnnule', 140), montant('DONT ESPÈCES', 'annuleEspece', 130),
                 montant('REMISES', 'remises'), taux('% REMISE', 'tauxRemise')];
         }
         if (cle === 'caisse') {

@@ -139,6 +139,21 @@ public class SemoisService {
         } catch (IllegalStateException | SecurityException | HeuristicMixedException | HeuristicRollbackException
                 | NotSupportedException | RollbackException | SystemException e) {
             LOG.log(Level.SEVERE, null, e);
+            /* Une transaction ouverte a la main ne doit jamais survivre au traitement qui l'a ouverte. */
+            annulerTransaction();
+        }
+    }
+
+    /** Annule la transaction ouverte a la main si elle est encore active. */
+    private void annulerTransaction() {
+        try {
+            int statut = userTransaction.getStatus();
+            if (statut == javax.transaction.Status.STATUS_ACTIVE
+                    || statut == javax.transaction.Status.STATUS_MARKED_ROLLBACK) {
+                userTransaction.rollback();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "semois : annulation de la transaction", e);
         }
     }
 

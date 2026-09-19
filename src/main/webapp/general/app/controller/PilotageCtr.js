@@ -27,6 +27,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #onglets': {tabchange: me.surChangementOnglet},
             'pilotage #barrePeriode combobox[itemId=axe]': {select: me.surChangementAxe},
             'pilotage #barrePeriode button[itemId=actualiser]': {click: me.actualiser},
+            'pilotage #barrePeriode button[itemId=recalculer]': {click: me.recalculer},
             'pilotage #barrePeriode menuitem[itemId=imprimerPdf]': {click: me.imprimer},
             'pilotage #barrePeriode menuitem[itemId=exporterExcel]': {click: me.exporter},
             'pilotage #filtresAchats combobox[itemId=grossiste]': {select: me.actualiser},
@@ -62,6 +63,51 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 me.actualiser();
             }
         });
+    },
+
+    /**
+     * Reprend les agrégats des mois affichés, puis recharge l'onglet.
+     *
+     * Le seul geste qui reprend un mois déjà clos : le reste du temps, un mois passé est lu tel qu'il a été
+     * calculé — c'est ce qui rend l'écran rapide. On demande confirmation, parce que sur une longue fenêtre
+     * le recalcul peut prendre une minute.
+     */
+    recalculer: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        Ext.Msg.confirm('Pilotage',
+                'Reprendre le calcul des mois affichés à partir des ventes et des achats ?<br><br>'
+                + '<i>À faire après une correction portant sur un mois déjà passé (vente annulée, bon de '
+                + 'livraison saisi en retard). Sur une longue période, cela peut demander une minute.</i>',
+                function (reponse) {
+                    if (reponse !== 'yes') {
+                        return;
+                    }
+                    var onglet = ecran.down('#onglet-' + me.ongletCourant());
+                    if (onglet) {
+                        onglet.setLoading('Recalcul des mois affichés...');
+                    }
+                    Ext.Ajax.request({
+                        url: '../api/v1/pilotage/recalculer',
+                        method: 'GET',
+                        params: me.parametres(),
+                        timeout: 600000,
+                        callback: function () {
+                            if (onglet) {
+                                onglet.setLoading(false);
+                            }
+                        },
+                        success: function (reponse) {
+                            var r = Ext.decode(reponse.responseText, true) || {};
+                            Ext.Msg.alert('Pilotage', r.message || 'Recalcul terminé.');
+                            /* Le cache d'écran a été vidé côté serveur : un simple rechargement suffit. */
+                            me.actualiser();
+                        },
+                        failure: function () {
+                            Ext.Msg.alert('Pilotage', 'Le recalcul n\'a pas pu être mené à son terme.');
+                        }
+                    });
+                });
     },
 
     /** Le code de l'onglet visible : c'est lui, et lui seul, qu'on charge. */
@@ -286,8 +332,16 @@ Ext.define('testextjs.controller.PilotageCtr', {
                  */
                 me.declarerChamps(stores.mois, r.modes);
                 me.declarerChamps(stores.mois, r.grossistesColonnes);
+                me.declarerChamps(stores.detail, r.modes);
+                me.declarerChamps(stores.detail, r.grossistesColonnes);
                 stores.tuiles.loadData(r.tuiles || []);
                 stores.mois.loadData(r.mois || []);
+                /*
+                 * Le même contenu, dans l'autre sens : la courbe va du plus ancien au plus récent, le tableau
+                 * part du mois actuel. slice() d'abord, pour ne pas retourner le tableau que la courbe lit.
+                 */
+                stores.detail.loadData((r.mois || []).slice().reverse());
+                me.ajusterCourbeComparee(cle, r.axe);
                 me.ajusterColonnesModes(cle, r.modes);
                 me.afficherAchats(cle, r);
                 me.afficherNote(cle, r);
@@ -320,6 +374,40 @@ Ext.define('testextjs.controller.PilotageCtr', {
         champ.setValue(texte);
     },
 
+    /**
+     * La seconde courbe, celle de la période comparée : nommée quand il y a une comparaison, masquée sinon.
+     *
+     * « Pourquoi quand je choisis la période "vs..." le graphe affiche juste une seule courbe alors que c'est
+     * une comparaison entre 2 données » (19/09). Elle porte le libellé exact de la période comparée —
+     * « Août 2026 (au 19) », « Septembre 2025 » — et non un « référence » qui n'apprendrait rien.
+     */
+    ajusterCourbeComparee: function (cle, axe) {
+        if (cle === 'comparateur') {
+            return;
+        }
+        var graphique = this.getEcran().down('#graphique-' + cle);
+        if (!graphique || graphique.series.getCount() < 2) {
+            return;
+        }
+        try {
+            var seconde = graphique.series.getAt(1);
+            var compare = axe && axe.comparaison === true;
+            seconde.title = compare ? (axe.libelleReference || 'Période comparée') : 'Période comparée';
+            graphique.series.getAt(0).title = axe && axe.libelle ? axe.libelle : 'Période choisie';
+            if (compare) {
+                seconde.showAll();
+            } else {
+                seconde.hideAll();
+            }
+            if (graphique.legend && graphique.legend.isLegend) {
+                graphique.legend.create();
+            }
+            graphique.redraw();
+        } catch (e) {
+            /* Le tableau de chiffres reste juste : on ne perd que le dessin. */
+        }
+    },
+
     /** Ajoute au modèle du store les champs des colonnes variables qu'il ne connaît pas encore. */
     declarerChamps: function (store, colonnes) {
         if (!store || !colonnes || !colonnes.length) {
@@ -346,7 +434,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
         if (!grille) {
             return;
         }
-        var store = ecran.stores.ventes.mois;
+        var store = ecran.stores.ventes.detail;
         var champs = store.model.prototype.fields;
         Ext.each(modes, function (mode) {
             if (!champs.get(mode.cle)) {
@@ -381,7 +469,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }
         var ecran = this.getEcran();
         var coches = reponse.coches || [];
-        var store = ecran.stores.kpi.mois;
+        var store = ecran.stores.kpi.detail;
         var config = ecran.colonnes('kpi');
         var libelles = {};
         ecran.storeKpis.each(function (r) {
@@ -533,7 +621,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
         if (!grille || !colonnes.length) {
             return;
         }
-        var store = ecran.stores.achats.mois;
+        var store = ecran.stores.achats.detail;
         Ext.each(colonnes, function (g) {
             if (!store.model.prototype.fields.get(g.cle)) {
                 store.model.prototype.fields.add(new Ext.data.Field({name: g.cle, type: 'float'}));

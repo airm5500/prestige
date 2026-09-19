@@ -54,7 +54,7 @@
     <variable name="t6" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v6}]]></variableExpression></variable>
     <variable name="t7" class="java.lang.Double" calculation="Sum"><variableExpression><![CDATA[$F{v7}]]></variableExpression></variable>
     <title>
-        <band height="112">
+        <band height="286">
             <textField isBlankWhenNull="true">
                 <reportElement x="0" y="0" width="802" height="14"/>
                 <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
@@ -93,6 +93,44 @@
                     <textFieldExpression><![CDATA[$P{P_TUILES}]]></textFieldExpression>
                 </textField>
             </frame>
+            <!--
+                LA COURBE D'EVOLUTION, demandee par l'officine le 19/09. Elle est placee dans le TITRE, donc
+                sur la premiere page, juste sous les totaux et au-dessus du tableau : mise en pied d'etat, une
+                bande de 200 points ne tenait pas sous le tableau et partait seule sur une deuxieme page, en
+                laissant un grand vide. Son contenu, lui, est evalue en fin de remplissage
+                (evaluationTime="Report") : elle connait donc tous les mois bien qu'elle soit imprimee avant.
+
+                Elle porte les deux premieres colonnes de l'onglet - celles qui portent la grandeur principale
+                - sur les memes mois que le tableau. Une colonne absente ne trace aucune serie.
+            -->
+            <lineChart>
+                <chart evaluationTime="Report" isShowLegend="true">
+                    <reportElement x="0" y="110" width="802" height="170"/>
+                    <chartTitle><titleExpression><![CDATA["Évolution mensuelle"]]></titleExpression></chartTitle>
+                </chart>
+                <categoryDataset>
+                    <dataset resetType="Report"/>
+                    <categorySeries>
+                        <seriesExpression><![CDATA[$P{P_C1} == null || $P{P_C1}.length() == 0 ? "Série 1" : $P{P_C1}]]></seriesExpression>
+                        <categoryExpression><![CDATA[$F{court}]]></categoryExpression>
+                        <valueExpression><![CDATA[$F{v1}]]></valueExpression>
+                    </categorySeries>
+                    <categorySeries>
+                        <seriesExpression><![CDATA[$P{P_C2} == null || $P{P_C2}.length() == 0 ? "Série 2" : $P{P_C2}]]></seriesExpression>
+                        <categoryExpression><![CDATA[$F{court}]]></categoryExpression>
+                        <valueExpression><![CDATA[$F{v2}]]></valueExpression>
+                    </categorySeries>
+                </categoryDataset>
+                <linePlot isShowLines="true" isShowShapes="true">
+                    <plot><seriesColor seriesOrder="0" color="#1565C0"/><seriesColor seriesOrder="1" color="#EF6C00"/></plot>
+                    <categoryAxisFormat labelRotation="-45.0">
+                        <axisFormat><labelFont><font size="7"/></labelFont><tickLabelFont><font size="6.5"/></tickLabelFont></axisFormat>
+                    </categoryAxisFormat>
+                    <valueAxisFormat>
+                        <axisFormat><labelFont><font size="7"/></labelFont><tickLabelFont><font size="6.5"/></tickLabelFont></axisFormat>
+                    </valueAxisFormat>
+                </linePlot>
+            </lineChart>
         </band>
     </title>
     <columnHeader>
@@ -167,7 +205,7 @@
         </band>
     </pageFooter>
     <summary>
-        <band height="248">
+        <band height="34">
             <frame>
                 <reportElement mode="Opaque" x="0" y="3" width="802" height="15" backcolor="#E4EAF0"/>
                 <textField>
@@ -190,42 +228,8 @@
                 <textField pattern="#,##0.##" isBlankWhenNull="true"><reportElement x="698" y="0" width="100" height="15"><printWhenExpression><![CDATA[$P{P_C7} != null && $P{P_C7}.length() > 0]]></printWhenExpression></reportElement>
                     <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{t7}]]></textFieldExpression></textField>
             </frame>
-            <!--
-                LA COURBE D'EVOLUTION, demandee par l'officine le 19/09 : « pourquoi sur les editions PDF il
-                n'y a pas de courbes d'evolution ? ». Elle porte les deux premieres colonnes de l'onglet -
-                celles qui portent la grandeur principale - sur les memes mois que le tableau, du plus ancien
-                au plus recent. Une colonne absente ne trace aucune serie : ses valeurs sont nulles.
-            -->
-            <lineChart>
-                <chart evaluationTime="Report" isShowLegend="true">
-                    <reportElement x="0" y="24" width="802" height="200"/>
-                    <chartTitle><titleExpression><![CDATA["Évolution mensuelle"]]></titleExpression></chartTitle>
-                </chart>
-                <categoryDataset>
-                    <dataset resetType="Report"/>
-                    <categorySeries>
-                        <seriesExpression><![CDATA[$P{P_C1} == null || $P{P_C1}.length() == 0 ? "Série 1" : $P{P_C1}]]></seriesExpression>
-                        <categoryExpression><![CDATA[$F{court}]]></categoryExpression>
-                        <valueExpression><![CDATA[$F{v1}]]></valueExpression>
-                    </categorySeries>
-                    <categorySeries>
-                        <seriesExpression><![CDATA[$P{P_C2} == null || $P{P_C2}.length() == 0 ? "Série 2" : $P{P_C2}]]></seriesExpression>
-                        <categoryExpression><![CDATA[$F{court}]]></categoryExpression>
-                        <valueExpression><![CDATA[$F{v2}]]></valueExpression>
-                    </categorySeries>
-                </categoryDataset>
-                <linePlot isShowLines="true" isShowShapes="true">
-                    <plot><seriesColor seriesOrder="0" color="#1565C0"/><seriesColor seriesOrder="1" color="#EF6C00"/></plot>
-                    <categoryAxisFormat labelRotation="-45.0">
-                        <axisFormat><labelFont><font size="7"/></labelFont><tickLabelFont><font size="6.5"/></tickLabelFont></axisFormat>
-                    </categoryAxisFormat>
-                    <valueAxisFormat>
-                        <axisFormat><labelFont><font size="7"/></labelFont><tickLabelFont><font size="6.5"/></tickLabelFont></axisFormat>
-                    </valueAxisFormat>
-                </linePlot>
-            </lineChart>
             <textField isBlankWhenNull="true">
-                <reportElement x="0" y="230" width="802" height="11"/>
+                <reportElement x="0" y="20" width="802" height="11"/>
                 <textElement><font size="6.5"/></textElement>
                 <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
             </textField>

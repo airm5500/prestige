@@ -306,7 +306,18 @@ public class FileFormaManager extends HttpServlet {
             json.put("count", i);
             json.put("ligne", count);
         } catch (IOException e) {
+            annulerTransaction();
             throw new Exception(e);
+        } catch (RuntimeException e) {
+            /*
+             * Une ligne mal formee (colonne manquante, quantite non numerique) tombait ici SANS annuler la transaction
+             * ouverte plus haut : elle restait attachee au thread HTTP, que le serveur rend ensuite au pool. La requete
+             * suivante servie par ce thread echouait alors avec « Client's transaction aborted », sur n'importe quel
+             * menu et sans rapport avec l'import. C'est l'une des fuites a l'origine du message « Les chiffres n'ont
+             * pas pu etre rassembles » qui revenait au hasard chez l'officine.
+             */
+            annulerTransaction();
+            throw e;
         }
 
         return json;
@@ -511,10 +522,28 @@ public class FileFormaManager extends HttpServlet {
             }
 
         } catch (IOException ex) {
+            annulerTransaction();
             throw new Exception(ex);
+        } catch (RuntimeException ex) {
+            /* Meme raison que pour l'import TXT : une transaction ne doit jamais survivre a la requete. */
+            annulerTransaction();
+            throw ex;
         }
 
         return json;
+    }
+
+    /** Annule la transaction ouverte a la main si elle est encore active : elle ne doit pas survivre a la requete. */
+    private void annulerTransaction() {
+        try {
+            int statut = userTransaction.getStatus();
+            if (statut == javax.transaction.Status.STATUS_ACTIVE
+                    || statut == javax.transaction.Status.STATUS_MARKED_ROLLBACK) {
+                userTransaction.rollback();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "import de commande : annulation de la transaction", e);
+        }
     }
 
     private int buildOrderDetailTedisRecord(TOrder order, CSVRecord cSVRecord) {

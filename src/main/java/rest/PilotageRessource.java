@@ -222,4 +222,36 @@ public class PilotageRessource {
                     .put("message", "Les chiffres n'ont pas pu être rassemblés.").toString()).build();
         }
     }
+
+    /**
+     * Recalcule les agregats des mois affiches.
+     *
+     * <p>
+     * Un mois clos n'est plus recalcule tout seul passe quelques semaines : c'est ce qui rend l'ecran rapide. Mais une
+     * regularisation tardive - une vente de mars annulee en septembre, un bon de livraison saisi en retard - ne se
+     * devine pas. Ce bouton existe pour cela, et il ne touche que les mois que l'operateur a sous les yeux.
+     */
+    @GET
+    @Path("recalculer")
+    public Response recalculer(@QueryParam("axe") String axe, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        try {
+            int mois = pilotageService.recalculer(axe, debut, fin);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", true).put("mois", mois)
+                            .put("message", mois + " mois recalculé(s) à partir des ventes et des achats.").toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "pilotage : recalcul", e);
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Le recalcul n'a pas pu être mené à son terme.").toString()).build();
+        }
+    }
 }
