@@ -279,6 +279,13 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     return;
                 }
                 me.afficherAxe(r.axe);
+                /*
+                 * Les colonnes variables - modes de règlement, grossistes - doivent être connues du modèle
+                 * AVANT le chargement : un champ ajouté après coup n'existe pas dans les enregistrements
+                 * déjà chargés, et la colonne affiche alors NaN. C'est le défaut signalé le 19/09.
+                 */
+                me.declarerChamps(stores.mois, r.modes);
+                me.declarerChamps(stores.mois, r.grossistesColonnes);
                 stores.tuiles.loadData(r.tuiles || []);
                 stores.mois.loadData(r.mois || []);
                 me.ajusterColonnesModes(cle, r.modes);
@@ -313,6 +320,19 @@ Ext.define('testextjs.controller.PilotageCtr', {
         champ.setValue(texte);
     },
 
+    /** Ajoute au modèle du store les champs des colonnes variables qu'il ne connaît pas encore. */
+    declarerChamps: function (store, colonnes) {
+        if (!store || !colonnes || !colonnes.length) {
+            return;
+        }
+        var champs = store.model.prototype.fields;
+        Ext.each(colonnes, function (c) {
+            if (c && c.cle && !champs.get(c.cle)) {
+                champs.add(new Ext.data.Field({name: c.cle, type: 'float', defaultValue: 0}));
+            }
+        });
+    },
+
     /**
      * Les colonnes de modes de règlement dépendent des modes RÉELLEMENT rencontrés sur la période : une
      * officine qui active un nouveau mode le voit apparaître sans qu'on touche au code.
@@ -339,11 +359,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
             colonnes.push({text: mode.libelle.toUpperCase(), dataIndex: mode.cle, width: 120, align: 'right',
                 itemId: 'col-' + mode.cle,
                 renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
+                    return testextjs.view.pilotage.PilotageManager.nombre(v);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
-                    return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
+                    var t = testextjs.view.pilotage.PilotageManager.nombre(v);
+                    return t === '' ? '' : '<b>' + t + '</b>';
                 }});
         });
         grille.reconfigure(store, colonnes);
@@ -374,8 +395,14 @@ Ext.define('testextjs.controller.PilotageCtr', {
             config.push({text: info.libelle.toUpperCase(), dataIndex: k, width: 150, align: 'right',
                 itemId: 'col-' + k,
                 renderer: function (v) {
-                    return info.unite === '%' ? Ext.util.Format.number(v, '0,000.0') + ' %'
-                            : Ext.util.Format.number(v, '0,000.##');
+                    if (v === null || v === undefined || isNaN(v)) {
+                        return '';
+                    }
+                    /* Pas de séparateur décimal orphelin en fin de nombre : « 0, » se lisait dans le
+                       détail des KPI — retour de l'officine du 19/09. */
+                    var formater = testextjs.view.pilotage.PilotageManager.nombre;
+                    return info.unite === '%' ? formater(v, '0,000.0') + ' %'
+                            : formater(v, v % 1 === 0 ? '0,000' : '0,000.00');
                 }});
         });
         ecran.down('#detail-kpi').reconfigure(store, config);
@@ -436,10 +463,36 @@ Ext.define('testextjs.controller.PilotageCtr', {
         if (note) {
             note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
         }
+        /*
+         * LES DEUX TERMES DE LA COMPARAISON SONT SUR LA COURBE. « Si je compare 2 valeurs les 2 doivent se
+         * retrouver sur les courbes » : la courbe A et la courbe B portent le nom des objets comparés, et la
+         * légende les distingue. Le dessin est isolé — une échelle impossible ne doit pas emporter le reste.
+         */
+        var graphique = ecran.down('#graphique-comparateur');
+        if (graphique) {
+            try {
+                var titres = [comparaison.libelleA || 'Objet A', comparaison.libelleB || 'Objet B'];
+                graphique.series.each(function (serie, index) {
+                    if (titres[index]) {
+                        serie.title = titres[index];
+                    }
+                });
+                if (graphique.legend && graphique.legend.isLegend) {
+                    graphique.legend.create();
+                }
+                graphique.redraw();
+            } catch (e) {
+                /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+            }
+        }
         var panneau = ecran.down('#graphiquePanneau-comparateur');
         if (panneau) {
-            panneau.setTitle('Évolution : ' + (comparaison.libelleA || 'objet A') + ' sur '
-                    + (comparaison.libelleGrandeur || ''));
+            /* Comparer deux GRANDEURS : leurs noms disent déjà ce qui est mesuré, répéter la grandeur
+               donnerait « Chiffre d'affaires et Achats — Chiffre d'affaires ». */
+            var deuxGrandeurs = (comparaison.type || '') === 'GRANDEUR';
+            panneau.setTitle('Évolution comparée : ' + (comparaison.libelleA || 'objet A') + ' et '
+                    + (comparaison.libelleB || 'objet B')
+                    + (!deuxGrandeurs && comparaison.libelleGrandeur ? ' — ' + comparaison.libelleGrandeur : ''));
         }
     },
 
@@ -491,11 +544,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
             config.push({text: g.libelle.toUpperCase(), dataIndex: g.cle, width: 130, align: 'right',
                 itemId: 'col-' + g.cle,
                 renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
+                    return testextjs.view.pilotage.PilotageManager.nombre(v);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
-                    return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
+                    var t = testextjs.view.pilotage.PilotageManager.nombre(v);
+                    return t === '' ? '' : '<b>' + t + '</b>';
                 }});
         });
         grille.reconfigure(store, config);

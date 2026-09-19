@@ -798,7 +798,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'cloturerventemanager', 'mvtcaissemanager',
     // journal
     // (factureprovisoire figure deja plus haut, dans le bloc « facturation »)
-    'logfile'
+    'logfile',
+    // pilotage et ordonnances (retour de l'officine du 19/09)
+    'pilotage', 'ordonnanceclient'
 ];
 
 /**

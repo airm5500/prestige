@@ -33,6 +33,43 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     cls: 'custompanel',
     layout: {type: 'vbox', align: 'stretch'},
 
+    statics: {
+        /*
+         * LE FORMATAGE DES NOMBRES DE L'ECRAN, EN UN SEUL ENDROIT.
+         *
+         * Deux pieges d'ExtJS 4.2 sont traites ici, et ils ont tous deux ete vus a l'ecran :
+         *   - une valeur absente donne « NaN » si on la formate telle quelle ;
+         *   - un nombre NEGATIF n'est pas groupe par milliers (« -29922564 » au lieu de
+         *     « -29.922.564 ») ; on formate donc la valeur absolue et on repose le signe.
+         */
+        nombre: function (v, motif) {
+            if (v === null || v === undefined || isNaN(v)) {
+                return '';
+            }
+            var n = Number(v);
+            return (n < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(n), motif || '0,000');
+        },
+
+        /* Les trois premieres lettres du mois et les deux derniers chiffres de l'annee :
+           « Septembre 2026 » devient « sept. 26 ». Un axe de douze mois ecrits en toutes lettres
+           est illisible - retour de l'officine du 19/09. */
+        moisCourt: function (libelle) {
+            if (!libelle) {
+                return '';
+            }
+            var parts = String(libelle).split(' ');
+            if (parts.length < 2) {
+                return libelle;
+            }
+            /* Les abréviations françaises d'usage : « octobre » s'abrège « oct. », pas « octo. ». */
+            var abrege = {janvier: 'janv.', 'février': 'févr.', mars: 'mars', avril: 'avr.', mai: 'mai',
+                juin: 'juin', juillet: 'juil.', 'août': 'août', septembre: 'sept.', octobre: 'oct.',
+                novembre: 'nov.', 'décembre': 'déc.'};
+            var mois = parts[0].toLowerCase();
+            return (abrege[mois] || mois) + ' ' + parts[1].substring(2);
+        }
+    },
+
     /* Les onglets de cette livraison. Chacun porte ses colonnes de detail : le reste est commun. */
     ONGLETS: [
         {cle: 'synthese', titre: 'Synthèse'},
@@ -376,11 +413,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 {text: 'GROSSISTE', dataIndex: 'grossiste', flex: 2, itemId: 'col-grossiste'},
                 {text: 'MONTANT', dataIndex: 'montant', width: 150, align: 'right',
                     renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
+                        return testextjs.view.pilotage.PilotageManager.nombre(v);
                     }},
                 {text: 'PART', dataIndex: 'part', width: 100, align: 'right', itemId: 'col-part',
                     renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.0') + ' %';
+                        var t = testextjs.view.pilotage.PilotageManager.nombre(v, '0,000.0');
+                    return t === '' ? '' : t + ' %';
                     }}
             ]
         };
@@ -430,9 +468,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             return signe + Ext.util.Format.number(absolu / 1000000, '0,000.0') + ' M';
                         }
                         if (unite === '%') {
-                            return Ext.util.Format.number(valeur, '0,000.0') + ' %';
+                            return signe + Ext.util.Format.number(absolu, '0,000.0') + ' %';
                         }
-                        return signe + Ext.util.Format.number(absolu, '0,000.##');
+                        /* Deux décimales seulement quand il y en a : « 0, » se lisait dans les tuiles. */
+                        return signe + Ext.util.Format.number(absolu, absolu % 1 === 0 ? '0,000' : '0,000.00');
                     },
                     pourcent: function (valeur) {
                         return Ext.util.Format.number(Math.abs(valeur), '0,000.0') + ' %';
@@ -441,6 +480,14 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         };
     },
 
+    /*
+     * Le graphique d'evolution.
+     *
+     * Retours de l'officine du 19/09 : la courbe etait peu visible, les mois en toutes lettres se
+     * chevauchaient sur l'axe, et le comparateur ne montrait qu'une seule des deux valeurs comparees. Les
+     * trois sont traites ici : trait epais et colore, mois abreges (« sept. 26 »), et DEUX courbes dans le
+     * comparateur - comparer sans voir les deux termes de la comparaison n'a pas de sens.
+     */
     graphique: function (cle) {
         var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
             caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees', kpi: 'caTTC',
@@ -449,51 +496,85 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois',
             stock: 'Valeur du stock au prix d\'achat, fin de mois',
             qualite: 'Ventes annulées par mois', kpi: 'Évolution du premier indicateur coché',
-            comparateur: 'Évolution de l\'objet A'};
+            comparateur: 'Évolution comparée des deux objets'};
+        var comparateur = cle === 'comparateur';
+        /* Les deux couleurs du comparateur : un bleu franc et un orange, lisibles cote a cote et
+           distinguables meme imprimes en noir et blanc. */
+        var BLEU = '#1565c0';
+        var ORANGE = '#ef6c00';
+        var champsAxe = comparateur ? ['a', 'b'] : [champs[cle]];
+        var serie = function (champ, couleur, titre) {
+            return {
+                type: 'line',
+                axis: 'left',
+                xField: 'libelle',
+                yField: champ,
+                title: titre,
+                smooth: false,
+                /* Un trait fin sur fond clair se perd : l'officine ne voyait pas la courbe. */
+                style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
+                markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
+                tips: {
+                    trackMouse: true,
+                    width: 260,
+                    height: 44,
+                    renderer: function (record) {
+                        var v = record.get(champ);
+                        this.setTitle(record.get('libelle') + ' — ' + titre + ' : '
+                                + (testextjs.view.pilotage.PilotageManager.nombre(v) || '—'));
+                    }
+                }
+            };
+        };
+        var series = comparateur
+                ? [serie('a', BLEU, 'Objet A'), serie('b', ORANGE, 'Objet B')]
+                : [serie(champs[cle], BLEU, titres[cle])];
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
             title: titres[cle],
-            height: 240,
+            /* Le graphique et le detail se partagent l'espace restant a parts egales : hauteurs egales
+               demandees le 19/09, et plus de bande vide sous la grille. */
+            flex: 1,
+            minHeight: 260,
             layout: 'fit',
             items: [{
                     xtype: 'chart',
                     itemId: 'graphique-' + cle,
                     animate: false,
                     shadow: false,
+                    /* La legende nomme les courbes : sans elle, deux traits de couleur ne se lisent pas. */
+                    legend: comparateur ? {position: 'top'} : false,
                     store: this.stores[cle].mois,
                     axes: [{
                             type: 'Numeric',
                             position: 'left',
-                            fields: [champs[cle]],
+                            fields: champsAxe,
                             minimum: 0,
                             grid: true,
-                            label: {renderer: function (v) {
+                            label: {
+                                font: 'bold 12px tahoma, arial, sans-serif',
+                                fill: '#333333',
+                                renderer: function (v) {
                                     return Ext.util.Format.number(v / 1000000, '0,000.0') + ' M';
-                                }}
+                                }
+                            }
                         }, {
                             type: 'Category',
                             position: 'bottom',
                             fields: ['libelle'],
-                            label: {rotate: {degrees: 315}}
-                        }],
-                    series: [{
-                            type: 'line',
-                            xField: 'libelle',
-                            yField: champs[cle],
-                            smooth: false,
-                            markerConfig: {radius: 3},
-                            tips: {
-                                trackMouse: true,
-                                width: 220,
-                                height: 44,
-                                renderer: function (record) {
-                                    this.setTitle(record.get('libelle') + ' : '
-                                            + Ext.util.Format.number(record.get(this.yField
-                                                    || 'caTTC'), '0,000.') + ' FCFA');
+                            label: {
+                                font: 'bold 12px tahoma, arial, sans-serif',
+                                fill: '#333333',
+                                rotate: {degrees: 315},
+                                /* « Septembre 2026 » devient « sept. 26 » : douze mois ecrits en toutes
+                                   lettres se chevauchaient sur l'axe. */
+                                renderer: function (v) {
+                                    return testextjs.view.pilotage.PilotageManager.moisCourt(v);
                                 }
                             }
-                        }]
+                        }],
+                    series: series
                 }]
         };
     },
@@ -555,12 +636,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 {text: 'CLIENTS SERVIS', dataIndex: 'nbVentes', width: 140, align: 'right',
                     itemId: 'col-clients',
                     renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
+                        return testextjs.view.pilotage.PilotageManager.nombre(v);
                     },
                     summaryType: 'sum'},
                 {text: 'CHIFFRE D\'AFFAIRES', dataIndex: 'caTTC', flex: 1, align: 'right',
                     renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
+                        return testextjs.view.pilotage.PilotageManager.nombre(v);
                     }}
             ],
             features: [{ftype: 'summary'}]
@@ -660,17 +741,19 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             return {text: texte, dataIndex: champ, width: largeur || 120, align: 'right',
                 itemId: 'col-' + champ,
                 renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.');
+                    return testextjs.view.pilotage.PilotageManager.nombre(v);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
-                    return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
+                    var t = testextjs.view.pilotage.PilotageManager.nombre(v);
+                    return t === '' ? '' : '<b>' + t + '</b>';
                 }};
         };
         var taux = function (texte, champ) {
             return {text: texte, dataIndex: champ, width: 100, align: 'right', itemId: 'col-' + champ,
                 renderer: function (v) {
-                    return Ext.util.Format.number(v, '0,000.0') + ' %';
+                    var t = testextjs.view.pilotage.PilotageManager.nombre(v, '0,000.0');
+                    return t === '' ? '' : t + ' %';
                 }};
         };
         var mois = {text: 'MOIS', dataIndex: 'libelle', flex: 1, itemId: 'col-mois',
@@ -696,7 +779,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 {text: 'RAPPORT A / B', dataIndex: 'rapport', width: 130, align: 'right',
                     itemId: 'col-rapport',
                     renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.00');
+                        return testextjs.view.pilotage.PilotageManager.nombre(v, '0,000.00');
                     }}];
         }
         if (cle === 'stock') {

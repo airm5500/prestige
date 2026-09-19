@@ -43,6 +43,15 @@ import rest.service.impl.PilotagePeriodes.Periode;
  * plusieurs secondes sur deux ans d'historique : sans ce cache, changer d'onglet la relancerait a chaque fois.
  */
 @Stateless
+/*
+ * AUCUNE TRANSACTION EN LECTURE.
+ *
+ * Retour de l'officine du 19/09 : erreurs 500 « Client's transaction aborted ». Une requete qui echoue dans une
+ * transaction CMT la condamne, meme si on attrape l'exception : l'appel suivant recoit alors ce refus. Ces services ne
+ * font que lire ; ils n'ont aucun besoin de transaction, et sans transaction une requete qui echoue n'emporte plus que
+ * sa propre grandeur.
+ */
+@javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
 public class PilotageService {
 
     private static final Logger LOG = Logger.getLogger(PilotageService.class.getName());
@@ -78,6 +87,18 @@ public class PilotageService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @javax.ejb.EJB
+    private PilotageAgregats agregats;
+
+    /*
+     * REFERENCE SUR SOI-MEME. Une annotation de transaction ne s'applique QUE lorsque l'appel passe par le conteneur :
+     * un appel direct a this.photographierStock() garde le contexte de l'appelant, ici « aucune transaction », et
+     * l'ecriture echoue. La photo du stock avait cesse d'etre enregistree pour cette seule raison - defaut vu au banc
+     * apres le passage de la classe en NOT_SUPPORTED.
+     */
+    @javax.ejb.EJB
+    private PilotageService moiMeme;
 
     @javax.ejb.EJB
     private rest.report.ReportUtil reportUtil;
@@ -141,7 +162,7 @@ public class PilotageService {
              * L'ecriture est idempotente (le mois est la cle), donc la prendre a chaque ouverture ne coute qu'une ligne
              * remplacee.
              */
-            photographierStock();
+            moiMeme.photographierStock();
         }
         Entree cache = CACHE.get(cle);
         if (cache != null && cache.frais()) {
@@ -223,26 +244,7 @@ public class PilotageService {
 
     /** Une ligne par mois de la fenetre : ventes, achats et marge cote a cote. */
     private JSONArray moisSynthese(Periode fenetre) {
-        Map<String, JSONObject> lignes = moisDeLaFenetre(fenetre);
-        for (Tuple t : liste(PilotageSql.ventesParMois(), fenetre)) {
-            String mois = t.get("mois", String.class);
-            ligne(lignes, mois).put("caTTC", nombre(t.get("caTTC"))).put("nbVentes", entier(t.get("nbVentes")))
-                    .put("remises", nombre(t.get("remises"))).put("partTiersPayant", nombre(t.get("partTiersPayant")))
-                    .put("panier", entier(t.get("nbVentes")) == 0 ? 0
-                            : Math.round(nombre(t.get("caTTC")) / entier(t.get("nbVentes"))));
-        }
-        for (Tuple t : liste(PilotageSql.achatsParMois(), fenetre)) {
-            ligne(lignes, t.get("mois", String.class)).put("achatTTC", nombre(t.get("achatTTC"))).put("nbBons",
-                    entier(t.get("nbBons")));
-        }
-        for (Tuple t : liste(PilotageSql.margeParMois(), fenetre)) {
-            double caHT = nombre(t.get("caHT"));
-            double cout = nombre(t.get("coutAchat"));
-            ligne(lignes, t.get("mois", String.class)).put("caHT", Math.round(caHT))
-                    .put("marge", Math.round(caHT - cout))
-                    .put("tauxMarge", caHT == 0 ? 0 : arrondi((caHT - cout) / caHT * 100d));
-        }
-        return finaliser(lignes);
+        return moisAgreges(fenetre);
     }
 
     /* ================================================================================ onglet Ventes */
@@ -268,12 +270,12 @@ public class PilotageService {
          */
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         Set<String> modes = new LinkedHashSet<>();
-        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
-            String mois = t.get("mois", String.class);
-            ligne(lignes, mois).put("caTTC", nombre(t.get("caTTC"))).put("nbVentes", entier(t.get("nbVentes")))
-                    .put("remises", nombre(t.get("remises"))).put("panier", entier(t.get("nbVentes")) == 0 ? 0
-                            : Math.round(nombre(t.get("caTTC")) / entier(t.get("nbVentes"))));
-        }
+        agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
+        /*
+         * Le mix de reglement est la seule grandeur de cet onglet qui ne s'agrege pas en colonnes fixes : les modes
+         * dependent de ce que l'officine encaisse. Il garde donc sa requete - une seule, et elle ne passe pas par le
+         * detail des ventes.
+         */
         for (Tuple t : liste(PilotageSql.reglementsParMois(), axe.graphique)) {
             String mode = StringUtils.defaultIfBlank(t.get("mode", String.class), "Autre");
             modes.add(mode);
@@ -303,21 +305,7 @@ public class PilotageService {
         tuiles.put(tuile("ratioVA", "Ratio ventes / achats", courant.ratioVA(),
                 reference == null ? null : reference.ratioVA(), "", null));
 
-        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
-        for (Tuple t : liste(PilotageSql.margeParMois(), axe.graphique)) {
-            double caHT = nombre(t.get("caHT"));
-            double cout = nombre(t.get("coutAchat"));
-            ligne(lignes, t.get("mois", String.class)).put("caHT", Math.round(caHT)).put("coutAchat", Math.round(cout))
-                    .put("marge", Math.round(caHT - cout))
-                    .put("tauxMarge", caHT == 0 ? 0 : arrondi((caHT - cout) / caHT * 100d));
-        }
-        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC")));
-        }
-        for (Tuple t : liste(PilotageSql.achatsParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("achatTTC", nombre(t.get("achatTTC")));
-        }
-        return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes));
+        return new JSONObject().put("tuiles", tuiles).put("mois", moisAgreges(axe.graphique));
     }
 
     /* ================================================================================ onglet Achats */
@@ -436,9 +424,8 @@ public class PilotageService {
     private JSONObject caisse(Axe axe) {
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
-        double encaisseCourant = valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse");
-        Double encaisseReference = axe.reference == null ? null
-                : valeur(axe.reference, PilotageSql.totalEncaisse(), "encaisse");
+        double encaisseCourant = courant.encaisse;
+        Double encaisseReference = reference == null ? null : reference.encaisse;
         double regleCourant = valeur(axe.courante, PilotageSql.totalTiersPayantRegle(), "regle");
         Double regleReference = axe.reference == null ? null
                 : valeur(axe.reference, PilotageSql.totalTiersPayantRegle(), "regle");
@@ -459,13 +446,8 @@ public class PilotageService {
                 "FCFA", null));
 
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
-        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC"))).put("partTiersPayant",
-                    nombre(t.get("partTiersPayant")));
-        }
-        for (Tuple t : liste(PilotageSql.encaisseParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("encaisse", nombre(t.get("encaisse")));
-        }
+        agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
+        /* Le tiers payant regle vient d'une autre chaine que les ventes : il garde sa requete, qui est legere. */
         for (Tuple t : liste(PilotageSql.tiersPayantRegleParMois(), axe.graphique)) {
             ligne(lignes, t.get("mois", String.class)).put("tpRegle", nombre(t.get("regle")));
         }
@@ -576,14 +558,7 @@ public class PilotageService {
                 dormant.lignes + " référence(s) en stock sans une seule vente"));
 
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
-        for (Tuple t : liste(PilotageSql.entreesStockParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("entrees", nombre(t.get("montant"))).put("unitesEntrees",
-                    nombre(t.get("unites")));
-        }
-        for (Tuple t : liste(PilotageSql.sortiesStockParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("sorties", nombre(t.get("montant"))).put("unitesSorties",
-                    nombre(t.get("unites")));
-        }
+        agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
         JSONArray mois = finaliser(lignes);
 
         /* Les photos deja prises, indexees par mois : elles l'emportent sur la reconstitution. */
@@ -710,6 +685,7 @@ public class PilotageService {
      * La photo du mois est ECRASEE tant que le mois est en cours, pour qu'elle reflete le dernier etat connu ; une fois
      * le mois passe, elle ne bouge plus.
      */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.REQUIRES_NEW)
     public JSONObject photographierStock() {
         try {
             Etat etat = etatDuStock();
@@ -746,12 +722,11 @@ public class PilotageService {
     private JSONObject qualite(Axe axe) {
         Etat etat = etatDuStock();
         Anomalies anomalies = anomalies();
-        double annuleesCourant = valeur(axe.courante, PilotageSql.totalAnnulations(), "nbAnnulees");
-        double montantAnnuleCourant = valeur(axe.courante, PilotageSql.totalAnnulations(), "montantAnnule");
-        Double annuleesReference = axe.reference == null ? null
-                : valeur(axe.reference, PilotageSql.totalAnnulations(), "nbAnnulees");
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        double annuleesCourant = courant.nbAnnulees;
+        double montantAnnuleCourant = courant.montantAnnule;
+        Double annuleesReference = reference == null ? null : reference.nbAnnulees;
 
         JSONArray tuiles = new JSONArray();
         tuiles.put(tuile("negatifs", "Stock négatif", etat.negatifs, null, "", "lignes à corriger côté saisie"));
@@ -766,23 +741,8 @@ public class PilotageService {
         tuiles.put(tuile("remises", "Remises accordées", courant.remises, reference == null ? null : reference.remises,
                 "FCFA", courant.caTTC == 0 ? null : pourcent(courant.remises / courant.caTTC * 100d) + " du CA"));
 
-        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
-        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("caTTC", nombre(t.get("caTTC")))
-                    .put("nbVentes", entier(t.get("nbVentes"))).put("remises", nombre(t.get("remises")));
-        }
-        for (Tuple t : liste(PilotageSql.annulationsParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("nbAnnulees", entier(t.get("nbAnnulees")))
-                    .put("montantAnnule", nombre(t.get("montantAnnule")));
-        }
-        JSONArray mois = finaliser(lignes);
-        for (int i = 0; i < mois.length(); i++) {
-            JSONObject m = mois.getJSONObject(i);
-            double ca = m.optDouble("caTTC", 0d);
-            int ventes = m.optInt("nbVentes", 0);
-            m.put("tauxRemise", ca == 0 ? 0 : arrondi(m.optDouble("remises", 0d) / ca * 100d));
-            m.put("tauxAnnulation", ventes == 0 ? 0 : arrondi(m.optInt("nbAnnulees", 0) / (double) ventes * 100d));
-        }
+        JSONArray mois = moisAgreges(axe.graphique);
+
         return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("note",
                 "Les indicateurs de référentiel (prix, rayon, seuil) décrivent l'ÉTAT DU JOUR et ne dépendent "
                         + "pas de la période ; les annulations et les remises, elles, suivent la période "
@@ -869,9 +829,8 @@ public class PilotageService {
                 ? java.util.Arrays.asList("caTTC", "nbVentes", "panier") : coches;
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
-        double encaisseCourant = valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse");
-        Double encaisseReference = axe.reference == null ? null
-                : valeur(axe.reference, PilotageSql.totalEncaisse(), "encaisse");
+        double encaisseCourant = courant.encaisse;
+        Double encaisseReference = reference == null ? null : reference.encaisse;
 
         JSONArray tuiles = new JSONArray();
         for (String cle : retenus) {
@@ -884,37 +843,11 @@ public class PilotageService {
                     uniteKpi(cle), null));
         }
 
-        Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
-        for (Tuple t : liste(PilotageSql.ventesParMois(), axe.graphique)) {
-            int ventes = entier(t.get("nbVentes"));
-            double ca = nombre(t.get("caTTC"));
-            ligne(lignes, t.get("mois", String.class)).put("caTTC", ca).put("nbVentes", ventes)
-                    .put("remises", nombre(t.get("remises"))).put("partTiersPayant", nombre(t.get("partTiersPayant")))
-                    .put("panier", ventes == 0 ? 0 : Math.round(ca / ventes))
-                    .put("tauxRemise", ca == 0 ? 0 : arrondi(nombre(t.get("remises")) / ca * 100d));
-        }
-        for (Tuple t : liste(PilotageSql.margeParMois(), axe.graphique)) {
-            double caHT = nombre(t.get("caHT"));
-            double cout = nombre(t.get("coutAchat"));
-            ligne(lignes, t.get("mois", String.class)).put("caHT", Math.round(caHT))
-                    .put("marge", Math.round(caHT - cout))
-                    .put("tauxMarge", caHT == 0 ? 0 : arrondi((caHT - cout) / caHT * 100d));
-        }
-        for (Tuple t : liste(PilotageSql.achatsParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("achatTTC", nombre(t.get("achatTTC"))).put("nbBons",
-                    entier(t.get("nbBons")));
-        }
-        for (Tuple t : liste(PilotageSql.encaisseParMois(), axe.graphique)) {
-            ligne(lignes, t.get("mois", String.class)).put("encaisse", nombre(t.get("encaisse")));
-        }
-        JSONArray mois = finaliser(lignes);
-        for (int i = 0; i < mois.length(); i++) {
-            JSONObject m = mois.getJSONObject(i);
-            double ca = m.optDouble("caTTC", 0d);
-            double achats = m.optDouble("achatTTC", 0d);
-            m.put("credit", arrondi(ca - m.optDouble("encaisse", 0d)));
-            m.put("ratioVA", achats == 0 ? 0 : arrondi(ca / achats));
-        }
+        /*
+         * Toutes les grandeurs de cet onglet sont portees par les agregats mensuels : une seule lecture d'agregats
+         * remplace les quatre requetes de detail qui parcouraient la fenetre entiere.
+         */
+        JSONArray mois = moisAgreges(axe.graphique);
 
         JSONObject reponse = new JSONObject().put("tuiles", tuiles).put("mois", mois).put("coches",
                 new JSONArray(retenus));
@@ -1086,8 +1019,8 @@ public class PilotageService {
     private Serie serieGrandeur(Axe axe, String grandeur) {
         Serie serie = new Serie(libelleKpi(grandeur));
         Totaux total = totaux(axe.courante);
-        serie.total = valeurKpi(grandeur, total, valeur(axe.courante, PilotageSql.totalEncaisse(), "encaisse"));
-        JSONArray mois = kpiAnalyse(axe, java.util.Collections.singletonList(grandeur)).getJSONArray("mois");
+        serie.total = valeurKpi(grandeur, total, total.encaisse);
+        JSONArray mois = moisAgreges(axe.graphique);
         for (int i = 0; i < mois.length(); i++) {
             JSONObject m = mois.getJSONObject(i);
             serie.parMois.put(m.getString("mois"), m.optDouble(grandeur, 0d));
@@ -1401,10 +1334,12 @@ public class PilotageService {
         static final int COLONNES = 7;
 
         private final String libelle;
+        private final String court;
         private final Double[] valeurs = new Double[COLONNES];
 
         LignePilotage(String libelle) {
             this.libelle = libelle;
+            this.court = moisCourt(libelle);
         }
 
         void set(int index, double valeur) {
@@ -1413,6 +1348,11 @@ public class PilotageService {
 
         public String getLibelle() {
             return libelle;
+        }
+
+        /** Le mois abrege, pour l'axe de la courbe : douze mois en toutes lettres s'y tronquent. */
+        public String getCourt() {
+            return court;
         }
 
         public Double getV1() {
@@ -1446,8 +1386,55 @@ public class PilotageService {
 
     /* =================================================================================== mecanique */
 
-    /** Totaux d'une periode : trois requetes, et aucune addition de mois entiers. */
+    /**
+     * Totaux d'une periode.
+     *
+     * <p>
+     * Les MOIS ENTIERS sont pris dans les agregats deja calcules ; seuls les bords - un mois commence, un mois tronque
+     * - sont interroges directement. Une periode de douze mois, qui demandait auparavant de relire un an de detail de
+     * ventes, ne coute donc plus qu'une lecture d'agregats et au plus deux requetes bornees.
+     *
+     * <p>
+     * C'est le coeur de la correction du 19/09 : l'officine mesurait 17 a 71 secondes par onglet.
+     */
     Totaux totaux(Periode periode) {
+        LocalDate premierMoisEntier = periode.debut.getDayOfMonth() == 1 ? periode.debut
+                : periode.debut.withDayOfMonth(1).plusMonths(1);
+        LocalDate finMoisEntiers = periode.fin.withDayOfMonth(1);
+        if (!finMoisEntiers.isAfter(premierMoisEntier)) {
+            /* Periode trop courte pour contenir un mois entier : une seule lecture directe, deja bornee. */
+            return totauxDirects(periode);
+        }
+        Totaux t = new Totaux();
+        List<String> mois = new ArrayList<>();
+        for (LocalDate curseur = premierMoisEntier; curseur.isBefore(finMoisEntiers); curseur = curseur.plusMonths(1)) {
+            mois.add(curseur.toString().substring(0, 7));
+        }
+        for (PilotageAgregats.Agregat a : agregats.agregats(mois).values()) {
+            t.caTTC += a.caTTC;
+            t.nbVentes += a.nbVentes;
+            t.remises += a.remises;
+            t.partTiersPayant += a.partTiersPayant;
+            t.caHT += a.caHT;
+            t.coutAchat += a.coutAchat;
+            t.achatTTC += a.achatTTC;
+            t.nbBons += a.nbBons;
+            t.encaisse += a.encaisse;
+            t.nbAnnulees += a.nbAnnulees;
+            t.montantAnnule += a.montantAnnule;
+        }
+        if (periode.debut.isBefore(premierMoisEntier)) {
+            t.ajouter(totauxDirects(new Periode(periode.debut, premierMoisEntier, "")));
+        }
+        if (finMoisEntiers.isBefore(periode.fin)) {
+            t.ajouter(totauxDirects(new Periode(finMoisEntiers, periode.fin, "")));
+        }
+        t.marge = t.caHT - t.coutAchat;
+        return t;
+    }
+
+    /** Totaux calcules directement, pour une periode bornee : un bord de periode, ou une periode courte. */
+    private Totaux totauxDirects(Periode periode) {
         Totaux t = new Totaux();
         for (Tuple l : liste(PilotageSql.totauxVentes(), periode)) {
             t.caTTC = nombre(l.get("caTTC"));
@@ -1464,6 +1451,13 @@ public class PilotageService {
             t.achatTTC = nombre(l.get("achatTTC"));
             t.nbBons = entier(l.get("nbBons"));
         }
+        for (Tuple l : liste(PilotageSql.totalEncaisse(), periode)) {
+            t.encaisse = nombre(l.get("encaisse"));
+        }
+        for (Tuple l : liste(PilotageSql.totalAnnulations(), periode)) {
+            t.nbAnnulees = nombre(l.get("nbAnnulees"));
+            t.montantAnnule = nombre(l.get("montantAnnule"));
+        }
         return t;
     }
 
@@ -1477,8 +1471,27 @@ public class PilotageService {
         double remises;
         double partTiersPayant;
         double achatTTC;
+        double encaisse;
+        double nbAnnulees;
+        double montantAnnule;
         int nbVentes;
         int nbBons;
+
+        /** Ajoute les grandeurs d'un bord de periode a celles deja accumulees. */
+        void ajouter(Totaux autre) {
+            caTTC += autre.caTTC;
+            caHT += autre.caHT;
+            coutAchat += autre.coutAchat;
+            remises += autre.remises;
+            partTiersPayant += autre.partTiersPayant;
+            achatTTC += autre.achatTTC;
+            encaisse += autre.encaisse;
+            nbAnnulees += autre.nbAnnulees;
+            montantAnnule += autre.montantAnnule;
+            nbVentes += autre.nbVentes;
+            nbBons += autre.nbBons;
+            marge = caHT - coutAchat;
+        }
 
         double tauxMarge() {
             return caHT == 0 ? 0 : marge / caHT * 100d;
@@ -1577,6 +1590,45 @@ public class PilotageService {
         return lignes;
     }
 
+    /**
+     * Les agregats de la fenetre, indexes par mois : UNE lecture pour toute la serie mensuelle, la ou chaque onglet
+     * lancait auparavant trois a cinq requetes sur douze a vingt-quatre mois de detail.
+     */
+    private Map<String, PilotageAgregats.Agregat> agregatsDeLaFenetre(Periode fenetre) {
+        List<String> mois = new ArrayList<>();
+        LocalDate curseur = fenetre.debut.withDayOfMonth(1);
+        while (curseur.isBefore(fenetre.fin)) {
+            mois.add(curseur.toString().substring(0, 7));
+            curseur = curseur.plusMonths(1);
+        }
+        return agregats.agregats(mois);
+    }
+
+    /** Pose sur une ligne de mois toutes les grandeurs d'un agregat : les onglets y puisent ce qui les concerne. */
+    private static void poser(JSONObject ligne, PilotageAgregats.Agregat a) {
+        double marge = a.marge();
+        ligne.put("caTTC", a.caTTC).put("nbVentes", a.nbVentes).put("remises", a.remises)
+                .put("partTiersPayant", a.partTiersPayant).put("caHT", Math.round(a.caHT))
+                .put("coutAchat", Math.round(a.coutAchat)).put("marge", Math.round(marge))
+                .put("tauxMarge", a.caHT == 0 ? 0 : arrondi(marge / a.caHT * 100d)).put("achatTTC", a.achatTTC)
+                .put("nbBons", a.nbBons).put("encaisse", a.encaisse).put("nbAnnulees", a.nbAnnulees)
+                .put("montantAnnule", a.montantAnnule).put("entrees", a.entreesStock).put("sorties", a.sortiesStock)
+                .put("panier", a.nbVentes == 0 ? 0 : Math.round(a.caTTC / a.nbVentes))
+                .put("tauxRemise", a.caTTC == 0 ? 0 : arrondi(a.remises / a.caTTC * 100d))
+                .put("tauxAnnulation", a.nbVentes == 0 ? 0 : arrondi(a.nbAnnulees / (double) a.nbVentes * 100d))
+                .put("credit", arrondi(a.caTTC - a.encaisse))
+                .put("partComptant", a.caTTC == 0 ? 0 : arrondi(a.encaisse / a.caTTC * 100d))
+                .put("partCredit", a.caTTC == 0 ? 0 : arrondi((a.caTTC - a.encaisse) / a.caTTC * 100d))
+                .put("ratioVA", a.achatTTC == 0 ? 0 : arrondi(a.caTTC / a.achatTTC));
+    }
+
+    /** Une ligne par mois de la fenetre, alimentee par les agregats. */
+    private JSONArray moisAgreges(Periode fenetre) {
+        Map<String, JSONObject> lignes = moisDeLaFenetre(fenetre);
+        agregatsDeLaFenetre(fenetre).forEach((mois, a) -> poser(ligne(lignes, mois), a));
+        return finaliser(lignes);
+    }
+
     private static JSONObject ligne(Map<String, JSONObject> lignes, String mois) {
         return lignes.computeIfAbsent(mois,
                 m -> new JSONObject().put("mois", m).put("libelle", libelleMois(m)).put("caTTC", 0).put("achatTTC", 0)
@@ -1606,6 +1658,57 @@ public class PilotageService {
         } catch (RuntimeException e) {
             return mois;
         }
+    }
+
+    /**
+     * « Septembre 2026 » devient « sept. 26 ».
+     *
+     * <p>
+     * L'axe d'une courbe de douze mois ne peut pas porter des mois ecrits en toutes lettres : JasperReports les tronque
+     * par la fin, et l'axe affichait « bre 2024 ». Le tableau, lui, garde le libelle entier.
+     */
+    static String moisCourt(String libelle) {
+        if (StringUtils.isBlank(libelle)) {
+            return "";
+        }
+        String[] parts = libelle.trim().split(" ");
+        if (parts.length < 2) {
+            return libelle;
+        }
+        String mois = parts[0].toLowerCase(java.util.Locale.FRANCE);
+        String abrege;
+        switch (mois) {
+        case "janvier":
+            abrege = "janv.";
+            break;
+        case "février":
+            abrege = "févr.";
+            break;
+        case "avril":
+            abrege = "avr.";
+            break;
+        case "juillet":
+            abrege = "juil.";
+            break;
+        case "septembre":
+            abrege = "sept.";
+            break;
+        case "octobre":
+            abrege = "oct.";
+            break;
+        case "novembre":
+            abrege = "nov.";
+            break;
+        case "décembre":
+            abrege = "déc.";
+            break;
+        default:
+            /* mars, mai, juin et aout s'ecrivent deja en entier. */
+            abrege = mois;
+            break;
+        }
+        String annee = parts[1];
+        return abrege + " " + (annee.length() > 2 ? annee.substring(annee.length() - 2) : annee);
     }
 
     /** Cle technique d'un mode de reglement : le libelle sans accent ni espace, pour servir de nom de colonne. */
