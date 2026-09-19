@@ -250,8 +250,16 @@ public final class PilotageSql {
     /** Etat du stock aujourd'hui : unites, valeur d'achat, valeur de vente, ruptures, negatifs, sous seuil. */
     public static String etatStock() {
         return "SELECT COUNT(*) AS lignes, COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) AS unites,"
-                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PAF), 0) AS valeurAchat,"
-                + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE), 0) AS valeurVente,"
+                /*
+                 * LA VALEUR DU STOCK EST CELLE DU LOGICIEL, pas une definition de plus : articles actifs et stock
+                 * positif, exactement comme la valorisation quotidienne (stock_daily_value, ecrite chaque nuit). Sans
+                 * cela, l'onglet annoncerait une valeur du jour qui ne retomberait pas sur la courbe des mois
+                 * precedents, qui vient, elle, de cette valorisation.
+                 */
+                + " COALESCE(SUM(CASE WHEN f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 0"
+                + "     THEN s.int_NUMBER_AVAILABLE * f.int_PAF ELSE 0 END), 0) AS valeurAchat,"
+                + " COALESCE(SUM(CASE WHEN f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 0"
+                + "     THEN s.int_NUMBER_AVAILABLE * f.int_PRICE ELSE 0 END), 0) AS valeurVente,"
                 + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE = 0 THEN 1 ELSE 0 END) AS ruptures,"
                 + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE < 0 THEN 1 ELSE 0 END) AS negatifs,"
                 /*
@@ -286,6 +294,25 @@ public final class PilotageSql {
     }
 
     /** Photos mensuelles deja prises. */
+    /**
+     * Valorisation du stock a la fin de chaque mois, prise dans la VALORISATION QUOTIDIENNE du logiciel.
+     *
+     * <p>
+     * {@code stock_daily_value} est ecrite chaque nuit a 00h05 par le travail planifie du stock (StockDailyScheduler),
+     * avec rattrapage au demarrage du serveur. Elle porte donc l'historique reel de la valeur du stock, sans que
+     * personne n'ait a ouvrir un ecran - c'est exactement ce que l'onglet Stock cherchait a reconstituer.
+     *
+     * <p>
+     * Sa cle est la date au format AAAAMMJJ ; on garde, pour chaque mois, la DERNIERE journee relevee.
+     */
+    public static String valeurStockParMois() {
+        return "SELECT DATE_FORMAT(STR_TO_DATE(CAST(v.id AS CHAR), '%Y%m%d'), '%Y-%m') AS mois,"
+                + " v.valeur_achat AS valeurAchat, v.valeur_vente AS valeurVente, v.id AS jour"
+                + " FROM stock_daily_value v"
+                + " JOIN (SELECT MAX(id) AS dernier FROM stock_daily_value WHERE id >= :jourDebut AND id < :jourFin"
+                + "     GROUP BY FLOOR(id / 100)) d ON d.dernier = v.id" + " ORDER BY v.id ASC";
+    }
+
     public static String photosStock() {
         return "SELECT p.str_MOIS AS mois, p.int_UNITES AS unites, p.int_VALEUR_ACHAT AS valeurAchat,"
                 + " p.int_VALEUR_VENTE AS valeurVente, p.int_REFERENCES AS refs, p.int_RUPTURES AS ruptures,"

@@ -91,15 +91,6 @@ public class PilotageService {
     @javax.ejb.EJB
     private PilotageAgregats agregats;
 
-    /*
-     * REFERENCE SUR SOI-MEME. Une annotation de transaction ne s'applique QUE lorsque l'appel passe par le conteneur :
-     * un appel direct a this.photographierStock() garde le contexte de l'appelant, ici « aucune transaction », et
-     * l'ecriture echoue. La photo du stock avait cesse d'etre enregistree pour cette seule raison - defaut vu au banc
-     * apres le passage de la classe en NOT_SUPPORTED.
-     */
-    @javax.ejb.EJB
-    private PilotageService moiMeme;
-
     @javax.ejb.EJB
     private rest.report.ReportUtil reportUtil;
 
@@ -151,22 +142,14 @@ public class PilotageService {
         String cle = (operateur == null ? "?" : operateur.getLgUSERID()) + "|" + onglet + "|" + axe.code + "|"
                 + StringUtils.defaultString(debutPerso) + "|" + StringUtils.defaultString(finPerso) + "|"
                 + filtres.cle() + "|" + (choix == null ? "" : choix.cle());
-        if (ONGLET_STOCK.equals(onglet)) {
-            /*
-             * La photo du mois est prise a l'ouverture de l'onglet Stock, et AVANT la lecture du cache.
-             *
-             * Defaut vu au banc : placee dans le calcul, elle etait sautee des que la reponse venait du cache -
-             * c'est-a-dire la plupart du temps, puisque c'est justement le cas ou l'on rouvre l'ecran. La photo ne se
-             * serait donc prise qu'une fois par periode de cache et par utilisateur, au hasard.
-             *
-             * L'ecriture est idempotente (le mois est la cle). Elle n'est en revanche PLUS prise a chaque ouverture :
-             * elle compte tout le stock de l'officine, et l'officine a mesure le 19/09 que cet onglet mettait 26
-             * secondes. Une photo par jour suffit - ce qu'elle mesure ne bouge pas d'une minute a l'autre.
-             */
-            if (photoDuJourAPrendre()) {
-                moiMeme.photographierStock();
-            }
-        }
+        /*
+         * LA PHOTO DU STOCK A L'OUVERTURE A ETE ABANDONNEE le 19/09.
+         *
+         * Elle demandait qu'un operateur vienne ouvrir cet onglet pour qu'un mois soit enregistre - « le pharmacien ne
+         * va pas passer ses jours a venir cliquer dans ce menu », et l'officine avait raison. Le logiciel releve deja
+         * la valeur du stock chaque nuit (stock_daily_value, travail planifie du stock) : l'onglet Stock lit desormais
+         * ce releve, qui se complete tout seul.
+         */
         Entree cache = CACHE.get(cle);
         if (cache != null && cache.frais()) {
             return new JSONObject(cache.json);
@@ -206,6 +189,16 @@ public class PilotageService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "pilotage : onglet " + onglet, e);
             return new JSONObject().put("success", false).put("message", "Les chiffres n'ont pas pu être rassemblés.");
+        }
+        /*
+         * Chaque tuile porte le NOM de la periode a laquelle elle se compare : « -18,9 % » ne dit pas a quoi on se
+         * compare, et l'officine voulait voir les deux valeurs des la bande du haut.
+         */
+        if (axe.reference != null) {
+            JSONArray tuiles = reponse.optJSONArray("tuiles");
+            for (int i = 0; tuiles != null && i < tuiles.length(); i++) {
+                tuiles.getJSONObject(i).put("libelleReference", axe.reference.libelle);
+            }
         }
         reponse.put("success", true).put("axe", enteteAxe(axe));
         CACHE.put(cle, new Entree(reponse.toString()));
@@ -361,17 +354,32 @@ public class PilotageService {
         for (Map.Entry<String, String> e : libelles.entrySet()) {
             colonnes.put(new JSONObject().put("cle", "gros_" + e.getKey()).put("libelle", e.getValue()));
         }
-        /* La part de chaque grossiste sur la fenetre : c'est la lecture que l'officine fait en premier. */
-        double total = parts.values().stream().mapToDouble(Double::doubleValue).sum();
+        /*
+         * LA PART DE CHAQUE GROSSISTE PORTE SUR LA PERIODE CHOISIE, pas sur la fenetre du graphique.
+         *
+         * Elle etait calculee sur les treize ou vingt-cinq mois du graphique, pendant que les tuiles juste au-dessus
+         * parlaient du mois en cours : deux lectures cote a cote, deux periodes differentes, et rien qui le dise. « La
+         * part de chaque grossiste sur la fenetre correspond a quelle periode ? » - la question de l'officine du 19/09
+         * etait la bonne, et la reponse etait mauvaise. Le titre du tableau nomme desormais la periode.
+         */
+        Map<String, Double> partsPeriode = new LinkedHashMap<>();
+        Map<String, String> libellesPeriode = new LinkedHashMap<>();
+        for (Tuple t : listeAchats(axe.courante, filtres)) {
+            String grossiste = StringUtils.defaultIfBlank(t.get("grossiste", String.class), "Sans grossiste");
+            libellesPeriode.put(cle(grossiste), grossiste);
+            partsPeriode.merge(cle(grossiste), nombre(t.get("montant")), Double::sum);
+        }
+        double total = partsPeriode.values().stream().mapToDouble(Double::doubleValue).sum();
         JSONArray repartition = new JSONArray();
-        parts.entrySet().stream().sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
-                .forEach(e -> repartition.put(new JSONObject().put("grossiste", libelles.get(e.getKey()))
+        partsPeriode.entrySet().stream().sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+                .forEach(e -> repartition.put(new JSONObject().put("grossiste", libellesPeriode.get(e.getKey()))
                         .put("montant", arrondi(e.getValue()))
                         .put("part", total == 0 ? 0 : arrondi(e.getValue() / total * 100d))));
 
         poserReference(axe, lignes);
         return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes)).put("grossistesColonnes", colonnes)
-                .put("repartition", repartition).put("base", surLignes ? "lignes" : "entete").put("note",
+                .put("repartition", repartition).put("libelleRepartition", axe.courante.libelle)
+                .put("base", surLignes ? "lignes" : "entete").put("note",
                         surLignes
                                 ? "Filtre de famille ou d'emplacement actif : le montant est la somme des LIGNES "
                                         + "retenues (prix d'achat × quantité reçue), et non le total TTC des bons."
@@ -577,8 +585,12 @@ public class PilotageService {
         poserReference(axe, lignes);
         JSONArray mois = finaliser(lignes);
 
-        /* Les photos deja prises, indexees par mois : elles l'emportent sur la reconstitution. */
-        Map<String, JSONObject> photos = photos(axe.graphique);
+        /*
+         * LA VALEUR DU STOCK EST MESUREE, PLUS RECONSTITUEE - du moins tant que le releve du logiciel remonte assez
+         * loin. Le logiciel releve la valeur du stock chaque nuit ; l'onglet garde, pour chaque mois, la derniere
+         * journee relevee. Les mois anterieurs a ce releve restent reconstitues a rebours, et l'ecran le dit.
+         */
+        Map<String, JSONObject> photos = valorisationsMensuelles(axe.graphique);
 
         /*
          * RECONSTITUTION A REBOURS. On part de la valeur d'aujourd'hui et on remonte le temps : la valeur a la fin du
@@ -621,12 +633,14 @@ public class PilotageService {
                 .put("sourceEvolution", reconstitue ? (photos.isEmpty() ? "reconstitution" : "mixte") : "photos")
                 .put("photos", photos.size()).put("note",
                         reconstitue
-                                ? "Valeur du stock RECONSTITUÉE à rebours depuis l'état du jour, avec les entrées "
-                                        + "(bons de livraison) et les sorties (ventes) de chaque mois. Les "
-                                        + "régularisations d'inventaire n'y figurent pas. Une photo mensuelle est "
-                                        + "enregistrée à chaque ouverture de cet onglet : à partir du mois prochain, "
-                                        + "l'évolution sera mesurée et non plus reconstituée."
-                                : "Valeur du stock MESURÉE : chaque mois affiché vient d'une photo enregistrée.");
+                                ? "Valeur du stock MESURÉE pour les mois relevés par la valorisation quotidienne du "
+                                        + "logiciel (relevé automatique chaque nuit), et RECONSTITUÉE à rebours pour "
+                                        + "les mois antérieurs à ce relevé — avec les entrées (bons de livraison) et "
+                                        + "les sorties (ventes) de chaque mois, les régularisations d'inventaire "
+                                        + "n'y figurant pas. Plus aucune manipulation n'est nécessaire : l'historique "
+                                        + "se complète tout seul, mois après mois."
+                                : "Valeur du stock MESURÉE : chaque mois affiché vient du relevé automatique de fin "
+                                        + "de mois (valorisation quotidienne du logiciel, écrite chaque nuit).");
     }
 
     /** Etat du stock de l'officine, aujourd'hui. */
@@ -684,80 +698,30 @@ public class PilotageService {
         return dormant;
     }
 
-    private Map<String, JSONObject> photos(Periode fenetre) {
-        Map<String, JSONObject> photos = new LinkedHashMap<>();
+    /**
+     * La valeur du stock a la fin de chaque mois, lue dans la VALORISATION QUOTIDIENNE du logiciel.
+     *
+     * <p>
+     * {@code stock_daily_value} est ecrite chaque nuit a 00h05 par le travail planifie du stock, avec rattrapage au
+     * demarrage du serveur : l'historique existe donc sans que personne n'ait a ouvrir un ecran. On garde, pour chaque
+     * mois, la derniere journee relevee.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, JSONObject> valorisationsMensuelles(Periode fenetre) {
+        Map<String, JSONObject> out = new LinkedHashMap<>();
+        String sql = PilotageSql.valeurStockParMois();
         try {
-            Query q = em.createNativeQuery(PilotageSql.photosStock(), Tuple.class);
-            q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
-            q.setParameter("moisDebut", fenetre.debut.toString().substring(0, 7));
-            q.setParameter("moisFin", fenetre.fin.toString().substring(0, 7));
+            Query q = em.createNativeQuery(sql, Tuple.class);
+            q.setParameter("jourDebut", Integer.parseInt(fenetre.debut.toString().replace("-", "")));
+            q.setParameter("jourFin", Integer.parseInt(fenetre.fin.toString().replace("-", "")));
             for (Tuple t : (List<Tuple>) q.getResultList()) {
-                photos.put(t.get("mois", String.class),
-                        new JSONObject().put("unites", nombre(t.get("unites")))
-                                .put("valeurAchat", nombre(t.get("valeurAchat")))
-                                .put("valeurVente", nombre(t.get("valeurVente"))));
+                out.put(t.get("mois", String.class), new JSONObject().put("valeurAchat", nombre(t.get("valeurAchat")))
+                        .put("valeurVente", nombre(t.get("valeurVente"))).put("jour", String.valueOf(t.get("jour"))));
             }
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "pilotage : photos du stock", e);
+            LOG.log(Level.WARNING, "pilotage : valorisation quotidienne indisponible", e);
         }
-        return photos;
-    }
-
-    /**
-     * Enregistre la photo du stock pour le mois en cours, si elle n'existe pas deja.
-     *
-     * <p>
-     * Appelee a l'ouverture de l'onglet Stock. Ecrire a la lecture n'est pas anodin, et c'est assume : sans cela,
-     * l'officine devrait penser a declencher la photo elle-meme, et l'historique ne se constituerait jamais. L'ecriture
-     * est idempotente - le mois est la cle - donc ouvrir l'ecran dix fois dans la journee n'ecrit qu'une ligne.
-     *
-     * <p>
-     * La photo du mois est ECRASEE tant que le mois est en cours, pour qu'elle reflete le dernier etat connu ; une fois
-     * le mois passe, elle ne bouge plus.
-     */
-    /**
-     * Vrai si la photo du mois n'a pas encore ete prise aujourd'hui.
-     *
-     * <p>
-     * Une lecture d'une ligne sur cle primaire, la ou la photo elle-meme parcourt tout le stock.
-     */
-    private boolean photoDuJourAPrendre() {
-        try {
-            String mois = LocalDate.now().toString().substring(0, 7);
-            javax.persistence.Query q = em.createNativeQuery("SELECT p.dt_CREATED FROM pilotage_stock_mensuel p"
-                    + " WHERE p.str_MOIS = ?1 AND p.lg_EMPLACEMENT_ID = ?2");
-            Object prise = q.setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).getSingleResult();
-            if (prise instanceof java.sql.Timestamp) {
-                return !((java.sql.Timestamp) prise).toLocalDateTime().toLocalDate().isEqual(LocalDate.now());
-            }
-        } catch (Exception e) {
-            LOG.log(Level.FINE, "pilotage : pas de photo du stock pour le mois en cours", e);
-        }
-        return true;
-    }
-
-    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.REQUIRES_NEW)
-    public JSONObject photographierStock() {
-        try {
-            Etat etat = etatDuStock();
-            String mois = LocalDate.now().toString().substring(0, 7);
-            em.createNativeQuery(
-                    "DELETE FROM pilotage_stock_mensuel WHERE str_MOIS = ?1" + " AND lg_EMPLACEMENT_ID = ?2")
-                    .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
-            em.createNativeQuery("INSERT INTO pilotage_stock_mensuel (str_MOIS, int_UNITES, int_VALEUR_ACHAT,"
-                    + " int_VALEUR_VENTE, int_REFERENCES, int_RUPTURES, int_NEGATIFS, int_SOUS_SEUIL,"
-                    + " lg_EMPLACEMENT_ID, dt_CREATED) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NOW())")
-                    .setParameter(1, mois).setParameter(2, Math.round(etat.unites))
-                    .setParameter(3, Math.round(etat.valeurAchat)).setParameter(4, Math.round(etat.valeurVente))
-                    .setParameter(5, etat.lignes).setParameter(6, etat.ruptures).setParameter(7, etat.negatifs)
-                    .setParameter(8, etat.sousSeuil).setParameter(9, PilotageSql.EMPLACEMENT_OFFICINE).executeUpdate();
-            return new JSONObject().put("success", true).put("mois", mois).put("message",
-                    "Photo du stock enregistrée pour " + libelleMois(mois) + ".");
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "pilotage : photo du stock", e);
-            return new JSONObject().put("success", false).put("message",
-                    "La photo du stock n'a pas pu être enregistrée.");
-        }
+        return out;
     }
 
     /* ================================================================ onglet Qualite-Exploitation */

@@ -23,8 +23,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'pilotage',
     itemId: 'pilotage',
-    requires: ['Ext.chart.Chart', 'Ext.chart.series.Line', 'Ext.chart.axis.Numeric',
-        'Ext.chart.axis.Category'],
+    requires: ['Ext.chart.Chart', 'Ext.chart.series.Line', 'Ext.chart.series.Area',
+        'Ext.chart.axis.Numeric', 'Ext.chart.axis.Category'],
     frame: true,
     title: 'PILOTAGE DE L\'OFFICINE',
     width: '99%',
@@ -199,7 +199,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         Ext.each(me.ONGLETS, function (onglet) {
             me.stores[onglet.cle] = {
                 tuiles: new Ext.data.Store({
-                    fields: ['cle', 'libelle', 'unite', 'sousTitre',
+                    fields: ['cle', 'libelle', 'unite', 'sousTitre', 'libelleReference',
                         {name: 'valeur', type: 'float'},
                         /*
                          * useNull : SANS lui, ExtJS convertit une valeur absente en 0, et une tuile sans
@@ -363,7 +363,22 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 items: [{xtype: 'displayfield', itemId: 'texteNote', flex: 1, value: ''}]
             });
         }
-        contenu.push(me.graphique(onglet.cle));
+        if (onglet.cle === 'ventes') {
+            /*
+             * DEUX GRAPHIQUES CÔTE À CÔTE dans l'onglet Ventes : le chiffre d'affaires mensuel à gauche, et à
+             * droite la part de chaque mode de règlement, mois après mois. « Pour voir la part de chaque
+             * mode » — demande de l'officine du 19/09. Les deux se lisent d'un même regard, sur les mêmes mois.
+             */
+            contenu.push({
+                xtype: 'container',
+                layout: {type: 'hbox', align: 'stretch'},
+                flex: 1,
+                minHeight: 260,
+                items: [me.graphique(onglet.cle), me.graphiqueModes()]
+            });
+        } else {
+            contenu.push(me.graphique(onglet.cle));
+        }
         if (onglet.cle === 'kpi') {
             contenu.push(me.frequentation());
         }
@@ -448,10 +463,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         return {
             xtype: 'gridpanel',
             itemId: 'repartition',
-            title: 'Part de chaque grossiste sur la fenêtre',
+            title: 'Part de chaque grossiste',
             store: this.storeRepartition,
             height: 150,
             columnLines: true,
+            /* Une période sans achat rend un tableau vide : il doit le DIRE, sinon on croit à une panne. */
+            viewConfig: {
+                emptyText: '<div class="pilotage-vide">Aucun achat clôturé sur la période choisie.</div>',
+                deferEmptyText: false
+            },
             columns: [
                 {text: 'GROSSISTE', dataIndex: 'grossiste', flex: 2, itemId: 'col-grossiste'},
                 {text: 'MONTANT', dataIndex: 'montant', width: 150, align: 'right',
@@ -492,6 +512,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 '{[values.variation >= 0 ? \'▲\' : \'▼\']} {[this.pourcent(values.variation)]}',
                 '<span class="pilotage-tuile-ecart"> ({[this.montant(values.ecart, values.unite)]})</span>',
                 '</div>',
+                '</tpl>',
+                /*
+                 * LA VALEUR COMPARÉE, EN CLAIR. Une variation de -18,9 % ne dit pas à quoi on se compare :
+                 * l'officine voulait « voir les 2 valeurs » dès la bande du haut. La période comparée est
+                 * nommée, pour qu'on sache de quel mois il s'agit sans revenir au sélecteur.
+                 */
+                '<tpl if="reference !== null && reference !== undefined">',
+                '<div class="pilotage-tuile-comparee">{libelleReference} : ',
+                '<b>{[this.montant(values.reference, values.unite)]}</b></div>',
                 '</tpl>',
                 '<tpl if="sousTitre">',
                 '<div class="pilotage-tuile-sous">{sousTitre}</div>',
@@ -557,14 +586,25 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 /* Un trait fin sur fond clair se perd : l'officine ne voyait pas la courbe. */
                 style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
                 markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
+                /*
+                 * L'infobulle : elle était bridée à 260 × 44 pixels, donc tronquée dès qu'un libellé de mode
+                 * ou de grossiste était un peu long, et elle s'effaçait au bout du délai par défaut. Elle se
+                 * dimensionne maintenant sur son contenu et reste affichée tant que le curseur ne quitte pas
+                 * la courbe — retour de l'officine du 19/09.
+                 */
                 tips: {
                     trackMouse: true,
-                    width: 260,
-                    height: 44,
+                    dismissDelay: 0,
+                    hideDelay: 400,
+                    minWidth: 180,
+                    maxWidth: 420,
+                    autoHeight: true,
+                    style: 'white-space: normal;',
                     renderer: function (record) {
+                        var f = testextjs.view.pilotage.PilotageManager;
                         var v = record.get(champ);
-                        this.setTitle(record.get('libelle') + ' — ' + titre + ' : '
-                                + (testextjs.view.pilotage.PilotageManager.nombre(v) || '—'));
+                        this.setTitle('<b>' + record.get('libelle') + '</b><br>' + titre + ' : '
+                                + (f.nombre(v) || '—'));
                     }
                 }
             };
@@ -625,6 +665,64 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             }
                         }],
                     series: series
+                }]
+        };
+    },
+
+    /**
+     * L'evolution des modes de reglement, en aires empilees.
+     *
+     * <p>
+     * Empilees et non cote a cote : ce que l'officine regarde ici n'est pas le montant de chaque mode, deja donne
+     * par le detail mensuel, mais la PART que chacun prend - la montee du mobile money contre les especes. Une pile
+     * dont la hauteur totale est le chiffre d'affaires encaisse montre cela d'un coup d'oeil.
+     *
+     * <p>
+     * Les series sont posees au chargement, comme les colonnes : les modes dependent de ce que l'officine encaisse.
+     */
+    graphiqueModes: function () {
+        return {
+            xtype: 'panel',
+            itemId: 'graphiquePanneau-modes',
+            title: 'Part de chaque mode de règlement',
+            flex: 1,
+            minHeight: 260,
+            margin: '0 0 0 6',
+            layout: 'fit',
+            items: [{
+                    xtype: 'chart',
+                    itemId: 'graphique-modes',
+                    animate: false,
+                    shadow: false,
+                    legend: {position: 'top'},
+                    store: this.stores.ventes.mois,
+                    axes: [{
+                            type: 'Numeric',
+                            position: 'left',
+                            fields: ['caTTC'],
+                            minimum: 0,
+                            grid: true,
+                            label: {
+                                font: 'bold 12px tahoma, arial, sans-serif',
+                                fill: '#333333',
+                                renderer: function (v) {
+                                    return Ext.util.Format.number(v / 1000000, '0,000.0') + ' M';
+                                }
+                            }
+                        }, {
+                            type: 'Category',
+                            position: 'bottom',
+                            fields: ['libelle'],
+                            label: {
+                                font: 'bold 12px tahoma, arial, sans-serif',
+                                fill: '#333333',
+                                rotate: {degrees: 315},
+                                renderer: function (v) {
+                                    return testextjs.view.pilotage.PilotageManager.moisCourt(v);
+                                }
+                            }
+                        }],
+                    series: []
                 }]
         };
     },

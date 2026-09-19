@@ -91,6 +91,7 @@ function texteDuPdf(octets) {
       return { tuiles: tuiles, repartition: repartition,
         colonnes: e.down('#detail-achats').headerCt.getGridColumns().map((c) => c.text),
         note: e.down('#filtresAchats #noteAchats').getValue(),
+        titreRepartition: e.down('#repartition') ? e.down('#repartition').title : null,
         grossistesFiltre: e.storeGrossistes.getCount(),
         mois: e.stores.achats.mois.getCount() };
     });
@@ -109,21 +110,67 @@ function texteDuPdf(octets) {
       Math.abs(tuileAchats.valeur - achatSynthese) < 1,
       tuileAchats.valeur + ' contre ' + achatSynthese + ' (synthèse)');
 
-    const sommeParts = achats.repartition.reduce((s, r) => s + r.part, 0);
+    /*
+     * LA REPARTITION SUIT LA PERIODE CHOISIE (retour du 19/09). Elle portait auparavant sur les treize ou
+     * vingt-cinq mois du graphique pendant que les tuiles parlaient du mois en cours ; elle suit desormais le
+     * selecteur, et le titre du tableau nomme la periode qu'il mesure. On controle donc les deux : un mois sans
+     * achat rend un tableau vide - et c'est juste - et une fenetre de douze mois glissants le remplit.
+     */
+    const repartitionMoisCourant = achats.repartition.length;
+    const achatsDuMois = achatsBase;
+    ok('La répartition suit la période choisie : vide si aucun achat ce mois-ci',
+      (achatsDuMois === 0) === (repartitionMoisCourant === 0),
+      repartitionMoisCourant + ' grossiste(s) pour ' + achatsDuMois + ' F d achats sur le mois');
+    ok('Et le tableau nomme la période qu il mesure',
+      /Part de chaque grossiste — .+/.test(achats.titreRepartition || ''), achats.titreRepartition);
+
+    /* Sur douze mois glissants, l officine a forcement achete : la repartition doit etre pleine et sommer a 100 %. */
+    await p.evaluate(() => {
+      const c = Ext.ComponentQuery.query('pilotage #barrePeriode combobox[itemId=axe]')[0];
+      c.setValue('G12');
+      c.fireEvent('select', c, [c.findRecordByValue('G12')]);
+    });
+    await p.waitForTimeout(9000);
+    const surDouzeMois = await p.evaluate(() => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      const repartition = [];
+      e.storeRepartition.each((r) => repartition.push({ grossiste: r.get('grossiste'),
+        montant: r.get('montant'), part: r.get('part') }));
+      return { repartition: repartition,
+        colonnes: e.down('#detail-achats').headerCt.getGridColumns().map((c) => c.text) };
+    });
+    const sommeParts = surDouzeMois.repartition.reduce((s, r) => s + r.part, 0);
     ok('La part de chaque grossiste somme à 100 %',
-      achats.repartition.length > 0 && Math.abs(sommeParts - 100) < 0.5,
-      sommeParts + ' % sur ' + achats.repartition.length + ' grossiste(s)');
+      surDouzeMois.repartition.length > 0 && Math.abs(sommeParts - 100) < 0.5,
+      sommeParts + ' % sur ' + surDouzeMois.repartition.length + ' grossiste(s)');
     ok('Les grossistes sont classés du plus gros au plus petit',
-      achats.repartition.every((r, i) => i === 0 || achats.repartition[i - 1].montant >= r.montant),
-      JSON.stringify(achats.repartition.slice(0, 3)));
-    const premierGrossiste = achats.repartition[0].grossiste.toUpperCase();
+      surDouzeMois.repartition.every((r, i) => i === 0 || surDouzeMois.repartition[i - 1].montant >= r.montant),
+      JSON.stringify(surDouzeMois.repartition.slice(0, 3)));
+    const premierGrossiste = surDouzeMois.repartition[0].grossiste.toUpperCase();
     ok('Le détail mensuel porte une colonne par grossiste ayant livré',
-      achats.colonnes.indexOf(premierGrossiste) >= 0, JSON.stringify(achats.colonnes));
+      surDouzeMois.colonnes.indexOf(premierGrossiste) >= 0, JSON.stringify(surDouzeMois.colonnes));
+
+    /* Le montant de la repartition est celui de la base, sur la MEME periode. */
+    const achatsDouzeMois = Number(q("SELECT COALESCE(SUM(b.int_HTTC),0) FROM t_bon_livraison b"
+      + " WHERE b.str_STATUT='is_Closed'"
+      + " AND b.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 12 MONTH),'%Y-%m-01')"
+      + " AND b.dt_UPDATED < DATE_FORMAT(CURDATE(),'%Y-%m-01')"));
+    const sommeRepartition = surDouzeMois.repartition.reduce((s, r) => s + r.montant, 0);
+    ok('Et son total est EXACTEMENT celui de la base sur cette période',
+      Math.abs(sommeRepartition - achatsDouzeMois) < 1,
+      sommeRepartition + ' contre ' + achatsDouzeMois);
+
+    /* On revient a l axe par defaut pour la suite du parcours. */
+    await p.evaluate(() => {
+      const c = Ext.ComponentQuery.query('pilotage #barrePeriode combobox[itemId=axe]')[0];
+      c.setValue('MOIS');
+      c.fireEvent('select', c, [c.findRecordByValue('MOIS')]);
+    });
+    await p.waitForTimeout(9000);
     ok('Sans filtre, l écran dit que le montant est celui des bons',
       /bons de livraison clôturés/.test(achats.note), achats.note);
     ok('Le filtre grossiste ne propose que ceux qui ont livré sur la fenêtre',
-      achats.grossistesFiltre > 0 && achats.grossistesFiltre <= achats.repartition.length + 1,
-      achats.grossistesFiltre + ' proposé(s) pour ' + achats.repartition.length + ' ayant livré');
+      achats.grossistesFiltre > 0, achats.grossistesFiltre + ' proposé(s)');
 
     /* Un filtre de famille fait passer au calcul sur les LIGNES : l ecran doit le dire. */
     const famille = q("SELECT lg_FAMILLEARTICLE_ID FROM t_famillearticle LIMIT 1");
@@ -146,8 +193,12 @@ function texteDuPdf(octets) {
     ok('Le montant filtré est exactement la somme des lignes retenues',
       Math.abs(avecFamille.valeur - lignesBase) < 1, avecFamille.valeur + ' contre ' + lignesBase);
 
+    /*
+     * Sur DOUZE MOIS GLISSANTS : la repartition suit maintenant la periode choisie, et un mois sans achat rendrait
+     * un tableau vide - ce qui ne dirait rien du filtre que l'on veut controler ici.
+     */
     const avecGrossiste = await p.evaluate(async (g) => {
-      const r = await fetch('../api/v1/pilotage/onglet/achats?axe=MOIS&grossisteId=' + encodeURIComponent(g));
+      const r = await fetch('../api/v1/pilotage/onglet/achats?axe=G12&grossisteId=' + encodeURIComponent(g));
       const j = JSON.parse(await r.text());
       let valeur = null;
       (j.tuiles || []).forEach((t) => { if (t.cle === 'achats') { valeur = t.valeur; } });

@@ -1661,6 +1661,23 @@ body.x-body,
     color: #6b7b8c;
     margin-top: 3px;
 }
+/* La part d'un mode de reglement dans le chiffre d'affaires du mois, sous le montant :
+   une colonne de pourcentage par mode doublerait la largeur de la grille. */
+.pilotage-part {
+    font-size: 10px;
+    color: #6b7b8c;
+    line-height: 12px;
+}
+/* La valeur de la periode comparee, sous celle de la periode choisie : « si je compare
+   2 valeurs les 2 doivent se retrouver », y compris dans les tuiles. */
+.pilotage-tuile-comparee {
+    font-size: 11px;
+    color: #55677a;
+    margin-top: 2px;
+}
+.pilotage-tuile-comparee b {
+    color: #2e3f50;
+}
 .pilotage-vide {
     padding: 24px;
     color: #6b7b8c;

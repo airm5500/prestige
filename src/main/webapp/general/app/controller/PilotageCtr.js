@@ -444,10 +444,24 @@ Ext.define('testextjs.controller.PilotageCtr', {
         });
         var colonnes = ecran.colonnes('ventes');
         Ext.each(modes, function (mode) {
-            colonnes.push({text: mode.libelle.toUpperCase(), dataIndex: mode.cle, width: 120, align: 'right',
+            colonnes.push({text: mode.libelle.toUpperCase(), dataIndex: mode.cle, width: 130, align: 'right',
                 itemId: 'col-' + mode.cle,
-                renderer: function (v) {
-                    return testextjs.view.pilotage.PilotageManager.nombre(v);
+                /*
+                 * Le montant ET sa part du chiffre d'affaires du mois, dans la même cellule : une colonne de
+                 * pourcentage par mode doublerait la largeur de la grille, qui porte déjà sept modes.
+                 */
+                renderer: function (v, meta, record) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var montant = f.nombre(v);
+                    if (montant === '') {
+                        return '';
+                    }
+                    var ca = record.get('caTTC');
+                    if (!ca) {
+                        return montant;
+                    }
+                    return montant + '<div class="pilotage-part">'
+                            + f.nombre(v / ca * 100, '0,000.0') + ' %</div>';
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -456,6 +470,49 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }});
         });
         grille.reconfigure(store, colonnes);
+        this.dessinerModes(modes);
+    },
+
+    /**
+     * Les aires empilées des modes de règlement : une par mode réellement encaissé.
+     *
+     * Posées au chargement, comme les colonnes du détail — l'officine peut activer un nouveau mode demain.
+     * Le dessin est isolé : une échelle impossible ne doit pas emporter le reste du rafraîchissement.
+     */
+    dessinerModes: function (modes) {
+        var graphique = this.getEcran().down('#graphique-modes');
+        if (!graphique) {
+            return;
+        }
+        /* Une palette lisible côte à côte, et stable d'un chargement à l'autre : le même mode garde sa
+           couleur d'un mois sur l'autre, sans quoi la lecture de la pile n'apprendrait rien. */
+        var couleurs = ['#1565c0', '#ef6c00', '#2e7d32', '#6a1b9a', '#c62828', '#00838f', '#f9a825', '#4e342e'];
+        try {
+            graphique.series.removeAll();
+            var champs = [];
+            Ext.each(modes, function (mode, i) {
+                champs.push(mode.cle);
+                graphique.series.add(Ext.create('Ext.chart.series.Area', {
+                    chart: graphique,
+                    type: 'area',
+                    axis: 'left',
+                    xField: 'libelle',
+                    yField: [mode.cle],
+                    title: [mode.libelle],
+                    style: {opacity: 0.85, fill: couleurs[i % couleurs.length],
+                        stroke: couleurs[i % couleurs.length]}
+                }));
+            });
+            if (champs.length) {
+                graphique.axes.getAt(0).fields = champs;
+            }
+            if (graphique.legend && graphique.legend.isLegend) {
+                graphique.legend.create();
+            }
+            graphique.redraw();
+        } catch (e) {
+            /* Le détail mensuel, lui, reste juste : on ne perd que le dessin. */
+        }
     },
 
     /**
@@ -612,6 +669,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }
         var ecran = this.getEcran();
         ecran.storeRepartition.loadData(reponse.repartition || []);
+        /* Le tableau nomme la période qu'il mesure : « sur la fenêtre » n'apprenait rien à personne. */
+        var panneauPart = ecran.down('#repartition');
+        if (panneauPart) {
+            panneauPart.setTitle('Part de chaque grossiste — '
+                    + (reponse.libelleRepartition || 'période choisie'));
+        }
         var note = ecran.down('#filtresAchats #noteAchats');
         if (note) {
             note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');

@@ -47,8 +47,21 @@
     if (request.getParameter("query") != null && !"".equals(request.getParameter("query"))) {
         search_value = request.getParameter("query");
     }
-    int start = Integer.valueOf(request.getParameter("start"));
-    int limit = Integer.valueOf(request.getParameter("limit"));
+    // La pagination est FACULTATIVE : appelee sans start ni limit - une edition, un appel direct, un store
+    // sans barre de pagination - cette page rendait une erreur 500 (conversion d'une valeur absente), et la
+    // grille restait vide sans que rien ne dise pourquoi. On retombe alors sur la premiere page.
+    int start = 0, limit = 50;
+    try {
+        if (request.getParameter("start") != null && !"".equals(request.getParameter("start"))) {
+            start = Integer.parseInt(request.getParameter("start"));
+        }
+        if (request.getParameter("limit") != null && !"".equals(request.getParameter("limit"))) {
+            limit = Integer.parseInt(request.getParameter("limit"));
+        }
+    } catch (NumberFormatException e) {
+        start = 0;
+        limit = 50;
+    }
     String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
     JSONArray arrayObj = groupeCtl.creditsAccorde(false, dt_start, dt_end, search_value, empl, start, limit);

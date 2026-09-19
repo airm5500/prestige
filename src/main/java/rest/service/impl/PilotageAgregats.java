@@ -122,8 +122,14 @@ public class PilotageAgregats {
             if (a == null) {
                 aCalculer.add(m);
             } else if (m.equals(moisCourant)) {
-                if (perime(m, FRAICHEUR_MOIS_COURANT_MS)) {
-                    aCalculer.add(m);
+                /*
+                 * LE MOIS EN COURS NE SE RECALCULE PLUS EN ENTIER. Une journee close ne change plus : le mois en cours
+                 * est donc la somme des journees deja calculees et de celle d'aujourd'hui. Le 31 du mois, cela coute
+                 * une journee au lieu de trente et une.
+                 */
+                Agregat duJour = moisEnCours(m);
+                if (duJour != null) {
+                    connus.put(m, duJour);
                 }
             } else if (m.compareTo(plusVieuxSurveille) >= 0 && perime(m, FRAICHEUR_MOIS_CLOS_MS)) {
                 /* Mois clos recent : on le revoit, mais sans faire attendre l'ecran. */
@@ -224,6 +230,193 @@ public class PilotageAgregats {
         return faits;
     }
 
+    /**
+     * Le mois en cours, obtenu en additionnant ses JOURNEES.
+     *
+     * <p>
+     * Chaque journee close est calculee une fois puis relue ; seule celle d'aujourd'hui est reprise, et au plus une
+     * fois toutes les dix minutes. Le total est ensuite ecrit dans la table mensuelle, pour que les lectures qui ne
+     * connaissent que les mois (les totaux de periode, les series) n'aient rien a savoir de ce decoupage.
+     */
+    private Agregat moisEnCours(String mois) {
+        try {
+            LocalDate premier = LocalDate.parse(mois + "-01");
+            LocalDate aujourdHui = LocalDate.now();
+            LocalDate finExclue = aujourdHui.plusDays(1);
+            Map<String, Agregat> journees = lireJournees(premier, finExclue);
+            long debut = System.currentTimeMillis();
+            List<LocalDate> enRetard = new ArrayList<>();
+            for (LocalDate jour = premier; jour.isBefore(finExclue); jour = jour.plusDays(1)) {
+                Agregat connu = journees.get(jour.toString());
+                boolean aReprendre = connu == null
+                        || (jour.isEqual(aujourdHui) && perimeJour(jour, FRAICHEUR_MOIS_COURANT_MS));
+                if (!aReprendre) {
+                    continue;
+                }
+                /*
+                 * La journee d'AUJOURD'HUI passe toujours en premier, quel que soit le budget : c'est celle que
+                 * l'operateur regarde. Les journees plus anciennes qui manquent - premiere ouverture du mois, ou
+                 * serveur eteint - attendront la tache de fond si le temps manque.
+                 */
+                if (!jour.isEqual(aujourdHui) && System.currentTimeMillis() - debut > BUDGET_MS) {
+                    enRetard.add(jour);
+                    continue;
+                }
+                Agregat calcule = moiMeme.calculerJournee(jour);
+                if (calcule != null) {
+                    journees.put(jour.toString(), calcule);
+                }
+            }
+            if (!enRetard.isEmpty()) {
+                moiMeme.completerJourneesEnFond(enRetard);
+            }
+            Agregat total = new Agregat(mois);
+            for (Agregat j : journees.values()) {
+                ajouter(total, j);
+            }
+            moiMeme.enregistrerMois(total, false);
+            /*
+             * Le mix de reglement et les achats par grossiste du mois en cours ne se decoupent pas en journees sans
+             * multiplier les lignes : ils sont repris ici, sur le mois, a la meme fraicheur que la journee du jour. Ce
+             * sont deux lectures agregees, sans commune mesure avec les huit requetes de detail que le mois entier
+             * coutait auparavant - la plus chere d'entre elles, la marge au niveau ligne, est desormais journaliere.
+             */
+            if (detailPerime(mois)) {
+                moiMeme.rafraichirDetailDuMois(mois, premier, premier.plusMonths(1));
+            }
+            return total;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : agregat du mois en cours " + mois, e);
+            return null;
+        }
+    }
+
+    /** Ajoute les grandeurs d'une journee a un cumul. */
+    private static void ajouter(Agregat cumul, Agregat j) {
+        cumul.caTTC += j.caTTC;
+        cumul.nbVentes += j.nbVentes;
+        cumul.remises += j.remises;
+        cumul.partTiersPayant += j.partTiersPayant;
+        cumul.caHT += j.caHT;
+        cumul.coutAchat += j.coutAchat;
+        cumul.achatTTC += j.achatTTC;
+        cumul.nbBons += j.nbBons;
+        cumul.encaisse += j.encaisse;
+        cumul.nbAnnulees += j.nbAnnulees;
+        cumul.montantAnnule += j.montantAnnule;
+        cumul.annuleEspece += j.annuleEspece;
+        cumul.entreesStock += j.entreesStock;
+        cumul.sortiesStock += j.sortiesStock;
+    }
+
+    /** Les journees deja calculees entre deux dates, indexees par jour (AAAA-MM-JJ). */
+    @SuppressWarnings("unchecked")
+    private Map<String, Agregat> lireJournees(LocalDate debut, LocalDate finExclue) {
+        Map<String, Agregat> out = new LinkedHashMap<>();
+        Query q = em.createNativeQuery("SELECT a.dt_JOUR AS jour, a.int_CA_TTC AS caTTC, a.int_NB_VENTES AS nbVentes,"
+                + " a.int_REMISES AS remises, a.int_PART_TP AS partTp, a.int_CA_HT AS caHT,"
+                + " a.int_COUT_ACHAT AS coutAchat, a.int_ACHAT_TTC AS achatTTC, a.int_NB_BONS AS nbBons,"
+                + " a.int_ENCAISSE AS encaisse, a.int_NB_ANNULEES AS nbAnnulees,"
+                + " a.int_MONTANT_ANNULE AS montantAnnule, a.int_ANNULE_ESPECE AS annuleEspece,"
+                + " a.int_ENTREES_STOCK AS entrees, a.int_SORTIES_STOCK AS sorties"
+                + " FROM pilotage_agregat_jour a WHERE a.lg_EMPLACEMENT_ID = ?1"
+                + " AND a.dt_JOUR >= ?2 AND a.dt_JOUR < ?3", Tuple.class);
+        q.setParameter(1, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(2, java.sql.Date.valueOf(debut))
+                .setParameter(3, java.sql.Date.valueOf(finExclue));
+        for (Tuple t : (List<Tuple>) q.getResultList()) {
+            Object jour = t.get("jour");
+            String cle = jour instanceof java.sql.Date ? ((java.sql.Date) jour).toLocalDate().toString()
+                    : String.valueOf(jour);
+            Agregat a = new Agregat(cle);
+            a.caTTC = nombre(t.get("caTTC"));
+            a.nbVentes = entier(t.get("nbVentes"));
+            a.remises = nombre(t.get("remises"));
+            a.partTiersPayant = nombre(t.get("partTp"));
+            a.caHT = nombre(t.get("caHT"));
+            a.coutAchat = nombre(t.get("coutAchat"));
+            a.achatTTC = nombre(t.get("achatTTC"));
+            a.nbBons = entier(t.get("nbBons"));
+            a.encaisse = nombre(t.get("encaisse"));
+            a.nbAnnulees = entier(t.get("nbAnnulees"));
+            a.montantAnnule = nombre(t.get("montantAnnule"));
+            a.annuleEspece = nombre(t.get("annuleEspece"));
+            a.entreesStock = nombre(t.get("entrees"));
+            a.sortiesStock = nombre(t.get("sorties"));
+            out.put(cle, a);
+        }
+        return out;
+    }
+
+    /** Calcule UNE journee et l'enregistre, dans sa propre transaction. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public Agregat calculerJournee(LocalDate jour) {
+        try {
+            Agregat a = grandeurs(jour.toString(), jour, jour.plusDays(1));
+            enregistrerJournee(a, jour, jour.isBefore(LocalDate.now()));
+            return a;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : calcul de la journee " + jour, e);
+            return null;
+        }
+    }
+
+    /** Complete les journees manquantes en tache de fond. */
+    @Asynchronous
+    public void completerJourneesEnFond(List<LocalDate> jours) {
+        for (LocalDate j : jours) {
+            try {
+                moiMeme.calculerJournee(j);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "pilotage : journee de fond " + j, e);
+            }
+        }
+    }
+
+    /** Ecrit le total du mois en cours, calcule a partir de ses journees. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void enregistrerMois(Agregat a, boolean clos) {
+        enregistrer(a, clos);
+    }
+
+    /** Reecrit le mix de reglement et les achats par grossiste d'un mois, dans sa propre transaction. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void rafraichirDetailDuMois(String mois, LocalDate debut, LocalDate fin) {
+        enregistrerReglements(mois, debut, fin);
+        enregistrerGrossistes(mois, debut, fin);
+    }
+
+    /** Vrai si le detail du mois (modes de reglement, grossistes) merite d'etre repris. */
+    private boolean detailPerime(String mois) {
+        try {
+            Object calcul = em
+                    .createNativeQuery("SELECT MAX(r.dt_CALCUL) FROM pilotage_agregat_reglement r"
+                            + " WHERE r.str_MOIS = ?1 AND r.lg_EMPLACEMENT_ID = ?2")
+                    .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).getSingleResult();
+            if (calcul instanceof java.sql.Timestamp) {
+                return System.currentTimeMillis() - ((java.sql.Timestamp) calcul).getTime() > FRAICHEUR_MOIS_COURANT_MS;
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "fraicheur du detail d'un mois", e);
+        }
+        return true;
+    }
+
+    private boolean perimeJour(LocalDate jour, long fraicheurMs) {
+        try {
+            Object calcul = em
+                    .createNativeQuery("SELECT a.dt_CALCUL FROM pilotage_agregat_jour a"
+                            + " WHERE a.dt_JOUR = ?1 AND a.lg_EMPLACEMENT_ID = ?2")
+                    .setParameter(1, java.sql.Date.valueOf(jour)).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE)
+                    .getSingleResult();
+            if (calcul instanceof java.sql.Timestamp) {
+                return System.currentTimeMillis() - ((java.sql.Timestamp) calcul).getTime() > fraicheurMs;
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "fraicheur d'une journee", e);
+        }
+        return true;
+    }
+
     private boolean perime(String mois, long fraicheurMs) {
         try {
             Object calcul = em
@@ -251,30 +444,7 @@ public class PilotageAgregats {
         try {
             LocalDate debut = LocalDate.parse(mois + "-01");
             LocalDate fin = debut.plusMonths(1);
-            Agregat a = new Agregat(mois);
-            lireUneLigne(PilotageSql.totauxVentes(), debut, fin, t -> {
-                a.caTTC = nombre(t.get("caTTC"));
-                a.nbVentes = entier(t.get("nbVentes"));
-                a.remises = nombre(t.get("remises"));
-                a.partTiersPayant = nombre(t.get("partTiersPayant"));
-            });
-            lireUneLigne(PilotageSql.totauxMarge(), debut, fin, t -> {
-                a.caHT = nombre(t.get("caHT"));
-                a.coutAchat = nombre(t.get("coutAchat"));
-            });
-            lireUneLigne(PilotageSql.totauxAchats(), debut, fin, t -> {
-                a.achatTTC = nombre(t.get("achatTTC"));
-                a.nbBons = entier(t.get("nbBons"));
-            });
-            lireUneLigne(PilotageSql.totalEncaisse(), debut, fin, t -> a.encaisse = nombre(t.get("encaisse")));
-            lireUneLigne(PilotageSql.totalAnnulations(), debut, fin, t -> {
-                a.nbAnnulees = entier(t.get("nbAnnulees"));
-                a.montantAnnule = nombre(t.get("montantAnnule"));
-            });
-            lireUneLigne(PilotageSql.totalAnnulationsEspece(), debut, fin,
-                    t -> a.annuleEspece = nombre(t.get("montantEspece")));
-            lireUneLigne(PilotageSql.entreesStockParMois(), debut, fin, t -> a.entreesStock = nombre(t.get("montant")));
-            lireUneLigne(PilotageSql.sortiesStockParMois(), debut, fin, t -> a.sortiesStock = nombre(t.get("montant")));
+            Agregat a = grandeurs(mois, debut, fin);
             boolean clos = fin.isBefore(LocalDate.now().withDayOfMonth(1).plusDays(1))
                     && !mois.equals(YearMonth.now().toString());
             enregistrer(a, clos);
@@ -285,6 +455,66 @@ public class PilotageAgregats {
             LOG.log(Level.SEVERE, "pilotage : calcul de l'agregat " + mois, e);
             return null;
         }
+    }
+
+    /**
+     * Les grandeurs d'une periode bornee, quelle que soit sa duree : un mois, ou une journee.
+     *
+     * <p>
+     * Ecrites une seule fois : un mois et une journee doivent se calculer exactement de la meme facon, sans quoi la
+     * somme des journees d'un mois ne retomberait pas sur le total de ce mois.
+     */
+    private Agregat grandeurs(String cle, LocalDate debut, LocalDate fin) {
+        Agregat a = new Agregat(cle);
+        lireUneLigne(PilotageSql.totauxVentes(), debut, fin, t -> {
+            a.caTTC = nombre(t.get("caTTC"));
+            a.nbVentes = entier(t.get("nbVentes"));
+            a.remises = nombre(t.get("remises"));
+            a.partTiersPayant = nombre(t.get("partTiersPayant"));
+        });
+        lireUneLigne(PilotageSql.totauxMarge(), debut, fin, t -> {
+            a.caHT = nombre(t.get("caHT"));
+            a.coutAchat = nombre(t.get("coutAchat"));
+        });
+        lireUneLigne(PilotageSql.totauxAchats(), debut, fin, t -> {
+            a.achatTTC = nombre(t.get("achatTTC"));
+            a.nbBons = entier(t.get("nbBons"));
+        });
+        lireUneLigne(PilotageSql.totalEncaisse(), debut, fin, t -> a.encaisse = nombre(t.get("encaisse")));
+        lireUneLigne(PilotageSql.totalAnnulations(), debut, fin, t -> {
+            a.nbAnnulees = entier(t.get("nbAnnulees"));
+            a.montantAnnule = nombre(t.get("montantAnnule"));
+        });
+        lireUneLigne(PilotageSql.totalAnnulationsEspece(), debut, fin,
+                t -> a.annuleEspece = nombre(t.get("montantEspece")));
+        lireUneLigne(PilotageSql.entreesStockParMois(), debut, fin, t -> a.entreesStock = nombre(t.get("montant")));
+        lireUneLigne(PilotageSql.sortiesStockParMois(), debut, fin, t -> a.sortiesStock = nombre(t.get("montant")));
+        return a;
+    }
+
+    /** Ecrit une journee ; un seul ordre, qui remplace la ligne si elle existe. */
+    private void enregistrerJournee(Agregat a, LocalDate jour, boolean clos) {
+        em.createNativeQuery("INSERT INTO pilotage_agregat_jour (dt_JOUR, lg_EMPLACEMENT_ID, int_CA_TTC,"
+                + " int_NB_VENTES, int_REMISES, int_PART_TP, int_CA_HT, int_COUT_ACHAT, int_ACHAT_TTC,"
+                + " int_NB_BONS, int_ENCAISSE, int_NB_ANNULEES, int_MONTANT_ANNULE, int_ANNULE_ESPECE,"
+                + " int_ENTREES_STOCK, int_SORTIES_STOCK, b_CLOS, dt_CALCUL)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, NOW())"
+                + " ON DUPLICATE KEY UPDATE int_CA_TTC = VALUES(int_CA_TTC), int_NB_VENTES = VALUES(int_NB_VENTES),"
+                + " int_REMISES = VALUES(int_REMISES), int_PART_TP = VALUES(int_PART_TP),"
+                + " int_CA_HT = VALUES(int_CA_HT), int_COUT_ACHAT = VALUES(int_COUT_ACHAT),"
+                + " int_ACHAT_TTC = VALUES(int_ACHAT_TTC), int_NB_BONS = VALUES(int_NB_BONS),"
+                + " int_ENCAISSE = VALUES(int_ENCAISSE), int_NB_ANNULEES = VALUES(int_NB_ANNULEES),"
+                + " int_MONTANT_ANNULE = VALUES(int_MONTANT_ANNULE),"
+                + " int_ANNULE_ESPECE = VALUES(int_ANNULE_ESPECE), int_ENTREES_STOCK = VALUES(int_ENTREES_STOCK),"
+                + " int_SORTIES_STOCK = VALUES(int_SORTIES_STOCK), b_CLOS = VALUES(b_CLOS), dt_CALCUL = NOW()")
+                .setParameter(1, java.sql.Date.valueOf(jour)).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE)
+                .setParameter(3, Math.round(a.caTTC)).setParameter(4, a.nbVentes).setParameter(5, Math.round(a.remises))
+                .setParameter(6, Math.round(a.partTiersPayant)).setParameter(7, Math.round(a.caHT))
+                .setParameter(8, Math.round(a.coutAchat)).setParameter(9, Math.round(a.achatTTC))
+                .setParameter(10, a.nbBons).setParameter(11, Math.round(a.encaisse)).setParameter(12, a.nbAnnulees)
+                .setParameter(13, Math.round(a.montantAnnule)).setParameter(14, Math.round(a.annuleEspece))
+                .setParameter(15, Math.round(a.entreesStock)).setParameter(16, Math.round(a.sortiesStock))
+                .setParameter(17, clos ? 1 : 0).executeUpdate();
     }
 
     /** Complete l'historique en tache de fond, un mois a la fois. */

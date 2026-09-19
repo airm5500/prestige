@@ -48,7 +48,7 @@ function texteDuPdf(octets) {
 }
 
 (async () => {
-  /* On repart d'une table de photos vide : le test doit pouvoir constater l'ecriture. */
+  /* On repart d'une table de photos vide : le test doit constater que l'ecran n'y ecrit PLUS rien. */
   exec("DELETE FROM pilotage_stock_mensuel;");
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
@@ -87,8 +87,10 @@ function texteDuPdf(octets) {
     };
 
     /* --------------------------------------------------------------- STOCK */
-    ok('Précondition : aucune photo de stock enregistrée',
-      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") === '0');
+    ok('Précondition : aucune photo de stock enregistrée, et un relevé nocturne disponible',
+      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") === '0'
+      && Number(q("SELECT COUNT(*) FROM stock_daily_value")) > 0,
+      q("SELECT COUNT(*) FROM stock_daily_value") + ' journee(s) relevee(s)');
     await changerOnglet('Stock');
     const stock = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('pilotage')[0];
@@ -107,8 +109,17 @@ function texteDuPdf(octets) {
         === 'valeurAchat,valeurVente,ruptures,sousSeuil,negatifs,dormant',
       JSON.stringify(stock.tuiles.map((t) => t.cle)));
 
-    const etatBase = q("SELECT CONCAT(COALESCE(SUM(s.int_NUMBER_AVAILABLE*f.int_PAF),0), '|',"
-      + " COALESCE(SUM(s.int_NUMBER_AVAILABLE*f.int_PRICE),0), '|',"
+    /*
+     * LA VALEUR DU STOCK EST CELLE DU LOGICIEL : articles actifs et stock positif, exactement comme la
+     * valorisation quotidienne (stock_daily_value). Sans cela, la valeur du jour ne retomberait pas sur la courbe
+     * des mois precedents, qui vient de cette valorisation. Les COMPTEURS (ruptures, negatifs), eux, portent sur
+     * tout le stock : c'est leur role.
+     */
+    const etatBase = q("SELECT CONCAT("
+      + " COALESCE(SUM(CASE WHEN f.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE>0"
+      + "   THEN s.int_NUMBER_AVAILABLE*f.int_PAF ELSE 0 END),0), '|',"
+      + " COALESCE(SUM(CASE WHEN f.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE>0"
+      + "   THEN s.int_NUMBER_AVAILABLE*f.int_PRICE ELSE 0 END),0), '|',"
       + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE=0 THEN 1 ELSE 0 END), '|',"
       + " SUM(CASE WHEN s.int_NUMBER_AVAILABLE<0 THEN 1 ELSE 0 END))"
       + " FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID=s.lg_FAMILLE_ID"
@@ -124,20 +135,26 @@ function texteDuPdf(octets) {
       valeurTuile('ruptures') === Number(etatBase[2]) && valeurTuile('negatifs') === Number(etatBase[3]),
       JSON.stringify([valeurTuile('ruptures'), etatBase[2], valeurTuile('negatifs'), etatBase[3]]));
 
-    /* L ouverture de l onglet prend la photo du mois : c est ce qui constitue l historique. */
-    const photos = q("SELECT CONCAT(COUNT(*), '|', COALESCE(MAX(str_MOIS),'-'), '|',"
-      + " COALESCE(MAX(int_VALEUR_ACHAT),0)) FROM pilotage_stock_mensuel").split('|');
-    ok('Ouvrir l onglet a enregistré la photo du mois en cours',
-      photos[0] === '1' && photos[1] === q("SELECT DATE_FORMAT(CURDATE(),'%Y-%m')"),
-      JSON.stringify(photos));
-    ok('Et la photo porte la valeur du jour',
-      Math.abs(Number(photos[2]) - Number(etatBase[0])) < 1, photos[2] + ' contre ' + etatBase[0]);
+    /*
+     * L HISTORIQUE NE DEPEND PLUS DE L OUVERTURE DE L ECRAN (retour du 19/09 : « le pharmacien ne va pas passer
+     * ses jours a venir cliquer dans ce menu »). Le logiciel releve la valeur du stock chaque nuit
+     * (stock_daily_value) ; l onglet lit ce releve, et n ecrit plus rien.
+     */
+    ok('Ouvrir l onglet n écrit RIEN : l historique vient du relevé nocturne du logiciel',
+      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") === '0',
+      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") + ' ligne(s) ecrite(s)');
 
-    /* Ouvrir deux fois de plus n ecrit pas trois lignes : le mois est la cle. */
+    /* Chaque mois affiche doit porter la DERNIERE valeur relevee du mois, celle du logiciel. */
+    const releveDuMois = q("SELECT CONCAT(DATE_FORMAT(STR_TO_DATE(CAST(MAX(id) AS CHAR),'%Y%m%d'),'%Y-%m'),"
+      + " '|', (SELECT valeur_achat FROM stock_daily_value WHERE id=MAX(v.id)))"
+      + " FROM stock_daily_value v WHERE id >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH),'%Y%m01')"
+      + " AND id < DATE_FORMAT(CURDATE(),'%Y%m01')").split('|');
+
+    /* Ouvrir deux fois de plus ne change rien : l ecran ne fait que lire. */
     await changerOnglet('Synthèse');
     await changerOnglet('Stock');
-    ok('Ouvrir l onglet plusieurs fois n écrit qu une seule ligne par mois',
-      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") === '1',
+    ok('Ouvrir l onglet plusieurs fois n écrit toujours rien',
+      q("SELECT COUNT(*) FROM pilotage_stock_mensuel") === '0',
       q("SELECT COUNT(*) FROM pilotage_stock_mensuel"));
 
     const apres = await p.evaluate(() => {
@@ -150,15 +167,25 @@ function texteDuPdf(octets) {
     });
     const moisCourant = q("SELECT DATE_FORMAT(CURDATE(),'%Y-%m')");
     const ligneCourante = apres.lignes.filter((l) => l.mois === moisCourant)[0];
-    ok('Le mois photographié est marqué MESURÉ',
+    ok('Le mois en cours est MESURÉ : il porte le dernier relevé du logiciel',
       !!ligneCourante && ligneCourante.mesure === true, JSON.stringify(ligneCourante));
-    ok('Les mois antérieurs, eux, sont marqués RECONSTITUÉS',
-      apres.lignes.filter((l) => l.mois !== moisCourant).every((l) => l.mesure === false),
+
+    /* Le mois precedent doit porter EXACTEMENT la derniere valeur relevee de ce mois-la. */
+    const lignePrecedente = apres.lignes.filter((l) => l.mois === releveDuMois[0])[0];
+    ok('Et chaque mois relevé porte la valeur EXACTE du relevé de fin de mois',
+      !!lignePrecedente && Math.abs(lignePrecedente.valeur - Number(releveDuMois[1])) < 1,
+      (lignePrecedente ? lignePrecedente.valeur : '-') + ' contre ' + releveDuMois[1]
+        + ' (' + releveDuMois[0] + ')');
+
+    /* Les mois anterieurs au releve, eux, restent reconstitues - et l ecran le dit. */
+    const premierReleve = q("SELECT DATE_FORMAT(STR_TO_DATE(CAST(MIN(id) AS CHAR),'%Y%m%d'),'%Y-%m')"
+      + " FROM stock_daily_value");
+    const avantReleve = apres.lignes.filter((l) => l.mois < premierReleve);
+    ok('Les mois antérieurs au relevé sont marqués RECONSTITUÉS',
+      avantReleve.length === 0 || avantReleve.every((l) => l.mesure === false),
       JSON.stringify(apres.lignes.map((l) => l.mois + '=' + l.mesure)));
-    ok('Et l écran DIT que la valeur est reconstituée, et que les régularisations d inventaire n y sont pas',
-      /* La note est encodee pour l'affichage : l'apostrophe y devient une entite HTML. */
-      /RECONSTITU/.test(apres.note) && /régularisations/.test(apres.note)
-      && /inventaire/.test(apres.note), apres.note);
+    ok('Et l écran DIT d où vient la valeur affichée',
+      /MESUR/.test(apres.note) && /relev/.test(apres.note), apres.note);
     ok('La colonne SOURCE existe, pour le dire ligne par ligne',
       stock.colonnes.indexOf('SOURCE') >= 0, JSON.stringify(stock.colonnes));
 

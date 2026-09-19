@@ -1,0 +1,23 @@
+-- =====================================================================
+-- Evolution 6, point 1 : INDEX sur la date d'annulation.
+--
+-- POURQUOI
+--
+-- Depuis V6.9.54, les annulations du pilotage sont comptees sur
+-- dt_ANNULER (la date d'annulation), comme le fait l'etat « Liste des
+-- ventes annulees ». Or cette colonne n'est indexee nulle part : la base
+-- doit donc lire TOUTES les ventes annulees cloturees de l'officine pour
+-- ne garder que celles du mois demande. Sur le banc cela ne se voit pas
+-- (quelques centaines de lignes) ; sur la base de l'officine, qui porte
+-- plusieurs annees d'historique, cela se paie a chaque calcul d'agregat.
+--
+-- L'index porte les trois colonnes du filtre, dans l'ordre ou elles sont
+-- ecrites : les deux egalites d'abord, l'intervalle de dates ensuite.
+-- C'est la seule disposition qui permette a la base de se placer
+-- directement sur le mois demande.
+--
+-- Creation d'index sur une grosse table : MariaDB la fait sans bloquer
+-- les lectures ni les ecritures (ALGORITHM=INPLACE), mais elle peut
+-- durer plusieurs minutes au premier demarrage suivant la mise a jour.
+-- =====================================================================
+CREATE INDEX `idx_preenr_annulation_date` ON `t_preenregistrement` (`b_IS_CANCEL`, `str_STATUT`, `dt_ANNULER`);
