@@ -44,17 +44,18 @@ les écritures en partie double, les contrôles et l'export.
 
 ## 3. Modèle de données
 
-Sept tables, toutes nouvelles, toutes préfixées `t_compta_`. **Aucune table existante n'est modifiée.**
+Huit tables, toutes nouvelles, toutes préfixées `t_compta_`. **Aucune table existante n'est modifiée.**
 
 | Table | Rôle |
 |---|---|
 | `t_compta_exercice` | période comptable : dates de début et de fin, statut (ouvert / clôturé) |
 | `t_compta_compte` | le plan comptable : numéro, libellé, classe, sens normal, lettrable ou non, statut |
-| `t_compta_journal` | code (VE, AC, CA, BQ, OD), libellé, type, compte de contrepartie par défaut |
-| `t_compta_ventilation` | **la règle** : quel critère mène à quel compte (voir § 5) |
+| `t_compta_journal` | code (VE, AC, CA, BQ, OD, SA), libellé, type, compte de contrepartie par défaut |
+| `t_compta_ventilation` | **la règle** : quel critère mène à quel compte (voir § 7) |
 | `t_compta_piece` | une pièce = un événement source : journal, date, référence, origine (table + identifiant), exercice, statut |
-| `t_compta_ecriture` | les lignes de la pièce : compte, libellé, débit, crédit, tiers auxiliaire, lettrage |
+| `t_compta_ecriture` | les lignes de la pièce : compte général, **code tiers** (voir § 5), libellé, débit, crédit, lettrage |
 | `t_compta_export` | la trace : période, journaux, format, date, utilisateur, nombre d'écritures, empreinte du fichier |
+| `t_compta_modele` | écritures modèles rappelables en un clic (loyer, salaires, échéances récurrentes) |
 
 Les comptes pivots (caisse, banque, clients, fournisseurs, TVA collectée, TVA récupérable, compte
 d'attente) sont des paramètres, pas des valeurs en dur.
@@ -70,12 +71,65 @@ d'attente) sont des paramètres, pas des valeurs en dur.
 | **BQ — Banque** | `t_mvt_caisse` dont le mode de règlement est bancaire ou mobile money | même principe, sur le compte banque ou mobile money du mode de règlement |
 | **AC — Achats** | `t_bon_livraison` (+ détail) et `t_depenses` | **Débit** achats de marchandises ou compte de charge du type de dépense, **Débit** TVA récupérable · **Crédit** fournisseur |
 | **OD — Opérations diverses** | `t_facture` tiers payants, `t_dossier_reglement`, avoirs, écarts d'inventaire | facturation et règlement des organismes, variation de stock sur écart d'inventaire |
+| **SA — Saisie** | **saisie manuelle dans le module** (voir § 6) | tout ce que Prestige ne sait pas enregistrer : loyer, salaires, impôts, assurance, électricité, honoraires, frais bancaires, apports et prélèvements |
 
-Les numéros de compte cités en § 7 sont une **proposition de départ**, à valider par le cabinet.
+Les numéros de compte cités en § 8 sont une **proposition de départ**, à valider par le cabinet.
 
 ---
 
-## 5. Les règles de ventilation
+## 5. Comptes auxiliaires : deux écoles, un paramètre
+
+Un **auxiliaire** sert à suivre un tiers nommément — tel organisme, tel grossiste — sans noyer la
+balance générale. Deux façons de le faire, et le choix appartient au cabinet :
+
+**École A — le compte détaillé.** Un compte par tiers : `411001` MUGEFCI, `411002` SUNU, `411003`
+ASCOMA. Simple à lire, mais avec quarante organismes et quinze grossistes le plan comptable gonfle et
+la balance générale devient illisible.
+
+**École B — le compte collectif plus un code tiers.** Un seul compte général `411`, et chaque écriture
+porte **en plus** un code tiers (`MUGEFCI`, `SUNU`). C'est le mécanisme natif de Sage : couple compte
+général / compte tiers. La balance générale reste courte, la **balance auxiliaire** donne le détail par
+organisme, et le lettrage se fait sur le tiers.
+
+**Recommandation : école B**, puisque la destination est Sage et que Sage est construit pour cela.
+
+Mais certains cabinets n'activent pas les comptes tiers. Le module supporte donc **les deux** : chaque
+écriture porte un compte général **et** un code tiers ; si le cabinet veut l'école A, un paramètre fait
+concaténer les deux à l'export. Le coût est négligeable maintenant et exorbitant après coup.
+
+---
+
+## 6. Saisie manuelle : ce que Prestige ne sait pas enregistrer
+
+Constat de départ : `AddDepense` (dans `caisseManagement.java`) **exige que la caisse soit ouverte et
+que le solde en espèces suffise**, puis écrit une sortie de caisse. C'est une dépense de caisse, pas une
+charge comptable. Un loyer payé par virement, un salaire, un impôt, une prime d'assurance, une facture
+d'électricité ne peuvent pas entrer dans Prestige aujourd'hui.
+
+Le module ouvre donc un **journal de saisie** : écritures libres, datées, équilibrées, sur n'importe
+quel compte du plan, avec référence de pièce, et des **écritures modèles** rappelables en un clic pour
+les charges récurrentes.
+
+Deux règles, à poser dès maintenant :
+
+1. **Qui saisit quoi.** Si le cabinet enregistre déjà le loyer depuis le relevé bancaire et que
+   l'officine le saisit aussi, l'écriture passe en double. La règle retenue : Prestige saisit ce qui
+   **passe par la caisse ou par le compte de l'officine et dont l'officine détient la pièce** ; le reste
+   reste au cabinet. L'export indique explicitement le périmètre couvert.
+2. **Pas de doublon avec les dépenses.** L'écran Dépenses actuel continue d'alimenter le journal de
+   caisse comme aujourd'hui. Le journal de saisie ne sert qu'à ce que Prestige ne sait pas enregistrer.
+   Sans cette règle, deux endroits pour saisir une même charge, et deux chiffres qui divergent.
+
+**Alternative écartée, et pourquoi.** On pourrait étendre l'écran Dépenses pour accepter un virement ou
+un chèque et une date d'opération — plus familier pour les utilisateurs. Mais il faudrait lever la
+contrainte de caisse ouverte et de solde suffisant, donc modifier un écran et une logique existants.
+Cela romprait la garantie « aucune table ni écran existant modifié » sur laquelle repose la livraison
+d'un bloc. Si ce chemin est préféré, il doit être décidé explicitement : ce n'est plus la même promesse
+de non-régression.
+
+---
+
+## 7. Les règles de ventilation
 
 Le cœur du module. Une règle dit : *telle nature d'opération, sous tel critère, va sur tel compte.*
 
@@ -93,7 +147,7 @@ Les règles sont **saisies à l'écran**, pas codées. Le cabinet peut affiner s
 
 ---
 
-## 6. Les règles de sûreté
+## 8. Les règles de sûreté
 
 C'est ce qui rend le module acceptable pour un comptable. Chacune est un critère de recette.
 
@@ -112,7 +166,7 @@ C'est ce qui rend le module acceptable pour un comptable. Chacune est un critèr
 
 ---
 
-## 7. Plan comptable de départ (à valider)
+## 9. Plan comptable de départ (à valider)
 
 Proposition SYSCOHADA révisé, à confirmer avec le cabinet — notamment la longueur des numéros de
 compte, qu'ils imposent souvent :
@@ -135,7 +189,7 @@ compte, qu'ils imposent souvent :
 
 ---
 
-## 8. Les écrans
+## 10. Les écrans
 
 1. **Paramétrage** — plan comptable (avec import d'un plan de départ), journaux, règles de ventilation,
    comptes pivots. Écran de saisie, réservé par privilège.
@@ -147,7 +201,7 @@ compte, qu'ils imposent souvent :
 
 ---
 
-## 9. Le point bloquant : le format d'import Sage
+## 11. Le point bloquant : le format d'import Sage
 
 **Je ne peux pas deviner le gabarit d'import attendu par le cabinet.** Sage 100 / SAARI accepte
 plusieurs formats — format Sage texte, import paramétrable en CSV — et chaque cabinet a ses habitudes
@@ -164,25 +218,26 @@ lui, ne dépend de rien et marchera dès la première livraison.
 
 ---
 
-## 10. À trancher avec le cabinet
+## 12. À trancher avec le cabinet
 
 | Question | Ma recommandation |
 |---|---|
-| Granularité du journal des ventes : par ticket, par jour, ou par jour et par compte ? | **par jour et par compte** — volume tenable, détail suffisant, et le détail au ticket reste consultable dans Prestige |
+| Granularité du journal des ventes, c'est-à-dire le niveau de regroupement : une pièce par ticket (~9 000 pièces par mois, ingérable), par jour et par compte (20 à 30 lignes par jour), ou une seule pièce par mois (plus aucun rapprochement journalier possible) ? | **par jour et par compte** — le détail au ticket reste consultable dans Prestige, c'est l'écriture qui est agrégée, pas l'information |
 | Clients au comptant : compte collectif ou compte par client ? | **collectif** |
-| Tiers payants : un auxiliaire par organisme ? | **oui** — c'est ce que le lettrage exigera ensuite |
-| Fournisseurs : un auxiliaire par grossiste ? | **oui** |
+| Tiers payants : suivi par organisme, et selon quelle ecole (voir § 5) ? | **oui, école B** : compte collectif 411 + code tiers, c'est le mécanisme natif de Sage et ce que le lettrage exigera |
+| Fournisseurs : suivi par grossiste, même question | **oui, école B** : compte collectif 401 + code tiers |
 | TVA : régime exact (produits pharmaceutiques exonérés, parapharmacie taxée ?) | à confirmer — la base porte déjà un taux par produit, le module s'y conforme |
 | Longueur des numéros de compte et codes journaux imposés | à obtenir du cabinet |
+| Charges hors Prestige (loyer, salaires, impôts, assurance) : qui les saisit, vous ou le cabinet ? | **l'officine saisit ce qui passe par sa caisse ou son compte et dont elle détient la pièce** ; le reste reste au cabinet (voir § 6) |
 | Facture normalisée / e-facturation DGI : déjà en place chez vous ? | à vérifier — cela peut ajouter une contrainte sur les pièces de vente |
 
 ---
 
-## 11. Garantie de non-régression
+## 13. Garantie de non-régression
 
 Le module est **additif** :
 
-- sept tables nouvelles, aucune table existante modifiée ;
+- huit tables nouvelles, aucune table existante modifiée ;
 - il **lit** les données de vente, de caisse, d'achat et de facturation, il n'en écrit aucune ;
 - un menu nouveau, protégé par privilège ; aucun écran existant modifié ;
 - s'il est désactivé, Prestige se comporte exactement comme aujourd'hui.
@@ -193,7 +248,7 @@ l'existant est structurellement nul, et la recette porte sur des chiffres vérif
 
 ---
 
-## 12. Découpage interne
+## 14. Découpage interne
 
 Une seule livraison, mais construite et recettée dans cet ordre :
 
