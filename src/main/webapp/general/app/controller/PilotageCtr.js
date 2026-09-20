@@ -13,6 +13,7 @@
 Ext.define('testextjs.controller.PilotageCtr', {
     extend: 'Ext.app.Controller',
 
+
     views: ['testextjs.view.pilotage.PilotageManager'],
 
     refs: [
@@ -36,9 +37,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #filtresAchats button[itemId=reinitialiserAchats]': {click: me.reinitialiserAchats},
             'pilotage #casesKpi checkbox': {change: me.surCaseKpi},
             'pilotage #choixComparateur combobox[itemId=typeComparaison]': {select: me.surTypeComparaison},
-            'pilotage #choixComparateur combobox[itemId=objetA]': {select: me.actualiser},
-            'pilotage #choixComparateur combobox[itemId=objetB]': {select: me.actualiser},
-            'pilotage #choixComparateur combobox[itemId=grandeurComparee]': {select: me.actualiser}
+            /* Les trois choix ne declenchent PLUS de requete : seul le bouton « Comparer » la lance. */
+            'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer}
         });
     },
 
@@ -87,12 +87,14 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     if (onglet) {
                         onglet.setLoading('Recalcul des mois affichés...');
                     }
+                    me.suivreProgression(true);
                     Ext.Ajax.request({
                         url: '../api/v1/pilotage/recalculer',
                         method: 'GET',
                         params: me.parametres(),
                         timeout: 600000,
                         callback: function () {
+                            me.suivreProgression(false);
                             if (onglet) {
                                 onglet.setLoading(false);
                             }
@@ -108,6 +110,68 @@ Ext.define('testextjs.controller.PilotageCtr', {
                         }
                     });
                 });
+    },
+
+    /**
+     * La barre de progression du recalcul : elle suit l'avancement REEL, lu sur le serveur.
+     *
+     * <p>
+     * Le serveur tient en memoire le nombre de mois faits et celui qui tourne ; l'ecran l'interroge chaque
+     * seconde et remplit la barre. Cette lecture-la ne touche pas la base : elle repond meme pendant que le
+     * recalcul occupe les connexions, ce qui est justement le moment ou l'on veut savoir ou l'on en est.
+     *
+     * <p>
+     * Un echec de sondage n'interrompt rien : la barre garde sa derniere position et le recalcul continue.
+     * On ne casse pas une operation longue parce qu'un affichage d'etat n'a pas repondu.
+     */
+    suivreProgression: function (demarrer) {
+        var me = this;
+        var ecran = me.getEcran();
+        if (!ecran) {
+            return;
+        }
+        var zone = ecran.down('#barrePeriode #zoneProgression');
+        var barre = ecran.down('#barrePeriode #progression');
+        if (me.tacheProgression) {
+            Ext.TaskManager.stop(me.tacheProgression);
+            me.tacheProgression = null;
+        }
+        if (!demarrer) {
+            if (zone) {
+                zone.hide();
+            }
+            if (barre) {
+                barre.updateProgress(0, '');
+            }
+            return;
+        }
+        if (!zone || !barre) {
+            return;
+        }
+        zone.show();
+        barre.updateProgress(0, 'Préparation du recalcul...');
+        me.tacheProgression = Ext.TaskManager.start({
+            run: function () {
+                Ext.Ajax.request({
+                    url: '../api/v1/pilotage/avancement',
+                    method: 'GET',
+                    timeout: 10000,
+                    success: function (reponse) {
+                        var r = Ext.decode(reponse.responseText, true) || {};
+                        if (!r.enCours || !r.total) {
+                            return;
+                        }
+                        var part = Math.min(1, r.faits / r.total);
+                        barre.updateProgress(part, r.etape + ' — ' + r.faits + ' mois sur ' + r.total
+                                + ' (' + Math.round(part * 100) + ' %)');
+                    },
+                    failure: function () {
+                        /* La barre garde sa position : le recalcul, lui, continue. */
+                    }
+                });
+            },
+            interval: 1000
+        });
     },
 
     /** Le code de l'onglet visible : c'est lui, et lui seul, qu'on charge. */
@@ -267,7 +331,63 @@ Ext.define('testextjs.controller.PilotageCtr', {
             poser(bb, ecran.storeGrossistes, 'libelle', 'id', null);
             grandeur.setDisabled(true);
         }
+        /*
+         * Changer de type VIDE A et B : lancer la comparaison maintenant la lancerait sur du vide. L'ecran
+         * attend que les deux objets soient choisis et que « Comparer » soit cliqué.
+         */
+        me.comparaisonDemandee = false;
+        me.inviterAComparer('Choisissez A et B, puis cliquez sur « Comparer ».');
+    },
+
+    /**
+     * Lance la comparaison, et elle seule.
+     *
+     * <p>
+     * Les trois choix doivent etre faits : le type, l'objet A, l'objet B - et la grandeur quand on compare deux
+     * objets de meme nature. « Ne pas lancer la recherche si un des 3 champs est vide » (20/09). Un champ
+     * manquant est dit sur place, sans fenetre : c'est un oubli de saisie, pas un incident.
+     */
+    comparer: function () {
+        var me = this;
+        var barre = me.getEcran().down('#choixComparateur');
+        if (!barre) {
+            return;
+        }
+        var grandeur = barre.down('#grandeurComparee');
+        var manquants = [];
+        if (!barre.down('#typeComparaison').getValue()) {
+            manquants.push('ce que l\'on compare');
+        }
+        if (!barre.down('#objetA').getValue()) {
+            manquants.push('l\'objet A');
+        }
+        if (!barre.down('#objetB').getValue()) {
+            manquants.push('l\'objet B');
+        }
+        if (!grandeur.isDisabled() && !grandeur.getValue()) {
+            manquants.push('la grandeur comparée');
+        }
+        if (manquants.length) {
+            me.inviterAComparer('Comparaison incomplète : il manque ' + manquants.join(', ') + '.');
+            return;
+        }
+        me.comparaisonDemandee = true;
         me.actualiser();
+    },
+
+    /** Le message d'invite du comparateur, à la place des chiffres qu'on n'est pas allé chercher. */
+    inviterAComparer: function (message) {
+        var ecran = this.getEcran();
+        if (!ecran) {
+            return;
+        }
+        var note = ecran.down('#choixComparateur #noteComparateur');
+        if (note) {
+            note.setValue('<span style="color:#c0392b"><b>' + Ext.String.htmlEncode(message) + '</b></span>');
+        }
+        ecran.stores.comparateur.tuiles.loadData([]);
+        ecran.stores.comparateur.mois.loadData([]);
+        ecran.stores.comparateur.detail.loadData([]);
     },
 
     reinitialiserAchats: function () {
@@ -288,6 +408,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return;
         }
         var cle = me.ongletCourant();
+        if (cle === 'comparateur' && me.comparaisonDemandee !== true) {
+            /* L'onglet le plus lourd du menu ne part pas tout seul : il attend « Comparer ». */
+            me.inviterAComparer('Choisissez ce que vous comparez, puis cliquez sur « Comparer ».');
+            return;
+        }
         var stores = ecran.stores[cle];
         var onglet = ecran.down('#onglet-' + cle);
         if (onglet) {
@@ -450,18 +575,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
                  * Le montant ET sa part du chiffre d'affaires du mois, dans la même cellule : une colonne de
                  * pourcentage par mode doublerait la largeur de la grille, qui porte déjà sept modes.
                  */
-                renderer: function (v, meta, record) {
+                renderer: function (v, meta, record, rowIndex, colIndex, store) {
                     var f = testextjs.view.pilotage.PilotageManager;
                     var montant = f.nombre(v);
-                    if (montant === '') {
-                        return '';
-                    }
-                    var ca = record.get('caTTC');
-                    if (!ca) {
-                        return montant;
-                    }
-                    return montant + '<div class="pilotage-part">'
-                            + f.nombre(v / ca * 100, '0,000.0') + ' %</div>';
+                    return montant === '' ? ''
+                            : montant + f.secondeLigne(v, record, rowIndex, store, mode.cle, {part: true});
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -469,12 +587,19 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     return t === '' ? '' : '<b>' + t + '</b>';
                 }});
         });
-        grille.reconfigure(store, colonnes);
+        grille.reconfigure(store,
+                testextjs.view.pilotage.PilotageManager.repartirLargeur(colonnes));
         this.dessinerModes(modes);
     },
 
     /**
-     * Les aires empilées des modes de règlement : une par mode réellement encaissé.
+     * L'évolution de chaque mode de règlement : UNE COURBE PAR MODE, avec son point sur chaque mois.
+     *
+     * Les aires empilées d'abord posées le 19/09 montraient la part de chacun, mais elles écrasaient les
+     * petits modes contre l'axe et il fallait lire une épaisseur plutôt qu'un niveau. « Je préfère des
+     * courbes d'évolution avec des piques sur chaque mois comme le chiffre d'affaires TTC mensuel »
+     * (20/09) : ce sont donc les mêmes courbes, la même épaisseur de trait et les mêmes marqueurs que le
+     * graphique voisin, et chaque point porte son infobulle.
      *
      * Posées au chargement, comme les colonnes du détail — l'officine peut activer un nouveau mode demain.
      * Le dessin est isolé : une échelle impossible ne doit pas emporter le reste du rafraîchissement.
@@ -485,22 +610,33 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return;
         }
         /* Une palette lisible côte à côte, et stable d'un chargement à l'autre : le même mode garde sa
-           couleur d'un mois sur l'autre, sans quoi la lecture de la pile n'apprendrait rien. */
+           couleur d'un mois sur l'autre, sans quoi la lecture n'apprendrait rien. */
         var couleurs = ['#1565c0', '#ef6c00', '#2e7d32', '#6a1b9a', '#c62828', '#00838f', '#f9a825', '#4e342e'];
         try {
             graphique.series.removeAll();
             var champs = [];
             Ext.each(modes, function (mode, i) {
+                var couleur = couleurs[i % couleurs.length];
                 champs.push(mode.cle);
-                graphique.series.add(Ext.create('Ext.chart.series.Area', {
+                graphique.series.add(Ext.create('Ext.chart.series.Line', {
                     chart: graphique,
-                    type: 'area',
+                    type: 'line',
                     axis: 'left',
                     xField: 'libelle',
-                    yField: [mode.cle],
-                    title: [mode.libelle],
-                    style: {opacity: 0.85, fill: couleurs[i % couleurs.length],
-                        stroke: couleurs[i % couleurs.length]}
+                    yField: mode.cle,
+                    title: mode.libelle,
+                    smooth: false,
+                    style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
+                    markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
+                    tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
+                        var f = testextjs.view.pilotage.PilotageManager;
+                        var v = record.get(mode.cle);
+                        var ca = record.get('caTTC');
+                        return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                                + Ext.String.htmlEncode(mode.libelle) + ' : ' + (f.nombre(v) || '—')
+                                + (ca ? '<br>soit ' + f.nombre(v / ca * 100, '0,000.0')
+                                        + ' % du chiffre d\'affaires du mois' : '');
+                    })
                 }));
             });
             if (champs.length) {
@@ -530,27 +666,51 @@ Ext.define('testextjs.controller.PilotageCtr', {
         var config = ecran.colonnes('kpi');
         var libelles = {};
         ecran.storeKpis.each(function (r) {
-            libelles[r.get('cle')] = {libelle: r.get('libelle'), unite: r.get('unite')};
+            libelles[r.get('cle')] = {libelle: r.get('libelle'), unite: r.get('unite'),
+                cumul: r.get('cumul')};
         });
         Ext.each(coches, function (k) {
             if (k === 'frequentation') {
                 return;
             }
-            var info = libelles[k] || {libelle: k, unite: ''};
-            config.push({text: info.libelle.toUpperCase(), dataIndex: k, width: 150, align: 'right',
+            var info = libelles[k] || {libelle: k, unite: '', cumul: true};
+            var pourcent = info.unite === '%';
+            var formater = function (v) {
+                var f = testextjs.view.pilotage.PilotageManager;
+                /* Pas de séparateur décimal orphelin en fin de nombre : « 0, » se lisait dans le
+                   détail des KPI — retour de l'officine du 19/09. */
+                return pourcent ? f.nombre(v, '0,000.0') + ' %'
+                        : f.nombre(v, v % 1 === 0 ? '0,000' : '0,000.00');
+            };
+            config.push({text: info.libelle.toUpperCase(), dataIndex: k, width: 160, align: 'right',
                 itemId: 'col-' + k,
-                renderer: function (v) {
+                renderer: function (v, meta, record, rowIndex, colIndex, store) {
                     if (v === null || v === undefined || isNaN(v)) {
                         return '';
                     }
-                    /* Pas de séparateur décimal orphelin en fin de nombre : « 0, » se lisait dans le
-                       détail des KPI — retour de l'officine du 19/09. */
-                    var formater = testextjs.view.pilotage.PilotageManager.nombre;
-                    return info.unite === '%' ? formater(v, '0,000.0') + ' %'
-                            : formater(v, v % 1 === 0 ? '0,000' : '0,000.00');
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    /* Les deux lectures demandées le 20/09 pour TOUS les détails mensuels : l'évolution
+                       par rapport au mois précédent, et la part du chiffre d'affaires quand elle a un sens. */
+                    return formater(v) + f.secondeLigne(v, record, rowIndex, store, k,
+                            {points: pourcent, part: !pourcent && k !== 'caTTC' && info.unite === 'FCFA'
+                                        && k !== 'panier'});
+                },
+                /*
+                 * LA LIGNE DE TOTAL N'EST PLUS VIDE (20/09). Elle additionne ce qui s'additionne et
+                 * MOYENNE le reste : la somme de douze taux de marge ou de douze paniers moyens n'aurait
+                 * aucun sens. Le pied le dit, pour qu'on ne lise pas une moyenne comme un cumul.
+                 */
+                summaryType: info.cumul === false ? 'average' : 'sum',
+                summaryRenderer: function (v) {
+                    if (v === null || v === undefined || isNaN(v)) {
+                        return '';
+                    }
+                    return '<b>' + formater(v) + '</b>'
+                            + (info.cumul === false ? '<div class="pilotage-seconde-ligne">moyenne</div>' : '');
                 }});
         });
-        ecran.down('#detail-kpi').reconfigure(store, config);
+        ecran.down('#detail-kpi').reconfigure(store,
+                testextjs.view.pilotage.PilotageManager.repartirLargeur(config));
 
         /*
          * La fréquentation horaire est traitée AVANT la courbe, et la courbe est isolée dans un try/catch.
@@ -692,10 +852,19 @@ Ext.define('testextjs.controller.PilotageCtr', {
         });
         var config = ecran.colonnes('achats');
         Ext.each(colonnes, function (g) {
-            config.push({text: g.libelle.toUpperCase(), dataIndex: g.cle, width: 130, align: 'right',
+            config.push({text: g.libelle.toUpperCase(), dataIndex: g.cle, width: 150, align: 'right',
                 itemId: 'col-' + g.cle,
-                renderer: function (v) {
-                    return testextjs.view.pilotage.PilotageManager.nombre(v);
+                renderer: function (v, meta, record, rowIndex, colIndex, store) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var t = f.nombre(v);
+                    /* La part porte sur les ACHATS du mois, pas sur le chiffre d'affaires : ce qu'on veut
+                       savoir d'un grossiste, c'est le poids qu'il prend dans l'approvisionnement. */
+                    return t === '' ? '' : t
+                            + f.secondeLigne(v, record, rowIndex, store, g.cle, {part: false})
+                            + (record.get('achatTTC')
+                                    ? '<div class="pilotage-seconde-ligne">'
+                                        + f.nombre(v / record.get('achatTTC') * 100, '0,000.0')
+                                        + ' % des achats</div>' : '');
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -703,7 +872,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     return t === '' ? '' : '<b>' + t + '</b>';
                 }});
         });
-        grille.reconfigure(store, config);
+        grille.reconfigure(store,
+                testextjs.view.pilotage.PilotageManager.repartirLargeur(config));
     },
 
     /*

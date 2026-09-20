@@ -101,12 +101,15 @@ function texteDuPdf(octets) {
         entrees: r.get('entrees'), sorties: r.get('sorties'), variation: r.get('variationStock'),
         mesure: r.get('mesure') }));
       return { tuiles: tuiles, lignes: lignes,
-        note: e.down('#note-stock #texteNote').getValue(),
-        colonnes: e.down('#detail-stock').headerCt.getGridColumns().map((c) => c.text) };
+        colonnes: e.down('#detail-stock').headerCt.getGridColumns().map((c) => c.text),
+        /* Le bandeau de note a ete retire le 20/09 : c'est la colonne SOURCE, ligne par ligne, qui
+           dit desormais d'ou vient la valeur. On verifie donc qu'il n'y a plus de bandeau. */
+        bandeau: !!e.down('#note-stock') };
     });
-    ok('L onglet Stock donne la valeur d achat, de vente, les ruptures, le sous-seuil, le négatif et le dormant',
+    ok('L onglet Stock donne la valeur d achat, de vente, les ruptures, le sous-seuil, le négatif, le dormant '
+      + 'et les péremptions proches',
       stock.tuiles.map((t) => t.cle).join(',')
-        === 'valeurAchat,valeurVente,ruptures,sousSeuil,negatifs,dormant',
+        === 'valeurAchat,valeurVente,ruptures,sousSeuil,negatifs,dormant,peremption',
       JSON.stringify(stock.tuiles.map((t) => t.cle)));
 
     /*
@@ -163,7 +166,8 @@ function texteDuPdf(octets) {
       e.stores.stock.mois.each((r) => lignes.push({ mois: r.get('mois'), valeur: r.get('valeurAchat'),
         entrees: r.get('entrees'), sorties: r.get('sorties'), variation: r.get('variationStock'),
         mesure: r.get('mesure') }));
-      return { lignes: lignes, note: e.down('#note-stock #texteNote').getValue() };
+      return { lignes: lignes, sources: e.down('#detail-stock').getStore().getRange()
+          .map((r) => r.get('mesure')) };
     });
     const moisCourant = q("SELECT DATE_FORMAT(CURDATE(),'%Y-%m')");
     const ligneCourante = apres.lignes.filter((l) => l.mois === moisCourant)[0];
@@ -184,10 +188,18 @@ function texteDuPdf(octets) {
     ok('Les mois antérieurs au relevé sont marqués RECONSTITUÉS',
       avantReleve.length === 0 || avantReleve.every((l) => l.mesure === false),
       JSON.stringify(apres.lignes.map((l) => l.mois + '=' + l.mesure)));
-    ok('Et l écran DIT d où vient la valeur affichée',
-      /MESUR/.test(apres.note) && /relev/.test(apres.note), apres.note);
-    ok('La colonne SOURCE existe, pour le dire ligne par ligne',
+    /*
+     * LE BANDEAU DE NOTE A DISPARU (« pas besoin d'afficher ce texte », 20/09) et ce qu'il disait est
+     * porte, en plus precis, par la colonne SOURCE : elle distingue ligne par ligne une valeur CAPTUREE
+     * par le releve nocturne d'une valeur reconstituee a rebours.
+     */
+    ok('Le bandeau de note a bien disparu de l onglet Stock', stock.bandeau === false,
+      'bandeau present : ' + stock.bandeau);
+    ok('La colonne SOURCE existe, pour dire ligne par ligne d où vient la valeur',
       stock.colonnes.indexOf('SOURCE') >= 0, JSON.stringify(stock.colonnes));
+    ok('Et elle est renseignée sur chaque mois affiché',
+      apres.sources.length > 0 && apres.sources.every((v) => v === true || v === false),
+      JSON.stringify(apres.sources));
 
     const moisTest = apres.lignes.filter((l) => l.entrees > 0)[0];
     if (moisTest) {
@@ -221,7 +233,7 @@ function texteDuPdf(octets) {
       e.stores.qualite.mois.each((r) => lignes.push({ mois: r.get('mois'), ca: r.get('caTTC'),
         ventes: r.get('nbVentes'), annulees: r.get('nbAnnulees'), taux: r.get('tauxAnnulation'),
         remises: r.get('remises'), tauxRemise: r.get('tauxRemise') }));
-      return { tuiles: tuiles, lignes: lignes, note: e.down('#note-qualite #texteNote').getValue() };
+      return { tuiles: tuiles, lignes: lignes, bandeau: !!e.down('#note-qualite') };
     });
     ok('L onglet Qualité liste les six chantiers : négatif, sans prix, sans rayon, sans seuil, annulations, remises',
       qualite.tuiles.map((t) => t.cle).join(',')
@@ -255,8 +267,10 @@ function texteDuPdf(octets) {
     } else {
       ok('Aucune vente annulée sur la fenêtre : rien à comparer', true);
     }
-    ok('La note prévient que les indicateurs de référentiel décrivent l ÉTAT DU JOUR, pas la période',
-      /ÉTAT DU JOUR/.test(qualite.note), qualite.note);
+    /* Le bandeau explicatif a ete retire le 20/09 : les tuiles de referentiel portent leur propre
+       sous-titre, qui dit deja ce que chacune mesure. */
+    ok('Le bandeau de note a bien disparu de l onglet Qualité', qualite.bandeau === false,
+      'bandeau present : ' + qualite.bandeau);
 
     /* --------------------------------------------------------------- éditions */
     for (const onglet of ['stock', 'qualite']) {

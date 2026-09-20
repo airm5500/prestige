@@ -30,7 +30,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     width: '99%',
     height: 'auto',
     minHeight: 620,
-    cls: 'custompanel',
+    /* « pilotage-ardoise » porte l'habillage retenu par l'officine le 20/09 : il ne s'applique qu'ici. */
+    cls: 'custompanel pilotage-ardoise',
     layout: {type: 'vbox', align: 'stretch'},
 
     statics: {
@@ -67,6 +68,174 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 novembre: 'nov.', 'décembre': 'déc.'};
             var mois = parts[0].toLowerCase();
             return (abrege[mois] || mois) + ' ' + parts[1].substring(2);
+        },
+
+        /*
+         * LA SECONDE LIGNE D'UNE CELLULE DE MONTANT : l'evolution et la part.
+         *
+         * Demande de l'officine du 20/09, pour TOUTES les sections « detail mensuel » : « je veux le taux
+         * d'evolution de chaque colonne par rapport au mois precedent ainsi de suite, et aussi le taux que ce
+         * montant represente dans le chiffre d'affaires ».
+         *
+         * ELLE NE COUTE RIEN EN TEMPS. Les deux chiffres se deduisent de lignes DEJA chargees : le mois
+         * precedent est la ligne suivante du tableau (il est trie du mois actuel au plus ancien), et le chiffre
+         * d'affaires du mois est deja dans la ligne. Aucune requete de plus n'est envoyee au serveur - c'est
+         * l'ecran qui divise. La question posee le 20/09, « cela coutera de la lenteur ? », a donc pour reponse
+         * non : le serveur rend exactement les memes donnees qu'avant.
+         *
+         * Le mois le plus ancien du tableau n'a pas de mois precedent a l'ecran : on n'invente pas une
+         * evolution a partir d'un mois qu'on n'affiche pas, la case reste vide.
+         */
+        secondeLigne: function (valeur, record, rowIndex, store, champ, options) {
+            var opt = options || {};
+            var morceaux = [];
+            if (opt.evolution !== false && store && record && valeur !== null && valeur !== undefined) {
+                /* Le tableau va du mois actuel au plus ancien : le mois precedent est la ligne d'apres. */
+                var avant = store.getAt(rowIndex + 1);
+                if (avant) {
+                    var v0 = Number(avant.get(champ));
+                    var v1 = Number(valeur);
+                    if (!isNaN(v0) && !isNaN(v1)) {
+                        if (opt.points) {
+                            /* Un taux ne varie pas « de 12 % » mais « de 12 points » : comparer deux
+                               pourcentages en pourcentage se lit de travers. */
+                            var ecart = v1 - v0;
+                            morceaux.push('<span class="pilotage-evol ' + this.sens(ecart) + '">'
+                                    + this.fleche(ecart) + ' '
+                                    + this.nombre(Math.abs(ecart), '0,000.0') + ' pt</span>');
+                        } else if (v0 !== 0) {
+                            var variation = (v1 - v0) / Math.abs(v0) * 100;
+                            morceaux.push('<span class="pilotage-evol ' + this.sens(variation) + '">'
+                                    + this.fleche(variation) + ' '
+                                    + this.nombre(Math.abs(variation), '0,000.0') + ' %</span>');
+                        }
+                    }
+                }
+            }
+            /* La part du chiffre d'affaires n'a de sens que pour un MONTANT : un nombre de ventes ou un
+               taux rapporte a un chiffre d'affaires ne veut rien dire. Et le CA rapporte a lui-meme non plus. */
+            if (opt.part === true && record) {
+                var ca = Number(record.get('caTTC'));
+                if (ca) {
+                    morceaux.push(this.nombre(Number(valeur) / ca * 100, '0,000.0') + ' % du CA');
+                }
+            }
+            if (!morceaux.length) {
+                return '';
+            }
+            return '<div class="pilotage-seconde-ligne">' + morceaux.join(' &middot; ') + '</div>';
+        },
+
+        sens: function (v) {
+            return v > 0 ? 'hausse' : (v < 0 ? 'baisse' : 'plat');
+        },
+
+        fleche: function (v) {
+            return v > 0 ? '\u25b2' : (v < 0 ? '\u25bc' : '=');
+        },
+
+        /*
+         * LES DEUX AXES DE TOUS LES GRAPHIQUES, ECRITS UNE SEULE FOIS.
+         *
+         * « Les montants en ordonnee sont confondus, on ne voit pas les mois » (20/09) : ExtJS choisissait
+         * seul le nombre de graduations et en posait une tous les 25 millions, si bien que les etiquettes se
+         * chevauchaient et formaient un pate illisible. On impose SIX graduations, quelle que soit l'echelle,
+         * et on reserve en bas la place des mois ecrits en biais - sans cette reserve, le dernier caractere
+         * de chaque mois passait sous le bord du cadre.
+         */
+        axeMontants: function (champs) {
+            return {
+                type: 'Numeric',
+                position: 'left',
+                fields: champs,
+                minimum: 0,
+                grid: true,
+                majorTickSteps: 5,
+                label: {
+                    font: 'bold 12px tahoma, arial, sans-serif',
+                    fill: '#333333',
+                    renderer: function (v) {
+                        /* Sous le million, afficher « 0,0 M » pour tout ne dirait rien : on garde alors
+                           le nombre lui-meme, groupe par milliers. */
+                        return Math.abs(v) >= 1000000
+                                ? Ext.util.Format.number(v / 1000000, '0,000.0') + ' M'
+                                : Ext.util.Format.number(v, '0,000');
+                    }
+                }
+            };
+        },
+
+        axeMois: function () {
+            return {
+                type: 'Category',
+                position: 'bottom',
+                fields: ['libelle'],
+                label: {
+                    font: 'bold 12px tahoma, arial, sans-serif',
+                    fill: '#333333',
+                    rotate: {degrees: 315},
+                    renderer: function (v) {
+                        return testextjs.view.pilotage.PilotageManager.moisCourt(v);
+                    }
+                }
+            };
+        },
+
+        /*
+         * L'ESPACE RESTANT EST PARTAGE ENTRE TOUTES LES COLONNES DE CHIFFRES, a parts egales.
+         *
+         * Deux ecueils evites. Laisser la colonne des mois en « flex » lui donnait tout l'espace libre : le
+         * nom du mois occupait la moitie du tableau de la Synthese. Le donner a la SEULE derniere colonne
+         * etirait celle-la sur six cents pixels pendant que les autres restaient serrees. Chaque colonne de
+         * chiffres recoit donc la meme part, sans jamais passer sous la largeur dont elle a besoin pour
+         * afficher son montant et sa seconde ligne - au-dela, la grille defile horizontalement, ce qui est
+         * le comportement attendu quand une officine travaille avec douze modes de reglement.
+         */
+        repartirLargeur: function (colonnes) {
+            Ext.each(colonnes, function (c) {
+                if (c.itemId === 'col-mois') {
+                    delete c.flex;
+                    return;
+                }
+                c.minWidth = c.width || 130;
+                c.flex = 1;
+            });
+            return colonnes;
+        },
+
+        /*
+         * LA RESERVE AUTOUR DU DESSIN. ExtJS 4.2 n'accepte qu'une seule valeur, appliquee aux quatre cotes
+         * ({@code insetPadding}) : a dix pixels, les mois ecrits en biais passaient sous le bord du cadre et
+         * la derniere graduation touchait le haut. Vingt-quatre laissent la place aux deux.
+         */
+        INSET: 24,
+
+        /*
+         * L'INFOBULLE DES COURBES, ECRITE UNE SEULE FOIS ET PARTAGEE PAR TOUS LES GRAPHIQUES.
+         *
+         * Elle etait bridee en largeur et en hauteur, donc coupee des qu'un libelle de mode ou de grossiste
+         * etait un peu long, et elle s'effacait toute seule au bout de quelques secondes. « Agrandir les
+         * infobulles qui sont tronquees dans tous les graphes quand je mets la souris sur le pic » (20/09) :
+         * elle se dimensionne desormais sur son contenu, va sur plusieurs lignes, et ne disparait que
+         * lorsque le curseur quitte la courbe.
+         */
+        infobulle: function (rendu) {
+            return {
+                trackMouse: true,
+                dismissDelay: 0,
+                hideDelay: 500,
+                minWidth: 220,
+                maxWidth: 560,
+                autoHeight: true,
+                /* ExtJS 4.2 pose une largeur et une hauteur FIXES sur l'infobulle d'une serie : tant
+                   qu'elles sont posees, maxWidth et autoHeight ne servent a rien et le texte est coupe. */
+                width: undefined,
+                height: undefined,
+                bodyStyle: 'white-space: normal; line-height: 16px; padding: 6px 8px;',
+                renderer: function (record, item) {
+                    this.setTitle(rendu(record, item));
+                }
+            };
         }
     },
 
@@ -100,6 +269,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         /* Part de chaque grossiste sur la fenetre : la lecture que l'officine fait en premier. */
         me.storeRepartition = new Ext.data.Store({
             fields: [{name: 'grossiste', type: 'string'}, {name: 'montant', type: 'float'},
+                /* De quelles agences le groupe est fait : regrouper ne doit pas faire perdre leurs noms. */
+                {name: 'membres', type: 'string'},
                 {name: 'part', type: 'float'}],
             data: []
         });
@@ -128,7 +299,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         me.storeKpis = new Ext.data.Store({
             fields: [{name: 'cle', type: 'string'}, {name: 'libelle', type: 'string'},
                 {name: 'unite', type: 'string'}, {name: 'famille', type: 'string'},
-                {name: 'mensuel', type: 'boolean'}],
+                {name: 'mensuel', type: 'boolean'},
+                /* Additionner les mois, ou en faire la moyenne : un panier moyen ne s'additionne pas. */
+                {name: 'cumul', type: 'boolean'}],
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -200,6 +373,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             me.stores[onglet.cle] = {
                 tuiles: new Ext.data.Store({
                     fields: ['cle', 'libelle', 'unite', 'sousTitre', 'libelleReference',
+                        /* Une tuile d'ALERTE se voit de loin : rouge et clignotante. Aujourd'hui les
+                           peremptions proches ; demain ce qui appellera un geste dans le mois. */
+                        {name: 'alerte', type: 'boolean'},
                         {name: 'valeur', type: 'float'},
                         /*
                          * useNull : SANS lui, ExtJS convertit une valeur absente en 0, et une tuile sans
@@ -315,6 +491,28 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             flex: 1,
                             value: ''
                         }]
+                }, {
+                    /*
+                     * LA BARRE DE PROGRESSION DU RECALCUL. Reprendre vingt-cinq mois demande une bonne
+                     * demi-minute, pendant laquelle l'ecran ne disait rien : « ajouter une barre de
+                     * progression pour ne pas faire attendre sans infos » (20/09). Elle donne le mois en
+                     * cours de calcul et le nombre de mois faits - une information reelle, lue sur le
+                     * serveur, et non une animation qui tourne dans le vide.
+                     *
+                     * Elle vit DANS l'ecran et non dans une fenetre : rien n'est bloque pendant ce temps.
+                     */
+                    xtype: 'container',
+                    itemId: 'zoneProgression',
+                    hidden: true,
+                    layout: {type: 'hbox', align: 'middle'},
+                    padding: '2 0 4 0',
+                    items: [{
+                            xtype: 'progressbar',
+                            itemId: 'progression',
+                            flex: 1,
+                            height: 22,
+                            text: 'Recalcul en cours...'
+                        }]
                 }]
         };
     },
@@ -353,16 +551,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
         }
-        if (onglet.cle === 'stock' || onglet.cle === 'qualite') {
-            /* La note dit d'ou viennent les chiffres : reconstitues ou mesures pour le stock, etat du jour
-             * ou periode pour la qualite. Sans elle, deux lectures differentes seraient confondues. */
-            contenu.push({
-                xtype: 'toolbar',
-                itemId: 'note-' + onglet.cle,
-                padding: 4,
-                items: [{xtype: 'displayfield', itemId: 'texteNote', flex: 1, value: ''}]
-            });
-        }
+        /*
+         * PLUS DE BANDEAU DE NOTE dans les onglets Stock et Qualite (« pas besoin d'afficher ce texte »,
+         * 20/09). Ce qu'il disait n'est pas perdu : la colonne SOURCE du detail dit ligne par ligne si la
+         * valeur est une capture ou une reconstitution, ce qui est plus precis qu'une phrase valable pour
+         * tout l'ecran, et les tuiles de referentiel portent leur propre explication.
+         */
         if (onglet.cle === 'ventes') {
             /*
              * DEUX GRAPHIQUES CÔTE À CÔTE dans l'onglet Ventes : le chiffre d'affaires mensuel à gauche, et à
@@ -373,7 +567,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 xtype: 'container',
                 layout: {type: 'hbox', align: 'stretch'},
                 flex: 1,
-                minHeight: 260,
+                minHeight: 300,
                 items: [me.graphique(onglet.cle), me.graphiqueModes()]
             });
         } else {
@@ -465,15 +659,26 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             itemId: 'repartition',
             title: 'Part de chaque grossiste',
             store: this.storeRepartition,
-            height: 150,
+            height: 190,
             columnLines: true,
+            /* Une officine travaille avec vingt grossistes : le tableau doit DEFILER, dans les deux sens,
+               plutot que d'ecraser les colonnes ou de couper la liste (20/09). */
+            autoScroll: true,
             /* Une période sans achat rend un tableau vide : il doit le DIRE, sinon on croit à une panne. */
             viewConfig: {
                 emptyText: '<div class="pilotage-vide">Aucun achat clôturé sur la période choisie.</div>',
                 deferEmptyText: false
             },
             columns: [
-                {text: 'GROSSISTE', dataIndex: 'grossiste', flex: 2, itemId: 'col-grossiste'},
+                {text: 'GROSSISTE', dataIndex: 'grossiste', flex: 2, itemId: 'col-grossiste',
+                    renderer: function (v, meta, record) {
+                        /* Les agences d'un meme groupe sont nommees sous le groupe : « LABOREX-CI » seul
+                           ferait disparaitre les cinq agences de l'ecran (20/09). */
+                        var detail = record.get('membres');
+                        var nom = Ext.String.htmlEncode(v || '');
+                        return detail ? nom + '<div class="pilotage-seconde-ligne">'
+                                + Ext.String.htmlEncode(detail) + '</div>' : nom;
+                    }},
                 {text: 'MONTANT', dataIndex: 'montant', width: 150, align: 'right',
                     renderer: function (v) {
                         return testextjs.view.pilotage.PilotageManager.nombre(v);
@@ -501,12 +706,20 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             itemSelector: 'div.pilotage-tuile',
             emptyText: '<div class="pilotage-vide">Choisissez une période puis « Actualiser ».</div>',
             deferEmptyText: false,
-            height: 104,
+            /*
+             * LA BANDE DE TUILES NE DOIT PLUS DEBORDER. Une tuile porte jusqu'a cinq lignes - libelle,
+             * valeur, variation, valeur comparee, note - et le texte de la note etait coupe en bas faute de
+             * place (« la zone remises accordees deborde alors qu'il y a assez d'espace a droite », 20/09).
+             * La tuile est elargie dans le CSS et la bande gagne la hauteur des cinq lignes : on prend la
+             * place disponible sur la LARGEUR plutot que de rogner vers le bas.
+             */
+            height: 132,
             tpl: new Ext.XTemplate(
                 '<tpl for=".">',
                 '<div class="pilotage-tuile" data-cle="{cle}">',
                 '<div class="pilotage-tuile-libelle">{libelle}</div>',
-                '<div class="pilotage-tuile-valeur">{[this.montant(values.valeur, values.unite)]}</div>',
+                '<div class="pilotage-tuile-valeur{[values.alerte ? \' pilotage-alerte\' : \'\']}">',
+                '{[this.montant(values.valeur, values.unite)]}</div>',
                 '<tpl if="variation !== null && variation !== undefined">',
                 '<div class="pilotage-tuile-variation {[values.variation >= 0 ? \'hausse\' : \'baisse\']}">',
                 '{[values.variation >= 0 ? \'▲\' : \'▼\']} {[this.pourcent(values.variation)]}',
@@ -575,7 +788,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         var BLEU = '#1565c0';
         var ORANGE = '#ef6c00';
         var champsAxe = comparateur ? ['a', 'b'] : [champs[cle], champs[cle] + 'Ref'];
-        var serie = function (champ, couleur, titre) {
+        var serie = function (champ, couleur, titre, pointille) {
             return {
                 type: 'line',
                 axis: 'left',
@@ -583,8 +796,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 yField: champ,
                 title: titre,
                 smooth: false,
-                /* Un trait fin sur fond clair se perd : l'officine ne voyait pas la courbe. */
-                style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
+                /*
+                 * Un trait fin sur fond clair se perd : l'officine ne voyait pas la courbe. Et quand deux
+                 * courbes se croisent sur les memes mois - le cas de toute comparaison - la couleur seule ne
+                 * suffit pas a les suivre du regard : la courbe de REFERENCE est donc en pointilles.
+                 * « La courbe s'entremele et derange l'apercu » (20/09).
+                 */
+                style: pointille
+                        ? {stroke: couleur, 'stroke-width': 3, opacity: 1, 'stroke-dasharray': '7,5'}
+                        : {stroke: couleur, 'stroke-width': 3, opacity: 1},
                 markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
                 /*
                  * L'infobulle : elle était bridée à 260 × 44 pixels, donc tronquée dès qu'un libellé de mode
@@ -592,21 +812,18 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                  * dimensionne maintenant sur son contenu et reste affichée tant que le curseur ne quitte pas
                  * la courbe — retour de l'officine du 19/09.
                  */
-                tips: {
-                    trackMouse: true,
-                    dismissDelay: 0,
-                    hideDelay: 400,
-                    minWidth: 180,
-                    maxWidth: 420,
-                    autoHeight: true,
-                    style: 'white-space: normal;',
-                    renderer: function (record) {
-                        var f = testextjs.view.pilotage.PilotageManager;
-                        var v = record.get(champ);
-                        this.setTitle('<b>' + record.get('libelle') + '</b><br>' + titre + ' : '
-                                + (f.nombre(v) || '—'));
+                tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var v = record.get(champ);
+                    var ca = record.get('caTTC');
+                    var texte = '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                            + Ext.String.htmlEncode(titre) + ' : ' + (f.nombre(v) || '—');
+                    if (ca && champ !== 'caTTC' && v !== null && v !== undefined) {
+                        texte += '<br>soit ' + f.nombre(v / ca * 100, '0,000.0')
+                                + ' % du chiffre d\'affaires du mois';
                     }
-                }
+                    return texte;
+                })
             };
         };
         /*
@@ -616,9 +833,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          * quand l'axe ne compare rien — c'est le contrôleur qui l'affiche ou la cache au chargement.
          */
         var series = comparateur
-                ? [serie('a', BLEU, 'Objet A'), serie('b', ORANGE, 'Objet B')]
+                ? [serie('a', BLEU, 'Objet A'), serie('b', ORANGE, 'Objet B', true)]
                 : [serie(champs[cle], BLEU, 'Période choisie'),
-                    serie(champs[cle] + 'Ref', ORANGE, 'Période comparée')];
+                    serie(champs[cle] + 'Ref', ORANGE, 'Période comparée', true)];
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
@@ -626,7 +843,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             /* Le graphique et le detail se partagent l'espace restant a parts egales : hauteurs egales
                demandees le 19/09, et plus de bande vide sous la grille. */
             flex: 1,
-            minHeight: 260,
+            minHeight: 300,
             layout: 'fit',
             items: [{
                     xtype: 'chart',
@@ -635,35 +852,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     shadow: false,
                     /* La legende nomme les courbes : sans elle, deux traits de couleur ne se lisent pas. */
                     legend: {position: 'top'},
+                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
                     store: this.stores[cle].mois,
-                    axes: [{
-                            type: 'Numeric',
-                            position: 'left',
-                            fields: champsAxe,
-                            minimum: 0,
-                            grid: true,
-                            label: {
-                                font: 'bold 12px tahoma, arial, sans-serif',
-                                fill: '#333333',
-                                renderer: function (v) {
-                                    return Ext.util.Format.number(v / 1000000, '0,000.0') + ' M';
-                                }
-                            }
-                        }, {
-                            type: 'Category',
-                            position: 'bottom',
-                            fields: ['libelle'],
-                            label: {
-                                font: 'bold 12px tahoma, arial, sans-serif',
-                                fill: '#333333',
-                                rotate: {degrees: 315},
-                                /* « Septembre 2026 » devient « sept. 26 » : douze mois ecrits en toutes
-                                   lettres se chevauchaient sur l'axe. */
-                                renderer: function (v) {
-                                    return testextjs.view.pilotage.PilotageManager.moisCourt(v);
-                                }
-                            }
-                        }],
+                    axes: [testextjs.view.pilotage.PilotageManager.axeMontants(champsAxe),
+                        testextjs.view.pilotage.PilotageManager.axeMois()],
                     series: series
                 }]
         };
@@ -684,9 +876,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-modes',
-            title: 'Part de chaque mode de règlement',
+            title: 'Évolution de chaque mode de règlement',
             flex: 1,
-            minHeight: 260,
+            minHeight: 300,
             margin: '0 0 0 6',
             layout: 'fit',
             items: [{
@@ -695,40 +887,17 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     animate: false,
                     shadow: false,
                     legend: {position: 'top'},
+                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
                     store: this.stores.ventes.mois,
-                    axes: [{
-                            type: 'Numeric',
-                            position: 'left',
-                            fields: ['caTTC'],
-                            minimum: 0,
-                            grid: true,
-                            label: {
-                                font: 'bold 12px tahoma, arial, sans-serif',
-                                fill: '#333333',
-                                renderer: function (v) {
-                                    return Ext.util.Format.number(v / 1000000, '0,000.0') + ' M';
-                                }
-                            }
-                        }, {
-                            type: 'Category',
-                            position: 'bottom',
-                            fields: ['libelle'],
-                            label: {
-                                font: 'bold 12px tahoma, arial, sans-serif',
-                                fill: '#333333',
-                                rotate: {degrees: 315},
-                                renderer: function (v) {
-                                    return testextjs.view.pilotage.PilotageManager.moisCourt(v);
-                                }
-                            }
-                        }],
+                    axes: [testextjs.view.pilotage.PilotageManager.axeMontants(['caTTC']),
+                        testextjs.view.pilotage.PilotageManager.axeMois()],
                     series: []
                 }]
         };
     },
 
     detail: function (cle) {
-        var colonnes = this.colonnes(cle);
+        var colonnes = testextjs.view.pilotage.PilotageManager.repartirLargeur(this.colonnes(cle));
         return {
             xtype: 'gridpanel',
             itemId: 'detail-' + cle,
@@ -744,7 +913,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                  * naïvement aux mois pleins. Il est en TÊTE du tableau, le détail étant trié du mois
                  * actuel au plus ancien — demande de l'officine du 19/09. */
                 getRowClass: function (record, index) {
-                    return index === 0 ? 'pilotage-mois-encours' : '';
+                    /* Le tableau va du mois actuel au plus ancien : les trois premieres lignes sont le mois
+                       en cours, le precedent et celui d'avant. Vert, orange, violet - demande du 20/09. */
+                    if (index > 2) {
+                        return '';
+                    }
+                    return ['pilotage-mois-1 pilotage-mois-encours', 'pilotage-mois-2',
+                        'pilotage-mois-3'][index];
                 }
             }
         };
@@ -874,6 +1049,18 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     queryMode: 'local',
                     value: 'caTTC'
                 }, {
+                    /*
+                     * LA COMPARAISON NE PART PLUS TOUTE SEULE. Choisir « deux rayons » vidait A et B, et
+                     * chaque frappe relancait une requete lourde sur une comparaison incomplete - c'est
+                     * l'onglet le plus lent du menu, et il partait pour rien. « Ne pas lancer
+                     * automatiquement la recherche de la serie a comparer » (20/09) : c'est ce bouton, et
+                     * lui seul, qui la lance, et il verifie d'abord que les trois choix sont faits.
+                     */
+                    xtype: 'button',
+                    itemId: 'comparer',
+                    text: 'Comparer',
+                    iconCls: 'search'
+                }, {
                     xtype: 'component',
                     flex: 1
                 }, {
@@ -886,11 +1073,21 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     /** Colonnes du detail mensuel, par onglet. Les montants portent leur total en pied de grille. */
     colonnes: function (cle) {
-        var montant = function (texte, champ, largeur) {
-            return {text: texte, dataIndex: champ, width: largeur || 120, align: 'right',
+        /*
+         * Les colonnes qui ne sont PAS un montant a rapporter au chiffre d'affaires : un nombre de ventes,
+         * un nombre de bons, un panier moyen ou un ratio rapportes au chiffre d'affaires du mois ne
+         * voudraient rien dire. Elles gardent l'evolution, qui elle a un sens.
+         */
+        var SANS_PART = ['nbVentes', 'nbBons', 'nbAnnulees', 'unites', 'panier', 'ratioVA', 'caTTC',
+            'a', 'b', 'ecart', 'rapport'];
+        var montant = function (texte, champ, largeur, options) {
+            var opt = Ext.apply({part: SANS_PART.indexOf(champ) < 0}, options || {});
+            return {text: texte, dataIndex: champ, width: largeur || 150, align: 'right',
                 itemId: 'col-' + champ,
-                renderer: function (v) {
-                    return testextjs.view.pilotage.PilotageManager.nombre(v);
+                renderer: function (v, meta, record, rowIndex, colIndex, store) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var t = f.nombre(v);
+                    return t === '' ? '' : t + f.secondeLigne(v, record, rowIndex, store, champ, opt);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -898,14 +1095,24 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     return t === '' ? '' : '<b>' + t + '</b>';
                 }};
         };
-        var taux = function (texte, champ) {
-            return {text: texte, dataIndex: champ, width: 100, align: 'right', itemId: 'col-' + champ,
-                renderer: function (v) {
-                    var t = testextjs.view.pilotage.PilotageManager.nombre(v, '0,000.0');
-                    return t === '' ? '' : t + ' %';
+        /* Un taux se compare au mois precedent en POINTS, pas en pourcentage d'un pourcentage. */
+        var taux = function (texte, champ, largeur) {
+            return {text: texte, dataIndex: champ, width: largeur || 120, align: 'right',
+                itemId: 'col-' + champ,
+                renderer: function (v, meta, record, rowIndex, colIndex, store) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var t = f.nombre(v, '0,000.0');
+                    return t === '' ? '' : t + ' %'
+                            + f.secondeLigne(v, record, rowIndex, store, champ, {points: true, part: false});
                 }};
         };
-        var mois = {text: 'MOIS', dataIndex: 'libelle', flex: 1, itemId: 'col-mois',
+        /*
+         * LA COLONNE DES MOIS NE MANGE PLUS LA LARGEUR. En « flex », elle absorbait tout l'espace laisse
+         * libre par les autres : dans la Synthese, le nom du mois occupait la moitie du tableau pendant que
+         * les montants et leur seconde ligne se serraient. Elle prend maintenant sa juste largeur, et
+         * l'espace restant se partage entre les colonnes de chiffres (voir repartirLargeur).
+         */
+        var mois = {text: 'MOIS', dataIndex: 'libelle', width: 160, itemId: 'col-mois',
             summaryRenderer: function () {
                 return '<b>TOTAL</b>';
             }};
@@ -932,13 +1139,20 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     }}];
         }
         if (cle === 'stock') {
-            return [mois, montant('VALEUR DU STOCK', 'valeurAchat', 150), montant('ENTRÉES', 'entrees'),
-                montant('SORTIES', 'sorties'), montant('VARIATION', 'variationStock'),
+            /*
+             * « À quoi correspondent les sorties affichées ? les ventes ? » (20/09). Oui : ce sont les
+             * quantites VENDUES du mois, valorisees au prix d'achat du referentiel - et les entrees sont
+             * les quantites RECUES des bons de livraison, valorisees au prix d'achat de la ligne du bon.
+             * Les deux colonnes le disent desormais, plutot que de laisser deviner.
+             */
+            return [mois, montant('VALEUR DU STOCK', 'valeurAchat', 160),
+                montant('ENTRÉES (ACHATS)', 'entrees', 150),
+                montant('SORTIES (VENTES)', 'sorties', 150), montant('VARIATION', 'variationStock'),
                 {text: 'SOURCE', dataIndex: 'mesure', width: 110, itemId: 'col-mesure',
                     renderer: function (v) {
                         /* Une valeur mesurée et une valeur reconstituée ne se lisent pas de la même façon :
                          * l'écran le dit ligne par ligne plutôt qu'une fois en note. */
-                        return v ? 'Photo' : '<span style="color:#8a6d3b">Reconstituée</span>';
+                        return v ? 'Capture' : '<span style="color:#8a6d3b">Reconstituée</span>';
                     }}];
         }
         if (cle === 'qualite') {
@@ -950,8 +1164,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 montant('REMISES', 'remises'), taux('% REMISE', 'tauxRemise')];
         }
         if (cle === 'caisse') {
+            /*
+             * PLUS DE COLONNE DE POURCENTAGE : la part de chaque montant dans le chiffre d'affaires se lit
+             * maintenant sous le montant lui-meme (« retirer la colonne pourcentage et la mettre apres le
+             * montant pour gagner de la place », 20/09). La part comptant, c'est la part de l'encaisse.
+             */
             return [mois, montant('CA TTC', 'caTTC'), montant('ENCAISSÉ', 'encaisse'),
-                montant('CRÉDIT', 'credit'), taux('% COMPTANT', 'partComptant'),
+                montant('CRÉDIT', 'credit'),
                 montant('TP FACTURÉ', 'partTiersPayant'), montant('TP RÉGLÉ', 'tpRegle')];
         }
         if (cle === 'ventes') {
@@ -960,7 +1179,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             return [mois, montant('CA TTC', 'caTTC'), montant('VENTES', 'nbVentes', 90),
                 montant('PANIER MOYEN', 'panier'), montant('REMISES', 'remises')];
         }
-        return [mois, montant('CA TTC', 'caTTC'), montant('MARGE', 'marge'), taux('TAUX', 'tauxMarge'),
+        /* « À quoi correspond le taux affiché ? » (20/09) : la colonne s'appelait « TAUX » tout court et
+           ne pouvait pas repondre. C'est le taux de MARGE - la marge rapportee au chiffre d'affaires HT. */
+        return [mois, montant('CA TTC', 'caTTC'), montant('MARGE', 'marge'),
+            taux('TAUX DE MARGE', 'tauxMarge', 130),
             montant('ACHATS TTC', 'achatTTC'), montant('VENTES', 'nbVentes', 90),
             montant('PANIER MOYEN', 'panier'), montant('PART TIERS PAYANT', 'partTiersPayant')];
     }

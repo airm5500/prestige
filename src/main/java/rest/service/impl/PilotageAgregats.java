@@ -313,12 +313,125 @@ public class PilotageAgregats {
         /* Un recalcul demande a la main doit repartir de zero : la memoire du controle d'integrite est effacee. */
         CONTROLES.clear();
         int faits = 0;
-        for (String m : mois) {
-            if (moiMeme.calculerEtEnregistrer(m) != null) {
-                faits++;
+        commencer(mois.size());
+        try {
+            for (String m : mois) {
+                etape(faits, "Mois de " + m);
+                if (moiMeme.calculerEtEnregistrer(m) != null) {
+                    faits++;
+                }
             }
+        } finally {
+            terminer();
         }
         return faits;
+    }
+
+    /**
+     * PRECHAUFFAGE : les mois clos sont calcules AVANT qu'on ouvre l'ecran, pas pendant.
+     *
+     * <p>
+     * C'est la reponse au dernier reproche de lenteur (20/09) : « le chargement est encore lent pour des donnees deja
+     * sauvegardees, juste a afficher ». Il avait raison sur le principe et la mesure lui donnait raison - le journal du
+     * support montre plus de cinq secondes au PREMIER passage sur chaque onglet, et quelques millisecondes ensuite. Ces
+     * secondes-la n'etaient pas de l'affichage : c'etait le calcul du mois, fait dans la requete de l'operateur parce
+     * que personne ne l'avait fait avant lui.
+     *
+     * <p>
+     * Ce traitement le fait avant : au demarrage du serveur, puis chaque nuit. Il ne recalcule RIEN de ce qui existe
+     * deja - il ne remplit que les trous - et il s'arrete la ou l'ecran s'arrete, vingt-cinq mois en arriere, qui est
+     * la plus longue fenetre proposee par le selecteur de periode.
+     *
+     * @return le nombre de mois effectivement calcules
+     */
+    public int prechauffer() {
+        if (!RATTRAPAGE_EN_COURS.compareAndSet(false, true)) {
+            /* Un rattrapage tourne deja : inutile de lui disputer les connexions. */
+            return 0;
+        }
+        try {
+            List<String> mois = new ArrayList<>();
+            YearMonth curseur = YearMonth.now().minusMonths(MOIS_PRECHAUFFES);
+            YearMonth dernier = YearMonth.now().minusMonths(1);
+            while (!curseur.isAfter(dernier)) {
+                mois.add(curseur.toString());
+                curseur = curseur.plusMonths(1);
+            }
+            Map<String, Agregat> connus = lire(mois);
+            int faits = 0;
+            for (String m : mois) {
+                if (connus.get(m) == null && moiMeme.calculerEtEnregistrer(m) != null) {
+                    faits++;
+                }
+            }
+            if (faits > 0) {
+                LOG.log(Level.INFO, "Pilotage : {0} mois clos calcules d''avance, l''ecran n''aura plus a les"
+                        + " calculer lui-meme", faits);
+            }
+            return faits;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : prechauffage des agregats", e);
+            return 0;
+        } finally {
+            RATTRAPAGE_EN_COURS.set(false);
+        }
+    }
+
+    /**
+     * Jusqu'ou le prechauffage remonte : la plus longue fenetre du selecteur, douze mois compares aux douze d'avant.
+     */
+    private static final int MOIS_PRECHAUFFES = 25;
+
+    /*
+     * ================================================================= l'avancement du recalcul
+     *
+     * Un recalcul sur vingt-cinq mois demande une bonne demi-minute, et l'ecran restait fige sans rien dire. « Ajouter
+     * une barre de progression pour ne pas faire attendre sans infos » (20/09). L'avancement vit ici, EN MEMOIRE :
+     * l'ecran l'interroge pendant que le calcul tourne, et cette lecture-la ne touche pas la base - elle doit repondre
+     * meme quand le recalcul occupe les connexions.
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger FAITS = new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicInteger TOTAL = new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicReference<String> ETAPE = new java.util.concurrent.atomic.AtomicReference<>(
+            "");
+
+    /** Ce que l'ecran affiche dans la barre : combien de mois sont faits, sur combien, et lequel tourne. */
+    public static final class Avancement {
+        public final int faits;
+        public final int total;
+        public final String etape;
+
+        Avancement(int faits, int total, String etape) {
+            this.faits = faits;
+            this.total = total;
+            this.etape = etape;
+        }
+
+        public boolean enCours() {
+            return total > 0;
+        }
+    }
+
+    public static Avancement avancement() {
+        String etape = ETAPE.get();
+        return new Avancement(FAITS.get(), TOTAL.get(), etape == null ? "" : etape);
+    }
+
+    private static void commencer(int total) {
+        FAITS.set(0);
+        ETAPE.set("");
+        TOTAL.set(total);
+    }
+
+    private static void etape(int faits, String libelle) {
+        FAITS.set(faits);
+        ETAPE.set(libelle);
+    }
+
+    private static void terminer() {
+        TOTAL.set(0);
+        FAITS.set(0);
+        ETAPE.set("");
     }
 
     /**
@@ -760,15 +873,21 @@ public class PilotageAgregats {
                 continue;
             }
             String libelle = t.get("grossiste", String.class);
+            /*
+             * Les AGENCES qui composent un groupe sont gardees avec lui : regrouper les cinq LABOREX en une colonne ne
+             * doit pas faire disparaitre leurs noms de l'ecran. Un fournisseur sans groupe n'a rien a nommer d'autre
+             * que lui-meme : la colonne reste vide.
+             */
+            String membres = t.get("membres", String.class);
             em.createNativeQuery("INSERT INTO pilotage_agregat_grossiste (str_MOIS, lg_EMPLACEMENT_ID,"
-                    + " lg_GROSSISTE_ID, str_GROSSISTE, int_MONTANT, int_NB_BONS, dt_CALCUL)"
-                    + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW())"
+                    + " lg_GROSSISTE_ID, str_GROSSISTE, str_MEMBRES, int_MONTANT, int_NB_BONS, dt_CALCUL)"
+                    + " VALUES (?1, ?2, ?3, ?4, ?7, ?5, ?6, NOW())"
                     + " ON DUPLICATE KEY UPDATE int_MONTANT = VALUES(int_MONTANT),"
-                    + " int_NB_BONS = VALUES(int_NB_BONS), dt_CALCUL = NOW()").setParameter(1, mois)
-                    .setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(3, id)
+                    + " str_MEMBRES = VALUES(str_MEMBRES)," + " int_NB_BONS = VALUES(int_NB_BONS), dt_CALCUL = NOW()")
+                    .setParameter(1, mois).setParameter(2, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(3, id)
                     .setParameter(4, libelle == null ? "Sans grossiste" : libelle)
                     .setParameter(5, Math.round(nombre(t.get("montant")))).setParameter(6, entier(t.get("nbBons")))
-                    .executeUpdate();
+                    .setParameter(7, membres == null ? "" : membres).executeUpdate();
         }
     }
 
@@ -808,7 +927,8 @@ public class PilotageAgregats {
         }
         boolean filtre = grossisteId != null && !grossisteId.trim().isEmpty();
         Query q = em.createNativeQuery("SELECT g.str_MOIS AS mois, g.lg_GROSSISTE_ID AS grossisteId,"
-                + " g.str_GROSSISTE AS grossiste, g.int_MONTANT AS montant, g.int_NB_BONS AS nbBons"
+                + " g.str_GROSSISTE AS grossiste, g.str_MEMBRES AS membres,"
+                + " g.int_MONTANT AS montant, g.int_NB_BONS AS nbBons"
                 + " FROM pilotage_agregat_grossiste g WHERE g.lg_EMPLACEMENT_ID = ?1"
                 + " AND g.str_MOIS >= ?2 AND g.str_MOIS <= ?3" + (filtre ? " AND g.lg_GROSSISTE_ID = ?4" : "")
                 + " ORDER BY g.str_MOIS ASC, g.int_MONTANT DESC", Tuple.class);

@@ -156,12 +156,33 @@ public final class PilotageSql {
      * Le grossiste se lit par la commande ({@code t_order}), comme le fait l'ecran « Achats mensuels par grossiste » :
      * c'est la seule chaine qui relie un bon a son fournisseur.
      */
+    /**
+     * Le GROUPE d'un grossiste, quand il en a un.
+     *
+     * <p>
+     * Le referentiel rattache les fournisseurs a un groupe ({@code t_grossiste.groupeId} vers
+     * {@code groupefournisseur}) : les cinq agences LABOREX sont un seul fournisseur du point de vue de l'officine, et
+     * elles occupaient cinq colonnes dans le detail mensuel. Elles n'en occupent plus qu'une.
+     *
+     * <p>
+     * Un grossiste SANS groupe reste lui-meme : on ne l'oblige pas a entrer dans un ensemble qui n'existe pas dans le
+     * referentiel. La cle d'affichage est donc le groupe s'il y en a un, le grossiste sinon.
+     */
+    private static final String CLE_GROUPE = " COALESCE(CONCAT('GRP', gf.id), g.lg_GROSSISTE_ID)";
+
+    private static final String LIBELLE_GROUPE = " COALESCE(gf.libelle, g.str_LIBELLE)";
+
     public static String achatsParMoisEtGrossiste(String grossisteId) {
-        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois, g.lg_GROSSISTE_ID AS grossisteId,"
-                + " g.str_LIBELLE AS grossiste, SUM(b.int_HTTC) AS montant, COUNT(*) AS nbBons"
-                + " FROM t_bon_livraison b" + " JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
-                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
-                + (StringUtils.isBlank(grossisteId) ? "" : " AND g.lg_GROSSISTE_ID = :grossiste ")
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois," + CLE_GROUPE + " AS grossisteId," + LIBELLE_GROUPE
+                + " AS grossiste,"
+                + " GROUP_CONCAT(DISTINCT g.str_LIBELLE ORDER BY g.str_LIBELLE SEPARATOR ', ') AS membres,"
+                + " SUM(b.int_HTTC) AS montant, COUNT(*) AS nbBons" + " FROM t_bon_livraison b"
+                + " JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+                + " LEFT JOIN groupefournisseur gf ON gf.id = g.groupeId" + " WHERE" + ACHATS_OU
+                /* Le filtre parle la MEME langue que l'ecran : il accepte une agence ou un groupe. */
+                + (StringUtils.isBlank(grossisteId) ? ""
+                        : " AND (g.lg_GROSSISTE_ID = :grossiste OR CONCAT('GRP', gf.id) = :grossiste) ")
                 + " GROUP BY mois, grossisteId, grossiste ORDER BY mois ASC, montant DESC";
     }
 
@@ -173,14 +194,17 @@ public final class PilotageSql {
      */
     public static String achatsLignesParMois(String grossisteId, String familleId, String emplacementId) {
         return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois,"
-                + " COALESCE(g.lg_GROSSISTE_ID, 'SANS') AS grossisteId,"
-                + " COALESCE(g.str_LIBELLE, 'Sans grossiste') AS grossiste,"
+                + " COALESCE(CONCAT('GRP', gf.id), g.lg_GROSSISTE_ID, 'SANS') AS grossisteId,"
+                + " COALESCE(gf.libelle, g.str_LIBELLE, 'Sans grossiste') AS grossiste,"
+                + " GROUP_CONCAT(DISTINCT g.str_LIBELLE ORDER BY g.str_LIBELLE SEPARATOR ', ') AS membres,"
                 + " SUM(d.int_PAF * d.int_QTE_RECUE) AS montant, COUNT(DISTINCT b.lg_BON_LIVRAISON_ID) AS nbBons"
                 + " FROM t_bon_livraison_detail d"
                 + " JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
                 + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
-                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = d.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
-                + (StringUtils.isBlank(grossisteId) ? "" : " AND d.lg_GROSSISTE_ID = :grossiste ")
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = d.lg_GROSSISTE_ID"
+                + " LEFT JOIN groupefournisseur gf ON gf.id = g.groupeId" + " WHERE" + ACHATS_OU
+                + (StringUtils.isBlank(grossisteId) ? ""
+                        : " AND (d.lg_GROSSISTE_ID = :grossiste OR CONCAT('GRP', gf.id) = :grossiste) ")
                 + (StringUtils.isBlank(familleId) ? "" : " AND f.lg_FAMILLEARTICLE_ID = :famille ")
                 + (StringUtils.isBlank(emplacementId) ? "" : " AND f.lg_ZONE_GEO_ID = :emplacement ")
                 + " GROUP BY mois, grossisteId, grossiste ORDER BY mois ASC, montant DESC";
@@ -339,6 +363,27 @@ public final class PilotageSql {
     }
 
     /**
+     * Produits dont un lot en stock perime dans les six mois qui viennent.
+     *
+     * <p>
+     * La meme lecture que la cloche de notifications, ramenee a un seul nombre : combien de REFERENCES ont, en rayon,
+     * un lot qui tourne a la date. Un lot deja perime n'est plus une echeance mais une perte, et il est compte ailleurs
+     * ; on ne retient donc que ce qui expire entre aujourd'hui et six mois.
+     *
+     * <p>
+     * La quantite se lit comme partout ailleurs dans le logiciel : le stock suivi du lot s'il existe, le nombre recu
+     * sinon.
+     */
+    public static String peremptionsProches() {
+        return "SELECT COUNT(DISTINCT l.lg_FAMILLE_ID) AS produits, COUNT(*) AS lots,"
+                + " COALESCE(SUM(IFNULL(l.current_stock, l.int_NUMBER) * f.int_PAF), 0) AS valeurAchat"
+                + " FROM t_lot l" + " JOIN t_famille f ON f.lg_FAMILLE_ID = l.lg_FAMILLE_ID"
+                + " WHERE l.str_STATUT = 'enable' AND l.dt_PEREMPTION IS NOT NULL"
+                + " AND IFNULL(l.current_stock, l.int_NUMBER) > 0" + " AND DATE(l.dt_PEREMPTION) >= CURDATE()"
+                + " AND DATE(l.dt_PEREMPTION) < DATE_ADD(CURDATE(), INTERVAL 6 MONTH)";
+    }
+
+    /**
      * Anomalies de referentiel qui salissent les chiffres : pas de prix, pas de rayon, pas de seuil.
      *
      * <p>
@@ -485,11 +530,18 @@ public final class PilotageSql {
                 + " FROM t_preenregistrement p WHERE" + VENTES_OU + " GROUP BY heure ORDER BY heure ASC";
     }
 
-    /** Grossistes proposes au filtre : ceux qui ont reellement livre sur la periode regardee. */
+    /**
+     * Grossistes proposes au filtre : ceux qui ont reellement livre sur la periode regardee, GROUPES.
+     *
+     * <p>
+     * La liste doit nommer les memes fournisseurs que les colonnes du detail mensuel : proposer « LABOREX-CI YOP »
+     * alors que le tableau affiche « LABOREX-CI » ferait choisir une agence et croire a un filtre sans effet.
+     */
     public static String grossistesDeLaPeriode() {
-        return "SELECT DISTINCT g.lg_GROSSISTE_ID AS id, g.str_LIBELLE AS libelle" + " FROM t_bon_livraison b"
+        return "SELECT DISTINCT" + CLE_GROUPE + " AS id," + LIBELLE_GROUPE + " AS libelle" + " FROM t_bon_livraison b"
                 + " JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
-                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID" + " WHERE" + ACHATS_OU
+                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+                + " LEFT JOIN groupefournisseur gf ON gf.id = g.groupeId" + " WHERE" + ACHATS_OU
                 + " ORDER BY libelle ASC";
     }
 

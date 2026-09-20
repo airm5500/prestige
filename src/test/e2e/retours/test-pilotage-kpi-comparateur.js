@@ -189,6 +189,16 @@ function texteDuPdf(octets) {
 
     /* --------------------------------------------------------------- COMPARATEUR */
     await changerOnglet('Comparateur');
+    /*
+     * LA COMPARAISON NE PART PLUS TOUTE SEULE (20/09) : c'est l'onglet le plus lourd du menu, et il
+     * partait a chaque frappe sur une comparaison parfois incomplete. Le test fait donc ce que fait
+     * l'operateur : il clique sur « Comparer ». La suite test-pilotage-retours-2009 verifie, elle, que
+     * rien ne part TANT QU'ON N'A PAS clique.
+     */
+    await p.evaluate(() => {
+      Ext.ComponentQuery.query('pilotage #choixComparateur button[itemId=comparer]')[0].el.dom.click();
+    });
+    await p.waitForTimeout(12000);
     const comparateur = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('pilotage')[0];
       const tuiles = [];

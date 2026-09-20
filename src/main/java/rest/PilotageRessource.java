@@ -254,4 +254,22 @@ public class PilotageRessource {
                     .put("message", "Le recalcul n'a pas pu être mené à son terme.").toString()).build();
         }
     }
+
+    /**
+     * Ou en est le recalcul en cours.
+     *
+     * <p>
+     * Interrogee pendant que le recalcul tourne, pour remplir la barre de progression de l'ecran. Elle ne touche PAS la
+     * base : c'est une lecture en memoire, qui doit repondre meme quand le recalcul occupe les connexions.
+     */
+    @GET
+    @Path("avancement")
+    public Response avancement() {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        rest.service.impl.PilotageAgregats.Avancement a = rest.service.impl.PilotageAgregats.avancement();
+        return Response.ok().entity(new JSONObject().put("success", true).put("enCours", a.enCours())
+                .put("faits", a.faits).put("total", a.total).put("etape", a.etape).toString()).build();
+    }
 }

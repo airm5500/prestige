@@ -336,17 +336,26 @@ public class PilotageService {
                 "FCFA", null));
 
         /* Une colonne par grossiste REELLEMENT rencontre sur la fenetre, plus le total du mois. */
+        /*
+         * UNE COLONNE PAR GROUPE DE FOURNISSEURS, plus une par agence.
+         *
+         * Le referentiel rattache les fournisseurs a un groupe : les cinq agences LABOREX sont un seul fournisseur pour
+         * l'officine, et elles prenaient cinq colonnes. La requete rend desormais la cle du GROUPE quand il y en a un,
+         * celle du grossiste sinon - « ceux qui sont sans groupe restent affiches tels quels, on ne les regroupe pas »
+         * (20/09). La cle vient de la base et non du libelle : deux agences renommees restent dans le meme groupe.
+         */
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         Map<String, String> libelles = new LinkedHashMap<>();
         Map<String, Double> parts = new LinkedHashMap<>();
         for (Tuple t : listeAchats(axe.graphique, filtres)) {
             String mois = t.get("mois", String.class);
             String grossiste = StringUtils.defaultIfBlank(t.get("grossiste", String.class), "Sans grossiste");
+            String cleGroupe = cle(StringUtils.defaultIfBlank(t.get("grossisteId", String.class), grossiste));
             double montant = nombre(t.get("montant"));
-            libelles.put(cle(grossiste), grossiste);
-            parts.merge(cle(grossiste), montant, Double::sum);
+            libelles.put(cleGroupe, grossiste);
+            parts.merge(cleGroupe, montant, Double::sum);
             JSONObject ligne = ligne(lignes, mois);
-            ligne.put("gros_" + cle(grossiste), montant);
+            ligne.put("gros_" + cleGroupe, ligne.optDouble("gros_" + cleGroupe, 0d) + montant);
             ligne.put("achatTTC", ligne.optDouble("achatTTC", 0d) + montant);
             ligne.put("nbBons", ligne.optInt("nbBons", 0) + entier(t.get("nbBons")));
         }
@@ -364,17 +373,32 @@ public class PilotageService {
          */
         Map<String, Double> partsPeriode = new LinkedHashMap<>();
         Map<String, String> libellesPeriode = new LinkedHashMap<>();
+        /* De qui le groupe est fait : regrouper ne doit pas faire PERDRE le nom des agences. */
+        Map<String, java.util.Set<String>> membres = new LinkedHashMap<>();
         for (Tuple t : listeAchats(axe.courante, filtres)) {
             String grossiste = StringUtils.defaultIfBlank(t.get("grossiste", String.class), "Sans grossiste");
-            libellesPeriode.put(cle(grossiste), grossiste);
-            partsPeriode.merge(cle(grossiste), nombre(t.get("montant")), Double::sum);
+            String cleGroupe = cle(StringUtils.defaultIfBlank(t.get("grossisteId", String.class), grossiste));
+            libellesPeriode.put(cleGroupe, grossiste);
+            partsPeriode.merge(cleGroupe, nombre(t.get("montant")), Double::sum);
+            String liste = t.get("membres", String.class);
+            if (StringUtils.isNotBlank(liste)) {
+                membres.computeIfAbsent(cleGroupe, k -> new java.util.LinkedHashSet<>())
+                        .addAll(java.util.Arrays.asList(liste.split(",\\s*")));
+            }
         }
         double total = partsPeriode.values().stream().mapToDouble(Double::doubleValue).sum();
         JSONArray repartition = new JSONArray();
-        partsPeriode.entrySet().stream().sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
-                .forEach(e -> repartition.put(new JSONObject().put("grossiste", libellesPeriode.get(e.getKey()))
-                        .put("montant", arrondi(e.getValue()))
-                        .put("part", total == 0 ? 0 : arrondi(e.getValue() / total * 100d))));
+        partsPeriode.entrySet().stream().sorted((a, b) -> Double.compare(b.getValue(), a.getValue())).forEach(e -> {
+            java.util.Set<String> detail = membres.getOrDefault(e.getKey(), java.util.Collections.emptySet());
+            repartition.put(new JSONObject().put("grossiste", libellesPeriode.get(e.getKey()))
+                    .put("montant", arrondi(e.getValue()))
+                    /*
+                     * Le detail n'est affiche que s'il APPREND quelque chose : un groupe d'un seul membre n'a pas
+                     * besoin de repeter son propre nom.
+                     */
+                    .put("membres", detail.size() > 1 ? String.join(", ", detail) : "")
+                    .put("part", total == 0 ? 0 : arrondi(e.getValue() / total * 100d)));
+        });
 
         poserReference(axe, lignes);
         return new JSONObject().put("tuiles", tuiles).put("mois", finaliser(lignes)).put("grossistesColonnes", colonnes)
@@ -579,6 +603,17 @@ public class PilotageService {
         Dormant dormant = stockDormant(LocalDate.now().minusMonths(12));
         tuiles.put(tuile("dormant", "Stock dormant (12 mois)", dormant.valeurAchat, null, "FCFA",
                 dormant.lignes + " référence(s) en stock sans une seule vente"));
+        /*
+         * LES PEREMPTIONS PROCHES, JUSTE APRES LE STOCK DORMANT. Les deux disent la meme chose sous deux angles :
+         * l'argent qui ne tourne pas, et celui qui va se perdre. Cette tuile-ci s'ALERTE - fond rouge et clignotement -
+         * des qu'un produit est concerne : c'est la seule de l'ecran qui appelle un geste dans le mois, et un chiffre
+         * gris parmi douze autres ne l'aurait pas appele.
+         */
+        Peremptions peremptions = peremptionsProches();
+        tuiles.put(alerter(
+                tuile("peremption", "Péremptions < 6 mois", peremptions.produits, null, "", peremptions.lots
+                        + " lot(s) concerné(s), " + montant(peremptions.valeurAchat) + " au prix d'achat"),
+                peremptions.produits > 0));
 
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
         agregatsDeLaFenetre(axe.graphique).forEach((mois, a) -> poser(ligne(lignes, mois), a));
@@ -680,6 +715,28 @@ public class PilotageService {
     static final class Dormant {
         int lignes;
         double valeurAchat;
+    }
+
+    static final class Peremptions {
+        int produits;
+        int lots;
+        double valeurAchat;
+    }
+
+    /** Produits dont un lot en stock perime dans les six mois : la lecture de la cloche, en un nombre. */
+    private Peremptions peremptionsProches() {
+        Peremptions p = new Peremptions();
+        try {
+            Query q = em.createNativeQuery(PilotageSql.peremptionsProches(), Tuple.class);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                p.produits = entier(t.get("produits"));
+                p.lots = entier(t.get("lots"));
+                p.valeurAchat = nombre(t.get("valeurAchat"));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : peremptions proches", e);
+        }
+        return p;
     }
 
     private Dormant stockDormant(LocalDate depuis) {
@@ -807,26 +864,36 @@ public class PilotageService {
      */
     public JSONObject catalogueKpi() {
         JSONArray data = new JSONArray();
-        data.put(kpi("caTTC", "Chiffre d'affaires TTC", "FCFA", "Activité"));
-        data.put(kpi("caHT", "Chiffre d'affaires HT", "FCFA", "Activité"));
-        data.put(kpi("nbVentes", "Nombre de clients servis", "", "Activité"));
-        data.put(kpi("panier", "Panier moyen", "FCFA", "Activité"));
-        data.put(kpi("marge", "Marge", "FCFA", "Rentabilité"));
-        data.put(kpi("tauxMarge", "Taux de marge", "%", "Rentabilité"));
-        data.put(kpi("remises", "Remises accordées", "FCFA", "Rentabilité"));
-        data.put(kpi("tauxRemise", "Taux de remise", "%", "Rentabilité"));
-        data.put(kpi("partTiersPayant", "Part tiers payant", "FCFA", "Encaissement"));
-        data.put(kpi("encaisse", "Encaissé au comptoir", "FCFA", "Encaissement"));
-        data.put(kpi("credit", "Porté à crédit", "FCFA", "Encaissement"));
-        data.put(kpi("achatTTC", "Achats TTC", "FCFA", "Achats"));
-        data.put(kpi("nbBons", "Bons de livraison", "", "Achats"));
-        data.put(kpi("ratioVA", "Ratio ventes / achats", "", "Achats"));
-        data.put(kpi("frequentation", "Fréquentation horaire", "", "Activité"));
+        data.put(kpi("caTTC", "Chiffre d'affaires TTC", "FCFA", "Activité", true));
+        data.put(kpi("caHT", "Chiffre d'affaires HT", "FCFA", "Activité", true));
+        data.put(kpi("nbVentes", "Nombre de clients servis", "", "Activité", true));
+        data.put(kpi("panier", "Panier moyen", "FCFA", "Activité", false));
+        data.put(kpi("marge", "Marge", "FCFA", "Rentabilité", true));
+        data.put(kpi("tauxMarge", "Taux de marge", "%", "Rentabilité", false));
+        data.put(kpi("remises", "Remises accordées", "FCFA", "Rentabilité", true));
+        data.put(kpi("tauxRemise", "Taux de remise", "%", "Rentabilité", false));
+        data.put(kpi("partTiersPayant", "Part tiers payant", "FCFA", "Encaissement", true));
+        data.put(kpi("encaisse", "Encaissé au comptoir", "FCFA", "Encaissement", true));
+        data.put(kpi("credit", "Porté à crédit", "FCFA", "Encaissement", true));
+        data.put(kpi("achatTTC", "Achats TTC", "FCFA", "Achats", true));
+        data.put(kpi("nbBons", "Bons de livraison", "", "Achats", true));
+        data.put(kpi("ratioVA", "Ratio ventes / achats", "", "Achats", false));
+        data.put(kpi("frequentation", "Fréquentation horaire", "", "Activité", true));
         return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
     }
 
-    private static JSONObject kpi(String cle, String libelle, String unite, String famille) {
+    /**
+     * Un indicateur du catalogue.
+     *
+     * <p>
+     * {@code cumul} dit si le pied du tableau doit ADDITIONNER les mois ou en faire la MOYENNE. La ligne de total du
+     * detail des KPI etait vide (20/09) ; la remplir ne suffisait pas, encore fallait-il ne pas ecrire de betise :
+     * additionner douze paniers moyens, douze taux de marge ou douze ratios donnerait un nombre qui ne veut rien dire.
+     * Ces indicateurs-la se moyennent, les autres s'additionnent.
+     */
+    private static JSONObject kpi(String cle, String libelle, String unite, String famille, boolean cumul) {
         return new JSONObject().put("cle", cle).put("libelle", libelle).put("unite", unite).put("famille", famille)
+                .put("cumul", cumul)
                 /* La frequentation horaire ne se lit pas par mois : l'ecran la presente a part. */
                 .put("mensuel", !"frequentation".equals(cle));
     }
@@ -1811,6 +1878,15 @@ public class PilotageService {
     static String cle(String libelle) {
         return java.text.Normalizer.normalize(StringUtils.defaultString(libelle), java.text.Normalizer.Form.NFD)
                 .replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /** Marque une tuile comme ALERTE : l'ecran la met alors en rouge et la fait clignoter. */
+    private static JSONObject alerter(JSONObject tuile, boolean alerte) {
+        return alerte ? tuile.put("alerte", true) : tuile;
+    }
+
+    private static String montant(double valeur) {
+        return String.format(java.util.Locale.FRANCE, "%,.0f", valeur).replace('\u00a0', '.');
     }
 
     private static String pourcent(double valeur) {

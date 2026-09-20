@@ -1619,7 +1619,9 @@ body.x-body,
 .pilotage-tuile {
     display: inline-block;
     vertical-align: top;
-    width: 200px;
+    /* Elargie le 20/09 : la note du bas (« part non payee au comptoir sur les... ») etait coupee, alors
+       qu'il restait de la place a droite de la bande. On s'etend en largeur, pas vers le bas. */
+    width: 238px;
     min-height: 74px;
     margin: 4px 8px 4px 0;
     padding: 8px 10px;
@@ -1658,6 +1660,7 @@ body.x-body,
 }
 .pilotage-tuile-sous {
     font-size: 10px;
+    line-height: 12px;
     color: #6b7b8c;
     margin-top: 3px;
 }
@@ -1688,4 +1691,172 @@ body.x-body,
 .pilotage-mois-encours .x-grid-cell-inner {
     font-style: italic;
     color: #55677a;
+}
+
+/* ================================================================= pilotage : détail mensuel enrichi
+ *
+ * Chaque cellule de montant porte, sous le chiffre, DEUX lectures que l'officine demandait le 20/09 :
+ * l'évolution par rapport au mois précédent, et la part que ce montant prend dans le chiffre d'affaires
+ * du mois. Les deux se calculent dans le navigateur, sur des lignes déjà chargées : aucune requête de
+ * plus, donc aucun coût de temps.
+ */
+.pilotage-seconde-ligne {
+    font-size: 10px;
+    line-height: 12px;
+    color: #6b7b8c;
+    white-space: nowrap;
+}
+.pilotage-evol {
+    font-weight: 700;
+}
+.pilotage-evol.hausse {
+    color: #1e7a3c;
+}
+.pilotage-evol.baisse {
+    color: #c0392b;
+}
+.pilotage-evol.plat {
+    color: #8a99a8;
+}
+/*
+ * LES TROIS DERNIERS MOIS SE REPÈRENT SANS LIRE LA COLONNE MOIS.
+ *
+ * « Mettre le mois en cours en vert et gras bien visible, le mois précédent en orange gras, le 3e mois
+ * en violet gras » — le détail étant trié du mois actuel au plus ancien, ce sont les trois premières
+ * lignes. Le fond légèrement teinté les tient ensemble quand la grille défile horizontalement.
+ */
+.pilotage-mois-1 .x-grid-cell-inner {
+    color: #1b5e20;
+    font-weight: 700;
+}
+.pilotage-mois-1 .x-grid-cell {
+    background-color: #f1f8f1;
+}
+.pilotage-mois-2 .x-grid-cell-inner {
+    color: #bf5700;
+    font-weight: 700;
+}
+.pilotage-mois-2 .x-grid-cell {
+    background-color: #fdf6ef;
+}
+.pilotage-mois-3 .x-grid-cell-inner {
+    color: #6a1b9a;
+    font-weight: 700;
+}
+.pilotage-mois-3 .x-grid-cell {
+    background-color: #f8f4fb;
+}
+/* Les péremptions proches : une alerte se voit ou ne sert à rien. */
+.pilotage-alerte {
+    color: #c0392b;
+    font-weight: 700;
+    animation: pilotage-clignote 1.1s ease-in-out infinite;
+}
+@keyframes pilotage-clignote {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+/* =================================================================== pilotage : habillage « ardoise & ambre »
+ *
+ * « Le menu est trop bleu ExtJS, on ne sent pas le changement » (20/09). Habillage retenu par l'officine
+ * parmi quatre propositions : en-tetes ardoise, liseré ambre sur les tuiles, contraste eleve pour lire des
+ * colonnes de chiffres toute la journee sous neon.
+ *
+ * TOUT EST SOUS « .pilotage-ardoise », la classe posee sur le seul panneau du menu de pilotage. Aucun autre
+ * ecran du logiciel n'est touche - et surtout pas l'ecran de vente.
+ */
+.pilotage-ardoise .x-panel-header,
+.pilotage-ardoise .x-panel-header-default,
+.pilotage-ardoise .x-panel-header-default-top {
+    background-color: #334155;
+    background-image: none;
+    border-color: #1e293b;
+}
+.pilotage-ardoise .x-panel-header-text,
+.pilotage-ardoise .x-panel-header-text-default {
+    color: #f1f5f9;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+/* Les en-tetes de colonnes : c'est la que le bleu ExtJS sautait le plus aux yeux. */
+.pilotage-ardoise .x-grid-header-ct,
+.pilotage-ardoise .x-column-header {
+    background-color: #334155;
+    background-image: none;
+    border-color: #1e293b;
+}
+.pilotage-ardoise .x-column-header-text,
+.pilotage-ardoise .x-column-header-inner {
+    color: #f1f5f9;
+}
+.pilotage-ardoise .x-column-header-over,
+.pilotage-ardoise .x-column-header-sort-ASC,
+.pilotage-ardoise .x-column-header-sort-DESC {
+    background-color: #475569;
+    background-image: none;
+}
+/* Le pied de total : il porte les sommes, il doit se detacher du corps sans crier. */
+.pilotage-ardoise .x-grid-row-summary .x-grid-cell {
+    background-color: #f1f5f9;
+    border-top: 2px solid #cbd5e1;
+    color: #1e293b;
+}
+/* Les barres d'outils : la barre de periode et les filtres. */
+.pilotage-ardoise .x-toolbar,
+.pilotage-ardoise .x-toolbar-default {
+    background-color: #f8fafc;
+    background-image: none;
+    border-color: #dde4ec;
+}
+/* Les onglets : l'onglet ouvert porte l'ambre, les autres restent en retrait. */
+.pilotage-ardoise .x-tab-default {
+    background-color: #e8edf3;
+    background-image: none;
+    border-color: #cbd5e1;
+}
+.pilotage-ardoise .x-tab-default .x-tab-inner {
+    color: #475569;
+    font-weight: 600;
+}
+.pilotage-ardoise .x-tab-active {
+    background-color: #ffffff;
+    background-image: none;
+    border-bottom-color: #ffffff;
+    box-shadow: inset 0 3px 0 #b7791f;
+}
+.pilotage-ardoise .x-tab-active .x-tab-inner {
+    color: #1e293b;
+    font-weight: 700;
+}
+/* La tuile porte son liseré ambre : c'est le seul accent de couleur de l'ecran, la variation gardant
+   le vert et le rouge qui lui appartiennent. */
+.pilotage-ardoise .pilotage-tuile {
+    border-color: #dde4ec;
+    border-left: 4px solid #b7791f;
+    border-radius: 6px;
+}
+.pilotage-ardoise .pilotage-tuile-libelle {
+    color: #64748b;
+}
+.pilotage-ardoise .pilotage-tuile-valeur {
+    color: #1e293b;
+}
+/* Une tuile en ALERTE prend le rouge jusque dans son liseré : on ne peut pas la manquer. */
+.pilotage-ardoise .pilotage-tuile:has(.pilotage-alerte) {
+    border-left-color: #c0392b;
+}
+.pilotage-ardoise .x-grid-row-over .x-grid-cell {
+    background-color: #fdf8ef;
+}
+/* La barre qui porte les onglets : sans elle, une bande bleue ExtJS restait a droite du dernier onglet. */
+.pilotage-ardoise .x-tab-bar,
+.pilotage-ardoise .x-tab-bar-default,
+.pilotage-ardoise .x-tab-bar-body,
+.pilotage-ardoise .x-tab-bar-body-default,
+.pilotage-ardoise .x-tab-bar-strip,
+.pilotage-ardoise .x-tab-bar-strip-default {
+    background-color: #e8edf3;
+    background-image: none;
+    border-color: #cbd5e1;
 }

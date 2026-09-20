@@ -59,6 +59,9 @@ public class StartupOrchestrationService {
     private StockDailyScheduler stockDailyScheduler;
 
     @Inject
+    private PilotageAgregatScheduler pilotageAgregatScheduler;
+
+    @Inject
     private NotificationScheduler notificationScheduler;
 
     @Inject
@@ -75,7 +78,8 @@ public class StartupOrchestrationService {
     public enum JobStep {
         CALENDRIER("Calendrier & nettoyage"), STOCK_REAPPRO("Réapprovisionnement stock (mode default)"),
         STOCK_REAPPRO_SEMOIS("Réapprovisionnement stock (mode semois)"), LOT_PEREMPTION("Lots en cours de péremption"),
-        STOCK_JOURNALIER("Stock journalier (snapshot + valorisation)"), NOTIFICATIONS_SMS("Envoi SMS en attente"),
+        STOCK_JOURNALIER("Stock journalier (snapshot + valorisation)"),
+        PILOTAGE_AGREGATS("Agrégats du menu de pilotage"), NOTIFICATIONS_SMS("Envoi SMS en attente"),
         NOTIFICATIONS_EMAIL("Envoi emails en attente");
 
         private final String label;
@@ -128,6 +132,8 @@ public class StartupOrchestrationService {
         steps.add(appConfig.isSemoisReapproMode() ? JobStep.STOCK_REAPPRO_SEMOIS : JobStep.STOCK_REAPPRO);
         steps.add(JobStep.LOT_PEREMPTION);
         steps.add(JobStep.STOCK_JOURNALIER);
+        /* Apres la valorisation du stock, dont l'onglet Stock du pilotage se sert. */
+        steps.add(JobStep.PILOTAGE_AGREGATS);
         steps.add(JobStep.NOTIFICATIONS_SMS);
         steps.add(JobStep.NOTIFICATIONS_EMAIL);
         return steps;
@@ -208,6 +214,13 @@ public class StartupOrchestrationService {
                 break;
             case STOCK_JOURNALIER:
                 stockDailyScheduler.runOnStartup();
+                break;
+            case PILOTAGE_AGREGATS:
+                /*
+                 * Les mois clos sont calcules ici, avant qu'on ouvre l'ecran, et non dans la requete de l'operateur :
+                 * c'est ce qui enleve les cinq secondes du premier passage sur chaque onglet.
+                 */
+                pilotageAgregatScheduler.runOnStartup();
                 break;
             case NOTIFICATIONS_SMS:
                 notificationScheduler.runSmsOnStartup();
