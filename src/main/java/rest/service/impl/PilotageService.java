@@ -319,17 +319,30 @@ public class PilotageService {
         boolean surLignes = filtres.surLignes();
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
-        double achatsCourant = surLignes ? sommeAchats(axe.courante, filtres) : courant.achatTTC;
+        /*
+         * LES TUILES SUIVENT LE FILTRE, Y COMPRIS LE FILTRE GROSSISTE.
+         *
+         * Elles lisaient le total de la periode - celui de l'agregat, qui ne connait aucun filtre - des lors qu'aucune
+         * famille ni aucun emplacement n'etait choisi. Choisir un grossiste filtrait donc bien le tableau et la
+         * repartition, mais la tuile « Achats » juste au-dessus continuait d'afficher le total de TOUS les fournisseurs
+         * : deux lectures cote a cote, deux perimetres differents, et rien qui le dise. Defaut anterieur a ce chantier,
+         * revele par un controle ajoute le 20/09.
+         */
+        boolean filtre = filtres.actif();
+        double achatsCourant = filtre ? sommeAchats(axe.courante, filtres) : courant.achatTTC;
         Double achatsReference = axe.reference == null ? null
-                : (surLignes ? sommeAchats(axe.reference, filtres) : reference.achatTTC);
+                : (filtre ? sommeAchats(axe.reference, filtres) : reference.achatTTC);
+        int bonsCourant = filtre ? nombreDeBons(axe.courante, filtres) : courant.nbBons;
+        Integer bonsReference = axe.reference == null ? null
+                : (filtre ? nombreDeBons(axe.reference, filtres) : reference.nbBons);
 
         JSONArray tuiles = new JSONArray();
         tuiles.put(tuile("achats", "Achats", achatsCourant, achatsReference, "FCFA",
                 surLignes ? "montant des lignes retenues" : "montant TTC des bons clôturés"));
-        tuiles.put(tuile("nbBons", "Bons de livraison", courant.nbBons,
-                reference == null ? null : (double) reference.nbBons, "", null));
-        tuiles.put(tuile("achatMoyen", "Achat moyen par bon", courant.nbBons == 0 ? 0 : achatsCourant / courant.nbBons,
-                reference == null || reference.nbBons == 0 ? null : achatsReference / reference.nbBons, "FCFA", null));
+        tuiles.put(tuile("nbBons", "Bons de livraison", bonsCourant,
+                bonsReference == null ? null : (double) bonsReference, "", null));
+        tuiles.put(tuile("achatMoyen", "Achat moyen par bon", bonsCourant == 0 ? 0 : achatsCourant / bonsCourant,
+                bonsReference == null || bonsReference == 0 ? null : achatsReference / bonsReference, "FCFA", null));
         tuiles.put(tuile("ratioVA", "Ratio ventes / achats", courant.ratioVA(),
                 reference == null ? null : reference.ratioVA(), "", "CA TTC rapporté aux achats TTC de la période"));
         tuiles.put(tuile("caTTC", "Chiffre d'affaires TTC", courant.caTTC, reference == null ? null : reference.caTTC,
@@ -433,6 +446,15 @@ public class PilotageService {
         double total = 0;
         for (Tuple t : listeAchats(periode, filtres)) {
             total += nombre(t.get("montant"));
+        }
+        return total;
+    }
+
+    /** Nombre de bons retenus par les filtres : la tuile doit compter ce que le tableau montre. */
+    private int nombreDeBons(Periode periode, Filtres filtres) {
+        int total = 0;
+        for (Tuple t : listeAchats(periode, filtres)) {
+            total += entier(t.get("nbBons"));
         }
         return total;
     }
@@ -568,6 +590,11 @@ public class PilotageService {
          */
         boolean surLignes() {
             return familleId != null || emplacementId != null;
+        }
+
+        /** Vrai des qu'un filtre QUELCONQUE est pose, grossiste compris. */
+        boolean actif() {
+            return grossisteId != null || surLignes();
         }
 
         String cle() {
