@@ -1620,8 +1620,10 @@ body.x-body,
     display: inline-block;
     vertical-align: top;
     /* Elargie le 20/09 : la note du bas (« part non payee au comptoir sur les... ») etait coupee, alors
-       qu'il restait de la place a droite de la bande. On s'etend en largeur, pas vers le bas. */
-    width: 238px;
+       qu'il restait de la place a droite de la bande. On s'etend en largeur, pas vers le bas. Resserree
+       ensuite a 215 pixels pour que SEPT tuiles - le compte de l'onglet Stock - tiennent sur une seule
+       rangee aux largeurs d'ecran courantes. */
+    width: 215px;
     min-height: 74px;
     margin: 4px 8px 4px 0;
     padding: 8px 10px;
@@ -1809,21 +1811,36 @@ body.x-body,
     background-image: none;
     border-color: #dde4ec;
 }
-/* Les onglets : l'onglet ouvert porte l'ambre, les autres restent en retrait. */
+/*
+ * LES ONGLETS SE DISTINGUENT AU PREMIER COUP D'OEIL.
+ *
+ * L'onglet ouvert etait blanc avec un fin liseré, les autres gris pale : deux clairs cote a cote, on ne
+ * voyait plus ou l'on etait (« je veux qu'ils soient bien visibles et distingues », 20/09). Les onglets
+ * FERMES passent donc en ardoise avec le texte clair, et l'onglet OUVERT ressort en blanc, en gras, coiffe
+ * d'un bandeau ambre epais. Le contraste se lit de loin, et l'onglet ouvert semble avance vers le lecteur.
+ */
 .pilotage-ardoise .x-tab-default {
-    background-color: #e8edf3;
+    background-color: #45566b;
     background-image: none;
-    border-color: #cbd5e1;
+    border-color: #334155;
 }
 .pilotage-ardoise .x-tab-default .x-tab-inner {
-    color: #475569;
+    color: #dbe4ee;
     font-weight: 600;
+}
+.pilotage-ardoise .x-tab-default.x-tab-over {
+    background-color: #55697f;
+    background-image: none;
+}
+.pilotage-ardoise .x-tab-default.x-tab-over .x-tab-inner {
+    color: #ffffff;
 }
 .pilotage-ardoise .x-tab-active {
     background-color: #ffffff;
     background-image: none;
+    border-color: #334155;
     border-bottom-color: #ffffff;
-    box-shadow: inset 0 3px 0 #b7791f;
+    box-shadow: inset 0 5px 0 #b7791f;
 }
 .pilotage-ardoise .x-tab-active .x-tab-inner {
     color: #1e293b;

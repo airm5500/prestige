@@ -265,7 +265,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
     construireCasesKpi: function () {
         var me = this;
         var ecran = me.getEcran();
-        var cases = ecran ? ecran.down('#casesKpi') : null;
+        var cases = ecran ? ecran.down('#casesKpi #listeKpi') : null;
         if (!cases || cases.items.getCount() > 0) {
             return;
         }
@@ -726,24 +726,171 @@ Ext.define('testextjs.controller.PilotageCtr', {
             horaire.setVisible(demandee);
         }
 
-        /* La courbe suit le PREMIER indicateur coché : superposer des grandeurs d'échelles différentes
-         * (un panier moyen et un chiffre d'affaires) donnerait une courbe illisible. */
-        var premier = coches.filter(function (k) {
+        /* Une courbe par indicateur coché, cinq au plus : au-delà le graphique devient illisible. */
+        this.dessinerKpis(coches.filter(function (k) {
             return k !== 'frequentation';
-        })[0];
+        }), libelles);
+    },
+
+    /** Nombre d'indicateurs qu'on accepte de tracer ensemble : au-delà, le graphique ne dit plus rien. */
+    MAX_COURBES_KPI: 5,
+
+    /**
+     * Les courbes de l'onglet KPI : une par indicateur coché, cinq au plus, chacune sa couleur.
+     *
+     * <p>
+     * <b>Le probleme des echelles.</b> Un chiffre d'affaires se compte en centaines de millions, un panier
+     * moyen en milliers, un taux de marge en dizaines. Traces sur le meme axe, les deux derniers sont des
+     * lignes plates collees a zero et n'apprennent rien - c'est la raison pour laquelle une seule courbe
+     * etait tracee jusqu'ici.
+     *
+     * <p>
+     * <b>La regle retenue avec l'officine</b> (20/09) : tant que les indicateurs coches sont du meme ordre de
+     * grandeur, on trace les MONTANTS REELS, qui se lisent directement. Des qu'ils divergent, on passe en
+     * BASE 100 - chaque courbe part de 100 a son premier mois et montre son EVOLUTION, ce qui rend
+     * comparables des grandeurs qui ne le sont pas. L'ecran dit toujours laquelle des deux lectures il
+     * affiche, et l'infobulle donne de toute facon la valeur reelle.
+     */
+    dessinerKpis: function (coches, libelles) {
+        var me = this;
+        var ecran = me.getEcran();
         var graphique = ecran.down('#graphique-kpi');
-        if (graphique && premier) {
+        var panneau = ecran.down('#graphiquePanneau-kpi');
+        var avertissement = ecran.down('#casesKpi #avertissementKpi');
+        if (!graphique) {
+            return;
+        }
+        var traces = coches.slice(0, me.MAX_COURBES_KPI);
+        /*
+         * L'ECRAN PREVIENT PLUTOT QUE DE TRACER N'IMPORTE QUOI. Cocher huit indicateurs est legitime - le
+         * TABLEAU les porte tous - mais le graphique n'en montre que cinq, et il vaut mieux le dire que
+         * laisser croire a un oubli.
+         */
+        if (avertissement) {
+            if (coches.length > traces.length) {
+                avertissement.setValue('<span style="color:#b7791f"><b>' + coches.length
+                        + ' indicateurs cochés : seuls les ' + traces.length
+                        + ' premiers sont tracés sur le graphique.</b> Le détail mensuel, lui, les porte tous.'
+                        + '</span>');
+            } else {
+                avertissement.setValue('');
+            }
+        }
+        if (!traces.length) {
             try {
-                graphique.series.getAt(0).yField = premier;
-                graphique.axes.getAt(0).fields = [premier];
+                graphique.series.removeAll();
                 graphique.redraw();
             } catch (e) {
-                /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+                /* Le tableau reste juste. */
             }
-            var panneau = ecran.down('#graphiquePanneau-kpi');
             if (panneau) {
-                panneau.setTitle('Évolution : ' + ((libelles[premier] || {}).libelle || premier));
+                panneau.setTitle('Évolution des indicateurs cochés');
             }
+            return;
+        }
+
+        var store = ecran.stores.kpi.mois;
+        /* L'ordre de grandeur de chaque indicateur sur la fenetre : c'est lui qui decide de la lecture. */
+        var sommets = {};
+        Ext.each(traces, function (k) {
+            var maximum = 0;
+            store.each(function (r) {
+                var v = Math.abs(Number(r.get(k)));
+                if (!isNaN(v) && v > maximum) {
+                    maximum = v;
+                }
+            });
+            sommets[k] = maximum;
+        });
+        var hauts = Ext.Array.filter(Ext.Object.getValues(sommets), function (v) {
+            return v > 0;
+        });
+        /* Au-dela d'un facteur vingt-cinq entre le plus grand et le plus petit, le petit disparait. */
+        var base100 = traces.length > 1 && hauts.length > 1
+                && Math.max.apply(null, hauts) / Math.min.apply(null, hauts) > 25;
+
+        /*
+         * En base 100, chaque courbe est ramenee a son PREMIER MOIS RENSEIGNE. Un indicateur qui commence a
+         * zero n'a pas de base : il garde sa valeur brute plutot que de faire diverger la courbe a l'infini.
+         */
+        if (base100) {
+            me.declarerChamps(store, Ext.Array.map(traces, function (k) {
+                return {cle: 'base100_' + k};
+            }));
+            var reperes = {};
+            store.each(function (r) {
+                Ext.each(traces, function (k) {
+                    var v = Number(r.get(k));
+                    if (reperes[k] === undefined && !isNaN(v) && v !== 0) {
+                        reperes[k] = v;
+                    }
+                });
+            });
+            store.each(function (r) {
+                Ext.each(traces, function (k) {
+                    var v = Number(r.get(k));
+                    /* On ecrit dans les donnees sans passer par set() : un indice d'affichage n'a pas a
+                       marquer l'enregistrement comme modifie ni a declencher un rechargement. */
+                    r.data['base100_' + k] = (reperes[k] && !isNaN(v)) ? v / reperes[k] * 100 : null;
+                });
+            });
+        }
+
+        /* Une palette stable : le meme indicateur garde sa couleur d'un chargement a l'autre. */
+        var couleurs = ['#1565c0', '#ef6c00', '#2e7d32', '#6a1b9a', '#c62828'];
+        try {
+            graphique.series.removeAll();
+            var champs = [];
+            Ext.each(traces, function (k, i) {
+                var couleur = couleurs[i % couleurs.length];
+                var champ = base100 ? 'base100_' + k : k;
+                var info = libelles[k] || {libelle: k, unite: ''};
+                champs.push(champ);
+                graphique.series.add(Ext.create('Ext.chart.series.Line', {
+                    chart: graphique,
+                    type: 'line',
+                    axis: 'left',
+                    xField: 'libelle',
+                    yField: champ,
+                    title: info.libelle,
+                    smooth: false,
+                    style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
+                    markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
+                    tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
+                        var f = testextjs.view.pilotage.PilotageManager;
+                        var reelle = record.get(k);
+                        var texte = '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                                + Ext.String.htmlEncode(info.libelle) + ' : '
+                                + (info.unite === '%' ? f.nombre(reelle, '0,000.0') + ' %' : f.nombre(reelle));
+                        if (base100) {
+                            /* La courbe montre un indice : l'infobulle donne LES DEUX, sans quoi on lirait
+                               « 112 » comme un montant. */
+                            texte += '<br>indice base 100 : ' + f.nombre(record.get(champ), '0,000.0');
+                        }
+                        return texte;
+                    })
+                }));
+            });
+            var axe = graphique.axes.getAt(0);
+            axe.fields = champs;
+            /*
+             * En base 100 les valeurs tournent autour de cent : forcer l'axe a partir de zero ecraserait
+             * toutes les courbes dans le haut du cadre. On le laisse alors se caler sur les donnees.
+             */
+            axe.minimum = base100 ? undefined : 0;
+            if (graphique.legend && graphique.legend.isLegend) {
+                graphique.legend.create();
+            }
+            graphique.redraw();
+        } catch (e) {
+            /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+        }
+        if (panneau) {
+            panneau.setTitle(traces.length === 1
+                    ? 'Évolution : ' + ((libelles[traces[0]] || {}).libelle || traces[0])
+                    : 'Évolution des indicateurs cochés'
+                        + (base100 ? ' — base 100 au premier mois (échelles trop différentes pour être '
+                                + 'superposées)' : ''));
         }
     },
 

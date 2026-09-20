@@ -154,15 +154,27 @@ function texteDuPdf(octets) {
         colonnes: e.down('#detail-kpi').headerCt.getGridColumns().map((c) => c.text),
         horaireVisible: e.down('#frequentation').isVisible(),
         heures: e.storeHoraire.getCount(),
-        titreCourbe: e.down('#graphiquePanneau-kpi').title };
+        titreCourbe: e.down('#graphiquePanneau-kpi').title,
+        /* Une courbe PAR indicateur coche depuis le 20/09, cinq au plus. */
+        courbes: e.down('#graphique-kpi').series.items.map((x) => x.title) };
     });
     ok('Cocher trois indicateurs de plus ajoute leurs tuiles et leurs colonnes',
       apresCoche.tuiles.join(',') === 'caTTC,nbVentes,panier,marge,tauxMarge'
       && apresCoche.colonnes.length === 6, JSON.stringify(apresCoche.tuiles));
     ok('La fréquentation horaire apparaît quand elle est cochée, avec ses heures',
       apresCoche.horaireVisible === true, JSON.stringify(apresCoche.horaireVisible));
-    ok('La courbe suit le premier indicateur coché, et le titre le dit',
-      /Chiffre d'affaires TTC/.test(apresCoche.titreCourbe), apresCoche.titreCourbe);
+    /*
+     * UNE COURBE PAR INDICATEUR COCHE, cinq au plus (20/09). Cinq indicateurs sont coches ici - la
+     * frequentation horaire ne se tracant pas par mois - et les cinq doivent avoir leur courbe, chacune
+     * nommee. Le titre dit en outre la lecture retenue : montants reels, ou base 100 quand les echelles
+     * sont trop eloignees pour etre superposees.
+     */
+    ok('Chaque indicateur coché a SA courbe, nommée, et le titre dit la lecture retenue',
+      apresCoche.courbes.length === 5
+      && apresCoche.courbes.indexOf('Chiffre d\'affaires TTC') >= 0
+      && apresCoche.courbes.indexOf('Panier moyen') >= 0
+      && /base 100|Évolution/.test(apresCoche.titreCourbe),
+      JSON.stringify(apresCoche.courbes) + ' / ' + apresCoche.titreCourbe);
 
     const heuresBase = q("SELECT COUNT(DISTINCT HOUR(p.dt_UPDATED)) FROM t_preenregistrement p"
       + " WHERE p.int_PRICE>0 AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0"

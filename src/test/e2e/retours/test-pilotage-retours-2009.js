@@ -11,7 +11,13 @@
  *    comptees comme dans la base ;
  *  - la ligne de total du detail des KPI n'est plus vide, et elle MOYENNE ce qui ne s'additionne pas ;
  *  - le comparateur ne part plus tout seul et refuse une comparaison incomplete ;
- *  - l'avancement du recalcul repond sans toucher a la base.
+ *  - l'avancement du recalcul repond sans toucher a la base ;
+ *  - les agences d'un vrai groupe de fournisseurs ne font qu'une colonne, mais le groupe fourre-tout
+ *    « AUTRES » n'en est pas un et ses membres gardent la leur ;
+ *  - la bande de tuiles prend la hauteur de son contenu : la septieme tuile n'est plus coupee ;
+ *  - l'onglet KPI trace une courbe par indicateur coche, cinq au plus, et le DIT au-dela ; des echelles
+ *    trop eloignees passent en base 100, le premier mois renseigne valant exactement 100 ;
+ *  - l'edition PDF imprime les mois du plus recent au plus ancien, comme l'ecran.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -21,6 +27,26 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = process.env.DB_TEST || 'capitale';
 const MB4 = '--default-character-set=utf8mb4';
 const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
+
+/* Le texte d un PDF, pour verifier dans quel ORDRE les mois y sont imprimes. */
+function texteDuPdf(octets) {
+  const zlib = require('zlib');
+  const d = Buffer.from(octets);
+  const brut = d.toString('latin1');
+  let out = '';
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(brut)) !== null) {
+    const debut = m.index + m[0].length;
+    const fin = brut.indexOf('endstream', debut);
+    if (fin < 0) { continue; }
+    try {
+      const clair = zlib.inflateSync(d.slice(debut, fin)).toString('latin1');
+      out += (clair.match(/\((?:[^()\\]|\\.)*\)/g) || []).join(' ');
+    } catch (e) { /* flux non compresse */ }
+  }
+  return out;
+}
 const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 /* Trois lots d'essai : deux qui perimeront dans les six mois, un au-dela, un deja perime. Seuls les deux
@@ -333,6 +359,104 @@ function poserLesLots() {
       && avancement.corps.enCours === false, JSON.stringify(avancement.corps));
     const barre = await p.evaluate(() => !!Ext.ComponentQuery.query('pilotage #barrePeriode #progression')[0]);
     ok('Et la barre de progression existe dans l écran, prête à être remplie', barre === true, barre);
+
+    /* ------------------------------------------------- la bande de tuiles n est plus tronquee */
+    await changerOnglet('Stock');
+    const bande = await p.evaluate(() => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      const vue = e.down('#tuiles-stock');
+      const el = vue.getEl().dom;
+      const tuiles = el.querySelectorAll('.pilotage-tuile');
+      let derniere = null;
+      if (tuiles.length) { derniere = tuiles[tuiles.length - 1].getBoundingClientRect(); }
+      const cadre = el.getBoundingClientRect();
+      return { nb: tuiles.length, hauteurBande: vue.getHeight(), contenu: el.scrollHeight,
+        basDerniere: derniere ? Math.round(derniere.bottom) : 0, basCadre: Math.round(cadre.bottom) };
+    });
+    /*
+     * « On ne voit pas les donnees de stock dormant et peremptions proches, le cadre est tronque » (20/09).
+     * La bande avait une hauteur fixe calculee pour UNE rangee ; la septieme tuile passait a la ligne et se
+     * trouvait coupee. Elle prend desormais la hauteur de son contenu, quel que soit le nombre de rangees.
+     */
+    ok('L onglet Stock porte bien ses sept tuiles', bande.nb === 7, bande.nb + ' tuile(s)');
+    ok('La bande est aussi haute que son contenu : plus rien n est coupé',
+      bande.hauteurBande >= bande.contenu - 2,
+      'bande ' + bande.hauteurBande + ' px pour un contenu de ' + bande.contenu + ' px');
+    ok('Et la dernière tuile tient ENTIÈREMENT dans le cadre',
+      bande.basDerniere > 0 && bande.basDerniere <= bande.basCadre + 1,
+      'bas de la tuile ' + bande.basDerniere + ', bas du cadre ' + bande.basCadre);
+
+    /* ------------------------------------------------- KPI : cinq courbes au plus, et on le dit */
+    await changerOnglet('KPI Analyse');
+    await p.evaluate(() => {
+      const cases = Ext.ComponentQuery.query('pilotage #casesKpi checkbox');
+      const veut = ['caTTC', 'nbVentes', 'panier', 'marge', 'tauxMarge', 'remises'];
+      cases.forEach((c) => c.suspendEvents());
+      cases.forEach((c) => c.setValue(veut.indexOf(c.cleKpi) >= 0));
+      cases.forEach((c) => c.resumeEvents());
+      Ext.ComponentQuery.query('pilotage #barrePeriode button[itemId=actualiser]')[0].el.dom.click();
+    });
+    await p.waitForTimeout(14000);
+    const kpi6 = await p.evaluate(() => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      const g = e.down('#graphique-kpi');
+      const store = e.stores.kpi.mois;
+      /* La valeur reelle et l indice du premier mois renseigne : l un doit etre l autre ramene a 100. */
+      let repere = null;
+      let premier = null;
+      store.each((r) => {
+        const v = Number(r.get('caTTC'));
+        if (repere === null && v) { repere = v; premier = Number(r.get('base100_caTTC')); }
+      });
+      return { courbes: g.series.items.map((x) => ({ titre: x.title, champ: x.yField })),
+        titre: e.down('#graphiquePanneau-kpi').title,
+        avertissement: e.down('#casesKpi #avertissementKpi').getValue(),
+        colonnes: e.down('#detail-kpi').headerCt.getGridColumns().length,
+        indicePremier: premier };
+    });
+    ok('Six indicateurs cochés, mais CINQ courbes au plus sur le graphique',
+      kpi6.courbes.length === 5, kpi6.courbes.length + ' courbe(s)');
+    ok('Et l écran le DIT, au lieu de laisser croire à un oubli',
+      /6 indicateurs cochés/.test(kpi6.avertissement) && /5 premiers/.test(kpi6.avertissement),
+      kpi6.avertissement);
+    ok('Le détail mensuel, lui, porte bien les six',
+      kpi6.colonnes === 7, kpi6.colonnes + ' colonne(s) avec celle des mois');
+    ok('Chaque courbe porte le NOM de son indicateur : on les distingue',
+      kpi6.courbes.filter((c) => c.titre && c.titre.length > 2).length === 5,
+      JSON.stringify(kpi6.courbes.map((c) => c.titre)));
+    /*
+     * Des grandeurs d echelles trop eloignees (un chiffre d affaires et un taux de marge) passent en BASE
+     * 100 : sans cela le taux serait une ligne plate collee a zero. Le premier mois renseigne vaut donc 100.
+     */
+    ok('Les échelles étant trop différentes, la lecture passe en base 100 et le titre le dit',
+      /base 100/.test(kpi6.titre) && kpi6.courbes.every((c) => /^base100_/.test(c.champ)),
+      kpi6.titre);
+    ok('Et le premier mois renseigné vaut bien 100',
+      kpi6.indicePremier === null || Math.abs(kpi6.indicePremier - 100) < 0.01,
+      'indice du premier mois : ' + kpi6.indicePremier);
+
+    /* ------------------------------------------------- l édition suit l ordre de l écran */
+    const pdf = await p.evaluate(async () => {
+      const r = await fetch('../api/v1/pilotage/pdf?onglet=synthese&axe=MOIS', { credentials: 'same-origin' });
+      const buf = await r.arrayBuffer();
+      return { statut: r.status, type: r.headers.get('content-type'), octets: Array.from(new Uint8Array(buf)) };
+    });
+    ok('L édition PDF de la synthèse répond, en flux inline',
+      pdf.statut === 200 && /application\/pdf/.test(pdf.type || ''), pdf.statut + ' ' + pdf.type);
+    /*
+     * « Les mois doivent etre tries decroissants sur les periodes » (20/09). Les series du graphique vont
+     * dans le sens du temps - c'est ainsi qu'une courbe se lit - mais un TABLEAU se lit en partant du mois
+     * qu'on vient de finir. L'ecran le faisait deja, l'edition etait restee a l'envers.
+     */
+    const texte = texteDuPdf(pdf.octets);
+    const listeMois = ['Septembre 2026', 'Août 2026', 'Juillet 2026', 'Juin 2026'];
+    const places = listeMois.map((m) => texte.indexOf(m));
+    const presents = places.filter((i) => i >= 0);
+    ok('Le PDF imprime les mois du plus RÉCENT au plus ancien, comme l écran',
+      presents.length >= 2 && presents.every((v, i, t) => i === 0 || t[i - 1] < v),
+      JSON.stringify(listeMois.map((m, i) => m + '@' + places[i])));
+    ok('Et le pied de page le dit, pour qu on ne lise pas le tableau à l envers',
+      /plus r.cent au plus ancien/.test(texte), texte.slice(-160));
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {

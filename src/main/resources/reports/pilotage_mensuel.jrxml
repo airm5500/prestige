@@ -190,7 +190,7 @@
             <textField>
                 <reportElement x="0" y="2" width="700" height="11"/>
                 <textElement><font size="6.5" isItalic="true"/></textElement>
-                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY}) + " - mois du plus ancien au plus récent"]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Édité le " + new java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new java.util.Date()) + " par " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY}) + " - mois du plus récent au plus ancien"]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement x="700" y="2" width="62" height="11"/>

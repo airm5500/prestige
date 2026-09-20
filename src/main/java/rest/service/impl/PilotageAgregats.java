@@ -107,6 +107,10 @@ public class PilotageAgregats {
     @EJB
     private PilotageAgregats moiMeme;
 
+    /** Le journal du support : il recoit la duree du controle d'integrite quand elle depasse le seuil. */
+    @EJB
+    private rest.service.SupportEventService supportEventService;
+
     /** Les grandeurs d'un mois, telles que les onglets les consomment. */
     public static final class Agregat {
 
@@ -232,6 +236,7 @@ public class PilotageAgregats {
             return divergents;
         }
         CONTROLES.put(cle, System.currentTimeMillis());
+        long depart = System.currentTimeMillis();
         try {
             LocalDate debut = LocalDate.parse(mois.get(0) + "-01");
             LocalDate fin = LocalDate.parse(mois.get(mois.size() - 1) + "-01").plusMonths(1);
@@ -256,7 +261,60 @@ public class PilotageAgregats {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "pilotage : controle d'integrite des agregats", e);
         }
+        mesurerControle(mois.size(), System.currentTimeMillis() - depart);
         return divergents;
+    }
+
+    /*
+     * ================================================================= la mesure du controle d'integrite
+     *
+     * POURQUOI MESURER PLUTOT QU'OPTIMISER TOUT DE SUITE.
+     *
+     * Le controle relit, avant chaque affichage, le nombre de ventes et le chiffre d'affaires de tous les mois
+     * regardes, pour les comparer a ce qui est enregistre : c'est lui qui fait voir une vente annulee la veille sur un
+     * mois deja clos. Il est rapide sur une base d'essai - une fraction de seconde - mais son cout grandit avec
+     * l'historique, et l'officine compte plus de trois cent mille ventes sur treize mois.
+     *
+     * Plutot que de le brider au jugé, on le CHRONOMETRE : au-dela du seuil, le Centre de Support recoit une ligne qui
+     * donne la duree et le nombre de mois controles. Une nuit d'exploitation suffit alors a savoir s'il est en cause,
+     * et de combien - et a corriger sur des chiffres reels.
+     */
+    private static final long SEUIL_CONTROLE_MS = 1500L;
+
+    /** Ne pas inonder le journal : au plus une ligne toutes les dix minutes. */
+    private static final long ESPACEMENT_MESURE_MS = 10L * 60L * 1000L;
+
+    private static final java.util.concurrent.atomic.AtomicLong DERNIERE_MESURE = new java.util.concurrent.atomic.AtomicLong();
+
+    private void mesurerControle(int nbMois, long dureeMs) {
+        if (dureeMs < SEUIL_CONTROLE_MS || supportEventService == null) {
+            return;
+        }
+        long maintenant = System.currentTimeMillis();
+        long precedente = DERNIERE_MESURE.get();
+        if (maintenant - precedente < ESPACEMENT_MESURE_MS || !DERNIERE_MESURE.compareAndSet(precedente, maintenant)) {
+            return;
+        }
+        try {
+            rest.service.dto.SupportEventDTO dto = new rest.service.dto.SupportEventDTO();
+            dto.setType("PERF");
+            dto.setNiveau("WARN");
+            dto.setModule("PERFORMANCE");
+            dto.setMessageCourt("Pilotage : le controle des corrections tardives a pris " + dureeMs + " ms sur "
+                    + nbMois + " mois");
+            dto.setUrlOuEcran("pilotage / controle d'integrite");
+            dto.setStack("Avant chaque affichage, le menu de pilotage relit le nombre de ventes et le chiffre"
+                    + " d'affaires des mois regardes pour les comparer aux agregats enregistres.\n"
+                    + "C'est ce controle qui fait voir une vente annulee apres coup sur un mois deja clos.\n"
+                    + "Duree : " + dureeMs + " ms\n" + "Mois controles : " + nbMois + "\n" + "Seuil : "
+                    + SEUIL_CONTROLE_MS + " ms\n"
+                    + "Si cette ligne revient souvent, le controle peut etre restreint aux derniers mois"
+                    + " ou passe en tache de fond.");
+            supportEventService.record(dto, "systeme");
+        } catch (Exception e) {
+            /* Une mesure ne doit jamais perturber ce qu'elle mesure. */
+            LOG.log(Level.FINE, "pilotage : mesure du controle d'integrite", e);
+        }
     }
 
     /** Les mois deja calcules, parmi ceux demandes. */

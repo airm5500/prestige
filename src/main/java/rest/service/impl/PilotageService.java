@@ -1376,7 +1376,12 @@ public class PilotageService {
         List<String[]> colonnes = colonnes(onglet, donnees);
         JSONArray mois = donnees.optJSONArray("mois");
         List<LignePilotage> lignes = new ArrayList<>();
-        for (int i = 0; mois != null && i < mois.length(); i++) {
+        /*
+         * DU MOIS ACTUEL AU PLUS ANCIEN, comme a l'ecran. Les series sont construites dans le sens du temps parce que
+         * c'est ainsi qu'une courbe se lit ; un TABLEAU, lui, se lit en partant du mois qu'on vient de finir. L'ecran
+         * le faisait deja, l'edition etait restee a l'envers (20/09).
+         */
+        for (int i = (mois == null ? 0 : mois.length()) - 1; i >= 0; i--) {
             JSONObject m = mois.getJSONObject(i);
             LignePilotage ligne = new LignePilotage(m.optString("libelle"));
             for (int c = 0; c < colonnes.size() && c < LignePilotage.COLONNES; c++) {
@@ -1431,7 +1436,11 @@ public class PilotageService {
         }
         JSONArray mois = donnees.optJSONArray("mois");
         List<JSONObject> lignes = new ArrayList<>();
-        for (int i = 0; mois != null && i < mois.length(); i++) {
+        /*
+         * Le meme ordre que l'ecran et que le PDF : deux editions du meme onglet ne se lisent pas a l'envers l'une de
+         * l'autre.
+         */
+        for (int i = (mois == null ? 0 : mois.length()) - 1; i >= 0; i--) {
             lignes.add(mois.getJSONObject(i));
         }
         return excelService.createLandscapeExcelReport(titreOnglet(onglet), entetes, lignes, (ligne, m) -> {

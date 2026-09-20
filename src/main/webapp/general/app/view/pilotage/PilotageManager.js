@@ -707,13 +707,32 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             emptyText: '<div class="pilotage-vide">Choisissez une période puis « Actualiser ».</div>',
             deferEmptyText: false,
             /*
-             * LA BANDE DE TUILES NE DOIT PLUS DEBORDER. Une tuile porte jusqu'a cinq lignes - libelle,
-             * valeur, variation, valeur comparee, note - et le texte de la note etait coupe en bas faute de
-             * place (« la zone remises accordees deborde alors qu'il y a assez d'espace a droite », 20/09).
-             * La tuile est elargie dans le CSS et la bande gagne la hauteur des cinq lignes : on prend la
-             * place disponible sur la LARGEUR plutot que de rogner vers le bas.
+             * LA BANDE DE TUILES PREND LA HAUTEUR QU'IL LUI FAUT.
+             *
+             * Elle avait une hauteur FIXE, calculee pour une seule rangee. Les onglets Stock et Qualite en
+             * portent sept et six : la septieme passait a la ligne et se trouvait coupee net - « on ne voit
+             * pas les donnees de stock dormant et peremptions proches, le cadre est tronque » (20/09).
+             *
+             * La hauteur est desormais MESUREE sur le contenu reellement dessine, apres chaque chargement :
+             * une rangee sur un poste large, deux rangees entieres sur un poste etroit, jamais une rangee
+             * coupee. Les tuiles ont en outre ete resserrees pour que sept tiennent sur une seule ligne aux
+             * largeurs d'ecran courantes.
              */
-            height: 132,
+            height: 140,
+            listeners: {
+                refresh: function (vue) {
+                    var corps = vue.getEl();
+                    if (!corps) {
+                        return;
+                    }
+                    var hauteur = corps.dom.scrollHeight;
+                    /* Une bande vide garde sa hauteur : sinon le message « choisissez une periode » se
+                       retrouverait ecrase a quelques pixels. */
+                    if (hauteur > 0 && Math.abs(hauteur - vue.getHeight()) > 2) {
+                        vue.setHeight(Math.max(140, hauteur));
+                    }
+                }
+            },
             tpl: new Ext.XTemplate(
                 '<tpl for=".">',
                 '<div class="pilotage-tuile" data-cle="{cle}">',
@@ -938,10 +957,25 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             itemId: 'casesKpi',
             title: 'Indicateurs à analyser (cochez ce que vous voulez suivre)',
             bodyPadding: 6,
-            layout: {type: 'table', columns: 5},
-            items: [],
-            height: 140,
-            autoScroll: true
+            layout: {type: 'vbox', align: 'stretch'},
+            height: 160,
+            autoScroll: true,
+            items: [{
+                    xtype: 'container',
+                    itemId: 'listeKpi',
+                    layout: {type: 'table', columns: 5},
+                    items: []
+                }, {
+                    /*
+                     * L'ecran PREVIENT plutot que de tracer n'importe quoi. Cocher huit indicateurs est
+                     * legitime - le detail mensuel les porte tous - mais le graphique n'en montre que cinq,
+                     * et il vaut mieux le dire que de laisser croire a un oubli (20/09).
+                     */
+                    xtype: 'displayfield',
+                    itemId: 'avertissementKpi',
+                    margin: '4 0 0 0',
+                    value: ''
+                }]
         };
     },
 
