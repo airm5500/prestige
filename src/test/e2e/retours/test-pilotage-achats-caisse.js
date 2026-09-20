@@ -205,9 +205,30 @@ function texteDuPdf(octets) {
       return { base: j.base, valeur: valeur, repartition: (j.repartition || []).length };
     }, q("SELECT g.lg_GROSSISTE_ID FROM t_grossiste g JOIN t_order o ON o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID"
       + " JOIN t_bon_livraison b ON b.lg_ORDER_ID=o.lg_ORDER_ID WHERE b.str_STATUT='is_Closed' LIMIT 1"));
+    /*
+     * LE FILTRE RETIENT UN SEUL FOURNISSEUR - au sens ou l'officine l'entend depuis le 20/09, c'est-a-dire
+     * un GROUPE quand le referentiel en rattache un. L'identifiant envoye ici est celui d'une agence : le
+     * serveur le traduit en cle de groupe plutot que de rendre un tableau vide, et la repartition ne porte
+     * donc qu'une seule ligne, celle du groupe de cette agence.
+     */
     ok('Le filtre grossiste, lui, garde le montant des bons et ne retient qu un fournisseur',
       avecGrossiste.base === 'entete' && avecGrossiste.repartition === 1,
       JSON.stringify(avecGrossiste));
+    const groupeBase = Number(q("SELECT COALESCE(SUM(b.int_HTTC),0) FROM t_bon_livraison b"
+      + " JOIN t_order o ON o.lg_ORDER_ID=b.lg_ORDER_ID"
+      + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID=o.lg_GROSSISTE_ID"
+      + " WHERE b.str_STATUT='is_Closed'"
+      + " AND COALESCE(CONCAT('GRP', g.groupeId), g.lg_GROSSISTE_ID) = (SELECT"
+      + "   COALESCE(CONCAT('GRP', g2.groupeId), g2.lg_GROSSISTE_ID) FROM t_grossiste g2"
+      + "   WHERE g2.lg_GROSSISTE_ID = (SELECT g3.lg_GROSSISTE_ID FROM t_grossiste g3"
+      + "     JOIN t_order o3 ON o3.lg_GROSSISTE_ID=g3.lg_GROSSISTE_ID"
+      + "     JOIN t_bon_livraison b3 ON b3.lg_ORDER_ID=o3.lg_ORDER_ID"
+      + "     WHERE b3.str_STATUT='is_Closed' LIMIT 1))"
+      + " AND b.dt_UPDATED>=DATE_SUB(DATE_FORMAT(CURDATE(),'%Y-%m-01'), INTERVAL 12 MONTH)"
+      + " AND b.dt_UPDATED<DATE_FORMAT(CURDATE(),'%Y-%m-01')"));
+    ok('Et le montant retenu est EXACTEMENT celui du groupe de ce fournisseur dans la base',
+      Math.abs(avecGrossiste.valeur - groupeBase) < 1,
+      avecGrossiste.valeur + ' contre ' + groupeBase);
 
     /* --------------------------------------------------------------- CAISSE ET TIERS-PAYANT */
     await changerOnglet('Caisse & tiers-payant');

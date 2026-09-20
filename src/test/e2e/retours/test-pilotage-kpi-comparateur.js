@@ -274,12 +274,23 @@ function texteDuPdf(octets) {
     ok('Deux grossistes se comparent sur ce qu on leur achète, et l écran le dit',
       deuxGrossistes.grandeur === 'achatTTC' && /ne vend rien/.test(deuxGrossistes.note),
       deuxGrossistes.note);
+    /*
+     * LE COMPARATEUR COMPARE CE QUE L'ECRAN AFFICHE, c'est-a-dire des GROUPES de fournisseurs depuis le
+     * 20/09 : les cinq agences LABOREX sont un seul fournisseur pour l'officine. L'identifiant envoye ici
+     * est celui d'une agence ; le serveur le traduit en cle de groupe plutot que de rendre zero, et le
+     * montant attendu est donc celui du groupe entier.
+     */
     const grossisteABase = Number(q("SELECT COALESCE(SUM(b.int_HTTC),0) FROM t_bon_livraison b"
-      + " JOIN t_order o ON o.lg_ORDER_ID=b.lg_ORDER_ID WHERE b.str_STATUT='is_Closed'"
-      + " AND o.lg_GROSSISTE_ID='" + grossistes[0] + "'"
+      + " JOIN t_order o ON o.lg_ORDER_ID=b.lg_ORDER_ID"
+      + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID=o.lg_GROSSISTE_ID"
+      + " WHERE b.str_STATUT='is_Closed'"
+      + " AND COALESCE(CONCAT('GRP', g.groupeId), g.lg_GROSSISTE_ID) ="
+      + "   (SELECT COALESCE(CONCAT('GRP', g2.groupeId), g2.lg_GROSSISTE_ID) FROM t_grossiste g2"
+      + "    WHERE g2.lg_GROSSISTE_ID='" + grossistes[0] + "')"
       + " AND b.dt_UPDATED>=DATE_SUB(DATE_FORMAT(CURDATE(),'%Y-%m-01'), INTERVAL 12 MONTH)"
       + " AND b.dt_UPDATED<DATE_FORMAT(CURDATE(),'%Y-%m-01')"));
-    ok('Et le montant du premier grossiste est exactement celui de la base sur les 12 mois glissants',
+    ok('Et le montant du premier grossiste est exactement celui de son GROUPE dans la base, '
+      + 'sur les 12 mois glissants',
       Math.abs(deuxGrossistes.tuiles[0].valeur - grossisteABase) < 1,
       deuxGrossistes.tuiles[0].valeur + ' contre ' + grossisteABase);
 

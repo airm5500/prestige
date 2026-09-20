@@ -926,6 +926,16 @@ public class PilotageAgregats {
             return new ArrayList<>();
         }
         boolean filtre = grossisteId != null && !grossisteId.trim().isEmpty();
+        /*
+         * UN IDENTIFIANT D'AGENCE EST TRADUIT EN CLE DE GROUPE.
+         *
+         * Depuis que les agences d'un meme groupe ne font plus qu'une colonne, la table d'agregats porte la cle du
+         * GROUPE (« GRP1 ») et non celle de l'agence. Une demande qui nomme encore une agence - un lien garde en
+         * favori, un appel ecrit a la main - ne trouverait plus rien et l'ecran afficherait un tableau vide sans rien
+         * dire. On traduit donc, et la reponse porte le groupe auquel l'agence appartient : c'est l'unite que
+         * l'officine a choisie de regarder.
+         */
+        String cleFiltre = filtre ? cleDeGroupe(grossisteId.trim()) : null;
         Query q = em.createNativeQuery("SELECT g.str_MOIS AS mois, g.lg_GROSSISTE_ID AS grossisteId,"
                 + " g.str_GROSSISTE AS grossiste, g.str_MEMBRES AS membres,"
                 + " g.int_MONTANT AS montant, g.int_NB_BONS AS nbBons"
@@ -935,9 +945,26 @@ public class PilotageAgregats {
         q.setParameter(1, PilotageSql.EMPLACEMENT_OFFICINE).setParameter(2, mois.get(0)).setParameter(3,
                 mois.get(mois.size() - 1));
         if (filtre) {
-            q.setParameter(4, grossisteId);
+            q.setParameter(4, cleFiltre);
         }
         return q.getResultList();
+    }
+
+    /** La cle sous laquelle un fournisseur est agrege : celle de son groupe, ou la sienne s'il n'en a pas. */
+    private String cleDeGroupe(String grossisteId) {
+        try {
+            Object cle = em
+                    .createNativeQuery("SELECT COALESCE(CONCAT('GRP', g.groupeId), g.lg_GROSSISTE_ID)"
+                            + " FROM t_grossiste g WHERE g.lg_GROSSISTE_ID = ?1")
+                    .setParameter(1, grossisteId).getSingleResult();
+            if (cle != null) {
+                return String.valueOf(cle);
+            }
+        } catch (Exception e) {
+            /* Identifiant inconnu, ou deja une cle de groupe : on le garde tel quel. */
+            LOG.log(Level.FINE, "cle de groupe d'un grossiste", e);
+        }
+        return grossisteId;
     }
 
     private static double nombre(Object valeur) {
