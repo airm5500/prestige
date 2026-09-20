@@ -38,7 +38,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #casesKpi checkbox': {change: me.surCaseKpi},
             'pilotage #choixComparateur combobox[itemId=typeComparaison]': {select: me.surTypeComparaison},
             /* Les trois choix ne declenchent PLUS de requete : seul le bouton « Comparer » la lance. */
-            'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer}
+            'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer},
+            'pilotage #choixDecoupage combobox[itemId=decoupage]': {select: me.actualiser}
         });
     },
 
@@ -246,6 +247,10 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }
             });
             parametres.kpis = coches.join(',');
+        }
+        var decoupage = ecran.down('#choixDecoupage #decoupage');
+        if (decoupage) {
+            parametres.decoupage = decoupage.getValue() || 'TRIMESTRE';
         }
         var comparateur = ecran.down('#choixComparateur');
         if (comparateur) {
@@ -465,13 +470,17 @@ Ext.define('testextjs.controller.PilotageCtr', {
                  * Le même contenu, dans l'autre sens : la courbe va du plus ancien au plus récent, le tableau
                  * part du mois actuel. slice() d'abord, pour ne pas retourner le tableau que la courbe lit.
                  */
-                stores.detail.loadData((r.mois || []).slice().reverse());
+                /* L'onglet Achats / Ventes aligne des PERIODES : le premier trimestre se lit avant le
+                   quatrieme. Les series mensuelles, elles, partent du mois qu'on vient de finir. */
+                stores.detail.loadData(r.ordreNaturel === true
+                        ? (r.mois || []) : (r.mois || []).slice().reverse());
                 me.ajusterCourbeComparee(cle, r.axe);
                 me.ajusterColonnesModes(cle, r.modes);
                 me.afficherAchats(cle, r);
                 me.afficherNote(cle, r);
                 me.afficherKpi(cle, r);
                 me.afficherComparateur(cle, r);
+                me.afficherAchatsVentes(cle, r);
             },
             failure: function () {
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -533,15 +542,25 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }
     },
 
-    /** Ajoute au modèle du store les champs des colonnes variables qu'il ne connaît pas encore. */
-    declarerChamps: function (store, colonnes) {
+    /**
+     * Ajoute au modèle du store les champs des colonnes variables qu'il ne connaît pas encore.
+     *
+     * <p>
+     * {@code useNull} distingue deux natures de champ, et la distinction compte. Un MONTANT absent vaut zéro :
+     * il n'y a rien eu ce mois-là. Une VARIATION absente ne vaut pas zéro, elle n'existe pas : comparer à un
+     * trimestre où l'on n'avait rien vendu n'a pas de sens. Sans cette distinction, chaque case sans référence
+     * affichait « = 0,0 % », c'est-à-dire « pas de changement » là où il n'y a pas de comparaison.
+     */
+    declarerChamps: function (store, colonnes, useNull) {
         if (!store || !colonnes || !colonnes.length) {
             return;
         }
         var champs = store.model.prototype.fields;
         Ext.each(colonnes, function (c) {
             if (c && c.cle && !champs.get(c.cle)) {
-                champs.add(new Ext.data.Field({name: c.cle, type: 'float', defaultValue: 0}));
+                champs.add(new Ext.data.Field(useNull === true
+                        ? {name: c.cle, type: 'float', useNull: true}
+                        : {name: c.cle, type: 'float', defaultValue: 0}));
             }
         });
     },
@@ -946,6 +965,142 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     + (comparaison.libelleB || 'objet B')
                     + (!deuxGrandeurs && comparaison.libelleGrandeur ? ' — ' + comparaison.libelleGrandeur : ''));
         }
+    },
+
+    /**
+     * ONGLET ACHATS / VENTES : trois années face à face, découpées en trimestres, semestres ou années.
+     *
+     * <p>
+     * Les colonnes sont posées au chargement parce que les ANNÉES changent avec la date du jour : trois groupes
+     * de trois colonnes — ventes, achats et leur ratio — plus la colonne des périodes. Chaque case porte son
+     * montant, puis en petit le poids de la période dans son année, la variation par rapport à la même période
+     * de l'année précédente et celle par rapport à la période précédente. Le détail en francs est dans
+     * l'infobulle, pour que la cellule reste lisible.
+     */
+    afficherAchatsVentes: function (cle, reponse) {
+        if (cle !== 'achatsventes') {
+            return;
+        }
+        var ecran = this.getEcran();
+        var grille = ecran.down('#detail-achatsventes');
+        var annees = reponse.annees || [];
+        if (!grille || !annees.length) {
+            return;
+        }
+        var f = testextjs.view.pilotage.PilotageManager;
+        var store = ecran.stores.achatsventes.detail;
+        /* Tous les champs des trois années doivent exister AVANT le chargement, sinon les cellules affichent
+           NaN : c'est le même piège que les colonnes de modes de règlement. */
+        var montants = [];
+        var variations = [];
+        Ext.each(annees, function (an) {
+            Ext.each(['ca', 'achat', 'ratio', 'poidsCa', 'poidsAchat'], function (suffixe) {
+                montants.push({cle: 'an' + an + '_' + suffixe});
+            });
+            /* Une variation ABSENTE n'est pas une variation NULLE : la case doit rester muette. */
+            Ext.each(['varCa', 'varCaTaux', 'varAchat', 'varAchatTaux', 'varRatio', 'varCaPrec',
+                'varAchatPrec'], function (suffixe) {
+                variations.push({cle: 'an' + an + '_' + suffixe});
+            });
+        });
+        this.declarerChamps(store, montants);
+        this.declarerChamps(store, variations, true);
+        store.loadData(reponse.lignes || []);
+
+        /* La seconde ligne d'une case : le poids, la variation annuelle, la variation sur la période d'avant. */
+        var mentions = function (record, prefixe, quoi) {
+            var out = [];
+            /*
+             * UNE PERIODE SANS ACTIVITE N'A RIEN A COMMENTER. Sans cette garde, chaque case vide portait
+             * « = 0,0 % vs N-1 · = 0,0 % vs préc. » : trois lignes de bruit par case, sur un tableau qui en
+             * compte neuf par ligne, pour ne rien dire.
+             */
+            if (!record.get(prefixe + quoi)) {
+                return '';
+            }
+            var poids = record.get(prefixe + (quoi === 'ca' ? 'poidsCa' : 'poidsAchat'));
+            if (poids) {
+                out.push('<div class="pilotage-seconde-ligne">' + f.nombre(poids, '0,000.0')
+                        + ' % de l\'année</div>');
+            }
+            var taux = record.get(prefixe + (quoi === 'ca' ? 'varCaTaux' : 'varAchatTaux'));
+            var prec = record.get(prefixe + (quoi === 'ca' ? 'varCaPrec' : 'varAchatPrec'));
+            var bas = [];
+            if (taux !== null && taux !== undefined) {
+                bas.push('<span class="pilotage-evol ' + f.sens(taux) + '">' + f.fleche(taux) + ' '
+                        + f.nombre(Math.abs(taux), '0,000.0') + ' %</span> vs N-1');
+            }
+            if (prec !== null && prec !== undefined) {
+                bas.push('<span class="pilotage-evol ' + f.sens(prec) + '">' + f.fleche(prec) + ' '
+                        + f.nombre(Math.abs(prec), '0,000.0') + ' %</span> vs préc.');
+            }
+            if (bas.length) {
+                out.push('<div class="pilotage-seconde-ligne">' + bas.join(' &middot; ') + '</div>');
+            }
+            return out.join('');
+        };
+
+        var colonneMontant = function (an, quoi, texte) {
+            var prefixe = 'an' + an + '_';
+            var champ = prefixe + quoi;
+            return {text: texte, dataIndex: champ, width: 190, align: 'right', itemId: 'col-' + champ,
+                renderer: function (v, meta, record) {
+                    var t = f.nombre(v);
+                    if (t === '') {
+                        return '';
+                    }
+                    /* La variation en FRANCS est dans l'infobulle : l'afficher ferait trois lignes de plus
+                       dans chaque case, et le tableau en porte neuf par ligne. */
+                    var ecart = record.get(prefixe + (quoi === 'ca' ? 'varCa' : 'varAchat'));
+                    if (ecart !== null && ecart !== undefined) {
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Écart avec ' + (an - 1) + ' : '
+                                + (ecart >= 0 ? '+' : '') + f.nombre(ecart) + ' FCFA') + '"';
+                    }
+                    return '<b>' + t + '</b>' + mentions(record, prefixe, quoi);
+                },
+                summaryType: 'sum',
+                summaryRenderer: function (v) {
+                    var t = f.nombre(v);
+                    return t === '' ? '' : '<b>' + t + '</b>';
+                }};
+        };
+
+        var colonneRatio = function (an) {
+            var prefixe = 'an' + an + '_';
+            return {text: 'RATIO', dataIndex: prefixe + 'ratio', width: 120, align: 'right',
+                itemId: 'col-' + prefixe + 'ratio',
+                renderer: function (v, meta, record) {
+                    if (v === null || v === undefined || !v) {
+                        return '';
+                    }
+                    /* Au-dessus de 1, on vend plus qu'on n'achete sur la periode : c'est la lecture utile. */
+                    var couleur = v >= 1 ? 'hausse' : 'baisse';
+                    var texte = '<b class="pilotage-evol ' + couleur + '">' + f.nombre(v, '0,000.00')
+                            + '</b>';
+                    var ecart = record.get(prefixe + 'varRatio');
+                    if (ecart !== null && ecart !== undefined) {
+                        texte += '<div class="pilotage-seconde-ligne"><span class="pilotage-evol '
+                                + f.sens(ecart) + '">' + f.fleche(ecart) + ' '
+                                + f.nombre(Math.abs(ecart), '0,000.00') + '</span> vs N-1</div>';
+                    }
+                    return texte;
+                }};
+        };
+
+        var colonnes = ecran.colonnes('achatsventes');
+        Ext.each(annees, function (an) {
+            colonnes.push({text: String(an), align: 'center', columns: [
+                    colonneMontant(an, 'ca', 'VENTES'),
+                    colonneMontant(an, 'achat', 'ACHATS'),
+                    colonneRatio(an)]});
+        });
+        grille.reconfigure(store, colonnes);
+        var note = ecran.down('#choixDecoupage #noteDecoupage');
+        if (note) {
+            note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
+        }
+        grille.setTitle('Ventes et achats comparés ' + (reponse.libelleDecoupage || 'par trimestre')
+                + ' — ' + annees.join(', '));
     },
 
     /**

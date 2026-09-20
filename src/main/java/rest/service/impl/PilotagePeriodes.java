@@ -221,9 +221,16 @@ public final class PilotagePeriodes {
      * <p>
      * Rend null quand la reference est nulle : partir de zero n'est pas une progression de l'infini, et afficher « +100
      * % » la ou il n'y avait rien tromperait le lecteur. L'ecran affiche alors la valeur seule.
+     *
+     * <p>
+     * Rend null AUSSI quand la reference est negligeable devant la valeur - moins d'un centieme. « +864 311 696 % » est
+     * arithmetiquement exact et humainement inutilisable : cinquante-cinq francs l'an dernier contre quatre cent
+     * soixante-quinze millions cette annee ne decrivent pas une progression, mais un demarrage. Un taux pareil chasse
+     * du regard les variations qui, elles, veulent dire quelque chose. Une multiplication par vingt reste affichee :
+     * c'est un seuil de bon sens, pas un plafond serre.
      */
     public static Double variation(double valeur, double reference) {
-        if (reference == 0d) {
+        if (reference == 0d || Math.abs(reference) * 100d < Math.abs(valeur)) {
             return null;
         }
         return (valeur - reference) / Math.abs(reference) * 100d;

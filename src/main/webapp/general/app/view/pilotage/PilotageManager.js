@@ -249,7 +249,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         {cle: 'stock', titre: 'Stock'},
         {cle: 'qualite', titre: 'Qualité–Exploitation'},
         {cle: 'kpi', titre: 'KPI Analyse'},
-        {cle: 'comparateur', titre: 'Comparateur'}
+        {cle: 'comparateur', titre: 'Comparateur'},
+        /*
+         * Ajoute EN DERNIER, a dessein : l'officine connait la place de ses onglets, et en inserer un au
+         * milieu obligerait chacun a rechercher les siens.
+         */
+        {cle: 'achatsventes', titre: 'Achats / Ventes'}
     ],
 
     initComponent: function () {
@@ -547,6 +552,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'comparateur') {
             contenu.push(me.choixComparateur());
         }
+        if (onglet.cle === 'achatsventes') {
+            contenu.push(me.choixDecoupage());
+        }
         contenu.push(me.tuiles(onglet.cle));
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
@@ -557,6 +565,24 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          * valeur est une capture ou une reconstitution, ce qui est plus precis qu'une phrase valable pour
          * tout l'ecran, et les tuiles de referentiel portent leur propre explication.
          */
+        if (onglet.cle === 'achatsventes') {
+            /*
+             * PAS DE COURBE ICI, et c'est voulu. Cet onglet compare des PERIODES de trois annees differentes
+             * face a face ; une courbe du temps ne repond pas a « ce trimestre, ai-je achete plus que je n'ai
+             * vendu, et ou en suis-je par rapport a l'an dernier ». Le tableau prend donc toute la place.
+             */
+            contenu.push(me.detail(onglet.cle));
+            return {
+                xtype: 'panel',
+                itemId: 'onglet-' + onglet.cle,
+                title: onglet.titre,
+                cleOnglet: onglet.cle,
+                border: false,
+                autoScroll: true,
+                layout: {type: 'vbox', align: 'stretch'},
+                items: contenu
+            };
+        }
         if (onglet.cle === 'ventes') {
             /*
              * DEUX GRAPHIQUES CÔTE À CÔTE dans l'onglet Ventes : le chiffre d'affaires mensuel à gauche, et à
@@ -920,7 +946,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         return {
             xtype: 'gridpanel',
             itemId: 'detail-' + cle,
-            title: 'Détail mensuel (du mois actuel au plus ancien)',
+            title: cle === 'achatsventes'
+                    ? 'Ventes et achats comparés, trois années face à face'
+                    : 'Détail mensuel (du mois actuel au plus ancien)',
             store: this.stores[cle].detail,
             flex: 1,
             minHeight: 200,
@@ -932,9 +960,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                  * naïvement aux mois pleins. Il est en TÊTE du tableau, le détail étant trié du mois
                  * actuel au plus ancien — demande de l'officine du 19/09. */
                 getRowClass: function (record, index) {
-                    /* Le tableau va du mois actuel au plus ancien : les trois premieres lignes sont le mois
-                       en cours, le precedent et celui d'avant. Vert, orange, violet - demande du 20/09. */
-                    if (index > 2) {
+                    /*
+                     * Le tableau va du mois actuel au plus ancien : les trois premieres lignes sont le mois
+                     * en cours, le precedent et celui d'avant. Vert, orange, violet - demande du 20/09.
+                     * L'onglet Achats / Ventes, lui, aligne des PERIODES d'annees differentes : les colorier
+                     * par rang n'aurait aucun sens, ses lignes restent neutres.
+                     */
+                    if (index > 2 || cle === 'achatsventes') {
                         return '';
                     }
                     return ['pilotage-mois-1 pilotage-mois-encours', 'pilotage-mois-2',
@@ -1105,6 +1137,49 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         };
     },
 
+    /**
+     * Le decoupage de l'onglet Achats / Ventes : trimestre, semestre ou annee.
+     *
+     * <p>
+     * Le trimestre par defaut, parce que c'est le pas auquel une officine decide de son reapprovisionnement.
+     * Le selecteur de PERIODE de la barre du haut ne s'applique pas ici : cet onglet regarde toujours les trois
+     * dernieres annees civiles, et c'est leur decoupage qui change.
+     */
+    choixDecoupage: function () {
+        return {
+            xtype: 'toolbar',
+            itemId: 'choixDecoupage',
+            padding: 4,
+            items: [{
+                    xtype: 'combobox',
+                    itemId: 'decoupage',
+                    fieldLabel: 'Découpage',
+                    labelWidth: 70,
+                    width: 230,
+                    editable: false,
+                    value: 'TRIMESTRE',
+                    store: new Ext.data.Store({
+                        fields: ['id', 'libelle'],
+                        data: [
+                            {id: 'TRIMESTRE', libelle: 'Par trimestre'},
+                            {id: 'SEMESTRE', libelle: 'Par semestre'},
+                            {id: 'ANNEE', libelle: 'Par année'}
+                        ]
+                    }),
+                    displayField: 'libelle',
+                    valueField: 'id',
+                    queryMode: 'local'
+                }, {
+                    xtype: 'component',
+                    flex: 1
+                }, {
+                    xtype: 'displayfield',
+                    itemId: 'noteDecoupage',
+                    value: ''
+                }]
+        };
+    },
+
     /** Colonnes du detail mensuel, par onglet. Les montants portent leur total en pied de grille. */
     colonnes: function (cle) {
         /*
@@ -1158,6 +1233,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (cle === 'achats') {
             /* Les colonnes de grossistes s'ajoutent au chargement : elles dependent de qui a livre. */
             return [mois, montant('ACHATS', 'achatTTC'), montant('BONS', 'nbBons', 80)];
+        }
+        if (cle === 'achatsventes') {
+            /* Les colonnes d'annees sont posees au chargement : elles dependent de la date du jour. */
+            return [{text: 'PÉRIODE', dataIndex: 'libelle', width: 150, itemId: 'col-periode',
+                    summaryRenderer: function () {
+                        return '<b>TOTAUX</b>';
+                    }}];
         }
         if (cle === 'kpi') {
             /* Les colonnes suivent les cases cochees : elles sont posees au chargement. */

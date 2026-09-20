@@ -66,6 +66,15 @@ public class PilotageService {
     public static final String ONGLET_QUALITE = "qualite";
     public static final String ONGLET_KPI = "kpi";
     public static final String ONGLET_COMPARATEUR = "comparateur";
+    public static final String ONGLET_ACHATS_VENTES = "achatsventes";
+
+    /** Les trois decoupages de l'onglet Achats / Ventes. */
+    public static final String DECOUPAGE_TRIMESTRE = "TRIMESTRE";
+    public static final String DECOUPAGE_SEMESTRE = "SEMESTRE";
+    public static final String DECOUPAGE_ANNEE = "ANNEE";
+
+    /** Nombre d'annees comparees dans l'onglet Achats / Ventes : l'annee en cours et les deux precedentes. */
+    private static final int ANNEES_COMPAREES = 3;
 
     private static final long CACHE_TTL_MS = 5L * 60L * 1000L;
 
@@ -181,6 +190,9 @@ public class PilotageService {
             case ONGLET_COMPARATEUR:
                 reponse = comparateur(axe, choix == null ? null : choix.type, choix == null ? null : choix.objetA,
                         choix == null ? null : choix.objetB, choix == null ? null : choix.grandeur);
+                break;
+            case ONGLET_ACHATS_VENTES:
+                reponse = achatsVentes(choix == null ? DECOUPAGE_TRIMESTRE : choix.decoupage);
                 break;
             default:
                 reponse = synthese(axe);
@@ -555,19 +567,26 @@ public class PilotageService {
         public final String objetA;
         public final String objetB;
         public final String grandeur;
+        /** Decoupage de l'onglet Achats / Ventes : TRIMESTRE (par defaut), SEMESTRE ou ANNEE. */
+        public final String decoupage;
 
         public Choix(List<String> kpis, String type, String objetA, String objetB, String grandeur) {
+            this(kpis, type, objetA, objetB, grandeur, null);
+        }
+
+        public Choix(List<String> kpis, String type, String objetA, String objetB, String grandeur, String decoupage) {
             this.kpis = kpis;
             this.type = StringUtils.trimToNull(type);
             this.objetA = StringUtils.trimToNull(objetA);
             this.objetB = StringUtils.trimToNull(objetB);
             this.grandeur = StringUtils.trimToNull(grandeur);
+            this.decoupage = StringUtils.defaultIfBlank(decoupage, DECOUPAGE_TRIMESTRE);
         }
 
         String cle() {
             return (kpis == null ? "" : String.join(",", kpis)) + "/" + StringUtils.defaultString(type) + "/"
                     + StringUtils.defaultString(objetA) + "/" + StringUtils.defaultString(objetB) + "/"
-                    + StringUtils.defaultString(grandeur);
+                    + StringUtils.defaultString(grandeur) + "/" + StringUtils.defaultString(decoupage);
         }
     }
 
@@ -1284,6 +1303,25 @@ public class PilotageService {
             colonnes.add(new String[] { "caTTC", "CA TTC" });
             colonnes.add(new String[] { "achatTTC", "ACHATS TTC" });
             break;
+        case ONGLET_ACHATS_VENTES: {
+            /*
+             * L'ORDRE DES COLONNES EST CHOISI POUR LA PAGE A4, qui n'en porte que sept : les trois annees de ventes,
+             * puis les trois d'achats, puis le ratio de l'annee en cours. Le tableur, lui, n'a pas cette limite et
+             * recoit en plus les ratios des annees precedentes.
+             */
+            JSONArray annees = donnees == null ? null : donnees.optJSONArray("annees");
+            int nbAnnees = annees == null ? 0 : annees.length();
+            for (int i = 0; i < nbAnnees; i++) {
+                colonnes.add(new String[] { "an" + annees.getInt(i) + "_ca", "VENTES " + annees.getInt(i) });
+            }
+            for (int i = 0; i < nbAnnees; i++) {
+                colonnes.add(new String[] { "an" + annees.getInt(i) + "_achat", "ACHATS " + annees.getInt(i) });
+            }
+            for (int i = nbAnnees - 1; i >= 0; i--) {
+                colonnes.add(new String[] { "an" + annees.getInt(i) + "_ratio", "RATIO " + annees.getInt(i) });
+            }
+            break;
+        }
         case ONGLET_VENTES:
             colonnes.add(new String[] { "caTTC", "CA TTC" });
             colonnes.add(new String[] { "nbVentes", "VENTES" });
@@ -1326,6 +1364,8 @@ public class PilotageService {
             return "PILOTAGE - ANALYSE DES KPI";
         case ONGLET_COMPARATEUR:
             return "PILOTAGE - COMPARATEUR";
+        case ONGLET_ACHATS_VENTES:
+            return "PILOTAGE - ACHATS ET VENTES COMPARÉS";
         default:
             return "PILOTAGE - SYNTHÈSE";
         }
@@ -1381,8 +1421,10 @@ public class PilotageService {
          * c'est ainsi qu'une courbe se lit ; un TABLEAU, lui, se lit en partant du mois qu'on vient de finir. L'ecran
          * le faisait deja, l'edition etait restee a l'envers (20/09).
          */
-        for (int i = (mois == null ? 0 : mois.length()) - 1; i >= 0; i--) {
-            JSONObject m = mois.getJSONObject(i);
+        boolean naturel = donnees.optBoolean("ordreNaturel");
+        int nb = mois == null ? 0 : mois.length();
+        for (int rang = 0; rang < nb; rang++) {
+            JSONObject m = mois.getJSONObject(naturel ? rang : nb - 1 - rang);
             LignePilotage ligne = new LignePilotage(m.optString("libelle"));
             for (int c = 0; c < colonnes.size() && c < LignePilotage.COLONNES; c++) {
                 ligne.set(c, m.optDouble(colonnes.get(c)[0], 0d));
@@ -1440,8 +1482,10 @@ public class PilotageService {
          * Le meme ordre que l'ecran et que le PDF : deux editions du meme onglet ne se lisent pas a l'envers l'une de
          * l'autre.
          */
-        for (int i = (mois == null ? 0 : mois.length()) - 1; i >= 0; i--) {
-            lignes.add(mois.getJSONObject(i));
+        boolean naturel = donnees.optBoolean("ordreNaturel");
+        int nb = mois == null ? 0 : mois.length();
+        for (int rang = 0; rang < nb; rang++) {
+            lignes.add(mois.getJSONObject(naturel ? rang : nb - 1 - rang));
         }
         return excelService.createLandscapeExcelReport(titreOnglet(onglet), entetes, lignes, (ligne, m) -> {
             ligne.createCell(0).setCellValue(m.optString("libelle"));
@@ -1698,6 +1742,192 @@ public class PilotageService {
             }
         }
         return json;
+    }
+
+    /**
+     * ONGLET ACHATS / VENTES : trois annees face a face, decoupees en trimestres, semestres ou annees.
+     *
+     * <p>
+     * <b>Ce qu'il repond.</b> « Ce trimestre, ai-je achete plus que je n'ai vendu, et ou en suis-je par rapport a l'an
+     * dernier ? » C'est la question du reapprovisionnement, et elle demandait jusqu'ici d'ouvrir deux ecrans et de
+     * poser les chiffres cote a cote. Ventes, achats et leur RATIO sont ici sur la meme ligne.
+     *
+     * <p>
+     * <b>Pourquoi il est instantane.</b> Il ne calcule rien : le chiffre d'affaires et les achats de chaque mois sont
+     * deja enregistres dans les agregats. Un trimestre est la somme de trois mois deja calcules, un semestre six, une
+     * annee douze. L'onglet lit UNE fois les trente-sept mois de la fenetre et additionne en memoire - aucune requete
+     * sur les ventes ni sur les bons de livraison.
+     *
+     * <p>
+     * <b>Les quatre lectures de chaque case.</b> Le montant ; le POIDS de la periode dans son annee ; la variation par
+     * rapport a la MEME periode de l'annee precedente, en francs et en taux ; et la variation par rapport a la periode
+     * PRECEDENTE de la meme annee. Les trois dernieres sont ce qui transforme un tableau de chiffres en aide a la
+     * decision.
+     */
+    private JSONObject achatsVentes(String decoupage) {
+        String type = StringUtils.defaultIfBlank(decoupage, DECOUPAGE_TRIMESTRE);
+        int parAn = DECOUPAGE_ANNEE.equals(type) ? 1 : (DECOUPAGE_SEMESTRE.equals(type) ? 2 : 4);
+        int moisParPeriode = 12 / parAn;
+        int anneeCourante = LocalDate.now().getYear();
+        int premiereAnnee = anneeCourante - ANNEES_COMPAREES + 1;
+
+        /* Les agregats des trois annees civiles, en UNE lecture. */
+        List<String> mois = new ArrayList<>();
+        for (int an = premiereAnnee; an <= anneeCourante; an++) {
+            for (int m = 1; m <= 12; m++) {
+                mois.add(String.format("%04d-%02d", an, m));
+            }
+        }
+        Map<String, PilotageAgregats.Agregat> connus = agregats.agregats(mois);
+
+        /* Cumul par annee et par periode : ventes, achats. */
+        double[][] ventes = new double[ANNEES_COMPAREES][parAn];
+        double[][] achats = new double[ANNEES_COMPAREES][parAn];
+        for (int i = 0; i < ANNEES_COMPAREES; i++) {
+            int an = premiereAnnee + i;
+            for (int m = 1; m <= 12; m++) {
+                PilotageAgregats.Agregat a = connus.get(String.format("%04d-%02d", an, m));
+                if (a == null) {
+                    continue;
+                }
+                int periode = (m - 1) / moisParPeriode;
+                ventes[i][periode] += a.caTTC;
+                achats[i][periode] += a.achatTTC;
+            }
+        }
+
+        JSONArray annees = new JSONArray();
+        for (int i = 0; i < ANNEES_COMPAREES; i++) {
+            annees.put(premiereAnnee + i);
+        }
+
+        JSONArray lignes = new JSONArray();
+        for (int p = 0; p < parAn; p++) {
+            JSONObject ligne = new JSONObject().put("periode", p).put("libelle", libellePeriode(type, p));
+            for (int i = 0; i < ANNEES_COMPAREES; i++) {
+                int an = premiereAnnee + i;
+                String prefixe = "an" + an + "_";
+                double ca = ventes[i][p];
+                double achat = achats[i][p];
+                ligne.put(prefixe + "ca", arrondi(ca));
+                ligne.put(prefixe + "achat", arrondi(achat));
+                /* Le ratio ne se calcule pas quand on n'a rien achete : il serait infini, pas eleve. */
+                ligne.put(prefixe + "ratio", achat == 0 ? 0d : arrondi(ca / achat));
+                ligne.put(prefixe + "poidsCa", part(ca, somme(ventes[i])));
+                ligne.put(prefixe + "poidsAchat", part(achat, somme(achats[i])));
+                if (i > 0) {
+                    double caN1 = ventes[i - 1][p];
+                    double achatN1 = achats[i - 1][p];
+                    /* Deux zeros n'ont pas d'ecart a montrer : la case reste vide plutot que d'afficher « 0 ». */
+                    if (ca != 0 || caN1 != 0) {
+                        ligne.put(prefixe + "varCa", arrondi(ca - caN1));
+                    }
+                    if (achat != 0 || achatN1 != 0) {
+                        ligne.put(prefixe + "varAchat", arrondi(achat - achatN1));
+                    }
+                    Double tauxCa = PilotagePeriodes.variation(ca, caN1);
+                    Double tauxAchat = PilotagePeriodes.variation(achat, achatN1);
+                    if (tauxCa != null) {
+                        ligne.put(prefixe + "varCaTaux", arrondi(tauxCa));
+                    }
+                    if (tauxAchat != null) {
+                        ligne.put(prefixe + "varAchatTaux", arrondi(tauxAchat));
+                    }
+                    double ratio = achat == 0 ? 0d : ca / achat;
+                    double ratioN1 = achatN1 == 0 ? 0d : caN1 / achatN1;
+                    if (achat != 0 && achatN1 != 0) {
+                        ligne.put(prefixe + "varRatio", arrondi(ratio - ratioN1));
+                    }
+                }
+                if (p > 0) {
+                    /* La periode precedente de la MEME annee : « suis-je au-dessus du trimestre d'avant ? » */
+                    Double tauxCa = PilotagePeriodes.variation(ca, ventes[i][p - 1]);
+                    Double tauxAchat = PilotagePeriodes.variation(achat, achats[i][p - 1]);
+                    if (tauxCa != null) {
+                        ligne.put(prefixe + "varCaPrec", arrondi(tauxCa));
+                    }
+                    if (tauxAchat != null) {
+                        ligne.put(prefixe + "varAchatPrec", arrondi(tauxAchat));
+                    }
+                }
+            }
+            lignes.put(ligne);
+        }
+
+        /*
+         * LES TUILES PORTENT LE CUMUL DE L'ANNEE EN COURS, compare au MEME cumul de l'an dernier : autant de mois
+         * ecoules de part et d'autre. Comparer une annee commencee a une annee entiere annoncerait une chute qui
+         * n'existe pas - c'est la regle deja retenue pour le cumul annuel du selecteur de periode.
+         */
+        int moisEcoules = LocalDate.now().getMonthValue();
+        double caCourant = cumul(connus, anneeCourante, moisEcoules, true);
+        double achatCourant = cumul(connus, anneeCourante, moisEcoules, false);
+        double caPrecedent = cumul(connus, anneeCourante - 1, moisEcoules, true);
+        double achatPrecedent = cumul(connus, anneeCourante - 1, moisEcoules, false);
+        String libelleReference = "Cumul " + (anneeCourante - 1) + " au même mois";
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("ca", "Ventes " + anneeCourante + " (cumul)", caCourant, caPrecedent, "FCFA",
+                moisEcoules + " mois écoulés, comparés aux " + moisEcoules + " mêmes mois de " + (anneeCourante - 1)));
+        tuiles.put(tuile("achat", "Achats " + anneeCourante + " (cumul)", achatCourant, achatPrecedent, "FCFA",
+                "montant TTC des bons clôturés"));
+        tuiles.put(tuile("ratio", "Ratio ventes / achats", achatCourant == 0 ? 0d : caCourant / achatCourant,
+                achatPrecedent == 0 ? null : caPrecedent / achatPrecedent, "",
+                "au-dessus de 1, on vend plus qu'on n'achète sur la période"));
+        tuiles.put(tuile("ecart", "Écart ventes − achats", caCourant - achatCourant, caPrecedent - achatPrecedent,
+                "FCFA", "ce que l'activité dégage avant charges"));
+        for (int i = 0; i < tuiles.length(); i++) {
+            tuiles.getJSONObject(i).put("libelleReference", libelleReference);
+        }
+
+        return new JSONObject().put("tuiles", tuiles).put("annees", annees).put("lignes", lignes)
+                /*
+                 * Les editions lisent « mois » : on leur donne les memes lignes. Et « ordreNaturel » leur dit de NE PAS
+                 * les retourner - le premier trimestre se lit avant le quatrieme, alors qu'une serie mensuelle se lit
+                 * en partant du mois qu'on vient de finir.
+                 */
+                .put("mois", lignes).put("ordreNaturel", true).put("decoupage", type)
+                .put("libelleDecoupage", libelleDecoupage(type)).put("note",
+                        "Ventes et achats viennent des mêmes agrégats mensuels que les autres onglets : "
+                                + "cet onglet ne relit ni les ventes ni les bons de livraison, il additionne des mois "
+                                + "déjà calculés.");
+    }
+
+    private static double somme(double[] valeurs) {
+        double total = 0;
+        for (double v : valeurs) {
+            total += v;
+        }
+        return total;
+    }
+
+    private static double part(double valeur, double total) {
+        return total == 0 ? 0d : arrondi(valeur / total * 100d);
+    }
+
+    /** Cumul des {@code nbMois} premiers mois d'une annee, en ventes ou en achats. */
+    private static double cumul(Map<String, PilotageAgregats.Agregat> connus, int annee, int nbMois, boolean enVentes) {
+        double total = 0;
+        for (int m = 1; m <= nbMois && m <= 12; m++) {
+            PilotageAgregats.Agregat a = connus.get(String.format("%04d-%02d", annee, m));
+            if (a != null) {
+                total += enVentes ? a.caTTC : a.achatTTC;
+            }
+        }
+        return total;
+    }
+
+    private static String libellePeriode(String decoupage, int index) {
+        if (DECOUPAGE_ANNEE.equals(decoupage)) {
+            return "Année entière";
+        }
+        return (DECOUPAGE_SEMESTRE.equals(decoupage) ? "Semestre " : "Trimestre ") + (index + 1);
+    }
+
+    private static String libelleDecoupage(String decoupage) {
+        if (DECOUPAGE_ANNEE.equals(decoupage)) {
+            return "par année";
+        }
+        return DECOUPAGE_SEMESTRE.equals(decoupage) ? "par semestre" : "par trimestre";
     }
 
     /**

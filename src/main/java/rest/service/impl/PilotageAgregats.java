@@ -436,9 +436,14 @@ public class PilotageAgregats {
     }
 
     /**
-     * Jusqu'ou le prechauffage remonte : la plus longue fenetre du selecteur, douze mois compares aux douze d'avant.
+     * Jusqu'ou le prechauffage remonte.
+     *
+     * <p>
+     * Trente-sept mois : l'onglet Achats / Ventes compare l'annee en cours aux DEUX precedentes, soit trois annees
+     * civiles entieres, et il faut pouvoir remonter au 1er janvier de la plus ancienne meme au mois de decembre. Le
+     * selecteur de periode, lui, ne demande que vingt-cinq mois - douze compares aux douze d'avant.
      */
-    private static final int MOIS_PRECHAUFFES = 25;
+    private static final int MOIS_PRECHAUFFES = 37;
 
     /*
      * ================================================================= l'avancement du recalcul

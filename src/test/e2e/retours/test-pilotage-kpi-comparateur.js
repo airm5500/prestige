@@ -65,7 +65,9 @@ function texteDuPdf(octets) {
     const onglets = await p.evaluate(() =>
       Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => o.title));
     ok('Les deux onglets de cette vague sont là, après les sept précédents',
-      onglets.length === 9 && onglets[7] === 'KPI Analyse' && onglets[8] === 'Comparateur',
+      /* Le test porte sur la PLACE des onglets de sa vague, pas sur un nombre total qui grandit a chaque
+         livraison : « Achats / Ventes » a ete ajoute en dernier le 20/09, sans deplacer les precedents. */
+      onglets.length >= 9 && onglets[7] === 'KPI Analyse' && onglets[8] === 'Comparateur',
       JSON.stringify(onglets));
 
     const changerOnglet = async (titre) => {
