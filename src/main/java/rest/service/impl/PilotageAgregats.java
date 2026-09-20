@@ -701,13 +701,42 @@ public class PilotageAgregats {
             boolean clos = fin.isBefore(LocalDate.now().withDayOfMonth(1).plusDays(1))
                     && !mois.equals(YearMonth.now().toString());
             enregistrer(a, clos);
-            enregistrerReglements(mois, debut, fin);
-            enregistrerGrossistes(mois, debut, fin);
+            /*
+             * LE DETAIL NE PEUT PLUS EMPORTER LES CHIFFRES DU MOIS.
+             *
+             * Le mix de reglement et les achats par grossiste s'ecrivaient dans la MEME transaction que le mois. Le
+             * jour ou l'un d'eux a echoue chez l'officine - un libelle d'affichage trop long pour sa colonne - la
+             * transaction a ete annulee en entier et le mois de juillet a purement disparu des agregats, alors que ses
+             * chiffres etaient justes et deja calcules. Un ornement d'affichage ne doit jamais faire perdre un chiffre
+             * : chaque detail prend desormais sa propre transaction, et son echec est journalise sans rien emporter.
+             */
+            detailIsole("reglements", mois, () -> moiMeme.enregistrerDetailReglements(mois, debut, fin));
+            detailIsole("grossistes", mois, () -> moiMeme.enregistrerDetailGrossistes(mois, debut, fin));
             return a;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "pilotage : calcul de l'agregat " + mois, e);
             return null;
         }
+    }
+
+    /** Ecrit un detail dans SA transaction : son echec est journalise, jamais propage. */
+    private void detailIsole(String quoi, String mois, Runnable ecriture) {
+        try {
+            ecriture.run();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pilotage : le detail " + quoi + " du mois " + mois
+                    + " n'a pas pu etre enregistre ; les chiffres du mois, eux, sont conserves", e);
+        }
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void enregistrerDetailReglements(String mois, LocalDate debut, LocalDate fin) {
+        enregistrerReglements(mois, debut, fin);
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void enregistrerDetailGrossistes(String mois, LocalDate debut, LocalDate fin) {
+        enregistrerGrossistes(mois, debut, fin);
     }
 
     /**
@@ -878,7 +907,11 @@ public class PilotageAgregats {
              * doit pas faire disparaitre leurs noms de l'ecran. Un fournisseur sans groupe n'a rien a nommer d'autre
              * que lui-meme : la colonne reste vide.
              */
-            String membres = t.get("membres", String.class);
+            /*
+             * La liste des agences est un libelle d'AFFICHAGE : elle est bornee, et une officine qui aurait quarante
+             * agences dans un groupe verrait « ... » plutot que de faire echouer son mois.
+             */
+            String membres = borner(t.get("membres", String.class), 900);
             em.createNativeQuery("INSERT INTO pilotage_agregat_grossiste (str_MOIS, lg_EMPLACEMENT_ID,"
                     + " lg_GROSSISTE_ID, str_GROSSISTE, str_MEMBRES, int_MONTANT, int_NB_BONS, dt_CALCUL)"
                     + " VALUES (?1, ?2, ?3, ?4, ?7, ?5, ?6, NOW())"
@@ -966,6 +999,15 @@ public class PilotageAgregats {
             LOG.log(Level.FINE, "cle de groupe d'un grossiste", e);
         }
         return grossisteId;
+    }
+
+    /** Coupe un libelle trop long sans couper un mot en deux, et le dit par des points de suspension. */
+    private static String borner(String texte, int maximum) {
+        if (texte == null || texte.length() <= maximum) {
+            return texte;
+        }
+        int coupe = texte.lastIndexOf(',', maximum - 4);
+        return (coupe > 0 ? texte.substring(0, coupe) : texte.substring(0, maximum - 4)) + "...";
     }
 
     private static double nombre(Object valeur) {
