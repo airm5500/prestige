@@ -1877,3 +1877,8 @@ body.x-body,
     background-image: none;
     border-color: #cbd5e1;
 }
+/* Les tuiles de l'onglet Achats / Ventes : quatre seulement, mais des libelles longs et des montants a
+   dix chiffres. Plus larges, leur contenu tient sur moins de lignes et la bande reste basse. */
+.pilotage-tuiles-larges .pilotage-tuile {
+    width: 330px;
+}

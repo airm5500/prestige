@@ -39,7 +39,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #choixComparateur combobox[itemId=typeComparaison]': {select: me.surTypeComparaison},
             /* Les trois choix ne declenchent PLUS de requete : seul le bouton « Comparer » la lance. */
             'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer},
-            'pilotage #choixDecoupage combobox[itemId=decoupage]': {select: me.actualiser}
+            /* Le selecteur vit desormais dans le titre du tableau, pas dans une barre a lui. */
+            'pilotage combobox[itemId=decoupage]': {select: me.actualiser}
         });
     },
 
@@ -248,7 +249,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             });
             parametres.kpis = coches.join(',');
         }
-        var decoupage = ecran.down('#choixDecoupage #decoupage');
+        var decoupage = ecran.down('#decoupage');
         if (decoupage) {
             parametres.decoupage = decoupage.getValue() || 'TRIMESTRE';
         }
@@ -1007,8 +1008,16 @@ Ext.define('testextjs.controller.PilotageCtr', {
         this.declarerChamps(store, variations, true);
         store.loadData(reponse.lignes || []);
 
-        /* La seconde ligne d'une case : le poids, la variation annuelle, la variation sur la période d'avant. */
-        var mentions = function (record, prefixe, quoi) {
+        /*
+         * Les mentions sous un montant : le poids dans l'annee, la variation par rapport a l'annee
+         * precedente, celle par rapport a la periode d'avant.
+         *
+         * CHACUNE SUR SA LIGNE, et c'est ce qui permet au tableau de tenir sans defilement horizontal :
+         * une seule ligne portant les trois mentions imposerait des colonnes de deux cents pixels, et le
+         * ratio de la troisieme annee sortirait de l'ecran. Empilees, les colonnes descendent a cent
+         * cinquante et les neuf colonnes tiennent.
+         */
+        var mentions = function (record, prefixe, quoi, an) {
             var out = [];
             /*
              * UNE PERIODE SANS ACTIVITE N'A RIEN A COMMENTER. Sans cette garde, chaque case vide portait
@@ -1023,27 +1032,32 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 out.push('<div class="pilotage-seconde-ligne">' + f.nombre(poids, '0,000.0')
                         + ' % de l\'année</div>');
             }
-            var taux = record.get(prefixe + (quoi === 'ca' ? 'varCaTaux' : 'varAchatTaux'));
-            var prec = record.get(prefixe + (quoi === 'ca' ? 'varCaPrec' : 'varAchatPrec'));
-            var bas = [];
-            if (taux !== null && taux !== undefined) {
-                bas.push('<span class="pilotage-evol ' + f.sens(taux) + '">' + f.fleche(taux) + ' '
-                        + f.nombre(Math.abs(taux), '0,000.0') + ' %</span> vs N-1');
-            }
-            if (prec !== null && prec !== undefined) {
-                bas.push('<span class="pilotage-evol ' + f.sens(prec) + '">' + f.fleche(prec) + ' '
-                        + f.nombre(Math.abs(prec), '0,000.0') + ' %</span> vs préc.');
-            }
-            if (bas.length) {
-                out.push('<div class="pilotage-seconde-ligne">' + bas.join(' &middot; ') + '</div>');
-            }
+            var mention = function (valeur, suffixe) {
+                if (valeur === null || valeur === undefined) {
+                    return;
+                }
+                out.push('<div class="pilotage-seconde-ligne"><span class="pilotage-evol '
+                        + f.sens(valeur) + '">' + f.fleche(valeur) + ' '
+                        + f.nombre(Math.abs(valeur), '0,000.0') + ' %</span> ' + suffixe + '</div>');
+            };
+            /* « /2025 » plutot que « vs N-1 » : l'annee comparee est nommee, on ne la deduit pas. */
+            mention(record.get(prefixe + (quoi === 'ca' ? 'varCaTaux' : 'varAchatTaux')), '/' + (an - 1));
+            mention(record.get(prefixe + (quoi === 'ca' ? 'varCaPrec' : 'varAchatPrec')), '/période préc.');
             return out.join('');
         };
 
         var colonneMontant = function (an, quoi, texte) {
             var prefixe = 'an' + an + '_';
             var champ = prefixe + quoi;
-            return {text: texte, dataIndex: champ, width: 190, align: 'right', itemId: 'col-' + champ,
+            /*
+             * LARGEURS FIXES, ET C'EST UN CHOIX. ExtJS 4.2 n'honore « flex » ni sur une colonne groupee ni
+             * sur ses enfants : a l'interieur d'un groupe, il ne repartit que la largeur DU GROUPE. Les
+             * neuf colonnes sont donc dimensionnees pour qu'elles tiennent ensemble sur un poste courant -
+             * cent soixante-quinze pixels pour un montant a dix chiffres et sa mention de variation, cent
+             * quarante pour un ratio - sans defilement horizontal, ce que l'officine demandait le 20/09.
+             */
+            return {text: texte, dataIndex: champ, width: 175, align: 'right',
+                itemId: 'col-' + champ,
                 renderer: function (v, meta, record) {
                     var t = f.nombre(v);
                     if (t === '') {
@@ -1056,7 +1070,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
                         meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Écart avec ' + (an - 1) + ' : '
                                 + (ecart >= 0 ? '+' : '') + f.nombre(ecart) + ' FCFA') + '"';
                     }
-                    return '<b>' + t + '</b>' + mentions(record, prefixe, quoi);
+                    return '<b>' + t + '</b>' + mentions(record, prefixe, quoi, an);
                 },
                 summaryType: 'sum',
                 summaryRenderer: function (v) {
@@ -1067,8 +1081,27 @@ Ext.define('testextjs.controller.PilotageCtr', {
 
         var colonneRatio = function (an) {
             var prefixe = 'an' + an + '_';
-            return {text: 'RATIO', dataIndex: prefixe + 'ratio', width: 120, align: 'right',
+            return {text: 'RATIO', dataIndex: prefixe + 'ratio', width: 140, align: 'right',
                 itemId: 'col-' + prefixe + 'ratio',
+                /*
+                 * LE RATIO DU PIED N'EST PAS UNE MOYENNE DE RATIOS. Additionner puis diviser n'est pas
+                 * diviser puis moyenner : la moyenne des ratios trimestriels donnerait un nombre qui ne
+                 * correspond a rien. Le pied divise donc le TOTAL des ventes par le TOTAL des achats.
+                 */
+                summaryRenderer: function (valeur, donnees, champ, contexte) {
+                    var ventes = 0;
+                    var achats = 0;
+                    var lignes = contexte && contexte.store ? contexte.store : store;
+                    lignes.each(function (r) {
+                        ventes += Number(r.get(prefixe + 'ca')) || 0;
+                        achats += Number(r.get(prefixe + 'achat')) || 0;
+                    });
+                    if (!achats) {
+                        return '';
+                    }
+                    return '<b class="pilotage-evol ' + (ventes / achats >= 1 ? 'hausse' : 'baisse') + '">'
+                            + f.nombre(ventes / achats, '0,000.00') + '</b>';
+                },
                 renderer: function (v, meta, record) {
                     if (v === null || v === undefined || !v) {
                         return '';
@@ -1081,7 +1114,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     if (ecart !== null && ecart !== undefined) {
                         texte += '<div class="pilotage-seconde-ligne"><span class="pilotage-evol '
                                 + f.sens(ecart) + '">' + f.fleche(ecart) + ' '
-                                + f.nombre(Math.abs(ecart), '0,000.00') + '</span> vs N-1</div>';
+                                + f.nombre(Math.abs(ecart), '0,000.00') + '</span> /' + (an - 1) + '</div>';
                     }
                     return texte;
                 }};
@@ -1089,18 +1122,83 @@ Ext.define('testextjs.controller.PilotageCtr', {
 
         var colonnes = ecran.colonnes('achatsventes');
         Ext.each(annees, function (an) {
+            /*
+             * Un groupe par annee : les trois colonnes qu'il coiffe - ventes, achats, ratio - se lisent
+             * ensemble, et l'annee n'est ecrite qu'une fois au lieu de trois.
+             */
             colonnes.push({text: String(an), align: 'center', columns: [
                     colonneMontant(an, 'ca', 'VENTES'),
                     colonneMontant(an, 'achat', 'ACHATS'),
                     colonneRatio(an)]});
         });
         grille.reconfigure(store, colonnes);
-        var note = ecran.down('#choixDecoupage #noteDecoupage');
-        if (note) {
-            note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
-        }
+        this.dessinerAchatsVentes(annees);
         grille.setTitle('Ventes et achats comparés ' + (reponse.libelleDecoupage || 'par trimestre')
                 + ' — ' + annees.join(', '));
+    },
+
+    /**
+     * La courbe de l'onglet Achats / Ventes : une COULEUR PAR ANNÉE, ventes en trait plein, achats en
+     * pointillés.
+     *
+     * <p>
+     * Ce qu'on y lit et que le tableau ne montre pas d'un coup d'œil : si l'écart entre ce qu'on vend et ce
+     * qu'on achète se creuse ou se referme d'une année sur l'autre. Deux traits de la même couleur qui
+     * s'écartent, c'est une marge qui s'améliore ; qui se rapprochent, un stock qu'on gonfle.
+     */
+    dessinerAchatsVentes: function (annees) {
+        var graphique = this.getEcran().down('#graphique-achatsventes');
+        if (!graphique || !annees || !annees.length) {
+            return;
+        }
+        var f = testextjs.view.pilotage.PilotageManager;
+        var couleurs = ['#6b7b8c', '#ef6c00', '#1565c0'];
+        try {
+            graphique.series.removeAll();
+            var champs = [];
+            Ext.each(annees, function (an, i) {
+                /* La derniere annee prend la couleur la plus franche : c'est celle qu'on regarde. */
+                var couleur = couleurs[(couleurs.length - annees.length + i + couleurs.length)
+                        % couleurs.length];
+                Ext.each([{quoi: 'ca', nom: 'Ventes', pointille: false},
+                    {quoi: 'achat', nom: 'Achats', pointille: true}], function (serie) {
+                    var champ = 'an' + an + '_' + serie.quoi;
+                    champs.push(champ);
+                    var style = {stroke: couleur, 'stroke-width': 3, opacity: 1};
+                    if (serie.pointille) {
+                        style['stroke-dasharray'] = '7,5';
+                    }
+                    graphique.series.add(Ext.create('Ext.chart.series.Line', {
+                        chart: graphique,
+                        type: 'line',
+                        axis: 'left',
+                        xField: 'libelle',
+                        yField: champ,
+                        title: serie.nom + ' ' + an,
+                        smooth: false,
+                        style: style,
+                        markerConfig: {radius: 4, type: serie.pointille ? 'cross' : 'circle',
+                            fill: couleur, stroke: couleur},
+                        tips: f.infobulle(function (record) {
+                            var ratio = record.get('an' + an + '_ratio');
+                            return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + ' ' + an
+                                    + '</b><br>' + serie.nom + ' : ' + (f.nombre(record.get(champ)) || '—')
+                                    + (ratio ? '<br>ratio ventes / achats : '
+                                            + f.nombre(ratio, '0,000.00') : '');
+                        })
+                    }));
+                });
+            });
+            if (champs.length) {
+                graphique.axes.getAt(0).fields = champs;
+            }
+            if (graphique.legend && graphique.legend.isLegend) {
+                graphique.legend.create();
+            }
+            graphique.redraw();
+        } catch (e) {
+            /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+        }
     },
 
     /**

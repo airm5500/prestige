@@ -552,9 +552,6 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'comparateur') {
             contenu.push(me.choixComparateur());
         }
-        if (onglet.cle === 'achatsventes') {
-            contenu.push(me.choixDecoupage());
-        }
         contenu.push(me.tuiles(onglet.cle));
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
@@ -567,11 +564,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          */
         if (onglet.cle === 'achatsventes') {
             /*
-             * PAS DE COURBE ICI, et c'est voulu. Cet onglet compare des PERIODES de trois annees differentes
-             * face a face ; une courbe du temps ne repond pas a « ce trimestre, ai-je achete plus que je n'ai
-             * vendu, et ou en suis-je par rapport a l'an dernier ». Le tableau prend donc toute la place.
+             * LE TABLEAU D'ABORD, LA COURBE ENSUITE. Le tableau porte les chiffres exacts, la courbe montre
+             * d'un regard si l'ecart entre ce qu'on vend et ce qu'on achete se creuse ou se referme d'une
+             * annee sur l'autre. Les deux repondent a la meme question, a deux niveaux de precision.
              */
             contenu.push(me.detail(onglet.cle));
+            contenu.push(me.graphiqueAchatsVentes());
             return {
                 xtype: 'panel',
                 itemId: 'onglet-' + onglet.cle,
@@ -728,7 +726,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             xtype: 'dataview',
             itemId: 'tuiles-' + cle,
             store: this.stores[cle].tuiles,
-            cls: 'pilotage-tuiles',
+            /*
+             * L'onglet Achats / Ventes n'a que QUATRE tuiles, mais elles portent des libelles longs et des
+             * montants a dix chiffres : a deux cent quinze pixels, « Cumul 2025 au meme mois : 592,6 M »
+             * passait a la ligne et la bande doublait de hauteur. Plus larges, elles tiennent sur une seule
+             * rangee basse - et la place ainsi gagnee revient a la courbe (20/09).
+             */
+            cls: cle === 'achatsventes' ? 'pilotage-tuiles pilotage-tuiles-larges' : 'pilotage-tuiles',
             itemSelector: 'div.pilotage-tuile',
             emptyText: '<div class="pilotage-vide">Choisissez une période puis « Actualiser ».</div>',
             deferEmptyText: false,
@@ -949,6 +953,32 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             title: cle === 'achatsventes'
                     ? 'Ventes et achats comparés, trois années face à face'
                     : 'Détail mensuel (du mois actuel au plus ancien)',
+            /*
+             * LE SELECTEUR DE DECOUPAGE VIT DANS LE TITRE, pas dans une barre a lui : une barre d'outils de
+             * plus, c'est une ligne de moins pour les chiffres, et le choix se fait la ou on lit le resultat.
+             */
+            header: cle !== 'achatsventes' ? undefined : {
+                titlePosition: 0,
+                items: [{
+                        xtype: 'combobox',
+                        itemId: 'decoupage',
+                        width: 150,
+                        margin: '0 8 0 12',
+                        editable: false,
+                        value: 'TRIMESTRE',
+                        store: new Ext.data.Store({
+                            fields: ['id', 'libelle'],
+                            data: [
+                                {id: 'TRIMESTRE', libelle: 'Par trimestre'},
+                                {id: 'SEMESTRE', libelle: 'Par semestre'},
+                                {id: 'ANNEE', libelle: 'Par année'}
+                            ]
+                        }),
+                        displayField: 'libelle',
+                        valueField: 'id',
+                        queryMode: 'local'
+                    }]
+            },
             store: this.stores[cle].detail,
             flex: 1,
             minHeight: 200,
@@ -1138,44 +1168,40 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     },
 
     /**
-     * Le decoupage de l'onglet Achats / Ventes : trimestre, semestre ou annee.
+     * La courbe de l'onglet Achats / Ventes : les periodes en abscisse, une COULEUR PAR ANNEE.
      *
      * <p>
-     * Le trimestre par defaut, parce que c'est le pas auquel une officine decide de son reapprovisionnement.
-     * Le selecteur de PERIODE de la barre du haut ne s'applique pas ici : cet onglet regarde toujours les trois
-     * dernieres annees civiles, et c'est leur decoupage qui change.
+     * Les ventes en trait plein, les achats en pointilles de la meme couleur : on voit d'un regard si l'ecart
+     * entre ce qu'on vend et ce qu'on achete se creuse ou se referme d'une annee sur l'autre, ce qu'un tableau
+     * de chiffres ne montre jamais aussi vite. Les series sont posees au chargement, comme les colonnes : les
+     * annees changent avec la date du jour.
      */
-    choixDecoupage: function () {
+    graphiqueAchatsVentes: function () {
         return {
-            xtype: 'toolbar',
-            itemId: 'choixDecoupage',
-            padding: 4,
+            xtype: 'panel',
+            itemId: 'graphiquePanneau-achatsventes',
+            title: 'Évolution comparée des ventes et des achats',
+            flex: 1,
+            minHeight: 280,
+            layout: 'fit',
             items: [{
-                    xtype: 'combobox',
-                    itemId: 'decoupage',
-                    fieldLabel: 'Découpage',
-                    labelWidth: 70,
-                    width: 230,
-                    editable: false,
-                    value: 'TRIMESTRE',
-                    store: new Ext.data.Store({
-                        fields: ['id', 'libelle'],
-                        data: [
-                            {id: 'TRIMESTRE', libelle: 'Par trimestre'},
-                            {id: 'SEMESTRE', libelle: 'Par semestre'},
-                            {id: 'ANNEE', libelle: 'Par année'}
-                        ]
-                    }),
-                    displayField: 'libelle',
-                    valueField: 'id',
-                    queryMode: 'local'
-                }, {
-                    xtype: 'component',
-                    flex: 1
-                }, {
-                    xtype: 'displayfield',
-                    itemId: 'noteDecoupage',
-                    value: ''
+                    xtype: 'chart',
+                    itemId: 'graphique-achatsventes',
+                    animate: false,
+                    shadow: false,
+                    legend: {position: 'top'},
+                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
+                    store: this.stores.achatsventes.detail,
+                    axes: [testextjs.view.pilotage.PilotageManager.axeMontants(['libelle']), {
+                            type: 'Category',
+                            position: 'bottom',
+                            fields: ['libelle'],
+                            label: {
+                                font: 'bold 12px tahoma, arial, sans-serif',
+                                fill: '#333333'
+                            }
+                        }],
+                    series: []
                 }]
         };
     },
@@ -1236,7 +1262,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         }
         if (cle === 'achatsventes') {
             /* Les colonnes d'annees sont posees au chargement : elles dependent de la date du jour. */
-            return [{text: 'PÉRIODE', dataIndex: 'libelle', width: 150, itemId: 'col-periode',
+            return [{text: 'PÉRIODE', dataIndex: 'libelle', width: 130, itemId: 'col-periode',
                     summaryRenderer: function () {
                         return '<b>TOTAUX</b>';
                     }}];

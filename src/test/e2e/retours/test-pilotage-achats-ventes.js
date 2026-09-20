@@ -95,10 +95,21 @@ function texteDuPdf(octets) {
       const store = grille.getStore();
       const lignes = [];
       store.each((r) => lignes.push(Ext.apply({}, r.data)));
+      const feuilles = grille.headerCt.getGridColumns();
       return { lignes: lignes,
-        colonnes: grille.headerCt.getGridColumns().map((c) => c.text),
+        colonnes: feuilles.map((c) => c.text),
         titre: grille.title,
         appels: window.__appelsAV || 0,
+        /* La largeur totale des colonnes, comparee a celle de la grille : au-dela, il y a defilement. */
+        largeurColonnes: feuilles.reduce((t, c) => t + c.getWidth(), 0),
+        largeurGrille: grille.getWidth(),
+        /* Le selecteur est-il bien DANS l'en-tete du tableau ? */
+        selecteurDansTitre: !!(grille.getHeader() && grille.getHeader().down('#decoupage')),
+        barreSeparee: !!Ext.ComponentQuery.query('pilotage #choixDecoupage')[0],
+        series: (() => { const g = Ext.ComponentQuery.query('pilotage #graphique-achatsventes')[0];
+          return g ? g.series.items.map((x) => x.title) : []; })(),
+        pied: (() => { const el = grille.getEl().dom.querySelector('.x-grid-row-summary');
+          return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; })(),
         tuiles: (() => { const t = []; e.stores.achatsventes.tuiles.each((r) =>
           t.push({ cle: r.get('cle'), valeur: r.get('valeur') })); return t; })() };
     });
@@ -165,7 +176,8 @@ function texteDuPdf(octets) {
     /* --------------------------------------------------------------- les trois découpages */
     const choisir = async (valeur) => {
       await p.evaluate((v) => {
-        const c = Ext.ComponentQuery.query('pilotage #choixDecoupage #decoupage')[0];
+        /* Le selecteur vit dans l'EN-TETE du tableau depuis le 20/09, plus dans une barre a lui. */
+        const c = Ext.ComponentQuery.query('pilotage #decoupage')[0];
         c.setValue(v);
         c.fireEvent('select', c, [c.getStore().findRecord('id', v)]);
       }, valeur);
@@ -218,6 +230,44 @@ function texteDuPdf(octets) {
 
     const duree = Date.now() - debut;
     ok('Le parcours complet reste fluide', duree < 180000, Math.round(duree / 1000) + ' s');
+    /* --------------------------------------------------------------- retours du 20/09 sur cet onglet */
+    const fini = await lire();
+    /*
+     * LE RATIO DE LA TROISIEME ANNEE DOIT SE VOIR SANS FAIRE DEFILER. C'etait la demande : « faire de sorte
+     * qu'on voie le ratio sans scroll horizontal, tout en gardant les chiffres visibles ». Les neuf colonnes
+     * et celle des periodes tiennent donc dans la largeur de la grille.
+     */
+    ok('Les colonnes tiennent dans la largeur : pas de défilement horizontal',
+      fini.largeurColonnes <= fini.largeurGrille,
+      fini.largeurColonnes + ' px de colonnes pour ' + fini.largeurGrille + ' px de grille');
+    ok('Le ratio de la dernière année est bien une colonne du tableau',
+      fini.colonnes.filter((c) => c === 'RATIO').length === 3, JSON.stringify(fini.colonnes));
+    ok('Le sélecteur de découpage est dans l EN-TÊTE du tableau, plus dans une barre à lui',
+      fini.selecteurDansTitre === true && fini.barreSeparee === false,
+      'dans le titre : ' + fini.selecteurDansTitre + ', barre séparée : ' + fini.barreSeparee);
+    ok('La note « Ventes et achats viennent... » a disparu de l écran',
+      cellulesVides.indexOf('viennent des mêmes agrégats') < 0
+      && (await p.evaluate(() => document.body.innerText)).indexOf('viennent des mêmes agrégats') < 0,
+      'la note « Ventes et achats viennent des mêmes agrégats... » figure encore à l écran');
+    /*
+     * LA COURBE : une couleur par annee, les ventes en trait plein et les achats en pointilles. Six series
+     * pour trois annees - c'est ce qui montre si l'ecart entre ce qu'on vend et ce qu'on achete se creuse.
+     */
+    ok('Une courbe d évolution accompagne le tableau, deux séries par année',
+      fini.series.length === 6 && fini.series.indexOf('Ventes ' + anneeCourante) >= 0
+      && fini.series.indexOf('Achats ' + anneeCourante) >= 0, JSON.stringify(fini.series));
+    /*
+     * LE RATIO DU PIED N'EST PAS UNE MOYENNE DE RATIOS : additionner puis diviser n'est pas diviser puis
+     * moyenner. On le recalcule a la main depuis les totaux.
+     */
+    const totalAchats = fini.lignes.reduce((t, l) => t + (Number(l[prefixe + 'achat']) || 0), 0);
+    const totalVentes = fini.lignes.reduce((t, l) => t + (Number(l[prefixe + 'ca']) || 0), 0);
+    const ratioAttendu = totalAchats ? (totalVentes / totalAchats) : null;
+    ok('La ligne TOTAUX porte le ratio de l année, calculé sur les totaux et non moyenné',
+      ratioAttendu === null
+      || fini.pied.indexOf(ratioAttendu.toFixed(2).replace('.', ',')) >= 0,
+      'attendu ' + (ratioAttendu === null ? '-' : ratioAttendu.toFixed(2)) + ' dans « ' + fini.pied + ' »');
+
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + e.stack);
