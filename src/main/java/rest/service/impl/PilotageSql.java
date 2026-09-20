@@ -168,9 +168,25 @@ public final class PilotageSql {
      * Un grossiste SANS groupe reste lui-meme : on ne l'oblige pas a entrer dans un ensemble qui n'existe pas dans le
      * referentiel. La cle d'affichage est donc le groupe s'il y en a un, le grossiste sinon.
      */
-    private static final String CLE_GROUPE = " COALESCE(CONCAT('GRP', gf.id), g.lg_GROSSISTE_ID)";
+    /**
+     * LE GROUPE FOURRE-TOUT NE REGROUPE RIEN.
+     *
+     * <p>
+     * Le referentiel a un groupe nomme « AUTRES » qui ne designe pas une maison mais tout ce qui n'entre dans aucune
+     * des autres : dix fournisseurs sans rapport entre eux. Les fondre en une colonne ferait disparaitre chacun d'eux
+     * du tableau sans rien apprendre - ce n'est pas un fournisseur, c'est une absence de fournisseur commun. Ses
+     * membres gardent donc leur propre colonne, comme ceux qui n'ont aucun groupe.
+     *
+     * <p>
+     * C'est le LIBELLE du groupe qui decide, et non son identifiant : une officine qui renommerait ou renumeroterait
+     * ses groupes garde le meme comportement.
+     */
+    private static final String FOURRE_TOUT = " (gf.id IS NULL OR UPPER(gf.libelle) = 'AUTRES') ";
 
-    private static final String LIBELLE_GROUPE = " COALESCE(gf.libelle, g.str_LIBELLE)";
+    private static final String CLE_GROUPE = " CASE WHEN" + FOURRE_TOUT
+            + "THEN g.lg_GROSSISTE_ID ELSE CONCAT('GRP', gf.id) END";
+
+    private static final String LIBELLE_GROUPE = " CASE WHEN" + FOURRE_TOUT + "THEN g.str_LIBELLE ELSE gf.libelle END";
 
     public static String achatsParMoisEtGrossiste(String grossisteId) {
         return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois," + CLE_GROUPE + " AS grossisteId," + LIBELLE_GROUPE
@@ -193,9 +209,10 @@ public final class PilotageSql {
      * La quantite retenue est la quantite RECUE : une ligne commandee mais non livree n'est pas un achat.
      */
     public static String achatsLignesParMois(String grossisteId, String familleId, String emplacementId) {
-        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois,"
-                + " COALESCE(CONCAT('GRP', gf.id), g.lg_GROSSISTE_ID, 'SANS') AS grossisteId,"
-                + " COALESCE(gf.libelle, g.str_LIBELLE, 'Sans grossiste') AS grossiste,"
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois," + " COALESCE(CASE WHEN" + FOURRE_TOUT
+                + "THEN d.lg_GROSSISTE_ID ELSE CONCAT('GRP', gf.id) END," + "     'SANS') AS grossisteId,"
+                + " COALESCE(CASE WHEN" + FOURRE_TOUT + "THEN g.str_LIBELLE ELSE gf.libelle END,"
+                + "     'Sans grossiste') AS grossiste,"
                 + " GROUP_CONCAT(DISTINCT g.str_LIBELLE ORDER BY g.str_LIBELLE SEPARATOR ', ') AS membres,"
                 + " SUM(d.int_PAF * d.int_QTE_RECUE) AS montant, COUNT(DISTINCT b.lg_BON_LIVRAISON_ID) AS nbBons"
                 + " FROM t_bon_livraison_detail d"

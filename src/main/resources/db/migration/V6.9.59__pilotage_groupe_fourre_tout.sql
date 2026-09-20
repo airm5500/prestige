@@ -1,0 +1,25 @@
+-- =====================================================================
+-- Evolution 6, point 1 : LE GROUPE FOURRE-TOUT NE REGROUPE RIEN.
+--
+-- Le referentiel a un groupe nomme « AUTRES » qui ne designe pas une
+-- maison de gros mais tout ce qui n'entre dans aucune des autres : dix
+-- fournisseurs sans rapport entre eux. La V6.9.58 les a fondus en une
+-- seule colonne, ce qui les faisait disparaitre du tableau sans rien
+-- apprendre en echange - ce n'est pas un fournisseur, c'est une absence
+-- de fournisseur commun. Demande de l'officine : « laisse que les vrais
+-- groupes fusionnent, AUTRES reste eclate ».
+--
+-- Ses membres reprennent donc leur propre colonne, comme les
+-- fournisseurs qui n'ont aucun groupe. Seuls fusionnent les groupes qui
+-- nomment une maison - LABOREX-CI, DPCI, COPHARMED, TEDIS.
+--
+-- C'est le LIBELLE du groupe qui decide et non son identifiant : une
+-- officine qui renumeroterait ses groupes garde le meme comportement.
+--
+-- Les deux tables sont videes pour que les cles soient reconstruites :
+-- elles ne sont qu'un cache de calcul, refait a partir des bons de
+-- livraison par le travail planifie du demarrage, avant que l'ecran ne
+-- soit ouvert. Aucune donnee n'est perdue.
+-- =====================================================================
+TRUNCATE TABLE `pilotage_agregat_grossiste`;
+TRUNCATE TABLE `pilotage_agregat_mensuel`;

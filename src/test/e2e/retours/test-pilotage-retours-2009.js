@@ -202,6 +202,48 @@ function poserLesLots() {
       !!tuilePeremption && tuilePeremption.alerte === true && stock.alerteVisible > 0,
       'alerte=' + (tuilePeremption || {}).alerte + ' elements=' + stock.alerteVisible);
 
+    /* ------------------------------------------------- onglet Achats : les groupes de fournisseurs */
+    await changerOnglet('Achats');
+    const achats = await p.evaluate(async () => {
+      /* Douze mois glissants : le mois en cours peut n avoir aucun achat, ce qui ne dirait rien. */
+      const r = await fetch('../api/v1/pilotage/onglet/achats?axe=G12', { credentials: 'same-origin' });
+      const j = JSON.parse(await r.text());
+      return { colonnes: (j.grossistesColonnes || []).map((c) => c.libelle),
+        repartition: (j.repartition || []).map((x) => ({ nom: x.grossiste, membres: x.membres })) };
+    });
+    /*
+     * LES AGENCES D UN MEME GROUPE NE FONT QU UNE COLONNE... mais le groupe fourre-tout « AUTRES », lui,
+     * ne regroupe rien : il ne designe pas une maison de gros, seulement tout ce qui n entre dans aucune
+     * des autres. Ses membres gardent donc leur propre colonne (demande du 20/09).
+     */
+    const agences = q("SELECT COUNT(*) FROM t_grossiste g JOIN groupefournisseur gf ON gf.id=g.groupeId"
+      + " WHERE UPPER(gf.libelle)<>'AUTRES' AND EXISTS (SELECT 1 FROM t_order o"
+      + "   JOIN t_bon_livraison b ON b.lg_ORDER_ID=o.lg_ORDER_ID"
+      + "   WHERE o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID AND b.str_STATUT='is_Closed')");
+    const vraisGroupes = q("SELECT COUNT(DISTINCT gf.id) FROM t_grossiste g"
+      + " JOIN groupefournisseur gf ON gf.id=g.groupeId"
+      + " WHERE UPPER(gf.libelle)<>'AUTRES' AND EXISTS (SELECT 1 FROM t_order o"
+      + "   JOIN t_bon_livraison b ON b.lg_ORDER_ID=o.lg_ORDER_ID"
+      + "   WHERE o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID AND b.str_STATUT='is_Closed')");
+    ok('Les agences d un vrai groupe ne font qu une colonne : moins de colonnes que d agences',
+      Number(agences) > Number(vraisGroupes),
+      agences + ' agence(s) rattachee(s) pour ' + vraisGroupes + ' groupe(s)');
+    ok('Le groupe fourre-tout « AUTRES » ne regroupe rien : il n apparaît pas comme une colonne',
+      achats.colonnes.map((c) => String(c).toUpperCase()).indexOf('AUTRES') < 0,
+      JSON.stringify(achats.colonnes));
+    const membresDeAutres = q("SELECT g.str_LIBELLE FROM t_grossiste g"
+      + " JOIN groupefournisseur gf ON gf.id=g.groupeId JOIN t_order o ON o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID"
+      + " JOIN t_bon_livraison b ON b.lg_ORDER_ID=o.lg_ORDER_ID"
+      + " WHERE UPPER(gf.libelle)='AUTRES' AND b.str_STATUT='is_Closed'"
+      + " AND b.dt_UPDATED>=DATE_SUB(DATE_FORMAT(CURDATE(),'%Y-%m-01'), INTERVAL 12 MONTH)"
+      + " AND b.dt_UPDATED<DATE_FORMAT(CURDATE(),'%Y-%m-01') LIMIT 1");
+    ok('Et chacun de ses membres garde SA colonne, sous son propre nom',
+      !membresDeAutres || achats.colonnes.indexOf(membresDeAutres) >= 0,
+      membresDeAutres + ' dans ' + JSON.stringify(achats.colonnes));
+    const groupe = achats.repartition.filter((x) => x.membres)[0];
+    ok('La répartition nomme les agences qui composent un vrai groupe : rien ne disparaît',
+      !groupe || groupe.membres.indexOf(',') > 0, JSON.stringify(groupe));
+
     /* ------------------------------------------------- onglet KPI : la ligne de total */
     await changerOnglet('KPI Analyse');
     const kpi = await p.evaluate(() => {

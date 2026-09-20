@@ -953,10 +953,11 @@ public class PilotageAgregats {
     /** La cle sous laquelle un fournisseur est agrege : celle de son groupe, ou la sienne s'il n'en a pas. */
     private String cleDeGroupe(String grossisteId) {
         try {
-            Object cle = em
-                    .createNativeQuery("SELECT COALESCE(CONCAT('GRP', g.groupeId), g.lg_GROSSISTE_ID)"
-                            + " FROM t_grossiste g WHERE g.lg_GROSSISTE_ID = ?1")
-                    .setParameter(1, grossisteId).getSingleResult();
+            /* La MEME regle que l'ecran : le groupe fourre-tout « AUTRES » ne regroupe rien. */
+            Object cle = em.createNativeQuery("SELECT CASE WHEN gf.id IS NULL OR UPPER(gf.libelle) = 'AUTRES'"
+                    + "   THEN g.lg_GROSSISTE_ID ELSE CONCAT('GRP', gf.id) END"
+                    + " FROM t_grossiste g LEFT JOIN groupefournisseur gf ON gf.id = g.groupeId"
+                    + " WHERE g.lg_GROSSISTE_ID = ?1").setParameter(1, grossisteId).getSingleResult();
             if (cle != null) {
                 return String.valueOf(cle);
             }
