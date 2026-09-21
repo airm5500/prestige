@@ -51,7 +51,23 @@ function nettoyer() {
   await p.waitForTimeout(1500);
   let sel = await okButton(); if (sel) { await p.click(sel); await p.waitForTimeout(400); }
   const ci = await p.evaluate(() => '#' + Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #produit')[0].inputEl.id);
-  await p.click(ci); await p.keyboard.type('0000498', { delay: 40 });
+  /*
+   * L'ARTICLE EST CHOISI DANS LA BASE, pas ecrit en dur.
+   *
+   * Ce test tapait le code « 0000498 », qui n'existe plus dans le jeu d'essai : la liste de suggestions
+   * restait vide et le test echouait sur une attente de vingt secondes, sans rapport avec ce qu'il verifie.
+   * Un test qui depend d'un code produit fige tombe le jour ou le jeu d'essai change - il vaut mieux qu'il
+   * prenne un article reellement vendable : actif, en stock et avec un prix.
+   */
+  const cipArticle = q("SELECT f.int_CIP FROM t_famille f"
+    + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
+    + " WHERE f.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE>20 AND f.int_PRICE>0"
+    + " AND f.int_CIP IS NOT NULL AND f.int_CIP<>''"
+    + " ORDER BY s.int_NUMBER_AVAILABLE DESC LIMIT 1");
+  if (!cipArticle) {
+    throw new Error('aucun article actif, en stock et avec un prix dans le jeu d essai');
+  }
+  await p.click(ci); await p.keyboard.type(cipArticle, { delay: 40 });
   await p.waitForSelector('.x-boundlist-item', { timeout: 20000 }); await p.locator('.x-boundlist-item').first().click();
   await p.waitForTimeout(600);
   const qi = await p.evaluate(() => '#' + Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #qtyField')[0].inputEl.id);
