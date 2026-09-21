@@ -22,6 +22,16 @@
     .ep-recherche input { flex: 1; font-size: 17px; padding: 10px 14px; border: 2px solid #1E5FA8;
                           border-radius: 6px; outline: none; }
     .ep-note { color: #5A6B80; font-size: 13px; margin-bottom: 12px; }
+    /* Le selecteur de DCI, sous la zone de recherche : « afficher les produits concernes par la DCI
+       selectionnee » (21/09). Il se suffit a lui-meme : choisir une DCI cherche sans rien taper. */
+    .ep-dci { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px 0; flex-wrap: wrap; }
+    .ep-dci label { color: #1E3A5F; font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .ep-dci select { flex: 1; min-width: 260px; max-width: 620px; font-size: 15px; padding: 7px 10px;
+                     border: 1px solid #1E5FA8; border-radius: 6px; background: #FFFFFF; color: #1E3A5F; }
+    .ep-dci select:disabled { border-color: #D3DBE5; color: #8A99A8; background: #F4F6F9; }
+    .ep-dci button { font-size: 13px; padding: 6px 10px; border: 1px solid #D3DBE5; border-radius: 6px;
+                     background: #FFFFFF; color: #1E5FA8; cursor: pointer; }
+    .ep-dci button:hover { background: #EEF3FA; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     thead th { background: #4C9A46; color: #FFFFFF; text-align: left; padding: 8px 10px; white-space: nowrap; }
     tbody td { border-bottom: 1px solid #E4E9F0; padding: 7px 10px; }
@@ -81,7 +91,15 @@
       <input id="ep-q" type="text" placeholder="CIP, nom du produit ou code EAN (2 caractères minimum)…"
              autocomplete="off" autofocus>
     </div>
-    <div class="ep-note">La recherche trouve le texte n'importe où dans le nom. Consultation seule.</div>
+    <div class="ep-dci">
+      <label for="ep-dci">DCI :</label>
+      <select id="ep-dci" disabled>
+        <option value="">— Toutes les DCI (chargement…) —</option>
+      </select>
+      <button type="button" id="ep-dci-effacer" title="Revenir à la recherche par texte">✕ Effacer</button>
+    </div>
+    <div class="ep-note">La recherche trouve le texte n'importe où dans le nom, ou tous les produits d'une DCI.
+      Consultation seule.</div>
     <table>
       <thead>
         <tr>
@@ -169,23 +187,66 @@
         total.textContent = lignes.length + ' produit(s)' + (lignes.length >= 50 ? ' — liste limitée à 50, précisez la recherche' : '');
       }
 
+      var selecteurDci = document.getElementById('ep-dci');
+      var effacerDci = document.getElementById('ep-dci-effacer');
+
       function chercher() {
         var texte = champ.value.trim();
-        if (texte.length < 2) {
-          corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Saisissez au moins 2 caractères.</td></tr>';
+        var dci = selecteurDci.value;
+        // Une DCI choisie suffit a chercher : on n'exige les deux caracteres que sans DCI.
+        if (texte.length < 2 && !dci) {
+          corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Saisissez au moins 2 caractères, ou choisissez une DCI.</td></tr>';
           total.textContent = '';
           return;
         }
         var numero = ++derniereRequete;
         var x = new XMLHttpRequest();
-        x.open('GET', '../api/v1/espace-produit/recherche?q=' + encodeURIComponent(texte), true);
+        x.open('GET', '../api/v1/espace-produit/recherche?q=' + encodeURIComponent(texte)
+            + (dci ? '&dci=' + encodeURIComponent(dci) : ''), true);
+        var libelle = texte.length >= 2 ? texte : '';
+        if (dci) {
+          var option = selecteurDci.options[selecteurDci.selectedIndex];
+          libelle += (libelle ? ' + ' : '') + 'DCI ' + (option ? option.getAttribute('data-nom') : '');
+        }
         x.onload = function () {
           if (numero !== derniereRequete) { return; } // une frappe plus recente a pris la main
-          try { afficher(JSON.parse(x.responseText).data || [], texte); }
+          try { afficher(JSON.parse(x.responseText).data || [], libelle); }
           catch (e) { corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Erreur de lecture.</td></tr>'; }
         };
         x.send();
       }
+
+      // La liste des DCI : seulement celles qui ont des produits, avec leur nombre. Sans aucune DCI
+      // renseignee sur cette base, le selecteur reste inactif et le dit, plutot que d'offrir une liste vide.
+      (function () {
+        var x = new XMLHttpRequest();
+        x.open('GET', '../api/v1/espace-produit/dci', true);
+        x.onload = function () {
+          var lignes = [];
+          try { lignes = JSON.parse(x.responseText).data || []; } catch (e) { lignes = []; }
+          if (!lignes.length) {
+            selecteurDci.innerHTML = '<option value="">— Aucune DCI renseignée sur les produits —</option>';
+            return;
+          }
+          var html = '<option value="">— Toutes les DCI (' + lignes.length + ') —</option>';
+          for (var i = 0; i < lignes.length; i++) {
+            html += '<option value="' + echapper(lignes[i].id) + '" data-nom="' + echapper(lignes[i].nom) + '">'
+                + echapper(lignes[i].nom) + ' (' + lignes[i].produits + ')</option>';
+          }
+          selecteurDci.innerHTML = html;
+          selecteurDci.disabled = false;
+        };
+        x.onerror = function () {
+          selecteurDci.innerHTML = '<option value="">— Liste des DCI indisponible —</option>';
+        };
+        x.send();
+      })();
+      selecteurDci.addEventListener('change', function () { if (tampon) { clearTimeout(tampon); } chercher(); });
+      effacerDci.addEventListener('click', function () {
+        selecteurDci.value = '';
+        champ.focus();
+        chercher();
+      });
 
       champ.addEventListener('input', function () {
         if (tampon) { clearTimeout(tampon); }

@@ -43,7 +43,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // 50 lignes au plus - voir rest.EspaceProduitRessource.
             "v1/espace-produit/recherche",
             // Courbe des ventes mensuelles (quantites seules) d'un produit de l'espace produit
-            "v1/espace-produit/ventes-mensuelles");
+            "v1/espace-produit/ventes-mensuelles",
+            // Liste des DCI ayant des produits (nom de molecule et nombre de produits, rien d'autre) :
+            // le selecteur de l'espace produit, demande du 21/09
+            "v1/espace-produit/dci");
 
     @Inject
     private HttpServletRequest servletRequest;
