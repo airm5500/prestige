@@ -50,8 +50,15 @@ public class TOrdonnanceClient implements Serializable {
     @Column(name = "str_NUMERO", nullable = false, length = 30)
     private String strNUMERO;
 
+    /*
+     * PAS DE « fetch = LAZY » sur les @ManyToOne de cette entite : EclipseLink ne l'applique que si le TISSAGE des
+     * classes est actif, il ne l'est pas dans ce deploiement, et il l'annoncait a chaque demarrage - « Reverting the
+     * lazy setting ... since weaving was not enabled ». Une optimisation qu'on croit acquise et qui n'existe pas vaut
+     * moins que pas d'optimisation du tout. Les COLLECTIONS, elles, restent paresseuses : leur chargement differe n'a
+     * pas besoin du tissage et fonctionne bien.
+     */
     @JoinColumn(name = "lg_CLIENT_ID", referencedColumnName = "lg_CLIENT_ID", nullable = false)
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     private TClient client;
 
     @Column(name = "dt_ORDONNANCE", nullable = false)
@@ -59,7 +66,7 @@ public class TOrdonnanceClient implements Serializable {
     private Date dtORDONNANCE;
 
     @JoinColumn(name = "lg_MEDECIN_ID", referencedColumnName = "lg_MEDECIN_ID")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     private TMedecin medecin;
 
     @Column(name = "str_ETABLISSEMENT", length = 100)

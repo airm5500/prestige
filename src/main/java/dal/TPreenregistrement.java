@@ -178,13 +178,23 @@ public class TPreenregistrement implements Serializable {
      * le depot CLIENT d'une vente a un depot.
      */
     /*
-     * PARESSEUSE, et ce n'est pas un detail : @ManyToOne est EAGER par defaut, et mvttransaction charge eagerement sa
-     * vente. Laissee eager, cette association ajoutait UN SELECT PAR VENTE a tout le monde - ticket Z, balance,
-     * journaux. Mesure sur 300 ventes : 2,1 a 4,4 s pour un ticket Z qui doit etre instantane. Personne n'a besoin de
-     * cet emplacement au chargement : il est lu a la demande.
+     * PAS DE « fetch = LAZY » ICI, ET C'EST DELIBERE.
+     *
+     * Cette association avait ete declaree paresseuse le 17/09 pour alleger le ticket Z, qui chargeait une vente par
+     * mouvement de caisse. EclipseLink n'applique pourtant le chargement paresseux d'un @ManyToOne que si le TISSAGE
+     * des classes est actif ; il ne l'est pas dans ce deploiement. L'annotation etait donc ignoree, et EclipseLink
+     * l'annoncait a chaque demarrage : « Reverting the lazy setting ... since weaving was not enabled ».
+     *
+     * LE TICKET Z N'EN DEPEND PAS. Le gain mesure ce jour-la - de quatre secondes et demie a deux secondes et demie -
+     * venait de l'autre correction du meme commit : la ventilation « dont vente depot » ne parcourt plus les entites,
+     * elle tient en UNE requete agregee par ticket. C'est elle qui porte le gain, et elle est intacte. L'annotation,
+     * elle, n'apportait rien qu'un avertissement dans le journal de l'officine.
+     *
+     * Si le tissage est active un jour, ce sera un chantier a lui : il change le comportement de TOUTES les entites du
+     * logiciel et demande son propre banc d'essai.
      */
     @JoinColumn(name = "lg_EMPLACEMENT_VENTE_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
-    @ManyToOne(fetch = javax.persistence.FetchType.LAZY)
+    @ManyToOne
     private TEmplacement emplacementVente;
     @JoinColumn(name = "lg_REGLEMENT_ID", referencedColumnName = "lg_REGLEMENT_ID")
     @ManyToOne

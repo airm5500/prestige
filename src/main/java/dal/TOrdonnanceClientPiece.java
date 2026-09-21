@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
@@ -34,8 +33,14 @@ public class TOrdonnanceClientPiece implements Serializable {
     @Column(name = "lg_PIECE_ID", nullable = false, length = 40)
     private String lgPIECEID;
 
+    /*
+     * PAS DE « fetch = LAZY » sur les @ManyToOne de cette entite : EclipseLink ne l'applique que si le TISSAGE des
+     * classes est actif, il ne l'est pas dans ce deploiement, et il l'annoncait a chaque demarrage - « Reverting the
+     * lazy setting ... since weaving was not enabled ». Une optimisation qu'on croit acquise et qui n'existe pas vaut
+     * moins que pas d'optimisation du tout.
+     */
     @JoinColumn(name = "lg_ORDONNANCE_ID", referencedColumnName = "lg_ORDONNANCE_ID", nullable = false)
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     private TOrdonnanceClient ordonnance;
 
     @Column(name = "str_NOM_ORIGINE", nullable = false, length = 150)
