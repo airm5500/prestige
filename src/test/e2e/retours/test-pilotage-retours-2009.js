@@ -379,12 +379,32 @@ function poserLesLots() {
      * trouvait coupee. Elle prend desormais la hauteur de son contenu, quel que soit le nombre de rangees.
      */
     ok('L onglet Stock porte bien ses sept tuiles', bande.nb === 7, bande.nb + ' tuile(s)');
-    ok('La bande est aussi haute que son contenu : plus rien n est coupé',
-      bande.hauteurBande >= bande.contenu - 2,
-      'bande ' + bande.hauteurBande + ' px pour un contenu de ' + bande.contenu + ' px');
-    ok('Et la dernière tuile tient ENTIÈREMENT dans le cadre',
+    /*
+     * LA BANDE DE TUILES N'EST PLUS UNE BANDE : depuis le 20/09, l'onglet Stock pose ses tuiles EN COLONNE
+     * a gauche et la courbe en face a droite, pour que le detail mensuel prenne toute la partie basse et
+     * s'affiche sans defilement vertical. Ce qui reste vrai, et qui est le fond du controle : aucune tuile
+     * n'est coupee.
+     */
+    ok('Aucune tuile n est coupée : la dernière tient ENTIÈREMENT dans le cadre',
       bande.basDerniere > 0 && bande.basDerniere <= bande.basCadre + 1,
       'bas de la tuile ' + bande.basDerniere + ', bas du cadre ' + bande.basCadre);
+    const disposition = await p.evaluate(() => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      const bandeau = e.down('#bandeau-stock');
+      if (!bandeau) { return null; }
+      const tuiles = e.down('#tuiles-stock').getEl().dom.getBoundingClientRect();
+      const courbe = e.down('#graphiquePanneau-stock').getEl().dom.getBoundingClientRect();
+      const detail = e.down('#detail-stock');
+      return { tuilesDroite: Math.round(tuiles.right), courbeGauche: Math.round(courbe.left),
+        memeHauteur: Math.abs(tuiles.top - courbe.top) < 4,
+        lignesVisibles: Math.floor(detail.getView().getHeight() / 37) };
+    });
+    ok('Les tuiles sont à GAUCHE et la courbe en FACE, à droite',
+      !!disposition && disposition.courbeGauche >= disposition.tuilesDroite && disposition.memeHauteur,
+      JSON.stringify(disposition));
+    ok('Et le détail mensuel gagne la place : plusieurs mois se lisent sans défiler',
+      !!disposition && disposition.lignesVisibles >= 6,
+      (disposition || {}).lignesVisibles + ' ligne(s) visible(s)');
 
     /* ------------------------------------------------- KPI : cinq courbes au plus, et on le dit */
     await changerOnglet('KPI Analyse');

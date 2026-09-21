@@ -40,7 +40,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
             /* Les trois choix ne declenchent PLUS de requete : seul le bouton « Comparer » la lance. */
             'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer},
             /* Le selecteur vit desormais dans le titre du tableau, pas dans une barre a lui. */
-            'pilotage combobox[itemId=decoupage]': {select: me.actualiser}
+            'pilotage combobox[itemId=decoupage]': {select: me.actualiser},
+            'pilotage button[itemId=basculerCourbe]': {toggle: me.basculerCourbe}
         });
     },
 
@@ -1030,7 +1031,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             var poids = record.get(prefixe + (quoi === 'ca' ? 'poidsCa' : 'poidsAchat'));
             if (poids) {
                 out.push('<div class="pilotage-seconde-ligne">' + f.nombre(poids, '0,000.0')
-                        + ' % de l\'année</div>');
+                        + ' % de l\'an</div>');
             }
             var mention = function (valeur, suffixe) {
                 if (valeur === null || valeur === undefined) {
@@ -1042,7 +1043,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             };
             /* « /2025 » plutot que « vs N-1 » : l'annee comparee est nommee, on ne la deduit pas. */
             mention(record.get(prefixe + (quoi === 'ca' ? 'varCaTaux' : 'varAchatTaux')), '/' + (an - 1));
-            mention(record.get(prefixe + (quoi === 'ca' ? 'varCaPrec' : 'varAchatPrec')), '/période préc.');
+            mention(record.get(prefixe + (quoi === 'ca' ? 'varCaPrec' : 'varAchatPrec')), '/préc.');
             return out.join('');
         };
 
@@ -1052,11 +1053,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
             /*
              * LARGEURS FIXES, ET C'EST UN CHOIX. ExtJS 4.2 n'honore « flex » ni sur une colonne groupee ni
              * sur ses enfants : a l'interieur d'un groupe, il ne repartit que la largeur DU GROUPE. Les
-             * neuf colonnes sont donc dimensionnees pour qu'elles tiennent ensemble sur un poste courant -
-             * cent soixante-quinze pixels pour un montant a dix chiffres et sa mention de variation, cent
-             * quarante pour un ratio - sans defilement horizontal, ce que l'officine demandait le 20/09.
+             * neuf colonnes sont donc dimensionnees pour tenir ensemble SANS DEFILEMENT sur les postes de
+             * l'officine, qui sont plus etroits que le banc : cent quarante pixels pour un montant a dix
+             * chiffres, cent pour un ratio, soit mille deux cent soixante en tout avec la colonne des
+             * periodes. Les mentions sont raccourcies en consequence, l'annee comparee restant nommee.
              */
-            return {text: texte, dataIndex: champ, width: 175, align: 'right',
+            return {text: texte, dataIndex: champ, width: 140, align: 'right',
                 itemId: 'col-' + champ,
                 renderer: function (v, meta, record) {
                     var t = f.nombre(v);
@@ -1081,7 +1083,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
 
         var colonneRatio = function (an) {
             var prefixe = 'an' + an + '_';
-            return {text: 'RATIO', dataIndex: prefixe + 'ratio', width: 140, align: 'right',
+            return {text: 'RATIO', dataIndex: prefixe + 'ratio', width: 100, align: 'right',
                 itemId: 'col-' + prefixe + 'ratio',
                 /*
                  * LE RATIO DU PIED N'EST PAS UNE MOYENNE DE RATIOS. Additionner puis diviser n'est pas
@@ -1138,13 +1140,17 @@ Ext.define('testextjs.controller.PilotageCtr', {
     },
 
     /**
-     * La courbe de l'onglet Achats / Ventes : une COULEUR PAR ANNÉE, ventes en trait plein, achats en
-     * pointillés.
+     * Le diagramme en BANDES de l'onglet Achats / Ventes : six barres par période, deux par année.
      *
      * <p>
-     * Ce qu'on y lit et que le tableau ne montre pas d'un coup d'œil : si l'écart entre ce qu'on vend et ce
-     * qu'on achète se creuse ou se referme d'une année sur l'autre. Deux traits de la même couleur qui
-     * s'écartent, c'est une marge qui s'améliore ; qui se rapprochent, un stock qu'on gonfle.
+     * Des courbes avaient été posées d'abord, et l'officine a eu raison de les refuser : six traits qui se
+     * croisent sur quatre points ne dessinent rien qu'on puisse lire. Des barres, elles, se comparent à
+     * l'œil sans suivre aucun tracé — c'est la bonne forme pour une comparaison de périodes, la courbe étant
+     * faite pour une série continue.
+     *
+     * <p>
+     * UNE SEULE série à plusieurs grandeurs, et non six séries : ExtJS 4.2 ne groupe les barres côte à côte
+     * que dans ce cas. Leurs couleurs viennent du thème déclaré avec la vue, dans l'ordre des grandeurs.
      */
     dessinerAchatsVentes: function (annees) {
         var graphique = this.getEcran().down('#graphique-achatsventes');
@@ -1152,52 +1158,73 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return;
         }
         var f = testextjs.view.pilotage.PilotageManager;
-        var couleurs = ['#6b7b8c', '#ef6c00', '#1565c0'];
         try {
             graphique.series.removeAll();
             var champs = [];
-            Ext.each(annees, function (an, i) {
-                /* La derniere annee prend la couleur la plus franche : c'est celle qu'on regarde. */
-                var couleur = couleurs[(couleurs.length - annees.length + i + couleurs.length)
-                        % couleurs.length];
-                Ext.each([{quoi: 'ca', nom: 'Ventes', pointille: false},
-                    {quoi: 'achat', nom: 'Achats', pointille: true}], function (serie) {
-                    var champ = 'an' + an + '_' + serie.quoi;
-                    champs.push(champ);
-                    var style = {stroke: couleur, 'stroke-width': 3, opacity: 1};
-                    if (serie.pointille) {
-                        style['stroke-dasharray'] = '7,5';
-                    }
-                    graphique.series.add(Ext.create('Ext.chart.series.Line', {
-                        chart: graphique,
-                        type: 'line',
-                        axis: 'left',
-                        xField: 'libelle',
-                        yField: champ,
-                        title: serie.nom + ' ' + an,
-                        smooth: false,
-                        style: style,
-                        markerConfig: {radius: 4, type: serie.pointille ? 'cross' : 'circle',
-                            fill: couleur, stroke: couleur},
-                        tips: f.infobulle(function (record) {
-                            var ratio = record.get('an' + an + '_ratio');
-                            return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + ' ' + an
-                                    + '</b><br>' + serie.nom + ' : ' + (f.nombre(record.get(champ)) || '—')
-                                    + (ratio ? '<br>ratio ventes / achats : '
-                                            + f.nombre(ratio, '0,000.00') : '');
-                        })
-                    }));
-                });
+            var titres = [];
+            Ext.each(annees, function (an) {
+                champs.push('an' + an + '_ca');
+                titres.push('Ventes ' + an);
+                champs.push('an' + an + '_achat');
+                titres.push('Achats ' + an);
             });
-            if (champs.length) {
-                graphique.axes.getAt(0).fields = champs;
-            }
+            graphique.series.add(Ext.create('Ext.chart.series.Column', {
+                chart: graphique,
+                type: 'column',
+                axis: 'left',
+                xField: 'libelle',
+                yField: champs,
+                title: titres,
+                stacked: false,
+                gutter: 24,
+                groupGutter: 8,
+                tips: f.infobulle(function (record, item) {
+                    /* L'infobulle nomme la barre survolee : sans cela, six barres accolees se confondent. */
+                    var rang = item && item.yField ? champs.indexOf(item.yField) : -1;
+                    var champ = rang >= 0 ? champs[rang] : champs[0];
+                    var an = champ.replace('an', '').split('_')[0];
+                    var ratio = record.get('an' + an + '_ratio');
+                    return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                            + (rang >= 0 ? titres[rang] : '') + ' : '
+                            + (f.nombre(record.get(champ)) || '—')
+                            + (ratio ? '<br>ratio ventes / achats ' + an + ' : '
+                                    + f.nombre(ratio, '0,000.00') : '');
+                })
+            }));
+            graphique.axes.getAt(0).fields = champs;
             if (graphique.legend && graphique.legend.isLegend) {
                 graphique.legend.create();
             }
             graphique.redraw();
         } catch (e) {
             /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
+        }
+    },
+
+    /**
+     * Ouvre ou referme le diagramme de l'onglet Achats / Ventes.
+     *
+     * <p>
+     * Il est refermé au départ : le tableau porte les chiffres exacts et suffit le plus souvent, alors que
+     * les trois blocs empilés faisaient descendre le détail sous le bord de l'écran.
+     */
+    basculerCourbe: function (bouton, ouvert) {
+        var panneau = this.getEcran().down('#graphiquePanneau-achatsventes');
+        if (!panneau) {
+            return;
+        }
+        panneau.setVisible(ouvert);
+        bouton.setText(ouvert ? 'Masquer le diagramme' : 'Afficher le diagramme');
+        if (ouvert) {
+            /* Un graphique dessine pendant qu'il etait masque n'a pas de dimensions : on le redessine. */
+            var graphique = panneau.down('chart');
+            if (graphique) {
+                try {
+                    graphique.redraw();
+                } catch (e) {
+                    /* Le tableau reste juste. */
+                }
+            }
         }
     },
 

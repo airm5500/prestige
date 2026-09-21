@@ -106,8 +106,14 @@ function texteDuPdf(octets) {
         /* Le selecteur est-il bien DANS l'en-tete du tableau ? */
         selecteurDansTitre: !!(grille.getHeader() && grille.getHeader().down('#decoupage')),
         barreSeparee: !!Ext.ComponentQuery.query('pilotage #choixDecoupage')[0],
+        /* Une SEULE serie a plusieurs grandeurs : c'est ainsi qu'ExtJS groupe les barres cote a cote. */
         series: (() => { const g = Ext.ComponentQuery.query('pilotage #graphique-achatsventes')[0];
-          return g ? g.series.items.map((x) => x.title) : []; })(),
+          if (!g || !g.series.items.length) { return []; }
+          const s0 = g.series.items[0];
+          return { type: s0.type, titres: [].concat(s0.title), champs: [].concat(s0.yField) }; })(),
+        diagrammeVisible: Ext.ComponentQuery.query('pilotage #graphiquePanneau-achatsventes')[0].isVisible(),
+        bouton: (() => { const b = Ext.ComponentQuery.query('pilotage button[itemId=basculerCourbe]')[0];
+          return b ? b.getText() : ''; })(),
         pied: (() => { const el = grille.getEl().dom.querySelector('.x-grid-row-summary');
           return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; })(),
         tuiles: (() => { const t = []; e.stores.achatsventes.tuiles.each((r) =>
@@ -250,12 +256,36 @@ function texteDuPdf(octets) {
       && (await p.evaluate(() => document.body.innerText)).indexOf('viennent des mêmes agrégats') < 0,
       'la note « Ventes et achats viennent des mêmes agrégats... » figure encore à l écran');
     /*
-     * LA COURBE : une couleur par annee, les ventes en trait plein et les achats en pointilles. Six series
-     * pour trois annees - c'est ce qui montre si l'ecart entre ce qu'on vend et ce qu'on achete se creuse.
+     * LE DIAGRAMME EST REFERME AU DEPART. « L'ecran est surcharge par le bas » (20/09) : le tableau porte
+     * les chiffres exacts et suffit le plus souvent, le diagramme s'ouvre par le bouton place a cote du
+     * selecteur de decoupage.
      */
-    ok('Une courbe d évolution accompagne le tableau, deux séries par année',
-      fini.series.length === 6 && fini.series.indexOf('Ventes ' + anneeCourante) >= 0
-      && fini.series.indexOf('Achats ' + anneeCourante) >= 0, JSON.stringify(fini.series));
+    ok('Le diagramme est refermé au départ, et un bouton propose de l ouvrir',
+      fini.diagrammeVisible === false && /Afficher le diagramme/.test(fini.bouton),
+      'visible : ' + fini.diagrammeVisible + ', bouton : « ' + fini.bouton + ' »');
+    /*
+     * DES BANDES, PAS DES COURBES. Six traits qui se croisent sur quatre points ne dessinent rien qu'on
+     * puisse lire - l'officine a eu raison de les refuser. Des barres se comparent a l'oeil sans suivre
+     * aucun trace. Une SEULE serie a six grandeurs : c'est ainsi qu'ExtJS les groupe cote a cote.
+     */
+    ok('Le diagramme est en BANDES, pas en courbes', fini.series.type === 'column',
+      'type : ' + fini.series.type);
+    ok('Il porte deux barres par année, nommées',
+      fini.series.champs.length === 6
+      && fini.series.titres.indexOf('Ventes ' + anneeCourante) >= 0
+      && fini.series.titres.indexOf('Achats ' + anneeCourante) >= 0,
+      JSON.stringify(fini.series.titres));
+    /* Le bouton l ouvre vraiment, et le referme. */
+    await p.evaluate(() =>
+      Ext.ComponentQuery.query('pilotage button[itemId=basculerCourbe]')[0].el.dom.click());
+    await p.waitForTimeout(4000);
+    const ouvert = await p.evaluate(() => ({
+      visible: Ext.ComponentQuery.query('pilotage #graphiquePanneau-achatsventes')[0].isVisible(),
+      bouton: Ext.ComponentQuery.query('pilotage button[itemId=basculerCourbe]')[0].getText()
+    }));
+    ok('Le bouton ouvre le diagramme, et son libellé suit',
+      ouvert.visible === true && /Masquer le diagramme/.test(ouvert.bouton),
+      'visible : ' + ouvert.visible + ', bouton : « ' + ouvert.bouton + ' »');
     /*
      * LE RATIO DU PIED N'EST PAS UNE MOYENNE DE RATIOS : additionner puis diviser n'est pas diviser puis
      * moyenner. On le recalcule a la main depuis les totaux.

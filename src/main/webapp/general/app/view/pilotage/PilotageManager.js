@@ -19,6 +19,23 @@
  * celui du logiciel : un ecran sombre au milieu de Prestige ferait tache et fatiguerait a la lecture d'un
  * tableau de chiffres.
  */
+/*
+ * LES COULEURS DU DIAGRAMME EN BANDES DE L'ONGLET ACHATS / VENTES.
+ *
+ * ExtJS 4.2 ne laisse pas choisir la couleur de chaque barre d'une serie a plusieurs grandeurs : c'est le
+ * THEME du graphique qui les donne, dans l'ordre. On en declare donc un, ou les deux barres d'une meme annee
+ * se suivent - ventes puis achats - dans deux tons de la meme couleur. L'annee la plus recente prend le bleu
+ * franc, les precedentes s'effacent : c'est celle-la qu'on regarde.
+ */
+Ext.define('Ext.chart.theme.PilotageBandes', {
+    extend: 'Ext.chart.theme.Base',
+    constructor: function (config) {
+        this.callParent([Ext.apply({
+                colors: ['#9aa7b4', '#c7ced5', '#ef6c00', '#f7b878', '#1565c0', '#7fb3e8']
+            }, config)]);
+    }
+});
+
 Ext.define('testextjs.view.pilotage.PilotageManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'pilotage',
@@ -552,6 +569,42 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'comparateur') {
             contenu.push(me.choixComparateur());
         }
+        if (onglet.cle === 'stock') {
+            /*
+             * TUILES A GAUCHE, COURBE A DROITE, ET LE DETAIL PREND TOUTE LA LARGEUR EN BAS.
+             *
+             * Empilees, la bande de tuiles, la courbe et le tableau descendaient sous le bord de l'ecran :
+             * il fallait faire defiler pour voir les chiffres du mois, qui sont pourtant ce qu'on vient
+             * chercher (20/09). Cote a cote, les tuiles et la courbe occupent la meme hauteur, et tout ce
+             * qui est gagne revient au detail mensuel. Les sept tuiles tiennent en colonnes sans jamais
+             * deborder, quelle que soit la largeur de l'ecran.
+             */
+            contenu.push({
+                xtype: 'container',
+                itemId: 'bandeau-stock',
+                layout: {type: 'hbox', align: 'stretch'},
+                /*
+                 * TROIS COLONNES DE TUILES plutot que deux : sept tuiles tiennent alors en trois rangees au
+                 * lieu de quatre, le bandeau descend de trois cent quatre a deux cent soixante-dix pixels,
+                 * et ces pixels-la reviennent au detail mensuel - c'est tout l'objet du changement.
+                 */
+                height: 272,
+                margin: '0 0 4 0',
+                items: [Ext.apply(me.tuiles(onglet.cle), {width: 692, ajustementHauteur: false}),
+                    Ext.apply(me.graphique(onglet.cle), {flex: 1, margin: '0 0 0 6', minHeight: 0})]
+            });
+            contenu.push(me.detail(onglet.cle));
+            return {
+                xtype: 'panel',
+                itemId: 'onglet-' + onglet.cle,
+                title: onglet.titre,
+                cleOnglet: onglet.cle,
+                border: false,
+                autoScroll: true,
+                layout: {type: 'vbox', align: 'stretch'},
+                items: contenu
+            };
+        }
         contenu.push(me.tuiles(onglet.cle));
         if (onglet.cle === 'achats') {
             contenu.push(me.repartitionGrossistes());
@@ -570,6 +623,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
              */
             contenu.push(me.detail(onglet.cle));
             contenu.push(me.graphiqueAchatsVentes());
+            me.courbeMasquee = true;
             return {
                 xtype: 'panel',
                 itemId: 'onglet-' + onglet.cle,
@@ -752,7 +806,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             listeners: {
                 refresh: function (vue) {
                     var corps = vue.getEl();
-                    if (!corps) {
+                    /* Quand la bande est posee en COLONNE a cote de la courbe, sa hauteur est celle du
+                       bandeau : la mesurer sur le contenu la ferait grandir a chaque chargement. */
+                    if (!corps || vue.ajustementHauteur === false) {
                         return;
                     }
                     var hauteur = corps.dom.scrollHeight;
@@ -977,6 +1033,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         displayField: 'libelle',
                         valueField: 'id',
                         queryMode: 'local'
+                    }, {
+                        xtype: 'button',
+                        itemId: 'basculerCourbe',
+                        text: 'Afficher le diagramme',
+                        iconCls: 'icon-chart',
+                        enableToggle: true,
+                        margin: '0 4 0 0'
                     }]
             },
             store: this.stores[cle].detail,
@@ -1181,8 +1244,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             xtype: 'panel',
             itemId: 'graphiquePanneau-achatsventes',
             title: 'Évolution comparée des ventes et des achats',
+            /*
+             * MASQUE AU DEPART, et c'est ce qui a ete demande : « l'ecran est surcharge par le bas »
+             * (20/09). Le tableau porte les chiffres exacts et suffit le plus souvent ; le diagramme
+             * s'ouvre par le bouton place a cote du selecteur de decoupage, quand on veut voir la forme
+             * plutot que les nombres.
+             */
+            hidden: true,
             flex: 1,
-            minHeight: 280,
+            minHeight: 300,
             layout: 'fit',
             items: [{
                     xtype: 'chart',
@@ -1192,6 +1262,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     legend: {position: 'top'},
                     insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
                     store: this.stores.achatsventes.detail,
+                    /* Les couleurs du diagramme : une par annee, la plus recente la plus franche. */
+                    theme: 'PilotageBandes',
                     axes: [testextjs.view.pilotage.PilotageManager.axeMontants(['libelle']), {
                             type: 'Category',
                             position: 'bottom',
