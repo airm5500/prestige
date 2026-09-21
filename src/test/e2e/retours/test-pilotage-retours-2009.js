@@ -487,6 +487,57 @@ function poserLesLots() {
     ok('Et le pied de page le dit, pour qu on ne lise pas le tableau à l envers',
       /plus r.cent au plus ancien/.test(texte), texte.slice(-160));
 
+    /* ------------------------------------------------- l export Excel de chaque détail mensuel */
+    /*
+     * UN BOUTON PAR TABLEAU (21/09), dans son en-tete : c'est la qu'on est quand on decide de reprendre les
+     * chiffres dans un tableur, et non dans le menu d'impression en haut de l'ecran.
+     */
+    /*
+     * L'en-tete d'un panneau n'est construit qu'au RENDU : un onglet jamais ouvert n'a donc pas encore son
+     * bouton, et l'absence ne prouverait rien. Le controle porte sur les onglets que ce parcours a
+     * reellement ouverts - ils couvrent les trois formes de detail mensuel : colonnes fixes, colonnes
+     * variables (modes de reglement, grossistes) et colonnes cochees (KPI).
+     */
+    const ouverts = ['ventes', 'caisse', 'stock', 'kpi', 'comparateur'];
+    const boutons = await p.evaluate((cles) => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      return cles.filter(function (cle) {
+        const grille = e.down('#detail-' + cle);
+        return !grille || !grille.rendered || !grille.down('button[itemId=exporterDetail]');
+      });
+    }, ouverts);
+    ok('Chaque détail mensuel porte son bouton d export Excel, dans son en-tête',
+      boutons.length === 0, 'onglets sans bouton : ' + JSON.stringify(boutons));
+
+    await changerOnglet('Ventes');
+    /*
+     * On observe la REQUETE que le clic declenche : c'est le lien qu'on veut etablir, du bouton jusqu'au
+     * serveur. Espionner la methode du controleur n'aurait rien montre - le gestionnaire du bouton garde la
+     * fonction d'origine, pas la propriete qu'on remplace.
+     */
+    let urlExport = '';
+    const surRequete = (requete) => {
+      if (requete.url().indexOf('/pilotage/excel') >= 0) {
+        urlExport = requete.url();
+      }
+    };
+    p.on('request', surRequete);
+    await p.evaluate(() => {
+      Ext.ComponentQuery.query('pilotage #detail-ventes')[0]
+        .down('button[itemId=exporterDetail]').el.dom.click();
+    });
+    await p.waitForTimeout(3000);
+    p.off('request', surRequete);
+    ok('Le bouton demande bien l export de l onglet ouvert',
+      /\/pilotage\/excel/.test(urlExport) && /onglet=ventes/.test(urlExport), urlExport || 'aucune requête');
+    const fichier = await p.evaluate(async () => {
+      const r = await fetch('../api/v1/pilotage/excel?onglet=ventes&axe=MOIS', { credentials: 'same-origin' });
+      const t = await r.text();
+      return { statut: r.status, type: r.headers.get('content-type'), taille: t.length };
+    });
+    ok('Et l export répond, en pièce à ouvrir dans un tableur',
+      fichier.statut === 200 && fichier.taille > 0, JSON.stringify(fichier));
+
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + e.stack);
