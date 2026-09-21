@@ -966,8 +966,16 @@ public class PilotageService {
         Double encaisseReference = reference == null ? null : reference.encaisse;
 
         JSONArray tuiles = new JSONArray();
+        JSONArray horaire = retenus.contains("frequentation") ? frequentation(axe.courante) : null;
         for (String cle : retenus) {
             if ("frequentation".equals(cle)) {
+                /*
+                 * LA FREQUENTATION A SA TUILE, COMME LES AUTRES (21/09). Elle etait le seul indicateur coche qui
+                 * n'apparaissait nulle part en haut de l'ecran - ni tuile, ni courbe, ni colonne - et n'alimentait
+                 * qu'un tableau tout en bas : « quand je selectionne un KPI je ne le vois pas ». Elle ne se lit pas par
+                 * mois, mais elle a bien UNE valeur pour la periode : l'heure de pointe.
+                 */
+                tuiles.put(tuileHeureDePointe(horaire));
                 continue;
             }
             tuiles.put(tuile(cle, libelleKpi(cle), valeurKpi(cle, courant, encaisseCourant),
@@ -985,10 +993,33 @@ public class PilotageService {
         JSONObject reponse = new JSONObject().put("tuiles", tuiles).put("mois", mois).put("coches",
                 new JSONArray(retenus));
         /* La frequentation horaire, seulement si elle est cochee : c'est une requete de plus. */
-        if (retenus.contains("frequentation")) {
-            reponse.put("horaire", frequentation(axe.courante));
+        if (horaire != null) {
+            reponse.put("horaire", horaire);
         }
         return reponse;
+    }
+
+    /** L'heure ou l'on sert le plus de clients, et sa part dans la periode ; sans vente, une tuile a zero. */
+    private static JSONObject tuileHeureDePointe(JSONArray horaire) {
+        int meilleureHeure = -1;
+        long meilleur = 0L;
+        long total = 0L;
+        for (int i = 0; horaire != null && i < horaire.length(); i++) {
+            JSONObject h = horaire.getJSONObject(i);
+            long n = h.optLong("nbVentes");
+            total += n;
+            if (n > meilleur) {
+                meilleur = n;
+                meilleureHeure = h.optInt("heure");
+            }
+        }
+        if (meilleureHeure < 0) {
+            return tuile("frequentation", "Heure de pointe", 0, null, "h", "Aucune vente sur la période");
+        }
+        long part = Math.round(meilleur * 100D / Math.max(1L, total));
+        return tuile("frequentation", "Heure de pointe", meilleureHeure, null, "h",
+                String.format("%,d clients servis entre %02dh et %02dh, soit %d %% de la période", meilleur,
+                        meilleureHeure, (meilleureHeure + 1) % 24, part).replace(',', ' '));
     }
 
     private JSONArray frequentation(Periode periode) {

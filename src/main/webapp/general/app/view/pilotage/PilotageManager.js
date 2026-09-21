@@ -670,6 +670,14 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             };
         }
         contenu.push(me.tuiles(onglet.cle));
+        if (onglet.cle === 'kpi') {
+            /*
+             * LA FREQUENTATION HORAIRE JUSTE SOUS LES TUILES (21/09). Elle etait un tableau pose tout en
+             * bas, apres la courbe : coche, l'indicateur semblait n'apparaitre nulle part. Elle est
+             * maintenant un diagramme en bandes, une par heure, la ou l'oeil tombe apres les tuiles.
+             */
+            contenu.push(me.frequentation());
+        }
         /*
          * PLUS DE BANDEAU DE NOTE dans les onglets Stock et Qualite (« pas besoin d'afficher ce texte »,
          * 20/09). Ce qu'il disait n'est pas perdu : la colonne SOURCE du detail dit ligne par ligne si la
@@ -723,9 +731,6 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             });
         } else {
             contenu.push(me.graphique(onglet.cle));
-        }
-        if (onglet.cle === 'kpi') {
-            contenu.push(me.frequentation());
         }
         contenu.push(me.detail(onglet.cle));
         return {
@@ -952,6 +957,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         }
                         if (unite === '%') {
                             return signe + Ext.util.Format.number(absolu, '0,000.0') + ' %';
+                        }
+                        /* L'heure de pointe de la fréquentation : « 11h », pas « 11 ». */
+                        if (unite === 'h') {
+                            return (absolu < 10 ? '0' : '') + absolu + 'h';
                         }
                         /* Deux décimales seulement quand il y en a : « 0, » se lisait dans les tuiles. */
                         return signe + Ext.util.Format.number(absolu, absolu % 1 === 0 ? '0,000' : '0,000.00');
@@ -1209,30 +1218,57 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         };
     },
 
-    /* La courbe de frequentation horaire : elle n'apparait que si l'indicateur est coche. */
+    /* La frequentation horaire : un diagramme en bandes, une par heure, visible seulement si l'indicateur
+       est coche. Les clients servis font la hauteur des bandes ; le chiffre d'affaires est dans l'infobulle. */
     frequentation: function () {
+        var f = testextjs.view.pilotage.PilotageManager;
         return {
-            xtype: 'gridpanel',
+            xtype: 'panel',
             itemId: 'frequentation',
-            title: 'Fréquentation horaire de la période',
-            store: this.storeHoraire,
-            height: 170,
+            title: 'Fréquentation horaire de la période — clients servis par heure',
+            height: 230,
+            margin: '4 0 0 0',
             hidden: true,
-            columnLines: true,
-            columns: [
-                {text: 'HEURE', dataIndex: 'libelle', width: 90, itemId: 'col-heure'},
-                {text: 'CLIENTS SERVIS', dataIndex: 'nbVentes', width: 140, align: 'right',
-                    itemId: 'col-clients',
-                    renderer: function (v) {
-                        return testextjs.view.pilotage.PilotageManager.nombre(v);
-                    },
-                    summaryType: 'sum'},
-                {text: 'CHIFFRE D\'AFFAIRES', dataIndex: 'caTTC', flex: 1, align: 'right',
-                    renderer: function (v) {
-                        return testextjs.view.pilotage.PilotageManager.nombre(v);
-                    }}
-            ],
-            features: [{ftype: 'summary'}]
+            layout: 'fit',
+            items: [{
+                    xtype: 'chart',
+                    itemId: 'graphique-frequentation',
+                    animate: false,
+                    shadow: false,
+                    insetPadding: 20,
+                    store: this.storeHoraire,
+                    theme: 'PilotageBandes',
+                    axes: [{
+                            type: 'Numeric',
+                            position: 'left',
+                            fields: ['nbVentes'],
+                            minimum: 0,
+                            majorTickSteps: 4,
+                            grid: true,
+                            label: {renderer: function (v) { return f.nombre(v); }}
+                        }, {
+                            type: 'Category',
+                            position: 'bottom',
+                            fields: ['libelle'],
+                            label: {font: '11px Arial'}
+                        }],
+                    series: [{
+                            type: 'column',
+                            axis: 'left',
+                            xField: 'libelle',
+                            yField: 'nbVentes',
+                            gutter: 30,
+                            tips: {
+                                trackMouse: true,
+                                width: 260,
+                                height: 44,
+                                renderer: function (r) {
+                                    this.setTitle('<b>' + r.get('libelle') + '</b> : ' + f.nombre(r.get('nbVentes'))
+                                            + ' clients servis — ' + f.nombre(r.get('caTTC')) + ' FCFA');
+                                }
+                            }
+                        }]
+                }]
         };
     },
 
