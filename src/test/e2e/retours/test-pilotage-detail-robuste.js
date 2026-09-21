@@ -122,8 +122,43 @@ const TAILLE_NORMALE = "ALTER TABLE pilotage_agregat_grossiste MODIFY COLUMN str
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + e.stack);
   } finally {
-    /* La colonne retrouve sa taille quoi qu il arrive, et les agregats sont reconstruits. */
+    /*
+     * REMISE EN ETAT. Cette suite VIDE les agregats pour rejouer l'incident, et ne recalcule ensuite que
+     * les mois de l'axe affiche - treize sur les trente-sept que porte le banc. Elle laissait donc la
+     * table amputee, et la suite jouee juste apres lisait un tableau vide : « 0 ligne(s) » sur l'onglet
+     * Achats / Ventes, qui a besoin de trois annees civiles. Ce n'etait pas un defaut du logiciel mais
+     * une suite qui ne rendait pas la base telle qu'elle l'avait trouvee. Elle la rend maintenant :
+     * la colonne a sa taille, et TOUS les mois presents dans les ventes sont reconstruits.
+     */
     try { exec(TAILLE_NORMALE); } catch (e) { console.log('restauration : ' + e.message); }
+    try {
+      /*
+       * Le recalcul suit la FENETRE GRAPHIQUE de l'axe demande, soit douze mois : c'est ce que fait le
+       * bouton, qui refait ce que l'on regarde. Pour couvrir tout l'historique on le rappelle donc par
+       * tranches de douze mois, en remontant du mois le plus recent au plus ancien.
+       */
+      const bornes = q("SELECT CONCAT(DATE_FORMAT(MIN(dt_UPDATED),'%Y-%m'),' ',"
+        + " DATE_FORMAT(MAX(dt_UPDATED),'%Y-%m')) FROM t_preenregistrement"
+        + " WHERE str_STATUT='is_Closed'").split(' ');
+      const enMois = (aaaaMm) => Number(aaaaMm.slice(0, 4)) * 12 + Number(aaaaMm.slice(5, 7)) - 1;
+      const premier = enMois(bornes[0]);
+      let curseur = enMois(bornes[1]);
+      let total = 0;
+      while (curseur >= premier) {
+        const an = Math.floor(curseur / 12);
+        const mo = (curseur % 12) + 1;
+        const fin = ('0' + mo).slice(-2) + '/' + an;
+        const rep = await p.evaluate(async (f) => {
+          const r = await fetch('../api/v1/pilotage/recalculer?axe=PERSO&dtStart=01/' + f
+            + '&dtEnd=28/' + f, { credentials: 'same-origin' });
+          return r.json();
+        }, fin);
+        total += (rep && rep.mois) || 0;
+        curseur -= 12;
+      }
+      console.log('remise en etat : ' + total + ' mois reconstruits ('
+        + bornes[0] + ' -> ' + bornes[1] + ')');
+    } catch (e) { console.log('remise en etat impossible : ' + e.message); }
     await b.close();
     const kos = res.filter((r) => !r.c);
     console.log('\n' + res.filter((r) => r.c).length + '/' + res.length + ' controles OK');

@@ -59,7 +59,18 @@ function texteDuPdf(octets) {
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('pilotage', {}));
     await p.waitForFunction(() => Ext.ComponentQuery.query('pilotage #onglets').length > 0, null,
       { timeout: 30000 });
-    await p.waitForTimeout(7000);
+    /*
+     * ON ATTEND QUE LE RASSEMBLEMENT SOIT FINI, pas une duree fixe. L'ouverture du menu lance le controle
+     * des corrections tardives, et s'il doit reprendre des mois entiers - c'est le cas quand la suite jouee
+     * juste avant a vide les agregats pour rejouer un incident - il demande bien plus que les sept secondes
+     * qui etaient ecrites ici. Le tableau etait alors lu vide, et le test accusait le logiciel d'un defaut
+     * qui n'etait que sa propre impatience.
+     */
+    await p.waitForFunction(() => {
+      const z = Ext.ComponentQuery.query('pilotage #barrePeriode #zoneProgression')[0];
+      return !z || z.isHidden();
+    }, null, { timeout: 300000 });
+    await p.waitForTimeout(2500);
 
     const onglets = await p.evaluate(() =>
       Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => o.title));
@@ -85,7 +96,16 @@ function texteDuPdf(octets) {
         const ong = Ext.ComponentQuery.query('pilotage #onglets')[0];
         ong.setActiveTab(ong.items.items.filter((o) => o.title === t)[0]);
       }, titre);
-      await p.waitForTimeout(9000);
+      /* Meme raison : on attend que l'onglet porte des lignes, non qu'un chronometre s'ecoule. */
+      await p.waitForFunction(() => {
+        const z = Ext.ComponentQuery.query('pilotage #barrePeriode #zoneProgression')[0];
+        if (z && !z.isHidden()) { return false; }
+        const a = Ext.ComponentQuery.query('pilotage #onglets')[0].getActiveTab();
+        if (!a) { return false; }
+        const g = a.down ? a.down('gridpanel') : null;
+        return !!(g && g.getStore() && g.getStore().getCount() > 0);
+      }, null, { timeout: 300000 });
+      await p.waitForTimeout(1500);
     };
     const debut = Date.now();
     await changerOnglet('Achats / Ventes');
