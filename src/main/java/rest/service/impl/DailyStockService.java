@@ -100,8 +100,13 @@ public class DailyStockService {
             if (ignorerSiDejaReleve) {
                 long deja = stockSnapshotDayService.compterJournee(dateAsInt);
                 if (deja > 0) {
+                    /*
+                     * Les valeurs sont passees en TEXTE : le journal les groupait par milliers avec des espaces
+                     * insecables, et la journee 20260920 s'y lisait « 20 260 920 » - un identifiant de date transforme
+                     * en nombre, avec des caracteres que le journal affiche mal (21/09).
+                     */
                     LOG.log(Level.INFO, "Journee {0} deja relevee ({1} lignes) : releve ignore au demarrage.",
-                            new Object[] { dateAsInt, deja });
+                            new Object[] { String.valueOf(dateAsInt), String.valueOf(deja) });
                     // Le job a bien fait son travail : la journee est relevee, il n'y avait rien a ecrire. Sans cette
                     // declaration, le controle de fraicheur du Centre de Support concluait « le job n'a peut-etre
                     // jamais tourne » a chaque heure, alors que la donnee etait la.

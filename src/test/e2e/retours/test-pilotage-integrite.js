@@ -72,13 +72,29 @@ const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding
       + " WHERE lg_PREENREGISTREMENT_ID='" + vente + "'");
     remise = true;
 
+    await p.waitForTimeout(3000);
     /*
-     * Le cache d ecran dure cinq minutes : on interroge sous un autre angle pour ne pas le relire. On laisse aussi
-     * passer la memoire courte du controle d integrite, qui evite de refaire quatre fois le meme controle pendant
-     * un seul affichage.
+     * LE CONTROLE NE SE FAIT PLUS A CHAQUE AFFICHAGE (21/09) : il coutait trois secondes et demie sur treize
+     * mois chez l'officine, et le payer a chaque changement d'onglet n'avait aucun sens - « je ne peux pas
+     * etre dans ce menu et etre en train de faire des annulations au meme moment ». Il se declenche
+     * desormais a l'OUVERTURE du menu et au clic sur « Actualiser ».
+     *
+     * On verifie donc les deux faces de cette regle : un simple affichage sert ce qui est enregistre, et
+     * c'est le controle qui fait apparaitre la correction.
      */
-    await p.waitForTimeout(7000);
+    const sansControle = await p.evaluate(async (m) => {
+      const r = await fetch('../api/v1/pilotage/onglet/marge?axe=G12&_=' + Math.random());
+      const j = JSON.parse(await r.text());
+      const ligne = (j.mois || []).filter((x) => x.mois === m)[0];
+      return ligne ? ligne.caTTC : null;
+    }, moisVente);
+    ok('Un simple affichage sert ce qui est enregistré : il ne revérifie plus rien',
+      sansControle !== null && Math.abs(sansControle - avant) < 1,
+      'affiché ' + sansControle + ', enregistré ' + avant);
+
     const apres = await p.evaluate(async (m) => {
+      /* C'est ce que fait l'ecran a l'ouverture du menu et au clic sur « Actualiser ». */
+      await fetch('../api/v1/pilotage/controler?axe=G12&_=' + Math.random());
       const r = await fetch('../api/v1/pilotage/onglet/marge?axe=G12&_=' + Math.random());
       const j = JSON.parse(await r.text());
       const ligne = (j.mois || []).filter((x) => x.mois === m)[0];
@@ -98,6 +114,9 @@ const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding
     exec("UPDATE t_preenregistrement SET b_IS_CANCEL=0, dt_ANNULER=NULL"
       + " WHERE lg_PREENREGISTREMENT_ID='" + vente + "'");
     remise = false;
+    await p.evaluate(async () => {
+      await fetch('../api/v1/pilotage/controler?axe=G12&_=' + Math.random());
+    });
     await p.waitForTimeout(7000);
     const retabli = await p.evaluate(async (m) => {
       const r = await fetch('../api/v1/pilotage/onglet/ventes?axe=G12&_=' + Math.random());

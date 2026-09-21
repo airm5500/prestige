@@ -1882,3 +1882,21 @@ body.x-body,
 .pilotage-tuiles-larges .pilotage-tuile {
     width: 330px;
 }
+/* Une tuile en ALERTE porte sa couleur jusque dans son libelle et sa note : le rouge ne doit pas se
+   limiter au chiffre, sans quoi on lit « peremptions » en gris et le nombre en rouge sans faire le lien. */
+.pilotage-tuile-alerte .pilotage-tuile-libelle,
+.pilotage-tuile-alerte .pilotage-tuile-sous {
+    color: #c0392b;
+}
+.pilotage-ardoise .pilotage-tuile-alerte {
+    border-color: #e6b0aa;
+    border-left-color: #c0392b;
+}
+/* Les chiffres du detail mensuel gagnent un point : ils sont ce qu'on vient lire (21/09). */
+.pilotage-ardoise .x-grid-cell-inner {
+    font-size: 13px;
+}
+.pilotage-ardoise .pilotage-seconde-ligne {
+    font-size: 11px;
+    line-height: 13px;
+}

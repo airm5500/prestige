@@ -75,11 +75,21 @@ public class StartupOrchestrationService {
 
     // ── Types ────────────────────────────────────────────────────────────────────
 
+    /**
+     * Les etapes du pipeline.
+     *
+     * <p>
+     * LEURS LIBELLES SONT SANS ACCENT, ET C'EST VOULU. Ils partent dans le journal du serveur, que Payara ecrit en
+     * UTF-8 et relit dans l'encodage de la plate-forme : « Demarrage - 7 etape(s) » y devenait « DÃ©marrage â€" 7
+     * Ã©tape(s) », illisible pour qui vient y chercher une panne (constate le 21/09). Un message de journal doit rester
+     * lisible quel que soit l'outil qui l'ouvre ; les accents et les caracteres typographiques appartiennent a l'ecran,
+     * pas au journal technique.
+     */
     public enum JobStep {
-        CALENDRIER("Calendrier & nettoyage"), STOCK_REAPPRO("Réapprovisionnement stock (mode default)"),
-        STOCK_REAPPRO_SEMOIS("Réapprovisionnement stock (mode semois)"), LOT_PEREMPTION("Lots en cours de péremption"),
+        CALENDRIER("Calendrier et nettoyage"), STOCK_REAPPRO("Reapprovisionnement stock (mode default)"),
+        STOCK_REAPPRO_SEMOIS("Reapprovisionnement stock (mode semois)"), LOT_PEREMPTION("Lots en cours de peremption"),
         STOCK_JOURNALIER("Stock journalier (snapshot + valorisation)"),
-        PILOTAGE_AGREGATS("Agrégats du menu de pilotage"), NOTIFICATIONS_SMS("Envoi SMS en attente"),
+        PILOTAGE_AGREGATS("Agregats du menu de pilotage"), NOTIFICATIONS_SMS("Envoi SMS en attente"),
         NOTIFICATIONS_EMAIL("Envoi emails en attente");
 
         private final String label;
@@ -168,7 +178,7 @@ public class StartupOrchestrationService {
         }
 
         List<JobStep> steps = buildSteps();
-        LOG.info("[PIPELINE-" + trigger + "] Démarrage — " + steps.size() + " étape(s)");
+        LOG.info("[PIPELINE-" + trigger + "] Demarrage - " + steps.size() + " etape(s)");
         Instant pipelineStart = Instant.now();
         List<StepResult> results = new ArrayList<>();
 
@@ -177,8 +187,8 @@ public class StartupOrchestrationService {
                 StepResult result = executeStep(step);
                 results.add(result);
                 if (!result.isSuccess()) {
-                    LOG.warning(
-                            "[PIPELINE-" + trigger + "] Étape «" + step.getLabel() + "» échouée — pipeline continue");
+                    LOG.warning("[PIPELINE-" + trigger + "] Etape \"" + step.getLabel()
+                            + "\" en echec - le pipeline continue");
                 }
             }
         } finally {
@@ -187,14 +197,14 @@ public class StartupOrchestrationService {
 
         Duration totalDuration = Duration.between(pipelineStart, Instant.now());
         long successCount = results.stream().filter(StepResult::isSuccess).count();
-        LOG.info("[PIPELINE-" + trigger + "] Terminé en " + formatDuration(totalDuration) + " — " + successCount + "/"
-                + results.size() + " étapes réussies");
+        LOG.info("[PIPELINE-" + trigger + "] Termine en " + formatDuration(totalDuration) + " - " + successCount + "/"
+                + results.size() + " etapes reussies");
     }
 
     // ── Exécution d'une étape ────────────────────────────────────────────────────
 
     private StepResult executeStep(JobStep step) {
-        LOG.info("[PIPELINE] ▸ Étape: " + step.getLabel());
+        LOG.info("[PIPELINE] > Etape : " + step.getLabel());
         Instant start = Instant.now();
         try {
             switch (step) {
@@ -230,11 +240,11 @@ public class StartupOrchestrationService {
                 break;
             }
             Duration duration = Duration.between(start, Instant.now());
-            LOG.info("[PIPELINE]   " + step.getLabel() + " — OK en " + formatDuration(duration));
+            LOG.info("[PIPELINE]   " + step.getLabel() + " - OK en " + formatDuration(duration));
             return new StepResult(step, true, "OK", duration);
         } catch (Exception e) {
             Duration duration = Duration.between(start, Instant.now());
-            LOG.log(Level.SEVERE, "[PIPELINE]   " + step.getLabel() + " — ERREUR en " + formatDuration(duration), e);
+            LOG.log(Level.SEVERE, "[PIPELINE]   " + step.getLabel() + " - ERREUR en " + formatDuration(duration), e);
             return new StepResult(step, false, e.getMessage(), duration);
         }
     }

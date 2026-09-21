@@ -160,23 +160,42 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          * et on reserve en bas la place des mois ecrits en biais - sans cette reserve, le dernier caractere
          * de chaque mois passait sous le bord du cadre.
          */
-        axeMontants: function (champs) {
+        axeMontants: function (champs, sansGrille) {
             return {
                 type: 'Numeric',
                 position: 'left',
                 fields: champs,
                 minimum: 0,
-                grid: true,
+                /*
+                 * LES MONTANTS NE SE LISENT PLUS PAR-DESSUS LES LIGNES (21/09).
+                 *
+                 * Deux causes, deux remedes. ExtJS 4.2 n'ecarte pas les etiquettes d'un axe de la zone de
+                 * dessin - « label.padding » n'y est pas honore - et la ligne de grille traverse donc le
+                 * texte. On raccourcit d'abord les etiquettes : « 250 M » tient la ou « 250,0 M » mordait
+                 * sur la grille, la decimale n'apprenant rien sur une graduation. Et on eclaircit les
+                 * lignes, qui n'ont pas a se lire aussi fort que les chiffres qu'elles portent.
+                 */
+                /*
+                 * ExtJS 4.2 trace les lignes de grille sur TOUTE la largeur du cadre, etiquettes comprises :
+                 * elles passent donc au travers des montants, et aucun reglage d'ecart ne les en ecarte
+                 * (« label.padding » n'est pas honore sur un axe). Sur un diagramme en BANDES, la grille
+                 * n'apprend rien - les barres se comparent entre elles - et on la retire ; sur une courbe,
+                 * elle aide a lire un niveau et on la garde, simplement eclaircie.
+                 */
+                grid: sansGrille === true ? false : {stroke: '#e3e9ef', 'stroke-width': 1},
                 majorTickSteps: 5,
                 label: {
                     font: 'bold 12px tahoma, arial, sans-serif',
                     fill: '#333333',
                     renderer: function (v) {
-                        /* Sous le million, afficher « 0,0 M » pour tout ne dirait rien : on garde alors
-                           le nombre lui-meme, groupe par milliers. */
-                        return Math.abs(v) >= 1000000
-                                ? Ext.util.Format.number(v / 1000000, '0,000.0') + ' M'
-                                : Ext.util.Format.number(v, '0,000');
+                        var absolu = Math.abs(v);
+                        if (absolu >= 1000000) {
+                            /* Une decimale seulement quand l'echelle est basse : « 1,5 M » apprend quelque
+                               chose, « 250,0 M » n'apprend rien de plus que « 250 M ». */
+                            return Ext.util.Format.number(v / 1000000, absolu >= 10000000 ? '0,000' : '0,000.0')
+                                    + ' M';
+                        }
+                        return Ext.util.Format.number(v, '0,000');
                     }
                 }
             };
@@ -557,6 +576,60 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     /* Un onglet : les tuiles, le graphique, le detail mensuel. L'onglet Achats porte en plus ses filtres
      * et la part de chaque grossiste. */
+    /**
+     * Les onglets qui adoptent la disposition en deux colonnes, et la hauteur de leur bandeau.
+     *
+     * <p>
+     * Les onglets VENTES, KPI et COMPARATEUR en sont exclus, et chacun pour sa raison : Ventes porte DEUX
+     * graphiques cote a cote, KPI une liste de cases a cocher qui prend deja toute la largeur, et le
+     * Comparateur n'a pas de graphique d'evolution mensuelle a mettre en face. L'onglet Achats / Ventes,
+     * lui, n'a ni courbe permanente ni tuiles a caser.
+     */
+    DEUX_COLONNES: {
+        synthese: {hauteur: 272, tuiles: 692},
+        marge: {hauteur: 272, tuiles: 692},
+        achats: {hauteur: 420, tuiles: 692, graphiqueDessous: true},
+        caisse: {hauteur: 272, tuiles: 692},
+        stock: {hauteur: 272, tuiles: 692},
+        qualite: {hauteur: 272, tuiles: 692}
+    },
+
+    /**
+     * Le bandeau haut d'un onglet en deux colonnes.
+     *
+     * <p>
+     * A gauche les tuiles, a droite le graphique - sauf pour l'onglet Achats, ou le graphique se range SOUS
+     * les tuiles pour laisser toute la colonne de droite a la repartition par grossiste.
+     */
+    bandeauDeuxColonnes: function (cle) {
+        var me = this;
+        var reglage = me.DEUX_COLONNES[cle];
+        var gauche;
+        var droite;
+        if (reglage.graphiqueDessous) {
+            gauche = {
+                xtype: 'container',
+                width: reglage.tuiles,
+                layout: {type: 'vbox', align: 'stretch'},
+                items: [Ext.apply(me.tuiles(cle), {height: 190, ajustementHauteur: false}),
+                    Ext.apply(me.graphique(cle), {flex: 1, minHeight: 0, margin: '4 0 0 0'})]
+            };
+            droite = Ext.apply(me.repartitionGrossistes(), {flex: 1, height: undefined,
+                margin: '0 0 0 6'});
+        } else {
+            gauche = Ext.apply(me.tuiles(cle), {width: reglage.tuiles, ajustementHauteur: false});
+            droite = Ext.apply(me.graphique(cle), {flex: 1, minHeight: 0, margin: '0 0 0 6'});
+        }
+        return {
+            xtype: 'container',
+            itemId: 'bandeau-' + cle,
+            layout: {type: 'hbox', align: 'stretch'},
+            height: reglage.hauteur,
+            margin: '0 0 4 0',
+            items: [gauche, droite]
+        };
+    },
+
     onglet: function (onglet) {
         var me = this;
         var contenu = [];
@@ -569,30 +642,21 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         if (onglet.cle === 'comparateur') {
             contenu.push(me.choixComparateur());
         }
-        if (onglet.cle === 'stock') {
-            /*
-             * TUILES A GAUCHE, COURBE A DROITE, ET LE DETAIL PREND TOUTE LA LARGEUR EN BAS.
-             *
-             * Empilees, la bande de tuiles, la courbe et le tableau descendaient sous le bord de l'ecran :
-             * il fallait faire defiler pour voir les chiffres du mois, qui sont pourtant ce qu'on vient
-             * chercher (20/09). Cote a cote, les tuiles et la courbe occupent la meme hauteur, et tout ce
-             * qui est gagne revient au detail mensuel. Les sept tuiles tiennent en colonnes sans jamais
-             * deborder, quelle que soit la largeur de l'ecran.
-             */
-            contenu.push({
-                xtype: 'container',
-                itemId: 'bandeau-stock',
-                layout: {type: 'hbox', align: 'stretch'},
-                /*
-                 * TROIS COLONNES DE TUILES plutot que deux : sept tuiles tiennent alors en trois rangees au
-                 * lieu de quatre, le bandeau descend de trois cent quatre a deux cent soixante-dix pixels,
-                 * et ces pixels-la reviennent au detail mensuel - c'est tout l'objet du changement.
-                 */
-                height: 272,
-                margin: '0 0 4 0',
-                items: [Ext.apply(me.tuiles(onglet.cle), {width: 692, ajustementHauteur: false}),
-                    Ext.apply(me.graphique(onglet.cle), {flex: 1, margin: '0 0 0 6', minHeight: 0})]
-            });
+        /*
+         * TUILES A GAUCHE, GRAPHIQUE EN FACE, ET LE DETAIL SUR TOUTE LA LARGEUR EN BAS.
+         *
+         * Empilees, la bande de tuiles, le graphique et le tableau descendaient sous le bord de l'ecran : il
+         * fallait faire defiler pour voir les chiffres du mois, qui sont pourtant ce qu'on vient chercher.
+         * Cote a cote, les tuiles et le graphique occupent la meme hauteur, et tout ce qui est gagne revient
+         * au detail mensuel - onze mois lisibles d'un coup au lieu de trois. Pose d'abord sur l'onglet Stock
+         * le 20/09, etendu le 21 a tous les onglets qui s'y pretent.
+         *
+         * L'onglet ACHATS a sa variante : le graphique passe SOUS les tuiles, dans la meme colonne de
+         * gauche, et la repartition par grossiste prend toute la colonne de droite - c'est elle qui a besoin
+         * de hauteur, puisqu'une officine travaille avec une vingtaine de fournisseurs.
+         */
+        if (me.DEUX_COLONNES[onglet.cle]) {
+            contenu.push(me.bandeauDeuxColonnes(onglet.cle));
             contenu.push(me.detail(onglet.cle));
             return {
                 xtype: 'panel',
@@ -606,9 +670,6 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             };
         }
         contenu.push(me.tuiles(onglet.cle));
-        if (onglet.cle === 'achats') {
-            contenu.push(me.repartitionGrossistes());
-        }
         /*
          * PLUS DE BANDEAU DE NOTE dans les onglets Stock et Qualite (« pas besoin d'afficher ce texte »,
          * 20/09). Ce qu'il disait n'est pas perdu : la colonne SOURCE du detail dit ligne par ligne si la
@@ -621,7 +682,17 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
              * d'un regard si l'ecart entre ce qu'on vend et ce qu'on achete se creuse ou se referme d'une
              * annee sur l'autre. Les deux repondent a la meme question, a deux niveaux de precision.
              */
-            contenu.push(me.detail(onglet.cle));
+            /*
+             * LE TABLEAU GARDE SA HAUTEUR ENTIERE, le diagramme se pose A LA SUITE.
+             *
+             * En « flex », les deux se partageaient la place : ouvrir le diagramme faisait apparaitre une
+             * barre de defilement DANS le tableau et cachait la ligne des totaux. « Il s'affiche a la suite
+             * sans deranger les dispositions » (21/09) : le tableau prend donc la hauteur de ses lignes -
+             * quatre trimestres au plus, plus le total - et c'est la PAGE qui defile.
+             */
+            /* Quatre trimestres, leurs deux rangs d'en-tete et la ligne des totaux : trois cent quarante
+               pixels. En dessous, le total passait sous le bord - or c'est lui qu'on regarde en dernier. */
+            contenu.push(Ext.apply(me.detail(onglet.cle), {flex: undefined, height: 340, minHeight: 0}));
             contenu.push(me.graphiqueAchatsVentes());
             me.courbeMasquee = true;
             return {
@@ -640,6 +711,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
              * DEUX GRAPHIQUES CÔTE À CÔTE dans l'onglet Ventes : le chiffre d'affaires mensuel à gauche, et à
              * droite la part de chaque mode de règlement, mois après mois. « Pour voir la part de chaque
              * mode » — demande de l'officine du 19/09. Les deux se lisent d'un même regard, sur les mêmes mois.
+             * C'est aussi pourquoi cet onglet ne prend pas la disposition en deux colonnes : sa largeur est
+             * deja prise par ces deux graphiques.
              */
             contenu.push({
                 xtype: 'container',
@@ -802,26 +875,46 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
              * coupee. Les tuiles ont en outre ete resserrees pour que sept tiennent sur une seule ligne aux
              * largeurs d'ecran courantes.
              */
-            height: 140,
+            height: 96,
             listeners: {
                 refresh: function (vue) {
                     var corps = vue.getEl();
-                    /* Quand la bande est posee en COLONNE a cote de la courbe, sa hauteur est celle du
+                    /* Quand la bande est posee en COLONNE a cote du graphique, sa hauteur est celle du
                        bandeau : la mesurer sur le contenu la ferait grandir a chaque chargement. */
                     if (!corps || vue.ajustementHauteur === false) {
                         return;
                     }
-                    var hauteur = corps.dom.scrollHeight;
-                    /* Une bande vide garde sa hauteur : sinon le message « choisissez une periode » se
-                       retrouverait ecrase a quelques pixels. */
-                    if (hauteur > 0 && Math.abs(hauteur - vue.getHeight()) > 2) {
-                        vue.setHeight(Math.max(140, hauteur));
+                    /*
+                     * LA HAUTEUR EST MESUREE SUR LES TUILES ELLES-MEMES, et non sur le cadre qui les porte.
+                     *
+                     * Le cadre etait mesure par scrollHeight, qui ne descend JAMAIS sous la hauteur visible :
+                     * la bande pouvait donc grandir, jamais se reduire. Reglee a cent quarante pixels au
+                     * depart, elle y restait meme avec une seule rangee de quatre-vingts - et ces soixante
+                     * pixels de vide entre les tuiles et le graphique sont exactement ce que l'officine a
+                     * signale le 21/09 sur l'onglet Ventes. On mesure donc du haut de la premiere tuile au
+                     * bas de la derniere, ce qui se reduit aussi bien que cela grandit.
+                     */
+                    var tuiles = corps.dom.querySelectorAll('.pilotage-tuile');
+                    if (!tuiles.length) {
+                        return;
+                    }
+                    var haut = Number.MAX_VALUE;
+                    var bas = 0;
+                    Ext.each(tuiles, function (tuile) {
+                        var cadre = tuile.getBoundingClientRect();
+                        haut = Math.min(haut, cadre.top);
+                        bas = Math.max(bas, cadre.bottom);
+                    });
+                    var hauteur = Math.round(bas - haut) + 10;
+                    if (hauteur > 20 && Math.abs(hauteur - vue.getHeight()) > 2) {
+                        vue.setHeight(hauteur);
                     }
                 }
             },
             tpl: new Ext.XTemplate(
                 '<tpl for=".">',
-                '<div class="pilotage-tuile" data-cle="{cle}">',
+                '<div class="pilotage-tuile{[values.alerte ? \' pilotage-tuile-alerte\' : \'\']}" ',
+                'data-cle="{cle}">',
                 '<div class="pilotage-tuile-libelle">{libelle}</div>',
                 '<div class="pilotage-tuile-valeur{[values.alerte ? \' pilotage-alerte\' : \'\']}">',
                 '{[this.montant(values.valeur, values.unite)]}</div>',
@@ -1010,12 +1103,17 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     ? 'Ventes et achats comparés, trois années face à face'
                     : 'Détail mensuel (du mois actuel au plus ancien)',
             /*
-             * LE SELECTEUR DE DECOUPAGE VIT DANS LE TITRE, pas dans une barre a lui : une barre d'outils de
-             * plus, c'est une ligne de moins pour les chiffres, et le choix se fait la ou on lit le resultat.
+             * L'EXPORT EXCEL EST DANS LE TITRE DU TABLEAU, sur TOUS les detail mensuels (21/09) : c'est la
+             * qu'on est quand on decide de reprendre les chiffres dans un tableur, et non dans le menu
+             * d'impression en haut de l'ecran. Il exporte les colonnes telles qu'elles sont affichees.
+             *
+             * L'onglet Achats / Ventes y ajoute son selecteur de decoupage et le bouton du diagramme : une
+             * barre d'outils de plus, c'est une ligne de moins pour les chiffres, et le choix se fait la ou
+             * on lit le resultat.
              */
-            header: cle !== 'achatsventes' ? undefined : {
+            header: {
                 titlePosition: 0,
-                items: [{
+                items: (cle !== 'achatsventes' ? [] : [{
                         xtype: 'combobox',
                         itemId: 'decoupage',
                         width: 150,
@@ -1040,7 +1138,14 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         iconCls: 'icon-chart',
                         enableToggle: true,
                         margin: '0 4 0 0'
-                    }]
+                    }]).concat([{
+                    xtype: 'button',
+                    itemId: 'exporterDetail',
+                    text: 'Excel',
+                    tooltip: 'Reprendre ce tableau dans un classeur Excel, tel qu\'il est affiché',
+                    iconCls: 'icon-excel',
+                    margin: '0 8 0 8'
+                }])
             },
             store: this.stores[cle].detail,
             flex: 1,
@@ -1244,6 +1349,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             xtype: 'panel',
             itemId: 'graphiquePanneau-achatsventes',
             title: 'Évolution comparée des ventes et des achats',
+            margin: '4 0 0 0',
             /*
              * MASQUE AU DEPART, et c'est ce qui a ete demande : « l'ecran est surcharge par le bas »
              * (20/09). Le tableau porte les chiffres exacts et suffit le plus souvent ; le diagramme
@@ -1260,11 +1366,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     animate: false,
                     shadow: false,
                     legend: {position: 'top'},
-                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
+                    insetPadding: 30,
                     store: this.stores.achatsventes.detail,
                     /* Les couleurs du diagramme : une par annee, la plus recente la plus franche. */
                     theme: 'PilotageBandes',
-                    axes: [testextjs.view.pilotage.PilotageManager.axeMontants(['libelle']), {
+                    axes: [testextjs.view.pilotage.PilotageManager.axeMontants(['libelle'], true), {
                             type: 'Category',
                             position: 'bottom',
                             fields: ['libelle'],
@@ -1362,7 +1468,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             return [mois, montant('VALEUR DU STOCK', 'valeurAchat', 160),
                 montant('ENTRÉES (ACHATS)', 'entrees', 150),
                 montant('SORTIES (VENTES)', 'sorties', 150), montant('VARIATION', 'variationStock'),
-                {text: 'SOURCE', dataIndex: 'mesure', width: 110, itemId: 'col-mesure',
+                /*
+                 * MASQUEE (21/09) : la source de la valeur ne change qu'une fois dans l'historique - avant
+                 * le premier releve nocturne elle est reconstituee, apres elle est capturee - et elle
+                 * occupait une colonne a chaque ligne pour le redire. Elle reste disponible dans le menu
+                 * des colonnes du tableau, pour qui veut verifier.
+                 */
+                {text: 'SOURCE', dataIndex: 'mesure', width: 110, itemId: 'col-mesure', hidden: true,
                     renderer: function (v) {
                         /* Une valeur mesurée et une valeur reconstituée ne se lisent pas de la même façon :
                          * l'écran le dit ligne par ligne plutôt qu'une fois en note. */

@@ -27,7 +27,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage': {afterrender: me.surAffichage},
             'pilotage #onglets': {tabchange: me.surChangementOnglet},
             'pilotage #barrePeriode combobox[itemId=axe]': {select: me.surChangementAxe},
-            'pilotage #barrePeriode button[itemId=actualiser]': {click: me.actualiser},
+            'pilotage #barrePeriode button[itemId=actualiser]': {click: me.actualiserEtControler},
             'pilotage #barrePeriode button[itemId=recalculer]': {click: me.recalculer},
             'pilotage #barrePeriode menuitem[itemId=imprimerPdf]': {click: me.imprimer},
             'pilotage #barrePeriode menuitem[itemId=exporterExcel]': {click: me.exporter},
@@ -41,7 +41,9 @@ Ext.define('testextjs.controller.PilotageCtr', {
             'pilotage #choixComparateur button[itemId=comparer]': {click: me.comparer},
             /* Le selecteur vit desormais dans le titre du tableau, pas dans une barre a lui. */
             'pilotage combobox[itemId=decoupage]': {select: me.actualiser},
-            'pilotage button[itemId=basculerCourbe]': {toggle: me.basculerCourbe}
+            'pilotage button[itemId=basculerCourbe]': {toggle: me.basculerCourbe},
+            /* Un bouton d'export par detail mensuel : il reprend l'onglet ouvert et ses choix courants. */
+            'pilotage button[itemId=exporterDetail]': {click: me.exporter}
         });
     },
 
@@ -62,6 +64,48 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 var axe = ecran.down('#barrePeriode #axe');
                 if (axe && !axe.getValue()) {
                     axe.setValue('MOIS');
+                }
+                me.actualiserEtControler();
+            }
+        });
+    },
+
+    /**
+     * Vérifie les corrections tardives, PUIS affiche.
+     *
+     * <p>
+     * Ce contrôle relit le nombre de ventes et le chiffre d'affaires de tous les mois regardés pour les
+     * comparer à ce qui est enregistré : c'est lui qui fait voir une vente annulée après coup sur un mois
+     * déjà clos. Il coûte trois secondes et demie sur treize mois chez l'officine, mesurées le 20/09.
+     *
+     * <p>
+     * Il est donc demandé DEUX FOIS SEULEMENT : à l'ouverture du menu, et quand on clique sur « Actualiser ».
+     * Changer d'onglet n'en déclenche plus aucun — « je ne peux pas être dans ce menu et être en train de
+     * faire des annulations au même moment ; je viens ici pour des analyses APRÈS annulations ». Les
+     * chiffres ne bougent pas pendant qu'on les consulte.
+     *
+     * <p>
+     * Si le contrôle échoue ou traîne, l'écran s'affiche quand même : il montrera ce qui est enregistré,
+     * quitte à ne pas voir une correction faite entre-temps. Un garde-fou ne doit jamais empêcher de lire.
+     */
+    actualiserEtControler: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        if (!ecran) {
+            return;
+        }
+        var onglet = ecran.down('#onglet-' + me.ongletCourant());
+        if (onglet) {
+            onglet.setLoading('Vérification des corrections apportées depuis le dernier calcul...');
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/pilotage/controler',
+            method: 'GET',
+            params: me.parametres(),
+            timeout: 120000,
+            callback: function () {
+                if (onglet) {
+                    onglet.setLoading(false);
                 }
                 me.actualiser();
             }
@@ -1134,6 +1178,43 @@ Ext.define('testextjs.controller.PilotageCtr', {
                     colonneRatio(an)]});
         });
         grille.reconfigure(store, colonnes);
+        /*
+         * LES COLONNES OCCUPENT TOUTE LA LARGEUR DISPONIBLE, et la suivent quand la fenetre change.
+         *
+         * ExtJS 4.2 n'honore « flex » ni sur une colonne groupee ni sur ses enfants - a l'interieur d'un
+         * groupe, il ne repartit que la largeur DU GROUPE. Des largeurs fixes laissaient donc une bande
+         * grise apres le ratio de la derniere annee (21/09). On calcule ici ce que chaque colonne peut
+         * prendre, et on refait le calcul a chaque redimensionnement : aucune place perdue, et jamais moins
+         * que le minimum sous lequel un montant a dix chiffres ne tiendrait plus.
+         */
+        var ajuster = function () {
+            var large = grille.getWidth();
+            if (!large || !annees.length) {
+                return;
+            }
+            var entetes = grille.headerCt.getGridColumns();
+            /* La colonne des periodes, la bordure et la place d'une barre de defilement verticale. */
+            var disponible = large - 130 - 24;
+            /* Un montant vaut deux parts, un ratio une part et demie : c'est le rapport de ce qu'ils
+               portent - dix chiffres et trois mentions contre un nombre a deux decimales. */
+            var part = disponible / (annees.length * 5.5);
+            var montant = Math.max(130, Math.floor(part * 2));
+            var ratio = Math.max(90, Math.floor(part * 1.5));
+            Ext.each(entetes, function (colonne) {
+                if (colonne.itemId === 'col-periode') {
+                    return;
+                }
+                var voulue = /_ratio$/.test(colonne.dataIndex || '') ? ratio : montant;
+                if (colonne.getWidth() !== voulue) {
+                    colonne.setWidth(voulue);
+                }
+            });
+        };
+        ajuster();
+        if (!grille.ajustementPose) {
+            grille.ajustementPose = true;
+            grille.on('resize', ajuster, null, {buffer: 150});
+        }
         this.dessinerAchatsVentes(annees);
         grille.setTitle('Ventes et achats comparés ' + (reponse.libelleDecoupage || 'par trimestre')
                 + ' — ' + annees.join(', '));
@@ -1178,6 +1259,25 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 stacked: false,
                 gutter: 24,
                 groupGutter: 8,
+                /*
+                 * L'ANNEE EST ECRITE DANS LA BARRE, A LA VERTICALE (demande du 21/09). Six barres accolees
+                 * obligeaient a revenir sans cesse a la legende pour savoir laquelle on regarde ; nommee
+                 * sur elle-meme, chaque barre se lit seule. A la verticale parce qu'une barre est etroite,
+                 * et vers le haut pour ne pas empieter sur les graduations.
+                 */
+                label: {
+                    display: 'insideEnd',
+                    orientation: 'vertical',
+                    contrast: true,
+                    field: champs,
+                    font: 'bold 11px tahoma, arial, sans-serif',
+                    renderer: function (valeur, etiquette, enregistrement, item, i, display, animate, index) {
+                        /* Le rang de la grandeur dans la serie donne l'annee : « Ventes 2026 » devient
+                           « 2026 », la couleur disant deja s'il s'agit des ventes ou des achats. */
+                        var titre = titres[index] || '';
+                        return valeur ? titre.replace(/^(Ventes|Achats) /, '') : '';
+                    }
+                },
                 tips: f.infobulle(function (record, item) {
                     /* L'infobulle nomme la barre survolee : sans cela, six barres accolees se confondent. */
                     var rang = item && item.yField ? champs.indexOf(item.yField) : -1;

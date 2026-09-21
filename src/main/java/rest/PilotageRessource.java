@@ -256,6 +256,35 @@ public class PilotageRessource {
     }
 
     /**
+     * Verifie que les agregats correspondent toujours a ce que dit la base, et reprend les mois qui ont change.
+     *
+     * <p>
+     * Appele a l'OUVERTURE de l'ecran et par le bouton « Actualiser », jamais a chaque changement d'onglet : les
+     * chiffres ne bougent pas pendant qu'on les consulte.
+     */
+    @GET
+    @Path("controler")
+    public Response controler(@QueryParam("axe") String axe, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        try {
+            return Response.ok().entity(pilotageService.controler(axe, debut, fin).toString()).build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "pilotage : controle d'integrite", e);
+            /*
+             * Un controle qui echoue ne doit pas empecher l'ecran de s'ouvrir : il affichera ce qui est enregistre,
+             * quitte a ne pas voir une correction faite entre-temps.
+             */
+            return Response.ok().entity(new JSONObject().put("success", false).put("repris", 0).toString()).build();
+        }
+    }
+
+    /**
      * Ou en est le recalcul en cours.
      *
      * <p>

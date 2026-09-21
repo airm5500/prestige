@@ -1963,6 +1963,30 @@ public class PilotageService {
         return faits;
     }
 
+    /**
+     * CONTROLE DES CORRECTIONS TARDIVES, demande explicitement.
+     *
+     * <p>
+     * Il relit le nombre de ventes et le chiffre d'affaires de tous les mois regardes pour les comparer aux agregats
+     * enregistres : c'est lui qui fait voir une vente annulee apres coup sur un mois deja clos. Trois secondes et demie
+     * sur treize mois chez l'officine.
+     *
+     * <p>
+     * Il est appele a l'OUVERTURE de l'ecran et par le bouton « Actualiser », jamais a chaque changement d'onglet : les
+     * chiffres ne bougent pas pendant qu'on les consulte, et l'officine ne fait pas ses annulations depuis ce menu -
+     * elle vient y analyser ce qu'elle a corrige ailleurs.
+     */
+    public JSONObject controler(String codeAxe, String debutPerso, String finPerso) {
+        Axe axe = PilotagePeriodes.calculer(codeAxe, LocalDate.now(), OrdonnanceClientSaisie.date(debutPerso),
+                OrdonnanceClientSaisie.date(finPerso));
+        int repris = agregats.controler(moisDeLaPeriode(axe.graphique));
+        if (repris > 0) {
+            /* Des mois ont change : l'ecran ne doit pas continuer a servir la version d'avant. */
+            CACHE.clear();
+        }
+        return new JSONObject().put("success", true).put("repris", repris);
+    }
+
     /** Les mois couverts par une periode, du plus ancien au plus recent. */
     private static List<String> moisDeLaPeriode(Periode fenetre) {
         List<String> mois = new ArrayList<>();

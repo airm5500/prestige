@@ -201,16 +201,25 @@ function poserLesLots() {
         sousTitre: r.get('sousTitre'), alerte: r.get('alerte') }));
       const grille = e.down('#detail-stock');
       const colonnes = grille.headerCt.getGridColumns();
-      const i = colonnes.map((c) => c.text).indexOf('SOURCE');
-      const sources = grille.getStore().getRange().slice(0, 4).map((r) =>
-        grille.getView().getCell(r, colonnes[i]).dom.textContent.trim());
-      return { tuiles: tuiles, sources: sources,
+      const source = colonnes.filter((c) => c.text === 'SOURCE')[0];
+      /*
+       * La colonne SOURCE est MASQUEE depuis le 21/09 : elle redisait a chaque ligne une information qui ne
+       * change qu'une fois dans l'historique. Elle existe toujours - on la retrouve par le menu des colonnes
+       * du tableau - et son rendu reste donc verifiable.
+       */
+      const rendu = source ? colonnes.filter((c) => c.text === 'SOURCE')
+        .map(() => grille.getStore().getRange().slice(0, 4)
+          .map((r) => source.renderer(r.get('mesure'), {}, r)))[0] : [];
+      return { tuiles: tuiles, sources: rendu,
+        sourceMasquee: !!source && source.isHidden(),
         bandeau: !!e.down('#note-stock'),
         alerteVisible: document.querySelectorAll('.pilotage-alerte').length };
     });
     ok('Une valeur relevée se dit « Capture », plus « Photo »',
-      stock.sources.indexOf('Photo') < 0 && stock.sources.indexOf('Capture') >= 0,
+      stock.sources.join(' ').indexOf('Photo') < 0 && stock.sources.join(' ').indexOf('Capture') >= 0,
       JSON.stringify(stock.sources));
+    ok('Mais la colonne SOURCE est masquée : elle redisait à chaque ligne ce qui ne change qu une fois',
+      stock.sourceMasquee === true, 'masquée : ' + stock.sourceMasquee);
     ok('Le bandeau de note a disparu de l onglet Stock', stock.bandeau === false, stock.bandeau);
 
     const attenduPeremption = q("SELECT COUNT(DISTINCT l.lg_FAMILLE_ID) FROM t_lot l"

@@ -85,6 +85,34 @@ public class PilotageAgregats {
      */
     private static final long MEMOIRE_CONTROLE_MS = 5L * 1000L;
 
+    /**
+     * Le controle d'integrite d'une fenetre de mois, demande explicitement.
+     *
+     * <p>
+     * Appele a l'ouverture de l'ecran et par le bouton « Actualiser » - jamais a chaque changement d'onglet. Rend le
+     * nombre de mois qui ont ete repris.
+     */
+    public int controler(List<String> mois) {
+        /*
+         * LA MEMOIRE DU CONTROLE EST EFFACEE : quand on le DEMANDE, c'est qu'on veut verifier.
+         *
+         * Cette memoire de quelques secondes evitait de refaire quatre fois le meme controle pendant un seul affichage,
+         * du temps ou chaque lecture d'agregat le declenchait. Le controle etant desormais demande explicitement - a
+         * l'ouverture du menu, au clic sur « Actualiser » - elle ne ferait plus que refuser de verifier a celui qui
+         * vient de le demander.
+         */
+        CONTROLES.clear();
+        Map<String, Agregat> connus = lire(mois);
+        java.util.Set<String> divergents = moisDivergents(mois, connus);
+        int repris = 0;
+        for (String m : divergents) {
+            if (moiMeme.calculerEtEnregistrer(m) != null) {
+                repris++;
+            }
+        }
+        return repris;
+    }
+
     /** Fenetres deja controlees et l'instant du controle : partagees par tous les operateurs. */
     private static final Map<String, Long> CONTROLES = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -147,6 +175,16 @@ public class PilotageAgregats {
      *            liste de mois au format AAAA-MM, du plus ancien au plus recent
      */
     public Map<String, Agregat> agregats(List<String> mois) {
+        return agregats(mois, false);
+    }
+
+    /**
+     * Les agregats des mois demandes.
+     *
+     * @param controler
+     *            vrai pour verifier d'abord que les agregats correspondent toujours a ce que dit la base
+     */
+    public Map<String, Agregat> agregats(List<String> mois, boolean controler) {
         Map<String, Agregat> connus = lire(mois);
         /*
          * CE QUI A BOUGE DEPUIS LE DERNIER CALCUL. Un mois clos ne change plus - tant que personne n'y touche. Or
@@ -154,7 +192,20 @@ public class PilotageAgregats {
          * passe modifiee. Une seule lecture agregee dit ce que la base compte AUJOURD'HUI pour chaque mois ; les mois
          * qui ne correspondent plus a leur agregat sont repris, les autres sont lus tels quels.
          */
-        java.util.Set<String> aRevoirIntegrite = moisDivergents(mois, connus);
+        /*
+         * LE CONTROLE NE SE FAIT PLUS A CHAQUE AFFICHAGE, MAIS A L'OUVERTURE DU MENU.
+         *
+         * Il relit le nombre de ventes et le chiffre d'affaires de tous les mois regardes : trois secondes et demie sur
+         * treize mois chez l'officine, mesurees le 20/09. Le payer a chaque changement d'onglet n'avait aucun sens, et
+         * l'officine l'a dit mieux que moi : « je ne peux pas etre dans ce menu et etre en train de faire des
+         * annulations au meme moment ; je viens ici pour des analyses APRES annulations ». Les chiffres ne bougent pas
+         * pendant qu'on les consulte.
+         *
+         * Le controle est donc demande une fois, a l'ouverture de l'ecran, et redemande par le bouton « Actualiser ».
+         * Les changements d'onglet lisent ce qui est enregistre, sans rien verifier.
+         */
+        java.util.Set<String> aRevoirIntegrite = controler ? moisDivergents(mois, connus)
+                : java.util.Collections.<String> emptySet();
         List<String> aCalculer = new ArrayList<>();
         String moisCourant = YearMonth.now().toString();
         String plusVieuxSurveille = YearMonth.now().minusMonths(MOIS_CLOS_SURVEILLES).toString();
