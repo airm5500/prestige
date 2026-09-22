@@ -61,6 +61,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #grilleProduits button[itemId=ajouterProduit]': {click: me.ajouterProduit},
             'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle},
             'ordonnanceclient #grilleProduits button[itemId=toutServir]': {click: me.toutServir},
+            'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents},
+            'ordonnanceclient #grilleSubstituts': {remplacer: me.remplacerParEquivalent},
             'ordonnanceclient #vueFiche button[itemId=analyserPosos]': {click: me.analyserFiche},
             'ordonnanceclient #vueFiche button[itemId=consoFiche]': {click: me.consoDepuisFiche},
             'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso},
@@ -296,6 +298,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (alertes) {
             alertes.hide();
         }
+        var substituts = fiche.down('#grilleSubstituts');
+        if (substituts) {
+            substituts.hide();
+        }
+        this.ligneASubstituer = null;
     },
 
     /** Consultation : la fiche s'ouvre en lecture, sans qu'on puisse la modifier par inadvertance. */
@@ -469,6 +476,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ligne.set('articleId', article.get('lgFAMILLEID'));
         ligne.set('libelle', article.get('strNAME'));
         ligne.set('cip', article.get('intCIP') || '');
+        /* Produit en rupture (23/09) : ses equivalents s'affichent d'eux-memes, avec leur stock. */
+        if (article.get('intNUMBERAVAILABLE') <= 0) {
+            this.montrerEquivalents(ligne, true);
+        }
         /*
          * Apres le choix du produit, le curseur va dans la POSOLOGIE (22/09) : c'est la saisie suivante. Differe,
          * pour laisser l'editeur du produit se refermer d'abord ; sinon il reprendrait la main.
@@ -483,6 +494,84 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 edition.completeEdit();
                 edition.startEdit(ligne, colonne);
             }, 60);
+        }
+    },
+
+    /* ------------------------------------------------------------ equivalents (23/09) */
+
+    /**
+     * Equivalents du produit d'une ligne : memes DCI, classes par le serveur. La ligne visee est memorisee, pour
+     * que « Remplacer » sache laquelle changer.
+     */
+    montrerEquivalents: function (ligne, rupture) {
+        var me = this;
+        var ecran = me.getEcran();
+        var grille = ecran.down('#vueFiche #grilleSubstituts');
+        if (!ligne || !ligne.get('articleId') || !grille) {
+            return;
+        }
+        me.ligneASubstituer = ligne;
+        var message = grille.down('#messageSubstituts');
+        var dire = function (html) {
+            if (message && !message.isDestroyed) {
+                message.update(html);
+            }
+        };
+        ecran.storeSubstituts.removeAll();
+        grille.setTitle('Équivalents de ' + Ext.String.htmlEncode(ligne.get('libelle') || ''));
+        /* En consultation, on regarde sans remplacer. */
+        var remplacer = grille.down('#colRemplacer');
+        if (remplacer) {
+            remplacer.setVisible(!me.ficheVerrouillee);
+        }
+        grille.show();
+        dire('<div style="color:#777">Recherche des équivalents...</div>');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/substituts/' + encodeURIComponent(ligne.get('articleId')),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (grille.isDestroyed) {
+                    return;
+                }
+                ecran.storeSubstituts.loadData(r.data || []);
+                var parties = [];
+                if (rupture === true) {
+                    parties.push('<b style="color:#c0392b">Produit en rupture de stock</b> : voici ses équivalents.');
+                }
+                if (r.source && r.source.dci && r.source.dci.length) {
+                    parties.push('DCI : <b>' + Ext.String.htmlEncode(r.source.dci.join(' + ')) + '</b>'
+                            + (r.source.dosage ? ' — ' + Ext.String.htmlEncode(r.source.dosage) : '')
+                            + ' — ' + Ext.String.htmlEncode(r.source.forme || ''));
+                }
+                if (r.avertissement) {
+                    parties.push('<div class="posos-demo">' + Ext.String.htmlEncode(r.avertissement) + '</div>');
+                }
+                if (r.message) {
+                    parties.push('<span style="color:#c0392b">' + Ext.String.htmlEncode(r.message) + '</span>');
+                }
+                parties.push('<span style="color:#777">Le logiciel propose, le pharmacien décide.</span>');
+                dire(parties.join(' '));
+            },
+            failure: function () {
+                dire('<span style="color:#c0392b">Les équivalents n\'ont pas pu être recherchés.</span>');
+            }
+        });
+    },
+
+    /** « Remplacer » : la ligne prend le produit choisi ; quantite, posologie et duree restent celles prescrites. */
+    remplacerParEquivalent: function (choisi) {
+        var me = this;
+        var ligne = me.ligneASubstituer;
+        if (!ligne || !choisi || me.ficheVerrouillee) {
+            return;
+        }
+        ligne.set('articleId', choisi.get('id'));
+        ligne.set('libelle', choisi.get('nom'));
+        ligne.set('cip', choisi.get('cip') || '');
+        var grille = me.getEcran().down('#vueFiche #grilleSubstituts');
+        if (grille) {
+            grille.hide();
         }
     },
 

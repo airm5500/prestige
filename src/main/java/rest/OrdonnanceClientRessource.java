@@ -54,6 +54,9 @@ public class OrdonnanceClientRessource {
     @EJB
     private OrdonnanceClientService ordonnanceService;
 
+    @EJB
+    private rest.service.impl.SubstitutionService substitutionService;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -433,6 +436,25 @@ public class OrdonnanceClientRessource {
                 .ok().entity(ordonnanceService
                         .analyse(criteres(query, clientId, typeClientId, medecinId, debut, fin, true)).toString())
                 .build();
+    }
+
+    /**
+     * Equivalents d'un produit (retour du 23/09) : memes DCI, classes « equivalent direct » ou « a adapter », avec le
+     * stock de l'emplacement de l'operateur et le prix. Lecture seule.
+     */
+    @GET
+    @Path("substituts/{familleId}")
+    public Response substituts(@PathParam("familleId") String familleId) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        String emplacement = operateur.getLgEMPLACEMENTID() == null ? null
+                : operateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        return Response.ok().entity(substitutionService.substituts(familleId, emplacement).toString()).build();
     }
 
     /** L'onglet Analyse en PDF, servi en flux dans l'onglet ouvert par le clic (aucune fenetre surgissante). */

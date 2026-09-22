@@ -193,6 +193,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             {name: 'majeure', type: 'boolean'}
         ];
         me.storeAlertesFiche = new Ext.data.Store({fields: champsAlertes, data: []});
+
+        /* Equivalents d'un produit (23/09) : memes DCI, « equivalent direct » ou « a adapter ». */
+        me.storeSubstituts = new Ext.data.Store({
+            fields: ['id', 'nom', 'cip', {name: 'prix', type: 'int'}, {name: 'stock', type: 'int'}, 'niveau', 'raison',
+                {name: 'detail', type: 'boolean'}],
+            data: []
+        });
         me.storeAlertesConso = new Ext.data.Store({fields: champsAlertes, data: []});
 
         /* Suivi de consommation du client (22/09) : le service de la gestion des clients, plus le stock. */
@@ -483,7 +490,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             autoScroll: true,
             bodyPadding: 8,
             layout: {type: 'vbox', align: 'stretch'},
-            items: [me.enteteFiche(), me.contexteClinique(), me.grilleProduits(),
+            items: [me.enteteFiche(), me.contexteClinique(), me.grilleProduits(), me.grilleSubstituts(),
                 me.grilleAlertes('alertesFiche', me.storeAlertesFiche), {
                     xtype: 'textareafield',
                     itemId: 'observations',
@@ -772,6 +779,21 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         var couleur = v >= rec.get('quantite') ? '#17987e' : (v > 0 ? '#e67e22' : '#c0392b');
                         return '<span style="color:' + couleur + ';font-weight:bold">' + v + '</span>';
                     }},
+                {
+                    /* Equivalents du produit de la ligne (23/09) : memes DCI, avec stock et prix. */
+                    xtype: 'actioncolumn', width: 40, itemId: 'colEquivalents', menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/table_refresh.png',
+                            iconCls: 'ordo-act ordo-act-equivalents',
+                            tooltip: 'Équivalents (même DCI) : stock et prix',
+                            isDisabled: function (vue, ligne, colonne, item, rec) {
+                                return !rec.get('articleId');
+                            },
+                            handler: function (vue, ligne, colonne, item, e, rec) {
+                                vue.up('gridpanel').fireEvent('equivalents', rec);
+                            }
+                        }]
+                },
                 {xtype: 'actioncolumn', width: 40, itemId: 'colSupprimer', items: [{
                             iconCls: 'delete',
                             tooltip: 'Retirer cette ligne',
@@ -912,6 +934,75 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     icon: 'resources/images/icons/fam/information.png',
                     cls: 'ordo-btn-posos',
                     tooltip: 'Interactions, contre-indications et posologies des produits de cette ordonnance'
+                }]
+        };
+    },
+
+    /**
+     * Equivalents du produit d'une ligne (23/09). Cachee tant qu'on ne l'a pas demandee, ou qu'un produit en
+     * rupture n'a pas ete choisi. « Remplacer » change le produit de la ligne en gardant quantite et posologie.
+     */
+    grilleSubstituts: function () {
+        var me = this;
+        return {
+            xtype: 'gridpanel',
+            itemId: 'grilleSubstituts',
+            title: 'Équivalents',
+            hidden: true,
+            store: me.storeSubstituts,
+            height: 210,
+            columnLines: true,
+            tools: [{
+                    type: 'close',
+                    itemId: 'fermerSubstituts',
+                    tooltip: 'Fermer',
+                    handler: function (e, el, entete) {
+                        entete.ownerCt.hide();
+                    }
+                }],
+            viewConfig: {
+                emptyText: '<div style="padding:6px;color:#777">Aucun équivalent proposé.</div>',
+                deferEmptyText: false
+            },
+            columns: [
+                {text: 'PRODUIT', dataIndex: 'nom', flex: 3},
+                {text: 'CIP', dataIndex: 'cip', width: 90},
+                {text: 'TYPE', dataIndex: 'niveau', width: 130, itemId: 'colNiveau',
+                    renderer: function (v) {
+                        return v === 'direct' ? '<span class="ordo-etat ordo-etat-servie">Équivalent direct</span>'
+                                : '<span class="ordo-etat ordo-etat-partielle">À adapter</span>';
+                    }},
+                {text: 'POURQUOI', dataIndex: 'raison', flex: 4,
+                    renderer: function (v, meta) {
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(v || '') + '"';
+                        return Ext.String.htmlEncode(v || '');
+                    }},
+                {text: 'STOCK', dataIndex: 'stock', width: 70, align: 'right',
+                    renderer: function (v) {
+                        return '<span style="font-weight:bold;color:' + (v > 0 ? '#1E5FA8' : '#c0392b') + '">' + v
+                                + '</span>';
+                    }},
+                {text: 'PRIX', dataIndex: 'prix', width: 110, align: 'right',
+                    renderer: function (v, meta, rec) {
+                        return '<span style="font-weight:bold;color:#c0392b">' + Ext.util.Format.number(v || 0, '0,000')
+                                + '</span>' + (rec.get('detail') ? ' <span style="color:#777">/unité</span>' : '');
+                    }},
+                {xtype: 'actioncolumn', width: 90, itemId: 'colRemplacer', text: 'REMPLACER', align: 'center',
+                    menuDisabled: true, items: [{
+                            icon: 'resources/images/icons/fam/accept.png',
+                            iconCls: 'ordo-act ordo-act-remplacer',
+                            tooltip: 'Remplacer le produit de la ligne par celui-ci (quantité et posologie gardées)',
+                            handler: function (vue, ligne, colonne, item, e, rec) {
+                                vue.up('gridpanel').fireEvent('remplacer', rec);
+                            }
+                        }]}
+            ],
+            dockedItems: [{
+                    xtype: 'component',
+                    dock: 'top',
+                    itemId: 'messageSubstituts',
+                    padding: 4,
+                    html: ''
                 }]
         };
     },
