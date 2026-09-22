@@ -1094,6 +1094,8 @@ public class PilotageService {
     public static final String COMPARER_FAMILLES = "FAMILLE";
     public static final String COMPARER_RAYONS = "RAYON";
     public static final String COMPARER_GROSSISTES = "GROSSISTE";
+    /** Le croisement d'une grandeur par un axe (22/09) : ce n'est pas une comparaison, c'est une repartition. */
+    public static final String CROISER = "CROISER";
 
     /**
      * Comparateur : deux objets, la meme grandeur, la meme periode.
@@ -1113,6 +1115,10 @@ public class PilotageService {
      */
     private JSONObject comparateur(Axe axe, String type, String a, String b, String grandeur) {
         String genre = StringUtils.defaultIfBlank(type, COMPARER_GRANDEURS);
+        if (CROISER.equals(genre)) {
+            return croisement(axe, StringUtils.defaultIfBlank(a, "caTTC"),
+                    StringUtils.defaultIfBlank(b, PilotageSql.AXE_HEURE));
+        }
         String mesure = StringUtils.defaultIfBlank(grandeur, "caTTC");
         Serie serieA;
         Serie serieB;
@@ -1166,6 +1172,107 @@ public class PilotageService {
                         COMPARER_GROSSISTES.equals(genre)
                                 ? "Deux grossistes se comparent sur ce qu'on leur achète : un grossiste ne vend rien."
                                 : "Les deux séries sont calculées par la même requête, sur la même période.");
+    }
+
+    /**
+     * LE CROISEMENT (22/09) : une grandeur repartie selon un axe - le chiffre par heure de la journee, les clients par
+     * jour de la semaine, l'encaisse par mode de reglement, le chiffre par vendeur - sur la PERIODE CHOISIE, pas par
+     * mois. Les lignes prennent la place des mois dans la reponse, avec le libelle de l'axe en premiere colonne, la
+     * valeur en « a » et la part du total en « b » ; l'ecran les dessine en barres.
+     */
+    private JSONObject croisement(Axe axe, String grandeur, String axeCle) {
+        String cleAxe = StringUtils.upperCase(axeCle);
+        boolean parMode = PilotageSql.AXE_MODE.equals(cleAxe);
+        /* Par mode de reglement, la seule grandeur qui a un sens est le montant regle : on l'impose et on le dit. */
+        String mesure = parMode ? "encaisse" : grandeur;
+        boolean panier = "panier".equals(mesure);
+        String sql = PilotageSql.croisement(cleAxe, panier ? "caTTC" : mesure);
+        List<JSONObject> lignes = new ArrayList<>();
+        double total = 0d;
+        long totalVentes = 0L;
+        for (Tuple t : liste(sql, axe.courante)) {
+            double valeur = nombre(t.get("valeur"));
+            long ventes = entier(t.get("nbVentes"));
+            if (panier) {
+                valeur = ventes == 0 ? 0 : valeur / ventes;
+            }
+            String libelle = libelleAxe(cleAxe, t.get("cle"), t.get("libelle"));
+            lignes.add(new JSONObject().put("cle", String.valueOf(t.get("cle"))).put("libelle", libelle)
+                    .put("mois", libelle).put("a", arrondi(valeur)).put("nbVentes", ventes));
+            total += valeur;
+            totalVentes += ventes;
+        }
+        if (PilotageSql.AXE_VENDEUR.equals(cleAxe) || parMode) {
+            /*
+             * Les vendeurs et les modes se lisent du plus fort au plus faible ; les heures et les jours dans l'ordre.
+             */
+            lignes.sort((x, y) -> Double.compare(y.optDouble("a"), x.optDouble("a")));
+        }
+        /* Vendeurs : au-dela de quinze, les barres deviennent illisibles ; le tableau garde tout. */
+        JSONArray mois = new JSONArray();
+        JSONObject meilleur = null;
+        for (JSONObject l : lignes) {
+            double part = panier || total == 0 ? 0 : l.optDouble("a") / total * 100d;
+            l.put("b", arrondi(part));
+            if (meilleur == null || l.optDouble("a") > meilleur.optDouble("a")) {
+                meilleur = l;
+            }
+            mois.put(l);
+        }
+        String libelleGrandeur = parMode ? "Montant réglé" : libelleKpi(mesure);
+        String unite = parMode ? "FCFA" : uniteKpi(mesure);
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("a", libelleGrandeur + " (total)",
+                panier ? (totalVentes == 0 ? 0 : total / Math.max(1, lignes.size())) : total, null, unite,
+                panier ? "Moyenne des paniers de l'axe" : null));
+        if (meilleur != null) {
+            tuiles.put(tuile("b", "Point fort : " + meilleur.optString("libelle"), meilleur.optDouble("a"), null, unite,
+                    panier ? null : arrondi(meilleur.optDouble("b")) + " % du total"));
+        }
+        tuiles.put(new JSONObject().put("cle", "ecart").put("libelle", "Valeurs de l'axe").put("valeur", lignes.size())
+                .put("unite", "").put("sousTitre", libelleAxeComplet(cleAxe)));
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("ordreNaturel", true)
+                .put("comparaison",
+                        new JSONObject().put("type", CROISER).put("grandeur", mesure).put("libelleA", libelleGrandeur)
+                                .put("libelleB", "Part %").put("libelleGrandeur", libelleGrandeur).put("axe", cleAxe)
+                                .put("libelleAxe", libelleAxeComplet(cleAxe)))
+                .put("note", (parMode
+                        ? "Par mode de règlement, la grandeur est le montant réglé (source : vente_reglement, comme le ticket Z). "
+                        : "") + libelleGrandeur + " réparti par " + libelleAxeComplet(cleAxe).toLowerCase()
+                        + " sur la période choisie (" + axe.courante.libelle + ").");
+    }
+
+    private static String libelleAxeComplet(String axe) {
+        switch (axe) {
+        case PilotageSql.AXE_JOUR:
+            return "Jour de la semaine";
+        case PilotageSql.AXE_MODE:
+            return "Mode de règlement";
+        case PilotageSql.AXE_VENDEUR:
+            return "Vendeur";
+        default:
+            return "Heure de la journée";
+        }
+    }
+
+    private static final String[] JOURS = { "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche" };
+
+    /** « 09h », « Mardi », le nom du vendeur ou du mode : ce qu'on lit sous chaque barre. */
+    private static String libelleAxe(String axe, Object cle, Object libelle) {
+        switch (axe) {
+        case PilotageSql.AXE_JOUR: {
+            int j = (int) entier(cle);
+            return j >= 0 && j < 7 ? JOURS[j] : String.valueOf(cle);
+        }
+        case PilotageSql.AXE_VENDEUR: {
+            String nom = StringUtils.trimToEmpty(String.valueOf(libelle == null ? "" : libelle));
+            return nom.isEmpty() ? "Sans vendeur" : nom;
+        }
+        case PilotageSql.AXE_MODE:
+            return StringUtils.defaultIfBlank(String.valueOf(libelle), "Autre");
+        default:
+            return String.format("%02dh", entier(cle));
+        }
     }
 
     /** Une serie comparee : son libelle, son total sur la periode, et sa valeur par mois. */
@@ -1300,8 +1407,11 @@ public class PilotageService {
             String bb = comparaison == null ? "B" : comparaison.optString("libelleB", "B");
             colonnes.add(new String[] { "a", a.toUpperCase() });
             colonnes.add(new String[] { "b", bb.toUpperCase() });
-            colonnes.add(new String[] { "ecart", "ÉCART" });
-            colonnes.add(new String[] { "rapport", "RAPPORT" });
+            if (comparaison == null || !CROISER.equals(comparaison.optString("type"))) {
+                /* Un croisement n'a ni ecart ni rapport : sa seconde colonne est deja la part du total. */
+                colonnes.add(new String[] { "ecart", "ÉCART" });
+                colonnes.add(new String[] { "rapport", "RAPPORT" });
+            }
             break;
         }
         case ONGLET_STOCK:

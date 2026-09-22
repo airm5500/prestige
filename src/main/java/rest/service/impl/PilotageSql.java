@@ -534,6 +534,72 @@ public final class PilotageSql {
                 + " GROUP BY mois ORDER BY mois ASC";
     }
 
+    /* =============================================================== croisements du comparateur (22/09) */
+
+    public static final String AXE_HEURE = "HEURE";
+    public static final String AXE_JOUR = "JOUR";
+    public static final String AXE_MODE = "MODE";
+    public static final String AXE_VENDEUR = "VENDEUR";
+
+    /**
+     * UN CROISEMENT : une grandeur PAR un axe (22/09). « A = chiffre d'affaires, B = frequence horaire » n'etait pas
+     * une comparaison mais un croisement ; c'est un autre outil. La cle de l'axe est ce qui regroupe, son libelle ce
+     * qu'on lit.
+     *
+     * <ul>
+     * <li>HEURE : l'heure de la journee (0-23) ;</li>
+     * <li>JOUR : le jour de la semaine, 0 = lundi comme WEEKDAY ;</li>
+     * <li>VENDEUR : l'utilisateur vendeur de la vente ;</li>
+     * <li>MODE : le mode de reglement - la grandeur est alors le montant REGLE, tire de vente_reglement comme le ticket
+     * Z, et le nombre de ventes reglees.</li>
+     * </ul>
+     *
+     * Les grandeurs de l'en-tete (chiffre, nombre de ventes) se lisent sur la vente ; la marge et les unites sur ses
+     * lignes, avec la formule de marge unique de l'application.
+     */
+    public static String croisement(String axe, String grandeur) {
+        String cle;
+        String libelle;
+        String depuis = " FROM t_preenregistrement p";
+        switch (axe) {
+        case AXE_JOUR:
+            cle = "WEEKDAY(p.dt_UPDATED)";
+            libelle = "WEEKDAY(p.dt_UPDATED)";
+            break;
+        case AXE_VENDEUR:
+            cle = "IFNULL(p.lg_USER_VENDEUR_ID, '')";
+            libelle = "IFNULL(CONCAT(TRIM(IFNULL(u.str_FIRST_NAME, '')), ' ', TRIM(IFNULL(u.str_LAST_NAME, ''))), '')";
+            depuis += " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_VENDEUR_ID";
+            break;
+        case AXE_MODE:
+            return "SELECT r.lg_TYPE_REGLEMENT_ID AS cle, r.str_NAME AS libelle, SUM(vr.montant) AS valeur,"
+                    + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes" + " FROM vente_reglement vr"
+                    + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
+                    + " JOIN t_type_reglement r ON r.lg_TYPE_REGLEMENT_ID = vr.type_regelement" + " WHERE" + VENTES_OU
+                    + " GROUP BY cle, libelle ORDER BY valeur DESC";
+        default:
+            cle = "HOUR(p.dt_UPDATED)";
+            libelle = "HOUR(p.dt_UPDATED)";
+        }
+        boolean surLignes = "marge".equals(grandeur) || "unites".equals(grandeur);
+        if (surLignes) {
+            return "SELECT " + cle + " AS cle, " + libelle + " AS libelle," + (" marge".equals(" " + grandeur)
+                    ? " COALESCE(SUM((d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)) / (1 + (v.int_VALUE / 100))"
+                            + " - (f.int_PAF * d.int_QUANTITY)), 0) AS valeur,"
+                    : " COALESCE(SUM(d.int_QUANTITY), 0) AS valeur,")
+                    + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes" + " FROM t_preenregistrement_detail d"
+                    + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                    + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                    + " JOIN t_code_tva v ON v.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID"
+                    + (AXE_VENDEUR.equals(axe) ? " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_VENDEUR_ID" : "")
+                    + " WHERE" + VENTES_OU + " GROUP BY cle, libelle ORDER BY cle ASC";
+        }
+        return "SELECT " + cle + " AS cle, " + libelle + " AS libelle,"
+                + (" nbVentes".equals(" " + grandeur) ? " COUNT(*) AS valeur,"
+                        : " COALESCE(SUM(p.int_PRICE - COALESCE(p.int_PRICE_REMISE, 0)), 0) AS valeur,")
+                + " COUNT(*) AS nbVentes" + depuis + " WHERE" + VENTES_OU + " GROUP BY cle, libelle ORDER BY cle ASC";
+    }
+
     /**
      * Frequentation horaire : les ventes et le chiffre d'affaires par heure de la journee, sur la periode.
      *

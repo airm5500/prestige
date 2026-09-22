@@ -1278,6 +1278,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
      * Deux usages : deux objets de meme nature (deux familles, deux rayons, deux grossistes), ou deux
      * GRANDEURS entre elles - « par exemple les achats aux ventes sur une periode ».
      */
+    /** Les grandeurs qu'on peut repartir selon un axe, et les quatre axes (22/09). */
+    GRANDEURS_CROISEMENT: [['caTTC', 'Chiffre d\'affaires TTC'], ['nbVentes', 'Nombre de clients servis'],
+        ['panier', 'Panier moyen'], ['marge', 'Marge'], ['unites', 'Unités vendues']],
+    AXES_CROISEMENT: [['HEURE', 'Heure de la journée'], ['JOUR', 'Jour de la semaine'],
+        ['MODE', 'Mode de règlement'], ['VENDEUR', 'Vendeur']],
+
     choixComparateur: function () {
         var me = this;
         return {
@@ -1298,7 +1304,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             {id: 'GRANDEUR', libelle: 'Deux grandeurs'},
                             {id: 'FAMILLE', libelle: 'Deux familles'},
                             {id: 'RAYON', libelle: 'Deux rayons'},
-                            {id: 'GROSSISTE', libelle: 'Deux grossistes'}
+                            {id: 'GROSSISTE', libelle: 'Deux grossistes'},
+                            /* Le CROISEMENT (22/09) : une grandeur repartie selon un axe - pas une comparaison. */
+                            {id: 'CROISER', libelle: 'Croiser : grandeur × axe'}
                         ]
                     }),
                     displayField: 'libelle',

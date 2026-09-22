@@ -362,7 +362,20 @@ Ext.define('testextjs.controller.PilotageCtr', {
             champ.valueField = valeur;
             champ.setValue(premier);
         };
-        if (type === 'GRANDEUR') {
+        var tableau = function (paires) {
+            return Ext.create('Ext.data.Store', {fields: ['cle', 'libelle'],
+                data: Ext.Array.map(paires, function (p) { return {cle: p[0], libelle: p[1]}; })});
+        };
+        /* Les libelles A / B redeviennent ceux d'une comparaison, sauf pour le croisement. */
+        a.setFieldLabel(type === 'CROISER' ? 'Grandeur' : 'A');
+        bb.setFieldLabel(type === 'CROISER' ? 'Par' : 'B');
+        a.labelWidth = type === 'CROISER' ? 60 : 16;
+        bb.labelWidth = type === 'CROISER' ? 28 : 16;
+        if (type === 'CROISER') {
+            poser(a, tableau(ecran.GRANDEURS_CROISEMENT), 'libelle', 'cle', 'caTTC');
+            poser(bb, tableau(ecran.AXES_CROISEMENT), 'libelle', 'cle', 'HEURE');
+            grandeur.setDisabled(true);
+        } else if (type === 'GRANDEUR') {
             /*
              * La frequentation horaire ne se lit pas par mois : mise en B face a un chiffre mensuel, sa courbe
              * restait a plat (21/09). Elle est ecartee des grandeurs comparables ; le croisement « chiffre par
@@ -398,7 +411,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
          * attend que les deux objets soient choisis et que « Comparer » soit cliqué.
          */
         me.comparaisonDemandee = false;
-        me.inviterAComparer('Choisissez A et B, puis cliquez sur « Comparer ».');
+        me.inviterAComparer(type === 'CROISER' ? 'Choisissez la grandeur et l\'axe, puis cliquez sur « Comparer ».'
+                : 'Choisissez A et B, puis cliquez sur « Comparer ».');
     },
 
     /**
@@ -804,6 +818,56 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }), libelles);
     },
 
+    /**
+     * Le graphique du comparateur : deux courbes pour une comparaison, des BARRES pour un croisement (22/09). Il
+     * est reconstruit a chaque bascule, pour les memes raisons que celui des KPI : les traits d'ExtJS 4.2 restent
+     * sinon dessines.
+     */
+    reconstruireGraphiqueComparateur: function (croisement, comparaison) {
+        var ecran = this.getEcran();
+        var panneau = ecran.down('#graphiquePanneau-comparateur');
+        if (!panneau) {
+            return;
+        }
+        var actuel = panneau.down('chart');
+        var estBarres = actuel && actuel.series.getCount() === 1 && actuel.series.getAt(0).type === 'column';
+        if (actuel && (croisement === !!estBarres)) {
+            return;
+        }
+        panneau.removeAll(true);
+        if (!croisement) {
+            /* La configuration d'origine du comparateur : les deux courbes A et B. */
+            panneau.add(ecran.graphique('comparateur').items[0]);
+            return;
+        }
+        var f = testextjs.view.pilotage.PilotageManager;
+        var axeY = f.axeMontants(['a']);
+        axeY.minimum = 0;
+        panneau.add({
+            xtype: 'chart',
+            itemId: 'graphique-comparateur',
+            animate: false,
+            shadow: false,
+            insetPadding: f.INSET,
+            store: ecran.stores.comparateur.mois,
+            axes: [axeY, {
+                    type: 'Category', position: 'bottom', fields: ['libelle'],
+                    label: {font: '11px Arial', rotate: {degrees: 315}}
+                }],
+            series: [{
+                    type: 'column', axis: 'left', xField: 'libelle', yField: 'a', gutter: 30,
+                    style: {fill: '#1565c0'},
+                    label: {display: 'outside', field: 'a', 'text-anchor': 'middle', font: '10px Arial',
+                        renderer: function (v) { return f.nombre(v); }},
+                    tips: f.infobulle(function (record) {
+                        return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                                + Ext.String.htmlEncode((comparaison && comparaison.libelleGrandeur) || '') + ' : ' + f.nombre(record.get('a'))
+                                + (record.get('b') ? '<br>' + f.nombre(record.get('b'), '0,000.0') + ' % du total' : '');
+                    })
+                }]
+        });
+    },
+
     /** Un graphique neuf dans le panneau des KPI, avec exactement ces series ; minimum d'axe 0 ou libre (base 100). */
     reconstruireGraphiqueKpi: function (series, minimum) {
         var ecran = this.getEcran();
@@ -986,15 +1050,34 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }
         var ecran = this.getEcran();
         var comparaison = reponse.comparaison || {};
+        var croisement = comparaison.type === 'CROISER';
         var grille = ecran.down('#detail-comparateur');
         if (grille) {
             var colonnes = grille.headerCt.getGridColumns();
+            if (colonnes[0]) {
+                /* En croisement, la premiere colonne n'est plus le mois : c'est l'axe. */
+                colonnes[0].setText(croisement ? (comparaison.libelleAxe || 'AXE').toUpperCase() : 'MOIS');
+            }
             if (colonnes[1]) {
                 colonnes[1].setText((comparaison.libelleA || 'A').toUpperCase());
             }
             if (colonnes[2]) {
                 colonnes[2].setText((comparaison.libelleB || 'B').toUpperCase());
             }
+            /* Un croisement n'a ni ecart ni rapport. */
+            Ext.each(colonnes.slice(3), function (c) { c.setVisible(!croisement); });
+        }
+        this.reconstruireGraphiqueComparateur(croisement, comparaison);
+        if (croisement) {
+            var note = ecran.down('#choixComparateur #noteComparateur');
+            if (note) {
+                note.setValue('<i>' + Ext.String.htmlEncode(reponse.note || '') + '</i>');
+            }
+            var panneau = ecran.down('#graphiquePanneau-comparateur');
+            if (panneau) {
+                panneau.setTitle((comparaison.libelleGrandeur || 'Grandeur') + ' par ' + (comparaison.libelleAxe || 'axe').toLowerCase());
+            }
+            return;
         }
         var note = ecran.down('#choixComparateur #noteComparateur');
         if (note) {
