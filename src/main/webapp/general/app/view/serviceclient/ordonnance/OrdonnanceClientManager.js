@@ -69,6 +69,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
 
         /* Clients : la MEME ressource que les autres ecrans (v1/client/list), donc les memes clients. */
         me.storeClients = new Ext.data.Store({
+            /* L'identifiant du client EST l'identifiant de l'enregistrement : un enregistrement pose a la main
+               par la fiche en a alors un, et le modele de selection du combo ne tombe pas sur getId(). */
+            idProperty: 'lgCLIENTID',
             fields: [
                 {name: 'lgCLIENTID', type: 'string'},
                 {name: 'strFIRSTNAME', type: 'string'},

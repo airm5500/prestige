@@ -800,7 +800,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // (factureprovisoire figure deja plus haut, dans le bloc « facturation »)
     'logfile',
     // pilotage et ordonnances (retour de l'officine du 19/09)
-    'pilotage', 'ordonnanceclient'
+    'pilotage', 'ordonnanceclient',
+    // Analyse posologie (Posos) : ajoute a la demande de l'officine du 22/09.
+    'pososmanager'
 ];
 
 /**

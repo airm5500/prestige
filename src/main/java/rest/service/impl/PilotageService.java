@@ -1581,6 +1581,10 @@ public class PilotageService {
         parametres.put("P_TITRE", titreOnglet(onglet));
         parametres.put("P_CRITERES", rappelAxe(donnees.optJSONObject("axe")));
         parametres.put("P_TUILES", rappelTuiles(donnees.optJSONArray("tuiles")));
+        /* La premiere colonne dit « MOIS », sauf pour un croisement ou elle porte l'axe : « HEURE DE LA JOURNEE ». */
+        JSONObject comparaison = donnees.optJSONObject("comparaison");
+        parametres.put("P_C0", comparaison != null && CROISER.equals(comparaison.optString("type"))
+                ? comparaison.optString("libelleAxe", "AXE").toUpperCase() : "MOIS");
         for (int c = 0; c < LignePilotage.COLONNES; c++) {
             parametres.put("P_C" + (c + 1), c < colonnes.size() ? colonnes.get(c)[1] : "");
         }

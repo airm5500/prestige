@@ -226,15 +226,36 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.chargerPieces();
     },
 
+    /*
+     * VIDER LA FICHE SANS FAIRE TOMBER LES COMBOS (retour du 22/09 : « TypeError : getId, a is undefined » au
+     * clic sur Consulter, Modifier et Nouvelle ordonnance). Un combo ExtJS 4.2 se vide par clearValue(), pas
+     * par setValue(null) : la seconde forme repasse par le modele de selection de sa liste, qui relit chaque
+     * enregistrement selectionne par son identifiant - et un enregistrement pose a la main sans identifiant
+     * n'en a pas. Les evenements sont suspendus le temps du vidage : vider n'est pas choisir.
+     */
     viderFiche: function () {
         var ecran = this.getEcran();
-        var fiche = ecran.down('#vueFiche');
+        var fiche = ecran ? ecran.down('#vueFiche') : null;
+        if (!fiche) {
+            return;
+        }
         Ext.each(['#ordonnanceId', '#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement',
             '#observations'], function (s) {
             var c = fiche.down(s);
-            if (c) {
-                c.setValue(null);
+            if (!c) {
+                return;
             }
+            c.suspendEvents(false);
+            try {
+                if (c.isXType('combobox')) {
+                    c.clearValue();
+                } else {
+                    c.setValue(null);
+                }
+            } catch (e) {
+                /* Un champ qui refuse de se vider ne doit pas empecher d'ouvrir la fiche. */
+            }
+            c.resumeEvents();
         });
         ecran.storeProduits.removeAll();
     },
@@ -321,13 +342,16 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
          * l'identifiant technique tant que la liste distante n'aurait pas répondu.
          */
         if (o.clientId) {
-            var modeleClient = ecran.storeClients.getProxy().getModel();
-            ecran.storeClients.add(new modeleClient({
-                lgCLIENTID: o.clientId,
-                strFIRSTNAME: o.client || '',
-                strLASTNAME: '',
-                strTELEPHONE: o.telephone || ''
-            }));
+            /* Un seul enregistrement pour ce client : chaque consultation en empilait un de plus. */
+            if (ecran.storeClients.findExact('lgCLIENTID', o.clientId) < 0) {
+                var modeleClient = ecran.storeClients.getProxy().getModel();
+                ecran.storeClients.add(new modeleClient({
+                    lgCLIENTID: o.clientId,
+                    strFIRSTNAME: o.client || '',
+                    strLASTNAME: '',
+                    strTELEPHONE: o.telephone || ''
+                }));
+            }
             fiche.down('#ficheClient').setValue(o.clientId);
         }
         if (o.dateOrdonnance) {
