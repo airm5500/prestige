@@ -335,12 +335,13 @@ public class AnalyseArticleRessource {
     @Path("paires")
     public Response paires(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @DefaultValue("3") @QueryParam("minimum") int minimum,
-            @DefaultValue("100") @QueryParam("limite") int limite) {
+            @DefaultValue("100") @QueryParam("limite") int limite,
+            @DefaultValue("") @QueryParam("produit") String produit) {
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
         LocalDate[] p = periode(typePeriode, dtStart, dtEnd);
-        List<PaireArticleDTO> paires = pairesCompletes(p[0], p[1], minimum, limite);
+        List<PaireArticleDTO> paires = pairesCompletes(p[0], p[1], minimum, limite, produit);
         JSONArray data = new JSONArray();
         for (PaireArticleDTO paire : paires) {
             data.put(AnalyseArticle.json(paire));
@@ -354,8 +355,12 @@ public class AnalyseArticleRessource {
                 .build();
     }
 
-    private List<PaireArticleDTO> pairesCompletes(LocalDate debut, LocalDate fin, int minimum, int limite) {
-        List<PaireArticleDTO> paires = analyseArticleService.paires(debut, fin, minimum, limite);
+    /** Toutes les paires, ou - un produit donne - ses compagnons les plus frequents (21/09). */
+    private List<PaireArticleDTO> pairesCompletes(LocalDate debut, LocalDate fin, int minimum, int limite,
+            String produit) {
+        List<PaireArticleDTO> paires = StringUtils.isBlank(produit)
+                ? analyseArticleService.paires(debut, fin, minimum, limite)
+                : analyseArticleService.pairesAutour(debut, fin, produit, minimum, limite);
         AnalyseArticle.completerPaires(paires, analyseArticleService.articles(debut, fin));
         return paires;
     }
@@ -365,11 +370,15 @@ public class AnalyseArticleRessource {
     @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public Response pairesExcel(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @DefaultValue("3") @QueryParam("minimum") int minimum,
-            @DefaultValue("100") @QueryParam("limite") int limite) throws IOException {
+            @DefaultValue("100") @QueryParam("limite") int limite,
+            @DefaultValue("") @QueryParam("produit") String produit) throws IOException {
         LocalDate[] p = periode(typePeriode, dtStart, dtEnd);
-        List<PaireArticleDTO> paires = pairesCompletes(p[0], p[1], minimum, limite);
+        List<PaireArticleDTO> paires = pairesCompletes(p[0], p[1], minimum, limite, produit);
         byte[] data = new ClasseurExcel<PaireArticleDTO>("Achetés ensemble").titre("ANALYSE ARTICLE - ACHETÉS ENSEMBLE")
                 .critere("Période", "du " + p[0].format(JOUR) + " au " + p[1].format(JOUR))
+                .critere("Autour du produit",
+                        paires.isEmpty() || StringUtils.isBlank(produit) ? "Toutes les paires"
+                                : paires.get(0).getLibelle1() + " (" + paires.get(0).getCip1() + ")")
                 .critere("Minimum de tickets en commun", String.valueOf(minimum))
                 .texte("CIP 1", PaireArticleDTO::getCip1).texte("Produit 1", PaireArticleDTO::getLibelle1)
                 .texte("CIP 2", PaireArticleDTO::getCip2).texte("Produit 2", PaireArticleDTO::getLibelle2)

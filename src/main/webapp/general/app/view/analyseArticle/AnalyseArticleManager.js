@@ -325,14 +325,43 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                     xtype: 'toolbar',
                     dock: 'top',
                     items: [{
-                            xtype: 'tbtext',
-                            text: 'Produits présents sur les mêmes tickets, du plus fréquent au moins fréquent.'
+                            /*
+                             * AUTOUR D'UN PRODUIT (21/09) : « choisir un produit et voir les N produits les plus
+                             * souvent achetes avec lui ». Vide, l'onglet montre toutes les paires comme avant.
+                             */
+                            xtype: 'combobox', itemId: 'produitAutour', fieldLabel: 'Autour du produit', labelWidth: 105,
+                            width: 420, emptyText: 'CIP ou nom (2 caractères) — vide : toutes les paires',
+                            store: Ext.create('Ext.data.Store', {
+                                fields: ['lg_FAMILLE_ID', 'str_NAME', 'int_CIP'],
+                                pageSize: 20,
+                                proxy: {
+                                    type: 'ajax', url: '../api/v1/produit-search/fiche',
+                                    reader: {type: 'json', root: 'results', totalProperty: 'total'}
+                                }
+                            }),
+                            valueField: 'lg_FAMILLE_ID', displayField: 'str_NAME', queryMode: 'remote',
+                            queryParam: 'search_value', minChars: 2, typeAhead: false, forceSelection: true,
+                            tpl: Ext.create('Ext.XTemplate', '<tpl for="."><div class="x-boundlist-item">'
+                                    + '<b>{int_CIP}</b> {str_NAME}</div></tpl>')
+                        }, {
+                            text: 'Toutes les paires', itemId: 'effacerProduitAutour',
+                            tooltip: 'Revenir à toutes les paires de la période'
                         }, '-', {
                             xtype: 'numberfield', itemId: 'minimumTickets', fieldLabel: 'Minimum de tickets ensemble',
                             labelWidth: 170, width: 240, minValue: 1, allowDecimals: false, value: 3
                         }, {
                             xtype: 'numberfield', itemId: 'limitePaires', fieldLabel: 'Paires', labelWidth: 45, width: 120,
                             minValue: 1, maxValue: 1000, allowDecimals: false, value: 100
+                        }, {
+                            xtype: 'tbtext', itemId: 'explicationPaires', margin: '0 0 0 8',
+                            text: '<span style="color:#5A6B80" data-qtip="'
+                                    + '<b>Minimum de tickets ensemble</b> : une paire vue moins de N fois n\'est pas montrée, '
+                                    + 'pour que les coïncidences ne noient pas les vraies associations.<br>'
+                                    + '<b>Paires</b> : le nombre de lignes affichées, les plus fréquentes d\'abord — '
+                                    + 'ou, autour d\'un produit, le nombre de compagnons voulus.<br>'
+                                    + '<b>% des tickets du produit 1</b> : parmi les tickets qui contiennent le produit 1, '
+                                    + 'la part qui contient aussi le produit 2. Et inversement pour le produit 2 : '
+                                    + '80 % des acheteurs de A prennent B n\'implique pas l\'inverse.">ⓘ Que veulent dire ces réglages ?</span>'
                         }, {
                             text: 'Actualiser', itemId: 'actualiserPaires', iconCls: 'x-tbar-loading'
                         }, '->', {
@@ -345,7 +374,8 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                 {header: 'Produit 1', dataIndex: 'libelle1', flex: 1},
                 {header: 'CIP', dataIndex: 'cip2', width: 85},
                 {header: 'Produit 2', dataIndex: 'libelle2', flex: 1},
-                {header: 'Tickets ensemble', dataIndex: 'tickets', width: 120, align: 'right'},
+                {header: 'Tickets ensemble', dataIndex: 'tickets', width: 120, align: 'right',
+                    tooltip: 'Nombre de tickets de la période portant les deux produits à la fois'},
                 {
                     header: '% des tickets du produit 1', dataIndex: 'part1', width: 160, align: 'right',
                     tooltip: 'Part des tickets contenant le produit 1 qui contiennent aussi le produit 2',
@@ -353,6 +383,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                 },
                 {
                     header: '% des tickets du produit 2', dataIndex: 'part2', width: 160, align: 'right',
+                    tooltip: 'Part des tickets contenant le produit 2 qui contiennent aussi le produit 1',
                     xtype: 'numbercolumn', format: '0.0'
                 }
             ]

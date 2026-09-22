@@ -25,4 +25,15 @@ public interface AnalyseArticleService {
      *            nombre maximum de paires rendues
      */
     List<PaireArticleDTO> paires(LocalDate debut, LocalDate fin, int minimum, int limite);
+
+    /**
+     * AUTOUR D'UN PRODUIT (21/09) : les produits les plus souvent achetes avec celui-ci, du plus frequent au moins
+     * frequent. Le produit choisi est toujours le produit 1 de chaque paire.
+     *
+     * @param produitId
+     *            l'article autour duquel on regarde
+     * @param limite
+     *            le nombre de produits voulus - « les 3 produits les plus souvent achetes avec lui »
+     */
+    List<PaireArticleDTO> pairesAutour(LocalDate debut, LocalDate fin, String produitId, int minimum, int limite);
 }

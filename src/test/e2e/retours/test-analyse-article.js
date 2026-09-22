@@ -136,6 +136,18 @@ function semer() {
     ok('API : avec un minimum de 1, les autres paires apparaissent (P1+P2, P1+P3, P1+P4, P2+P5, ...), la plus frequente en tete',
       paires2.total >= 5 && paires2.data[0].tickets === 3 && paires2.data.every(x => x.tickets >= 1), JSON.stringify(paires2.total));
 
+    // AUTOUR D'UN PRODUIT (21/09) : les compagnons de P1, du plus frequent au moins frequent, P1 toujours a gauche
+    const autour = await appel('../api/v1/analyse-article/paires?' + PERIODE + '&minimum=1&limite=2&produit=' + PRODUITS[0]);
+    ok('API : autour de P1 avec 2 compagnons : P5 (3 tickets) en tete puis un autre, P1 toujours en produit 1',
+      autour.total === 2 && autour.data.every(x => x.produit1Id === PRODUITS[0]) && autour.data[0].produit2Id === PRODUITS[4] && autour.data[0].tickets === 3
+      && autour.data[1].tickets === 1, JSON.stringify(autour.data.map(x => [x.libelle2, x.tickets])));
+    const autourVide = await appel('../api/v1/analyse-article/paires?' + PERIODE + '&minimum=1&limite=5&produit=inexistant');
+    ok('API : un produit inconnu ne donne aucune paire, sans erreur', autourVide.success && autourVide.total === 0);
+    const xlsAutour = await octets('../api/v1/analyse-article/paires/excel?' + PERIODE + '&minimum=1&limite=3&produit=' + PRODUITS[0]);
+    fs.writeFileSync(TMP + '/autour.xlsx', Buffer.from(xlsAutour.octets));
+    const cellulesA = execFileSync('python3', ['-c', "import openpyxl,sys; ws=openpyxl.load_workbook(sys.argv[1]).active; print('|'.join(str(c.value) for r in ws.iter_rows() for c in r if c.value is not None))", TMP + '/autour.xlsx'], { encoding: 'utf8' });
+    ok('Excel autour d un produit : le produit choisi est nomme en tete', xlsAutour.statut === 200 && /Autour du produit : .+\(\d+\)/.test(cellulesA), cellulesA.slice(0, 200));
+
     const xls = await octets('../api/v1/analyse-article/matrice/excel?' + PERIODE);
     fs.writeFileSync(TMP + '/matrice.xlsx', Buffer.from(xls.octets));
     const cellules = execFileSync('python3', ['-c', "import openpyxl,sys; ws=openpyxl.load_workbook(sys.argv[1]).active; print('|'.join(str(c.value) for r in ws.iter_rows() for c in r if c.value is not None))", TMP + '/matrice.xlsx'], { encoding: 'utf8' });
@@ -236,6 +248,25 @@ function semer() {
       const e = Ext.ComponentQuery.query('analysearticle')[0];
       return { n: e.paireStore.getCount(), premiere: e.paireStore.getAt(0).getData(), colonnes: e.down('#ongletPaires').headerCt.getGridColumns().map(c => c.text) };
     });
+    // le selecteur « autour du produit » : on pose P1 comme si on l avait choisi dans la liste, puis on efface
+    await p.evaluate((id) => {
+      const e = Ext.ComponentQuery.query('analysearticle')[0];
+      const c = e.down('#produitAutour');
+      c.getStore().loadData([{ lg_FAMILLE_ID: id, str_NAME: 'P1', int_CIP: 'CIP' }]);
+      c.setValue(id); e.down('#minimumTickets').setValue(1); e.down('#limitePaires').setValue(3);
+      c.fireEvent('select', c, [c.findRecordByValue(id)]);
+    }, PRODUITS[0]);
+    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return !e.paireStore.isLoading() && e.paireStore.getCount() === 3; }, null, { timeout: 30000 });
+    const autourEcran = await p.evaluate(() => {
+      const e = Ext.ComponentQuery.query('analysearticle')[0];
+      const l = []; e.paireStore.each(r => l.push([r.get('produit1Id'), r.get('tickets')]));
+      return { lignes: l, libelle: e.down('#limitePaires').getFieldLabel() };
+    });
+    ok('ecran : « Autour du produit » P1 avec 3 compagnons : trois lignes, P1 toujours a gauche, la plus frequente en tete, et « Paires » devient « Compagnons »',
+      autourEcran.lignes.length === 3 && autourEcran.lignes.every(x => x[0] === PRODUITS[0]) && autourEcran.lignes[0][1] === 3 && autourEcran.libelle === 'Compagnons', JSON.stringify(autourEcran));
+    await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; e.down('#minimumTickets').setValue(3); e.down('#limitePaires').setValue(100); e.down('#effacerProduitAutour').el.dom.click(); });
+    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return !e.paireStore.isLoading() && e.paireStore.getCount() === 1 && e.down('#limitePaires').getFieldLabel() === 'Paires'; }, null, { timeout: 30000 });
+    ok('ecran : « Toutes les paires » rend la liste d origine', true);
     ok('ecran : l onglet « Achetés ensemble » montre la paire P1 + P5 (3 tickets, 100 %) avec ses colonnes',
       pairesEcran.n === 1 && pairesEcran.premiere.tickets === 3 && pairesEcran.premiere.part1 === 100 && pairesEcran.colonnes.indexOf('Tickets ensemble') >= 0
       && pairesEcran.colonnes.indexOf('% des tickets du produit 1') >= 0, JSON.stringify(pairesEcran).slice(0, 300));

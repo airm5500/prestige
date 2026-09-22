@@ -52,6 +52,27 @@ public class AnalyseArticleServiceImpl implements AnalyseArticleService {
             + " GROUP BY a.lg_FAMILLE_ID, fa.int_CIP, fa.str_NAME, b.lg_FAMILLE_ID, fb.int_CIP, fb.str_NAME"
             + " HAVING tickets >= ?4 ORDER BY tickets DESC, fa.str_NAME, fb.str_NAME LIMIT ?5";
 
+    /**
+     * Les compagnons d'UN produit : « a » est le produit choisi, « b » tout autre produit du meme ticket. La condition
+     * « b <> a » remplace le « b > a » de la requete generale, qui ne comptait chaque paire qu'une fois : ici le
+     * produit choisi doit etre a gauche de toutes ses paires.
+     */
+    private static final String SQL_PAIRES_AUTOUR = "SELECT a.lg_FAMILLE_ID AS produit1, fa.int_CIP AS cip1,"
+            + " fa.str_NAME AS libelle1, b.lg_FAMILLE_ID AS produit2, fb.int_CIP AS cip2, fb.str_NAME AS libelle2,"
+            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS tickets"
+            + " FROM t_preenregistrement p JOIN t_user up ON up.lg_USER_ID = p.lg_USER_ID"
+            + " JOIN t_preenregistrement_detail a ON a.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " AND a.lg_FAMILLE_ID = ?6"
+            + " JOIN t_preenregistrement_detail b ON b.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " AND b.lg_FAMILLE_ID <> a.lg_FAMILLE_ID" + " JOIN t_famille fa ON fa.lg_FAMILLE_ID = a.lg_FAMILLE_ID"
+            + " JOIN t_famille fb ON fb.lg_FAMILLE_ID = b.lg_FAMILLE_ID"
+            + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2"
+            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+            + " AND p.lg_TYPE_VENTE_ID <> '5' AND up.lg_EMPLACEMENT_ID = ?3 AND p.imported = 0"
+            + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
+            + " GROUP BY a.lg_FAMILLE_ID, fa.int_CIP, fa.str_NAME, b.lg_FAMILLE_ID, fb.int_CIP, fb.str_NAME"
+            + " HAVING tickets >= ?4 ORDER BY tickets DESC, fb.str_NAME LIMIT ?5";
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -96,6 +117,32 @@ public class AnalyseArticleServiceImpl implements AnalyseArticleService {
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "paires de produits", e);
+        }
+        return paires;
+    }
+
+    @Override
+    public List<PaireArticleDTO> pairesAutour(LocalDate debut, LocalDate fin, String produitId, int minimum,
+            int limite) {
+        List<PaireArticleDTO> paires = new ArrayList<>();
+        if (debut == null || fin == null || fin.isBefore(debut) || produitId == null || produitId.trim().isEmpty()) {
+            return paires;
+        }
+        try {
+            Query q = em.createNativeQuery(SQL_PAIRES_AUTOUR);
+            q.setParameter(1, java.sql.Timestamp.valueOf(debut.atStartOfDay()));
+            q.setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()));
+            q.setParameter(3, emplacementCourant());
+            q.setParameter(4, Math.max(1, minimum));
+            q.setParameter(5, Math.max(1, limite));
+            q.setParameter(6, produitId.trim());
+            for (Object ligne : q.getResultList()) {
+                Object[] c = (Object[]) ligne;
+                paires.add(new PaireArticleDTO(texte(c[0]), texte(c[1]), texte(c[2]), texte(c[3]), texte(c[4]),
+                        texte(c[5]), entier(c[6])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produits achetes avec un produit", e);
         }
         return paires;
     }

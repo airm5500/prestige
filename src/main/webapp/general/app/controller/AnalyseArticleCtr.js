@@ -34,6 +34,8 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
             'analysearticle #imprimer': {click: this.doImprimer},
             'analysearticle #ongletPaires': {activate: this.doChargerPaires},
             'analysearticle #actualiserPaires': {click: this.doChargerPaires},
+            'analysearticle #produitAutour': {select: this.doChargerPaires},
+            'analysearticle #effacerProduitAutour': {click: this.doEffacerProduitAutour},
             'analysearticle #exporterPaires': {click: this.doExporterPaires}
         });
     },
@@ -276,15 +278,28 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
         return {
             typePeriode: c.typePeriode, dtStart: c.dtStart, dtEnd: c.dtEnd,
             minimum: ecran.down('#minimumTickets').getValue() || 3,
-            limite: ecran.down('#limitePaires').getValue() || 100
+            limite: ecran.down('#limitePaires').getValue() || 100,
+            produit: ecran.down('#produitAutour').getValue() || ''
         };
+    },
+
+    doEffacerProduitAutour: function () {
+        var ecran = this.getEcran();
+        ecran.down('#produitAutour').clearValue();
+        this.doChargerPaires();
     },
 
     doChargerPaires: function () {
         var ecran = this.getEcran();
         var onglet = ecran.down('#ongletPaires');
         var store = ecran.paireStore;
-        Ext.apply(store.getProxy().extraParams, this.criteresPaires());
+        var criteres = this.criteresPaires();
+        /* Autour d'un produit, « Paires » compte des compagnons : le libelle le dit. */
+        var limite = ecran.down('#limitePaires');
+        if (limite) {
+            limite.setFieldLabel(criteres.produit ? 'Compagnons' : 'Paires');
+        }
+        Ext.apply(store.getProxy().extraParams, criteres);
         if (onglet.rendered) {
             onglet.setLoading('Recherche des paires...');
         }
