@@ -1355,6 +1355,9 @@ body.x-body,
 /* ---------------------------------------------------------------- analyse article : matrice marge x rotation */
 .analyse-article-quadrants { padding: 6px 8px 2px 8px; background: #f7f9fb; }
 .analyse-article-quadrants .aa-entete { font-size: 12px; color: #333; margin-bottom: 6px; }
+/* Les trois regles de classement, en clair sous la periode : marge, rotation, ruptures. */
+.analyse-article-quadrants .aa-regles { display: inline-block; margin-top: 3px; padding: 2px 8px; font-size: 12px;
+    color: #1E3A5F; background: #EEF3FA; border-left: 3px solid #b7791f; border-radius: 3px; }
 .analyse-article-quadrants .aa-grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .analyse-article-quadrants .aa-quadrant { background: #fff; border: 1px solid #d5dde5; border-radius: 3px; padding: 6px 10px; cursor: pointer; min-height: 96px; }
 .analyse-article-quadrants .aa-quadrant:hover { box-shadow: 0 0 0 2px #b8c6d4 inset; }

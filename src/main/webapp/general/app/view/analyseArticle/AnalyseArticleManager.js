@@ -114,9 +114,23 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                 }, {
                     xtype: 'displayfield', value: '%', margin: '0 8 0 2'
                 }, {
-                    xtype: 'numberfield', itemId: 'seuilRotation', fieldLabel: 'Rotation élevée ≥', labelWidth: 110,
-                    width: 190, minValue: 0, allowDecimals: true, decimalPrecision: 2, emptyText: 'médiane',
+                    /*
+                     * LA ROTATION SE LIT EN JOURS DE COUVERTURE PAR DEFAUT (21/09) : « lent = plus de N jours
+                     * de stock », ce qu'un pharmacien lit sans calcul. Le ratio vendu / stock reste au choix.
+                     * Le seuil suit le mode : une couverture maximale en jours, ou une rotation minimale.
+                     */
+                    xtype: 'combobox', itemId: 'modeRotation', fieldLabel: 'Rotation', labelWidth: 55, width: 175,
+                    store: Ext.create('Ext.data.ArrayStore', {
+                        fields: ['code', 'libelle'],
+                        data: [['JOURS', 'en jours de couv.'], ['RATIO', 'en ratio vendu/stock']]
+                    }),
+                    valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false, value: 'JOURS'
+                }, {
+                    xtype: 'numberfield', itemId: 'seuilRotation', fieldLabel: 'Élevée si couv. ≤', labelWidth: 105,
+                    width: 185, minValue: 0, allowDecimals: true, decimalPrecision: 2, emptyText: 'médiane',
                     hideTrigger: true
+                }, {
+                    xtype: 'displayfield', itemId: 'uniteRotation', value: 'j', margin: '0 8 0 2'
                 }, {
                     text: 'Analyser', itemId: 'analyser', iconCls: 'x-tbar-loading'
                 }, '->', {
@@ -153,6 +167,17 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
         var nombre = function (v) {
             return Ext.util.Format.number(v || 0, '0,000');
         };
+        var operateur = function (itemId, libelle) {
+            return {
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 75 : 40,
+                width: libelle.length > 6 ? 150 : 115,
+                store: Ext.create('Ext.data.ArrayStore', {
+                    fields: ['code', 'libelle'],
+                    data: [['', '—'], ['>=', '≥'], ['<=', '≤'], ['=', '='], ['>', '>'], ['<', '<'], ['!=', '≠']]
+                }),
+                valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false, value: ''
+            };
+        };
         return {
             title: 'Matrice marge × rotation',
             itemId: 'ongletMatrice',
@@ -163,7 +188,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                     xtype: 'panel',
                     itemId: 'quadrants',
                     border: false,
-                    height: 150,
+                    height: 168,
                     cls: 'analyse-article-quadrants',
                     tpl: new Ext.XTemplate(
                         '<div class="aa-entete">{entete}</div>',
@@ -203,6 +228,22 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                             xtype: 'tbtext', itemId: 'compteCoches', text: ''
                         }]
                 }, {
+                    /*
+                     * FILTRES A OPERATEURS sur le stock et la quantite vendue (21/09). Un produit vendu le matin
+                     * meme peut etre a stock zero au moment ou l'on regarde ; « stock ≥ 1 » l'ecarte d'un geste,
+                     * et « quantite ≥ 5 » ecarte les ventes anecdotiques.
+                     */
+                    xtype: 'toolbar',
+                    items: [operateur('filtreStockOp', 'Stock'), {
+                            xtype: 'numberfield', itemId: 'filtreStockVal', width: 80, minValue: -99999, hideTrigger: true,
+                            emptyText: 'valeur', enableKeyEvents: true
+                        }, '-', operateur('filtreQteOp', 'Qté vendue'), {
+                            xtype: 'numberfield', itemId: 'filtreQteVal', width: 80, minValue: 0, hideTrigger: true,
+                            emptyText: 'valeur', enableKeyEvents: true
+                        }, {
+                            xtype: 'tbtext', itemId: 'rappelFiltres', text: '', margin: '0 0 0 12'
+                        }]
+                }, {
                     xtype: 'gridpanel',
                     itemId: 'grilleArticles',
                     flex: 1,
@@ -228,20 +269,28 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                         },
                         {header: 'CIP', dataIndex: 'cip', width: 85},
                         {header: 'Produit', dataIndex: 'libelle', flex: 1},
-                        {header: 'Qté', dataIndex: 'quantite', width: 60, align: 'right'},
-                        {header: 'Tickets', dataIndex: 'tickets', width: 65, align: 'right'},
-                        {header: 'Chiffre', dataIndex: 'montant', width: 95, align: 'right', xtype: 'numbercolumn', format: '0,000.'},
-                        {header: 'Marge', dataIndex: 'marge', width: 90, align: 'right', xtype: 'numbercolumn', format: '0,000.'},
-                        {header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right', xtype: 'numbercolumn', format: '0.0'},
-                        {header: 'Stock', dataIndex: 'stock', width: 60, align: 'right'},
+                        {header: 'Qté', dataIndex: 'quantite', width: 60, align: 'right',
+                            tooltip: 'Quantité vendue sur la période analysée'},
+                        {header: 'Tickets', dataIndex: 'tickets', width: 65, align: 'right',
+                            tooltip: 'Nombre de ventes distinctes contenant le produit'},
+                        {header: 'Chiffre', dataIndex: 'montant', width: 95, align: 'right', xtype: 'numbercolumn', format: '0,000.',
+                            tooltip: 'Montant TTC vendu sur la période'},
+                        {header: 'Marge', dataIndex: 'marge', width: 90, align: 'right', xtype: 'numbercolumn', format: '0,000.',
+                            tooltip: 'Marge = (TTC − remise − TVA) − prix d\'achat × quantité'},
+                        {header: 'Taux %', dataIndex: 'tauxMarge', width: 65, align: 'right', xtype: 'numbercolumn', format: '0.0',
+                            tooltip: 'Taux de marge = marge ÷ montant HT'},
+                        {header: 'Stock', dataIndex: 'stock', width: 60, align: 'right',
+                            tooltip: 'Stock disponible au moment de l\'analyse'},
                         {
                             header: 'Rotation', dataIndex: 'rotation', width: 70, align: 'right',
-                            tooltip: 'Quantité vendue sur la période / stock actuel',
+                            tooltip: 'Rotation = quantité vendue sur la période ÷ stock actuel.<br>'
+                                    + 'Stock 0 : la valeur affichée est la quantité vendue ; le produit est jugé sur elle (règle des ruptures, en-tête).',
                             xtype: 'numbercolumn', format: '0.00'
                         },
                         {
                             header: 'Couv. (j)', dataIndex: 'couverture', width: 70, align: 'right',
-                            tooltip: 'Jours de couverture du stock actuel au rythme de vente de la période',
+                            tooltip: 'Couverture = stock actuel × jours de la période ÷ quantité vendue : '
+                                    + 'le nombre de jours que le stock tient au rythme de vente de la période.<br>∞ : du stock, aucune vente.',
                             renderer: function (v) {
                                 return v < 0 ? '∞' : Ext.util.Format.number(v, '0.0');
                             }

@@ -102,27 +102,86 @@ public class AnalyseArticleRessource {
     private static final class Analyse {
         LocalDate debut;
         LocalDate fin;
+        long jours;
         double seuilMarge;
+        /** En mode JOURS : la couverture maximale ; en mode RATIO : la rotation minimale. */
         double seuilRotation;
+        String modeRotation;
         double medianeMarge;
         double medianeRotation;
+        double medianeCouverture;
+        double medianeQuantite;
         List<ArticleAnalyseDTO> articles;
+
+        boolean enJours() {
+            return AnalyseArticle.MODE_JOURS.equals(modeRotation);
+        }
+
+        /** Les regles, en clair, telles que l'en-tete et les editions les enoncent. */
+        String regleMarge() {
+            return "Marge élevée : taux ≥ " + un(seuilMarge) + " %" + (seuilMarge == medianeMarge
+                    ? " (médiane de l'assortiment)" : " (saisi ; médiane " + un(medianeMarge) + " %)");
+        }
+
+        String regleRotation() {
+            if (enJours()) {
+                return "Rotation élevée : couverture ≤ " + un(seuilRotation) + " j"
+                        + (seuilRotation == medianeCouverture ? " (médiane)"
+                                : " (saisi ; médiane " + un(medianeCouverture) + " j)");
+            }
+            return "Rotation élevée : vendu / stock ≥ " + deux(seuilRotation) + (seuilRotation == medianeRotation
+                    ? " (médiane)" : " (saisi ; médiane " + deux(medianeRotation) + ")");
+        }
+
+        String regleRupture() {
+            return "En rupture (stock 0) : rotation élevée si quantité vendue ≥ " + un(medianeQuantite)
+                    + " (médiane des quantités)";
+        }
+
+        private static String un(double v) {
+            return String.format(java.util.Locale.FRANCE, "%.1f", v).replace(",0", "");
+        }
+
+        private static String deux(double v) {
+            return String.format(java.util.Locale.FRANCE, "%.2f", v);
+        }
     }
 
     private Analyse analyser(String typePeriode, String dtStart, String dtEnd, String seuilMarge,
             String seuilRotation) {
+        return analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation, null);
+    }
+
+    /**
+     * L'analyse complete.
+     *
+     * <p>
+     * LES SEUILS (21/09). Par defaut ce sont les medianes de l'assortiment vendu - la moitie des produits au-dessus, la
+     * moitie en dessous - et ils s'affichent en clair. Saisis, ils les remplacent. La rotation se lit par defaut en
+     * JOURS DE COUVERTURE (« lent = plus de N jours de stock »), ce qu'un pharmacien lit sans calcul, ou en RATIO vendu
+     * / stock si on le demande. Les produits en rupture ne pesent plus sur les medianes et sont juges sur leur quantite
+     * vendue : voir {@link AnalyseArticle.Seuils}.
+     */
+    private Analyse analyser(String typePeriode, String dtStart, String dtEnd, String seuilMarge, String seuilRotation,
+            String modeRotation) {
         Analyse a = new Analyse();
         LocalDate[] p = periode(typePeriode, dtStart, dtEnd);
         a.debut = p[0];
         a.fin = p[1];
+        a.jours = java.time.temporal.ChronoUnit.DAYS.between(a.debut, a.fin) + 1;
+        a.modeRotation = AnalyseArticle.MODE_RATIO.equalsIgnoreCase(StringUtils.trimToEmpty(modeRotation))
+                ? AnalyseArticle.MODE_RATIO : AnalyseArticle.MODE_JOURS;
         a.articles = analyseArticleService.articles(a.debut, a.fin);
         a.medianeMarge = AnalyseArticle.medianeMarge(a.articles);
         a.medianeRotation = AnalyseArticle.medianeRotation(a.articles);
+        a.medianeCouverture = AnalyseArticle.medianeCouverture(a.articles);
+        a.medianeQuantite = AnalyseArticle.medianeQuantite(a.articles);
         Double marge = nombreOuNull(seuilMarge);
         Double rotation = nombreOuNull(seuilRotation);
         a.seuilMarge = marge == null ? a.medianeMarge : marge;
-        a.seuilRotation = rotation == null ? a.medianeRotation : rotation;
-        AnalyseArticle.affecterQuadrants(a.articles, a.seuilMarge, a.seuilRotation);
+        a.seuilRotation = rotation == null ? (a.enJours() ? a.medianeCouverture : a.medianeRotation) : rotation;
+        AnalyseArticle.affecterQuadrants(a.articles, new AnalyseArticle.Seuils(a.seuilMarge, a.modeRotation,
+                a.enJours() ? 0 : a.seuilRotation, a.enJours() ? a.seuilRotation : 0, a.medianeQuantite));
         AnalyseArticle.trier(a.articles);
         return a;
     }
@@ -132,10 +191,13 @@ public class AnalyseArticleRessource {
                 .put("periode",
                         new JSONObject().put("debut", a.debut.toString()).put("fin", a.fin.toString())
                                 .put("libelle", "du " + a.debut.format(JOUR) + " au " + a.fin.format(JOUR))
-                                .put("jours", java.time.temporal.ChronoUnit.DAYS.between(a.debut, a.fin) + 1))
+                                .put("jours", a.jours))
                 .put("seuils",
                         new JSONObject().put("marge", a.seuilMarge).put("rotation", a.seuilRotation)
-                                .put("medianeMarge", a.medianeMarge).put("medianeRotation", a.medianeRotation))
+                                .put("modeRotation", a.modeRotation).put("medianeMarge", a.medianeMarge)
+                                .put("medianeRotation", a.medianeRotation).put("medianeCouverture", a.medianeCouverture)
+                                .put("medianeQuantite", a.medianeQuantite))
+                .put("regles", new JSONArray().put(a.regleMarge()).put(a.regleRotation()).put(a.regleRupture()))
                 .put("quadrants", AnalyseArticle.resume(a.articles)).put("totalProduits", a.articles.size());
     }
 
@@ -149,14 +211,18 @@ public class AnalyseArticleRessource {
             @DefaultValue("") @QueryParam("famille") String famille,
             @DefaultValue("") @QueryParam("rayon") String rayon,
             @DefaultValue("") @QueryParam("grossiste") String grossiste,
-            @DefaultValue("") @QueryParam("query") String recherche, @DefaultValue("0") @QueryParam("start") int start,
-            @DefaultValue("50") @QueryParam("limit") int limit) {
+            @DefaultValue("") @QueryParam("query") String recherche,
+            @DefaultValue("") @QueryParam("modeRotation") String modeRotation,
+            @DefaultValue("") @QueryParam("stockOp") String stockOp,
+            @DefaultValue("") @QueryParam("stockVal") String stockVal,
+            @DefaultValue("") @QueryParam("qteOp") String qteOp, @DefaultValue("") @QueryParam("qteVal") String qteVal,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("50") @QueryParam("limit") int limit) {
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
-        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation);
+        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation, modeRotation);
         List<ArticleAnalyseDTO> retenus = AnalyseArticle.filtrer(a.articles, quadrant, famille, rayon, grossiste,
-                recherche);
+                recherche, AnalyseArticle.Borne.de(stockOp, stockVal), AnalyseArticle.Borne.de(qteOp, qteVal));
         JSONArray data = new JSONArray();
         int depart = Math.max(0, start);
         int fin = limit <= 0 ? retenus.size() : Math.min(retenus.size(), depart + limit);
@@ -175,15 +241,22 @@ public class AnalyseArticleRessource {
             @DefaultValue("") @QueryParam("famille") String famille,
             @DefaultValue("") @QueryParam("rayon") String rayon,
             @DefaultValue("") @QueryParam("grossiste") String grossiste,
-            @DefaultValue("") @QueryParam("query") String recherche) throws IOException {
-        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation);
+            @DefaultValue("") @QueryParam("query") String recherche,
+            @DefaultValue("") @QueryParam("modeRotation") String modeRotation,
+            @DefaultValue("") @QueryParam("stockOp") String stockOp,
+            @DefaultValue("") @QueryParam("stockVal") String stockVal,
+            @DefaultValue("") @QueryParam("qteOp") String qteOp, @DefaultValue("") @QueryParam("qteVal") String qteVal)
+            throws IOException {
+        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation, modeRotation);
         List<ArticleAnalyseDTO> retenus = AnalyseArticle.filtrer(a.articles, quadrant, famille, rayon, grossiste,
-                recherche);
+                recherche, AnalyseArticle.Borne.de(stockOp, stockVal), AnalyseArticle.Borne.de(qteOp, qteVal));
         byte[] data = new ClasseurExcel<ArticleAnalyseDTO>("Marge x rotation")
                 .titre("ANALYSE ARTICLE - MARGE × ROTATION")
                 .critere("Période", "du " + a.debut.format(JOUR) + " au " + a.fin.format(JOUR))
-                .critere("Seuil taux de marge (%)", String.valueOf(a.seuilMarge))
-                .critere("Seuil rotation", String.valueOf(a.seuilRotation))
+                .critere("Marge", a.regleMarge()).critere("Rotation", a.regleRotation())
+                .critere("Ruptures", a.regleRupture())
+                .critere("Filtre stock", stockVal.isEmpty() ? "Tous" : "stock " + stockOp + " " + stockVal)
+                .critere("Filtre quantité", qteVal.isEmpty() ? "Toutes" : "quantité " + qteOp + " " + qteVal)
                 .critere("Quadrant", quadrant > 0 ? AnalyseArticle.libelleQuadrant(quadrant) : "Tous")
                 .texte("Quadrant", x -> AnalyseArticle.libelleQuadrant(x.getQuadrant()))
                 .texte("CIP", ArticleAnalyseDTO::getCip).texte("Produit", ArticleAnalyseDTO::getLibelle)
@@ -208,19 +281,23 @@ public class AnalyseArticleRessource {
             @DefaultValue("") @QueryParam("famille") String famille,
             @DefaultValue("") @QueryParam("rayon") String rayon,
             @DefaultValue("") @QueryParam("grossiste") String grossiste,
-            @DefaultValue("") @QueryParam("query") String recherche) {
+            @DefaultValue("") @QueryParam("query") String recherche,
+            @DefaultValue("") @QueryParam("modeRotation") String modeRotation,
+            @DefaultValue("") @QueryParam("stockOp") String stockOp,
+            @DefaultValue("") @QueryParam("stockVal") String stockVal,
+            @DefaultValue("") @QueryParam("qteOp") String qteOp,
+            @DefaultValue("") @QueryParam("qteVal") String qteVal) {
         TUser user = utilisateur();
         if (user == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation);
+        Analyse a = analyser(typePeriode, dtStart, dtEnd, seuilMarge, seuilRotation, modeRotation);
         List<ArticleAnalyseDTO> retenus = AnalyseArticle.filtrer(a.articles, quadrant, famille, rayon, grossiste,
-                recherche);
+                recherche, AnalyseArticle.Borne.de(stockOp, stockVal), AnalyseArticle.Borne.de(qteOp, qteVal));
         Map<String, Object> parametres = reportUtil.officineData(user);
         parametres.put("P_PERIODE", "Du " + a.debut.format(JOUR) + " au " + a.fin.format(JOUR)
                 + (quadrant > 0 ? "  -  " + AnalyseArticle.libelleQuadrant(quadrant) : ""));
-        parametres.put("P_SEUILS", "Seuils : taux de marge " + a.seuilMarge + " %  -  rotation " + a.seuilRotation
-                + "  (médianes : " + a.medianeMarge + " % et " + a.medianeRotation + ")");
+        parametres.put("P_SEUILS", a.regleMarge() + "  -  " + a.regleRotation() + "  -  " + a.regleRupture());
         parametres.put("P_RESUME", resumeTexte(AnalyseArticle.resume(a.articles)));
         String url = reportUtil.buildReport(parametres, "analyse_article", retenus);
         java.io.File fichier = reportUtil.editionEcrite(url)
@@ -336,10 +413,12 @@ public class AnalyseArticleRessource {
         LocalDate[] p = periode(json.optString("typePeriode"), json.optString("dtStart"), json.optString("dtEnd"));
         if (produits.isEmpty()) {
             Analyse a = analyser(json.optString("typePeriode"), json.optString("dtStart"), json.optString("dtEnd"),
-                    json.optString("seuilMarge"), json.optString("seuilRotation"));
+                    json.optString("seuilMarge"), json.optString("seuilRotation"), json.optString("modeRotation"));
             for (ArticleAnalyseDTO article : AnalyseArticle.filtrer(a.articles, json.optInt("quadrant", 0),
                     json.optString("famille"), json.optString("rayon"), json.optString("grossiste"),
-                    json.optString("query"))) {
+                    json.optString("query"),
+                    AnalyseArticle.Borne.de(json.optString("stockOp"), json.optString("stockVal")),
+                    AnalyseArticle.Borne.de(json.optString("qteOp"), json.optString("qteVal")))) {
                 produits.add(article.getProduitId());
             }
         }

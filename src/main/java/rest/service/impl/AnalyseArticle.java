@@ -112,20 +112,165 @@ public final class AnalyseArticle {
         return mediane(v);
     }
 
+    /**
+     * La mediane des rotations, calculee sur les produits EN STOCK seulement.
+     *
+     * <p>
+     * Un produit a stock zero n'a pas de rotation : sa « rotation » vaut sa quantite vendue (voir
+     * {@link ArticleAnalyseDTO#getRotation()}), c'est-a-dire 2 pour deux boites vendues et 300 pour trois cents.
+     * Laisser ces valeurs dans la mediane la gonflait : l'officine a vu un produit de classe A juge « rotation faible »
+     * a 1,98 contre un seuil de 2,00 fait de ruptures (21/09). Les ruptures sont traitees a part, par
+     * {@link Seuils#quantiteRupture}.
+     */
     public static double medianeRotation(List<ArticleAnalyseDTO> articles) {
         List<Double> v = new ArrayList<>();
         for (ArticleAnalyseDTO a : articles) {
-            v.add(a.getRotation());
+            if (a.getStock() > 0) {
+                v.add(a.getRotation());
+            }
         }
         return mediane(v);
     }
 
-    /** Range chaque produit dans son quadrant : « eleve » signifie superieur ou egal au seuil. */
-    public static void affecterQuadrants(List<ArticleAnalyseDTO> articles, double seuilMarge, double seuilRotation) {
+    /** La mediane des couvertures en jours, sur les produits en stock qui se vendent. */
+    public static double medianeCouverture(List<ArticleAnalyseDTO> articles) {
+        List<Double> v = new ArrayList<>();
         for (ArticleAnalyseDTO a : articles) {
-            boolean margeHaute = a.getTauxMarge() >= seuilMarge;
-            boolean rotationHaute = a.getRotation() >= seuilRotation;
+            if (a.getStock() > 0 && a.getCouverture() >= 0) {
+                v.add(a.getCouverture());
+            }
+        }
+        return mediane(v);
+    }
+
+    /** La mediane des quantites vendues, sur tous les produits vendus : c'est l'aune des ruptures. */
+    public static double medianeQuantite(List<ArticleAnalyseDTO> articles) {
+        List<Double> v = new ArrayList<>();
+        for (ArticleAnalyseDTO a : articles) {
+            v.add((double) a.getQuantite());
+        }
+        return mediane(v);
+    }
+
+    /** Le mode de lecture de la rotation : en jours de couverture (par defaut) ou en ratio vendu / stock. */
+    public static final String MODE_JOURS = "JOURS";
+    public static final String MODE_RATIO = "RATIO";
+
+    /**
+     * Les seuils qui rangent un produit dans son quadrant, tels que l'en-tete de l'ecran les enonce.
+     *
+     * <ul>
+     * <li>marge elevee : taux de marge superieur ou egal a {@link #margeMin} ;</li>
+     * <li>rotation elevee, en mode {@link #MODE_JOURS} : couverture inferieure ou egale a {@link #couvertureMax} jours
+     * - le stock tient peu de jours, donc il tourne ; en mode {@link #MODE_RATIO} : rotation superieure ou egale a
+     * {@link #rotationMin} ;</li>
+     * <li>produit EN RUPTURE (stock zero) : il n'a ni couverture ni rotation. Il est « rotation elevee » seulement si
+     * sa quantite vendue atteint {@link #quantiteRupture} - la mediane des quantites - sans quoi deux boites vendues en
+     * trois mois feraient un champion (21/09). {@code null} conserve l'ancienne regle, ou la quantite tenait lieu de
+     * rotation.</li>
+     * </ul>
+     */
+    public static final class Seuils {
+
+        public final double margeMin;
+        public final String modeRotation;
+        public final double rotationMin;
+        public final double couvertureMax;
+        public final Double quantiteRupture;
+
+        public Seuils(double margeMin, String modeRotation, double rotationMin, double couvertureMax,
+                Double quantiteRupture) {
+            this.margeMin = margeMin;
+            this.modeRotation = MODE_RATIO.equalsIgnoreCase(modeRotation) ? MODE_RATIO : MODE_JOURS;
+            this.rotationMin = rotationMin;
+            this.couvertureMax = couvertureMax;
+            this.quantiteRupture = quantiteRupture;
+        }
+
+        public boolean enJours() {
+            return MODE_JOURS.equals(modeRotation);
+        }
+
+        /** La rotation d'un produit est-elle « elevee » au sens de ces seuils ? */
+        public boolean rotationHaute(ArticleAnalyseDTO a) {
+            if (a.getStock() <= 0) {
+                return quantiteRupture == null ? a.getRotation() >= rotationMin : a.getQuantite() >= quantiteRupture;
+            }
+            if (enJours()) {
+                double c = a.getCouverture();
+                return c >= 0 && c <= couvertureMax;
+            }
+            return a.getRotation() >= rotationMin;
+        }
+    }
+
+    /** Range chaque produit dans son quadrant selon les seuils. */
+    public static void affecterQuadrants(List<ArticleAnalyseDTO> articles, Seuils seuils) {
+        for (ArticleAnalyseDTO a : articles) {
+            boolean margeHaute = a.getTauxMarge() >= seuils.margeMin;
+            boolean rotationHaute = seuils.rotationHaute(a);
             a.setQuadrant(margeHaute ? (rotationHaute ? 1 : 2) : (rotationHaute ? 3 : 4));
+        }
+    }
+
+    /** L'ancienne lecture, en ratio et sans regle de rupture : « eleve » signifie superieur ou egal au seuil. */
+    public static void affecterQuadrants(List<ArticleAnalyseDTO> articles, double seuilMarge, double seuilRotation) {
+        affecterQuadrants(articles, new Seuils(seuilMarge, MODE_RATIO, seuilRotation, 0, null));
+    }
+
+    /**
+     * Une borne numerique de filtre : un operateur et une valeur, « stock ≥ 1 » ou « quantite > 10 ». Demande du 21/09
+     * : « ajouter un filtre sur le stock avec des operateurs », et sur la quantite, pour ecarter d'un geste les
+     * produits passes a zero le jour meme ou les ventes anecdotiques.
+     */
+    public static final class Borne {
+
+        public final String operateur;
+        public final double valeur;
+
+        private Borne(String operateur, double valeur) {
+            this.operateur = operateur;
+            this.valeur = valeur;
+        }
+
+        /** {@code null} si l'operateur ou la valeur manquent : aucun filtre. */
+        public static Borne de(String operateur, String valeur) {
+            if (operateur == null || valeur == null || valeur.trim().isEmpty()) {
+                return null;
+            }
+            String op = operateur.trim();
+            if (!(op.equals(">=") || op.equals("<=") || op.equals("=") || op.equals(">") || op.equals("<")
+                    || op.equals("!="))) {
+                return null;
+            }
+            try {
+                return new Borne(op, Double.parseDouble(valeur.trim().replace(',', '.')));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        public boolean accepte(double v) {
+            switch (operateur) {
+            case ">=":
+                return v >= valeur;
+            case "<=":
+                return v <= valeur;
+            case ">":
+                return v > valeur;
+            case "<":
+                return v < valeur;
+            case "!=":
+                return v != valeur;
+            default:
+                return v == valeur;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return operateur + " "
+                    + (valeur == Math.floor(valeur) ? String.valueOf((long) valeur) : String.valueOf(valeur));
         }
     }
 
@@ -160,10 +305,22 @@ public final class AnalyseArticle {
     /** Filtre par quadrant (0 = tous), famille, rayon, grossiste et texte (CIP ou libelle). */
     public static List<ArticleAnalyseDTO> filtrer(List<ArticleAnalyseDTO> articles, int quadrant, String famille,
             String rayon, String grossiste, String recherche) {
+        return filtrer(articles, quadrant, famille, rayon, grossiste, recherche, null, null);
+    }
+
+    /** Le meme filtre, avec une borne sur le stock et une sur la quantite vendue ({@code null} : sans). */
+    public static List<ArticleAnalyseDTO> filtrer(List<ArticleAnalyseDTO> articles, int quadrant, String famille,
+            String rayon, String grossiste, String recherche, Borne stock, Borne quantite) {
         List<ArticleAnalyseDTO> retenus = new ArrayList<>();
         String texte = recherche == null ? "" : recherche.trim().toLowerCase(Locale.FRENCH);
         for (ArticleAnalyseDTO a : articles) {
             if (quadrant > 0 && a.getQuadrant() != quadrant) {
+                continue;
+            }
+            if (stock != null && !stock.accepte(a.getStock())) {
+                continue;
+            }
+            if (quantite != null && !quantite.accepte(a.getQuantite())) {
                 continue;
             }
             if (renseigne(famille) && !famille.equals(a.getFamilleId())) {

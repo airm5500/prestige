@@ -86,8 +86,95 @@ public class AnalyseArticleTest {
         // taux : 50, 60, 5, 10 -> mediane (10 + 50) / 2 = 30 ; rotations : 5, 0.05, 8, 0.02 -> (0.05 + 5) / 2 = 2.53
         assertEquals(30.0, AnalyseArticle.medianeMarge(articles));
         assertEquals(2.53, AnalyseArticle.medianeRotation(articles));
+        // couvertures (90 jours) : 18, 1800, 11.3, 4500 -> (18 + 1800) / 2 = 909 ; quantites : 10, 1, 8, 1 -> 4.5
+        assertEquals(909.0, AnalyseArticle.medianeCouverture(articles));
+        assertEquals(4.5, AnalyseArticle.medianeQuantite(articles));
         assertEquals(0.0, AnalyseArticle.mediane(new ArrayList<>()));
         assertEquals(7.0, AnalyseArticle.mediane(Arrays.asList(9.0, 7.0, 1.0)));
+    }
+
+    /**
+     * LE CAS DE L'OFFICINE (21/09). Deux boites de preservatifs vendues en trois mois, stock zero : « rotation 2 »,
+     * donc champion. Et un produit de classe A a 1,98 juge lent contre un seuil de 2,00 gonfle par les ruptures. Les
+     * ruptures ne pesent plus sur la mediane et sont jugees sur leur quantite vendue.
+     */
+    @Test
+    public void lesRupturesNeGonflentPlusLaMedianeEtSontJugeesSurLeurQuantite() {
+        List<ArticleAnalyseDTO> articles = quatreProduits();
+        // P2 passe en rupture : sa « rotation » vaudrait sa quantite, 1
+        articles.get(1).setStock(0);
+        assertEquals(1.0, articles.get(1).getRotation());
+        // la mediane des rotations ne le compte plus : 5, 8, 0.02 -> 5
+        assertEquals(5.0, AnalyseArticle.medianeRotation(articles));
+        // Kiss Perle : 2 vendus, stock 0, marge 40 % -> AVANT : champion. Maintenant : quantite 2 < mediane 4.5
+        ArticleAnalyseDTO kiss = new ArticleAnalyseDTO("KISS", "8662491", "PRESERV KISS PERLE");
+        kiss.setQuantite(2);
+        kiss.setMontant(530);
+        kiss.setAchat(314);
+        kiss.setJours(113);
+        kiss.setStock(0);
+        List<ArticleAnalyseDTO> liste = new ArrayList<>(articles);
+        liste.add(kiss);
+        AnalyseArticle.Seuils seuils = new AnalyseArticle.Seuils(30, AnalyseArticle.MODE_RATIO, 2.0, 0, 4.5);
+        AnalyseArticle.affecterQuadrants(liste, seuils);
+        assertEquals(2, kiss.getQuadrant()); // marge haute, rotation FAIBLE : rentable mais lent, plus champion
+        // une rupture qui s'est vraiment vendue reste « rotation elevee »
+        ArticleAnalyseDTO metrol = new ArticleAnalyseDTO("MET", "8430639", "METROL");
+        metrol.setQuantite(307);
+        metrol.setMontant(327790);
+        metrol.setAchat(240000);
+        metrol.setJours(113);
+        metrol.setStock(0);
+        AnalyseArticle.affecterQuadrants(Arrays.asList(metrol), seuils);
+        assertEquals(3, metrol.getQuadrant()); // marge 25 % < 30, mais 307 >= 4.5 : volume fort
+        // l'ancienne signature garde l'ancienne regle : la quantite tient lieu de rotation
+        AnalyseArticle.affecterQuadrants(Arrays.asList(kiss), 30, 2.0);
+        assertEquals(1, kiss.getQuadrant());
+    }
+
+    /** En jours de couverture : « eleve » veut dire que le stock tient PEU de jours. */
+    @Test
+    public void enJoursDeCouvertureLeSeuilEstUneCouvertureMaximale() {
+        List<ArticleAnalyseDTO> articles = quatreProduits();
+        // couvertures : P1 18 j, P2 1 800 j, P3 11.3 j, P4 4 500 j ; seuil 90 j
+        AnalyseArticle.affecterQuadrants(articles,
+                new AnalyseArticle.Seuils(30, AnalyseArticle.MODE_JOURS, 0, 90, 4.5));
+        assertEquals(1, articles.get(0).getQuadrant()); // 18 j : tourne
+        assertEquals(2, articles.get(1).getQuadrant()); // 1 800 j : lent
+        assertEquals(3, articles.get(2).getQuadrant());
+        assertEquals(4, articles.get(3).getQuadrant());
+        // du stock et aucune vente : couverture infinie, donc lent
+        ArticleAnalyseDTO dormant = new ArticleAnalyseDTO("D", "C", "L");
+        dormant.setStock(5);
+        dormant.setJours(90);
+        AnalyseArticle.affecterQuadrants(Arrays.asList(dormant), new AnalyseArticle.Seuils(30, "JOURS", 0, 90, 4.5));
+        assertEquals(4, dormant.getQuadrant());
+        // un mode inconnu retombe sur les jours
+        assertTrue(new AnalyseArticle.Seuils(30, "n'importe quoi", 0, 90, null).enJours());
+    }
+
+    /** Les bornes de filtre : un operateur et une valeur, ou rien. */
+    @Test
+    public void lesBornesFiltrentLeStockEtLaQuantite() {
+        List<ArticleAnalyseDTO> articles = quatreProduits();
+        AnalyseArticle.affecterQuadrants(articles, 30, 2.53);
+        // stocks 2, 20, 1, 50 ; quantites 10, 1, 8, 1
+        assertEquals(2,
+                AnalyseArticle.filtrer(articles, 0, "", "", "", "", AnalyseArticle.Borne.de(">=", "20"), null).size());
+        assertEquals(1,
+                AnalyseArticle.filtrer(articles, 0, "", "", "", "", AnalyseArticle.Borne.de("<", "2"), null).size());
+        assertEquals(2,
+                AnalyseArticle.filtrer(articles, 0, "", "", "", "", null, AnalyseArticle.Borne.de("=", "1")).size());
+        assertEquals(2,
+                AnalyseArticle.filtrer(articles, 0, "", "", "", "", null, AnalyseArticle.Borne.de("!=", "1")).size());
+        assertEquals(1, AnalyseArticle.filtrer(articles, 0, "", "", "", "", AnalyseArticle.Borne.de(">", "1"),
+                AnalyseArticle.Borne.de(">=", "10")).size());
+        assertEquals(null, AnalyseArticle.Borne.de("", "5"));
+        assertEquals(null, AnalyseArticle.Borne.de(">=", ""));
+        assertEquals(null, AnalyseArticle.Borne.de("DROP", "5"));
+        assertEquals(null, AnalyseArticle.Borne.de(">=", "abc"));
+        assertEquals(">= 5", String.valueOf(AnalyseArticle.Borne.de(">=", "5,0")));
+        assertEquals("< 2.5", String.valueOf(AnalyseArticle.Borne.de("<", "2,5")));
     }
 
     @Test
