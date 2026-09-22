@@ -253,19 +253,20 @@ function semer() {
       const e = Ext.ComponentQuery.query('analysearticle')[0];
       const c = e.down('#produitAutour');
       c.getStore().loadData([{ lg_FAMILLE_ID: id, str_NAME: 'P1', int_CIP: 'CIP' }]);
-      c.setValue(id); e.down('#minimumTickets').setValue(1); e.down('#limitePaires').setValue(3);
+      /* Autour d'un produit, c'est le champ « Compagnons » qui compte (21/09), pas « Paires ». */
+      c.setValue(id); e.down('#minimumTickets').setValue(1); e.down('#nbCompagnons').setValue(3);
       c.fireEvent('select', c, [c.findRecordByValue(id)]);
     }, PRODUITS[0]);
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return !e.paireStore.isLoading() && e.paireStore.getCount() === 3; }, null, { timeout: 30000 });
     const autourEcran = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('analysearticle')[0];
       const l = []; e.paireStore.each(r => l.push([r.get('produit1Id'), r.get('tickets')]));
-      return { lignes: l, libelle: e.down('#limitePaires').getFieldLabel() };
+      return { lignes: l, pairesInactif: e.down('#limitePaires').isDisabled(), compagnonsInactif: e.down('#nbCompagnons').isDisabled() };
     });
-    ok('ecran : « Autour du produit » P1 avec 3 compagnons : trois lignes, P1 toujours a gauche, la plus frequente en tete, et « Paires » devient « Compagnons »',
-      autourEcran.lignes.length === 3 && autourEcran.lignes.every(x => x[0] === PRODUITS[0]) && autourEcran.lignes[0][1] === 3 && autourEcran.libelle === 'Compagnons', JSON.stringify(autourEcran));
+    ok('ecran : « Autour du produit » P1 avec 3 compagnons : trois lignes, P1 toujours a gauche, la plus frequente en tete, et « Paires » s efface au profit de « Compagnons »',
+      autourEcran.lignes.length === 3 && autourEcran.lignes.every(x => x[0] === PRODUITS[0]) && autourEcran.lignes[0][1] === 3 && autourEcran.pairesInactif && !autourEcran.compagnonsInactif, JSON.stringify(autourEcran));
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; e.down('#minimumTickets').setValue(3); e.down('#limitePaires').setValue(100); e.down('#effacerProduitAutour').el.dom.click(); });
-    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return !e.paireStore.isLoading() && e.paireStore.getCount() === 1 && e.down('#limitePaires').getFieldLabel() === 'Paires'; }, null, { timeout: 30000 });
+    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return !e.paireStore.isLoading() && e.paireStore.getCount() === 1 && !e.down('#limitePaires').isDisabled(); }, null, { timeout: 30000 });
     ok('ecran : « Toutes les paires » rend la liste d origine', true);
     ok('ecran : l onglet « Achetés ensemble » montre la paire P1 + P5 (3 tickets, 100 %) avec ses colonnes',
       pairesEcran.n === 1 && pairesEcran.premiere.tickets === 3 && pairesEcran.premiere.part1 === 100 && pairesEcran.colonnes.indexOf('Tickets ensemble') >= 0

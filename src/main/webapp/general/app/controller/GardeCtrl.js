@@ -486,9 +486,33 @@ Ext.define('testextjs.controller.GardeCtrl', {
         if (!zone) {
             return;
         }
+        var grandeur = combo.getValue() || 'montant';
         zone.removeAll(true);
-        zone.add(ecran.barresComparaison(combo.getValue() || 'montant'));
+        zone.add(ecran.barresComparaison(grandeur));
+        var legende = ecran.down('#legendeComparaison');
+        if (legende) {
+            legende.setText(grandeur === 'TOUT'
+                    ? 'Tous les indicateurs, chacun en % de son maximum sur les gardes compar&eacute;es ; la vraie valeur est &eacute;crite sur la barre.'
+                    : 'Une barre par garde, la valeur pos&eacute;e dessus.');
+        }
         this.redessiner('#courbeComparaison');
+    },
+
+    /** Les colonnes des modes de reglement : cachees quand aucune garde comparee n'y porte un franc. */
+    ajusterModesReglement: function () {
+        var ecran = this.getGardeManager();
+        var grille = ecran.down('#grilleComparaison');
+        if (!grille) {
+            return;
+        }
+        Ext.each(grille.headerCt.getGridColumns(), function (colonne) {
+            if (!colonne.modeReglement) {
+                return;
+            }
+            var total = 0;
+            ecran.comparaisonStore.each(function (r) { total += Math.abs(Number(r.get(colonne.dataIndex)) || 0); });
+            colonne.setVisible(total > 0);
+        });
     },
 
     /**
@@ -1036,6 +1060,12 @@ Ext.define('testextjs.controller.GardeCtrl', {
                     return Ext.apply({}, ligne, ligne.indicateurs || {});
                 });
                 ecran.comparaisonStore.loadData(lignes);
+                me.ajusterModesReglement();
+                /* En mode « Tout », les pourcentages du maximum se recalculent sur les nouvelles gardes. */
+                var grandeur = ecran.down('#grandeurComparaison');
+                if (grandeur && grandeur.getValue() === 'TOUT') {
+                    me.doChangerGrandeurComparaison(grandeur);
+                }
                 var resume = ecran.down('#comparaisonResume');
                 if (resume) {
                     // Une seule garde ne fait pas une comparaison : le dire vaut mieux que

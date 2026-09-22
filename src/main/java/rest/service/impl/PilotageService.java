@@ -958,8 +958,8 @@ public class PilotageService {
      * coche.
      */
     private JSONObject kpiAnalyse(Axe axe, List<String> coches) {
-        List<String> retenus = coches == null || coches.isEmpty()
-                ? java.util.Arrays.asList("caTTC", "nbVentes", "panier") : coches;
+        /* null : personne n'a choisi, trois indicateurs par defaut ; vide : tout decoche, rien a montrer. */
+        List<String> retenus = coches == null ? java.util.Arrays.asList("caTTC", "nbVentes", "panier") : coches;
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
         double encaisseCourant = courant.encaisse;

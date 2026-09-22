@@ -17,6 +17,17 @@
  *     pleines, et le classement serait celui de l'activite diurne ;
  *   - la comparaison entre gardes, sur le chiffre PAR HEURE.
  */
+/* Les couleurs des barres du mode « Tout » de la comparaison des gardes : un theme, seule facon dont ExtJS 4.2
+   colore une serie a plusieurs grandeurs. */
+Ext.define('Ext.chart.theme.GardeComparaison', {
+    extend: 'Ext.chart.theme.Base',
+    constructor: function (config) {
+        this.callParent([Ext.apply({
+            colors: ['#8ab21b', '#1565c0', '#ef6c00', '#6a1b9a', '#00838f', '#c62828']
+        }, config)]);
+    }
+});
+
 Ext.define('testextjs.view.garde.GardeManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'gardemanager',
@@ -121,7 +132,10 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {name: 'caMobile', type: 'int'}, {name: 'caCheque', type: 'int'}, {name: 'caCarte', type: 'int'},
                 {name: 'caDiffere', type: 'int'}, {name: 'caAutres', type: 'int'},
                 {name: 'montantParHeure', type: 'int'},
-                {name: 'ecartParHeure', type: 'int', useNull: true}, {name: 'ecartPourcentage', type: 'float'}]
+                {name: 'ecartParHeure', type: 'int', useNull: true}, {name: 'ecartPourcentage', type: 'float'},
+                /* Le mode « Tout » du diagramme : chaque indicateur en % de son maximum. */
+                {name: 'pct_montant', type: 'float'}, {name: 'pct_clients', type: 'float'}, {name: 'pct_ventes', type: 'float'},
+                {name: 'pct_marge', type: 'float'}, {name: 'pct_montantParHeure', type: 'float'}, {name: 'pct_montantCredit', type: 'float'}]
         });
 
         Ext.applyIf(me, {
@@ -916,6 +930,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
         ['montant', 'Chiffre d\'affaires'], ['clients', 'Clients'], ['ventes', 'Ventes'], ['marge', 'Marge'],
         ['montantParHeure', 'Chiffre par heure'], ['montantCredit', 'Montant &agrave; cr&eacute;dit']
     ],
+    /** Les couleurs des barres en mode « Tout » : une par indicateur, stables d'un affichage a l'autre. */
+    COULEURS_COMPARAISON: ['#8ab21b', '#1565c0', '#ef6c00', '#6a1b9a', '#00838f', '#c62828'],
 
     /**
      * LES GARDES COMPAREES EN BARRES (21/09). Deux courbes sur deux axes ecrasaient tout : « si on a des gardes
@@ -941,14 +957,15 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             width: 250,
                             store: Ext.create('Ext.data.ArrayStore', {
                                 fields: ['code', 'libelle'],
-                                data: Ext.Array.map(me.GRANDEURS_COMPARAISON, function (g) {
+                                data: [['TOUT', 'Tout (barres minces, en % du maximum)']]
+                                        .concat(Ext.Array.map(me.GRANDEURS_COMPARAISON, function (g) {
                                     return [g[0], Ext.util.Format.htmlDecode(g[1])];
-                                })
+                                }))
                             }),
                             valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false,
                             value: 'montant'
                         }, {
-                            xtype: 'tbtext',
+                            xtype: 'tbtext', itemId: 'legendeComparaison',
                             text: 'Une barre par garde, la valeur pos&eacute;e dessus.'
                         }]
                 }],
@@ -956,9 +973,72 @@ Ext.define('testextjs.view.garde.GardeManager', {
         };
     },
 
+    /**
+     * MODE « TOUT » (21/09) : tous les indicateurs en barres minces, cote a cote pour chaque garde. Un chiffre
+     * d'affaires en millions ecraserait des clients en centaines : chaque indicateur est donc ramene EN % DE
+     * SON MAXIMUM sur les gardes comparees - la garde la plus forte fait 100, les autres en proportion - et la
+     * vraie valeur est ecrite sur la barre et dans l'infobulle. C'est ce qui permet de tout voir d'un regard.
+     */
+    barresToutesGrandeurs: function () {
+        var me = this;
+        var champs = Ext.Array.map(me.GRANDEURS_COMPARAISON, function (g) { return 'pct_' + g[0]; });
+        var titres = Ext.Array.map(me.GRANDEURS_COMPARAISON, function (g) { return Ext.util.Format.htmlDecode(g[1]); });
+        me.calculerPourcentagesComparaison();
+        return Ext.create('Ext.chart.Chart', {
+            itemId: 'courbeComparaison',
+            store: me.comparaisonStore,
+            animate: false,
+            insetPadding: 14,
+            legend: {position: 'right'},
+            theme: 'GardeComparaison',
+            axes: [{
+                    type: 'Numeric', position: 'left', fields: champs, title: '% du maximum', minimum: 0, maximum: 100,
+                    majorTickSteps: 4, grid: true
+                }, {
+                    type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes comparées'
+                }],
+            series: [{
+                    type: 'column', axis: 'left', xField: 'libelle', yField: champs, title: titres,
+                    stacked: false, gutter: 30, groupGutter: 4,
+                    label: {
+                        display: 'insideEnd', orientation: 'vertical', field: champs, contrast: true,
+                        font: '10px Arial',
+                        renderer: function (v, label, storeItem, item) {
+                            /* La VRAIE valeur, pas le pourcentage : c'est elle que l'officine lit. */
+                            var cle = String(item.yField || '').replace('pct_', '');
+                            return Ext.util.Format.number(storeItem.get(cle), '0,000');
+                        }
+                    },
+                    tips: {trackMouse: true, width: 300, height: 44, renderer: function (l, item) {
+                            var cle = String(item.yField || '').replace('pct_', '');
+                            var i = Ext.Array.indexOf(champs, item.yField);
+                            this.setTitle(l.get('libelle') + ' — ' + (titres[i] || cle) + ' : '
+                                    + Ext.util.Format.number(l.get(cle), '0,000') + ' (' + Ext.util.Format.number(l.get(item.yField), '0.0')
+                                    + ' % du maximum)');
+                        }}
+                }]
+        });
+    },
+
+    /** Pour chaque indicateur, la part de chaque garde dans le maximum des gardes comparees. */
+    calculerPourcentagesComparaison: function () {
+        var me = this;
+        var store = me.comparaisonStore;
+        Ext.each(me.GRANDEURS_COMPARAISON, function (g) {
+            var maximum = 0;
+            store.each(function (r) { maximum = Math.max(maximum, Math.abs(Number(r.get(g[0])) || 0)); });
+            store.each(function (r) {
+                r.data['pct_' + g[0]] = maximum > 0 ? Math.round(Math.abs(Number(r.get(g[0])) || 0) * 1000 / maximum) / 10 : 0;
+            });
+        });
+    },
+
     /** Le diagramme en bandes d'une grandeur : reconstruit a chaque changement de grandeur. */
     barresComparaison: function (grandeur) {
         var me = this;
+        if (grandeur === 'TOUT') {
+            return me.barresToutesGrandeurs();
+        }
         var libelle = '';
         Ext.each(me.GRANDEURS_COMPARAISON, function (g) {
             if (g[0] === grandeur) {
@@ -988,6 +1068,28 @@ Ext.define('testextjs.view.garde.GardeManager', {
                         }}
                 }]
         });
+    },
+
+    /**
+     * Un nombre suivi de son EVOLUTION entre parentheses, en vert ou en rouge, par rapport a la garde qui
+     * precede dans la comparaison (21/09) : « 1110 (+10 %) ». La premiere garde n'a rien a quoi se comparer.
+     */
+    avecEvolution: function (champ) {
+        return function (valeur, meta, ligne, rangee, colonne, store) {
+            var texte = Ext.util.Format.number(valeur || 0, '0,000');
+            var precedente = rangee > 0 ? store.getAt(rangee - 1) : null;
+            if (!precedente) {
+                return texte;
+            }
+            var avant = Number(precedente.get(champ)) || 0;
+            if (avant === 0) {
+                return texte;
+            }
+            var evolution = (Number(valeur || 0) - avant) * 100 / Math.abs(avant);
+            var couleur = evolution > 0 ? '#177a17' : (evolution < 0 ? '#a00' : '#666');
+            return texte + ' <span style="color:' + couleur + ';font-size:11px">(' + (evolution > 0 ? '+' : '')
+                    + Ext.util.Format.number(evolution, '0') + ' %)</span>';
+        };
     },
 
     grilleComparaison: function () {
@@ -1051,8 +1153,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 {header: 'Garde', dataIndex: 'libelle', width: 160, locked: false},
                 {header: 'D&eacute;but', dataIndex: 'dateDebut', width: 118,
                     renderer: function (v) { return (v || '').substr(0, 16); }},
-                {header: 'Ventes', dataIndex: 'ventes', width: 60, align: 'right'},
-                {header: 'Clients', dataIndex: 'clients', width: 62, align: 'right'},
+                {header: 'Ventes', dataIndex: 'ventes', width: 90, align: 'right', renderer: me.avecEvolution('ventes')},
+                {header: 'Clients', dataIndex: 'clients', width: 92, align: 'right', renderer: me.avecEvolution('clients')},
                 {
                     header: 'Chiffre d\'affaires', dataIndex: 'montant', width: 110, align: 'right',
                     xtype: 'numbercolumn', format: '0,000.'
@@ -1079,27 +1181,27 @@ Ext.define('testextjs.view.garde.GardeManager', {
                 },
                 {header: 'Rat&eacute;s', dataIndex: 'rates', width: 60, align: 'right',
                     tooltip: 'Ventes rat&eacute;es enregistr&eacute;es pendant la garde'},
-                {header: 'Clients cr&eacute;dit', dataIndex: 'clientsCredit', width: 90, align: 'right'},
-                {
-                    header: 'Montant cr&eacute;dit', dataIndex: 'montantCredit', width: 105, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
-                {
-                    header: 'Esp&egrave;ces', dataIndex: 'caEspeces', width: 95, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
-                {
-                    header: 'Mobile', dataIndex: 'caMobile', width: 95, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
-                {
-                    header: 'Ch&egrave;que', dataIndex: 'caCheque', width: 90, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
-                {
-                    header: 'CB', dataIndex: 'caCarte', width: 85, align: 'right',
-                    xtype: 'numbercolumn', format: '0,000.'
-                },
+                {header: 'Clients cr&eacute;dit', dataIndex: 'clientsCredit', width: 110, align: 'right',
+                    renderer: me.avecEvolution('clientsCredit')},
+                {header: 'Montant cr&eacute;dit', dataIndex: 'montantCredit', width: 135, align: 'right',
+                    renderer: me.avecEvolution('montantCredit')},
+                /*
+                 * LES MODES DE REGLEMENT SONT DYNAMIQUES (21/09) : une colonne dont aucune garde comparee ne porte
+                 * un franc est cachee par le controleur au chargement - « je vois CB et cheques = 0 alors que pas
+                 * utilises ». Les autres portent l'evolution entre parentheses.
+                 */
+                {header: 'Esp&egrave;ces', dataIndex: 'caEspeces', width: 130, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caEspeces')},
+                {header: 'Mobile', dataIndex: 'caMobile', width: 130, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caMobile')},
+                {header: 'Ch&egrave;que', dataIndex: 'caCheque', width: 120, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caCheque')},
+                {header: 'CB', dataIndex: 'caCarte', width: 110, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caCarte')},
+                {header: 'Diff&eacute;r&eacute;', dataIndex: 'caDiffere', width: 120, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caDiffere')},
+                {header: 'Autres', dataIndex: 'caAutres', width: 110, align: 'right', modeReglement: true,
+                    renderer: me.avecEvolution('caAutres')},
                 {
                     header: 'Par heure', dataIndex: 'montantParHeure', width: 90, align: 'right',
                     xtype: 'numbercolumn', format: '0,000.'

@@ -363,8 +363,19 @@ Ext.define('testextjs.controller.PilotageCtr', {
             champ.setValue(premier);
         };
         if (type === 'GRANDEUR') {
-            poser(a, ecran.storeKpis, 'libelle', 'cle', 'caTTC');
-            poser(bb, ecran.storeKpis, 'libelle', 'cle', 'achatTTC');
+            /*
+             * La frequentation horaire ne se lit pas par mois : mise en B face a un chiffre mensuel, sa courbe
+             * restait a plat (21/09). Elle est ecartee des grandeurs comparables ; le croisement « chiffre par
+             * heure » est un autre outil, propose a part.
+             */
+            var comparables = Ext.create('Ext.data.Store', {
+                fields: ['cle', 'libelle', 'unite', 'famille', 'cumul'],
+                data: Ext.Array.map(Ext.Array.filter(ecran.storeKpis.getRange(), function (r) {
+                    return r.get('cle') !== 'frequentation';
+                }), function (r) { return r.getData(); })
+            });
+            poser(a, comparables, 'libelle', 'cle', 'caTTC');
+            poser(bb, comparables, 'libelle', 'cle', 'achatTTC');
             grandeur.setDisabled(true);
         } else if (type === 'FAMILLE') {
             poser(a, ecran.storeFamilles, 'libelle', 'id', null);
@@ -749,16 +760,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
             };
             config.push({text: info.libelle.toUpperCase(), dataIndex: k, width: 160, align: 'right',
                 itemId: 'col-' + k,
-                renderer: function (v, meta, record, rowIndex, colIndex, store) {
+                renderer: function (v) {
                     if (v === null || v === undefined || isNaN(v)) {
                         return '';
                     }
-                    var f = testextjs.view.pilotage.PilotageManager;
-                    /* Les deux lectures demandées le 20/09 pour TOUS les détails mensuels : l'évolution
-                       par rapport au mois précédent, et la part du chiffre d'affaires quand elle a un sens. */
-                    return formater(v) + f.secondeLigne(v, record, rowIndex, store, k,
-                            {points: pourcent, part: !pourcent && k !== 'caTTC' && info.unite === 'FCFA'
-                                        && k !== 'panier'});
+                    /* « Le detail mensuel peut rester basique » (21/09) : la valeur, rien d'autre. */
+                    return formater(v);
                 },
                 /*
                  * LA LIGNE DE TOTAL N'EST PLUS VIDE (20/09). Elle additionne ce qui s'additionne et
@@ -795,6 +802,35 @@ Ext.define('testextjs.controller.PilotageCtr', {
         this.dessinerKpis(coches.filter(function (k) {
             return k !== 'frequentation';
         }), libelles);
+    },
+
+    /** Un graphique neuf dans le panneau des KPI, avec exactement ces series ; minimum d'axe 0 ou libre (base 100). */
+    reconstruireGraphiqueKpi: function (series, minimum) {
+        var ecran = this.getEcran();
+        var panneau = ecran.down('#graphiquePanneau-kpi');
+        if (!panneau) {
+            return;
+        }
+        var f = testextjs.view.pilotage.PilotageManager;
+        var champs = Ext.Array.map(series, function (s) { return s.yField; });
+        var axeY = f.axeMontants(champs.length ? champs : ['caTTC']);
+        if (minimum === 0) {
+            axeY.minimum = 0;
+        } else {
+            delete axeY.minimum;
+        }
+        panneau.removeAll(true);
+        panneau.add({
+            xtype: 'chart',
+            itemId: 'graphique-kpi',
+            animate: false,
+            shadow: false,
+            legend: series.length ? {position: 'top'} : false,
+            insetPadding: f.INSET,
+            store: ecran.stores.kpi.mois,
+            axes: [axeY, f.axeMois()],
+            series: series
+        });
     },
 
     /** Nombre d'indicateurs qu'on accepte de tracer ensemble : au-delà, le graphique ne dit plus rien. */
@@ -842,14 +878,10 @@ Ext.define('testextjs.controller.PilotageCtr', {
             }
         }
         if (!traces.length) {
-            try {
-                graphique.series.removeAll();
-                graphique.redraw();
-            } catch (e) {
-                /* Le tableau reste juste. */
-            }
+            /* Rien de coche : un cadre vide qui le dit, pas les restes du dessin precedent. */
+            me.reconstruireGraphiqueKpi([], null);
             if (panneau) {
-                panneau.setTitle('Évolution des indicateurs cochés');
+                panneau.setTitle('Évolution des indicateurs cochés — aucun indicateur coché');
             }
             return;
         }
@@ -901,55 +933,43 @@ Ext.define('testextjs.controller.PilotageCtr', {
             });
         }
 
-        /* Une palette stable : le meme indicateur garde sa couleur d'un chargement a l'autre. */
+        /*
+         * LE GRAPHIQUE EST RECONSTRUIT (21/09). Retirer les series d'un graphique ExtJS 4.2 ne retire pas leurs
+         * traits : chaque redessin les empilait - « les memes couleurs se repetent » - et les deux courbes de
+         * depart (periode choisie, periode comparee) restaient, la seconde a plat a zero : « la ligne du bas,
+         * on ne sait pas a quoi elle sert ». On repart d'un graphique neuf, avec exactement les series cochees.
+         */
         var couleurs = ['#1565c0', '#ef6c00', '#2e7d32', '#6a1b9a', '#c62828'];
-        try {
-            graphique.series.removeAll();
-            var champs = [];
-            Ext.each(traces, function (k, i) {
-                var couleur = couleurs[i % couleurs.length];
-                var champ = base100 ? 'base100_' + k : k;
-                var info = libelles[k] || {libelle: k, unite: ''};
-                champs.push(champ);
-                graphique.series.add(Ext.create('Ext.chart.series.Line', {
-                    chart: graphique,
-                    type: 'line',
-                    axis: 'left',
-                    xField: 'libelle',
-                    yField: champ,
-                    title: info.libelle,
-                    smooth: false,
-                    style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
-                    markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
-                    tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
-                        var f = testextjs.view.pilotage.PilotageManager;
-                        var reelle = record.get(k);
-                        var texte = '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
-                                + Ext.String.htmlEncode(info.libelle) + ' : '
-                                + (info.unite === '%' ? f.nombre(reelle, '0,000.0') + ' %' : f.nombre(reelle));
-                        if (base100) {
-                            /* La courbe montre un indice : l'infobulle donne LES DEUX, sans quoi on lirait
-                               « 112 » comme un montant. */
-                            texte += '<br>indice base 100 : ' + f.nombre(record.get(champ), '0,000.0');
-                        }
-                        return texte;
-                    })
-                }));
+        var series = [];
+        Ext.each(traces, function (k, i) {
+            var couleur = couleurs[i % couleurs.length];
+            var champ = base100 ? 'base100_' + k : k;
+            var info = libelles[k] || {libelle: k, unite: ''};
+            series.push({
+                type: 'line',
+                axis: 'left',
+                xField: 'libelle',
+                yField: champ,
+                title: info.libelle,
+                smooth: false,
+                style: {stroke: couleur, 'stroke-width': 3, opacity: 1},
+                markerConfig: {radius: 4, type: 'circle', fill: couleur, stroke: couleur},
+                tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
+                    var f = testextjs.view.pilotage.PilotageManager;
+                    var reelle = record.get(k);
+                    var texte = '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                            + Ext.String.htmlEncode(info.libelle) + ' : '
+                            + (info.unite === '%' ? f.nombre(reelle, '0,000.0') + ' %' : f.nombre(reelle));
+                    if (base100) {
+                        /* La courbe montre un indice : l'infobulle donne LES DEUX, sans quoi on lirait
+                           « 112 » comme un montant. */
+                        texte += '<br>indice base 100 : ' + f.nombre(record.get(champ), '0,000.0');
+                    }
+                    return texte;
+                })
             });
-            var axe = graphique.axes.getAt(0);
-            axe.fields = champs;
-            /*
-             * En base 100 les valeurs tournent autour de cent : forcer l'axe a partir de zero ecraserait
-             * toutes les courbes dans le haut du cadre. On le laisse alors se caler sur les donnees.
-             */
-            axe.minimum = base100 ? undefined : 0;
-            if (graphique.legend && graphique.legend.isLegend) {
-                graphique.legend.create();
-            }
-            graphique.redraw();
-        } catch (e) {
-            /* Le tableau de chiffres, lui, reste juste : on ne perd que le dessin. */
-        }
+        });
+        me.reconstruireGraphiqueKpi(series, base100 ? undefined : 0);
         if (panneau) {
             panneau.setTitle(traces.length === 1
                     ? 'Évolution : ' + ((libelles[traces[0]] || {}).libelle || traces[0])

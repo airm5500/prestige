@@ -386,10 +386,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     }
                                 },
                                 {
-                                    fieldLabel: 'Seuil reserve',
+                                    fieldLabel: 'Capacit\u00e9 maxi rayon',
                                     minValue: 0,
                                     hidden: true,
-                                    emptyText: 'Seuil reserve',
+                                    emptyText: 'Capacit\u00e9 maxi rayon',
                                     name: 'int_SEUIL_RESERVE',
                                     itemId: 'int_SEUIL_RESERVE',
                                     value: 0,

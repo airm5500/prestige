@@ -145,9 +145,10 @@ function texteDuPdf(octets) {
       }
       return p.evaluate(() => Ext.ComponentQuery.query('pilotage')[0].stores.kpi.tuiles.getCount());
     };
-    const vuesApresCoche = await attendreTuiles(5);
-    ok('Les tuiles se mettent à jour après les coches', vuesApresCoche === 5,
-      vuesApresCoche + ' tuile(s) au lieu de 5');
+    /* Six tuiles depuis le 21/09 : la frequentation horaire a la sienne (« Heure de pointe »). */
+    const vuesApresCoche = await attendreTuiles(6);
+    ok('Les tuiles se mettent à jour après les coches', vuesApresCoche === 6,
+      vuesApresCoche + ' tuile(s) au lieu de 6');
     const apresCoche = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('pilotage')[0];
       const tuiles = [];
@@ -160,8 +161,8 @@ function texteDuPdf(octets) {
         /* Une courbe PAR indicateur coche depuis le 20/09, cinq au plus. */
         courbes: e.down('#graphique-kpi').series.items.map((x) => x.title) };
     });
-    ok('Cocher trois indicateurs de plus ajoute leurs tuiles et leurs colonnes',
-      apresCoche.tuiles.join(',') === 'caTTC,nbVentes,panier,marge,tauxMarge'
+    ok('Cocher trois indicateurs de plus ajoute leurs tuiles et leurs colonnes (la fréquentation : une tuile, pas de colonne mensuelle)',
+      apresCoche.tuiles.join(',') === 'caTTC,nbVentes,panier,marge,tauxMarge,frequentation'
       && apresCoche.colonnes.length === 6, JSON.stringify(apresCoche.tuiles));
     ok('La fréquentation horaire apparaît quand elle est cochée, avec ses heures',
       apresCoche.horaireVisible === true, JSON.stringify(apresCoche.horaireVisible));

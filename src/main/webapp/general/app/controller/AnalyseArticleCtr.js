@@ -35,6 +35,7 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
             'analysearticle #ongletPaires': {activate: this.doChargerPaires},
             'analysearticle #actualiserPaires': {click: this.doChargerPaires},
             'analysearticle #produitAutour': {select: this.doChargerPaires},
+            'analysearticle #nbCompagnons': {change: {fn: this.doChargerPaires, buffer: 600}},
             'analysearticle #effacerProduitAutour': {click: this.doEffacerProduitAutour},
             'analysearticle #exporterPaires': {click: this.doExporterPaires}
         });
@@ -278,7 +279,9 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
         return {
             typePeriode: c.typePeriode, dtStart: c.dtStart, dtEnd: c.dtEnd,
             minimum: ecran.down('#minimumTickets').getValue() || 3,
-            limite: ecran.down('#limitePaires').getValue() || 100,
+            /* Autour d'un produit, c'est le champ « Compagnons » qui compte ; sinon « Paires ». */
+            limite: ecran.down('#produitAutour').getValue()
+                    ? (ecran.down('#nbCompagnons').getValue() || 5) : (ecran.down('#limitePaires').getValue() || 100),
             produit: ecran.down('#produitAutour').getValue() || ''
         };
     },
@@ -294,10 +297,14 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
         var onglet = ecran.down('#ongletPaires');
         var store = ecran.paireStore;
         var criteres = this.criteresPaires();
-        /* Autour d'un produit, « Paires » compte des compagnons : le libelle le dit. */
+        /* Autour d'un produit, c'est « Compagnons » qui compte : « Paires » s'efface pour ne pas tromper. */
         var limite = ecran.down('#limitePaires');
         if (limite) {
-            limite.setFieldLabel(criteres.produit ? 'Compagnons' : 'Paires');
+            limite.setDisabled(!!criteres.produit);
+        }
+        var compagnons = ecran.down('#nbCompagnons');
+        if (compagnons) {
+            compagnons.setDisabled(!criteres.produit);
         }
         Ext.apply(store.getProxy().extraParams, criteres);
         if (onglet.rendered) {

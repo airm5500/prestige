@@ -106,21 +106,27 @@ public class EspaceProduitRessource {
     }
 
     /**
-     * Les DCI proposees au selecteur : seulement celles auxquelles au moins un produit actif est rattache, avec le
-     * nombre de produits. Une DCI sans produit ne servirait qu'a produire une liste vide. Aucune donnee de gestion : un
-     * nom de molecule et un compte.
+     * Les DCI qui contiennent le texte saisi (nom ou code), TOUTES les DCI actives - pas seulement celles qui ont des
+     * produits : « on doit rechercher sur toutes les DCI existantes, s'il n'y a pas de produit on informe » (21/09).
+     * Trente au plus, du nom le plus court au plus long parmi ceux qui correspondent : un nom de molecule et le nombre
+     * de produits rattaches, rien d'autre.
      */
     @GET
     @Path("dci")
-    public Response dci() {
+    public Response dci(@QueryParam("q") String q) {
         JSONArray lignes = new JSONArray();
+        String texte = StringUtils.trimToEmpty(q);
+        if (texte.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("total", 0).put("data", lignes).toString()).build();
+        }
         @SuppressWarnings("unchecked")
-        List<Object[]> resultats = em
-                .createNativeQuery("SELECT d.lg_DCI_ID, d.str_NAME, COUNT(DISTINCT f.lg_FAMILLE_ID)" + " FROM t_dci d"
-                        + " INNER JOIN t_famille_dci fd ON fd.lg_DCI_ID = d.lg_DCI_ID AND fd.str_STATUT = 'enable'"
-                        + " INNER JOIN t_famille f ON f.lg_FAMILLE_ID = fd.lg_FAMILLE_ID AND f.str_STATUT = 'enable'"
-                        + " WHERE d.str_STATUT = 'enable'" + " GROUP BY d.lg_DCI_ID, d.str_NAME ORDER BY d.str_NAME")
-                .getResultList();
+        List<Object[]> resultats = em.createNativeQuery(
+                "SELECT d.lg_DCI_ID, d.str_NAME," + " (SELECT COUNT(DISTINCT fd.lg_FAMILLE_ID) FROM t_famille_dci fd"
+                        + "   JOIN t_famille f ON f.lg_FAMILLE_ID = fd.lg_FAMILLE_ID AND f.str_STATUT = 'enable'"
+                        + "   WHERE fd.lg_DCI_ID = d.lg_DCI_ID AND fd.str_STATUT = 'enable') AS produits"
+                        + " FROM t_dci d WHERE d.str_STATUT = 'enable' AND (d.str_NAME LIKE ?1 OR d.str_CODE LIKE ?1)"
+                        + " ORDER BY d.str_NAME")
+                .setParameter(1, "%" + texte + "%").setMaxResults(30).getResultList();
         for (Object[] r : resultats) {
             lignes.put(new JSONObject().put("id", texteDe(r[0])).put("nom", texteDe(r[1])).put("produits",
                     nombreDe(r[2])));

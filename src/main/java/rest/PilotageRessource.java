@@ -83,7 +83,12 @@ public class PilotageRessource {
      */
     private static PilotageService.Choix choix(String kpis, String type, String objetA, String objetB, String grandeur,
             String decoupage) {
-        java.util.List<String> coches = new java.util.ArrayList<>();
+        /*
+         * Parametre ABSENT : l'appelant ne choisit pas, le service prend ses trois indicateurs par defaut. Parametre
+         * PRESENT MAIS VIDE : l'utilisateur a tout decoche, et il doit voir... rien (21/09 : « j'ai decoche tous les
+         * KPI mais les tuiles sont toujours affichees »). La difference tient au null.
+         */
+        java.util.List<String> coches = kpis == null ? null : new java.util.ArrayList<>();
         if (kpis != null) {
             for (String cle : kpis.split(",")) {
                 if (!cle.trim().isEmpty()) {

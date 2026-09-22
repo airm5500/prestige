@@ -159,7 +159,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
         };
         var combo = function (itemId, libelle, store) {
             return {
-                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: 70, width: 220,
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: 70, width: 200,
                 store: store, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true,
                 queryMode: 'remote', minChars: 2, emptyText: 'Tous'
             };
@@ -169,8 +169,8 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
         };
         var operateur = function (itemId, libelle) {
             return {
-                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 75 : 40,
-                width: libelle.length > 6 ? 150 : 115,
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 68 : 36,
+                width: libelle.length > 6 ? 128 : 96,
                 store: Ext.create('Ext.data.ArrayStore', {
                     fields: ['code', 'libelle'],
                     data: [['', '—'], ['>=', '≥'], ['<=', '≤'], ['=', '='], ['>', '>'], ['<', '<'], ['!=', '≠']]
@@ -220,28 +220,26 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                         combo('filtreFamille', 'Famille', filtreDistant('../api/v1/common/famillearticles')),
                         combo('filtreGrossiste', 'Grossiste', filtreDistant('../api/v1/common/grossiste')),
                         {
-                            xtype: 'textfield', itemId: 'recherche', fieldLabel: 'Produit', labelWidth: 50, width: 240,
+                            xtype: 'textfield', itemId: 'recherche', fieldLabel: 'Produit', labelWidth: 50, width: 200,
                             emptyText: 'CIP ou libellé', enableKeyEvents: true
+                        },
+                        /*
+                         * FILTRES A OPERATEURS sur le stock et la quantite vendue (21/09), sur la meme ligne que les
+                         * autres filtres. Un produit vendu le matin meme peut etre a stock zero au moment ou l'on
+                         * regarde ; « stock ≥ 1 » l'ecarte d'un geste, « quantite ≥ 5 » ecarte l'anecdotique.
+                         */
+                        operateur('filtreStockOp', 'Stock'), {
+                            xtype: 'numberfield', itemId: 'filtreStockVal', width: 70, minValue: -99999, hideTrigger: true,
+                            emptyText: 'valeur', enableKeyEvents: true
+                        }, operateur('filtreQteOp', 'Qté vendue'), {
+                            xtype: 'numberfield', itemId: 'filtreQteVal', width: 70, minValue: 0, hideTrigger: true,
+                            emptyText: 'valeur', enableKeyEvents: true
                         }, {
                             text: 'Effacer les filtres', itemId: 'effacerFiltres'
                         }, '->', {
-                            xtype: 'tbtext', itemId: 'compteCoches', text: ''
-                        }]
-                }, {
-                    /*
-                     * FILTRES A OPERATEURS sur le stock et la quantite vendue (21/09). Un produit vendu le matin
-                     * meme peut etre a stock zero au moment ou l'on regarde ; « stock ≥ 1 » l'ecarte d'un geste,
-                     * et « quantite ≥ 5 » ecarte les ventes anecdotiques.
-                     */
-                    xtype: 'toolbar',
-                    items: [operateur('filtreStockOp', 'Stock'), {
-                            xtype: 'numberfield', itemId: 'filtreStockVal', width: 80, minValue: -99999, hideTrigger: true,
-                            emptyText: 'valeur', enableKeyEvents: true
-                        }, '-', operateur('filtreQteOp', 'Qté vendue'), {
-                            xtype: 'numberfield', itemId: 'filtreQteVal', width: 80, minValue: 0, hideTrigger: true,
-                            emptyText: 'valeur', enableKeyEvents: true
+                            xtype: 'tbtext', itemId: 'rappelFiltres', text: '', margin: '0 8 0 0'
                         }, {
-                            xtype: 'tbtext', itemId: 'rappelFiltres', text: '', margin: '0 0 0 12'
+                            xtype: 'tbtext', itemId: 'compteCoches', text: ''
                         }]
                 }, {
                     xtype: 'gridpanel',
@@ -283,15 +281,21 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                             tooltip: 'Stock disponible au moment de l\'analyse'},
                         {
                             header: 'Rotation', dataIndex: 'rotation', width: 70, align: 'right',
-                            tooltip: 'Rotation = quantité vendue sur la période ÷ stock actuel.<br>'
-                                    + 'Stock 0 : la valeur affichée est la quantité vendue ; le produit est jugé sur elle (règle des ruptures, en-tête).',
-                            xtype: 'numbercolumn', format: '0.00'
+                            tooltip: 'Rotation = quantité vendue sur la période ÷ stock actuel',
+                            /*
+                             * L'INFOBULLE SUR LA VALEUR (21/09) : la formule AVEC les nombres de la ligne et la
+                             * periode, en bleu, sans troncature, tant que le curseur est sur la cellule.
+                             */
+                            renderer: function (v, meta, ligne) {
+                                meta.tdAttr = me.infobulleCellule(me.expliquerRotation(ligne));
+                                return Ext.util.Format.number(v, '0.00');
+                            }
                         },
                         {
                             header: 'Couv. (j)', dataIndex: 'couverture', width: 70, align: 'right',
-                            tooltip: 'Couverture = stock actuel × jours de la période ÷ quantité vendue : '
-                                    + 'le nombre de jours que le stock tient au rythme de vente de la période.<br>∞ : du stock, aucune vente.',
-                            renderer: function (v) {
+                            tooltip: 'Couverture = stock actuel × jours de la période ÷ quantité vendue',
+                            renderer: function (v, meta, ligne) {
+                                meta.tdAttr = me.infobulleCellule(me.expliquerCouverture(ligne));
                                 return v < 0 ? '∞' : Ext.util.Format.number(v, '0.0');
                             }
                         },
@@ -305,6 +309,64 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                     ]
                 }]
         };
+    },
+
+    /* ------------------------------------------------------------------ infobulles des valeurs */
+
+    /** L'attribut d'infobulle d'une cellule : bleue, large, et qui suit la cellule. */
+    infobulleCellule: function (html) {
+        return 'data-qtip="' + Ext.String.htmlEncode(html) + '" data-qclass="aa-bulle" data-qwidth="440"';
+    },
+
+    /**
+     * La periode et les seuils de la derniere analyse, lus dans la REPONSE que le magasin vient de recevoir : la
+     * grille se dessine avant que le controleur n'ait range cette reponse, et lire une copie plus ancienne
+     * donnait « sur ? jours » dans les premieres infobulles.
+     */
+    contexteAnalyse: function () {
+        var lecteur = this.articleStore && this.articleStore.getProxy() ? this.articleStore.getProxy().getReader() : null;
+        var d = (lecteur && lecteur.rawData) || this.derniereAnalyse || {};
+        return {periode: d.periode || {}, seuils: d.seuils || {}};
+    },
+
+    expliquerRotation: function (ligne) {
+        var n = function (v, f) { return Ext.util.Format.number(v || 0, f || '0,000'); };
+        var c = this.contexteAnalyse();
+        var q = ligne.get('quantite'), stock = ligne.get('stock'), rotation = ligne.get('rotation');
+        var texte = '<b>Rotation ' + n(rotation, '0.00') + '</b><br>';
+        if (stock > 0) {
+            texte += '= ' + n(q) + ' vendu(s) ÷ ' + n(stock) + ' en stock, sur ' + (c.periode.jours || '?') + ' jours ('
+                    + Ext.String.htmlEncode(c.periode.libelle || '') + ').<br>Le stock actuel s\'est vendu '
+                    + n(rotation, '0.00') + ' fois sur la période.';
+        } else {
+            texte += 'Produit EN RUPTURE (stock 0) : il n\'a pas de rotation, la valeur affichée est sa quantité vendue ('
+                    + n(q) + ' sur ' + (c.periode.jours || '?') + ' jours).<br>Il est jugé « rotation élevée » si cette quantité atteint '
+                    + n(c.seuils.medianeQuantite, '0.0') + ' (médiane des quantités vendues).';
+        }
+        if (c.seuils.modeRotation === 'RATIO') {
+            texte += '<br><i>Seuil : rotation élevée si ≥ ' + n(c.seuils.rotation, '0.00') + '.</i>';
+        }
+        return texte;
+    },
+
+    expliquerCouverture: function (ligne) {
+        var n = function (v, f) { return Ext.util.Format.number(v || 0, f || '0,000'); };
+        var c = this.contexteAnalyse();
+        var q = ligne.get('quantite'), stock = ligne.get('stock'), couv = ligne.get('couverture');
+        var texte = '<b>Couverture ' + (couv < 0 ? '∞' : n(couv, '0.0') + ' jour(s)') + '</b><br>';
+        if (stock <= 0) {
+            texte += 'Stock 0 : rien à couvrir, le produit est en rupture.';
+        } else if (couv < 0) {
+            texte += n(stock) + ' en stock et aucune vente sur la période : le stock ne s\'écoule pas (couverture infinie).';
+        } else {
+            texte += '= ' + n(stock) + ' en stock × ' + (c.periode.jours || '?') + ' jours ÷ ' + n(q) + ' vendu(s) ('
+                    + Ext.String.htmlEncode(c.periode.libelle || '') + ').<br>Au rythme de vente de la période, le stock tient encore '
+                    + n(couv, '0.0') + ' jour(s).';
+        }
+        if (c.seuils.modeRotation !== 'RATIO') {
+            texte += '<br><i>Seuil : rotation élevée si la couverture est ≤ ' + n(c.seuils.rotation, '0.0') + ' jours.</i>';
+        }
+        return texte;
     },
 
     /* ------------------------------------------------------------------ produits achetes ensemble */
@@ -330,7 +392,9 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                              * souvent achetes avec lui ». Vide, l'onglet montre toutes les paires comme avant.
                              */
                             xtype: 'combobox', itemId: 'produitAutour', fieldLabel: 'Autour du produit', labelWidth: 105,
-                            width: 420, emptyText: 'CIP ou nom (2 caractères) — vide : toutes les paires',
+                            width: 640, emptyText: 'CIP ou nom (2 caractères) — vide : toutes les paires',
+                            /* Assez large pour qu'un nom de produit tienne sur UNE ligne (21/09). */
+                            listConfig: {minWidth: 640, maxHeight: 360},
                             store: Ext.create('Ext.data.Store', {
                                 fields: ['lg_FAMILLE_ID', 'str_NAME', 'int_CIP'],
                                 pageSize: 20,
@@ -343,6 +407,11 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                             queryParam: 'search_value', minChars: 2, typeAhead: false, forceSelection: true,
                             tpl: Ext.create('Ext.XTemplate', '<tpl for="."><div class="x-boundlist-item">'
                                     + '<b>{int_CIP}</b> {str_NAME}</div></tpl>')
+                        }, {
+                            /* « Je ne vois pas où mettre la valeur N compagnons » (21/09) : le champ est la, nomme. */
+                            xtype: 'numberfield', itemId: 'nbCompagnons', fieldLabel: 'Compagnons', labelWidth: 80,
+                            width: 145, minValue: 1, maxValue: 100, allowDecimals: false, value: 5,
+                            tooltip: 'Nombre de produits les plus souvent achetés avec le produit choisi'
                         }, {
                             text: 'Toutes les paires', itemId: 'effacerProduitAutour',
                             tooltip: 'Revenir à toutes les paires de la période'

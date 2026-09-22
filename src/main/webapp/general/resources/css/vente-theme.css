@@ -1903,3 +1903,8 @@ body.x-body,
     font-size: 11px;
     line-height: 13px;
 }
+
+/* L'infobulle des valeurs de la matrice marge x rotation : bleue, lisible en entier (21/09). */
+.aa-bulle.x-tip { background: #1E5FA8 !important; border-color: #1E5FA8 !important; border-radius: 6px; }
+.aa-bulle .x-tip-body, .aa-bulle .x-tip-body * { color: #FFFFFF !important; font-size: 13px !important; line-height: 1.45; }
+.aa-bulle .x-tip-anchor { border-color: #1E5FA8 !important; }

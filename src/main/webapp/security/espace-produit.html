@@ -22,13 +22,21 @@
     .ep-recherche input { flex: 1; font-size: 17px; padding: 10px 14px; border: 2px solid #1E5FA8;
                           border-radius: 6px; outline: none; }
     .ep-note { color: #5A6B80; font-size: 13px; margin-bottom: 12px; }
-    /* Le selecteur de DCI, sous la zone de recherche : « afficher les produits concernes par la DCI
-       selectionnee » (21/09). Il se suffit a lui-meme : choisir une DCI cherche sans rien taper. */
-    .ep-dci { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px 0; flex-wrap: wrap; }
+    /* La recherche de DCI, sous la zone de recherche (21/09) : on TAPE, la liste des DCI qui contiennent le
+       texte s'ouvre, on en choisit une et les produits s'affichent. Toutes les DCI, meme sans produit. */
+    .ep-dci { display: flex; align-items: center; gap: 10px; margin: -6px 0 12px 0; flex-wrap: wrap; position: relative; }
     .ep-dci label { color: #1E3A5F; font-size: 14px; font-weight: 600; white-space: nowrap; }
-    .ep-dci select { flex: 1; min-width: 260px; max-width: 620px; font-size: 15px; padding: 7px 10px;
-                     border: 1px solid #1E5FA8; border-radius: 6px; background: #FFFFFF; color: #1E3A5F; }
-    .ep-dci select:disabled { border-color: #D3DBE5; color: #8A99A8; background: #F4F6F9; }
+    .ep-dci .ep-dci-zone { position: relative; flex: 1; min-width: 300px; max-width: 700px; }
+    .ep-dci input { width: 100%; font-size: 15px; padding: 7px 10px; border: 1px solid #1E5FA8; border-radius: 6px;
+                    background: #FFFFFF; color: #1E3A5F; }
+    .ep-dci input.ep-dci-choisie { background: #EEF3FA; font-weight: 600; }
+    .ep-dci-liste { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: #FFFFFF;
+                    border: 1px solid #1E5FA8; border-top: none; border-radius: 0 0 6px 6px; max-height: 300px;
+                    overflow-y: auto; box-shadow: 0 6px 14px rgba(30,58,95,.15); display: none; }
+    .ep-dci-liste div { padding: 7px 10px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+    .ep-dci-liste div:hover, .ep-dci-liste div.ep-actif { background: #EEF3FA; }
+    .ep-dci-liste div span { color: #5A6B80; font-size: 12px; margin-left: 6px; }
+    .ep-dci-liste .ep-dci-rien { color: #8A99A8; cursor: default; }
     .ep-dci button { font-size: 13px; padding: 6px 10px; border: 1px solid #D3DBE5; border-radius: 6px;
                      background: #FFFFFF; color: #1E5FA8; cursor: pointer; }
     .ep-dci button:hover { background: #EEF3FA; }
@@ -93,9 +101,12 @@
     </div>
     <div class="ep-dci">
       <label for="ep-dci">DCI :</label>
-      <select id="ep-dci" disabled>
-        <option value="">— Toutes les DCI (chargement…) —</option>
-      </select>
+      <div class="ep-dci-zone">
+        <input id="ep-dci" type="text" autocomplete="off"
+               placeholder="Tapez une DCI (2 caractères) : la liste de celles qui la contiennent s'ouvre…">
+        <input id="ep-dci-id" type="hidden" value="">
+        <div id="ep-dci-liste" class="ep-dci-liste"></div>
+      </div>
       <button type="button" id="ep-dci-effacer" title="Revenir à la recherche par texte">✕ Effacer</button>
     </div>
     <div class="ep-note">La recherche trouve le texte n'importe où dans le nom, ou tous les produits d'une DCI.
@@ -187,12 +198,15 @@
         total.textContent = lignes.length + ' produit(s)' + (lignes.length >= 50 ? ' — liste limitée à 50, précisez la recherche' : '');
       }
 
-      var selecteurDci = document.getElementById('ep-dci');
+      var champDci = document.getElementById('ep-dci');
+      var idDci = document.getElementById('ep-dci-id');
+      var listeDci = document.getElementById('ep-dci-liste');
       var effacerDci = document.getElementById('ep-dci-effacer');
+      var nomDci = '';
 
       function chercher() {
         var texte = champ.value.trim();
-        var dci = selecteurDci.value;
+        var dci = idDci.value;
         // Une DCI choisie suffit a chercher : on n'exige les deux caracteres que sans DCI.
         if (texte.length < 2 && !dci) {
           corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Saisissez au moins 2 caractères, ou choisissez une DCI.</td></tr>';
@@ -204,48 +218,89 @@
         x.open('GET', '../api/v1/espace-produit/recherche?q=' + encodeURIComponent(texte)
             + (dci ? '&dci=' + encodeURIComponent(dci) : ''), true);
         var libelle = texte.length >= 2 ? texte : '';
-        if (dci) {
-          var option = selecteurDci.options[selecteurDci.selectedIndex];
-          libelle += (libelle ? ' + ' : '') + 'DCI ' + (option ? option.getAttribute('data-nom') : '');
-        }
+        if (dci) { libelle += (libelle ? ' + ' : '') + 'DCI ' + nomDci; }
         x.onload = function () {
           if (numero !== derniereRequete) { return; } // une frappe plus recente a pris la main
-          try { afficher(JSON.parse(x.responseText).data || [], libelle); }
-          catch (e) { corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Erreur de lecture.</td></tr>'; }
+          try {
+            var lignes = JSON.parse(x.responseText).data || [];
+            if (!lignes.length && dci && texte.length < 2) {
+              // « s'il n'y a pas de produit selon la DCI selectionnee alors on informe »
+              corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Aucun produit trouvé pour la DCI «&nbsp;'
+                  + echapper(nomDci) + '&nbsp;».</td></tr>';
+              total.textContent = '';
+              return;
+            }
+            afficher(lignes, libelle);
+          } catch (e) { corps.innerHTML = '<tr><td colspan="8" class="ep-vide">Erreur de lecture.</td></tr>'; }
         };
         x.send();
       }
 
-      // La liste des DCI : seulement celles qui ont des produits, avec leur nombre. Sans aucune DCI
-      // renseignee sur cette base, le selecteur reste inactif et le dit, plutot que d'offrir une liste vide.
-      (function () {
+      // LA RECHERCHE DE DCI : on tape, la liste des DCI dont le nom CONTIENT le texte s'ouvre (toutes les DCI,
+      // meme sans produit) ; on en choisit une au clic ou au clavier, et les produits se cherchent aussitot.
+      var tamponDci = null, derniereDci = 0, actif = -1;
+      function fermerListe() { listeDci.style.display = 'none'; listeDci.innerHTML = ''; actif = -1; }
+      function choisirDci(id, nom) {
+        idDci.value = id; nomDci = nom;
+        champDci.value = nom; champDci.className = 'ep-dci-choisie';
+        fermerListe(); chercher();
+      }
+      function proposerDci() {
+        var texte = champDci.value.trim();
+        if (texte.length < 2) { fermerListe(); return; }
+        var numero = ++derniereDci;
         var x = new XMLHttpRequest();
-        x.open('GET', '../api/v1/espace-produit/dci', true);
+        x.open('GET', '../api/v1/espace-produit/dci?q=' + encodeURIComponent(texte), true);
         x.onload = function () {
+          if (numero !== derniereDci) { return; }
           var lignes = [];
           try { lignes = JSON.parse(x.responseText).data || []; } catch (e) { lignes = []; }
           if (!lignes.length) {
-            selecteurDci.innerHTML = '<option value="">— Aucune DCI renseignée sur les produits —</option>';
-            return;
+            listeDci.innerHTML = '<div class="ep-dci-rien">Aucune DCI ne contient «&nbsp;' + echapper(texte) + '&nbsp;»</div>';
+          } else {
+            var html = '';
+            for (var i = 0; i < lignes.length; i++) {
+              html += '<div data-id="' + echapper(lignes[i].id) + '" data-nom="' + echapper(lignes[i].nom) + '">'
+                  + echapper(lignes[i].nom) + '<span>' + lignes[i].produits + ' produit(s)</span></div>';
+            }
+            listeDci.innerHTML = html;
           }
-          var html = '<option value="">— Toutes les DCI (' + lignes.length + ') —</option>';
-          for (var i = 0; i < lignes.length; i++) {
-            html += '<option value="' + echapper(lignes[i].id) + '" data-nom="' + echapper(lignes[i].nom) + '">'
-                + echapper(lignes[i].nom) + ' (' + lignes[i].produits + ')</option>';
-          }
-          selecteurDci.innerHTML = html;
-          selecteurDci.disabled = false;
-        };
-        x.onerror = function () {
-          selecteurDci.innerHTML = '<option value="">— Liste des DCI indisponible —</option>';
+          actif = -1;
+          listeDci.style.display = 'block';
         };
         x.send();
-      })();
-      selecteurDci.addEventListener('change', function () { if (tampon) { clearTimeout(tampon); } chercher(); });
+      }
+      champDci.addEventListener('input', function () {
+        if (idDci.value) { idDci.value = ''; nomDci = ''; champDci.className = ''; }
+        if (tamponDci) { clearTimeout(tamponDci); }
+        tamponDci = setTimeout(proposerDci, 350);
+      });
+      champDci.addEventListener('keydown', function (e) {
+        var lignes = listeDci.querySelectorAll('div[data-id]');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          if (!lignes.length) { return; }
+          e.preventDefault();
+          actif = e.key === 'ArrowDown' ? Math.min(lignes.length - 1, actif + 1) : Math.max(0, actif - 1);
+          for (var i = 0; i < lignes.length; i++) { lignes[i].className = i === actif ? 'ep-actif' : ''; }
+          lignes[actif].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          var cible = actif >= 0 ? lignes[actif] : lignes[0];
+          if (cible) { choisirDci(cible.getAttribute('data-id'), cible.getAttribute('data-nom')); }
+        } else if (e.key === 'Escape') {
+          fermerListe();
+        }
+      });
+      listeDci.addEventListener('mousedown', function (e) {
+        var cible = e.target.closest ? e.target.closest('div[data-id]') : null;
+        if (cible) { e.preventDefault(); choisirDci(cible.getAttribute('data-id'), cible.getAttribute('data-nom')); }
+      });
+      document.addEventListener('mousedown', function (e) {
+        if (!e.target.closest || !e.target.closest('.ep-dci-zone')) { fermerListe(); }
+      });
       effacerDci.addEventListener('click', function () {
-        selecteurDci.value = '';
-        champ.focus();
-        chercher();
+        idDci.value = ''; nomDci = ''; champDci.value = ''; champDci.className = '';
+        fermerListe(); champ.focus(); chercher();
       });
 
       champ.addEventListener('input', function () {
