@@ -456,6 +456,32 @@ public class OrdonnanceClientService {
         return sb.toString();
     }
 
+    public static final String MODELE_ANALYSE = "ordonnance_analyse";
+
+    /**
+     * Edition de l'onglet « Analyse des ordonnances » (22/09) : la synthese et les quatre tableaux, sur les memes
+     * criteres et avec les memes chiffres que l'ecran - le calcul est le meme appel.
+     */
+    public byte[] pdfAnalyse(TUser operateur, Criteres criteres, String typeLibelle, String medecinLibelle)
+            throws net.sf.jasperreports.engine.JRException {
+        JSONObject analyse = analyse(criteres);
+        if (!analyse.optBoolean("success", false)) {
+            throw new net.sf.jasperreports.engine.JRException("Analyse indisponible");
+        }
+        StringBuilder rappel = new StringBuilder();
+        rappel.append(
+                criteres.debut != null || criteres.fin != null
+                        ? "Période du " + (criteres.debut == null ? "origine" : criteres.debut.format(FR_JOUR)) + " au "
+                                + (criteres.fin == null ? "aujourd'hui" : criteres.fin.format(FR_JOUR))
+                        : "Toutes périodes");
+        rappel.append(" - Type : ").append(StringUtils.defaultIfBlank(typeLibelle, "tous"));
+        rappel.append(" - Prescripteur : ").append(StringUtils.defaultIfBlank(medecinLibelle, "tous"));
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("P_SYNTHESE", OrdonnanceAnalyse.syntheseTexte(analyse.getJSONObject("synthese")));
+        return editer(operateur, MODELE_ANALYSE, "ANALYSE DES ORDONNANCES CLIENTS", rappel.toString(),
+                OrdonnanceAnalyse.lignesEdition(analyse), extra);
+    }
+
     /** Edition de l'historique : la liste filtree, ou celle d'un seul client - c'est le meme etat. */
     public byte[] pdfHistorique(TUser operateur, Criteres criteres, String clientLibelle, String typeLibelle,
             String medecinLibelle) throws net.sf.jasperreports.engine.JRException {

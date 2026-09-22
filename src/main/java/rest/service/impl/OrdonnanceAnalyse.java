@@ -179,4 +179,59 @@ public final class OrdonnanceAnalyse {
                 .put("nbRenseignees", nbRenseignees).put("nbServies", nbServies).put("qteServie", qteServie)
                 .put("satisfaction", nul(taux(nbServies, nbRenseignees)));
     }
+
+    /*
+     * EDITION PDF DE L'ONGLET (22/09) : les memes chiffres que l'ecran, mis en forme de la meme facon.
+     */
+
+    /** « 72,5 % », ou un tiret quand il n'y a pas de donnee - jamais 0 %. */
+    static String pc(JSONObject o, String cle) {
+        if (o == null || o.isNull(cle) || !o.has(cle)) {
+            return "—";
+        }
+        return String.format(java.util.Locale.FRANCE, "%.1f %%", o.getDouble(cle));
+    }
+
+    /** La synthese en clair, imprimee sous le titre. */
+    public static String syntheseTexte(JSONObject s) {
+        return "Ordonnances : " + s.optInt("ordonnances") + " (" + s.optInt("clients") + " client(s), "
+                + String.valueOf(s.optDouble("produitsParOrdonnance", 0)).replace('.', ',')
+                + " produit(s) par ordonnance) — Annulées : " + pc(s, "tauxAnnulation") + " (" + s.optInt("annulees")
+                + ") — Satisfaction : " + pc(s, "satisfaction") + " (" + s.optInt("lignesServies")
+                + " ligne(s) servie(s) en entier sur " + s.optInt("lignesRenseignees")
+                + " renseignée(s)) — Ordonnances servies : " + pc(s, "tauxService") + " (servies " + s.optInt("servies")
+                + ", partielles " + s.optInt("partielles") + ", non servies " + s.optInt("nonServies")
+                + ") — À renseigner : " + s.optInt("aRenseigner") + " ordonnance(s), " + s.optInt("lignesARenseigner")
+                + " ligne(s), exclues des taux.";
+    }
+
+    /** Les quatre tableaux de l'onglet, a plat, dans l'ordre de l'ecran. */
+    public static List<rest.service.dto.OrdonnanceAnalyseLigneDTO> lignesEdition(JSONObject analyse) {
+        List<rest.service.dto.OrdonnanceAnalyseLigneDTO> out = new ArrayList<>();
+        ventilationEdition(out, "PAR PRESCRIPTEUR", "Prescripteur", analyse.optJSONArray("parPrescripteur"));
+        ventilationEdition(out, "PAR ÉTABLISSEMENT", "Établissement", analyse.optJSONArray("parEtablissement"));
+        ventilationEdition(out, "PAR TYPE DE CLIENT", "Type de client", analyse.optJSONArray("parType"));
+        String[] h = { "Produit prescrit", "Prescriptions", "Qté prescrite", "Qté servie", "Lignes renseignées",
+                "Satisfaction" };
+        JSONArray produits = analyse.optJSONArray("produits");
+        for (int i = 0; produits != null && i < produits.length(); i++) {
+            JSONObject p = produits.getJSONObject(i);
+            out.add(new rest.service.dto.OrdonnanceAnalyseLigneDTO("PRODUITS LES PLUS PRESCRITS (annulées exclues)", h,
+                    p.optString("produit"), String.valueOf(p.optInt("nbPrescriptions")),
+                    String.valueOf(p.optInt("qtePrescrite")), String.valueOf(p.optInt("qteServie")),
+                    String.valueOf(p.optInt("nbRenseignees")), pc(p, "satisfaction")));
+        }
+        return out;
+    }
+
+    private static void ventilationEdition(List<rest.service.dto.OrdonnanceAnalyseLigneDTO> out, String section,
+            String axe, JSONArray lignes) {
+        String[] h = { axe, "Ordonnances", "Part", "Annulées", "Satisfaction", "Servies" };
+        for (int i = 0; lignes != null && i < lignes.length(); i++) {
+            JSONObject l = lignes.getJSONObject(i);
+            out.add(new rest.service.dto.OrdonnanceAnalyseLigneDTO(section, h, l.optString("libelle"),
+                    String.valueOf(l.optInt("ordonnances")), pc(l, "part"), pc(l, "tauxAnnulation"),
+                    pc(l, "satisfaction"), pc(l, "tauxService")));
+        }
+    }
 }

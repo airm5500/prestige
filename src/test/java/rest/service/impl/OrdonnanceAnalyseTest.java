@@ -131,4 +131,26 @@ public class OrdonnanceAnalyseTest {
         assertFalse(sql.contains(":annulee"));
         assertTrue(OrdonnanceClientSql.analyseProduits(c).contains("o.str_STATUT <> 'annulee'"));
     }
+
+    @Test
+    public void editionPdfMemesChiffresQueLEcran() {
+        List<OrdonnanceAnalyse.Ordonnance> l = Arrays.asList(ord("enable", "C1", "DR A", 2, 2, 2, 4),
+                ord("enable", "C2", "", 1, 0, 0, 0));
+        JSONArray produits = new JSONArray().put(OrdonnanceAnalyse.produit("DOLIPRANE", 2, 3, 1, 1, 2));
+        JSONObject r = OrdonnanceAnalyse.analyser(l, produits);
+        String synthese = OrdonnanceAnalyse.syntheseTexte(r.getJSONObject("synthese"));
+        assertTrue(synthese.contains("Ordonnances : 2"), synthese);
+        assertTrue(synthese.contains("Satisfaction : 100,0 %"), synthese);
+        List<rest.service.dto.OrdonnanceAnalyseLigneDTO> lignes = OrdonnanceAnalyse.lignesEdition(r);
+        // Ordre de l ecran : prescripteurs (DR A, puis non renseigne), etablissements, types, produits.
+        assertEquals("PAR PRESCRIPTEUR", lignes.get(0).getSection());
+        assertEquals("Prescripteur", lignes.get(0).getH0());
+        rest.service.dto.OrdonnanceAnalyseLigneDTO produit = lignes.get(lignes.size() - 1);
+        assertEquals("DOLIPRANE", produit.getLibelle());
+        assertEquals("100,0 %", produit.getV5());
+        // Un taux sans donnee s'imprime « — », jamais 0 %.
+        rest.service.dto.OrdonnanceAnalyseLigneDTO nonRenseigne = lignes.get(1);
+        assertEquals("Non renseigné", nonRenseigne.getLibelle());
+        assertEquals("—", nonRenseigne.getV4());
+    }
 }

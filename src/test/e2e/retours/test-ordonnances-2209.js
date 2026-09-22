@@ -202,6 +202,13 @@ const MARQUE = 'E2E-2209';
     const satisf = Number(lignes[0]) ? (Math.round(Number(lignes[1]) * 1000 / Number(lignes[0])) / 10).toFixed(1).replace('.', ',') : '—';
     ok('Onglet Analyse : le nombre d ordonnances est celui de la base', ana.valeurs[0] === nb, nb + ' / ' + ana.tuiles.slice(0, 160));
     ok('Onglet Analyse : la satisfaction est celle de la base (lignes servies / renseignées)', ana.valeurs[2] === (satisf === '—' ? '—' : satisf + ' %'), satisf + ' / ' + ana.tuiles.slice(0, 260));
+    /* Impression de l onglet : le clic ouvre un onglet du navigateur, qui recoit un PDF. */
+    const [onglet2] = await Promise.all([p.context().waitForEvent('page', { timeout: 20000 }), clic('ordonnanceclient #vueAnalyse button[itemId=imprimerAnalyse]')]);
+    const urlPdf = onglet2.url(); await onglet2.close();
+    const pdfAna = pdfTexte(await telecharger(urlPdf.replace(/^.*\/api\//, '../api/')));
+    const plat = pdfAna.replace(/\s+/g, ' ');
+    ok('« Imprimer l analyse » ouvre le PDF de l onglet, sur les mêmes critères', /analyse\/pdf\?/.test(urlPdf) && /dtStart=\d{4}-\d{2}-\d{2}/.test(urlPdf), urlPdf);
+    ok('Le PDF porte la synthèse avec les chiffres de l écran, et les quatre tableaux', plat.indexOf('Ordonnances : ' + nb + ' ') >= 0 && plat.indexOf('Satisfaction : ' + (satisf === '—' ? '—' : satisf + ' %')) >= 0 && /PAR PRESCRIPTEUR/.test(plat) && /PAR ÉTABLISSEMENT/.test(plat) && /PAR TYPE DE CLIENT/.test(plat) && /PRODUITS LES PLUS PRESCRITS/.test(plat) && plat.indexOf(produit.slice(0, 20)) >= 0, plat.slice(0, 500));
     ok('Onglet Analyse : ventilation par prescripteur et produits prescrits remplis', ana.prescripteurs > 0 && ana.produits > 0, JSON.stringify(ana).slice(0, 200));
     ok('Aucune erreur JavaScript sur tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {

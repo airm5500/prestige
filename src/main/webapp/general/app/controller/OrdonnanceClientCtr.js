@@ -69,7 +69,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueConso button[itemId=pososConso]': {click: me.analyserConso},
             'ordonnanceclient #vueAnalyse': {activate: me.surOngletAnalyse},
             'ordonnanceclient #vueAnalyse button[itemId=calculerAnalyse]': {click: me.calculerAnalyse},
-            'ordonnanceclient #vueAnalyse button[itemId=effacerAnalyse]': {click: me.effacerAnalyse}
+            'ordonnanceclient #vueAnalyse button[itemId=effacerAnalyse]': {click: me.effacerAnalyse},
+            'ordonnanceclient #vueAnalyse button[itemId=imprimerAnalyse]': {click: me.imprimerAnalyse}
         });
     },
 
@@ -1088,6 +1089,30 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         this.calculerAnalyse();
     },
 
+    /** Criteres de l'onglet Analyse, communs au calcul et a l'edition. */
+    parametresAnalyse: function () {
+        var vue = this.getEcran().down('#vueAnalyse');
+        var jour = function (s) {
+            var v = vue.down(s).getValue();
+            return v ? Ext.Date.format(v, 'Y-m-d') : '';
+        };
+        var type = vue.down('#anaType');
+        var medecin = vue.down('#anaMedecin');
+        return {
+            dtStart: jour('#anaDebut'),
+            dtEnd: jour('#anaFin'),
+            typeClientId: type.getValue() || '',
+            medecinId: medecin.getValue() || '',
+            typeLibelle: type.getValue() ? type.getRawValue() : '',
+            medecinLibelle: medecin.getValue() ? medecin.getRawValue() : ''
+        };
+    },
+
+    /** L'analyse en PDF, sur les criteres affiches, dans un onglet du navigateur. */
+    imprimerAnalyse: function () {
+        window.open('../api/v1/ordonnance-client/analyse/pdf?' + Ext.Object.toQueryString(this.parametresAnalyse()));
+    },
+
     calculerAnalyse: function () {
         var me = this;
         var ecran = me.getEcran();
@@ -1102,12 +1127,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ordonnance-client/analyse',
-            params: {
-                dtStart: jour('#anaDebut'),
-                dtEnd: jour('#anaFin'),
-                typeClientId: vue.down('#anaType').getValue() || '',
-                medecinId: vue.down('#anaMedecin').getValue() || ''
-            },
+            params: me.parametresAnalyse(),
             success: function (reponse) {
                 var r = Ext.decode(reponse.responseText, true) || {};
                 if (tuiles.isDestroyed) {

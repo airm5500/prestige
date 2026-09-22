@@ -435,6 +435,32 @@ public class OrdonnanceClientRessource {
                 .build();
     }
 
+    /** L'onglet Analyse en PDF, servi en flux dans l'onglet ouvert par le clic (aucune fenetre surgissante). */
+    @GET
+    @Path("analyse/pdf")
+    @Produces("application/pdf")
+    public Response analysePdf(@QueryParam("typeClientId") String typeClientId,
+            @QueryParam("medecinId") String medecinId, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin, @QueryParam("typeLibelle") String typeLibelle,
+            @QueryParam("medecinLibelle") String medecinLibelle) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        try {
+            byte[] pdf = ordonnanceService.pdfAnalyse(operateur,
+                    criteres(null, null, typeClientId, medecinId, debut, fin, true), typeLibelle, medecinLibelle);
+            return Response.ok(pdf).type("application/pdf")
+                    .header("Content-Disposition", "inline; filename=\"analyse_ordonnances.pdf\"").build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "edition de l'analyse des ordonnances", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     /**
      * Suivi de consommation d'un client, vu depuis ses ordonnances : le service de la gestion des clients, plus le
      * stock disponible de chaque produit sur l'emplacement de l'operateur.

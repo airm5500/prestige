@@ -1151,6 +1151,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             itemId: 'effacerAnalyse',
                             text: 'Effacer',
                             cls: 'ordo-btn'
+                        }, '->', {
+                            /* L'onglet en PDF, dans un onglet du navigateur : aucune fenetre surgissante. */
+                            xtype: 'button',
+                            itemId: 'imprimerAnalyse',
+                            text: 'Imprimer l\'analyse',
+                            iconCls: 'printable',
+                            cls: 'ordo-btn'
                         }]
                 }],
             items: [{
