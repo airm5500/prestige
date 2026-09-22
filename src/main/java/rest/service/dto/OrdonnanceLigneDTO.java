@@ -81,4 +81,33 @@ public class OrdonnanceLigneDTO {
     public String getEtat() {
         return "annulee".equals(statut) ? "Annulée" : "";
     }
+
+    /** Etat de service (22/09) : servie, partielle, non_servie, a_renseigner. */
+    private String etatService;
+
+    public OrdonnanceLigneDTO etatService(String etatService) {
+        this.etatService = etatService;
+        return this;
+    }
+
+    public String getEtatService() {
+        return etatService;
+    }
+
+    /** Libelle imprime de l'etat de service ; vide pour une annulee, dont l'etat dit deja tout. */
+    public String getServiceLibelle() {
+        if ("annulee".equals(statut) || etatService == null) {
+            return "";
+        }
+        switch (etatService) {
+        case "servie":
+            return "Servie";
+        case "partielle":
+            return "Partielle";
+        case "non_servie":
+            return "Non servie";
+        default:
+            return "À renseigner";
+        }
+    }
 }

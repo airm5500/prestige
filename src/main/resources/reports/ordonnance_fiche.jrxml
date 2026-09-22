@@ -47,6 +47,7 @@
     <field name="quantite" class="java.lang.Integer"/>
     <field name="posologie" class="java.lang.String"/>
     <field name="duree" class="java.lang.String"/>
+    <field name="qteServieLibelle" class="java.lang.String"/>
     <title>
         <band height="172">
             <textField isBlankWhenNull="true">
@@ -137,7 +138,7 @@
                 <textElement><font size="8.5" isBold="true"/></textElement><text><![CDATA[PRODUITS PRESCRITS]]></text></staticText>
             <staticText><reportElement x="0" y="152" width="555" height="11"/>
                 <textElement><font size="6.5" isItalic="true"/></textElement>
-                <text><![CDATA[Quantités PRESCRITES : cette fiche n'est pas un document de vente et ne constate aucune délivrance.]]></text></staticText>
+                <text><![CDATA[Qté : quantité PRESCRITE. Servie : quantité déclarée servie (— : non renseignée). Cette fiche n'est pas un document de vente.]]></text></staticText>
         </band>
     </title>
     <columnHeader>
@@ -150,7 +151,9 @@
                     <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
                 <staticText><reportElement x="268" y="0" width="34" height="14"/>
                     <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Qté]]></text></staticText>
-                <staticText><reportElement x="306" y="0" width="160" height="14"/>
+                <staticText><reportElement x="306" y="0" width="38" height="14"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Servie]]></text></staticText>
+                <staticText><reportElement x="350" y="0" width="116" height="14"/>
                     <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Posologie]]></text></staticText>
                 <staticText><reportElement x="466" y="0" width="85" height="14"/>
                     <textElement verticalAlignment="Middle"><font size="7.5" isBold="true"/></textElement><text><![CDATA[Durée]]></text></staticText>
@@ -173,7 +176,12 @@
                 <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement style="ligne" x="306" y="0" width="160" height="13"/>
+                <reportElement style="ligne" x="306" y="0" width="38" height="13"/>
+                <textElement textAlignment="Right"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{qteServieLibelle}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligne" x="350" y="0" width="116" height="13"/>
                 <textFieldExpression><![CDATA[$F{posologie}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">

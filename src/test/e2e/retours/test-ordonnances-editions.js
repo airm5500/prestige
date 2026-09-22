@@ -150,8 +150,9 @@ function poser() {
       && /7 jours/.test(texteFiche), texteFiche.slice(0, 600));
     ok('Elle compte les produits prescrits', /TOTAL : 3 produit/.test(texteFiche), texteFiche.slice(-400));
     ok('Elle porte les observations', /Surveiller la tension/.test(texteFiche), texteFiche.slice(-500));
-    ok('Elle rappelle que les quantités sont PRESCRITES, pas délivrées',
-      /PRESCRITES/.test(texteFiche) && /aucune d.livrance/.test(texteFiche), texteFiche.slice(0, 700));
+    ok('Elle distingue la quantité PRESCRITE de la quantité servie, et dit qu elle n est pas un document de vente',
+      /PRESCRITE/.test(texteFiche) && /Servie/.test(texteFiche) && /pas un document de vente/.test(texteFiche),
+      texteFiche.slice(0, 700));
     ok('Elle porte la traçabilité : la saisie, sa date et son auteur',
       /Saisie le/.test(texteFiche) && /Super/.test(texteFiche), texteFiche.slice(-400));
     ok('Elle est paginée et datée', /Page 1/.test(texteFiche) && /dit. le/.test(texteFiche),
@@ -240,8 +241,8 @@ function poser() {
     }, '../api/v1/ordonnance-client/historique/excel?' + parametres({ query: 'ZZEDIT', clientId: '',
       typeClientId: '', medecinId: '', dtStart: '', dtEnd: '', annulees: 'false' }));
     const lisible = contenuExcel.replace(/\u0000/g, '');
-    ok('Le classeur porte les douze colonnes demandées',
-      ['N', 'DATE', 'CLIENT', 'TYPE CLIENT', 'PRESCRIPTEUR', 'PRODUIT PRESCRIT', 'CIP', 'POSOLOGIE',
+    ok('Le classeur porte les treize colonnes demandées, dont la quantité servie (22/09)',
+      ['N', 'DATE', 'CLIENT', 'TYPE CLIENT', 'PRESCRIPTEUR', 'PRODUIT PRESCRIT', 'CIP', 'QT', 'SERVIE', 'POSOLOGIE',
         'DUR'].every((entete) => lisible.indexOf(entete) >= 0));
     ok('Il porte UNE LIGNE PAR PRODUIT : les cinq libellés y sont',
       ['PARACETAMOL 1000 CPR', 'SIROP NON TENU', 'POMMADE PRESCRITE', 'AMOXICILLINE 500', 'VITAMINE C']

@@ -360,7 +360,10 @@ public class OrdonnanceClientService {
                         StringUtils.trimToEmpty(t.get("medecin", String.class)),
                         StringUtils.defaultString(t.get("etablissement", String.class)), entier(t.get("nbProduits")),
                         entier(t.get("nbPieces")), StringUtils.defaultString(t.get("statut", String.class)),
-                        StringUtils.trimToEmpty(t.get("creePar", String.class))));
+                        StringUtils.trimToEmpty(t.get("creePar", String.class)))
+                                .etatService(OrdonnanceClientSaisie.etatService(entier(t.get("nbProduits")),
+                                        entier(t.get("nbRenseignees")), entier(t.get("nbServies")),
+                                        entier(t.get("qteServie")))));
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "historique des ordonnances pour edition", e);
@@ -389,8 +392,8 @@ public class OrdonnanceClientService {
                     + " TRIM(CONCAT(COALESCE(m.str_FIRST_NAME, ''), ' ', COALESCE(m.str_LAST_NAME, ''))) AS medecin,"
                     + " o.str_ETABLISSEMENT AS etablissement, o.str_STATUT AS statut,"
                     + " d.str_LIBELLE AS produit, f.int_CIP AS cip, d.int_QUANTITE AS quantite,"
-                    + " d.str_POSOLOGIE AS posologie, d.str_DUREE AS duree" + " FROM t_ordonnance_client o"
-                    + " JOIN t_client c ON c.lg_CLIENT_ID = o.lg_CLIENT_ID"
+                    + " d.str_POSOLOGIE AS posologie, d.str_DUREE AS duree, d.int_QTE_SERVIE AS qteServie"
+                    + " FROM t_ordonnance_client o" + " JOIN t_client c ON c.lg_CLIENT_ID = o.lg_CLIENT_ID"
                     + " LEFT JOIN t_type_client tc ON tc.lg_TYPE_CLIENT_ID = c.lg_TYPE_CLIENT_ID"
                     + " LEFT JOIN t_medecin m ON m.lg_MEDECIN_ID = o.lg_MEDECIN_ID"
                     + " LEFT JOIN t_user uc ON uc.lg_USER_ID = o.lg_USER_CREATED"
@@ -411,7 +414,8 @@ public class OrdonnanceClientService {
                         t.get("cip") == null ? "" : String.valueOf(t.get("cip")), entier(t.get("quantite")),
                         StringUtils.defaultString(t.get("posologie", String.class)),
                         StringUtils.defaultString(t.get("duree", String.class)),
-                        StringUtils.defaultString(t.get("statut", String.class))));
+                        StringUtils.defaultString(t.get("statut", String.class)))
+                                .qteServie(t.get("qteServie") == null ? null : entier(t.get("qteServie"))));
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "produits prescrits pour export", e);
@@ -483,7 +487,8 @@ public class OrdonnanceClientService {
             JSONObject p = lignes.getJSONObject(i);
             produits.add(new rest.service.dto.OrdonnanceProduitDTO(o.optString("numero"), "", "", "", "", "",
                     p.optString("libelle"), p.optString("cip"), p.optInt("quantite", 1), p.optString("posologie"),
-                    p.optString("duree"), o.optString("statut")));
+                    p.optString("duree"), o.optString("statut"))
+                            .qteServie(p.isNull("qteServie") ? null : p.optInt("qteServie")));
         }
         Map<String, Object> extra = new HashMap<>();
         extra.put("P_CLIENT", o.optString("client"));
@@ -518,7 +523,7 @@ public class OrdonnanceClientService {
      */
     public byte[] excelHistorique(Criteres criteres) throws java.io.IOException {
         String[] entetes = { "N° ORDONNANCE", "DATE", "CLIENT", "TYPE CLIENT", "PRESCRIPTEUR", "ÉTABLISSEMENT",
-                "PRODUIT PRESCRIT", "CIP", "QUANTITÉ", "POSOLOGIE", "DURÉE", "ÉTAT" };
+                "PRODUIT PRESCRIT", "CIP", "QUANTITÉ", "QTÉ SERVIE", "POSOLOGIE", "DURÉE", "ÉTAT" };
         return excelService.createLandscapeExcelReport("Ordonnances clients", entetes, produitsHistorique(criteres),
                 (ligne, p) -> {
                     int c = 0;
@@ -531,6 +536,12 @@ public class OrdonnanceClientService {
                     ligne.createCell(c++).setCellValue(p.getProduit());
                     ligne.createCell(c++).setCellValue(p.getCip());
                     ligne.createCell(c++).setCellValue(p.getQuantite());
+                    /* Vide = service non renseigne : une cellule vide, et non 0 qui dirait « non servi ». */
+                    if (p.getQteServie() == null) {
+                        ligne.createCell(c++).setCellValue("");
+                    } else {
+                        ligne.createCell(c++).setCellValue(p.getQteServie());
+                    }
                     ligne.createCell(c++).setCellValue(p.getPosologie());
                     ligne.createCell(c++).setCellValue(p.getDuree());
                     ligne.createCell(c).setCellValue(p.getEtat());

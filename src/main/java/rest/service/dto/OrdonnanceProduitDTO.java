@@ -25,6 +25,8 @@ public class OrdonnanceProduitDTO {
     private String posologie;
     private String duree;
     private String statut;
+    /** Quantite servie (22/09) : null = pas encore renseignee, distinct de 0 = non servie. */
+    private Integer qteServie;
 
     public OrdonnanceProduitDTO() {
     }
@@ -96,5 +98,19 @@ public class OrdonnanceProduitDTO {
 
     public String getEtat() {
         return "annulee".equals(statut) ? "Annulée" : "";
+    }
+
+    public Integer getQteServie() {
+        return qteServie;
+    }
+
+    /** Libelle imprime : le nombre, ou un tiret quand le service n'est pas renseigne. */
+    public String getQteServieLibelle() {
+        return qteServie == null ? "—" : String.valueOf(qteServie);
+    }
+
+    public OrdonnanceProduitDTO qteServie(Integer qteServie) {
+        this.qteServie = qteServie;
+        return this;
     }
 }
