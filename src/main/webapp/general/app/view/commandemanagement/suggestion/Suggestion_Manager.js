@@ -44,6 +44,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     name: 'str_REF',
                     type: 'string'
                 },
+                {
+                    name: 'str_COMMENTAIRE',
+                    type: 'string'
+                },
 
                 {
                     name: 'int_NOMBRE_ARTICLES',
@@ -152,6 +156,15 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     header: 'REF',
                     dataIndex: 'str_REF',
                     flex: 1
+                },
+                {
+                    // D'ou vient la suggestion (21/09) : « Suggestion de garde - ... » pour celles du menu des gardes.
+                    header: 'COMMENTAIRE',
+                    dataIndex: 'str_COMMENTAIRE',
+                    flex: 2,
+                    renderer: function (v) {
+                        return v ? '<span data-qtip="' + Ext.String.htmlEncode(v) + '">' + Ext.String.htmlEncode(v) + '</span>' : '';
+                    }
                 },
                 {
                     header: 'GROSSISTE',

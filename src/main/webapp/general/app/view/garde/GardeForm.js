@@ -38,7 +38,7 @@ Ext.define('testextjs.view.garde.GardeForm', {
                             fieldLabel: 'Libell&eacute;',
                             maxLength: 120,
                             allowBlank: false,
-                            emptyText: 'Nuit du 5 au 6 septembre',
+                            emptyText: 'Semaine du 5 au 12 septembre',
                             value: garde ? garde.get('libelle') : ''
                         }, {
                             xtype: 'fieldcontainer',
@@ -70,8 +70,10 @@ Ext.define('testextjs.view.garde.GardeForm', {
                                 }]
                         }, {
                             xtype: 'displayfield',
-                            value: 'Une garde va typiquement de 20 h &agrave; 8 h le lendemain : '
-                                    + 'pensez &agrave; avancer la date de fin d\'un jour.'
+                            // Texte demande le 21/09 : chez l'officine une garde dure une semaine, et l'heure
+                            // de debut depend de la zone de la pharmacie.
+                            value: 'Une garde dure 7 jours et les horaires de d&eacute;but d&eacute;pendent '
+                                    + 'de la zone de la pharmacie.'
                         }]
                 }],
             buttons: [

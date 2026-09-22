@@ -184,7 +184,8 @@ function semer() {
     ok('Le meilleur vendeur est en tete : 1 vente, 4 000', vendeurs.lignes[0].montant === 4000 && vendeurs.lignes[0].ventes === 1,
       JSON.stringify(vendeurs.lignes[0]));
     ok('KGA3 suit avec 2 ventes, 2 clients, 2 500', vendeurs.lignes[1].montant === 2500 && vendeurs.lignes[1].ventes === 2
-      && vendeurs.lignes[1].clients === 2 && /KONAN/.test(vendeurs.lignes[1].nom), JSON.stringify(vendeurs.lignes[1]));
+      /* Le nom du vendeur est celui de la fiche utilisateur du banc, pas une constante : il differe d'un banc a l'autre. */
+      && vendeurs.lignes[1].clients === 2 && vendeurs.lignes[1].nom.indexOf(q("SELECT str_FIRST_NAME FROM t_user WHERE lg_USER_ID='" + KGA3 + "'")) >= 0, JSON.stringify(vendeurs.lignes[1]));
     ok('La marge suit la formule de l\'ABC : 4 000 - 2 000 = 2 000, soit 50 %',
       vendeurs.lignes[0].marge === 2000 && Math.abs(vendeurs.lignes[0].tauxMarge - 50) < 0.01, JSON.stringify(vendeurs.lignes[0]));
 

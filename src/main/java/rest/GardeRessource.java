@@ -61,6 +61,7 @@ public class GardeRessource {
 
     private static final DateTimeFormatter SAISIE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter AFFICHE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter JOUR_HEURE = DateTimeFormatter.ofPattern("dd/MM/yyyy HH'h'mm");
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HEURE = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -469,7 +470,7 @@ public class GardeRessource {
      */
     @GET
     @Path("{id}/commandes")
-    public Response commandes(@PathParam("id") String id) {
+    public Response commandes(@PathParam("id") String id, @DefaultValue("3") @QueryParam("joursPrep") int joursPrep) {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
@@ -478,19 +479,23 @@ public class GardeRessource {
         int nonVendus = 0;
         long quantiteCommandee = 0L;
         long quantiteNonVendue = 0L;
-        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde, Math.max(0, Math.min(30, joursPrep)));
         for (GardeCommandeDTO c : commandes) {
             data.put(new JSONObject().put("produitId", c.getProduitId()).put("cip", c.getCip())
                     .put("libelle", c.getLibelle()).put("quantiteCommandee", c.getQuantiteCommandee())
-                    .put("quantiteVendue", c.getQuantiteVendue()).put("nonVendu", c.isNonVendu()));
-            quantiteCommandee += c.getQuantiteCommandee();
+                    .put("quantitePreparation", c.getQuantitePreparation()).put("stock", c.getStock())
+                    .put("quantiteVendue", c.getQuantiteVendue()).put("nonVendu", c.isNonVendu())
+                    .put("pourcentagePreparation", c.getPourcentagePreparation())
+                    .put("pourcentageCommande", c.getPourcentageCommande()).put("frequenceJour", c.getFrequenceJour()));
+            quantiteCommandee += c.getQuantiteTotale();
             if (c.isNonVendu()) {
                 nonVendus++;
-                quantiteNonVendue += c.getQuantiteCommandee();
+                quantiteNonVendue += c.getQuantiteTotale();
             }
         }
         JSONObject resume = new JSONObject().put("produitsCommandes", commandes.size())
-                .put("produitsNonVendus", nonVendus)
+                .put("joursPreparation", Math.max(0, Math.min(30, joursPrep)))
+                .put("jours", commandes.isEmpty() ? 1 : commandes.get(0).getJours()).put("produitsNonVendus", nonVendus)
                 .put("proportionProduits", commandes.isEmpty() ? 0D : arrondi(nonVendus * 100D / commandes.size()))
                 .put("quantiteCommandee", quantiteCommandee).put("quantiteNonVendue", quantiteNonVendue)
                 .put("proportionQuantites",
@@ -590,11 +595,19 @@ public class GardeRessource {
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
-        List<String> produits = produitsVoulus(corpsJson(corps), garde);
+        JSONObject json = corpsJson(corps);
+        List<String> produits = produitsVoulus(json, garde);
         java.util.Map<String, Long> vendues = gardeService.quantitesVendues(garde);
+        /*
+         * QUANTITES VOULUES (21/09). L'onglet « commandes non vendus » envoie ce qu'il affiche apres filtre, avec pour
+         * chaque produit la quantite a suggerer - vendue pendant la garde, ou a defaut commandee - sans quoi un produit
+         * commande et non vendu, qui est precisement celui qu'on regarde, ne pourrait jamais etre suggere. Sans ce
+         * bloc, la regle d'origine s'applique : la quantite vendue pendant la garde.
+         */
+        JSONObject voulues = json.optJSONObject("quantites");
         java.util.Map<String, Long> quantites = new java.util.LinkedHashMap<>();
         for (String produit : produits) {
-            Long q = vendues.get(produit);
+            Long q = voulues != null && voulues.has(produit) ? voulues.optLong(produit) : vendues.get(produit);
             if (q != null && q > 0) {
                 quantites.put(produit, q);
             }
@@ -602,7 +615,10 @@ public class GardeRessource {
         if (quantites.isEmpty()) {
             return echec("Aucun produit vendu pendant cette garde : rien à suggérer.");
         }
-        JSONObject resultat = suggestionService.makeSuggestionDepuisGarde(quantites, user);
+        /* La suggestion dit d'ou elle vient : « Suggestion de garde - <libelle> (du ... au ...) ». */
+        String commentaire = "Suggestion de garde - " + StringUtils.defaultString(garde.getLibelle()) + " (du "
+                + garde.getDateDebut().format(JOUR_HEURE) + " au " + garde.getDateFin().format(JOUR_HEURE) + ")";
+        JSONObject resultat = suggestionService.makeSuggestionDepuisGarde(quantites, user, commentaire);
         if (!resultat.optBoolean("success")) {
             return echec(resultat.optString("msg", "La suggestion n'a pas pu être créée."));
         }
@@ -817,19 +833,27 @@ public class GardeRessource {
     @GET
     @Path("{id}/commandes/excel")
     @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    public Response exporterCommandes(@PathParam("id") String id) throws IOException {
+    public Response exporterCommandes(@PathParam("id") String id,
+            @DefaultValue("3") @QueryParam("joursPrep") int joursPrep) throws IOException {
         Garde garde = gardeService.parId(id);
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
-        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        int jours = Math.max(0, Math.min(30, joursPrep));
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde, jours);
+        /* L'export porte les memes colonnes que l'ecran (21/09) : preparation, commande, stock, frequence. */
         byte[] data = new rest.report.excel.ClasseurExcel<GardeCommandeDTO>("Commandes non vendues")
                 .titre("GARDE " + StringUtils.defaultString(garde.getLibelle()) + " - COMMANDÉS NON VENDUS")
                 .critere("Période",
                         "du " + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE))
-                .texte("CIP", GardeCommandeDTO::getCip).texte("Produit", GardeCommandeDTO::getLibelle)
-                .nombre("Qté commandée", GardeCommandeDTO::getQuantiteCommandee)
+                .critere("Préparation", jours + " jour(s) avant la garde").texte("CIP", GardeCommandeDTO::getCip)
+                .texte("Produit", GardeCommandeDTO::getLibelle).nombre("Stock actuel", GardeCommandeDTO::getStock)
+                .nombre("Qté préparation", GardeCommandeDTO::getQuantitePreparation)
+                .nombre("Qté commandée (garde)", GardeCommandeDTO::getQuantiteCommandee)
                 .nombre("Qté vendue", GardeCommandeDTO::getQuantiteVendue)
+                .nombre("% vente / prép.", GardeCommandeDTO::getPourcentagePreparation)
+                .nombre("% vente / cmd", GardeCommandeDTO::getPourcentageCommande)
+                .nombre("Fréquence / jour", GardeCommandeDTO::getFrequenceJour)
                 .texte("Statut", c -> c.isNonVendu() ? "Non vendu" : "Vendu").construire(commandes);
         String nomFichier = "garde_commandes_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xlsx";
@@ -841,7 +865,8 @@ public class GardeRessource {
     @GET
     @Path("{id}/commandes/pdf")
     @Produces("application/pdf")
-    public Response imprimerCommandes(@PathParam("id") String id) {
+    public Response imprimerCommandes(@PathParam("id") String id,
+            @DefaultValue("3") @QueryParam("joursPrep") int joursPrep) {
         TUser user = utilisateur();
         if (user == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -850,7 +875,8 @@ public class GardeRessource {
         if (garde == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
-        List<GardeCommandeDTO> commandes = gardeService.commandes(garde);
+        int jours = Math.max(0, Math.min(30, joursPrep));
+        List<GardeCommandeDTO> commandes = gardeService.commandes(garde, jours);
         int nonVendus = 0;
         for (GardeCommandeDTO c : commandes) {
             if (c.isNonVendu()) {
@@ -861,8 +887,10 @@ public class GardeRessource {
         parametres.put("P_GARDE", "GARDE : " + StringUtils.defaultString(garde.getLibelle()));
         parametres.put("P_PERIODE",
                 "Du " + garde.getDateDebut().format(AFFICHE) + " au " + garde.getDateFin().format(AFFICHE));
-        parametres.put("P_RESUME", commandes.size() + " produit(s) commandé(s) pendant la garde, dont " + nonVendus
-                + " non vendu(s) (" + arrondi(commandes.isEmpty() ? 0D : nonVendus * 100D / commandes.size()) + " %)");
+        parametres.put("P_RESUME",
+                commandes.size() + " produit(s) commandé(s) (préparation : " + jours
+                        + " jour(s) avant la garde, ou pendant), dont " + nonVendus + " non vendu(s) ("
+                        + arrondi(commandes.isEmpty() ? 0D : nonVendus * 100D / commandes.size()) + " %)");
         String url = reportUtil.buildReport(parametres, "garde_commandes", commandes);
         java.io.File fichier = reportUtil.editionEcrite(url)
                 ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
@@ -874,6 +902,121 @@ public class GardeRessource {
         }
         return Response.ok(fichier, "application/pdf")
                 .header("Content-Disposition", "inline; filename=garde_commandes.pdf").build();
+    }
+
+    /**
+     * LES VENTES JOUR PAR JOUR de la garde (21/09) : « une courbe d'evolution de vente sur la periode de garde, lundi,
+     * mardi, mercredi... avec la quantite en pique ». Une ligne par jour civil couvert par la garde, meme sans vente,
+     * pour que la courbe garde ses jours.
+     */
+    @GET
+    @Path("{id}/ventes-par-jour")
+    public Response ventesParJour(@PathParam("id") String id) {
+        Garde garde = gardeService.parId(id);
+        if (garde == null) {
+            return echec("Cette garde n'existe plus.");
+        }
+        java.util.Map<java.time.LocalDate, long[]> parJour = new java.util.TreeMap<>();
+        java.util.Map<java.time.LocalDate, java.util.Set<String>> tickets = new java.util.HashMap<>();
+        for (java.time.LocalDate j = garde.getDateDebut().toLocalDate(); !j
+                .isAfter(garde.getDateFin().toLocalDate()); j = j.plusDays(1)) {
+            parJour.put(j, new long[] { 0L, 0L });
+        }
+        for (commonTasks.dto.GardeVenteLigneDTO l : gardeService.lignesDeVente(garde.getDateDebut(),
+                garde.getDateFin())) {
+            if (l.getDateOperation() == null) {
+                continue;
+            }
+            java.time.LocalDate j = l.getDateOperation().toLocalDate();
+            long[] cumul = parJour.computeIfAbsent(j, k -> new long[] { 0L, 0L });
+            cumul[0] += l.getQuantite();
+            cumul[1] += l.getMontant();
+            tickets.computeIfAbsent(j, k -> new java.util.HashSet<>()).add(l.getVenteId());
+        }
+        JSONArray data = new JSONArray();
+        DateTimeFormatter court = DateTimeFormatter.ofPattern("EEE dd/MM", java.util.Locale.FRENCH);
+        for (java.util.Map.Entry<java.time.LocalDate, long[]> e : parJour.entrySet()) {
+            data.put(new JSONObject().put("jour", e.getKey().toString()).put("libelle", e.getKey().format(court))
+                    .put("quantite", e.getValue()[0]).put("montant", e.getValue()[1])
+                    .put("ventes", tickets.getOrDefault(e.getKey(), java.util.Collections.emptySet()).size()));
+        }
+        return liste(data, new JSONObject().put("garde", StringUtils.defaultString(garde.getLibelle())));
+    }
+
+    /**
+     * LE SUIVI DE L'ACTIVITE SUR UNE PAGE (21/09) : la courbe d'evolution ET la repartition par tranche horaire.
+     *
+     * <p>
+     * La courbe est celle que l'ecran dessine : il l'envoie en image, car c'est elle que l'officine regarde et qu'elle
+     * veut retrouver telle quelle. Les tranches sont relues cote serveur, sur la garde choisie ou sur l'historique des
+     * gardes cochees. Envoye par un formulaire, la reponse s'ouvre EN FLUX dans un onglet du navigateur - aucune
+     * fenetre surgissante.
+     */
+    @POST
+    @Path("activite/pdf")
+    @Consumes("application/x-www-form-urlencoded")
+    @Produces("application/pdf")
+    public Response imprimerActivite(@javax.ws.rs.FormParam("ids") String ids,
+            @javax.ws.rs.FormParam("heures") @DefaultValue("2") int heures,
+            @javax.ws.rs.FormParam("capacite") @DefaultValue("10") int capacite,
+            @javax.ws.rs.FormParam("image") String image) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        List<Garde> gardes = gardesDepuis(ids);
+        if (gardes.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        List<GardeTrancheDTO> tranches = gardes.size() == 1 ? gardeService.tranches(gardes.get(0), heures)
+                : gardeService.tranches(gardes, heures);
+        java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+        if (gardes.size() == 1) {
+            Garde g = gardes.get(0);
+            parametres.put("P_GARDE", "GARDE : " + StringUtils.defaultString(g.getLibelle()));
+            parametres.put("P_PERIODE",
+                    "Du " + g.getDateDebut().format(AFFICHE) + " au " + g.getDateFin().format(AFFICHE));
+        } else {
+            StringBuilder noms = new StringBuilder();
+            for (Garde g : gardes) {
+                noms.append(noms.length() > 0 ? ", " : "").append(StringUtils.defaultString(g.getLibelle()));
+            }
+            parametres.put("P_GARDE", gardes.size() + " GARDES CUMULÉES");
+            parametres.put("P_PERIODE", noms.toString());
+        }
+        parametres.put("P_HEURES", "Tranches de " + Math.max(1, heures) + " heure(s), heures du jour cumulées");
+        parametres.put("P_CAPACITE", Math.max(1, capacite));
+        parametres.put("P_IMAGE", imageDepuis(image));
+        String url = reportUtil.buildReport(parametres, "garde_activite", tranches);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=garde_activite.pdf").build();
+    }
+
+    /** L'image PNG envoyee par l'ecran (« data:image/png;base64,... »), ou rien : l'edition se passe de courbe. */
+    private static java.io.InputStream imageDepuis(String image) {
+        if (StringUtils.isBlank(image)) {
+            return null;
+        }
+        try {
+            String base64 = image.indexOf(',') >= 0 ? image.substring(image.indexOf(',') + 1) : image;
+            byte[] octets = java.util.Base64.getDecoder().decode(base64.trim());
+            /* Une image PNG commence par ces huit octets : on n'accepte rien d'autre. */
+            if (octets.length < 8 || (octets[0] & 0xFF) != 0x89 || octets[1] != 'P' || octets[2] != 'N'
+                    || octets[3] != 'G') {
+                return null;
+            }
+            return new java.io.ByteArrayInputStream(octets);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     @GET

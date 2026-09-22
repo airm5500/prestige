@@ -100,7 +100,15 @@ Ext.define('testextjs.view.garde.GardeManager', {
         });
         me.commandeStore = Ext.create('Ext.data.Store', {
             fields: ['produitId', 'cip', 'libelle', {name: 'quantiteCommandee', type: 'int'},
-                {name: 'quantiteVendue', type: 'int'}, {name: 'nonVendu', type: 'boolean'}]
+                {name: 'quantitePreparation', type: 'int'}, {name: 'stock', type: 'int'},
+                {name: 'quantiteVendue', type: 'int'}, {name: 'nonVendu', type: 'boolean'},
+                {name: 'pourcentagePreparation', type: 'float'}, {name: 'pourcentageCommande', type: 'float'},
+                {name: 'frequenceJour', type: 'float'}]
+        });
+        // Les ventes jour par jour de la garde choisie (21/09), pour la courbe de l'onglet des commandes.
+        me.ventesJourStore = Ext.create('Ext.data.Store', {
+            fields: ['jour', 'libelle', {name: 'quantite', type: 'int'}, {name: 'ventes', type: 'int'},
+                {name: 'montant', type: 'int'}]
         });
         // H2 : les indicateurs REELS d'une garde, a plat, tels que le serveur les rend.
         me.comparaisonStore = Ext.create('Ext.data.Store', {
@@ -527,6 +535,11 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             editable: false,
                             value: 2
                         }, '-', {
+                            // La courbe ET les tranches sur une meme page (21/09), en flux dans un onglet.
+                            text: 'Imprimer', itemId: 'activiteImprimer', iconCls: 'printable',
+                            tooltip: 'La courbe d\'&eacute;volution et la r&eacute;partition par tranche horaire '
+                                    + 'sur une m&ecirc;me page (PDF)'
+                        }, {
                             text: 'Exporter tranches', itemId: 'gardeExporterTranches',
                             tooltip: 'Exporter la r&eacute;partition horaire',
                             iconCls: 'export_excel_icon'
@@ -737,9 +750,27 @@ Ext.define('testextjs.view.garde.GardeManager', {
         };
     },
 
-    /** Les produits commandes pendant la garde et non vendus pendant la garde (H3), avec la proportion. */
+    /**
+     * Les produits commandes POUR la garde - dans les jours qui la precedent (preparation) ou pendant - rapproches
+     * de ce qui s'en est vendu pendant la garde (H3, puis retours du 21/09 : stock actuel, preparation, filtres a
+     * operateurs, recherche, suggestion du resultat filtre, frequence par jour, courbe des ventes par jour).
+     */
     ongletCommandes: function () {
         var me = this;
+        var operateur = function (itemId, libelle) {
+            return {
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 55 : 38,
+                width: libelle.length > 6 ? 125 : 108,
+                store: Ext.create('Ext.data.ArrayStore', {
+                    fields: ['code', 'libelle'],
+                    data: [['', '—'], ['>=', '≥'], ['<=', '≤'], ['=', '='], ['>', '>'], ['<', '<']]
+                }),
+                valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false, value: ''
+            };
+        };
+        var pourcent = function (v) {
+            return v ? Ext.util.Format.number(v, '0.00') : '';
+        };
         return {
             title: 'Command&eacute;s non vendus',
             itemId: 'ongletCommandes',
@@ -748,7 +779,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
             viewConfig: {
                 columnLines: true,
                 deferEmptyText: false,
-                emptyText: '<div style="padding:12px">Aucune commande pass&eacute;e pendant cette garde.</div>',
+                emptyText: '<div style="padding:12px">Aucune commande pass&eacute;e pour cette garde.</div>',
                 getRowClass: function (ligne) {
                     return ligne.get('nonVendu') ? 'garde-non-vendu' : '';
                 }
@@ -759,9 +790,55 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     items: [{
                             xtype: 'tbtext',
                             itemId: 'commandesResume',
-                            text: 'Produits command&eacute;s pendant la garde, rapproch&eacute;s de ce qui s\'en est '
-                                    + 'vendu pendant la m&ecirc;me garde.'
+                            text: 'Produits command&eacute;s pour la garde, rapproch&eacute;s de ce qui s\'en est '
+                                    + 'vendu pendant la garde.'
                         }, '->', {
+                            /*
+                             * LA PREPARATION (21/09) : « les gardes se preparent la semaine ou les jours d'avant ».
+                             * Les commandes des N jours avant le debut de la garde comptent comme preparation ; les
+                             * commandes passees pendant la garde restent a part. Trois jours par defaut.
+                             */
+                            xtype: 'combobox',
+                            itemId: 'commandesJoursPrep',
+                            fieldLabel: 'Pr&eacute;paration',
+                            labelWidth: 70,
+                            width: 215,
+                            store: Ext.create('Ext.data.ArrayStore', {
+                                data: [[1, '1 jour avant'], [2, '2 jours avant'], [3, '3 jours avant'],
+                                    [4, '4 jours avant'], [5, '5 jours avant'], [6, '6 jours avant'],
+                                    [7, '7 jours avant']],
+                                fields: [{name: 'value', type: 'int'}, 'libelle']
+                            }),
+                            valueField: 'value', displayField: 'libelle', queryMode: 'local', editable: false,
+                            value: 3
+                        }, '-', {
+                            text: 'Courbe des ventes', itemId: 'commandesCourbe', iconCls: 'x-tbar-loading',
+                            tooltip: 'Les quantit&eacute;s vendues jour par jour pendant la garde'
+                        }, '-', {
+                            text: 'Sugg&eacute;rer', itemId: 'commandesSuggerer', iconCls: 'addicon',
+                            tooltip: 'Cr&eacute;er une suggestion de commande avec les produits affich&eacute;s '
+                                    + 'apr&egrave;s filtre'
+                        }, '-', {
+                            text: 'Imprimer', itemId: 'commandesImprimer', iconCls: 'printable',
+                            tooltip: 'Imprimer les produits command&eacute;s (PDF)'
+                        }, {
+                            text: 'Exporter', itemId: 'commandesExporter', iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter au format Excel'
+                        }]
+                }, {
+                    /* Les filtres, tous appliques SUR PLACE : recherche, stock, quantite vendue, statut. */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'textfield', itemId: 'commandesRecherche', fieldLabel: 'Produit', labelWidth: 48,
+                            width: 250, emptyText: 'CIP ou nom', enableKeyEvents: true
+                        }, '-', operateur('commandesStockOp', 'Stock'), {
+                            xtype: 'numberfield', itemId: 'commandesStockVal', width: 70, hideTrigger: true,
+                            emptyText: 'valeur', enableKeyEvents: true
+                        }, '-', operateur('commandesVenduOp', 'Qt&eacute; vendue'), {
+                            xtype: 'numberfield', itemId: 'commandesVenduVal', width: 70, hideTrigger: true,
+                            minValue: 0, emptyText: 'valeur', enableKeyEvents: true
+                        }, '-', {
                             // Retours des tests 3 : filtre vendu / non vendu, applique sur place.
                             xtype: 'combobox',
                             itemId: 'commandesFiltre',
@@ -777,46 +854,50 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             queryMode: 'local',
                             editable: false,
                             value: ''
-                        }, '-', {
-                            text: 'Imprimer', itemId: 'commandesImprimer', iconCls: 'printable',
-                            tooltip: 'Imprimer les produits command&eacute;s non vendus (PDF)'
                         }, {
-                            text: 'Exporter', itemId: 'commandesExporter', iconCls: 'export_excel_icon',
-                            tooltip: 'Exporter au format Excel'
+                            text: 'Effacer', itemId: 'commandesEffacer', tooltip: 'Effacer les filtres'
+                        }, '->', {
+                            xtype: 'tbtext', itemId: 'commandesCompte', text: ''
                         }]
                 }],
             columns: [
                 {xtype: 'rownumberer', width: 36},
-                {header: 'CIP', dataIndex: 'cip', width: 95},
+                {header: 'CIP', dataIndex: 'cip', width: 90},
                 {header: 'Produit', dataIndex: 'libelle', flex: 1},
-                {header: 'Qt&eacute; command&eacute;e', dataIndex: 'quantiteCommandee', width: 115, align: 'right'},
-                {header: 'Qt&eacute; vendue', dataIndex: 'quantiteVendue', width: 95, align: 'right'},
+                {header: 'Stock', dataIndex: 'stock', width: 62, align: 'right',
+                    tooltip: 'Stock disponible au moment de la lecture'},
+                {header: 'Qt&eacute; pr&eacute;p.', dataIndex: 'quantitePreparation', width: 80, align: 'right',
+                    itemId: 'colonnePreparation',
+                    tooltip: 'Quantit&eacute; command&eacute;e dans les jours AVANT le d&eacute;but de la garde '
+                            + '(s&eacute;lecteur « Pr&eacute;paration »)'},
+                {header: 'Qt&eacute; cmd', dataIndex: 'quantiteCommandee', width: 75, align: 'right',
+                    tooltip: 'Quantit&eacute; command&eacute;e PENDANT la garde'},
+                {header: 'Qt&eacute; vendue', dataIndex: 'quantiteVendue', width: 85, align: 'right',
+                    tooltip: 'Quantit&eacute; vendue pendant la garde'},
                 {
-                    // Retours des tests 3 : la part vendue de la quantite commandee ; 0 pour les non vendus.
-                    header: '% de vente', dataIndex: 'quantiteVendue', width: 90, align: 'right',
-                    itemId: 'colonnePourcentageVente',
-                    renderer: function (valeur, meta, ligne) {
-                        return Ext.util.Format.number(me.pourcentageVente(ligne), '0.00');
-                    }
+                    // Le % de vente, SCINDE (21/09) : rapporte a la preparation, et rapporte a la commande pendant.
+                    text: '% vente', columns: [
+                        {header: 'pr&eacute;p.', dataIndex: 'pourcentagePreparation', width: 62, align: 'right',
+                            itemId: 'colonnePourcentagePrep', renderer: pourcent,
+                            tooltip: 'Quantit&eacute; vendue / quantit&eacute; pr&eacute;par&eacute;e'},
+                        {header: 'cmd', dataIndex: 'pourcentageCommande', width: 62, align: 'right',
+                            itemId: 'colonnePourcentageVente', renderer: pourcent,
+                            tooltip: 'Quantit&eacute; vendue / quantit&eacute; command&eacute;e pendant la garde'}
+                    ]
                 },
+                {header: 'Fr&eacute;q./jour', dataIndex: 'frequenceJour', width: 75, align: 'right',
+                    tooltip: 'Quantit&eacute; vendue par jour de garde',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v || 0, '0.00');
+                    }},
                 {
-                    header: 'Statut', dataIndex: 'nonVendu', width: 110, align: 'center',
+                    header: 'Statut', dataIndex: 'nonVendu', width: 100, align: 'center',
                     renderer: function (valeur) {
                         return valeur ? '<b style="color:#a00">Non vendu</b>' : '<span style="color:#177a17">Vendu</span>';
                     }
                 }
             ]
         };
-    },
-
-    /** Quantite vendue rapportee a la quantite commandee, en % ; un produit non vendu reste a 0. */
-    pourcentageVente: function (ligne) {
-        var commandee = ligne.get('quantiteCommandee') || 0;
-        var vendue = ligne.get('quantiteVendue') || 0;
-        if (ligne.get('nonVendu') || !commandee || !vendue) {
-            return 0;
-        }
-        return vendue * 100 / commandee;
     },
 
     ongletComparaison: function () {
@@ -830,45 +911,83 @@ Ext.define('testextjs.view.garde.GardeManager', {
         };
     },
 
-    /** La courbe d'evolution des gardes comparees (H3) : clients et chiffre, garde apres garde. */
+    /** Les grandeurs qu'on peut mettre en barres, garde apres garde. */
+    GRANDEURS_COMPARAISON: [
+        ['montant', 'Chiffre d\'affaires'], ['clients', 'Clients'], ['ventes', 'Ventes'], ['marge', 'Marge'],
+        ['montantParHeure', 'Chiffre par heure'], ['montantCredit', 'Montant &agrave; cr&eacute;dit']
+    ],
+
+    /**
+     * LES GARDES COMPAREES EN BARRES (21/09). Deux courbes sur deux axes ecrasaient tout : « si on a des gardes
+     * qui ont presque les memes valeurs on ne verra rien ». Une barre par garde, sur UNE grandeur choisie, avec
+     * la valeur posee sur la barre : l'ecart entre deux gardes voisines se lit a l'oeil.
+     */
     courbeComparaison: function () {
         var me = this;
         return {
-            xtype: 'container',
+            xtype: 'panel',
             itemId: 'zoneCourbeComparaison',
-            height: 210,
+            height: 250,
             layout: 'fit',
-            items: [Ext.create('Ext.chart.Chart', {
-                    itemId: 'courbeComparaison',
-                    store: me.comparaisonStore,
-                    animate: false,
-                    insetPadding: 12,
-                    legend: {position: 'right'},
-                    axes: [{
-                            type: 'Numeric', position: 'left', fields: ['clients'], title: 'Clients',
-                            minimum: 0, grid: true
+            border: false,
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'combobox',
+                            itemId: 'grandeurComparaison',
+                            fieldLabel: 'Grandeur',
+                            labelWidth: 60,
+                            width: 250,
+                            store: Ext.create('Ext.data.ArrayStore', {
+                                fields: ['code', 'libelle'],
+                                data: Ext.Array.map(me.GRANDEURS_COMPARAISON, function (g) {
+                                    return [g[0], Ext.util.Format.htmlDecode(g[1])];
+                                })
+                            }),
+                            valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false,
+                            value: 'montant'
                         }, {
-                            type: 'Numeric', position: 'right', fields: ['montant'], title: 'Chiffre d\'affaires',
-                            minimum: 0,
-                            label: {renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }}
-                        }, {
-                            type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes compar\u00e9es'
-                        }],
-                    series: [{
-                            type: 'line', title: 'Clients', axis: 'left', xField: 'libelle', yField: 'clients',
-                            markerConfig: {type: 'circle', size: 4, radius: 4},
-                            tips: {trackMouse: true, renderer: function (l) {
-                                    this.setTitle(l.get('libelle') + ' : ' + l.get('clients') + ' client(s)');
-                                }}
-                        }, {
-                            type: 'line', title: 'Chiffre d\'affaires', axis: 'right', xField: 'libelle', yField: 'montant',
-                            markerConfig: {type: 'cross', size: 4, radius: 4},
-                            tips: {trackMouse: true, renderer: function (l) {
-                                    this.setTitle(l.get('libelle') + ' : ' + Ext.util.Format.number(l.get('montant'), '0,000'));
-                                }}
+                            xtype: 'tbtext',
+                            text: 'Une barre par garde, la valeur pos&eacute;e dessus.'
                         }]
-                })]
+                }],
+            items: [me.barresComparaison('montant')]
         };
+    },
+
+    /** Le diagramme en bandes d'une grandeur : reconstruit a chaque changement de grandeur. */
+    barresComparaison: function (grandeur) {
+        var me = this;
+        var libelle = '';
+        Ext.each(me.GRANDEURS_COMPARAISON, function (g) {
+            if (g[0] === grandeur) {
+                libelle = Ext.util.Format.htmlDecode(g[1]);
+            }
+        });
+        return Ext.create('Ext.chart.Chart', {
+            itemId: 'courbeComparaison',
+            store: me.comparaisonStore,
+            animate: false,
+            insetPadding: 14,
+            axes: [{
+                    type: 'Numeric', position: 'left', fields: [grandeur], title: libelle, minimum: 0, grid: true,
+                    label: {renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }}
+                }, {
+                    type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Gardes comparées'
+                }],
+            series: [{
+                    type: 'column', axis: 'left', xField: 'libelle', yField: grandeur, gutter: 40,
+                    label: {
+                        display: 'outside', field: grandeur, 'text-anchor': 'middle', font: 'bold 11px Arial',
+                        renderer: function (v) { return Ext.util.Format.number(v, '0,000'); }
+                    },
+                    tips: {trackMouse: true, width: 240, height: 40, renderer: function (l) {
+                            this.setTitle(l.get('libelle') + ' : ' + Ext.util.Format.number(l.get(grandeur), '0,000')
+                                    + ' (' + libelle + ')');
+                        }}
+                }]
+        });
     },
 
     grilleComparaison: function () {

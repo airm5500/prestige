@@ -64,7 +64,7 @@ import util.FunctionUtils;
 public class SuggestionImpl implements SuggestionService {
 
     private static final Logger LOG = Logger.getLogger(SuggestionImpl.class.getName());
-    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending') AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
+    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste, IFNULL(o.`str_COMMENTAIRE`, '') AS commentaire FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending') AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
     private static final String SUGGESTION_QUERY_COUNT = "SELECT COUNT( distinct o.`lg_SUGGESTION_ORDER_ID`) AS COUNT_SUGGESTION  FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending') AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1)";
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -838,6 +838,11 @@ public class SuggestionImpl implements SuggestionService {
 
     @Override
     public JSONObject makeSuggestionDepuisGarde(Map<String, Long> quantitesParProduit, TUser u) {
+        return makeSuggestionDepuisGarde(quantitesParProduit, u, null);
+    }
+
+    @Override
+    public JSONObject makeSuggestionDepuisGarde(Map<String, Long> quantitesParProduit, TUser u, String commentaire) {
         try {
             int count = 0;
             int ignores = 0;
@@ -860,6 +865,11 @@ public class SuggestionImpl implements SuggestionService {
             for (Map.Entry<String, List<TFamille>> e : parGrossiste.entrySet()) {
                 TGrossiste grossiste = getEmg().find(TGrossiste.class, e.getKey());
                 TSuggestionOrder suggestionOrder = createSuggestionOrder(grossiste, STATUT_IS_PROGRESS);
+                if (commentaire != null && !commentaire.trim().isEmpty()) {
+                    /* 200 caracteres : la taille de la colonne, tronquee plutot que refusee. */
+                    String c = commentaire.trim();
+                    suggestionOrder.setStrCOMMENTAIRE(c.length() > 200 ? c.substring(0, 200) : c);
+                }
                 references.add(suggestionOrder.getStrREF());
                 for (TFamille famille : e.getValue()) {
                     initTSuggestionOrderDetail(suggestionOrder, famille, grossiste,
@@ -1242,6 +1252,7 @@ public class SuggestionImpl implements SuggestionService {
         suggestions.setStrREF(t.get("reference", String.class));
         suggestions.setStrSTATUT(t.get("statut", String.class));
         suggestions.setLgSUGGESTIONORDERID(t.get("id", String.class));
+        suggestions.setCommentaire(t.get("commentaire", String.class));
         return suggestions;
     }
 

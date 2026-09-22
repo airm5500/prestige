@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gardes : le suivi de l'activite - la courbe d'evolution ET la repartition par tranche horaire sur une
+     meme page (21/09). La courbe est celle que l'ecran affiche, envoyee en image ; les tranches sont relues. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="garde_activite" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_GARDE" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_HEURES" class="java.lang.String"/>
+    <parameter name="P_CAPACITE" class="java.lang.Integer"/>
+    <parameter name="P_IMAGE" class="java.io.InputStream"/>
+    <field name="libelle" class="java.lang.String"/>
+    <field name="clients" class="java.lang.Integer"/>
+    <field name="montant" class="java.lang.Long"/>
+    <field name="heuresCouvertes" class="java.lang.Integer"/>
+    <field name="clientsParHeure" class="java.lang.Double"/>
+    <variable name="V_CLIENTS" class="java.lang.Integer" calculation="Sum">
+        <variableExpression><![CDATA[$F{clients}]]></variableExpression>
+    </variable>
+    <variable name="V_MONTANT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+    </variable>
+    <title>
+        <band height="340">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="380" height="16"/>
+                <textElement><font size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="385" y="0" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="385" y="13" width="170" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="28" width="555" height="16"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[SUIVI DE L'ACTIVITÉ DE LA GARDE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="46" width="555" height="13"/>
+                <textElement textAlignment="Center"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_GARDE} + "  -  " + $P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="61" width="555" height="13"/>
+                <textElement textAlignment="Center"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_HEURES} + "  -  effectif conseillé pour " + $P{P_CAPACITE} + " client(s) / heure / personne"]]></textFieldExpression>
+            </textField>
+            <image scaleImage="RetainShape" hAlign="Center" onErrorType="Blank" isUsingCache="false">
+                <reportElement x="0" y="80" width="555" height="250"/>
+                <imageExpression><![CDATA[$P{P_IMAGE}]]></imageExpression>
+            </image>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="555" height="18" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="4" y="0" width="140" height="18" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Tranche horaire]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="150" y="0" width="70" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Clients]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="225" y="0" width="110" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Chiffre d'affaires]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="340" y="0" width="70" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Heures tenues]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="415" y="0" width="65" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Clients / h]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="485" y="0" width="66" height="18" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Effectif]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="14">
+            <line>
+                <reportElement positionType="FixRelativeToBottom" x="0" y="13" width="555" height="1" forecolor="#E0E0E0"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="4" y="0" width="140" height="12"/>
+                <textElement verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="150" y="0" width="70" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{clients}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="225" y="0" width="110" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{montant}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="340" y="0" width="70" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{heuresCouvertes}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0.00" isBlankWhenNull="true">
+                <reportElement x="415" y="0" width="65" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$F{clientsParHeure}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="485" y="0" width="66" height="12"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{clientsParHeure} == null || $P{P_CAPACITE} == null || $P{P_CAPACITE} <= 0 ? null : Integer.valueOf((int) Math.ceil($F{clientsParHeure} / $P{P_CAPACITE}))]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14">
+            <textField>
+                <reportElement x="455" y="2" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+    <summary>
+        <band height="20">
+            <textField>
+                <reportElement x="0" y="4" width="555" height="14"/>
+                <textElement><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Total : " + $V{V_CLIENTS} + " client(s), " + new java.text.DecimalFormat("#,##0").format($V{V_MONTANT}) + " de chiffre d'affaires"]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

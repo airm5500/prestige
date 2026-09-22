@@ -59,6 +59,9 @@ public class TSuggestionOrder implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
+    /** Commentaire libre, 200 caracteres : d'ou vient la suggestion (une garde, par exemple). */
+    @Column(name = "str_COMMENTAIRE", length = 200)
+    private String strCOMMENTAIRE;
     @OneToMany(cascade = CascadeType.REMOVE, mappedBy = "lgSUGGESTIONORDERID")
     private Collection<TSuggestionOrderDetails> tSuggestionOrderDetailsCollection;
     @JoinColumn(name = "lg_GROSSISTE_ID", referencedColumnName = "lg_GROSSISTE_ID")
@@ -167,4 +170,11 @@ public class TSuggestionOrder implements Serializable {
         return "dal.TSuggestionOrder[ lgSUGGESTIONORDERID=" + lgSUGGESTIONORDERID + " ]";
     }
 
+    public String getStrCOMMENTAIRE() {
+        return strCOMMENTAIRE;
+    }
+
+    public void setStrCOMMENTAIRE(String strCOMMENTAIRE) {
+        this.strCOMMENTAIRE = strCOMMENTAIRE;
+    }
 }

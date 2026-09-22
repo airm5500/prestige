@@ -248,18 +248,75 @@ public class GardeServiceImpl implements GardeService {
 
     @Override
     public List<GardeCommandeDTO> commandes(Garde garde) {
+        return commandes(garde, 0);
+    }
+
+    @Override
+    public List<GardeCommandeDTO> commandes(Garde garde, int joursPreparation) {
         if (garde == null || garde.getDateDebut() == null || garde.getDateFin() == null) {
             return Collections.emptyList();
         }
-        List<GardeCommandeDTO> commandes = new ArrayList<>();
+        java.util.Map<String, GardeCommandeDTO> parProduit = new java.util.LinkedHashMap<>();
         try {
             for (Object[] c : lignesBrutes(SQL_COMMANDES, garde.getDateDebut(), garde.getDateFin())) {
-                commandes.add(new GardeCommandeDTO(texte(c[0]), texte(c[1]), texte(c[2]), entier(c[3])));
+                parProduit.put(texte(c[0]), new GardeCommandeDTO(texte(c[0]), texte(c[1]), texte(c[2]), entier(c[3])));
+            }
+            /*
+             * LA PREPARATION (21/09) : les lignes de commande des N jours qui precedent le debut de la garde, jusqu'a
+             * la seconde qui precede ce debut - sans quoi une commande passee a l'heure du debut compterait deux fois.
+             */
+            if (joursPreparation > 0) {
+                for (Object[] c : lignesBrutes(SQL_COMMANDES, garde.getDateDebut().minusDays(joursPreparation),
+                        garde.getDateDebut().minusSeconds(1))) {
+                    GardeCommandeDTO d = parProduit.get(texte(c[0]));
+                    if (d == null) {
+                        d = new GardeCommandeDTO(texte(c[0]), texte(c[1]), texte(c[2]), 0L);
+                        parProduit.put(texte(c[0]), d);
+                    }
+                    d.setQuantitePreparation(entier(c[3]));
+                }
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "commandes de la garde", e);
         }
+        List<GardeCommandeDTO> commandes = new ArrayList<>(parProduit.values());
+        double jours = Math.max(1D, Math
+                .ceil(java.time.Duration.between(garde.getDateDebut(), garde.getDateFin()).toMinutes() / (24D * 60D)));
+        for (GardeCommandeDTO d : commandes) {
+            d.setJours(jours);
+        }
+        renseignerStockCommandes(commandes);
         return AnalyseGarde.commandesRapprochees(commandes, lignesDeVente(garde.getDateDebut(), garde.getDateFin()));
+    }
+
+    /** Le stock disponible de la fiche article a l'emplacement, comme pour l'analyse ABC. */
+    private void renseignerStockCommandes(List<GardeCommandeDTO> commandes) {
+        if (commandes.isEmpty()) {
+            return;
+        }
+        try {
+            java.util.Map<String, Long> stocks = new java.util.HashMap<>();
+            List<String> ids = new ArrayList<>();
+            for (GardeCommandeDTO c : commandes) {
+                ids.add(c.getProduitId());
+            }
+            for (int debut = 0; debut < ids.size(); debut += 500) {
+                List<String> tranche = ids.subList(debut, Math.min(ids.size(), debut + 500));
+                Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(SUM(t.int_NUMBER_AVAILABLE),0)"
+                        + " FROM t_famille_stock t WHERE t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids)"
+                        + " GROUP BY t.lg_FAMILLE_ID");
+                q.setParameter("empl", emplacementCourant()).setParameter("ids", tranche);
+                for (Object ligne : q.getResultList()) {
+                    Object[] c = (Object[]) ligne;
+                    stocks.put(texte(c[0]), entier(c[1]));
+                }
+            }
+            for (GardeCommandeDTO c : commandes) {
+                c.setStock(stocks.getOrDefault(c.getProduitId(), 0L));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stock des produits commandes de la garde", e);
+        }
     }
 
     @Override

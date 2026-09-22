@@ -212,7 +212,7 @@ public final class AnalyseGarde {
             resultat.add(c);
         }
         resultat.sort(Comparator.comparing(GardeCommandeDTO::isNonVendu).reversed()
-                .thenComparing(Comparator.comparingLong(GardeCommandeDTO::getQuantiteCommandee).reversed())
+                .thenComparing(Comparator.comparingLong(GardeCommandeDTO::getQuantiteTotale).reversed())
                 .thenComparing(GardeCommandeDTO::getLibelle));
         return resultat;
     }

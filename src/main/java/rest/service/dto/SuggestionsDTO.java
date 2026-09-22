@@ -24,6 +24,7 @@ public class SuggestionsDTO {
     private String dtCREATED;
     private String lgGROSSISTEID;
     private String details = " ";
+    private String commentaire = "";
 
     public String getLgGROSSISTEID() {
         return lgGROSSISTEID;
@@ -175,5 +176,14 @@ public class SuggestionsDTO {
         this.dtCREATED = DateCommonUtils.formatDate(suggestionOrder.getDtCREATED());
         this.dtUPDATED = DateCommonUtils.formatToHour(suggestionOrder.getDtCREATED());
 
+    }
+
+    @JSONPropertyName("str_COMMENTAIRE")
+    public String getCommentaire() {
+        return commentaire;
+    }
+
+    public void setCommentaire(String commentaire) {
+        this.commentaire = commentaire == null ? "" : commentaire;
     }
 }

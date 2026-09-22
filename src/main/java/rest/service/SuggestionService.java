@@ -43,6 +43,9 @@ public interface SuggestionService {
      */
     JSONObject makeSuggestionDepuisGarde(java.util.Map<String, Long> quantitesParProduit, TUser tu);
 
+    /** La meme, avec le commentaire porte par chaque suggestion creee (200 caracteres au plus). */
+    JSONObject makeSuggestionDepuisGarde(java.util.Map<String, Long> quantitesParProduit, TUser tu, String commentaire);
+
     JSONObject makeSuggestion(Set<VenteDetailsDTO> datas) throws JSONException;
 
     JSONObject findCHDetailStock(String idProduit, String emplacement);

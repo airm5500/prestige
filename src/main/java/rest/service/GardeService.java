@@ -80,6 +80,15 @@ public interface GardeService {
     /** Les produits commandes pendant la garde et ce qui s'en est vendu (H3), les non vendus en tete. */
     List<GardeCommandeDTO> commandes(Garde garde);
 
+    /**
+     * La meme lecture, avec la PREPARATION (21/09) : ce qui a ete commande dans les N jours avant le debut de la garde
+     * - « souvent les gardes se preparent la semaine ou les jours d'avant » - et le stock actuel.
+     *
+     * @param joursPreparation
+     *            nombre de jours avant la garde pris en compte pour la commande de preparation ; 0 : aucune
+     */
+    List<GardeCommandeDTO> commandes(Garde garde, int joursPreparation);
+
     /** Les tranches horaires cumulees sur plusieurs gardes (H3) : l'historique qui dit quand il faut du monde. */
     List<GardeTrancheDTO> tranches(List<Garde> gardes, int heuresParTranche);
 

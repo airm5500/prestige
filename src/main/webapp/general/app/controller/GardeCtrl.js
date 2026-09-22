@@ -56,6 +56,17 @@ Ext.define('testextjs.controller.GardeCtrl', {
             'gardemanager #vendeursImprimer': {click: this.doImprimerVendeurs},
             'gardemanager #vendeursExporter': {click: this.doExporterVendeurs},
             'gardemanager #commandesFiltre': {select: this.doFiltrerCommandes},
+            'gardemanager #commandesJoursPrep': {select: this.doChargerCommandes},
+            'gardemanager #commandesRecherche': {change: {fn: this.doFiltrerCommandes, buffer: 400}},
+            'gardemanager #commandesStockOp': {select: this.doFiltrerCommandes},
+            'gardemanager #commandesStockVal': {change: {fn: this.doFiltrerCommandes, buffer: 400}},
+            'gardemanager #commandesVenduOp': {select: this.doFiltrerCommandes},
+            'gardemanager #commandesVenduVal': {change: {fn: this.doFiltrerCommandes, buffer: 400}},
+            'gardemanager #commandesEffacer': {click: this.doEffacerFiltresCommandes},
+            'gardemanager #commandesSuggerer': {click: this.doSuggererCommandes},
+            'gardemanager #commandesCourbe': {click: this.doCourbeCommandes},
+            'gardemanager #grandeurComparaison': {select: this.doChangerGrandeurComparaison},
+            'gardemanager #activiteImprimer': {click: this.doImprimerActivite},
             'gardemanager #ongletAnalyseGarde': {activate: this.surOngletAnalyse},
             // Le nombre se tape : on attend la fin de la frappe avant de relancer l'analyse.
             'gardemanager #abcLimite': {change: {fn: this.doAnalyser, buffer: 600}},
@@ -261,9 +272,11 @@ Ext.define('testextjs.controller.GardeCtrl', {
             return;
         }
         var demasquer = me.masquer('ongletCommandes', 'Lecture des commandes...');
+        var joursPrep = me.joursPreparation();
         Ext.Ajax.request({
             url: '../api/v1/gardes/' + garde.get('id') + '/commandes',
             method: 'GET',
+            params: {joursPrep: joursPrep},
             timeout: 600000,
             callback: demasquer,
             success: function (reponse) {
@@ -271,7 +284,12 @@ Ext.define('testextjs.controller.GardeCtrl', {
                 var r = objet.resume || {};
                 ecran.commandeStore.loadData(objet.data || []);
                 me.doFiltrerCommandes();
-                resume.setText('<b>' + (r.produitsCommandes || 0) + '</b> produit(s) command&eacute;(s) pendant la garde, '
+                var colonne = ecran.down('#colonnePreparation');
+                if (colonne) {
+                    colonne.setText('Qt&eacute; pr&eacute;p. (' + joursPrep + ' j)');
+                }
+                resume.setText('<b>' + (r.produitsCommandes || 0) + '</b> produit(s) command&eacute;(s) pour la garde '
+                        + '(' + joursPrep + ' jour(s) avant, ou pendant), '
                         + 'dont <b style="color:#a00">' + (r.produitsNonVendus || 0) + '</b> non vendu(s) pendant la garde, '
                         + 'soit <b>' + Ext.util.Format.number(r.proportionProduits || 0, '0.00') + ' %</b> des produits '
                         + '(' + Ext.util.Format.number(r.proportionQuantites || 0, '0.00') + ' % des quantit&eacute;s).');
@@ -282,20 +300,271 @@ Ext.define('testextjs.controller.GardeCtrl', {
         });
     },
 
-    /** Retours des tests 3 : le filtre vendu / non vendu s'applique sur place, sans rappeler le serveur. */
+    joursPreparation: function () {
+        var champ = this.getGardeManager().down('#commandesJoursPrep');
+        return champ && champ.getValue() ? champ.getValue() : 3;
+    },
+
+    /**
+     * Les filtres de l'onglet des commandes, tous appliques SUR PLACE, sans rappeler le serveur : le statut
+     * (retours des tests 3), et depuis le 21/09 la recherche par CIP ou nom, le stock et la quantite vendue avec
+     * leur operateur. Ce qui reste affiche est ce que « Suggerer » envoie.
+     */
     doFiltrerCommandes: function () {
         var ecran = this.getGardeManager();
-        var combo = ecran.down('#commandesFiltre');
-        var choix = combo ? combo.getValue() : '';
+        var valeur = function (itemId) {
+            var c = ecran.down('#' + itemId);
+            var v = c ? c.getValue() : null;
+            return (v === null || v === undefined) ? '' : v;
+        };
+        var choix = valeur('commandesFiltre');
+        var texte = String(valeur('commandesRecherche')).toLowerCase();
+        var stockOp = valeur('commandesStockOp'), stockVal = valeur('commandesStockVal');
+        var venduOp = valeur('commandesVenduOp'), venduVal = valeur('commandesVenduVal');
+        var compare = function (v, op, ref) {
+            if (!op || ref === '') {
+                return true;
+            }
+            ref = Number(ref);
+            return op === '>=' ? v >= ref : op === '<=' ? v <= ref : op === '>' ? v > ref : op === '<' ? v < ref : v === ref;
+        };
         var store = ecran.commandeStore;
-        var filtre = choix === 'vendu' || choix === 'non';
+        var actif = choix === 'vendu' || choix === 'non' || texte !== '' || (stockOp && stockVal !== '')
+                || (venduOp && venduVal !== '');
         // Sans filtre, l'effacement rafraichit la grille ; avec, c'est le filtre qui le fait.
-        store.clearFilter(filtre);
-        if (filtre) {
-            var nonVendu = choix === 'non';
+        store.clearFilter(actif);
+        if (actif) {
             store.filterBy(function (ligne) {
-                return !!ligne.get('nonVendu') === nonVendu;
+                if (choix === 'vendu' && ligne.get('nonVendu')) {
+                    return false;
+                }
+                if (choix === 'non' && !ligne.get('nonVendu')) {
+                    return false;
+                }
+                if (texte && String(ligne.get('libelle')).toLowerCase().indexOf(texte) < 0
+                        && String(ligne.get('cip')).toLowerCase().indexOf(texte) < 0) {
+                    return false;
+                }
+                return compare(ligne.get('stock'), stockOp, stockVal)
+                        && compare(ligne.get('quantiteVendue'), venduOp, venduVal);
             });
+        }
+        var compte = ecran.down('#commandesCompte');
+        if (compte) {
+            compte.setText(actif ? '<b>' + store.getCount() + '</b> produit(s) apr&egrave;s filtre' : '');
+        }
+    },
+
+    doEffacerFiltresCommandes: function () {
+        var ecran = this.getGardeManager();
+        Ext.each(['commandesFiltre', 'commandesStockOp', 'commandesVenduOp'], function (id) {
+            ecran.down('#' + id).setValue('');
+        });
+        ecran.down('#commandesRecherche').setValue('');
+        Ext.each(['commandesStockVal', 'commandesVenduVal'], function (id) {
+            ecran.down('#' + id).setValue(null);
+        });
+        this.doFiltrerCommandes();
+    },
+
+    /**
+     * SUGGERER LE RESULTAT FILTRE (21/09). Les lignes affichees partent en suggestion de commande, avec pour
+     * quantite ce qui s'est vendu pendant la garde - ou, pour un produit non vendu, ce qui avait ete commande :
+     * c'est precisement lui qu'on regarde ici. La suggestion porte en commentaire d'ou elle vient.
+     */
+    doSuggererCommandes: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var garde = me.gardeCourante();
+        if (!garde) {
+            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+            return;
+        }
+        var lignes = ecran.commandeStore.getRange();
+        if (!lignes.length) {
+            Ext.MessageBox.alert('Information', 'Aucun produit affich&eacute; : rien &agrave; sugg&eacute;rer.');
+            return;
+        }
+        var ids = [], quantites = {};
+        Ext.each(lignes, function (l) {
+            var q = l.get('quantiteVendue') > 0 ? l.get('quantiteVendue')
+                    : (l.get('quantiteCommandee') + l.get('quantitePreparation'));
+            if (q > 0) {
+                ids.push(l.get('produitId'));
+                quantites[l.get('produitId')] = q;
+            }
+        });
+        Ext.MessageBox.confirm('Confirmation', 'Envoyer en suggestion de commande <b>les ' + ids.length
+                + ' produit(s) affich&eacute;(s)</b> de la garde <b>' + Ext.String.htmlEncode(garde.get('libelle'))
+                + '</b> ?', function (choix) {
+            if (choix !== 'yes') {
+                return;
+            }
+            var attente = Ext.MessageBox.wait('Veuillez patienter . . .', 'Traitement en cours');
+            Ext.Ajax.request({
+                url: '../api/v1/gardes/' + garde.get('id') + '/suggestion',
+                method: 'POST',
+                jsonData: {produits: ids, quantites: quantites},
+                timeout: 600000,
+                success: function (reponse) {
+                    attente.hide();
+                    var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                    Ext.MessageBox.alert(objet.success ? 'Information' : 'Message',
+                            objet.msg || (objet.success ? 'Suggestion cr&eacute;&eacute;e.' : 'Op&eacute;ration impossible.'));
+                },
+                failure: function () {
+                    attente.hide();
+                    Ext.MessageBox.alert('Message', 'La suggestion n\'a pas pu &ecirc;tre cr&eacute;&eacute;e.');
+                }
+            });
+        });
+    },
+
+    /**
+     * LA COURBE DES VENTES JOUR PAR JOUR de la garde (21/09) : « lundi, mardi, mercredi... fin de garde, avec la
+     * quantite en pique ». Une bande par jour civil de la garde, la quantite posee dessus.
+     */
+    doCourbeCommandes: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var garde = me.gardeCourante();
+        if (!garde) {
+            Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
+            return;
+        }
+        var fenetre = Ext.create('Ext.window.Window', {
+            title: 'Ventes jour par jour - ' + Ext.String.htmlEncode(garde.get('libelle')),
+            itemId: 'fenetreVentesJour',
+            modal: true, width: 960, height: 440, layout: 'fit', maximizable: true,
+            items: [Ext.create('Ext.chart.Chart', {
+                    itemId: 'courbeVentesJour',
+                    store: ecran.ventesJourStore,
+                    animate: false,
+                    insetPadding: 16,
+                    axes: [{
+                            type: 'Numeric', position: 'left', fields: ['quantite'], title: 'Quantité vendue',
+                            minimum: 0, grid: true
+                        }, {
+                            type: 'Category', position: 'bottom', fields: ['libelle'], title: 'Jours de la garde'
+                        }],
+                    series: [{
+                            type: 'column', axis: 'left', xField: 'libelle', yField: 'quantite', gutter: 30,
+                            label: {display: 'outside', field: 'quantite', 'text-anchor': 'middle', font: 'bold 11px Arial'},
+                            tips: {trackMouse: true, width: 260, height: 44, renderer: function (l) {
+                                    this.setTitle(l.get('libelle') + ' : ' + l.get('quantite') + ' unité(s), '
+                                            + l.get('ventes') + ' vente(s), ' + Ext.util.Format.number(l.get('montant'), '0,000'));
+                                }}
+                        }]
+                })]
+        });
+        fenetre.show();
+        fenetre.setLoading('Lecture des ventes...');
+        Ext.Ajax.request({
+            url: '../api/v1/gardes/' + garde.get('id') + '/ventes-par-jour',
+            method: 'GET',
+            timeout: 600000,
+            callback: function () {
+                if (!fenetre.isDestroyed) {
+                    fenetre.setLoading(false);
+                }
+            },
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true) || {};
+                ecran.ventesJourStore.loadData(objet.data || []);
+                me.redessiner('#courbeVentesJour');
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Message', 'Les ventes n\'ont pas pu &ecirc;tre lues.');
+            }
+        });
+    },
+
+    /** Changer la grandeur des barres de comparaison : le diagramme est reconstruit sur le meme magasin. */
+    doChangerGrandeurComparaison: function (combo) {
+        var ecran = this.getGardeManager();
+        var zone = ecran.down('#zoneCourbeComparaison');
+        if (!zone) {
+            return;
+        }
+        zone.removeAll(true);
+        zone.add(ecran.barresComparaison(combo.getValue() || 'montant'));
+        this.redessiner('#courbeComparaison');
+    },
+
+    /**
+     * IMPRIMER LE SUIVI DE L'ACTIVITE (21/09) : la courbe et les tranches sur une meme page. La courbe est celle
+     * de l'ecran, convertie en image ; elle part avec les reglages dans un formulaire ouvert dans un onglet du
+     * navigateur - la reponse est un PDF en flux, aucune fenetre surgissante. Sans image (navigateur qui ne sait
+     * pas la produire), l'edition part quand meme avec les tranches.
+     */
+    doImprimerActivite: function () {
+        var me = this;
+        var ecran = me.getGardeManager();
+        var historique = ecran.down('#activiteHistorique').pressed;
+        var ids = historique ? me.idsCoches() : (me.gardeCourante() ? [me.gardeCourante().get('id')] : []);
+        if (!ids.length) {
+            Ext.MessageBox.alert('Information', historique ? 'Cochez des gardes dans la liste.'
+                    : 'Choisissez une garde dans la liste.');
+            return;
+        }
+        var params = me.parametres();
+        var envoyer = function (image) {
+            var formulaire = document.createElement('form');
+            formulaire.method = 'POST';
+            formulaire.action = '../api/v1/gardes/activite/pdf';
+            formulaire.target = '_blank';
+            formulaire.style.display = 'none';
+            var champs = {ids: ids.join(','), heures: params.heures, image: image || '',
+                capacite: (ecran.down('#capacitePersonne') && ecran.down('#capacitePersonne').getValue()) || 10};
+            Ext.Object.each(champs, function (nom, valeur) {
+                var champ = document.createElement('input');
+                champ.type = 'hidden';
+                champ.name = nom;
+                champ.value = valeur;
+                formulaire.appendChild(champ);
+            });
+            document.body.appendChild(formulaire);
+            formulaire.submit();
+            document.body.removeChild(formulaire);
+        };
+        me.imageDeLaCourbe(ecran.down('#courbeActivite'), envoyer);
+    },
+
+    /** La courbe ExtJS (SVG) en PNG, par un canevas ; en cas d'echec, la suite est appelee sans image. */
+    imageDeLaCourbe: function (courbe, suite) {
+        try {
+            var svg = courbe && courbe.surface && courbe.surface.el ? courbe.surface.el.dom : null;
+            if (!svg || !window.XMLSerializer) {
+                suite('');
+                return;
+            }
+            var largeur = svg.clientWidth || courbe.getWidth(), hauteur = svg.clientHeight || courbe.getHeight();
+            var xml = new XMLSerializer().serializeToString(svg);
+            if (xml.indexOf('xmlns="http://www.w3.org/2000/svg"') < 0) {
+                xml = xml.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            var image = new Image();
+            image.onload = function () {
+                try {
+                    var canevas = document.createElement('canvas');
+                    canevas.width = largeur * 2;
+                    canevas.height = hauteur * 2;
+                    var ctx = canevas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canevas.width, canevas.height);
+                    ctx.scale(2, 2);
+                    ctx.drawImage(image, 0, 0, largeur, hauteur);
+                    suite(canevas.toDataURL('image/png'));
+                } catch (e) {
+                    suite('');
+                }
+            };
+            image.onerror = function () {
+                suite('');
+            };
+            image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+        } catch (e) {
+            suite('');
         }
     },
 
@@ -602,7 +871,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
             return;
         }
         // Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire.
-        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/pdf');
+        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/pdf?joursPrep=' + this.joursPreparation());
     },
 
     doExporterCommandes: function () {
@@ -611,7 +880,7 @@ Ext.define('testextjs.controller.GardeCtrl', {
             Ext.MessageBox.alert('Information', 'Choisissez une garde dans la liste.');
             return;
         }
-        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/excel');
+        window.open('../api/v1/gardes/' + garde.get('id') + '/commandes/excel?joursPrep=' + this.joursPreparation());
     },
 
     doAnalyser: function () {
