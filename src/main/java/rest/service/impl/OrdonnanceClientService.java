@@ -104,6 +104,16 @@ public class OrdonnanceClientService {
                 .put("medecinId", StringUtils.defaultString(t.get("medecinId", String.class)))
                 .put("medecin", StringUtils.trimToEmpty(t.get("medecin", String.class)))
                 .put("nbProduits", entier(t.get("nbProduits"))).put("nbPieces", entier(t.get("nbPieces")))
+                .put("nbRenseignees", entier(t.get("nbRenseignees"))).put("nbServies", entier(t.get("nbServies")))
+                .put("qteServie", entier(t.get("qteServie")))
+                .put("etatService",
+                        OrdonnanceClientSaisie.etatService(entier(t.get("nbProduits")), entier(t.get("nbRenseignees")),
+                                entier(t.get("nbServies")), entier(t.get("qteServie"))))
+                .put("agePatient", t.get("agePatient") == null ? JSONObject.NULL : entier(t.get("agePatient")))
+                .put("sexePatient", StringUtils.defaultString(t.get("sexePatient", String.class)))
+                .put("grossesse", vrai(t.get("grossesse"))).put("allaitement", vrai(t.get("allaitement")))
+                .put("insuffisanceRenale", vrai(t.get("insuffisanceRenale")))
+                .put("insuffisanceHepatique", vrai(t.get("insuffisanceHepatique")))
                 .put("creeLe", horodatage(t.get("creeLe")))
                 .put("creePar", StringUtils.trimToEmpty(t.get("creePar", String.class)))
                 .put("modifieLe", horodatage(t.get("modifieLe")))
@@ -137,7 +147,8 @@ public class OrdonnanceClientService {
                         .put("quantite", entier(t.get("quantite")))
                         .put("posologie", StringUtils.defaultString(t.get("posologie", String.class)))
                         .put("duree", StringUtils.defaultString(t.get("duree", String.class)))
-                        .put("ordre", entier(t.get("ordre"))));
+                        .put("ordre", entier(t.get("ordre")))
+                        .put("qteServie", t.get("qteServie") == null ? JSONObject.NULL : entier(t.get("qteServie"))));
             }
             return new JSONObject().put("success", true).put("ordonnance", entete).put("produits", produits);
         } catch (Exception e) {
@@ -202,6 +213,12 @@ public class OrdonnanceClientService {
             ordonnance.setStrETABLISSEMENT(OrdonnanceClientSaisie.tronquer(requete.optString("etablissement", null),
                     OrdonnanceClientSaisie.MAX_ETABLISSEMENT));
             ordonnance.setStrOBSERVATIONS(StringUtils.trimToNull(requete.optString("observations", null)));
+            ordonnance.setIntAGEPATIENT(OrdonnanceClientSaisie.agePatient(requete));
+            ordonnance.setStrSEXEPATIENT(OrdonnanceClientSaisie.sexePatient(requete));
+            ordonnance.setBoolGROSSESSE(requete.optBoolean("grossesse", false));
+            ordonnance.setBoolALLAITEMENT(requete.optBoolean("allaitement", false));
+            ordonnance.setBoolINSUFRENALE(requete.optBoolean("insuffisanceRenale", false));
+            ordonnance.setBoolINSUFHEPATIQUE(requete.optBoolean("insuffisanceHepatique", false));
             if (creation) {
                 ordonnance.setStrNUMERO(numeroSuivant(jour));
                 em.persist(ordonnance);
@@ -260,6 +277,7 @@ public class OrdonnanceClientService {
                     OrdonnanceClientSaisie.MAX_POSOLOGIE));
             ligne.setStrDUREE(
                     OrdonnanceClientSaisie.tronquer(p.optString("duree", null), OrdonnanceClientSaisie.MAX_DUREE));
+            ligne.setIntQTESERVIE(OrdonnanceClientSaisie.qteServie(p));
             ligne.setIntORDRE(ordre++);
             ordonnance.getDetails().add(ligne);
         }
@@ -867,6 +885,104 @@ public class OrdonnanceClientService {
      */
     private static String identifiant() {
         return UUID.randomUUID().toString();
+    }
+
+    /*
+     * ANALYSE DES ORDONNANCES (retour du 22/09).
+     */
+
+    /** Synthese, ventilations et produits les plus prescrits, sur les criteres de l'historique. */
+    @SuppressWarnings("unchecked")
+    public JSONObject analyse(Criteres criteres) {
+        try {
+            Criteres avecAnnulees = new Criteres(criteres.recherche, criteres.clientId, criteres.typeClientId,
+                    criteres.medecinId, criteres.debut, criteres.fin, true);
+            Query q = em.createNativeQuery(OrdonnanceClientSql.analyse(avecAnnulees), Tuple.class);
+            OrdonnanceClientSql.lier(q, avecAnnulees);
+            List<OrdonnanceAnalyse.Ordonnance> ordonnances = new ArrayList<>();
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                ordonnances.add(new OrdonnanceAnalyse.Ordonnance(t.get("statut", String.class),
+                        t.get("clientId", String.class), t.get("medecin", String.class),
+                        t.get("etablissement", String.class), t.get("typeClient", String.class),
+                        entier(t.get("nbLignes")), entier(t.get("nbRenseignees")), entier(t.get("nbServies")),
+                        entier(t.get("qteServie"))));
+            }
+            Query p = em.createNativeQuery(OrdonnanceClientSql.analyseProduits(avecAnnulees), Tuple.class);
+            OrdonnanceClientSql.lier(p, avecAnnulees);
+            p.setMaxResults(50);
+            JSONArray produits = new JSONArray();
+            for (Tuple t : (List<Tuple>) p.getResultList()) {
+                produits.put(OrdonnanceAnalyse.produit(t.get("produit", String.class), entier(t.get("nbPrescriptions")),
+                        entier(t.get("qtePrescrite")), entier(t.get("nbRenseignees")), entier(t.get("nbServies")),
+                        entier(t.get("qteServie"))));
+            }
+            return OrdonnanceAnalyse.analyser(ordonnances, produits);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "analyse des ordonnances clients", e);
+            return new JSONObject().put("success", false).put("message", "L'analyse n'a pas pu être calculée.");
+        }
+    }
+
+    /*
+     * SUIVI DE CONSOMMATION DU CLIENT depuis l'ordonnance (retour du 22/09).
+     *
+     * On REUTILISE le service du suivi de consommation de la gestion des clients : memes achats, memes frequences, meme
+     * habitude. On y ajoute seulement le stock disponible de chaque produit, lu sur l'emplacement de l'operateur, pour
+     * dire tout de suite si le renouvellement peut etre servi.
+     */
+    @javax.ejb.EJB
+    private rest.service.ClientConsommationService consommationService;
+
+    @SuppressWarnings("unchecked")
+    public JSONObject consommationClient(String clientId, String debut, String fin, String emplacementId) {
+        if (StringUtils.isBlank(clientId)) {
+            return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray()).put("message",
+                    "Client inconnu.");
+        }
+        JSONObject conso = consommationService.consommation(clientId, debut, fin, null, 0, 0);
+        JSONArray lignes = conso.optJSONArray("data");
+        if (lignes == null) {
+            lignes = new JSONArray();
+        }
+        List<String> familles = new ArrayList<>();
+        for (int i = 0; i < lignes.length(); i++) {
+            String f = lignes.getJSONObject(i).optString("familleId", "");
+            if (!f.isEmpty()) {
+                familles.add(f);
+            }
+        }
+        Map<String, Integer> stocks = new HashMap<>();
+        if (!familles.isEmpty()) {
+            try {
+                Query q = em.createNativeQuery("SELECT s.lg_FAMILLE_ID AS famille,"
+                        + " COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) AS stock FROM t_famille_stock s"
+                        + " WHERE s.lg_FAMILLE_ID IN :familles"
+                        + (StringUtils.isBlank(emplacementId) ? "" : " AND s.lg_EMPLACEMENT_ID = :emplacement")
+                        + " GROUP BY s.lg_FAMILLE_ID", Tuple.class);
+                q.setParameter("familles", familles);
+                if (StringUtils.isNotBlank(emplacementId)) {
+                    q.setParameter("emplacement", emplacementId);
+                }
+                for (Tuple t : (List<Tuple>) q.getResultList()) {
+                    stocks.put(t.get("famille", String.class), entier(t.get("stock")));
+                }
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "stock des produits du suivi de consommation", e);
+            }
+        }
+        for (int i = 0; i < lignes.length(); i++) {
+            JSONObject l = lignes.getJSONObject(i);
+            Integer stock = stocks.get(l.optString("familleId", ""));
+            l.put("stock", stock == null ? JSONObject.NULL : stock);
+        }
+        return new JSONObject().put("success", true).put("total", lignes.length()).put("data", lignes);
+    }
+
+    private static boolean vrai(Object valeur) {
+        if (valeur instanceof Boolean) {
+            return (Boolean) valeur;
+        }
+        return valeur instanceof Number && ((Number) valeur).intValue() != 0;
     }
 
     private static int entier(Object valeur) {

@@ -291,13 +291,14 @@ function poser() {
     const boutons = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
       const g = e.down('#grilleOrdonnances');
-      return { fiche: !!g.down('button[itemId=imprimerFiche]'),
-        ficheInactive: g.down('button[itemId=imprimerFiche]').isDisabled(),
+      /* L'impression de la fiche est une action PAR LIGNE depuis le 22/09 : pas de bouton a activer. */
+      return { fiche: !!g.down('#colActions'),
+        ficheInactive: true,
         historique: !!g.down('button[itemId=imprimerHistorique]'),
         excel: !!g.down('button[itemId=exporterExcel]'),
         surFiche: !!e.down('#vueFiche button[itemId=imprimerFicheOuverte]') };
     });
-    ok('L écran porte les trois boutons d édition, et celui de la fiche attend une sélection',
+    ok('L écran porte les éditions : historique, Excel, fiche ouverte, et l impression par ligne',
       boutons.fiche && boutons.historique && boutons.excel && boutons.surFiche
       && boutons.ficheInactive === true, JSON.stringify(boutons));
     const apresSelection = await p.evaluate(async () => {
@@ -305,11 +306,11 @@ function poser() {
       e.storeOrdonnances.getProxy().extraParams = { query: 'ZZEDIT', annulees: false };
       await new Promise((resolve) => e.storeOrdonnances.load({ callback: resolve }));
       const g = e.down('#grilleOrdonnances');
-      g.getSelectionModel().select(0);
+      const k = g.getView().getNode(0) ? g.getView().getNode(0).querySelector('.ordo-act-imprimer') : null;
       return { lignes: e.storeOrdonnances.getCount(),
-        fiche: g.down('button[itemId=imprimerFiche]').isDisabled() };
+        fiche: !k || k.classList.contains('x-item-disabled') };
     });
-    ok('Une ligne sélectionnée active l impression de sa fiche',
+    ok('Chaque ligne porte l icône d impression de sa fiche, active',
       apresSelection.lignes > 0 && apresSelection.fiche === false, JSON.stringify(apresSelection));
 
     /* --------------------------------------------------------------- sans le privilège */

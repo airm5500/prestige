@@ -34,24 +34,21 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient': {afterrender: me.surAffichage},
             'ordonnanceclient #barreCriteres button[itemId=rechercher]': {click: me.rechercher},
             'ordonnanceclient #barreCriteres button[itemId=reinitialiser]': {click: me.reinitialiser},
-            'ordonnanceclient #barreCriteres button[itemId=nouvelle]': {click: me.nouvelleOrdonnance},
+            'ordonnanceclient #grilleOrdonnances button[itemId=nouvelle]': {click: me.nouvelleOrdonnance},
             'ordonnanceclient #barreCriteres textfield[itemId=recherche]': {specialkey: me.surTouche},
             'ordonnanceclient #barreCriteres combobox[itemId=typeClient]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=client]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=medecin]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres checkbox[itemId=annulees]': {change: me.rechercher},
             'ordonnanceclient #grilleOrdonnances': {
-                selectionchange: me.surSelection,
+                /* Les icones d'action de chaque ligne (22/09) remontent toutes par cet evenement. */
+                actionordonnance: me.surAction,
                 itemdblclick: me.consulter
             },
-            'ordonnanceclient #grilleOrdonnances button[itemId=consulter]': {click: me.consulter},
-            'ordonnanceclient #grilleOrdonnances button[itemId=modifier]': {click: me.modifier},
-            'ordonnanceclient #grilleOrdonnances button[itemId=annuler]': {click: me.demanderAnnulation},
             'ordonnanceclient #vueFiche button[itemId=retourHistorique]': {click: me.retourHistorique},
             'ordonnanceclient #vueFiche button[itemId=abandonner]': {click: me.retourHistorique},
             'ordonnanceclient #vueFiche button[itemId=enregistrer]': {click: me.enregistrer},
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
-            'ordonnanceclient #grilleOrdonnances button[itemId=imprimerFiche]': {click: me.imprimerFiche},
             'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
             'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
             'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
@@ -62,7 +59,17 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #grillePieces filefield[itemId=fichierPiece]': {change: me.surChoixFichier},
             'ordonnanceclient #grillePieces': {selectionchange: me.surSelectionPiece},
             'ordonnanceclient #grilleProduits button[itemId=ajouterProduit]': {click: me.ajouterProduit},
-            'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle}
+            'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle},
+            'ordonnanceclient #grilleProduits button[itemId=toutServir]': {click: me.toutServir},
+            'ordonnanceclient #vueFiche button[itemId=analyserPosos]': {click: me.analyserFiche},
+            'ordonnanceclient #vueFiche button[itemId=consoFiche]': {click: me.consoDepuisFiche},
+            'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso},
+            'ordonnanceclient #vueConso button[itemId=retourConso]': {click: me.retourConso},
+            'ordonnanceclient #vueConso button[itemId=actualiserConso]': {click: me.chargerConso},
+            'ordonnanceclient #vueConso button[itemId=pososConso]': {click: me.analyserConso},
+            'ordonnanceclient #vueAnalyse': {activate: me.surOngletAnalyse},
+            'ordonnanceclient #vueAnalyse button[itemId=calculerAnalyse]': {click: me.calculerAnalyse},
+            'ordonnanceclient #vueAnalyse button[itemId=effacerAnalyse]': {click: me.effacerAnalyse}
         });
     },
 
@@ -105,15 +112,20 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             return;
         }
         var peutEcrire = !!(me.droits && me.droits.modifier);
+        /* Lu par les icones Modifier et Annuler de chaque ligne : sans le droit, elles sont grisees. */
+        ecran.peutEcrire = peutEcrire;
+        var grille = ecran.down('#grilleOrdonnances');
+        if (grille && grille.getView() && grille.rendered) {
+            grille.getView().refresh();
+        }
         var basculer = function (selecteur) {
             var c = ecran.down(selecteur);
             if (c) {
                 c.setVisible(peutEcrire);
             }
         };
-        basculer('#barreCriteres button[itemId=nouvelle]');
-        basculer('#grilleOrdonnances button[itemId=modifier]');
-        basculer('#grilleOrdonnances button[itemId=annuler]');
+        basculer('#grilleOrdonnances button[itemId=nouvelle]');
+        basculer('#grilleProduits button[itemId=toutServir]');
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=nouveauClient]');
         basculer('#grillePieces button[itemId=joindrePiece]');
@@ -178,26 +190,34 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.rechercher();
     },
 
-    surSelection: function (modele, lignes) {
+    /**
+     * Une icone d'action d'une ligne de l'historique (22/09). La ligne est passee avec le clic : on n'a plus
+     * a la selectionner d'abord, ce qui etait le geste qui ne « faisait rien » au comptoir.
+     */
+    surAction: function (nom, ligne) {
         var me = this;
         var ecran = me.getEcran();
-        var une = lignes && lignes.length === 1 ? lignes[0] : null;
-        var annulee = une && une.get('statut') === 'annulee';
-        var actif = function (selecteur, etat) {
-            var b = ecran.down(selecteur);
-            if (b) {
-                b.setDisabled(!etat);
-            }
-        };
-        actif('#grilleOrdonnances button[itemId=consulter]', !!une);
-        /* L impression de la fiche est possible meme pour une ordonnance annulee : le document existe. */
-        actif('#grilleOrdonnances button[itemId=imprimerFiche]', !!une);
-        /*
-         * Une ordonnance annulée est un document clos : elle se consulte mais ne se modifie plus, et ne
-         * s'annule pas deux fois. Le serveur le refuse aussi.
-         */
-        actif('#grilleOrdonnances button[itemId=modifier]', !!une && !annulee);
-        actif('#grilleOrdonnances button[itemId=annuler]', !!une && !annulee);
+        var ecriture = nom === 'modifier' || nom === 'annuler';
+        if (ecriture && (ligne.get('statut') === 'annulee' || !(ecran && ecran.peutEcrire))) {
+            return;
+        }
+        switch (nom) {
+            case 'consulter':
+                me.ouvrirFiche(true, ligne);
+                break;
+            case 'modifier':
+                me.ouvrirFiche(false, ligne);
+                break;
+            case 'imprimer':
+                me.imprimerFiche(ligne);
+                break;
+            case 'conso':
+                me.ouvrirConso(ligne.get('clientId'), ligne.get('client'), null);
+                break;
+            case 'annuler':
+                me.demanderAnnulation(ligne);
+                break;
+        }
     },
 
     /* ---------------------------------------------------------------------- fiche */
@@ -222,7 +242,17 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ecran.down('#vueFiche #titreFiche').setValue('Nouvelle ordonnance');
         me.lectureSeule(false);
         me.montrer(1);
-        me.ajouterProduit();
+        /*
+         * La ligne produit est amorcee SANS ouvrir son editeur, et le curseur va dans le CLIENT, la premiere
+         * saisie (22/09). L'editeur ouvert d'office reprenait le focus au premier caractere tape dans le client :
+         * la frappe partait dans la grille.
+         */
+        me.ajouterProduit(false);
+        me.majBoutonConso();
+        var champClient = ecran.down('#vueFiche #ficheClient');
+        if (champClient) {
+            champClient.focus(false, 150);
+        }
         me.chargerPieces();
     },
 
@@ -240,7 +270,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             return;
         }
         Ext.each(['#ordonnanceId', '#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement',
-            '#observations'], function (s) {
+            '#observations', '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
+            '#insuffisanceHepatique'], function (s) {
             var c = fiche.down(s);
             if (!c) {
                 return;
@@ -258,6 +289,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             c.resumeEvents();
         });
         ecran.storeProduits.removeAll();
+        /* Les alertes d'une autre ordonnance ne doivent jamais rester affichees sous celle-ci. */
+        ecran.storeAlertesFiche.removeAll();
+        var alertes = fiche.down('#alertesFiche');
+        if (alertes) {
+            alertes.hide();
+        }
     },
 
     /** Consultation : la fiche s'ouvre en lecture, sans qu'on puisse la modifier par inadvertance. */
@@ -266,7 +303,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         /* Memorise : les boutons des pieces suivent le meme verrou que le reste de la fiche. */
         this.ficheVerrouillee = verrou === true;
         var fiche = ecran.down('#vueFiche');
-        Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations'],
+        Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations',
+            '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
+            '#insuffisanceHepatique'],
                 function (s) {
                     var c = fiche.down(s);
                     if (c) {
@@ -285,6 +324,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             if (ajouter) {
                 ajouter.setVisible(!verrou);
             }
+            var servir = grille.down('button[itemId=toutServir]');
+            if (servir) {
+                servir.setVisible(!verrou && !!(this.droits && this.droits.modifier));
+            }
             Ext.each(grille.columns || [], function (c) {
                 if (c.getItemId && c.getItemId() === 'colSupprimer') {
                     c.setVisible(!verrou);
@@ -297,18 +340,15 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
     },
 
-    consulter: function () {
-        this.ouvrirFiche(true);
+    /** Double-clic sur une ligne : consultation. */
+    consulter: function (vue, ligne) {
+        this.ouvrirFiche(true, ligne && ligne.isModel ? ligne : null);
     },
 
-    modifier: function () {
-        this.ouvrirFiche(false);
-    },
-
-    ouvrirFiche: function (enLecture) {
+    ouvrirFiche: function (enLecture, choisie) {
         var me = this;
         var grille = me.getGrille();
-        var ligne = grille ? grille.getSelectionModel().getSelection()[0] : null;
+        var ligne = choisie || (grille ? grille.getSelectionModel().getSelection()[0] : null);
         if (!ligne) {
             return;
         }
@@ -366,6 +406,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
         fiche.down('#ficheEtablissement').setValue(o.etablissement || '');
         fiche.down('#observations').setValue(o.observations || '');
+        fiche.down('#agePatient').setValue(o.agePatient === null || o.agePatient === undefined ? null : o.agePatient);
+        fiche.down('#sexePatient').setValue(o.sexePatient || '');
+        fiche.down('#grossesse').setValue(o.grossesse === true);
+        fiche.down('#allaitement').setValue(o.allaitement === true);
+        fiche.down('#insuffisanceRenale').setValue(o.insuffisanceRenale === true);
+        fiche.down('#insuffisanceHepatique').setValue(o.insuffisanceHepatique === true);
         var produits = reponse.produits || [];
         Ext.each(produits, function (p) {
             ecran.storeProduits.add({
@@ -374,7 +420,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 cip: p.cip || '',
                 quantite: p.quantite || 1,
                 posologie: p.posologie || '',
-                duree: p.duree || ''
+                duree: p.duree || '',
+                qteServie: p.qteServie === null || p.qteServie === undefined ? null : p.qteServie
             });
         });
         ecran.storeProduits.commitChanges();
@@ -383,16 +430,18 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
         me.chargerPieces();
         me.montrer(1);
+        me.majBoutonConso();
     },
 
     /* ------------------------------------------------------------------- produits */
 
-    ajouterProduit: function () {
+    /** @param editer false pour amorcer la ligne sans ouvrir son editeur (fiche neuve) ; ouvert sinon. */
+    ajouterProduit: function (editer) {
         var ecran = this.getEcran();
         var store = ecran.storeProduits;
-        store.add({articleId: '', libelle: '', cip: '', quantite: 1, posologie: '', duree: ''});
+        store.add({articleId: '', libelle: '', cip: '', quantite: 1, posologie: '', duree: '', qteServie: null});
         var grille = this.getGrilleProduits();
-        if (grille) {
+        if (grille && editer !== false) {
             var ligne = store.getCount() - 1;
             var edition = (grille.plugins || [])[0];
             if (edition && edition.startEditByPosition) {
@@ -419,6 +468,31 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ligne.set('articleId', article.get('lgFAMILLEID'));
         ligne.set('libelle', article.get('strNAME'));
         ligne.set('cip', article.get('intCIP') || '');
+        /*
+         * Apres le choix du produit, le curseur va dans la POSOLOGIE (22/09) : c'est la saisie suivante. Differe,
+         * pour laisser l'editeur du produit se refermer d'abord ; sinon il reprendrait la main.
+         */
+        var edition = (grille.plugins || [])[0];
+        var colonne = grille.down('#colPosologie');
+        if (edition && colonne) {
+            Ext.defer(function () {
+                if (grille.isDestroyed) {
+                    return;
+                }
+                edition.completeEdit();
+                edition.startEdit(ligne, colonne);
+            }, 60);
+        }
+    },
+
+    /** « Tout servi » : chaque ligne recoit la quantite prescrite comme quantite servie. */
+    toutServir: function () {
+        var ecran = this.getEcran();
+        ecran.storeProduits.each(function (r) {
+            if (r.get('libelle')) {
+                r.set('qteServie', r.get('quantite') || 1);
+            }
+        });
     },
 
     /* --------------------------------------------------------------- enregistrement */
@@ -435,9 +509,13 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 libelle: r.get('libelle') || '',
                 quantite: r.get('quantite') || 1,
                 posologie: r.get('posologie') || '',
-                duree: r.get('duree') || ''
+                duree: r.get('duree') || '',
+                /* null = a renseigner : on n'envoie pas 0 a la place, ce serait declarer « non servi ». */
+                qteServie: r.get('qteServie') === null || r.get('qteServie') === undefined
+                        || r.get('qteServie') === '' ? null : r.get('qteServie')
             });
         });
+        var contexte = me.contexteFiche();
         var requete = {
             id: fiche.down('#ordonnanceId').getValue() || '',
             clientId: fiche.down('#ficheClient').getValue() || '',
@@ -445,6 +523,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             medecinId: fiche.down('#ficheMedecin').getValue() || '',
             etablissement: fiche.down('#ficheEtablissement').getRawValue() || '',
             observations: fiche.down('#observations').getValue() || '',
+            agePatient: contexte.age === undefined ? null : contexte.age,
+            sexePatient: contexte.sexe || '',
+            grossesse: contexte.grossesse === true,
+            allaitement: contexte.allaitement === true,
+            insuffisanceRenale: contexte.insuffisanceRenale === true,
+            insuffisanceHepatique: contexte.insuffisanceHepatique === true,
             produits: produits
         };
         Ext.Ajax.request({
@@ -465,6 +549,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 fiche.down('#ordonnanceId').setValue(r.id || '');
                 fiche.down('#titreFiche').setValue('Ordonnance ' + (r.numero || '') + ' enregistrée');
                 me.chargerPieces();
+                me.majBoutonConso();
             },
             failure: function () {
                 Ext.Msg.alert('Ordonnances', "L'ordonnance n'a pas pu être enregistrée.");
@@ -477,10 +562,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
      * suppression — une ordonnance effacée laisserait un trou dont personne ne pourrait dire s'il vient d'un
      * document qui n'a jamais existé ou d'un document supprimé.
      */
-    demanderAnnulation: function () {
+    demanderAnnulation: function (choisie) {
         var me = this;
         var grille = me.getGrille();
-        var ligne = grille ? grille.getSelectionModel().getSelection()[0] : null;
+        var ligne = choisie && choisie.isModel ? choisie : (grille ? grille.getSelectionModel().getSelection()[0] : null);
         if (!ligne) {
             return;
         }
@@ -519,9 +604,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
      * pas de pop up pour aucune édition ». Rien n'est écrit sur le serveur, rien n'est téléchargé pour être
      * ensuite ouvert à la main.
      */
-    imprimerFiche: function () {
+    imprimerFiche: function (choisie) {
         var grille = this.getGrille();
-        var ligne = grille ? grille.getSelectionModel().getSelection()[0] : null;
+        var ligne = choisie && choisie.isModel ? choisie : (grille ? grille.getSelectionModel().getSelection()[0] : null);
         if (!ligne) {
             return;
         }
@@ -772,5 +857,301 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             ecran.storeClients.load();
         });
         fenetre.show();
+    }
+    ,
+
+    /* ------------------------------------------------------------- contexte et Posos */
+
+    /** Contexte clinique saisi sur la fiche, sous la forme qu'attend le service Posos. */
+    contexteFiche: function () {
+        var fiche = this.getEcran().down('#vueFiche');
+        var c = {};
+        var age = fiche.down('#agePatient').getValue();
+        if (age !== null && age !== '' && age >= 0) {
+            c.age = age;
+        }
+        var sexe = fiche.down('#sexePatient').getValue();
+        if (sexe) {
+            c.sexe = sexe;
+        }
+        Ext.each(['grossesse', 'allaitement', 'insuffisanceRenale', 'insuffisanceHepatique'], function (n) {
+            if (fiche.down('#' + n).getValue() === true) {
+                c[n] = true;
+            }
+        });
+        return c;
+    },
+
+    /** Analyse Posos des produits de la fiche, avec son contexte clinique : le service de l'Analyse posologie. */
+    analyserFiche: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var produits = [];
+        ecran.storeProduits.each(function (r) {
+            if (Ext.String.trim(r.get('libelle') || '')) {
+                produits.push({
+                    nom: r.get('libelle'),
+                    cip: r.get('cip') || '',
+                    quantite: r.get('quantite') || 1,
+                    posologie: r.get('posologie') || ''
+                });
+            }
+        });
+        me.lancerPosos(ecran.down('#vueFiche #alertesFiche'), ecran.storeAlertesFiche, produits, me.contexteFiche());
+    },
+
+    /**
+     * Appel de la passerelle Posos du serveur. Le navigateur n'y voit ni adresse ni identifiant : il envoie des
+     * produits et un contexte sans rien d'identifiant, le serveur fait le reste.
+     */
+    lancerPosos: function (grille, store, produits, contexte) {
+        var me = this;
+        if (!grille) {
+            return;
+        }
+        grille.show();
+        var message = grille.down('#messagePosos');
+        var dire = function (texte, alerte) {
+            if (message && !message.isDestroyed) {
+                message.update('<div style="color:' + (alerte ? '#c0392b' : '#555') + '">' + texte + '</div>');
+            }
+        };
+        store.removeAll();
+        if (!produits.length) {
+            dire('Aucun produit à analyser.', true);
+            return;
+        }
+        dire('Analyse en cours...', false);
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/posos/analyse',
+            jsonData: {produits: produits, contexte: contexte || {}},
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (grille.isDestroyed) {
+                    return;
+                }
+                store.loadData(r.alertes || []);
+                if (r.success === false || r.disponible === false) {
+                    dire(Ext.String.htmlEncode(r.message || 'Analyse Posos indisponible.'), true);
+                    return;
+                }
+                var parties = [(r.total || 0) + ' alerte(s)'];
+                if (r.nombreMajeures > 0) {
+                    parties.push('<b style="color:#c0392b">dont ' + r.nombreMajeures + ' à lire absolument</b>');
+                }
+                if (r.produitsNonReconnus && r.produitsNonReconnus.length) {
+                    parties.push('<span style="color:#c0392b">non analysé(s) par Posos : '
+                            + Ext.String.htmlEncode(r.produitsNonReconnus.join(', ')) + '</span>');
+                }
+                if ((r.total || 0) === 0 && r.message) {
+                    parties = [Ext.String.htmlEncode(r.message)];
+                }
+                dire(parties.join(' — '), false);
+            },
+            failure: function () {
+                dire('L\'analyse Posos n\'a pas abouti.', true);
+            }
+        });
+    },
+
+    /* ---------------------------------------------------------- suivi de consommation */
+
+    /** Le bouton du suivi n'a de sens qu'avec un client choisi sur la fiche. */
+    majBoutonConso: function () {
+        var ecran = this.getEcran();
+        var bouton = ecran ? ecran.down('#vueFiche button[itemId=consoFiche]') : null;
+        var client = ecran ? ecran.down('#vueFiche #ficheClient') : null;
+        if (bouton && client) {
+            bouton.setDisabled(!client.getValue());
+        }
+    },
+
+    consoDepuisFiche: function () {
+        var me = this;
+        var client = me.getEcran().down('#vueFiche #ficheClient');
+        if (!client || !client.getValue()) {
+            Ext.Msg.alert('Suivi de consommation', 'Choisissez d\'abord le client.');
+            return;
+        }
+        /* Depuis la fiche, le contexte clinique de l'ordonnance accompagne l'analyse Posos du suivi. */
+        me.ouvrirConso(client.getValue(), client.getRawValue(), me.contexteFiche());
+    },
+
+    /**
+     * Ouvre le suivi de consommation d'un client (troisieme vue). On memorise d'ou l'on vient pour y revenir :
+     * l'historique ou la fiche en cours, sans la perdre.
+     */
+    ouvrirConso: function (clientId, nom, contexte) {
+        var me = this;
+        var ecran = me.getEcran();
+        if (!ecran || !clientId) {
+            return;
+        }
+        me.clientConso = clientId;
+        me.contexteConso = contexte || null;
+        me.carteAvantConso = ecran.getLayout().getActiveItem();
+        var vue = ecran.down('#vueConso');
+        vue.down('#titreConso').setText('Suivi de consommation - ' + Ext.String.htmlEncode(nom || ''));
+        ecran.storeAlertesConso.removeAll();
+        vue.down('#alertesConso').hide();
+        ecran.getLayout().setActiveItem(vue);
+        me.chargerConso();
+    },
+
+    retourConso: function () {
+        var ecran = this.getEcran();
+        ecran.getLayout().setActiveItem(this.carteAvantConso || 0);
+    },
+
+    chargerConso: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var vue = ecran.down('#vueConso');
+        var jour = function (s) {
+            var v = vue.down(s).getValue();
+            return v ? Ext.Date.format(v, 'Y-m-d') : '';
+        };
+        var store = ecran.storeConso;
+        store.getProxy().url = '../api/v1/ordonnance-client/client/' + encodeURIComponent(me.clientConso || '0')
+                + '/consommation';
+        store.getProxy().extraParams = {dtStart: jour('#consoDebut'), dtEnd: jour('#consoFin')};
+        store.load({
+            callback: function (lignes) {
+                me.resumerConso(lignes || []);
+            }
+        });
+    },
+
+    /** Resume du client : ce que l'onglet de la gestion des clients donne, en une ligne. */
+    resumerConso: function (lignes) {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#vueConso #resumeConso') : null;
+        if (!zone || zone.isDestroyed) {
+            return;
+        }
+        if (!lignes.length) {
+            zone.update('<div style="color:#777">Aucun achat de ce client sur la période.</div>');
+            return;
+        }
+        var montant = 0;
+        var dernier = '';
+        var ruptures = 0;
+        Ext.each(lignes, function (l) {
+            montant += l.get('montant') || 0;
+            if ((l.get('dernierAchat') || '') > dernier) {
+                dernier = l.get('dernierAchat');
+            }
+            if (l.get('stock') === 0) {
+                ruptures++;
+            }
+        });
+        zone.update('<div class="ordo-resume"><b>' + lignes.length + '</b> produit(s) achetés — montant <b>'
+                + Ext.util.Format.number(montant, '0,000') + ' F</b> — dernier achat le <b>'
+                + (dernier ? Ext.Date.format(Ext.Date.parse(dernier, 'Y-m-d'), 'd/m/Y') : '—') + '</b>'
+                + (ruptures ? ' — <span style="color:#c0392b"><b>' + ruptures + '</b> produit(s) sans stock</span>'
+                        : ' — <span style="color:#1E5FA8">tous en stock</span>')
+                + '. Cochez des produits pour les analyser avec Posos (sinon, tous le sont).</div>');
+    },
+
+    /** Posos sur les produits du suivi : cochés, ou tous. Avec le contexte de l'ordonnance si on en vient. */
+    analyserConso: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var vue = ecran.down('#vueConso');
+        var grille = vue.down('#grilleConso');
+        var lignes = grille.getSelectionModel().getSelection();
+        if (!lignes.length) {
+            lignes = ecran.storeConso.getRange();
+        }
+        var produits = [];
+        Ext.each(lignes, function (l) {
+            produits.push({nom: l.get('name'), cip: l.get('cip') || '', quantite: 1});
+        });
+        me.lancerPosos(vue.down('#alertesConso'), ecran.storeAlertesConso, produits, me.contexteConso || {});
+    },
+
+    /* ------------------------------------------------------------ analyse des ordonnances */
+
+    surOngletAnalyse: function () {
+        if (!this.analyseCalculee) {
+            this.calculerAnalyse();
+        }
+    },
+
+    effacerAnalyse: function () {
+        var vue = this.getEcran().down('#vueAnalyse');
+        vue.down('#anaType').clearValue();
+        vue.down('#anaMedecin').clearValue();
+        vue.down('#anaDebut').setValue(Ext.Date.add(new Date(), Ext.Date.MONTH, -12));
+        vue.down('#anaFin').setValue(new Date());
+        this.calculerAnalyse();
+    },
+
+    calculerAnalyse: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var vue = ecran.down('#vueAnalyse');
+        var jour = function (s) {
+            var v = vue.down(s).getValue();
+            return v ? Ext.Date.format(v, 'Y-m-d') : '';
+        };
+        me.analyseCalculee = true;
+        var tuiles = vue.down('#tuilesAnalyse');
+        tuiles.update('<div style="color:#777">Calcul en cours...</div>');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/analyse',
+            params: {
+                dtStart: jour('#anaDebut'),
+                dtEnd: jour('#anaFin'),
+                typeClientId: vue.down('#anaType').getValue() || '',
+                medecinId: vue.down('#anaMedecin').getValue() || ''
+            },
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (tuiles.isDestroyed) {
+                    return;
+                }
+                if (r.success !== true) {
+                    tuiles.update('<div style="color:#c0392b">' + Ext.String.htmlEncode(r.message
+                            || 'L\'analyse n\'a pas pu être calculée.') + '</div>');
+                    return;
+                }
+                ecran.storeParPrescripteur.loadData(r.parPrescripteur || []);
+                ecran.storeParEtablissement.loadData(r.parEtablissement || []);
+                ecran.storeParType.loadData(r.parType || []);
+                ecran.storeProduitsAnalyse.loadData(r.produits || []);
+                tuiles.update(me.tuiles(r.synthese || {}));
+            },
+            failure: function () {
+                tuiles.update('<div style="color:#c0392b">L\'analyse n\'a pas pu être calculée.</div>');
+            }
+        });
+    },
+
+    /** Les tuiles de synthese. Un taux sans donnee s'affiche « — », jamais 0 %. */
+    tuiles: function (s) {
+        var ecran = this.getEcran();
+        var pc = function (v) {
+            return v === null || v === undefined ? '—' : Ext.util.Format.number(v, '0.0') + ' %';
+        };
+        var tuile = function (titre, valeur, detail, cls) {
+            return '<div class="ordo-tuile ' + (cls || '') + '"><div class="ordo-tuile-titre">' + titre
+                    + '</div><div class="ordo-tuile-valeur">' + valeur + '</div><div class="ordo-tuile-detail">'
+                    + (detail || '') + '</div></div>';
+        };
+        return '<div class="ordo-tuiles">'
+                + tuile('Ordonnances', s.ordonnances || 0, (s.clients || 0) + ' client(s) — '
+                        + (s.produitsParOrdonnance || 0) + ' produit(s) par ordonnance')
+                + tuile('Annulées', pc(s.tauxAnnulation), (s.annulees || 0) + ' ordonnance(s)', 'ordo-tuile-rouge')
+                + tuile('Satisfaction', pc(s.satisfaction), (s.lignesServies || 0) + ' ligne(s) servie(s) en entier sur '
+                        + (s.lignesRenseignees || 0) + ' renseignée(s)', 'ordo-tuile-verte')
+                + tuile('Ordonnances servies', pc(s.tauxService), ecran.badgeService('servie') + ' ' + (s.servies || 0)
+                        + ' ' + ecran.badgeService('partielle') + ' ' + (s.partielles || 0) + ' '
+                        + ecran.badgeService('non_servie') + ' ' + (s.nonServies || 0))
+                + tuile('À renseigner', s.aRenseigner || 0, (s.lignesARenseigner || 0)
+                        + ' ligne(s) sans quantité servie — exclues des taux', 'ordo-tuile-grise')
+                + '</div>';
     }
 });

@@ -72,12 +72,110 @@ public final class OrdonnanceClientSaisie {
                 if (p.optInt("quantite", 1) <= 0) {
                     refus.add("Ligne " + (i + 1) + " : la quantité doit être supérieure à zéro.");
                 }
+                Integer servie = qteServie(p);
+                if (servie != null && servie < 0) {
+                    refus.add("Ligne " + (i + 1) + " : la quantité servie ne peut pas être négative.");
+                } else if (servie != null && servie > Math.max(1, p.optInt("quantite", 1))) {
+                    /*
+                     * Servir plus que prescrit fausserait le taux de satisfaction (plus de 100 %) : on le refuse plutot
+                     * que de le rabattre en silence.
+                     */
+                    refus.add("Ligne " + (i + 1) + " : la quantité servie dépasse la quantité prescrite.");
+                }
             }
         }
         if (retenus == 0) {
             refus.add("Une ordonnance comporte au moins un produit prescrit.");
         }
+        Object age = o.opt("agePatient");
+        if (age != null && age != JSONObject.NULL && !"".equals(String.valueOf(age).trim())) {
+            Integer a = agePatient(o);
+            if (a == null || a < 0 || a > AGE_MAX) {
+                refus.add("L'âge du patient doit être compris entre 0 et " + AGE_MAX + " ans.");
+            }
+        }
         return refus;
+    }
+
+    /** Au-dela, c'est une faute de frappe (l'annee de naissance tapee a la place de l'age). */
+    public static final int AGE_MAX = 130;
+
+    /**
+     * Quantite servie d'une ligne : null quand elle n'est pas renseignee (champ absent, vide ou nul). Le null a un sens
+     * - « pas encore renseigne » - distinct de 0, « non servi ».
+     */
+    static Integer qteServie(JSONObject p) {
+        Object v = p.opt("qteServie");
+        if (v == null || v == JSONObject.NULL) {
+            return null;
+        }
+        if (v instanceof Number) {
+            return ((Number) v).intValue();
+        }
+        String texte = String.valueOf(v).trim();
+        if (texte.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(texte);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Age saisi, ou null s'il est absent ou illisible. */
+    static Integer agePatient(JSONObject o) {
+        Object v = o.opt("agePatient");
+        if (v == null || v == JSONObject.NULL) {
+            return null;
+        }
+        if (v instanceof Number) {
+            return ((Number) v).intValue();
+        }
+        try {
+            return Integer.valueOf(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Sexe normalise : F, M, ou null. Toute autre valeur est ignoree plutot que stockee telle quelle. */
+    static String sexePatient(JSONObject o) {
+        String v = StringUtils.trimToEmpty(o.optString("sexePatient", "")).toUpperCase();
+        return "F".equals(v) || "M".equals(v) ? v : null;
+    }
+
+    /*
+     * ETAT DE SERVICE D'UNE ORDONNANCE (retour du 22/09 : « partiellement par ligne »).
+     *
+     * Calcule a partir des lignes, jamais stocke : un etat stocke a cote des lignes finit toujours par les contredire.
+     */
+    public static final String SERVICE_A_RENSEIGNER = "a_renseigner";
+    public static final String SERVICE_NON_SERVIE = "non_servie";
+    public static final String SERVICE_PARTIELLE = "partielle";
+    public static final String SERVICE_SERVIE = "servie";
+
+    /**
+     * @param nbLignes
+     *            lignes de l'ordonnance
+     * @param nbRenseignees
+     *            lignes dont la quantite servie est renseignee (0 compris)
+     * @param nbServies
+     *            lignes servies EN ENTIER (servie >= prescrite)
+     * @param qteServie
+     *            quantite servie totale
+     */
+    public static String etatService(int nbLignes, int nbRenseignees, int nbServies, int qteServie) {
+        if (nbLignes <= 0 || nbRenseignees <= 0) {
+            return SERVICE_A_RENSEIGNER;
+        }
+        if (nbServies >= nbLignes) {
+            return SERVICE_SERVIE;
+        }
+        if (qteServie <= 0) {
+            return SERVICE_NON_SERVIE;
+        }
+        return SERVICE_PARTIELLE;
     }
 
     /**

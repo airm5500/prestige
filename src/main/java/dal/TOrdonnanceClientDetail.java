@@ -59,6 +59,10 @@ public class TOrdonnanceClientDetail implements Serializable {
     @Column(name = "int_ORDRE", nullable = false)
     private int intORDRE = 1;
 
+    /** Quantite servie : null = pas encore renseignee, 0 = non servie (retour du 22/09, service par ligne). */
+    @Column(name = "int_QTE_SERVIE")
+    private Integer intQTESERVIE;
+
     public TOrdonnanceClientDetail() {
     }
 
@@ -124,5 +128,13 @@ public class TOrdonnanceClientDetail implements Serializable {
 
     public void setIntORDRE(int intORDRE) {
         this.intORDRE = intORDRE;
+    }
+
+    public Integer getIntQTESERVIE() {
+        return intQTESERVIE;
+    }
+
+    public void setIntQTESERVIE(Integer intQTESERVIE) {
+        this.intQTESERVIE = intQTESERVIE;
     }
 }

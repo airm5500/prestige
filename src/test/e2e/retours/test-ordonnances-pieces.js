@@ -109,7 +109,7 @@ function poser() {
     /* --------------------------------------------------------------- la fiche n accepte une pièce qu enregistrée */
     const avantEnregistrement = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
-      const btn = e.down('#barreCriteres button[itemId=nouvelle]');
+      const btn = e.down('#grilleOrdonnances button[itemId=nouvelle]');
       btn.el.dom.click();
       const grille = e.down('#grillePieces');
       return { rappel: grille.down('#rappelPieces').getValue(),

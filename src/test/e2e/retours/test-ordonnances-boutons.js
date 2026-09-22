@@ -44,20 +44,22 @@ const MARQUE = 'E2E-BOUTONS';
     const vue = () => p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].getLayout().getActiveItem().itemId);
     const fiche = () => p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #vueFiche')[0]; const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
       return { titre: f.down('#titreFiche').getValue(), client: f.down('#ficheClient').getRawValue(), medecin: f.down('#ficheMedecin').getRawValue(), etab: f.down('#ficheEtablissement').getRawValue(), produits: e.storeProduits.getCount(), premierLibelle: e.storeProduits.getCount() ? e.storeProduits.getAt(0).get('libelle') : '', lectureSeule: f.down('#ficheClient').readOnly === true || f.down('#ficheClient').isDisabled(), nbClientsStore: e.storeClients.getCount() }; });
-    /* On selectionne par l'IDENTIFIANT de l'ordonnance, pas par le rang : la liste va de la plus recente a
+    /* On vise la ligne par l'IDENTIFIANT de l'ordonnance, pas par le rang : la liste va de la plus recente a
        la plus ancienne, et deux ordonnances du meme jour se rangent dans l'ordre de leur creation. */
-    const selectionner = async (id) => {
-      const c = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleOrdonnances')[0]; const r = g.getStore().findExact('id', id); const n = g.getView().getNode(r); n.scrollIntoView(); const k = n.querySelector('.x-grid-cell-inner').getBoundingClientRect(); return { x: k.left + 20, y: k.top + k.height / 2 }; }, id);
-      await p.mouse.click(c.x, c.y); await p.waitForTimeout(500);
+    /* Les actions sont PAR LIGNE depuis le 22/09 : on clique l'icone de la ligne visee, avec la souris. */
+    const icone = async (id, nom) => {
+      const c = await p.evaluate((a) => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleOrdonnances')[0]; const r = g.getStore().findExact('id', a.id); const n = g.getView().getNode(r); n.scrollIntoView(); const k = n.querySelector('.ordo-act-' + a.nom); if (!k) { return null; } const b = k.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, inactif: k.classList.contains('x-item-disabled') }; }, { id, nom });
+      if (!c) { throw new Error('icone ' + nom + ' absente'); }
+      await p.mouse.click(c.x, c.y); await p.waitForTimeout(1500);
+      return c;
     };
     const AVEC = ids[0], SANS = ids[1];
     await clic('ordonnanceclient #rechercher');
     await p.waitForFunction(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeOrdonnances.getCount() >= 2, null, { timeout: 20000 });
-    await selectionner(AVEC);
-    const actifs = await p.evaluate(() => ['consulter', 'modifier', 'imprimerFiche'].every((i) => !Ext.ComponentQuery.query('ordonnanceclient #' + i)[0].isDisabled()));
-    ok('Une ligne sélectionnée : Consulter, Modifier et Imprimer la fiche s activent', actifs);
+    const icones = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleOrdonnances')[0]; const n = g.getView().getNode(g.getStore().findExact('id', id)); return ['consulter', 'modifier', 'imprimer', 'conso', 'annuler'].map((a) => { const k = n.querySelector('.ordo-act-' + a); return k ? (k.classList.contains('x-item-disabled') ? a + ':inactif' : a) : a + ':absent'; }); }, AVEC);
+    ok('Chaque ligne porte ses actions à droite : consulter, modifier, imprimer, suivi conso, annuler - toutes actives', icones.join(',') === 'consulter,modifier,imprimer,conso,annuler', icones.join(','));
 
-    await clic('ordonnanceclient #consulter');
+    await icone(AVEC, 'consulter');
     let f = await fiche();
     ok('CONSULTER ouvre la fiche, remplie, en lecture', (await vue()) === 'vueFiche' && /Ordonnance ORD/.test(f.titre) && f.client.length > 2 && f.produits === 1, JSON.stringify(f));
     await clic('ordonnanceclient #retourHistorique');
@@ -71,13 +73,11 @@ const MARQUE = 'E2E-BOUTONS';
     await p.evaluate(() => { if (Ext.MessageBox.isVisible() && Ext.MessageBox.msgButtons.yes.isVisible()) { Ext.MessageBox.msgButtons.yes.el.dom.click(); } });
     await p.waitForTimeout(800);
     if ((await vue()) !== 'vueHistorique') { await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].getLayout().setActiveItem(0)); }
-    await selectionner(SANS);
-    await clic('ordonnanceclient #modifier');
+    await icone(SANS, 'modifier');
     f = await fiche();
     ok('MODIFIER ouvre la seconde ordonnance (sans prescripteur ni établissement) en saisie', (await vue()) === 'vueFiche' && /Ordonnance ORD/.test(f.titre) && f.medecin === '' && f.etab === '' && !f.lectureSeule && f.produits === 1, JSON.stringify(f));
     await clic('ordonnanceclient #retourHistorique');
-    await selectionner(AVEC);
-    await clic('ordonnanceclient #consulter');
+    await icone(AVEC, 'consulter');
     f = await fiche();
     ok('CONSULTER encore : le prescripteur et l établissement de la première reviennent, rien ne reste de la seconde', /CHU E2E-BOUTONS/.test(f.etab) && f.medecin.length > 1 && f.produits === 1, JSON.stringify(f));
     ok('Le magasin des clients ne s est pas rempli d un doublon à chaque ouverture', f.nbClientsStore <= 2, f.nbClientsStore + ' enregistrement(s)');

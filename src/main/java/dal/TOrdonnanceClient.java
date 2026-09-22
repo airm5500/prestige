@@ -81,6 +81,28 @@ public class TOrdonnanceClient implements Serializable {
     @Column(name = "str_MOTIF_ANNULATION", length = 200)
     private String strMOTIFANNULATION;
 
+    /*
+     * Contexte clinique (retour du 22/09) : les champs de l'Analyse posologie, gardes avec l'ordonnance pour rejouer
+     * l'analyse Posos sans ressaisie. Aucun n'identifie le patient.
+     */
+    @Column(name = "int_AGE_PATIENT")
+    private Integer intAGEPATIENT;
+
+    @Column(name = "str_SEXE_PATIENT", length = 1)
+    private String strSEXEPATIENT;
+
+    @Column(name = "bool_GROSSESSE", nullable = false)
+    private boolean boolGROSSESSE;
+
+    @Column(name = "bool_ALLAITEMENT", nullable = false)
+    private boolean boolALLAITEMENT;
+
+    @Column(name = "bool_INSUF_RENALE", nullable = false)
+    private boolean boolINSUFRENALE;
+
+    @Column(name = "bool_INSUF_HEPATIQUE", nullable = false)
+    private boolean boolINSUFHEPATIQUE;
+
     @Column(name = "lg_USER_CREATED", length = 40)
     private String lgUSERCREATED;
 
@@ -216,5 +238,53 @@ public class TOrdonnanceClient implements Serializable {
 
     public boolean estAnnulee() {
         return STATUT_ANNULEE.equals(strSTATUT);
+    }
+
+    public Integer getIntAGEPATIENT() {
+        return intAGEPATIENT;
+    }
+
+    public void setIntAGEPATIENT(Integer intAGEPATIENT) {
+        this.intAGEPATIENT = intAGEPATIENT;
+    }
+
+    public String getStrSEXEPATIENT() {
+        return strSEXEPATIENT;
+    }
+
+    public void setStrSEXEPATIENT(String strSEXEPATIENT) {
+        this.strSEXEPATIENT = strSEXEPATIENT;
+    }
+
+    public boolean isBoolGROSSESSE() {
+        return boolGROSSESSE;
+    }
+
+    public void setBoolGROSSESSE(boolean boolGROSSESSE) {
+        this.boolGROSSESSE = boolGROSSESSE;
+    }
+
+    public boolean isBoolALLAITEMENT() {
+        return boolALLAITEMENT;
+    }
+
+    public void setBoolALLAITEMENT(boolean boolALLAITEMENT) {
+        this.boolALLAITEMENT = boolALLAITEMENT;
+    }
+
+    public boolean isBoolINSUFRENALE() {
+        return boolINSUFRENALE;
+    }
+
+    public void setBoolINSUFRENALE(boolean boolINSUFRENALE) {
+        this.boolINSUFRENALE = boolINSUFRENALE;
+    }
+
+    public boolean isBoolINSUFHEPATIQUE() {
+        return boolINSUFHEPATIQUE;
+    }
+
+    public void setBoolINSUFHEPATIQUE(boolean boolINSUFHEPATIQUE) {
+        this.boolINSUFHEPATIQUE = boolINSUFHEPATIQUE;
     }
 }

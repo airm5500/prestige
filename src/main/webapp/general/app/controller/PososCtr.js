@@ -133,7 +133,7 @@ Ext.define('testextjs.controller.PososCtr', {
         var me = this;
         var reference = Ext.String.trim(me.getReferenceVente().getValue() || '');
         if (!reference) {
-            me.dire('Indiquez la référence de la vente à analyser.', true);
+            me.dire('Indiquez la référence de la vente ou le N° de l\'ordonnance à analyser.', true);
             return;
         }
         // La reference est resolue par le serveur, qui accepte aussi bien l'identifiant que la reference :
@@ -232,6 +232,17 @@ Ext.define('testextjs.controller.PososCtr', {
         if (r.venteProduits) {
             // Le serveur peut renvoyer les produits qu'il a effectivement analyses : on les montre.
             me.getGrilleLignes().getStore().loadData(r.venteProduits);
+        }
+        if (r.contexteOrdonnance) {
+            // Ordonnance client chargee (22/09) : son contexte clinique enregistre s'affiche, pour qu'on voie
+            // ce qui a ete envoye - et qu'on puisse le corriger avant une nouvelle analyse.
+            var c = r.contexteOrdonnance;
+            me.getAge().setValue(c.age === null || c.age === undefined ? null : c.age);
+            me.getSexe().setValue(c.sexe || '');
+            me.getGrossesse().setValue(c.grossesse === true);
+            me.getAllaitement().setValue(c.allaitement === true);
+            me.getInsuffisanceRenale().setValue(c.insuffisanceRenale === true);
+            me.getInsuffisanceHepatique().setValue(c.insuffisanceHepatique === true);
         }
         if (r.disponible === false) {
             me.dire(r.message || 'Analyse indisponible.', true);

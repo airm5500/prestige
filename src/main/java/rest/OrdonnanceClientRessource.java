@@ -414,6 +414,48 @@ public class OrdonnanceClientRessource {
         }
     }
 
+    /**
+     * Analyse des ordonnances saisies (retour du 22/09) : taux d'annulation, de service, satisfaction, ventilations par
+     * prescripteur, etablissement et type de client, produits les plus prescrits. Memes criteres que l'historique.
+     */
+    @GET
+    @Path("analyse")
+    public Response analyse(@QueryParam("query") String query, @QueryParam("clientId") String clientId,
+            @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response
+                .ok().entity(ordonnanceService
+                        .analyse(criteres(query, clientId, typeClientId, medecinId, debut, fin, true)).toString())
+                .build();
+    }
+
+    /**
+     * Suivi de consommation d'un client, vu depuis ses ordonnances : le service de la gestion des clients, plus le
+     * stock disponible de chaque produit sur l'emplacement de l'operateur.
+     */
+    @GET
+    @Path("client/{clientId}/consommation")
+    public Response consommationClient(@PathParam("clientId") String clientId, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        String emplacement = operateur.getLgEMPLACEMENTID() == null ? null
+                : operateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        return Response.ok().entity(ordonnanceService.consommationClient(clientId, debut, fin, emplacement).toString())
+                .build();
+    }
+
     /** Types de client (carnet, assurance, standard) pour le filtre de l'historique. */
     @GET
     @Path("types-client")

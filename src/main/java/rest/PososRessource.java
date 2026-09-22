@@ -88,11 +88,34 @@ public class PososRessource {
         String venteId = entree.optString("venteId", null);
         PososResultat resultat;
         JSONArray analyses = null;
+        JSONObject contexteOrdonnance = null;
         if (venteId != null && !venteId.trim().isEmpty()) {
             // La vente est reconnue par son identifiant ou par sa reference, et ses produits sont relus en base.
             java.util.List<PososDemande.Produit> deLaVente = pososService.produitsDeLaVente(venteId.trim());
+            /*
+             * La reference peut aussi etre un N° d'ORDONNANCE client (ORD-AAAAMM-0001) : les deux menus sont lies. Ses
+             * produits sont relus avec leur posologie, et son contexte clinique sert quand l'ecran n'en donne aucun.
+             */
+            PososDemande.Contexte deLOrdonnance = null;
+            if (deLaVente.isEmpty()) {
+                deLaVente = pososService.produitsDeLOrdonnance(venteId.trim());
+                deLOrdonnance = deLaVente.isEmpty() ? null : pososService.contexteDeLOrdonnance(venteId.trim());
+                if (deLOrdonnance != null && PososService.estVide(contexte)) {
+                    contexte = deLOrdonnance;
+                }
+            }
             analyses = enJson(deLaVente);
-            resultat = pososService.analyserVente(venteId.trim(), contexte);
+            resultat = deLOrdonnance != null ? pososService.analyserProduits(deLaVente, contexte)
+                    : pososService.analyserVente(venteId.trim(), contexte);
+            if (deLOrdonnance != null) {
+                contexteOrdonnance = new JSONObject()
+                        .put("age", deLOrdonnance.getAge() == null ? JSONObject.NULL : deLOrdonnance.getAge())
+                        .put("sexe", deLOrdonnance.getSexe() == null ? "" : deLOrdonnance.getSexe())
+                        .put("grossesse", Boolean.TRUE.equals(deLOrdonnance.getGrossesse()))
+                        .put("allaitement", Boolean.TRUE.equals(deLOrdonnance.getAllaitement()))
+                        .put("insuffisanceRenale", Boolean.TRUE.equals(deLOrdonnance.getInsuffisanceRenale()))
+                        .put("insuffisanceHepatique", Boolean.TRUE.equals(deLOrdonnance.getInsuffisanceHepatique()));
+            }
         } else {
             PososDemande demande = new PososDemande();
             demande.setContexte(contexte);
@@ -103,6 +126,9 @@ public class PososRessource {
         if (analyses != null) {
             // L'ecran montre ce qui a REELLEMENT ete envoye : sinon on ne sait pas ce qui a ete analyse.
             sortie.put("venteProduits", analyses);
+        }
+        if (contexteOrdonnance != null) {
+            sortie.put("contexteOrdonnance", contexteOrdonnance);
         }
         return Response.ok().entity(sortie.toString()).build();
     }
@@ -170,7 +196,8 @@ public class PososRessource {
         for (PososDemande.Produit p : produits) {
             tableau.put(new JSONObject().put("nom", p.getNom() == null ? "" : p.getNom())
                     .put("cip", p.getCip() == null ? "" : p.getCip())
-                    .put("quantite", p.getQuantite() == null ? 0 : p.getQuantite().intValue()).put("posologie", ""));
+                    .put("quantite", p.getQuantite() == null ? 0 : p.getQuantite().intValue())
+                    .put("posologie", p.getPosologie() == null ? "" : p.getPosologie()));
         }
         return tableau;
     }

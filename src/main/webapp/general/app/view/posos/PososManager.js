@@ -105,12 +105,14 @@ Ext.define('testextjs.view.posos.PososManager', {
                     xtype: 'textfield',
                     itemId: 'referenceVente',
                     width: 220,
-                    emptyText: 'ou référence d\'une vente'
+                    // Une vente OU une ordonnance client (N° ORD-...) : les deux menus sont lies (22/09).
+                    emptyText: 'réf. vente ou N° ordonnance'
                 }, {
-                    text: 'Charger la vente',
+                    text: 'Charger',
                     itemId: 'chargerVente',
                     iconCls: 'searchicon',
-                    tooltip: 'Reprend les produits de cette vente, relus en base'
+                    tooltip: 'Reprend les produits de cette vente ou de cette ordonnance (avec leurs posologies et '
+                            + 'son contexte clinique), relus en base'
                 }, '->', {
                     text: 'Analyser',
                     itemId: 'analyser',

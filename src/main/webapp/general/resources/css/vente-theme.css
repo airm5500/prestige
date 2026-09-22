@@ -1908,3 +1908,42 @@ body.x-body,
 .aa-bulle.x-tip { background: #1E5FA8 !important; border-color: #1E5FA8 !important; border-radius: 6px; }
 .aa-bulle .x-tip-body, .aa-bulle .x-tip-body * { color: #FFFFFF !important; font-size: 13px !important; line-height: 1.45; }
 .aa-bulle .x-tip-anchor { border-color: #1E5FA8 !important; }
+
+/* ------------------------------------------------------------------ Ordonnances clients (22/09) */
+/* Une ordonnance annulee reste visible, barree et grisee. */
+.ordonnance-annulee .x-grid-cell-inner { color: #999 !important; text-decoration: line-through; }
+.ordonnance-annulee .x-action-col-cell .x-grid-cell-inner { text-decoration: none; }
+/* Boutons : un seul geste principal en vert, l'analyse Posos en bleu, le reste sobre. */
+.x-btn.ordo-btn-primaire { background: #17987e !important; background-image: none !important;
+    border-color: #12806a !important; border-radius: 4px; }
+.x-btn.ordo-btn-primaire .x-btn-inner { color: #fff !important; font-weight: bold; }
+.x-btn.ordo-btn-primaire.x-btn-over { background: #12806a !important; }
+.x-btn.ordo-btn-posos { background: #1E5FA8 !important; background-image: none !important;
+    border-color: #174c87 !important; border-radius: 4px; }
+.x-btn.ordo-btn-posos .x-btn-inner { color: #fff !important; font-weight: bold; }
+.x-btn.ordo-btn { border-radius: 4px; }
+/* Icones d'action de chaque ligne : espacees, et visiblement cliquables. */
+.x-action-col-icon.ordo-act { margin: 0 4px; cursor: pointer; }
+.x-action-col-icon.ordo-act.x-item-disabled { opacity: .25; cursor: default; }
+/* Pastilles d'etat de service. */
+.ordo-etat { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11px; color: #fff; }
+.ordo-etat-servie { background: #17987e; }
+.ordo-etat-partielle { background: #e67e22; }
+.ordo-etat-non_servie { background: #c0392b; }
+.ordo-etat-a_renseigner { background: #95a5a6; }
+/* Recherche de produit : stock et prix alignes a droite de la ligne. */
+.ordo-article { white-space: nowrap; }
+.ordo-article-infos { float: right; margin-left: 16px; }
+/* Alertes Posos majeures. */
+.ordo-alerte-majeure .x-grid-cell-inner { color: #c0392b; font-weight: bold; }
+/* Tuiles de l'analyse des ordonnances. */
+.ordo-tuiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.ordo-tuile { flex: 1 1 180px; border: 1px solid #d6dde5; border-left: 4px solid #1E5FA8; border-radius: 4px;
+    padding: 6px 10px; background: #fff; }
+.ordo-tuile-rouge { border-left-color: #c0392b; }
+.ordo-tuile-verte { border-left-color: #17987e; }
+.ordo-tuile-grise { border-left-color: #95a5a6; }
+.ordo-tuile-titre { font-size: 11px; color: #666; text-transform: uppercase; }
+.ordo-tuile-valeur { font-size: 22px; font-weight: bold; color: #222; line-height: 28px; }
+.ordo-tuile-detail { font-size: 11px; color: #555; }
+.ordo-resume { font-size: 13px; }

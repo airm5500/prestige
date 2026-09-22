@@ -58,7 +58,19 @@ public final class OrdonnanceClientSql {
             + " TRIM(CONCAT(COALESCE(m.str_FIRST_NAME, ''), ' ', COALESCE(m.str_LAST_NAME, ''))) AS medecin,"
             + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d"
             + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS nbProduits,"
-            + " (SELECT COUNT(*) FROM t_ordonnance_client_piece p"
+            /*
+             * Service ligne par ligne (retour du 22/09) : de quoi calculer l'etat de l'ordonnance sans relire ses
+             * lignes une a une. Une ligne est servie EN ENTIER quand la quantite servie atteint la prescrite.
+             */
+            + " (SELECT COUNT(d.int_QTE_SERVIE) FROM t_ordonnance_client_detail d"
+            + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS nbRenseignees,"
+            + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+            + "   AND d.int_QTE_SERVIE >= d.int_QUANTITE) AS nbServies,"
+            + " (SELECT COALESCE(SUM(d.int_QTE_SERVIE), 0) FROM t_ordonnance_client_detail d"
+            + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS qteServie,"
+            + " o.int_AGE_PATIENT AS agePatient, o.str_SEXE_PATIENT AS sexePatient, o.bool_GROSSESSE AS grossesse,"
+            + " o.bool_ALLAITEMENT AS allaitement, o.bool_INSUF_RENALE AS insuffisanceRenale,"
+            + " o.bool_INSUF_HEPATIQUE AS insuffisanceHepatique," + " (SELECT COUNT(*) FROM t_ordonnance_client_piece p"
             + "   WHERE p.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS nbPieces," + " o.dt_CREATED AS creeLe,"
             + " TRIM(CONCAT(COALESCE(uc.str_FIRST_NAME, ''), ' ', COALESCE(uc.str_LAST_NAME, ''))) AS creePar,"
             + " o.dt_UPDATED AS modifieLe,"
@@ -131,9 +143,46 @@ public final class OrdonnanceClientSql {
     public static String details() {
         return "SELECT d.lg_DETAIL_ID AS id, d.lg_FAMILLE_ID AS articleId, d.str_LIBELLE AS libelle,"
                 + " f.int_CIP AS cip, d.int_QUANTITE AS quantite, d.str_POSOLOGIE AS posologie,"
-                + " d.str_DUREE AS duree, d.int_ORDRE AS ordre" + " FROM t_ordonnance_client_detail d"
-                + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                + " d.str_DUREE AS duree, d.int_ORDRE AS ordre, d.int_QTE_SERVIE AS qteServie"
+                + " FROM t_ordonnance_client_detail d" + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                 + " WHERE d.lg_ORDONNANCE_ID = :ordonnance ORDER BY d.int_ORDRE ASC";
+    }
+
+    /**
+     * ANALYSE DES ORDONNANCES (retour du 22/09) : une ligne PAR ORDONNANCE, avec ce qu'il faut pour la ventiler par
+     * prescripteur, etablissement et type de client. L'agregation est faite en Java ({@link OrdonnanceAnalyse}) : les
+     * regles de taux s'y verifient sans base, et une seule lecture sert les quatre ventilations.
+     *
+     * <p>
+     * Memes criteres que l'historique (periode, type, prescripteur, recherche), annulees COMPRISES : le taux
+     * d'annulation en a besoin. Elles sont ensuite ecartees des taux de service.
+     */
+    public static String analyse(Criteres c) {
+        return "SELECT o.lg_ORDONNANCE_ID AS id, o.str_STATUT AS statut, o.lg_CLIENT_ID AS clientId,"
+                + " COALESCE(NULLIF(TRIM(CONCAT(COALESCE(m.str_FIRST_NAME, ''), ' ', COALESCE(m.str_LAST_NAME, ''))),"
+                + " ''), '') AS medecin," + " COALESCE(TRIM(o.str_ETABLISSEMENT), '') AS etablissement,"
+                + " COALESCE(tc.str_NAME, '') AS typeClient," + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d"
+                + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS nbLignes,"
+                + " (SELECT COUNT(d.int_QTE_SERVIE) FROM t_ordonnance_client_detail d"
+                + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS nbRenseignees,"
+                + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+                + "   AND d.int_QTE_SERVIE >= d.int_QUANTITE) AS nbServies,"
+                + " (SELECT COALESCE(SUM(d.int_QTE_SERVIE), 0) FROM t_ordonnance_client_detail d"
+                + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS qteServie" + JOINTURES + conditions(c);
+    }
+
+    /**
+     * Produits les plus prescrits sur les memes criteres, annulees EXCLUES (une prescription annulee n'a pas ete
+     * prescrite). Regroupes par libelle recopie : c'est ce que le medecin a ecrit, reference ou non.
+     */
+    public static String analyseProduits(Criteres c) {
+        return "SELECT d.str_LIBELLE AS produit, COUNT(*) AS nbPrescriptions, SUM(d.int_QUANTITE) AS qtePrescrite,"
+                + " COUNT(d.int_QTE_SERVIE) AS nbRenseignees,"
+                + " SUM(CASE WHEN d.int_QTE_SERVIE >= d.int_QUANTITE THEN 1 ELSE 0 END) AS nbServies,"
+                + " COALESCE(SUM(d.int_QTE_SERVIE), 0) AS qteServie" + JOINTURES
+                + " JOIN t_ordonnance_client_detail d ON d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID" + conditions(c)
+                + " AND o.str_STATUT <> 'annulee'"
+                + " GROUP BY d.str_LIBELLE ORDER BY nbPrescriptions DESC, produit ASC";
     }
 
     /**

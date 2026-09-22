@@ -120,7 +120,7 @@ function poser() {
       await p.waitForTimeout(900);
     };
 
-    await clicBouton('ordonnanceclient #barreCriteres button[itemId=nouvelle]');
+    await clicBouton('ordonnanceclient #grilleOrdonnances button[itemId=nouvelle]');
     const surFiche = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
       return {
@@ -406,9 +406,10 @@ function poser() {
         const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
         const visible = (s) => { const c = e.down(s); return c ? c.isVisible() : null; };
         return { droits: droits,
-          nouvelle: visible('#barreCriteres button[itemId=nouvelle]'),
-          modifier: visible('#grilleOrdonnances button[itemId=modifier]'),
-          annuler: visible('#grilleOrdonnances button[itemId=annuler]') };
+          nouvelle: visible('#grilleOrdonnances button[itemId=nouvelle]'),
+          /* Actions par ligne (22/09) : sans le droit, Modifier et Annuler sont GRISES sur chaque ligne. */
+          modifier: [...document.querySelectorAll('.ordo-act-modifier')].some((k) => !k.classList.contains('x-item-disabled')),
+          annuler: [...document.querySelectorAll('.ordo-act-annuler')].some((k) => !k.classList.contains('x-item-disabled')) };
       });
       ok('Sans le privilège d écriture, le service ne l accorde pas',
         sansDroit.droits.consulter === true && sansDroit.droits.modifier === false,
