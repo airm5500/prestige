@@ -11,6 +11,9 @@ public class PososResultat {
     private List<Alerte> alertes = new ArrayList<>();
     /** Produits que Posos n'a pas reconnus : l'officine doit savoir ce qui n'a PAS ete analyse. */
     private List<String> produitsNonReconnus = new ArrayList<>();
+    /** Resultat du MODE DEMONSTRATION (regles preparees), jamais une vraie analyse Posos : l'ecran le dit. */
+    private boolean demonstration;
+    private String avertissement;
 
     public static PososResultat indisponible(String message) {
         PososResultat r = new PososResultat();
@@ -41,6 +44,22 @@ public class PososResultat {
 
     public void setAlertes(List<Alerte> alertes) {
         this.alertes = alertes == null ? new ArrayList<>() : alertes;
+    }
+
+    public boolean isDemonstration() {
+        return demonstration;
+    }
+
+    public void setDemonstration(boolean demonstration) {
+        this.demonstration = demonstration;
+    }
+
+    public String getAvertissement() {
+        return avertissement;
+    }
+
+    public void setAvertissement(String avertissement) {
+        this.avertissement = avertissement;
     }
 
     public List<String> getProduitsNonReconnus() {
@@ -130,7 +149,7 @@ public class PososResultat {
             return !(g.contains("mineur") || g.contains("minor") || g.contains("faible") || g.contains("low")
                     || g.contains("information") || g.contains("info") || g.contains("precaution")
                     || g.contains("précaution") || g.contains("surveillance") || g.contains("moderate")
-                    || g.contains("modere") || g.contains("modéré"));
+                    || g.contains("prendre en compte") || g.contains("modere") || g.contains("modéré"));
         }
     }
 }

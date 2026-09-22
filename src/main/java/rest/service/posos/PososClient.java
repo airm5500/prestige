@@ -171,6 +171,14 @@ public class PososClient {
      * croire qu'il n'y a pas d'alerte.
      */
     public PososResultat analyser(PososConfiguration config, PososDemande demande) {
+        if (config != null && config.modeDemonstration()) {
+            /* Aucun appel reseau : les regles preparees, et l'avertissement sur chaque resultat. */
+            PososDemonstration demo = PososDemonstration.chargee();
+            PososResultat r = demo.analyser(demande);
+            r.setDemonstration(true);
+            r.setAvertissement(demo.avertissement());
+            return r;
+        }
         if (config == null || !config.estConfiguree()) {
             return PososResultat.indisponible("Posos n'est pas configuré sur ce poste. "
                     + "Voir le gestionnaire : adresse et identifiants sont à renseigner côté serveur.");

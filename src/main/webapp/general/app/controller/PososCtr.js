@@ -72,7 +72,11 @@ Ext.define('testextjs.controller.PososCtr', {
             zone.update('<div style="color:#c0392b;">L\'état de la passerelle Posos n\'a pas pu être lu.</div>');
             return;
         }
-        if (r.configuree) {
+        if (r.configuree && r.mode === 'demonstration') {
+            // PROVISOIRE : l'analyse vient de regles preparees, pas de Posos. Le bandeau ne doit pas se rater.
+            zone.update('<div class="posos-demo">MODE DÉMONSTRATION — les analyses viennent de règles préparées '
+                    + 'pour la présentation, pas de Posos. Ne pas utiliser pour une décision réelle.</div>');
+        } else if (r.configuree) {
             zone.update('<div style="color:#17987e;">Posos configuré — ' + Ext.String.htmlEncode(r.url || '')
                     + ' (identifiant ' + Ext.String.htmlEncode(r.clientId || '') + ')</div>');
         } else {
@@ -248,6 +252,9 @@ Ext.define('testextjs.controller.PososCtr', {
             me.dire(r.message || 'Analyse indisponible.', true);
             return;
         }
+        var demo = r.demonstration === true
+                ? '<div class="posos-demo">' + Ext.String.htmlEncode(r.avertissement || 'DÉMONSTRATION') + '</div>'
+                : '';
         var parties = [];
         var majeures = r.nombreMajeures || 0;
         parties.push((r.total || 0) + ' alerte(s)');
@@ -257,13 +264,13 @@ Ext.define('testextjs.controller.PososCtr', {
         }
         if (r.produitsNonReconnus && r.produitsNonReconnus.length) {
             // Un produit non analyse est plus dangereux qu'une alerte : il doit se voir.
-            parties.push('<span style="color:#c0392b;">non analysé(s) par Posos : '
+            parties.push('<span style="color:#c0392b;">' + (r.demonstration === true ? 'non couvert(s) par la démonstration, ne pas conclure à l\'absence d\'interaction : ' : 'non analysé(s) par Posos : ')
                     + Ext.String.htmlEncode(r.produitsNonReconnus.join(', ')) + '</span>');
         }
         if ((r.total || 0) === 0 && r.message) {
             parties = [Ext.String.htmlEncode(r.message)];
         }
-        me.dire(parties.join(' — '), false);
+        me.dire(demo + parties.join(' — '), false);
     },
 
     dire: function (texte, alerte) {

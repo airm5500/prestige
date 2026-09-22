@@ -1947,3 +1947,6 @@ body.x-body,
 .ordo-tuile-valeur { font-size: 22px; font-weight: bold; color: #222; line-height: 28px; }
 .ordo-tuile-detail { font-size: 11px; color: #555; }
 .ordo-resume { font-size: 13px; }
+/* Mode DEMONSTRATION de l'analyse Posos (provisoire) : impossible a confondre avec une vraie analyse. */
+.posos-demo { background: #c0392b; color: #fff; font-weight: bold; padding: 4px 8px; margin: 2px 0 4px 0;
+    border-radius: 3px; }

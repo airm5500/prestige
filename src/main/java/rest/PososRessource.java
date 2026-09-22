@@ -223,6 +223,8 @@ public class PososRessource {
         json.put("alertes", alertes);
         json.put("total", alertes.length());
         json.put("produitsNonReconnus", new JSONArray(resultat.getProduitsNonReconnus()));
+        json.put("demonstration", resultat.isDemonstration());
+        json.put("avertissement", resultat.getAvertissement() == null ? "" : resultat.getAvertissement());
         return json;
     }
 }

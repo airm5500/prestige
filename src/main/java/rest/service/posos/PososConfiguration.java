@@ -63,6 +63,11 @@ public final class PososConfiguration {
     static final String CLE_DELAI = "POSOS_TIMEOUT_MS";
     /** Vrai pour envoyer les identifiants en en-tete Basic, faux pour les mettre dans le corps du formulaire. */
     static final String CLE_BASIC = "POSOS_TOKEN_BASIC_AUTH";
+    /**
+     * {@code POSOS_MODE=demonstration} : analyse par les regles preparees ({@link PososDemonstration}), sans appel a
+     * Posos. PROVISOIRE, pour une presentation en attendant les acces. Ne s'active que cote serveur.
+     */
+    static final String CLE_MODE = "POSOS_MODE";
 
     static final String TOKEN_PATH_DEFAUT = "/oauth/token";
     static final String ANALYSIS_PATH_DEFAUT = "/v1/analysis";
@@ -173,6 +178,18 @@ public final class PososConfiguration {
         }
     }
 
+    /** Mode demonstration demande cote serveur. */
+    public boolean modeDemonstration() {
+        String v = lire(CLE_MODE);
+        return v != null && (v.equalsIgnoreCase("demonstration") || v.equalsIgnoreCase("démonstration")
+                || v.equalsIgnoreCase("demo"));
+    }
+
+    /** L'analyse peut etre lancee : Posos configure, ou mode demonstration. */
+    public boolean estUtilisable() {
+        return modeDemonstration() || estConfiguree();
+    }
+
     /** La passerelle n'est utilisable que si l'adresse et les deux identifiants sont tous les trois presents. */
     public boolean estConfiguree() {
         return url() != null && clientId() != null && clientSecret() != null;
@@ -192,7 +209,9 @@ public final class PososConfiguration {
      */
     public Map<String, Object> diagnostic() {
         Map<String, Object> d = new LinkedHashMap<>();
-        d.put("configuree", estConfiguree());
+        /* « configuree » = l'analyse peut etre lancee ; « mode » dit par quoi (le bouton de l'ecran en depend). */
+        d.put("configuree", estUtilisable());
+        d.put("mode", modeDemonstration() ? "demonstration" : "posos");
         d.put("url", url() == null ? "" : url());
         d.put("cheminJeton", cheminJeton());
         d.put("cheminAnalyse", cheminAnalyse());
@@ -240,7 +259,10 @@ public final class PososConfiguration {
             + "# Facultatif : identifiants en en-tete Basic (1, defaut) ou dans le corps\n" + "# du formulaire (0).\n"
             + "#" + PososConfiguration.CLE_BASIC + "=1\n" + "\n"
             + "# Facultatif : delai d'attente en millisecondes (defaut " + DELAI_DEFAUT_MS + ").\n" + "#"
-            + PososConfiguration.CLE_DELAI + "=" + DELAI_DEFAUT_MS + "\n";
+            + PososConfiguration.CLE_DELAI + "=" + DELAI_DEFAUT_MS + "\n" + "\n"
+            + "# PROVISOIRE, pour une presentation : analyse par des regles preparees, sans\n"
+            + "# appel a Posos. L'ecran affiche alors un bandeau DEMONSTRATION.\n" + "#" + PososConfiguration.CLE_MODE
+            + "=demonstration\n";
 
     /**
      * Cree {@code posos.properties} au deploiement s'il n'existe pas, dans le dossier de {@code dicisms.properties} -

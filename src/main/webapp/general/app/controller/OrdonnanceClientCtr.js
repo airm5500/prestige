@@ -937,18 +937,25 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                     dire(Ext.String.htmlEncode(r.message || 'Analyse Posos indisponible.'), true);
                     return;
                 }
+                /* Mode demonstration (provisoire) : l'avertissement passe AVANT les alertes, en rouge. */
+                var demo = r.demonstration === true ? '<div class="posos-demo">'
+                        + Ext.String.htmlEncode(r.avertissement || 'DÉMONSTRATION') + '</div>' : '';
                 var parties = [(r.total || 0) + ' alerte(s)'];
                 if (r.nombreMajeures > 0) {
                     parties.push('<b style="color:#c0392b">dont ' + r.nombreMajeures + ' à lire absolument</b>');
                 }
                 if (r.produitsNonReconnus && r.produitsNonReconnus.length) {
-                    parties.push('<span style="color:#c0392b">non analysé(s) par Posos : '
+                    parties.push('<span style="color:#c0392b">' + (r.demonstration === true ? 'non couvert(s) par la démonstration : ' : 'non analysé(s) par Posos : ')
                             + Ext.String.htmlEncode(r.produitsNonReconnus.join(', ')) + '</span>');
                 }
                 if ((r.total || 0) === 0 && r.message) {
                     parties = [Ext.String.htmlEncode(r.message)];
                 }
-                dire(parties.join(' — '), false);
+                if (r.demonstration === true && r.produitsNonReconnus && r.produitsNonReconnus.length) {
+                    parties.push('<b style="color:#c0392b">ne pas conclure à l\'absence d\'interaction pour les '
+                            + 'produits non couverts</b>');
+                }
+                dire(demo + parties.join(' — '), false);
             },
             failure: function () {
                 dire('L\'analyse Posos n\'a pas abouti.', true);
