@@ -139,11 +139,18 @@ function demarrerPosos() {
     /* ------------------------------------------- d abord SANS configuration */
     poserConfig(null);
     statut = await json('../api/v1/posos/status');
-    ok('sans configuration, le statut repond et annonce « non configurée »',
-      statut.success === true && statut.configuree === false, JSON.stringify(statut));
+    /* Retour du 23/09 : sans acces Posos, la SOLUTION INTERMEDIAIRE (mode demonstration) repond. */
+    ok('sans configuration, le statut annonce le mode démonstration (solution intermédiaire)',
+      statut.success === true && statut.configuree === true && statut.mode === 'demonstration', JSON.stringify(statut));
     ok('le statut dit que le fichier est absent, pour qu on sache quoi déposer',
       statut.fichierPresent === false, JSON.stringify({ a: statut.fichierAttendu, p: statut.fichierPresent }));
-    ok('sans configuration, aucune analyse n est tentee et l indisponibilite est dite',
+    ok('sans configuration, l analyse vient des règles de démonstration, sans aucun appel à Posos',
+      await (async () => {
+        const r = await json('../api/v1/posos/analyse', { produits: [{ nom: 'DOLIPRANE 500MG CPR B/16' }] });
+        return r.demonstration === true && /DÉMONSTRATION/.test(r.avertissement || '') && journal.jetons === 0;
+      })());
+    poserConfig('POSOS_MODE=aucun\n');
+    ok('POSOS_MODE=aucun : aucune analyse n est tentee et l indisponibilite est dite',
       await (async () => {
         const r = await json('../api/v1/posos/analyse', { produits: [{ nom: 'PARACETAMOL 500 MG' }] });
         return r.disponible === false && /pas configuré/.test(r.message || '') && journal.jetons === 0;

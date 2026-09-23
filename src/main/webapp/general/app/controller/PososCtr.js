@@ -74,8 +74,9 @@ Ext.define('testextjs.controller.PososCtr', {
         }
         if (r.configuree && r.mode === 'demonstration') {
             // PROVISOIRE : l'analyse vient de regles preparees, pas de Posos. Le bandeau ne doit pas se rater.
-            zone.update('<div class="posos-demo">MODE DÉMONSTRATION — les analyses viennent de règles préparées '
-                    + 'pour la présentation, pas de Posos. Ne pas utiliser pour une décision réelle.</div>');
+            zone.update('<div class="posos-demo">MODE DÉMONSTRATION — en attendant les accès Posos, les analyses '
+                    + 'viennent de règles préparées (Thésaurus ANSM, RCP). Ne pas utiliser pour une décision réelle.'
+                    + '</div>');
         } else if (r.configuree) {
             zone.update('<div style="color:#17987e;">Posos configuré — ' + Ext.String.htmlEncode(r.url || '')
                     + ' (identifiant ' + Ext.String.htmlEncode(r.clientId || '') + ')</div>');
@@ -268,7 +269,8 @@ Ext.define('testextjs.controller.PososCtr', {
                     + Ext.String.htmlEncode(r.produitsNonReconnus.join(', ')) + '</span>');
         }
         if ((r.total || 0) === 0 && r.message) {
-            parties = [Ext.String.htmlEncode(r.message)];
+            // Aucune alerte : le message remplace le compteur, mais les produits non couverts restent dits.
+            parties[0] = Ext.String.htmlEncode(r.message);
         }
         me.dire(demo + parties.join(' — '), false);
     },

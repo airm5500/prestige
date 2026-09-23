@@ -1189,7 +1189,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                             + Ext.String.htmlEncode(r.produitsNonReconnus.join(', ')) + '</span>');
                 }
                 if ((r.total || 0) === 0 && r.message) {
-                    parties = [Ext.String.htmlEncode(r.message)];
+                    /* Aucune alerte : le message remplace le compteur, mais les produits non couverts restent dits. */
+                    parties[0] = Ext.String.htmlEncode(r.message);
                 }
                 if (r.demonstration === true && r.produitsNonReconnus && r.produitsNonReconnus.length) {
                     parties.push('<b style="color:#c0392b">ne pas conclure à l\'absence d\'interaction pour les '

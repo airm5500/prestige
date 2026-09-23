@@ -75,8 +75,11 @@ const MARQUE = 'E2E-DEMO';
 
     /* ---------------------------------------------------------------- hors demonstration */
     fs.writeFileSync(CONF, avant ? avant : '');
-    const statut = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/posos/status')).text()));
-    ok('Mode retiré de la configuration : la passerelle redevient « Posos », non configurée', statut.mode === 'posos' && statut.configuree === false, JSON.stringify({ mode: statut.mode, configuree: statut.configuree }));
+    let statut = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/posos/status')).text()));
+    ok('Sans la ligne POSOS_MODE et sans accès Posos : la solution intermédiaire reste active d elle-même', statut.mode === 'demonstration' && statut.configuree === true, JSON.stringify({ mode: statut.mode, configuree: statut.configuree }));
+    fs.writeFileSync(CONF, (avant ? avant.toString() : '') + '\nPOSOS_MODE=aucun\n');
+    statut = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/posos/status')).text()));
+    ok('POSOS_MODE=aucun : la démonstration se désactive, la passerelle se dit non configurée', statut.mode === 'posos' && statut.configuree === false, JSON.stringify({ mode: statut.mode, configuree: statut.configuree }));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);

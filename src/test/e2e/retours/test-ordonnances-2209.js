@@ -139,7 +139,7 @@ const MARQUE = 'E2E-2209';
     await clic('ordonnanceclient #vueFiche button[itemId=analyserPosos]');
     await p.waitForTimeout(1500);
     const posos = await p.evaluate(() => { const g = Ext.ComponentQuery.query('ordonnanceclient #alertesFiche')[0]; return { visible: g.isVisible(), message: g.down('#messagePosos').getEl().dom.textContent }; });
-    ok('Analyser (Posos) depuis la fiche : le résultat s affiche sous les produits', posos.visible && posos.message.length > 3 && !/en cours/.test(posos.message), JSON.stringify(posos));
+    ok('Analyser l ordonnance depuis la fiche : le résultat s affiche sous les produits', posos.visible && posos.message.length > 3 && !/en cours/.test(posos.message), JSON.stringify(posos));
     const envoi = envoisPosos[envoisPosos.length - 1] || '';
     ok('Ce qui part vers Posos : produit, posologie, âge, grossesse - et AUCUN nom de client', /1 cp matin et soir/.test(envoi) && /"age":34/.test(envoi) && /"grossesse":true/.test(envoi) && envoi.indexOf(nomClient) < 0, envoi.slice(0, 300));
 

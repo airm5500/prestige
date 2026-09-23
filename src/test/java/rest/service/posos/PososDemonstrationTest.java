@@ -146,6 +146,9 @@ public class PososDemonstrationTest {
         assertTrue(conf.modeDemonstration() && conf.estUtilisable());
         assertFalse(conf.estConfiguree(), "aucun identifiant Posos n'est pour autant pretendu present");
         assertEquals("demonstration", conf.diagnostic().get("mode"));
+        // Sans rien : solution intermediaire ; « aucun » la desactive.
+        assertTrue(PososConfiguration.de(java.util.Map.of()).modeDemonstration());
+        assertFalse(PososConfiguration.de(java.util.Map.of("POSOS_MODE", "aucun")).estUtilisable());
         PososClient client = new PososClient();
         client.setAppelant(new PososClient.Appelant() {
             public PososClient.Reponse poster(String u, java.util.Map<String, String> e, javax.ws.rs.core.Form f,

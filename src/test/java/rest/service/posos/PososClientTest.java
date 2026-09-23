@@ -50,13 +50,34 @@ public class PososClientTest {
     }
 
     @Test
-    public void sansConfigurationAucunAppelNEstTenteEtLIndisponibiliteEstDite() {
+    public void sansConfigurationLaSolutionIntermediaireRepondSansAucunAppel() {
+        // Retour du 23/09 : sans acces Posos, c'est le mode demonstration qui repond - jamais un appel reseau.
         PososResultat r = client.analyser(PososConfiguration.de(new HashMap<>()), demandeSimple());
+        assertTrue(r.isDemonstration(), "sans Posos configure, le mode demonstration repond");
+        assertTrue(r.getAvertissement().contains("DÉMONSTRATION"));
+        assertEquals(0, simule.appelsJeton);
+        assertEquals(0, simule.appelsAnalyse);
+    }
 
+    @Test
+    public void modeAucunSansConfigurationAucunAppelNEstTenteEtLIndisponibiliteEstDite() {
+        java.util.Map<String, String> aucun = new HashMap<>();
+        aucun.put("POSOS_MODE", "aucun");
+        PososResultat r = client.analyser(PososConfiguration.de(aucun), demandeSimple());
+
+        assertFalse(r.isDemonstration());
         assertFalse(r.isDisponible());
         assertTrue(r.getMessage().contains("pas configuré"), r.getMessage());
         assertEquals(0, simule.appelsJeton);
         assertEquals(0, simule.appelsAnalyse);
+    }
+
+    @Test
+    public void unPososConfigurePrendLeRelaisDuModeDemonstration() {
+        // Des que les acces sont renseignes, c'est Posos : la demonstration s'efface d'elle-meme.
+        PososResultat r = client.analyser(config(), demandeSimple());
+        assertFalse(r.isDemonstration());
+        assertEquals(1, simule.appelsAnalyse);
     }
 
     @Test

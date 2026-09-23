@@ -971,7 +971,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 }, {
                     xtype: 'button',
                     itemId: 'analyserPosos',
-                    text: 'Analyser (Posos)',
+                    /* Posos quand il est configure, sinon le mode demonstration : le resultat dit lequel
+                       (bandeau rouge DEMONSTRATION). */
+                    text: 'Analyser l\'ordonnance',
                     icon: 'resources/images/icons/fam/information.png',
                     cls: 'ordo-btn-posos',
                     tooltip: 'Interactions, contre-indications et posologies des produits de cette ordonnance'
@@ -1056,7 +1058,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         var grille = {
             xtype: 'gridpanel',
             itemId: itemId,
-            title: 'Analyse Posos',
+            title: 'Analyse de l\'ordonnance',
             hidden: true,
             store: store,
             height: 200,

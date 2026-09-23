@@ -64,8 +64,14 @@ public final class PososConfiguration {
     /** Vrai pour envoyer les identifiants en en-tete Basic, faux pour les mettre dans le corps du formulaire. */
     static final String CLE_BASIC = "POSOS_TOKEN_BASIC_AUTH";
     /**
-     * {@code POSOS_MODE=demonstration} : analyse par les regles preparees ({@link PososDemonstration}), sans appel a
-     * Posos. PROVISOIRE, pour une presentation en attendant les acces. Ne s'active que cote serveur.
+     * Mode de l'analyse (retour du 23/09 : « la solution intermediaire avant Posos »).
+     * <ul>
+     * <li>absent : tant que Posos n'est PAS configure, l'analyse passe par le mode demonstration (regles preparees,
+     * {@link PososDemonstration}) ; des que les acces Posos sont renseignes, c'est Posos ;</li>
+     * <li>{@code demonstration} : mode demonstration force, meme avec Posos configure ;</li>
+     * <li>{@code aucun} : ni demonstration ni Posos tant qu'il n'est pas configure.</li>
+     * </ul>
+     * Ne se regle que cote serveur.
      */
     static final String CLE_MODE = "POSOS_MODE";
 
@@ -181,8 +187,11 @@ public final class PososConfiguration {
     /** Mode demonstration demande cote serveur. */
     public boolean modeDemonstration() {
         String v = lire(CLE_MODE);
-        return v != null && (v.equalsIgnoreCase("demonstration") || v.equalsIgnoreCase("démonstration")
-                || v.equalsIgnoreCase("demo"));
+        if (v == null) {
+            /* La solution intermediaire : sans acces Posos, c'est elle qui repond. */
+            return !estConfiguree();
+        }
+        return v.equalsIgnoreCase("demonstration") || v.equalsIgnoreCase("démonstration") || v.equalsIgnoreCase("demo");
     }
 
     /** L'analyse peut etre lancee : Posos configure, ou mode demonstration. */
@@ -260,9 +269,10 @@ public final class PososConfiguration {
             + "#" + PososConfiguration.CLE_BASIC + "=1\n" + "\n"
             + "# Facultatif : delai d'attente en millisecondes (defaut " + DELAI_DEFAUT_MS + ").\n" + "#"
             + PososConfiguration.CLE_DELAI + "=" + DELAI_DEFAUT_MS + "\n" + "\n"
-            + "# PROVISOIRE, pour une presentation : analyse par des regles preparees, sans\n"
-            + "# appel a Posos. L'ecran affiche alors un bandeau DEMONSTRATION.\n" + "#" + PososConfiguration.CLE_MODE
-            + "=demonstration\n";
+            + "# Tant que Posos n'est pas configure, l'analyse passe par le MODE DEMONSTRATION\n"
+            + "# (regles preparees, bandeau rouge a l'ecran). Des que les identifiants ci-dessus\n"
+            + "# sont renseignes, c'est Posos. Pour forcer : demonstration ; pour desactiver : aucun.\n" + "#"
+            + PososConfiguration.CLE_MODE + "=demonstration\n";
 
     /**
      * Cree {@code posos.properties} au deploiement s'il n'existe pas, dans le dossier de {@code dicisms.properties} -
