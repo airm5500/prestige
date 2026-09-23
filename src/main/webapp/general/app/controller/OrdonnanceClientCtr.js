@@ -49,6 +49,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueFiche button[itemId=abandonner]': {click: me.retourHistorique},
             'ordonnanceclient #vueFiche button[itemId=enregistrer]': {click: me.enregistrer},
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
+            'ordonnanceclient #vueFiche button[itemId=creerClient]': {click: me.creerClient},
+            'ordonnanceclient #vueFiche button[itemId=annulerClient]': {click: me.annulerNouveauClient},
             'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
             'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
             'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
@@ -304,6 +306,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             substituts.hide();
         }
         this.ligneASubstituer = null;
+        var nc = fiche.down('#formNouveauClient');
+        if (nc && nc.isVisible()) {
+            this.annulerNouveauClient();
+        }
     },
 
     /** Consultation : la fiche s'ouvre en lecture, sans qu'on puisse la modifier par inadvertance. */
@@ -346,6 +352,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var enregistrer = ecran.down('#vueFiche button[itemId=enregistrer]');
         if (enregistrer) {
             enregistrer.setVisible(!verrou && !!(this.droits && this.droits.modifier));
+        }
+        /* En consultation, on ne cree pas de client : le client de l'ordonnance ne peut pas changer. */
+        var nouveau = ecran.down('#vueFiche button[itemId=nouveauClient]');
+        if (nouveau) {
+            nouveau.setVisible(!verrou && !!(this.droits && this.droits.modifier));
         }
     },
 
@@ -996,25 +1007,97 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     },
 
     /**
-     * Création d'un client depuis le menu : on ouvre l'écran de création qui existe déjà, on ne récrit pas une
-     * troisième saisie de client. Au retour, le client créé est sélectionné dans la fiche.
+     * Creation d'un client STANDARD depuis la fiche (retour du 23/09) : le formulaire s'ouvre dans la fiche. La
+     * fenetre de la caisse reutilisee jusqu'ici s'ouvrait VIDE hors de l'ecran de vente.
      */
     nouveauClient: function () {
+        var fiche = this.getEcran().down('#vueFiche');
+        var form = fiche.down('#formNouveauClient');
+        if (!form) {
+            return;
+        }
+        form.setVisible(!form.isVisible());
+        if (form.isVisible()) {
+            var nom = form.down('#ncNom');
+            /* Ce qui a ete tape dans la recherche du client sert de nom, pour ne pas le retaper. */
+            var combo = fiche.down('#ficheClient');
+            var tape = Ext.String.trim(combo.getRawValue() || '');
+            /* Le combo garde le texte tape comme valeur : un client est CHOISI seulement si la valeur est un
+               enregistrement de la liste. */
+            var choisi = combo.getValue() && combo.findRecordByValue(combo.getValue());
+            if (tape && !choisi) {
+                nom.setValue(tape.toUpperCase());
+            }
+            nom.focus(false, 100);
+        }
+    },
+
+    annulerNouveauClient: function () {
+        var form = this.getEcran().down('#vueFiche #formNouveauClient');
+        Ext.each(['#ncNom', '#ncPrenom', '#ncTelephone'], function (s) {
+            form.down(s).reset();
+        });
+        form.down('#ncSexe').setValue('');
+        form.hide();
+    },
+
+    creerClient: function () {
         var me = this;
         var ecran = me.getEcran();
-        var fenetre = Ext.create('Ext.window.Window', {
-            title: 'NOUVEAU CLIENT',
-            modal: true,
-            width: 620,
-            autoHeight: true,
-            layout: 'fit',
-            items: [{xtype: 'clientLambda'}]
+        var fiche = ecran.down('#vueFiche');
+        var form = fiche.down('#formNouveauClient');
+        var champs = ['#ncNom', '#ncPrenom', '#ncTelephone'];
+        var valide = true;
+        Ext.each(champs, function (s) {
+            valide = form.down(s).validate() && valide;
         });
-        fenetre.on('close', function () {
-            /* Le client vient peut-être d'être créé : on recharge la liste pour qu'il soit trouvable. */
-            ecran.storeClients.load();
+        if (!valide) {
+            Ext.Msg.alert('Nouveau client', 'Le nom, le prénom et le téléphone sont obligatoires.');
+            return;
+        }
+        var sexe = form.down('#ncSexe').getValue() || '';
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/client/add/lambda',
+            /* Meme service et meme type (6 = Standard) que la creation d'un client a la caisse. */
+            jsonData: {
+                strFIRSTNAME: Ext.String.trim(form.down('#ncNom').getValue()),
+                strLASTNAME: Ext.String.trim(form.down('#ncPrenom').getValue()),
+                strADRESSE: Ext.String.trim(form.down('#ncTelephone').getValue()),
+                lgTYPECLIENTID: '6',
+                strSEXE: sexe || null,
+                /* En TEXTE, comme le formulaire de la caisse : le service refuse un booleen JSON. */
+                consentSms: form.down('#ncConsentement').getValue() === true ? 'true' : 'false'
+            },
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                var c = r.data;
+                if (r.success !== true || !c || !c.lgCLIENTID) {
+                    Ext.Msg.alert('Nouveau client', r.msg || 'Le client n\'a pas pu être créé.');
+                    return;
+                }
+                /* Le client cree est choisi dans la fiche, sans nouvelle recherche. */
+                if (ecran.storeClients.findExact('lgCLIENTID', c.lgCLIENTID) < 0) {
+                    var modele = ecran.storeClients.getProxy().getModel();
+                    ecran.storeClients.add(new modele({
+                        lgCLIENTID: c.lgCLIENTID,
+                        strFIRSTNAME: c.strFIRSTNAME || '',
+                        strLASTNAME: c.strLASTNAME || '',
+                        strTELEPHONE: c.strADRESSE || ''
+                    }));
+                }
+                fiche.down('#ficheClient').setValue(c.lgCLIENTID);
+                /* Le genre saisi sert aussi au contexte clinique, s'il n'est pas deja renseigne. */
+                if (sexe && !fiche.down('#sexePatient').getValue()) {
+                    fiche.down('#sexePatient').setValue(sexe);
+                }
+                me.annulerNouveauClient();
+                me.majBoutonConso();
+            },
+            failure: function () {
+                Ext.Msg.alert('Nouveau client', 'Le client n\'a pas pu être créé.');
+            }
         });
-        fenetre.show();
     }
     ,
 

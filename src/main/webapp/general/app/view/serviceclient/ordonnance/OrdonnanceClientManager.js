@@ -634,6 +634,44 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             emptyText: 'Si connu (saisie libre)',
                             maxLength: 100
                         }]
+                }, me.formNouveauClient()]
+        };
+    },
+
+    /**
+     * Creation d'un client STANDARD depuis la fiche (retour du 23/09). Dans la fiche et non dans une fenetre : la
+     * fenetre de la caisse (clientLambda) ne s'affiche que pilotee par l'ecran de vente, et s'ouvrait vide ici.
+     * Meme service et meme type de client que la caisse.
+     */
+    formNouveauClient: function () {
+        return {
+            xtype: 'container',
+            itemId: 'formNouveauClient',
+            hidden: true,
+            cls: 'ordo-nouveau-client',
+            padding: '6 0 2 0',
+            layout: {type: 'hbox', align: 'middle'},
+            defaults: {margin: '0 8 0 0', labelAlign: 'top'},
+            items: [{
+                    xtype: 'textfield', itemId: 'ncNom', fieldLabel: 'Nom *', width: 170, allowBlank: false,
+                    maxLength: 100
+                }, {
+                    xtype: 'textfield', itemId: 'ncPrenom', fieldLabel: 'Prénom *', width: 170, allowBlank: false,
+                    maxLength: 100
+                }, {
+                    xtype: 'textfield', itemId: 'ncTelephone', fieldLabel: 'Téléphone *', width: 140,
+                    allowBlank: false, maskRe: /[0-9 +.]/, maxLength: 30
+                }, {
+                    xtype: 'combobox', itemId: 'ncSexe', fieldLabel: 'Genre', width: 110, editable: false,
+                    queryMode: 'local', store: [['', '—'], ['F', 'Féminin'], ['M', 'Masculin']], value: ''
+                }, {
+                    xtype: 'checkbox', itemId: 'ncConsentement', boxLabel: 'Accepte SMS / WhatsApp', checked: true,
+                    margin: '18 12 0 0'
+                }, {
+                    xtype: 'button', itemId: 'creerClient', text: 'Créer le client', iconCls: 'save',
+                    cls: 'ordo-btn-primaire', margin: '18 6 0 0'
+                }, {
+                    xtype: 'button', itemId: 'annulerClient', text: 'Annuler', cls: 'ordo-btn', margin: '18 0 0 0'
                 }]
         };
     },
