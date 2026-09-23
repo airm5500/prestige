@@ -51,6 +51,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
             'ordonnanceclient #vueFiche button[itemId=creerClient]': {click: me.creerClient},
             'ordonnanceclient #vueFiche button[itemId=annulerClient]': {click: me.annulerNouveauClient},
+            'ordonnanceclient #vueFiche button[itemId=nouveauMedecin]': {click: me.nouveauMedecin},
+            'ordonnanceclient #vueFiche button[itemId=creerMedecin]': {click: me.creerMedecin},
+            'ordonnanceclient #vueFiche button[itemId=annulerMedecin]': {click: me.fermerNouveauMedecin},
+            'ordonnanceclient #vueFiche button[itemId=nouvelEtablissement]': {click: me.nouvelEtablissement},
+            'ordonnanceclient #vueFiche button[itemId=ajouterEtablissement]': {click: me.ajouterEtablissement},
+            'ordonnanceclient #vueFiche button[itemId=annulerEtablissement]': {click: me.fermerNouvelEtablissement},
             'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
             'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
             'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
@@ -310,6 +316,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (nc && nc.isVisible()) {
             this.annulerNouveauClient();
         }
+        this.fermerNouveauMedecin();
+        this.fermerNouvelEtablissement();
     },
 
     /** Consultation : la fiche s'ouvre en lecture, sans qu'on puisse la modifier par inadvertance. */
@@ -353,11 +361,14 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (enregistrer) {
             enregistrer.setVisible(!verrou && !!(this.droits && this.droits.modifier));
         }
-        /* En consultation, on ne cree pas de client : le client de l'ordonnance ne peut pas changer. */
-        var nouveau = ecran.down('#vueFiche button[itemId=nouveauClient]');
-        if (nouveau) {
-            nouveau.setVisible(!verrou && !!(this.droits && this.droits.modifier));
-        }
+        /* En consultation, on ne cree ni client, ni prescripteur, ni etablissement. */
+        var peutCreer = !verrou && !!(this.droits && this.droits.modifier);
+        Ext.each(['nouveauClient', 'nouveauMedecin', 'nouvelEtablissement'], function (b) {
+            var bouton = ecran.down('#vueFiche button[itemId=' + b + ']');
+            if (bouton) {
+                bouton.setVisible(peutCreer);
+            }
+        });
     },
 
     /** Double-clic sur une ligne : consultation. */
@@ -1030,6 +1041,114 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             }
             nom.focus(false, 100);
         }
+    },
+
+    /* ------------------------------------------------ prescripteur et etablissement rapides (23/09) */
+
+    nouveauMedecin: function () {
+        var fiche = this.getEcran().down('#vueFiche');
+        var form = fiche.down('#formNouveauMedecin');
+        form.setVisible(!form.isVisible());
+        if (form.isVisible()) {
+            /* Ce qui a ete tape dans le prescripteur sert de nom. */
+            var combo = fiche.down('#ficheMedecin');
+            var tape = Ext.String.trim(combo.getRawValue() || '');
+            if (tape && !(combo.getValue() && combo.findRecordByValue(combo.getValue()))) {
+                form.down('#nmNom').setValue(tape.toUpperCase());
+            }
+            form.down('#nmNom').focus(false, 100);
+        }
+    },
+
+    fermerNouveauMedecin: function () {
+        var form = this.getEcran().down('#vueFiche #formNouveauMedecin');
+        if (!form) {
+            return;
+        }
+        Ext.each(['#nmNom', '#nmPrenom', '#nmSpecialite', '#nmTelephone'], function (s) {
+            form.down(s).reset();
+        });
+        form.hide();
+    },
+
+    creerMedecin: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var fiche = ecran.down('#vueFiche');
+        var form = fiche.down('#formNouveauMedecin');
+        if (!form.down('#nmNom').validate()) {
+            Ext.Msg.alert('Nouveau prescripteur', 'Le nom du prescripteur est obligatoire.');
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/ordonnance-client/medecins/creer',
+            jsonData: {
+                nom: Ext.String.trim(form.down('#nmNom').getValue() || ''),
+                prenom: Ext.String.trim(form.down('#nmPrenom').getValue() || ''),
+                specialite: Ext.String.trim(form.down('#nmSpecialite').getValue() || ''),
+                telephone: Ext.String.trim(form.down('#nmTelephone').getValue() || '')
+            },
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true || !r.id) {
+                    Ext.Msg.alert('Nouveau prescripteur', r.message || 'Le prescripteur n\'a pas pu être créé.');
+                    return;
+                }
+                if (ecran.storeMedecins.findExact('id', r.id) < 0) {
+                    var modele = ecran.storeMedecins.getProxy().getModel();
+                    ecran.storeMedecins.add(new modele({id: r.id, nom: r.nom}));
+                }
+                fiche.down('#ficheMedecin').setValue(r.id);
+                me.fermerNouveauMedecin();
+            },
+            failure: function () {
+                Ext.Msg.alert('Nouveau prescripteur', 'Le prescripteur n\'a pas pu être créé.');
+            }
+        });
+    },
+
+    nouvelEtablissement: function () {
+        var fiche = this.getEcran().down('#vueFiche');
+        var form = fiche.down('#formNouvelEtablissement');
+        form.setVisible(!form.isVisible());
+        if (form.isVisible()) {
+            var tape = Ext.String.trim(fiche.down('#ficheEtablissement').getRawValue() || '');
+            if (tape) {
+                form.down('#neNom').setValue(tape.toUpperCase());
+            }
+            form.down('#neNom').focus(false, 100);
+        }
+    },
+
+    fermerNouvelEtablissement: function () {
+        var form = this.getEcran().down('#vueFiche #formNouvelEtablissement');
+        if (!form) {
+            return;
+        }
+        form.down('#neNom').reset();
+        form.hide();
+    },
+
+    /**
+     * L'etablissement est pose dans la fiche et ajoute a la liste proposee ; il est enregistre avec l'ordonnance.
+     * Il n'y a pas de referentiel des etablissements : c'est la liste des ordonnances deja saisies qui en tient lieu.
+     */
+    ajouterEtablissement: function () {
+        var ecran = this.getEcran();
+        var fiche = ecran.down('#vueFiche');
+        var form = fiche.down('#formNouvelEtablissement');
+        var champ = form.down('#neNom');
+        if (!champ.validate()) {
+            Ext.Msg.alert('Nouvel établissement', 'Le nom de l\'établissement est obligatoire.');
+            return;
+        }
+        var nom = Ext.String.trim(champ.getValue()).toUpperCase();
+        if (ecran.storeEtablissements.findExact('nom', nom) < 0) {
+            ecran.storeEtablissements.add({nom: nom});
+        }
+        fiche.down('#ficheEtablissement').setValue(nom);
+        this.fermerNouvelEtablissement();
     },
 
     annulerNouveauClient: function () {

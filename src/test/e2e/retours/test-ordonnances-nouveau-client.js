@@ -1,4 +1,5 @@
-/* ORDONNANCES : « NOUVEAU CLIENT » DEPUIS LA FICHE (retour du 23/09 : la fenetre s'ouvrait VIDE).
+/* ORDONNANCES : CREATIONS RAPIDES DEPUIS LA FICHE (23/09) - client standard (la fenetre s'ouvrait VIDE),
+ * prescripteur et etablissement.
  *
  * Joue a la souris et au clavier : Nouvelle ordonnance, recherche d'un client absent, « Nouveau client », saisie,
  * « Creer le client ». Le client est cree en STANDARD (meme service et meme type que la caisse), choisi dans la
@@ -53,6 +54,29 @@ const PRENOM = 'ESSAI' + Date.now().toString().slice(-5);
     ok('Client créé en STANDARD, avec son téléphone et son genre', enBase[2] === 'Standard' && enBase[3] === '0707070707' && enBase[4] === 'F', enBase.join(' | '));
     const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #vueFiche')[0]; return { id: f.down('#ficheClient').getValue(), affiche: f.down('#ficheClient').getRawValue(), sexe: f.down('#sexePatient').getValue(), formCache: !f.down('#formNouveauClient').isVisible() }; });
     ok('Le client créé est choisi dans la fiche, le formulaire se referme, le genre passe au contexte clinique', fiche.id === enBase[0] && new RegExp(NOM).test(fiche.affiche) && fiche.sexe === 'F' && fiche.formCache, JSON.stringify(fiche));
+    /* ---------------------------------------------------- prescripteur rapide (23/09) */
+    await p.click('#' + (await idDe('ordonnanceclient #vueFiche #ficheMedecin')) + '-inputEl');
+    await p.keyboard.type('ZZDOCTEUR', { delay: 30 });
+    await clic('ordonnanceclient #vueFiche button[itemId=nouveauMedecin]');
+    const nm = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #formNouveauMedecin')[0]; return { visible: f.isVisible(), nom: f.down('#nmNom').getValue() }; });
+    ok('Prescripteur : « Nouveau » ouvre la saisie rapide, le nom tapé est repris', nm.visible && nm.nom === 'ZZDOCTEUR', JSON.stringify(nm));
+    await saisir('ordonnanceclient #formNouveauMedecin #nmPrenom', 'Awa');
+    await saisir('ordonnanceclient #formNouveauMedecin #nmSpecialite', 'Pédiatre');
+    await clic('ordonnanceclient #formNouveauMedecin button[itemId=creerMedecin]');
+    await p.waitForTimeout(600);
+    const med = q("SELECT CONCAT_WS('|', lg_MEDECIN_ID, str_FIRST_NAME, str_LAST_NAME, str_Commentaire, str_STATUT) FROM t_medecin WHERE str_LAST_NAME='ZZDOCTEUR'").split('|');
+    const choixMed = await p.evaluate(() => { const c = Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheMedecin')[0]; return { id: c.getValue(), affiche: c.getRawValue(), cache: !Ext.ComponentQuery.query('ordonnanceclient #formNouveauMedecin')[0].isVisible() }; });
+    ok('Prescripteur créé (actif, spécialité notée) et choisi dans la fiche', med[1] === 'AWA' && med[3] === 'Pédiatre' && med[4] === 'enable' && choixMed.id === med[0] && /ZZDOCTEUR/.test(choixMed.affiche) && choixMed.cache, JSON.stringify([med, choixMed]));
+    const doublon = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/ordonnance-client/medecins/creer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: 'zzdocteur', prenom: 'awa' }) })).text()));
+    ok('Même nom et prénom : pas de doublon, le prescripteur existant est rendu', doublon.existant === true && doublon.id === med[0] && q("SELECT COUNT(*) FROM t_medecin WHERE str_LAST_NAME='ZZDOCTEUR'") === '1', JSON.stringify(doublon));
+
+    /* ---------------------------------------------------- etablissement rapide (23/09) */
+    await clic('ordonnanceclient #vueFiche button[itemId=nouvelEtablissement]');
+    await saisir('ordonnanceclient #formNouvelEtablissement #neNom', 'Clinique ZZ Essai');
+    await clic('ordonnanceclient #formNouvelEtablissement button[itemId=ajouterEtablissement]');
+    const etab = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheEtablissement')[0].getRawValue());
+    ok('Établissement ajouté et posé dans la fiche', etab === 'CLINIQUE ZZ ESSAI', etab);
+
     /* L ordonnance s enregistre sur ce client. */
     const c = await p.evaluate(() => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleProduits')[0]; const col = g.down('#colProduit'); const n = g.getView().getCell(g.getStore().getAt(0), col).dom.getBoundingClientRect(); return { x: n.left + 20, y: n.top + n.height / 2 }; });
     await p.mouse.click(c.x, c.y); await p.waitForTimeout(400);
@@ -60,7 +84,7 @@ const PRENOM = 'ESSAI' + Date.now().toString().slice(-5);
     await p.evaluate((m) => { Ext.ComponentQuery.query('ordonnanceclient #vueFiche #observations')[0].setValue(m); }, NOM);
     await clic('ordonnanceclient #vueFiche button[itemId=enregistrer]');
     await p.waitForTimeout(800);
-    ok('L ordonnance s enregistre sur le nouveau client', q("SELECT COUNT(*) FROM t_ordonnance_client WHERE lg_CLIENT_ID='" + enBase[0] + "'") === '1');
+    ok('L ordonnance s enregistre sur le nouveau client, avec le prescripteur et l établissement créés', q("SELECT CONCAT_WS('|', COUNT(*), MAX(lg_MEDECIN_ID), MAX(str_ETABLISSEMENT)) FROM t_ordonnance_client WHERE lg_CLIENT_ID='" + enBase[0] + "'") === '1|' + med[0] + '|CLINIQUE ZZ ESSAI');
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
@@ -73,6 +97,7 @@ const PRENOM = 'ESSAI' + Date.now().toString().slice(-5);
       exec('DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN (' + ids + ')');
       exec('DELETE FROM t_client WHERE lg_CLIENT_ID IN (' + ids + ')');
     }
+    exec("DELETE FROM t_medecin WHERE str_LAST_NAME='ZZDOCTEUR'");
     ok('Remise en état : client et ordonnance de test retirés', q("SELECT COUNT(*) FROM t_client WHERE str_FIRST_NAME='" + NOM + "'") === '0');
     const kos = res.filter((r) => !r.c);
     console.log('\n' + res.filter((r) => r.c).length + '/' + res.length + ' controles OK');

@@ -313,6 +313,25 @@ public class OrdonnanceClientRessource {
         return Response.ok().entity(ordonnanceService.purgerPiecesOrphelines().toString()).build();
     }
 
+    /** Creation rapide d'un prescripteur depuis la fiche (23/09) : droit d'ecriture des ordonnances. */
+    @POST
+    @Path("medecins/creer")
+    public Response creerMedecin(String corps) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject requete;
+        try {
+            requete = new JSONObject(corps == null ? "{}" : corps);
+        } catch (RuntimeException e) {
+            return refus("La saisie n'a pas pu être lue.");
+        }
+        return Response.ok().entity(ordonnanceService.creerMedecin(requete).toString()).build();
+    }
+
     /** Prescripteurs actifs (referentiel medecins existant). */
     @GET
     @Path("medecins")

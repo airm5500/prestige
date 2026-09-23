@@ -885,6 +885,51 @@ public class OrdonnanceClientService {
     }
 
     /**
+     * Creation RAPIDE d'un prescripteur depuis la fiche d'ordonnance (retour du 23/09), dans le referentiel des
+     * prescripteurs des ordonnances ({@code t_medecin}). Un prescripteur de meme nom et prenom existe deja : on le rend
+     * au lieu d'en creer un double - un doublon eclaterait ses ordonnances en deux dans l'analyse.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject creerMedecin(JSONObject requete) {
+        String nom = StringUtils.trimToEmpty(requete.optString("nom", "")).toUpperCase();
+        String prenom = StringUtils.trimToEmpty(requete.optString("prenom", "")).toUpperCase();
+        if (nom.isEmpty()) {
+            return new JSONObject().put("success", false).put("message", "Le nom du prescripteur est obligatoire.");
+        }
+        try {
+            List<Object> existants = em
+                    .createNativeQuery("SELECT m.lg_MEDECIN_ID FROM t_medecin m"
+                            + " WHERE m.str_STATUT = 'enable' AND UPPER(TRIM(COALESCE(m.str_LAST_NAME, ''))) = :nom"
+                            + " AND UPPER(TRIM(COALESCE(m.str_FIRST_NAME, ''))) = :prenom")
+                    .setParameter("nom", nom).setParameter("prenom", prenom).setMaxResults(1).getResultList();
+            String libelle = StringUtils.trim(prenom + " " + nom);
+            if (!existants.isEmpty()) {
+                return new JSONObject().put("success", true).put("id", String.valueOf(existants.get(0)))
+                        .put("nom", libelle).put("existant", true)
+                        .put("message", "Ce prescripteur existait déjà : il est choisi.");
+            }
+            TMedecin m = new TMedecin(identifiant());
+            m.setStrFIRSTNAME(OrdonnanceClientSaisie.tronquer(prenom, 40));
+            m.setStrLASTNAME(OrdonnanceClientSaisie.tronquer(nom, 40));
+            m.setStrPHONE(
+                    OrdonnanceClientSaisie.tronquer(StringUtils.trimToNull(requete.optString("telephone", null)), 20));
+            m.setStrCommentaire(OrdonnanceClientSaisie
+                    .tronquer(StringUtils.trimToNull(requete.optString("specialite", null)), 100));
+            m.setStrCODEINTERNE(util.DateConverter.getShortId(6));
+            m.setStrSTATUT("enable");
+            m.setDtCREATED(new Date());
+            m.setDtUPDATED(m.getDtCREATED());
+            em.persist(m);
+            em.flush();
+            return new JSONObject().put("success", true).put("id", m.getLgMEDECINID()).put("nom", libelle)
+                    .put("existant", false).put("message", "Prescripteur " + libelle + " créé.");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "creation rapide d'un prescripteur", e);
+            return new JSONObject().put("success", false).put("message", "Le prescripteur n'a pas pu être créé.");
+        }
+    }
+
+    /**
      * Etablissements deja saisis, proposes a la frappe.
      *
      * <p>

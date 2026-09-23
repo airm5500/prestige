@@ -616,6 +616,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             /* Facultatif : « le prescripteur et l'etablissement, SI DISPONIBLES ». */
                             allowBlank: true
                         }, {
+                            /* Creation rapide (23/09), dans la fiche. */
+                            xtype: 'button',
+                            itemId: 'nouveauMedecin',
+                            text: 'Nouveau',
+                            iconCls: 'add',
+                            cls: 'ordo-btn',
+                            tooltip: 'Créer un prescripteur sans quitter l\'ordonnance'
+                        }, {
                             xtype: 'combobox',
                             itemId: 'ficheEtablissement',
                             fieldLabel: 'Établissement',
@@ -633,8 +641,74 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             forceSelection: false,
                             emptyText: 'Si connu (saisie libre)',
                             maxLength: 100
+                        }, {
+                            xtype: 'button',
+                            itemId: 'nouvelEtablissement',
+                            text: 'Nouveau',
+                            iconCls: 'add',
+                            cls: 'ordo-btn',
+                            tooltip: 'Ajouter un établissement sans quitter l\'ordonnance'
                         }]
-                }, me.formNouveauClient()]
+                }, me.formNouveauClient(), me.formNouveauMedecin(), me.formNouvelEtablissement()]
+        };
+    },
+
+    /** Creation rapide d'un prescripteur (23/09) : nom obligatoire, le reste facultatif. */
+    formNouveauMedecin: function () {
+        return {
+            xtype: 'container',
+            itemId: 'formNouveauMedecin',
+            hidden: true,
+            cls: 'ordo-nouveau-client',
+            padding: '6 0 2 0',
+            layout: {type: 'hbox', align: 'middle'},
+            defaults: {margin: '0 8 0 0', labelAlign: 'top'},
+            items: [{
+                    xtype: 'displayfield', value: '<b>Nouveau prescripteur</b>', margin: '18 12 0 0'
+                }, {
+                    xtype: 'textfield', itemId: 'nmNom', fieldLabel: 'Nom *', width: 170, allowBlank: false,
+                    maxLength: 40
+                }, {
+                    xtype: 'textfield', itemId: 'nmPrenom', fieldLabel: 'Prénom', width: 170, maxLength: 40
+                }, {
+                    xtype: 'textfield', itemId: 'nmSpecialite', fieldLabel: 'Spécialité', width: 170, maxLength: 100
+                }, {
+                    xtype: 'textfield', itemId: 'nmTelephone', fieldLabel: 'Téléphone', width: 130,
+                    maskRe: /[0-9 +.]/, maxLength: 20
+                }, {
+                    xtype: 'button', itemId: 'creerMedecin', text: 'Créer le prescripteur', iconCls: 'save',
+                    cls: 'ordo-btn-primaire', margin: '18 6 0 0'
+                }, {
+                    xtype: 'button', itemId: 'annulerMedecin', text: 'Annuler', cls: 'ordo-btn', margin: '18 0 0 0'
+                }]
+        };
+    },
+
+    /**
+     * Ajout rapide d'un etablissement (23/09). Il n'existe pas de referentiel des etablissements : celui ajoute est
+     * enregistre AVEC l'ordonnance, puis propose a la frappe dans les suivantes.
+     */
+    formNouvelEtablissement: function () {
+        return {
+            xtype: 'container',
+            itemId: 'formNouvelEtablissement',
+            hidden: true,
+            cls: 'ordo-nouveau-client',
+            padding: '6 0 2 0',
+            layout: {type: 'hbox', align: 'middle'},
+            defaults: {margin: '0 8 0 0', labelAlign: 'top'},
+            items: [{
+                    xtype: 'displayfield', value: '<b>Nouvel établissement</b>', margin: '18 12 0 0'
+                }, {
+                    xtype: 'textfield', itemId: 'neNom', fieldLabel: 'Nom de l\'établissement *', width: 340,
+                    allowBlank: false, maxLength: 100
+                }, {
+                    xtype: 'button', itemId: 'ajouterEtablissement', text: 'Ajouter', iconCls: 'save',
+                    cls: 'ordo-btn-primaire', margin: '18 6 0 0'
+                }, {
+                    xtype: 'button', itemId: 'annulerEtablissement', text: 'Annuler', cls: 'ordo-btn',
+                    margin: '18 0 0 0'
+                }]
         };
     },
 
