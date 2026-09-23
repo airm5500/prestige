@@ -63,6 +63,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #grilleProduits button[itemId=toutServir]': {click: me.toutServir},
             'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents},
             'ordonnanceclient #grilleSubstituts': {remplacer: me.remplacerParEquivalent},
+            'ordonnanceclient #alertesFiche': {proposes: me.montrerProposes},
             'ordonnanceclient #vueFiche button[itemId=analyserPosos]': {click: me.analyserFiche},
             'ordonnanceclient #vueFiche button[itemId=consoFiche]': {click: me.consoDepuisFiche},
             'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso},
@@ -559,6 +560,56 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         });
     },
 
+    /**
+     * Produits proposes par une alerte de l'analyse (23/09), montres dans le panneau des equivalents. « Remplacer »
+     * vise la ligne du premier produit que l'alerte met en cause : c'est lui que la conduite a tenir remplace.
+     */
+    montrerProposes: function (alerte) {
+        var me = this;
+        var ecran = me.getEcran();
+        var grille = ecran.down('#vueFiche #grilleSubstituts');
+        var proposes = alerte.get('equivalents') || [];
+        if (!grille || !proposes.length) {
+            return;
+        }
+        /*
+         * La ligne a remplacer est celle que l'analyse DESIGNE (aRemplacer), jamais « le premier produit cite » :
+         * dans « AVK + AINS », c'est l'AINS qui se remplace, pas l'anticoagulant. Sans designation, pas de
+         * remplacement propose.
+         */
+        var concernes = alerte.get('aRemplacer') || [];
+        var ligne = null;
+        ecran.storeProduits.each(function (r) {
+            if (!ligne && Ext.Array.contains(concernes, r.get('libelle'))) {
+                ligne = r;
+            }
+        });
+        me.ligneASubstituer = ligne;
+        var dci = (alerte.get('proposer') || []).join(' + ');
+        ecran.storeSubstituts.loadData(Ext.Array.map(proposes, function (p) {
+            return {id: p.id, nom: p.nom, cip: p.cip, prix: p.prix, stock: p.stock, niveau: 'proposition',
+                detail: p.detail, raison: 'DCI recommandée par l\'analyse : ' + dci + ' — ' + (p.dosage || 'dosage ?')
+                        + ', ' + (p.forme || '') + ' ; adapter la posologie au patient'
+                        + (p.detail ? ' ; vente à l\'unité, prix unitaire' : '')};
+        }));
+        grille.setTitle('Produits proposés par l\'analyse — ' + Ext.String.htmlEncode(dci));
+        var remplacer = grille.down('#colRemplacer');
+        if (remplacer) {
+            remplacer.setVisible(!me.ficheVerrouillee && !!ligne);
+        }
+        var message = grille.down('#messageSubstituts');
+        if (message) {
+            message.update('<div><b>' + Ext.String.htmlEncode(alerte.get('gravite') || '') + '</b> — '
+                    + Ext.String.htmlEncode(alerte.get('libelle') || '') + '</div>'
+                    + (ligne ? '<div>« Remplacer » remplace <b>' + Ext.String.htmlEncode(ligne.get('libelle'))
+                            + '</b> sur l\'ordonnance.</div>'
+                            : '<div>L\'analyse ne désigne pas le produit à remplacer : à décider avec le prescripteur.</div>')
+                    + '<span style="color:#777">Proposition à valider avec le prescripteur : le logiciel propose, '
+                    + 'le pharmacien décide.</span>');
+        }
+        grille.show();
+    },
+
     /** « Remplacer » : la ligne prend le produit choisi ; quantite, posologie et duree restent celles prescrites. */
     remplacerParEquivalent: function (choisi) {
         var me = this;
@@ -572,6 +623,23 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var grille = me.getEcran().down('#vueFiche #grilleSubstituts');
         if (grille) {
             grille.hide();
+        }
+        /*
+         * Une AUTRE substance proposee par l'analyse : l'ancienne posologie ne vaut pas pour elle. On la vide et le
+         * curseur y va ; un equivalent de meme DCI, lui, garde la posologie prescrite.
+         */
+        if (choisi.get('niveau') === 'proposition') {
+            ligne.set('posologie', '');
+            var produits = me.getGrilleProduits();
+            var edition = produits ? (produits.plugins || [])[0] : null;
+            var colonne = produits ? produits.down('#colPosologie') : null;
+            if (edition && colonne) {
+                Ext.defer(function () {
+                    if (!produits.isDestroyed) {
+                        edition.startEdit(ligne, colonne);
+                    }
+                }, 60);
+            }
         }
     },
 

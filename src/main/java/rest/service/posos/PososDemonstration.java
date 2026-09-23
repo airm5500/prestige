@@ -213,6 +213,12 @@ public final class PososDemonstration {
         String source = regle.optString("source", "");
         a.setRecommandation(regle.optString("conduite") + (source.isEmpty() ? "" : " (Source : " + source + ")"));
         a.setProduits(produits);
+        JSONArray proposer = regle.optJSONArray("proposer");
+        List<String> dcis = new ArrayList<>();
+        for (int i = 0; proposer != null && i < proposer.length(); i++) {
+            dcis.add(proposer.getString(i));
+        }
+        a.setProposer(dcis);
         return a;
     }
 
@@ -266,7 +272,12 @@ public final class PososDemonstration {
             if (concernes.size() < 2) {
                 continue;
             }
-            alertes.add(alerte(regle, new ArrayList<>(concernes), null));
+            PososResultat.Alerte al = alerte(regle, new ArrayList<>(concernes), null);
+            /* Seule la substance NOMMEE par la regle est remplacable : jamais « le premier produit cite ». */
+            if (regle.has("remplacer") && !al.getProposer().isEmpty()) {
+                al.setARemplacer(produitsAvec(reconnus, regle.getString("remplacer")));
+            }
+            alertes.add(al);
         }
     }
 
@@ -283,7 +294,12 @@ public final class PososDemonstration {
             }
             List<String> avec = produitsAvec(reconnus, regle.optString("substance"));
             if (!avec.isEmpty()) {
-                alertes.add(alerte(regle, avec, null));
+                PososResultat.Alerte al = alerte(regle, avec, null);
+                /* Contre-indication liee au patient : c'est le produit en cause qui se remplace. */
+                if (!al.getProposer().isEmpty()) {
+                    al.setARemplacer(avec);
+                }
+                alertes.add(al);
             }
         }
     }

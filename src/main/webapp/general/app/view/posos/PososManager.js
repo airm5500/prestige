@@ -61,7 +61,10 @@ Ext.define('testextjs.view.posos.PososManager', {
                 {name: 'libelle', type: 'string'},
                 {name: 'recommandation', type: 'string'},
                 {name: 'majeure', type: 'boolean'},
-                {name: 'produits'}
+                {name: 'produits'},
+                /* Produits du rayon ayant la DCI recommandee par l'alerte (23/09). */
+                {name: 'equivalents'},
+                {name: 'proposer'}
             ],
             data: []
         });
@@ -241,7 +244,23 @@ Ext.define('testextjs.view.posos.PososManager', {
                             return Ext.String.htmlEncode((v || []).join(', '));
                         }
                     },
-                    {text: 'CONDUITE À TENIR', dataIndex: 'recommandation', flex: 3}
+                    {text: 'CONDUITE À TENIR', dataIndex: 'recommandation', flex: 3},
+                    {text: 'EN RAYON (DCI RECOMMANDÉE)', dataIndex: 'equivalents', flex: 3, itemId: 'colEnRayon',
+                        renderer: function (v, meta) {
+                        /* Produits du rayon ayant EXACTEMENT la DCI recommandee : stock en bleu, prix en rouge. */
+                        var l = Ext.isArray(v) ? v : [];
+                        if (!l.length) {
+                            return '';
+                        }
+                        var ligne = function (p) {
+                            return Ext.String.htmlEncode(p.nom) + ' — <span style="color:' + (p.stock > 0 ? '#1E5FA8' : '#c0392b')
+                                    + ';font-weight:bold">stock ' + p.stock + '</span> — <span style="color:#c0392b;font-weight:bold">'
+                                    + Ext.util.Format.number(p.prix || 0, '0,000') + (p.detail ? ' /unité' : '') + '</span>';
+                        };
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.Array.map(l, ligne).join('<br/>')) + '"';
+                        return Ext.Array.map(l.slice(0, 3), ligne).join('<br/>') + (l.length > 3 ? '<br/><i>+ '
+                                + (l.length - 3) + ' autre(s)</i>' : '');
+                    }}
                 ],
                 viewConfig: {emptyText: '<div style="padding:10px;color:#888;">Aucune analyse lancée.</div>',
                     deferEmptyText: false}

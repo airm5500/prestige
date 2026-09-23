@@ -132,6 +132,55 @@ public class SubstitutionService {
         }
     }
 
+    /**
+     * Les produits du rayon qui ont EXACTEMENT une DCI donnee par son nom (« PARACETAMOL ») : ce que l'analyse
+     * recommande, rendu concret. En stock d'abord, formes orales solides d'abord, boites avant la vente a l'unite,
+     * moins cher d'abord.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONArray produitsDeDci(String nomDci, String emplacementId, int limite) {
+        JSONArray sortie = new JSONArray();
+        if (StringUtils.isBlank(nomDci)) {
+            return sortie;
+        }
+        try {
+            List<String> ids = em
+                    .createNativeQuery("SELECT d.lg_DCI_ID FROM t_dci d WHERE UPPER(TRIM(d.str_NAME)) = :nom")
+                    .setParameter("nom", nomDci.trim().toUpperCase(java.util.Locale.ROOT)).getResultList();
+            List<JSONObject> lignes = new ArrayList<>();
+            boolean avecEmplacement = StringUtils.isNotBlank(emplacementId);
+            for (String id : ids) {
+                Query q = em.createNativeQuery(requeteCandidats(avecEmplacement), Tuple.class)
+                        .setParameter("dcis", java.util.Collections.singletonList(id)).setParameter("cle", id)
+                        .setParameter("origine", "");
+                if (avecEmplacement) {
+                    q.setParameter("emplacement", emplacementId);
+                }
+                for (Tuple t : (List<Tuple>) q.getResultList()) {
+                    String nom = StringUtils.trimToEmpty(t.get("nom", String.class));
+                    String forme = SubstitutionArticle.forme(nom);
+                    lignes.add(new JSONObject().put("id", t.get("id", String.class)).put("nom", nom)
+                            .put("cip", t.get("cip") == null ? "" : String.valueOf(t.get("cip")))
+                            .put("prix", entier(t.get("prix"))).put("stock", entier(t.get("stock")))
+                            .put("detail", entier(t.get("detail")) != 0)
+                            .put("forme", SubstitutionArticle.libelleForme(forme))
+                            .put("dosage", String.join(" + ", SubstitutionArticle.dosage(nom)))
+                            .put("oralSolide", "oral_solide".equals(forme)));
+                }
+            }
+            lignes.sort(Comparator.<JSONObject> comparingInt(l -> l.getInt("stock") > 0 ? 0 : 1)
+                    .thenComparingInt(l -> l.getBoolean("oralSolide") ? 0 : 1)
+                    .thenComparingInt(l -> l.getBoolean("detail") ? 1 : 0).thenComparingInt(l -> l.getInt("prix"))
+                    .thenComparing(l -> l.getString("nom")));
+            for (int i = 0; i < lignes.size() && i < limite; i++) {
+                sortie.put(lignes.get(i));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "produits d'une DCI recommandee", e);
+        }
+        return sortie;
+    }
+
     private static int entier(Object v) {
         return v instanceof Number ? ((Number) v).intValue() : 0;
     }

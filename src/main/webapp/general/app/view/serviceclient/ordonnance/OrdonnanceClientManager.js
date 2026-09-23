@@ -190,7 +190,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             {name: 'libelle', type: 'string'},
             {name: 'produits', type: 'auto'},
             {name: 'recommandation', type: 'string'},
-            {name: 'majeure', type: 'boolean'}
+            {name: 'majeure', type: 'boolean'},
+            {name: 'equivalents'},
+            {name: 'proposer'},
+            {name: 'aRemplacer'}
         ];
         me.storeAlertesFiche = new Ext.data.Store({fields: champsAlertes, data: []});
 
@@ -969,6 +972,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 {text: 'CIP', dataIndex: 'cip', width: 90},
                 {text: 'TYPE', dataIndex: 'niveau', width: 130, itemId: 'colNiveau',
                     renderer: function (v) {
+                        if (v === 'proposition') {
+                            return '<span class="ordo-etat ordo-etat-proposition">Proposé (analyse)</span>';
+                        }
                         return v === 'direct' ? '<span class="ordo-etat ordo-etat-servie">Équivalent direct</span>'
                                 : '<span class="ordo-etat ordo-etat-partielle">À adapter</span>';
                     }},
@@ -1009,7 +1015,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
 
     /** Grille des alertes Posos : cachee tant qu'aucune analyse n'a ete lancee. */
     grilleAlertes: function (itemId, store) {
-        return {
+        var grille = {
             xtype: 'gridpanel',
             itemId: itemId,
             title: 'Analyse Posos',
@@ -1034,7 +1040,23 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     renderer: function (v) {
                         return Ext.String.htmlEncode(Ext.isArray(v) ? v.join(', ') : (v || ''));
                     }},
-                {text: 'CONDUITE À TENIR', dataIndex: 'recommandation', flex: 2}
+                {text: 'CONDUITE À TENIR', dataIndex: 'recommandation', flex: 2},
+                {text: 'EN RAYON (DCI RECOMMANDÉE)', dataIndex: 'equivalents', flex: 3, itemId: 'colEnRayon',
+                    renderer: function (v, meta) {
+                        /* Produits du rayon ayant EXACTEMENT la DCI recommandee : stock en bleu, prix en rouge. */
+                        var l = Ext.isArray(v) ? v : [];
+                        if (!l.length) {
+                            return '';
+                        }
+                        var ligne = function (p) {
+                            return Ext.String.htmlEncode(p.nom) + ' — <span style="color:' + (p.stock > 0 ? '#1E5FA8' : '#c0392b')
+                                    + ';font-weight:bold">stock ' + p.stock + '</span> — <span style="color:#c0392b;font-weight:bold">'
+                                    + Ext.util.Format.number(p.prix || 0, '0,000') + (p.detail ? ' /unité' : '') + '</span>';
+                        };
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.Array.map(l, ligne).join('<br/>')) + '"';
+                        return Ext.Array.map(l.slice(0, 3), ligne).join('<br/>') + (l.length > 3 ? '<br/><i>+ '
+                                + (l.length - 3) + ' autre(s)</i>' : '');
+                    }}
             ],
             dockedItems: [{
                     xtype: 'component',
@@ -1044,6 +1066,25 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     html: ''
                 }]
         };
+        /* Sur la fiche seulement : il y a une ligne d'ordonnance a remplacer. */
+        if (itemId === 'alertesFiche') {
+            grille.columns.push({
+                    /* Ouvre les produits proposes dans le panneau des equivalents, ou l'on peut remplacer (23/09). */
+                    xtype: 'actioncolumn', width: 40, itemId: 'colVoirProposes', menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/table_refresh.png',
+                            iconCls: 'ordo-act ordo-act-proposes',
+                            tooltip: 'Voir les produits proposés, et remplacer le produit concerné',
+                            isDisabled: function (vue, ligne, colonne, item, rec) {
+                                return !(rec.get('equivalents') || []).length;
+                            },
+                            handler: function (vue, ligne, colonne, item, e, rec) {
+                                vue.up('gridpanel').fireEvent('proposes', rec);
+                            }
+                        }]
+                });
+        }
+        return grille;
     },
 
     /* ============================================================ suivi de consommation */

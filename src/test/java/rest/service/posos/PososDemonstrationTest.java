@@ -164,4 +164,21 @@ public class PososDemonstrationTest {
         PososResultat r = client.analyser(conf, d);
         assertTrue(r.isDemonstration() && r.getAvertissement().contains("DÉMONSTRATION"));
     }
+
+    @Test
+    public void lesAlertesQuiRecommandentUneAutreSubstanceLaNomment() {
+        PososResultat r = analyser(null, "SINTROM 4MG CPR SEC B/30", "BRUFEN 400MG CPR DRG B/30");
+        PososResultat.Alerte avkAins = r.getAlertes().get(0);
+        assertEquals(List.of("PARACETAMOL"), avkAins.getProposer());
+        // C'est l'AINS qui se remplace, JAMAIS l'anticoagulant.
+        assertEquals(List.of("BRUFEN 400MG CPR DRG B/30"), avkAins.getARemplacer());
+        PososDemande.Contexte c = new PososDemande.Contexte();
+        c.setAllaitement(true);
+        PososResultat codeine = analyser(c, "EFFERALGAN CODEINE CPR EFFV B/16", "FERCEFOL CPR B/30");
+        assertTrue(codeine.getAlertes().stream().anyMatch(a -> a.getGravite().equals("Contre-indication")
+                && a.getARemplacer().equals(List.of("EFFERALGAN CODEINE CPR EFFV B/16"))));
+        // Une simple precaution d'espacement ne propose pas d'autre produit.
+        PososResultat fer = analyser(null, "CIPRO DENK 500MG CPR B/10", "FERCEFOL CPR B/30");
+        assertTrue(fer.getAlertes().stream().allMatch(a -> a.getProposer().isEmpty()));
+    }
 }

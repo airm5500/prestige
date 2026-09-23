@@ -90,6 +90,27 @@ public class PososResultat {
         private String libelle;
         private String recommandation;
         private List<String> produits = new ArrayList<>();
+        /** DCI recommandee(s) par la conduite a tenir : l'ecran montre les produits du rayon qui l'ont. */
+        private List<String> proposer = new ArrayList<>();
+
+        /** Produits que la proposition REMPLACE ; vide = ne pas offrir de remplacement (on ne devine pas). */
+        private List<String> aRemplacer = new ArrayList<>();
+
+        public List<String> getARemplacer() {
+            return aRemplacer;
+        }
+
+        public void setARemplacer(List<String> aRemplacer) {
+            this.aRemplacer = aRemplacer == null ? new ArrayList<>() : aRemplacer;
+        }
+
+        public List<String> getProposer() {
+            return proposer;
+        }
+
+        public void setProposer(List<String> proposer) {
+            this.proposer = proposer == null ? new ArrayList<>() : proposer;
+        }
 
         public String getType() {
             return type;

@@ -39,6 +39,12 @@ public class PososRessource {
     @EJB
     private PososService pososService;
 
+    @EJB
+    private rest.service.impl.SubstitutionService substitutionService;
+
+    /** Au plus autant de produits proposes par alerte : au-dela, l'ecran devient une liste de catalogue. */
+    private static final int PRODUITS_PROPOSES_MAX = 8;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -123,6 +129,7 @@ public class PososRessource {
             resultat = pososService.analyser(demande);
         }
         JSONObject sortie = enJson(resultat);
+        ajouterEquivalents(sortie, resultat);
         if (analyses != null) {
             // L'ecran montre ce qui a REELLEMENT ete envoye : sinon on ne sait pas ce qui a ete analyse.
             sortie.put("venteProduits", analyses);
@@ -131,6 +138,34 @@ public class PososRessource {
             sortie.put("contexteOrdonnance", contexteOrdonnance);
         }
         return Response.ok().entity(sortie.toString()).build();
+    }
+
+    /**
+     * Equivalents en rayon (23/09) : quand une alerte recommande une DCI (« preferer le paracetamol »), on joint les
+     * produits du catalogue qui l'ont EXACTEMENT, avec stock et prix, sur l'emplacement de l'operateur.
+     */
+    private void ajouterEquivalents(JSONObject sortie, PososResultat resultat) {
+        JSONArray alertes = sortie.optJSONArray("alertes");
+        if (alertes == null) {
+            return;
+        }
+        TUser operateur = utilisateur();
+        String emplacement = operateur == null || operateur.getLgEMPLACEMENTID() == null ? null
+                : operateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        java.util.Map<String, JSONArray> dejaCherches = new java.util.HashMap<>();
+        for (int i = 0; i < alertes.length() && i < resultat.getAlertes().size(); i++) {
+            List<String> dcis = resultat.getAlertes().get(i).getProposer();
+            JSONArray equivalents = new JSONArray();
+            for (String dci : dcis) {
+                JSONArray trouves = dejaCherches.computeIfAbsent(dci,
+                        d -> substitutionService.produitsDeDci(d, emplacement, PRODUITS_PROPOSES_MAX));
+                for (int k = 0; k < trouves.length(); k++) {
+                    equivalents.put(trouves.getJSONObject(k));
+                }
+            }
+            alertes.getJSONObject(i).put("proposer", new JSONArray(dcis)).put("equivalents", equivalents)
+                    .put("aRemplacer", new JSONArray(resultat.getAlertes().get(i).getARemplacer()));
+        }
     }
 
     private static java.util.List<PososDemande.Produit> produits(JSONArray tableau) {

@@ -1950,3 +1950,4 @@ body.x-body,
 /* Mode DEMONSTRATION de l'analyse Posos (provisoire) : impossible a confondre avec une vraie analyse. */
 .posos-demo { background: #c0392b; color: #fff; font-weight: bold; padding: 4px 8px; margin: 2px 0 4px 0;
     border-radius: 3px; }
+.ordo-etat-proposition { background: #1E5FA8; }
