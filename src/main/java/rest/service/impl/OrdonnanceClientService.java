@@ -55,6 +55,9 @@ public class OrdonnanceClientService {
     private rest.report.ReportUtil reportUtil;
 
     @javax.ejb.EJB
+    private TerrainCliniqueService terrainService;
+
+    @javax.ejb.EJB
     private rest.service.utils.ReportExcelExportService excelService;
 
     /**
@@ -196,6 +199,11 @@ public class OrdonnanceClientService {
                         .put("ordre", entier(t.get("ordre")))
                         .put("qteServie", t.get("qteServie") == null ? JSONObject.NULL : entier(t.get("qteServie"))));
             }
+            entete.put("terrains", terrainService.deLOrdonnance(ordonnanceId));
+            Object poids = em
+                    .createNativeQuery("SELECT int_POIDS_PATIENT FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID = ?1")
+                    .setParameter(1, ordonnanceId).getSingleResult();
+            entete.put("poidsPatient", poids == null ? JSONObject.NULL : entier(poids));
             return new JSONObject().put("success", true).put("ordonnance", entete).put("produits", produits);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "detail d'une ordonnance client", e);
@@ -222,6 +230,10 @@ public class OrdonnanceClientService {
             if (motif != null) {
                 refus.add(motif);
             }
+        }
+        Integer poids = poids(requete);
+        if (poids != null && (poids < 1 || poids > MAX_POIDS)) {
+            refus.add("Le poids du patient va de 1 à " + MAX_POIDS + " kg.");
         }
         if (!refus.isEmpty()) {
             return new JSONObject().put("success", false).put("message", String.join(" ", refus));
@@ -278,6 +290,18 @@ public class OrdonnanceClientService {
             remplacerProduits(ordonnance, requete.optJSONArray("produits"));
             em.flush();
             /*
+             * Terrains cliniques et poids (30/09) : seulement s'ils sont envoyes (les anciens appels n'y touchent pas).
+             */
+            if (requete.has("terrains")) {
+                terrainService.remplacer(ordonnance.getLgORDONNANCEID(), requete.optJSONArray("terrains"));
+            }
+            if (requete.has("poidsPatient")) {
+                em.createNativeQuery(
+                        "UPDATE t_ordonnance_client SET int_POIDS_PATIENT = ?1 WHERE lg_ORDONNANCE_ID = ?2")
+                        .setParameter(1, poids(requete)).setParameter(2, ordonnance.getLgORDONNANCEID())
+                        .executeUpdate();
+            }
+            /*
              * Renouvellements (30/09) : portes par l'ordonnance d'ORIGINE seulement. Un renouvellement herite des
              * reglages de son origine ; les champs arrivant de sa fiche sont ignores.
              */
@@ -298,6 +322,12 @@ public class OrdonnanceClientService {
             LOG.log(Level.SEVERE, "enregistrement d'une ordonnance client", e);
             return new JSONObject().put("success", false).put("message", "L'ordonnance n'a pas pu être enregistrée.");
         }
+    }
+
+    static final int MAX_POIDS = 400;
+
+    private static Integer poids(JSONObject requete) {
+        return !requete.has("poidsPatient") || requete.isNull("poidsPatient") ? null : requete.optInt("poidsPatient");
     }
 
     private static Integer periodicite(JSONObject requete) {

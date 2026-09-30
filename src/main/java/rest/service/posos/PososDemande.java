@@ -90,6 +90,29 @@ public class PososDemande {
         private Boolean allaitement;
         private Boolean insuffisanceRenale;
         private Boolean insuffisanceHepatique;
+        /**
+         * Codes des terrains cliniques coches (retour du 30/09 : DIABETE, HTA...). Utilises par le mode demonstration ;
+         * la passerelle Posos ne les transmet pas tant que son contrat ne dit pas comment.
+         */
+        private java.util.List<String> terrains = new java.util.ArrayList<>();
+        /** Poids en kg, facultatif (non transmis a Posos, voir ci-dessus). */
+        private Integer poids;
+
+        public java.util.List<String> getTerrains() {
+            return terrains;
+        }
+
+        public void setTerrains(java.util.List<String> terrains) {
+            this.terrains = terrains == null ? new java.util.ArrayList<>() : terrains;
+        }
+
+        public Integer getPoids() {
+            return poids;
+        }
+
+        public void setPoids(Integer poids) {
+            this.poids = poids;
+        }
 
         public Integer getAge() {
             return age;

@@ -61,6 +61,9 @@ public class OrdonnanceClientRessource {
     private rest.service.impl.OrdonnancePreventeService preventeService;
 
     @EJB
+    private rest.service.impl.TerrainCliniqueService terrainService;
+
+    @EJB
     private rest.service.impl.OrdonnanceRenouvellementService renouvellementService;
 
     @EJB
@@ -406,6 +409,38 @@ public class OrdonnanceClientRessource {
             smsService.sendSMSByNotificationIdAsync(r.getString("notificationId"));
         }
         return Response.ok().entity(r.toString()).build();
+    }
+
+    /** Terrains cliniques (30/09) : actifs pour la fiche, tous (?tous=true) pour le parametrage. */
+    @GET
+    @Path("terrains")
+    public Response terrains(@QueryParam("tous") @DefaultValue("false") boolean tous) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(terrainService.lister(tous).toString()).build();
+    }
+
+    /** Ajout ou modification d'un terrain clinique : droit d'ecriture des ordonnances. */
+    @POST
+    @Path("terrains")
+    public Response enregistrerTerrain(String corps) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject requete;
+        try {
+            requete = new JSONObject(corps == null ? "{}" : corps);
+        } catch (RuntimeException e) {
+            return refus("La saisie n'a pas pu être lue.");
+        }
+        return Response.ok().entity(terrainService.enregistrer(requete).toString()).build();
     }
 
     /** Creation rapide d'un prescripteur depuis la fiche (23/09) : droit d'ecriture des ordonnances. */

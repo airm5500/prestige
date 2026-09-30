@@ -184,4 +184,21 @@ public class PososDemonstrationTest {
         PososResultat fer = analyser(null, "CIPRO DENK 500MG CPR B/10", "FERCEFOL CPR B/30");
         assertTrue(fer.getAlertes().stream().allMatch(a -> a.getProposer().isEmpty()));
     }
+
+    /** Terrains cliniques parametrables (30/09) : reconnus par leur code, sans effet s'ils ne sont pas coches. */
+    @Test
+    public void terrainsCliniques() {
+        PososDemande.Contexte ulcere = new PososDemande.Contexte();
+        ulcere.setTerrains(java.util.Arrays.asList("ULCERE"));
+        PososResultat r = analyser(ulcere, "IBUPROFENE 400MG CPR B/20");
+        assertEquals(java.util.Collections.singletonList("Contre-indication"), gravites(r, "Terrain : ulcère"));
+        PososResultat sans = analyser(new PososDemande.Contexte(), "IBUPROFENE 400MG CPR B/20");
+        assertTrue(gravites(sans, "Terrain : ulcère").isEmpty(), "terrain non coche : pas d'alerte");
+        PososDemande.Contexte diabete = new PososDemande.Contexte();
+        diabete.setTerrains(java.util.Arrays.asList("DIABETE", "CODE_INCONNU"));
+        assertEquals(java.util.Collections.singletonList("Précaution d'emploi"),
+                gravites(analyser(diabete, "SOLUPRED 20MG CPR ORODISP B/20"), "Terrain : diabète"));
+        assertTrue(gravites(analyser(diabete, "DOLIPRANE 500MG CPR B/16"), "Terrain : diabète").isEmpty(),
+                "le paracetamol n'a pas de regle diabete");
+    }
 }

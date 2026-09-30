@@ -98,6 +98,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueConso button[itemId=actualiserConso]': {click: me.chargerConso},
             'ordonnanceclient #vueConso button[itemId=pososConso]': {click: me.analyserConso},
             'ordonnanceclient #vueAnalyse': {activate: me.surOngletAnalyse},
+            /* Parametrage des terrains cliniques (30/09) : modification directe, enregistree aussitot. */
+            'ordonnanceclient #vueTerrains': {activate: me.chargerParametrageTerrains, edit: me.surEditionTerrain},
+            'ordonnanceclient #vueTerrains checkcolumn[itemId=colTerrainActif]': {checkchange: me.surActifTerrain},
+            'ordonnanceclient #vueTerrains button[itemId=ajouterTerrain]': {click: me.ajouterTerrain},
             'ordonnanceclient #vueAnalyse button[itemId=calculerAnalyse]': {click: me.calculerAnalyse},
             'ordonnanceclient #vueAnalyse button[itemId=effacerAnalyse]': {click: me.effacerAnalyse},
             'ordonnanceclient #vueAnalyse button[itemId=imprimerAnalyse]': {click: me.imprimerAnalyse}
@@ -114,6 +118,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             reste.getEl().on('click', me.voirResteClient, me, {delegate: 'a.ordo-lien-reste'});
         }
         ecran.storeTypesClient.load();
+        me.chargerTerrains();
         ecran.storeMedecins.load();
         me.chargerDroits();
         me.rechercher();
@@ -207,6 +212,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=creerPrevente]');
         basculer('#vueFiche button[itemId=renouvelerFiche]');
+        var parametrage = ecran.down('#vueTerrains');
+        if (parametrage && parametrage.tab) {
+            parametrage.tab.setVisible(peutEcrire);
+        }
         basculer('#vueFiche button[itemId=rappelRenouvellement]');
         basculer('#vueFiche button[itemId=nouveauClient]');
         basculer('#grillePieces button[itemId=joindrePiece]');
@@ -420,7 +429,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
         Ext.each(['#ordonnanceId', '#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement',
             '#observations', '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
-            '#insuffisanceHepatique'], function (s) {
+            '#insuffisanceHepatique', '#poidsPatient'], function (s) {
             var c = fiche.down(s);
             if (!c) {
                 return;
@@ -447,6 +456,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         this.ficheAnnulee = false;
         this.afficherPreventes([]);
         this.afficherRenouvellement(null);
+        this.cocherTerrains([]);
         var recherche = fiche.down('#rechercheProduit');
         if (recherche) {
             recherche.clearValue();
@@ -479,13 +489,16 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var fiche = ecran.down('#vueFiche');
         Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations',
             '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
-            '#insuffisanceHepatique', '#renouvellements', '#periodicite'],
+            '#insuffisanceHepatique', '#renouvellements', '#periodicite', '#poidsPatient'],
                 function (s) {
                     var c = fiche.down(s);
                     if (c) {
                         c.setReadOnly(verrou);
                     }
                 });
+        Ext.each(this.casesTerrains(), function (c) {
+            c.setReadOnly(verrou);
+        });
         var grille = ecran.down('#grilleProduits');
         if (grille) {
             /* L'edition de cellule est un plugin : c'est LUI qu'il faut desactiver, pas la grille. */
@@ -598,6 +611,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         fiche.down('#allaitement').setValue(o.allaitement === true);
         fiche.down('#insuffisanceRenale').setValue(o.insuffisanceRenale === true);
         fiche.down('#insuffisanceHepatique').setValue(o.insuffisanceHepatique === true);
+        fiche.down('#poidsPatient').setValue(o.poidsPatient === null || o.poidsPatient === undefined ? null
+                : o.poidsPatient);
+        me.cocherTerrains(o.terrains || []);
         var produits = reponse.produits || [];
         Ext.each(produits, function (p) {
             ecran.storeProduits.add({
@@ -1084,6 +1100,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             insuffisanceHepatique: contexte.insuffisanceHepatique === true,
             produits: produits
         };
+        requete.terrains = me.terrainsCoches();
+        requete.poidsPatient = fiche.down('#poidsPatient').getValue() || null;
         /* Un renouvellement herite des reglages de son origine : il ne les envoie pas. */
         if (!(me.renouvellement && me.renouvellement.rang > 0)) {
             var nb = fiche.down('#renouvellements').getValue() || 0;
@@ -1217,6 +1235,131 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     exporterExcel: function () {
         window.location = '../api/v1/ordonnance-client/historique/excel?'
             + Ext.Object.toQueryString(this.parametres());
+    },
+
+    /* ------------------------------------------------------------------- terrains cliniques (30/09) */
+
+    /**
+     * Les cases des terrains de la fiche, posées depuis la liste de l'officine. Les terrains désactivés ont aussi leur
+     * case, cachée : une ordonnance ancienne qui en porte un le montre toujours.
+     */
+    chargerTerrains: function () {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/terrains?tous=true',
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                var ecran = me.getEcran();
+                var zone = ecran ? ecran.down('#vueFiche #terrainsFiche') : null;
+                if (!zone || r.success !== true) {
+                    return;
+                }
+                var coches = me.terrainsCoches();
+                zone.removeAll();
+                zone.add(Ext.Array.map(r.data || [], function (t) {
+                    return {xtype: 'checkbox', boxLabel: Ext.String.htmlEncode(t.libelle), cls: 'ordo-terrain',
+                        terrainId: t.id, code: t.code || '', actif: t.actif === true, hidden: t.actif !== true};
+                }));
+                me.cocherTerrains(coches);
+                Ext.each(me.casesTerrains(), function (cb) {
+                    cb.setReadOnly(me.ficheVerrouillee === true);
+                });
+            }
+        });
+    },
+
+    casesTerrains: function () {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#vueFiche #terrainsFiche') : null;
+        return zone ? zone.items.getRange() : [];
+    },
+
+    terrainsCoches: function () {
+        var ids = [];
+        Ext.each(this.casesTerrains(), function (cb) {
+            if (cb.getValue() === true) {
+                ids.push(cb.terrainId);
+            }
+        });
+        return ids;
+    },
+
+    /** Coche ces terrains ; un terrain désactivé n'apparaît que s'il est coché. */
+    cocherTerrains: function (ids) {
+        Ext.each(this.casesTerrains(), function (cb) {
+            var coche = Ext.Array.contains(ids || [], cb.terrainId);
+            cb.suspendEvents(false);
+            cb.setValue(coche);
+            cb.resumeEvents();
+            cb.setVisible(cb.actif || coche);
+        });
+    },
+
+    /* Paramétrage : grille modifiée directement, chaque changement enregistré aussitôt. */
+
+    chargerParametrageTerrains: function () {
+        var ecran = this.getEcran();
+        if (ecran && ecran.storeTerrains) {
+            ecran.storeTerrains.load();
+        }
+    },
+
+    ajouterTerrain: function () {
+        var ecran = this.getEcran();
+        var grille = ecran.down('#vueTerrains');
+        var ordre = 0;
+        ecran.storeTerrains.each(function (r) {
+            ordre = Math.max(ordre, r.get('ordre') || 0);
+        });
+        var rec = ecran.storeTerrains.add({id: '', code: '', libelle: '', ordre: ordre + 10, actif: true, utilise: 0})[0];
+        var edition = (grille.plugins || [])[0];
+        Ext.defer(function () {
+            edition.startEdit(rec, grille.down('#colTerrainLibelle'));
+        }, 80);
+    },
+
+    surEditionTerrain: function (editeur, e) {
+        var rec = e.record;
+        if (!Ext.String.trim(rec.get('libelle') || '')) {
+            /* Une ligne ajoutée puis laissée vide n'est pas un terrain. */
+            if (!rec.get('id')) {
+                this.getEcran().storeTerrains.remove(rec);
+            }
+            return;
+        }
+        if (e.value === e.originalValue && rec.get('id')) {
+            return;
+        }
+        this.sauverTerrain(rec);
+    },
+
+    surActifTerrain: function (colonne, ligne, coche, rec) {
+        if (rec && rec.get('id')) {
+            this.sauverTerrain(rec);
+        }
+    },
+
+    sauverTerrain: function (rec) {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/ordonnance-client/terrains',
+            jsonData: {id: rec.get('id') || '', libelle: rec.get('libelle'), ordre: rec.get('ordre') || 0,
+                actif: rec.get('actif') === true},
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true) {
+                    Ext.Msg.alert('Terrains cliniques', Ext.String.htmlEncode(r.message || 'Le terrain n\'a pas pu être enregistré.'));
+                }
+                me.chargerParametrageTerrains();
+                /* La fiche suit la liste : nouveau terrain, libellé, ordre, désactivation. */
+                me.chargerTerrains();
+            },
+            failure: function () {
+                Ext.Msg.alert('Terrains cliniques', 'Le terrain n\'a pas pu être enregistré.');
+            }
+        });
     },
 
     /* ------------------------------------------------------------------- renouvellements (30/09) */
@@ -1980,6 +2123,20 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 c[n] = true;
             }
         });
+        /* Terrains coches (30/09), par leur code : c'est ainsi que l'analyse les connait. */
+        var codes = [];
+        Ext.each(this.casesTerrains(), function (cb) {
+            if (cb.getValue() === true && cb.code) {
+                codes.push(cb.code);
+            }
+        });
+        if (codes.length) {
+            c.terrains = codes;
+        }
+        var poids = fiche.down('#poidsPatient').getValue();
+        if (poids) {
+            c.poids = poids;
+        }
         return c;
     },
 

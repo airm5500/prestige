@@ -308,6 +308,10 @@ public final class PososDemonstration {
         if (regle.has("ageMoinsDe")) {
             return c.getAge() != null && c.getAge() < regle.getInt("ageMoinsDe");
         }
+        /* Terrain clinique coche sur l'ordonnance (30/09), par son code : DIABETE, HTA, ULCERE... */
+        if (regle.has("terrain")) {
+            return c.getTerrains() != null && c.getTerrains().contains(regle.getString("terrain"));
+        }
         switch (regle.optString("contexte")) {
         case "grossesse":
             return Boolean.TRUE.equals(c.getGrossesse());

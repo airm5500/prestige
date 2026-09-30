@@ -73,10 +73,10 @@ public class PososService {
 
     /** Un contexte sans aucune information : l'ecran n'a rien saisi. */
     public static boolean estVide(PososDemande.Contexte c) {
-        return c == null
-                || (c.getAge() == null && StringUtils.isBlank(c.getSexe()) && !Boolean.TRUE.equals(c.getGrossesse())
-                        && !Boolean.TRUE.equals(c.getAllaitement()) && !Boolean.TRUE.equals(c.getInsuffisanceRenale())
-                        && !Boolean.TRUE.equals(c.getInsuffisanceHepatique()));
+        return c == null || (c.getAge() == null && StringUtils.isBlank(c.getSexe())
+                && !Boolean.TRUE.equals(c.getGrossesse()) && !Boolean.TRUE.equals(c.getAllaitement())
+                && !Boolean.TRUE.equals(c.getInsuffisanceRenale()) && !Boolean.TRUE.equals(c.getInsuffisanceHepatique())
+                && (c.getTerrains() == null || c.getTerrains().isEmpty()) && c.getPoids() == null);
     }
 
     private static final String ORDONNANCE_PAR_REFERENCE = " FROM t_ordonnance_client o"
@@ -119,6 +119,16 @@ public class PososService {
     }
 
     /** Le contexte clinique enregistre avec l'ordonnance, ou null. */
+    @SuppressWarnings("unchecked")
+    private java.util.List<String> terrainsDeLOrdonnance(String reference) {
+        return em
+                .createNativeQuery("SELECT t.str_CODE FROM t_ordonnance_client_terrain ot"
+                        + " JOIN t_terrain_clinique t ON t.lg_TERRAIN_ID = ot.lg_TERRAIN_ID"
+                        + " JOIN t_ordonnance_client o ON o.lg_ORDONNANCE_ID = ot.lg_ORDONNANCE_ID"
+                        + " WHERE (o.str_NUMERO = ?1 OR o.lg_ORDONNANCE_ID = ?1) AND t.str_CODE IS NOT NULL")
+                .setParameter(1, reference).getResultList();
+    }
+
     public PososDemande.Contexte contexteDeLOrdonnance(String reference) {
         try {
             @SuppressWarnings("unchecked")
@@ -139,6 +149,8 @@ public class PososService {
             c.setAllaitement(vrai(t.get("allaitement")));
             c.setInsuffisanceRenale(vrai(t.get("renale")));
             c.setInsuffisanceHepatique(vrai(t.get("hepatique")));
+            /* Terrains coches sur l'ordonnance (30/09), par leur code : l'analyse les connait par la. */
+            c.setTerrains(terrainsDeLOrdonnance(reference.trim()));
             return c;
         } catch (Exception e) {
             java.util.logging.Logger.getLogger(PososService.class.getName()).log(java.util.logging.Level.WARNING,

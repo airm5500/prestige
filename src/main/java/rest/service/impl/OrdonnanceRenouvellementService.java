@@ -66,6 +66,9 @@ public class OrdonnanceRenouvellementService {
     @EJB
     private NotificationService notificationService;
 
+    @EJB
+    private TerrainCliniqueService terrainService;
+
     /* ------------------------------------------------------------------------------------------ renouveler */
 
     /** Cree le renouvellement suivant de la chaine de l'ordonnance donnee (origine ou renouvellement). */
@@ -119,7 +122,15 @@ public class OrdonnanceRenouvellementService {
                     .put("sexePatient", StringUtils.defaultString(t.get("sexe", String.class)))
                     .put("grossesse", vrai(t.get("grossesse"))).put("allaitement", vrai(t.get("allaitement")))
                     .put("insuffisanceRenale", vrai(t.get("ir"))).put("insuffisanceHepatique", vrai(t.get("ih")))
-                    .put("produits", produits);
+                    .put("produits", produits)
+                    /* Terrains cliniques et poids de l'origine (30/09) : le patient est le meme. */
+                    .put("terrains", terrainService.deLOrdonnance(origineId));
+            Object poids = em
+                    .createNativeQuery("SELECT int_POIDS_PATIENT FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID = ?1")
+                    .setParameter(1, origineId).getSingleResult();
+            if (poids != null) {
+                requete.put("poidsPatient", entier(poids));
+            }
             JSONObject cree = ordonnanceService.enregistrer(requete, operateur);
             if (!cree.optBoolean("success", false)) {
                 return cree;

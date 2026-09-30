@@ -264,7 +264,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     itemId: 'onglets',
                     border: false,
                     plain: true,
-                    items: [me.vueHistorique(), me.vueAnalyse()]
+                    items: [me.vueHistorique(), me.vueAnalyse(), me.vueTerrains()]
                 }, me.vueFiche(), me.vueConso()]
         });
         me.callParent(arguments);
@@ -556,7 +556,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             items: [{
                     xtype: 'container',
                     itemId: 'blocSaisie',
-                    height: 400,
+                    /* 460 (30/09) : place pour les terrains cliniques parametrables sous le contexte. */
+                    height: 460,
                     layout: {type: 'hbox', align: 'stretch'},
                     items: [me.blocPatient(), {
                             xtype: 'container',
@@ -652,6 +653,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             xtype: 'fieldset',
             itemId: 'blocPatient',
             title: 'Patient',
+            autoScroll: true,
             /* Assez large pour un nom complet sur une ligne (22/09) : le champ client y fait environ 370 px. */
             width: 420,
             padding: '4 10 8 10',
@@ -733,6 +735,19 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             value: ''
                         }]
                 }, {
+                    /* Poids (30/09), facultatif : utile aux posologies pediatriques. */
+                    xtype: 'numberfield',
+                    itemId: 'poidsPatient',
+                    fieldLabel: 'Poids',
+                    labelWidth: 34,
+                    width: 150,
+                    margin: '6 0 0 0',
+                    minValue: 1,
+                    maxValue: 400,
+                    allowDecimals: false,
+                    hideTrigger: true,
+                    emptyText: 'kg'
+                }, {
                     xtype: 'container',
                     layout: 'column',
                     margin: '8 0 0 0',
@@ -746,6 +761,16 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         }, {
                             xtype: 'checkbox', itemId: 'insuffisanceHepatique', boxLabel: 'Insuffisance hépatique'
                         }]
+                }, {
+                    /*
+                     * Terrains cliniques PARAMETRABLES (30/09) : les cases sont posees par le controleur depuis la liste
+                     * de l'officine (onglet « Terrains cliniques »).
+                     */
+                    xtype: 'container',
+                    itemId: 'terrainsFiche',
+                    layout: 'column',
+                    defaults: {columnWidth: 0.5},
+                    items: []
                 }]
         };
     },
@@ -1510,6 +1535,68 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             }}
                     ]
                 }, me.grilleAlertes('alertesConso', me.storeAlertesConso)]
+        };
+    },
+
+    /* ============================================================ terrains cliniques (30/09) */
+
+    /**
+     * Parametrage des terrains cliniques proposes dans la fiche : ajouter, renommer, reordonner, desactiver. Un
+     * terrain ne se supprime pas : les ordonnances qui le portent le gardent.
+     */
+    vueTerrains: function () {
+        var me = this;
+        me.storeTerrains = new Ext.data.Store({
+            fields: ['id', 'code', 'libelle', {name: 'ordre', type: 'int'}, {name: 'actif', type: 'boolean'},
+                {name: 'utilise', type: 'int'}],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/ordonnance-client/terrains?tous=true',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        return {
+            xtype: 'gridpanel',
+            itemId: 'vueTerrains',
+            title: 'Terrains cliniques',
+            store: me.storeTerrains,
+            columnLines: true,
+            selType: 'cellmodel',
+            plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+            columns: [
+                {text: 'TERRAIN', dataIndex: 'libelle', flex: 3, itemId: 'colTerrainLibelle',
+                    editor: {xtype: 'textfield', allowBlank: false, maxLength: 80}},
+                {text: 'ORDRE', dataIndex: 'ordre', width: 90, align: 'right',
+                    editor: {xtype: 'numberfield', minValue: 0, maxValue: 9999, allowDecimals: false}},
+                {xtype: 'checkcolumn', text: 'ACTIF', dataIndex: 'actif', width: 80, itemId: 'colTerrainActif'},
+                {text: 'UTILISÉ SUR', dataIndex: 'utilise', width: 130, align: 'right',
+                    renderer: function (v) {
+                        return v ? v + ' ordonnance(s)' : '';
+                    }},
+                {text: 'ANALYSE', dataIndex: 'code', width: 160,
+                    renderer: function (v, meta) {
+                        meta.tdAttr = 'data-qtip="' + (v ? 'Connu des règles de l\'analyse' : 'Enregistré et imprimé ;'
+                                + ' aucune règle de l\'analyse ne le connaît') + '"';
+                        return v ? '<span class="ordo-etat ordo-etat-servie">Pris en compte</span>' : '';
+                    }}
+            ],
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'button',
+                            itemId: 'ajouterTerrain',
+                            text: 'Ajouter un terrain',
+                            iconCls: 'add',
+                            cls: 'ordo-btn'
+                        }, {
+                            xtype: 'tbtext',
+                            style: 'color:#777',
+                            text: 'Modification directe dans la grille, enregistrée aussitôt. Décocher « Actif » retire le'
+                                    + ' terrain de la fiche sans l\'effacer des ordonnances.'
+                        }]
+                }]
         };
     },
 

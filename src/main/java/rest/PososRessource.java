@@ -223,6 +223,19 @@ public class PososRessource {
         if (o.has("insuffisanceHepatique")) {
             c.setInsuffisanceHepatique(o.optBoolean("insuffisanceHepatique"));
         }
+        /* Terrains cliniques (codes) et poids (30/09) : servent a l'analyse de demonstration, pas envoyes a Posos. */
+        JSONArray terrains = o.optJSONArray("terrains");
+        java.util.List<String> codes = new java.util.ArrayList<>();
+        for (int i = 0; terrains != null && i < terrains.length(); i++) {
+            String code = terrains.optString(i, "").trim();
+            if (!code.isEmpty()) {
+                codes.add(code);
+            }
+        }
+        c.setTerrains(codes);
+        if (o.has("poids") && !o.isNull("poids")) {
+            c.setPoids(o.optInt("poids"));
+        }
         return c;
     }
 
