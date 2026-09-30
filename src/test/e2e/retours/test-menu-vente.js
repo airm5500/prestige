@@ -41,11 +41,15 @@ const crees = [];
     const e = await p.evaluate((r) => { const m = Ext.ComponentQuery.query('cloturerventemanager')[0]; const d = m.getEl().dom; const g = m.down('gridpanel');
       const i = g.getStore().findExact('strREF', r); const ligne = g.getView().getNode(i);
       return { principal: m.down('#addBtn').hasCls('ordo-btn-primaire'), puces: [...d.querySelectorAll('.ordo-puce .x-btn-inner')].map((x) => x.textContent),
-        comboVisible: m.down('#typeVente').isVisible(), tuiles: [...d.querySelectorAll('.vc-tuile')].map((t) => t.textContent), total: g.getStore().getCount(),
+        comboVisible: m.down('#typeVente').isVisible(), tuiles: d.querySelectorAll('.vc-tuile').length, total: g.getStore().getCount(),
+        uneBarre: m.down('#query').up('toolbar') === m.down('#addBtn').up('toolbar') && m.down('#printParVente').up('toolbar') === m.down('#addBtn').up('toolbar'),
+        ordre: ['#addBtn', '#typesPuces', '#query', '#printParVente'].map((x) => m.down(x).getEl().getLeft()),
+        deborde: (() => { const t = m.down('#addBtn').up('toolbar'); const bord = t.getEl().getRight(); return [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > bord + 1); })(),
         entetes: g.headerCt.getVisibleGridColumns().map((c) => c.text), pastille: (ligne.querySelector('.va-pill') || {}).textContent,
         icones: ligne.querySelectorAll('.act-ico').length, chargement: g.hasCls('theme-chargement') }; }, refs[1]);
     ok('Nouvelle vente en bouton principal, type en puces (le combo reste caché)', e.principal && e.puces.join('|') === 'Toutes|Au comptant|Assurance / carnet' && !e.comboVisible, JSON.stringify(e));
-    ok('Tuiles : nombre de ventes, montant, panier moyen, la plus ancienne', e.tuiles.length === 4 && e.tuiles[0].indexOf(String(e.total)) === 0, JSON.stringify(e.tuiles));
+    ok('Une seule barre : Nouvelle vente, types, recherche puis impressions, sans débordement ; plus de tuiles récapitulatives', e.uneBarre && e.tuiles === 0 && !e.deborde
+      && e.ordre.every((x, i) => i === 0 || x > e.ordre[i - 1]), JSON.stringify(e));
     ok('Colonnes : client, type en pastille « Au comptant », deux icônes au trait', e.entetes.indexOf('Client') >= 0 && e.pastille === 'Au comptant' && e.icones === 2 && !e.chargement, JSON.stringify(e));
     /* Puce « Assurance / carnet » : le filtre du controleur suit, nos ventes au comptant disparaissent. */
     const clic = async (texte) => { await p.evaluate((t) => { const bt = Ext.ComponentQuery.query('cloturerventemanager button[cls=ordo-puce]').find((x) => x.getText() === t); document.getElementById(bt.getId()).id = bt.getId(); window.__cible = bt.getId(); }, texte); await p.click('#' + await p.evaluate(() => window.__cible)); await p.waitForTimeout(1200); };

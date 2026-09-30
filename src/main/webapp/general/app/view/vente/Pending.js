@@ -3,9 +3,9 @@
 /*
  * MENU VENTE du service client : les ventes en attente (maquette validee le 30/09, theme commun).
  *
- * « Nouvelle vente » en bouton principal, type de vente en puces, recherche ; a droite les impressions et l'inventaire.
- * Des tuiles resument la liste (ventes, montant, panier moyen, attente la plus longue) ; le tableau montre le client et
- * le type en pastille, et les actions de chaque ligne ont le dessin commun (icones au trait).
+ * Une seule barre arrondie (retour du 30/09) : « Nouvelle vente », type de vente en puces, recherche, puis les
+ * impressions et l'inventaire. Le tableau montre le client et le type en pastille, et les actions de chaque ligne ont
+ * le dessin commun (icones au trait).
  *
  * Les identifiants lus par le controleur (PendingCtr) sont gardes : addBtn, typeVente (combo, desormais cache et pose
  * par les puces), query, rechercher, printParVente, printListe, createInventaire, et les evenements toEdit / goto des
@@ -21,7 +21,7 @@ Ext.define('testextjs.view.vente.Pending', {
     width: '97%',
     height: 'auto',
     minHeight: 570,
-    cls: 'custompanel theme-commun',
+    cls: 'custompanel theme-commun mv-panneau',
     layout: {
         type: 'fit'
     },
@@ -64,22 +64,25 @@ Ext.define('testextjs.view.vente.Pending', {
             return 'resources/images/icons/fam/' + nom;
         };
         Ext.applyIf(me, {
+            /* Une seule barre (retour du 30/09) : Nouvelle vente, type en puces, recherche, impressions et inventaire. */
             dockedItems: [{
                     xtype: 'toolbar',
                     dock: 'top',
-                    cls: 'ordo-barre-actions',
-                    padding: '8 10',
+                    itemId: 'barreMenuVente',
+                    cls: 'mv-barre',
+                    margin: '10 10 8 10',
+                    padding: '6 8',
+                    defaults: {scale: 'small'},
                     items: [{
                             text: 'Nouvelle vente',
                             scope: this,
                             itemId: 'addBtn',
                             icon: icone('add.png'),
-                            cls: 'ordo-btn-primaire',
-                            scale: 'medium'
+                            cls: 'ordo-btn-primaire'
                         }, {
                             xtype: 'container',
                             itemId: 'typesPuces',
-                            margin: '0 0 0 14',
+                            margin: '0 6 0 10',
                             layout: {type: 'hbox', align: 'middle'},
                             items: [puce('Toutes', '', true), puce('Au comptant', 'VNO'), puce('Assurance / carnet', 'VO')]
                         }, {
@@ -90,61 +93,40 @@ Ext.define('testextjs.view.vente.Pending', {
                             valueField: 'typeVente',
                             displayField: 'typeVente',
                             queryMode: 'local'
-                        }, '->', {
+                        }, {
+                            xtype: 'textfield',
+                            itemId: 'query',
+                            cls: 'mv-recherche',
+                            flex: 1,
+                            minWidth: 180,
+                            enableKeyEvents: true,
+                            emptyText: 'Rechercher : référence, client, produit… (Entrée)'
+                        }, {
+                            xtype: 'button',
+                            tooltip: 'Rechercher',
+                            itemId: 'rechercher',
+                            icon: 'resources/images/search.png',
+                            cls: 'ordo-btn',
+                            margin: '0 10 0 2'
+                        }, {
                             text: 'Imprimer par vente',
                             tooltip: 'Produits regroupés par vente (ordre chronologique)',
                             itemId: 'printParVente',
                             icon: icone('printer.png'),
-                            cls: 'ordo-btn',
-                            scale: 'medium'
+                            cls: 'ordo-btn'
                         }, {
                             text: 'Liste des produits',
                             tooltip: 'Tous les produits par ordre alphabétique avec le numéro de vente',
                             itemId: 'printListe',
                             icon: icone('printer.png'),
-                            cls: 'ordo-btn',
-                            scale: 'medium'
+                            cls: 'ordo-btn'
                         }, {
                             text: 'Créer un inventaire',
                             tooltip: 'Créer un inventaire avec les produits des ventes en attente affichées',
                             itemId: 'createInventaire',
                             icon: icone('add.png'),
-                            cls: 'ordo-btn',
-                            scale: 'medium'
+                            cls: 'ordo-btn'
                         }]
-                }, {
-                    xtype: 'container',
-                    dock: 'top',
-                    cls: 'ordo-criteres',
-                    margin: '0 10 8 10',
-                    padding: '10 12',
-                    layout: {type: 'hbox', align: 'bottom'},
-                    items: [{
-                            xtype: 'textfield',
-                            itemId: 'query',
-                            fieldLabel: 'Rechercher',
-                            labelAlign: 'top',
-                            labelSeparator: '',
-                            flex: 1,
-                            enableKeyEvents: true,
-                            emptyText: 'Référence, client, produit… (Entrée)'
-                        }, {
-                            xtype: 'button',
-                            text: 'Rechercher',
-                            tooltip: 'Rechercher',
-                            itemId: 'rechercher',
-                            icon: 'resources/images/search.png',
-                            cls: 'ordo-btn-primaire',
-                            scale: 'medium',
-                            margin: '0 0 0 10'
-                        }]
-                }, {
-                    /* Tuiles de la liste (theme commun), recalculees a chaque chargement. */
-                    xtype: 'component',
-                    itemId: 'tuilesVentes',
-                    dock: 'top',
-                    margin: '0 10 8 10',
-                    html: ''
                 }],
             items: [{
                     xtype: 'gridpanel',
@@ -285,36 +267,11 @@ Ext.define('testextjs.view.vente.Pending', {
                 g.addCls('theme-chargement');
             }
         });
-        /* Tuiles : nombre de ventes, montant, panier moyen, attente la plus longue. */
-        vente.on('load', function (st) {
+        vente.on('load', function () {
             var g = me.down('gridpanel');
             if (g && g.rendered) {
                 g.removeCls('theme-chargement');
             }
-            var zone = me.down('#tuilesVentes');
-            if (!zone || zone.isDestroyed) {
-                return;
-            }
-            var n = st.getCount();
-            var montant = 0;
-            var ancienne = null;
-            st.each(function (r) {
-                montant += r.get('intPRICE') || 0;
-                var h = String(r.get('heure') || '').substring(0, 5);
-                if (h && (!ancienne || h < ancienne)) {
-                    ancienne = h;
-                }
-            });
-            var tuile = function (valeur, libelle) {
-                return '<div class="vc-tuile"><div class="vc-tuile-valeur">' + valeur + '</div><div class="vc-tuile-libelle">'
-                        + libelle + '</div></div>';
-            };
-            var f = function (v) {
-                return Ext.util.Format.number(v || 0, '0,000');
-            };
-            zone.update('<div class="vc-tuiles">' + tuile(n, 'vente' + (n > 1 ? 's' : '') + ' en attente')
-                    + tuile(f(montant) + ' F', 'montant') + tuile(n ? f(Math.round(montant / n)) + ' F' : '—', 'panier moyen')
-                    + tuile(ancienne || '—', 'la plus ancienne') + '</div>');
         });
     }
 });
