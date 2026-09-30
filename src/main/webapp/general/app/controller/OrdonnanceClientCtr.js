@@ -80,7 +80,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #grilleProduits button[itemId=ajouterProduit]': {click: me.ajouterProduit},
             'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle},
             'ordonnanceclient #grilleProduits button[itemId=toutServir]': {click: me.toutServir},
-            'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents, retirerligne: me.retirerLigne},
+            'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents, retirerligne: me.retirerLigne,
+                posologievalidee: me.allerRechercheProduit},
             'ordonnanceclient #grilleProduits combobox[itemId=rechercheProduit]': {
                 select: me.surRechercheProduit,
                 specialkey: me.surToucheRechercheProduit
@@ -92,6 +93,13 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso, select: me.surChoixClient},
             /* Apres chacun de ces choix, le curseur va dans la recherche produit (30/09). */
             'ordonnanceclient #vueFiche combobox[itemId=sexePatient]': {select: me.allerRechercheProduit},
+            /* Date de naissance (30/09) : saisie guidee, l'age en est deduit. */
+            'ordonnanceclient #vueFiche champdatenaissance[itemId=naissancePatient]': {
+                specialkey: me.entreeNaissance,
+                change: me.majAgeDepuisNaissance,
+                blur: me.majAgeDepuisNaissance
+            },
+            'ordonnanceclient #vueFiche datefield[itemId=ficheDate]': {change: me.majAgeDepuisNaissance},
             'ordonnanceclient #vueFiche combobox[itemId=ficheMedecin]': {select: me.allerRechercheProduit},
             'ordonnanceclient #vueFiche combobox[itemId=ficheEtablissement]': {select: me.allerRechercheProduit},
             'ordonnanceclient #vueConso button[itemId=retourConso]': {click: me.retourConso},
@@ -428,8 +436,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             return;
         }
         Ext.each(['#ordonnanceId', '#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement',
-            '#observations', '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
-            '#insuffisanceHepatique', '#poidsPatient'], function (s) {
+            '#observations', '#naissancePatient', '#agePatient', '#sexePatient', '#grossesse', '#allaitement',
+            '#insuffisanceRenale', '#insuffisanceHepatique', '#poidsPatient'], function (s) {
             var c = fiche.down(s);
             if (!c) {
                 return;
@@ -457,6 +465,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         this.afficherPreventes([]);
         this.afficherRenouvellement(null);
         this.cocherTerrains([]);
+        fiche.down('#naissancePatient').clearInvalid();
+        fiche.down('#agePatient').setReadOnly(false);
+        this.naissanceDuClient = false;
         var recherche = fiche.down('#rechercheProduit');
         if (recherche) {
             recherche.clearValue();
@@ -488,7 +499,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ecran.ficheVerrouillee = this.ficheVerrouillee;
         var fiche = ecran.down('#vueFiche');
         Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations',
-            '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
+            '#naissancePatient', '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
             '#insuffisanceHepatique', '#renouvellements', '#periodicite', '#poidsPatient'],
                 function (s) {
                     var c = fiche.down(s);
@@ -537,6 +548,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 bouton.setVisible(peutCreer);
             }
         });
+        /* Deverrouillee : l'age ne se saisit toujours pas a la main si la date de naissance est la. */
+        if (!verrou) {
+            this.majAgeDepuisNaissance();
+        }
     },
 
     /** Double-clic sur une ligne : consultation. */
@@ -606,6 +621,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         fiche.down('#ficheEtablissement').setValue(o.etablissement || '');
         fiche.down('#observations').setValue(o.observations || '');
         fiche.down('#agePatient').setValue(o.agePatient === null || o.agePatient === undefined ? null : o.agePatient);
+        fiche.down('#naissancePatient').setIso(o.dateNaissance || '');
+        fiche.down('#agePatient').setReadOnly(!!o.dateNaissance);
         fiche.down('#sexePatient').setValue(o.sexePatient || '');
         fiche.down('#grossesse').setValue(o.grossesse === true);
         fiche.down('#allaitement').setValue(o.allaitement === true);
@@ -704,9 +721,66 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     surChoixClient: function (combo, lignes) {
         var client = lignes && lignes.length ? lignes[0] : null;
+        this.reprendreClient(client);
         this.afficherTypeClient(client ? (client.get('libelleTypeClient') || client.get('typeClient')) : '');
         this.chargerResteClient(client ? client.get('lgCLIENTID') : null, client ? client.get('nomComplet') : '');
         this.allerRechercheProduit();
+    },
+
+    /**
+     * Ce que la fiche du client sait deja (30/09) : sa date de naissance et son genre. La date remplace celle d'un
+     * AUTRE client choisi juste avant ; elle ne remplace pas une date tapee a la main pour ce patient.
+     */
+    reprendreClient: function (client) {
+        var fiche = this.getEcran().down('#vueFiche');
+        var champ = fiche.down('#naissancePatient');
+        var naissance = client ? client.get('dtNAISSANCE') : '';
+        if (naissance) {
+            champ.setIso(naissance);
+            this.naissanceDuClient = true;
+        } else if (this.naissanceDuClient) {
+            champ.setIso('');
+            this.naissanceDuClient = false;
+        }
+        var sexe = client ? client.get('strSEXE') : '';
+        if ((sexe === 'F' || sexe === 'M') && !fiche.down('#sexePatient').getValue()) {
+            fiche.down('#sexePatient').setValue(sexe);
+        }
+        this.majAgeDepuisNaissance();
+    },
+
+    /**
+     * L'age suit la date de naissance (30/09) : calcule au jour de l'ordonnance, et non saisissable tant que la date
+     * est la. Sans date, il redevient libre (un patient dont on ne connait que l'age).
+     */
+    majAgeDepuisNaissance: function () {
+        var ecran = this.getEcran();
+        var fiche = ecran ? ecran.down('#vueFiche') : null;
+        var champ = fiche ? fiche.down('#naissancePatient') : null;
+        if (!champ) {
+            return;
+        }
+        var age = fiche.down('#agePatient');
+        var naissance = champ.getDate();
+        if (naissance) {
+            var jour = fiche.down('#ficheDate').getValue() || new Date();
+            age.setValue(champ.self.age(naissance, jour));
+            age.setReadOnly(true);
+        } else {
+            age.setReadOnly(!!this.ficheVerrouillee);
+        }
+    },
+
+    /** Entree dans la date de naissance : jour, mois, annee ; complete, le curseur repart vers les produits. */
+    entreeNaissance: function (champ, e) {
+        if (e.getKey() !== e.ENTER) {
+            return;
+        }
+        this.naissanceDuClient = false;
+        if (champ.avancer()) {
+            this.majAgeDepuisNaissance();
+            this.allerRechercheProduit();
+        }
     },
 
     /**
@@ -1093,6 +1167,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             etablissement: fiche.down('#ficheEtablissement').getRawValue() || '',
             observations: fiche.down('#observations').getValue() || '',
             agePatient: contexte.age === undefined ? null : contexte.age,
+            /* AAAA-MM-JJ ou vide (30/09) : le serveur en deduit l'age. */
+            dateNaissance: fiche.down('#naissancePatient').getIso(),
             sexePatient: contexte.sexe || '',
             grossesse: contexte.grossesse === true,
             allaitement: contexte.allaitement === true,
@@ -1115,6 +1191,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var me = this;
         var ecran = me.getEcran();
         var fiche = ecran.down('#vueFiche');
+        var naissance = fiche.down('#naissancePatient');
+        if (!naissance.validate()) {
+            Ext.Msg.alert('Ordonnances', 'Date de naissance : ' + naissance.getErrors().join(' '));
+            return;
+        }
         var requete = me.requeteFiche();
         Ext.Ajax.request({
             url: '../api/v1/ordonnance-client/enregistrer',
@@ -1918,11 +1999,24 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
     },
 
-    /** Entree dans un champ d'une fenetre : meme effet que « Creer ». */
+    /**
+     * Entree dans la fenetre du nouveau client (30/09) : Nom, puis Prenom, puis Telephone, puis la date de naissance
+     * (jour, mois, annee) ; la date complete, ou laissee vide, Entree cree le client.
+     */
     entreeCreerClient: function (champ, e) {
-        if (e.getKey() === e.ENTER && !champ.isXType('combobox')) {
-            this.creerClient();
+        if (e.getKey() !== e.ENTER || champ.isXType('combobox')) {
+            return;
         }
+        var suivant = {ncNom: 'ncPrenom', ncPrenom: 'ncTelephone', ncTelephone: 'ncNaissance'}[champ.getItemId()];
+        if (suivant) {
+            e.stopEvent();
+            champ.up('window').down('#' + suivant).focus(false, 30);
+            return;
+        }
+        if (champ.getItemId() === 'ncNaissance' && !champ.avancer()) {
+            return;
+        }
+        this.creerClient();
     },
 
     entreeCreerMedecin: function (champ, e) {
@@ -2047,15 +2141,18 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (!form) {
             return;
         }
-        var champs = ['#ncNom', '#ncPrenom', '#ncTelephone'];
+        var champs = ['#ncNom', '#ncPrenom', '#ncTelephone', '#ncNaissance'];
         var valide = true;
         Ext.each(champs, function (s) {
             valide = form.down(s).validate() && valide;
         });
         if (!valide) {
-            Ext.Msg.alert('Nouveau client', 'Le nom, le prénom et le téléphone sont obligatoires.');
+            Ext.Msg.alert('Nouveau client', form.down('#ncNaissance').isValid()
+                    ? 'Le nom, le prénom et le téléphone sont obligatoires.'
+                    : 'Date de naissance : ' + form.down('#ncNaissance').getErrors().join(' '));
             return;
         }
+        var naissance = form.down('#ncNaissance').getIso();
         var sexe = form.down('#ncSexe').getValue() || '';
         Ext.Ajax.request({
             method: 'POST',
@@ -2067,6 +2164,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 strADRESSE: Ext.String.trim(form.down('#ncTelephone').getValue()),
                 lgTYPECLIENTID: '6',
                 strSEXE: sexe || null,
+                dtNAISSANCE: naissance || null,
                 /* En TEXTE, comme le formulaire de la caisse : le service refuse un booleen JSON. */
                 consentSms: form.down('#ncConsentement').getValue() === true ? 'true' : 'false'
             },
@@ -2084,10 +2182,20 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                         lgCLIENTID: c.lgCLIENTID,
                         strFIRSTNAME: c.strFIRSTNAME || '',
                         strLASTNAME: c.strLASTNAME || '',
-                        strTELEPHONE: c.strADRESSE || ''
+                        strTELEPHONE: c.strADRESSE || '',
+                        typeClient: '6',
+                        libelleTypeClient: 'Standard',
+                        dtNAISSANCE: naissance,
+                        strSEXE: sexe
                     }));
                 }
                 fiche.down('#ficheClient').setValue(c.lgCLIENTID);
+                /* Sa date de naissance passe dans le contexte clinique, l'age en est calcule. */
+                if (naissance) {
+                    fiche.down('#naissancePatient').setIso(naissance);
+                    me.naissanceDuClient = true;
+                    me.majAgeDepuisNaissance();
+                }
                 /* Le genre saisi sert aussi au contexte clinique, s'il n'est pas deja renseigne. */
                 if (sexe && !fiche.down('#sexePatient').getValue()) {
                     fiche.down('#sexePatient').setValue(sexe);

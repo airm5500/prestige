@@ -19,6 +19,16 @@ public class ClientLambdaDTO implements Serializable {
     private String lgCLIENTID, strFIRSTNAME, strLASTNAME, strADRESSE, lgTYPECLIENTID, strSEXE, email;
     /** Consentement SMS / WhatsApp de la fiche (point 2) : "true", "false" ou vide (non renseigne). */
     private String consentSms;
+    /** Date de naissance (30/09), facultative : AAAA-MM-JJ ou JJ/MM/AAAA. */
+    private String dtNAISSANCE;
+
+    public String getDtNAISSANCE() {
+        return dtNAISSANCE;
+    }
+
+    public void setDtNAISSANCE(String dtNAISSANCE) {
+        this.dtNAISSANCE = dtNAISSANCE;
+    }
 
     public String getConsentSms() {
         return consentSms;

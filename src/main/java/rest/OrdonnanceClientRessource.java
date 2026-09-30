@@ -677,6 +677,23 @@ public class OrdonnanceClientRessource {
                 .build();
     }
 
+    /**
+     * Recherche d'un client (30/09) : par le nom, ou par le telephone en « contient ». Type et telephone sont rendus
+     * pour la liste deroulante de la fiche et du filtre de l'historique.
+     */
+    @GET
+    @Path("clients")
+    public Response clients(@QueryParam("query") String query, @QueryParam("start") @DefaultValue("0") int start,
+            @QueryParam("limit") @DefaultValue("30") int limit) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(ordonnanceService.clients(query, start, limit).toString()).build();
+    }
+
     /** Types de client (carnet, assurance, standard) pour le filtre de l'historique. */
     @GET
     @Path("types-client")

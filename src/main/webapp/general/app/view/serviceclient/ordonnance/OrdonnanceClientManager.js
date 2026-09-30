@@ -33,6 +33,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         deferredRender: false
     },
     activeItem: 0,
+    requires: ['testextjs.view.serviceclient.ordonnance.ChampDateNaissance'],
 
     initComponent: function () {
         var me = this;
@@ -98,6 +99,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 {name: 'typeClient', type: 'string'},
                 /* Libelle du type (Standard, Assurance, Carnet...) rendu par v1/client/list : pastille de la fiche. */
                 {name: 'libelleTypeClient', type: 'string'},
+                /* Date de naissance (AAAA-MM-JJ) et genre du client (30/09) : repris par la fiche. */
+                {name: 'dtNAISSANCE', type: 'string'},
+                {name: 'strSEXE', type: 'string'},
                 {name: 'nomComplet',
                     convert: function (v, rec) {
                         return Ext.String.trim((rec.get('strFIRSTNAME') || '') + ' '
@@ -108,7 +112,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/client/list',
+                /* Recherche propre aux ordonnances (30/09) : le nom, ou le telephone en « contient ». */
+                url: '../api/v1/ordonnance-client/clients',
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}
             }
         });
@@ -384,11 +389,15 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             xtype: 'button',
                             itemId: 'rechercher',
                             text: 'Rechercher',
-                            iconCls: 'search'
+                            icon: 'resources/images/search.png',
+                            cls: 'ordo-btn-primaire',
+                            margin: '0 6 0 12'
                         }, {
                             xtype: 'button',
                             itemId: 'reinitialiser',
-                            text: 'Réinitialiser'
+                            text: 'Réinitialiser',
+                            icon: 'resources/images/icons/fam/table_refresh.png',
+                            cls: 'ordo-btn'
                         }]
                 }]
         };
@@ -499,31 +508,35 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             dockedItems: [{
                     xtype: 'toolbar',
                     dock: 'top',
+                    /*
+                     * « Nouvelle ordonnance » A GAUCHE, Imprimer et Exporter a droite (30/09) ; chaque bouton a son
+                     * icone et le dessin de ceux de la fiche.
+                     */
                     items: [{
                             xtype: 'button',
-                            itemId: 'imprimerHistorique',
-                            text: 'Imprimer l\'historique',
-                            iconCls: 'printable',
-                            cls: 'ordo-btn'
-                        }, {
-                            xtype: 'button',
-                            itemId: 'exporterExcel',
-                            text: 'Exporter Excel',
-                            iconCls: 'icon-excel',
-                            cls: 'ordo-btn'
+                            itemId: 'nouvelle',
+                            text: 'Nouvelle ordonnance',
+                            icon: 'resources/images/icons/fam/add.png',
+                            cls: 'ordo-btn-primaire',
+                            scale: 'medium'
                         }, {
                             xtype: 'tbtext',
                             itemId: 'rappelHistorique',
                             text: 'De la plus récente à la plus ancienne - actions à droite de chaque ligne.',
                             style: 'color:#777'
                         }, '->', {
-                            /* A DROITE (22/09), dans une toolbar : le '->' y est fiable, contrairement a un
-                               remplissage dans un conteneur des criteres. */
                             xtype: 'button',
-                            itemId: 'nouvelle',
-                            text: 'Nouvelle ordonnance',
-                            iconCls: 'add',
-                            cls: 'ordo-btn-primaire',
+                            itemId: 'imprimerHistorique',
+                            text: 'Imprimer l\'historique',
+                            icon: 'resources/images/icons/fam/printer.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium'
+                        }, {
+                            xtype: 'button',
+                            itemId: 'exporterExcel',
+                            text: 'Exporter Excel',
+                            icon: 'resources/images/icons/fam/excel_icon.png',
+                            cls: 'ordo-btn',
                             scale: 'medium'
                         }]
                 }, {
@@ -674,7 +687,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             queryParam: 'query',
                             minChars: 2,
                             typeAhead: false,
-                            emptyText: 'Chercher un client (carnet, assurance, standard)',
+                            emptyText: 'Nom ou téléphone du client',
                             listConfig: me.listeClients()
                         }, me.boutonPlus('nouveauClient', 'Nouveau client (client standard)')]
                 }, {
@@ -709,44 +722,59 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     html: '<div class="ordo-sous-titre">Contexte clinique (facultatif)</div>'
                             + '<div class="ordo-aide">Sert à l\'analyse, aucune donnée du client ne sort.</div>'
                 }, {
+                    /*
+                     * Date de naissance AVANT l'age (30/09), saisie guidee jj/mm/aa : l'age en est calcule et ne se
+                     * saisit plus a la main tant qu'elle est renseignee (il ne peut pas la contredire).
+                     */
                     xtype: 'container',
                     layout: {type: 'hbox', align: 'middle'},
                     items: [{
+                            xtype: 'champdatenaissance',
+                            itemId: 'naissancePatient',
+                            fieldLabel: 'Né(e) le',
+                            labelWidth: 56,
+                            width: 160
+                        }, {
                             xtype: 'numberfield',
                             itemId: 'agePatient',
                             fieldLabel: 'Âge',
-                            labelWidth: 34,
-                            width: 110,
+                            labelWidth: 30,
+                            width: 90,
+                            margin: '0 0 0 12',
                             minValue: 0,
                             maxValue: 130,
                             allowDecimals: false,
                             hideTrigger: true,
                             emptyText: 'ans'
+                        }]
+                }, {
+                    xtype: 'container',
+                    layout: {type: 'hbox', align: 'middle'},
+                    margin: '6 0 0 0',
+                    items: [{
+                            /* Poids (30/09), facultatif : utile aux posologies pediatriques. */
+                            xtype: 'numberfield',
+                            itemId: 'poidsPatient',
+                            fieldLabel: 'Poids',
+                            labelWidth: 56,
+                            width: 160,
+                            minValue: 1,
+                            maxValue: 400,
+                            allowDecimals: false,
+                            hideTrigger: true,
+                            emptyText: 'kg'
                         }, {
                             xtype: 'combobox',
                             itemId: 'sexePatient',
                             fieldLabel: 'Sexe',
-                            labelWidth: 40,
-                            margin: '0 0 0 16',
+                            labelWidth: 36,
+                            margin: '0 0 0 12',
                             flex: 1,
                             editable: false,
                             queryMode: 'local',
                             store: [['', '—'], ['F', 'Féminin'], ['M', 'Masculin']],
                             value: ''
                         }]
-                }, {
-                    /* Poids (30/09), facultatif : utile aux posologies pediatriques. */
-                    xtype: 'numberfield',
-                    itemId: 'poidsPatient',
-                    fieldLabel: 'Poids',
-                    labelWidth: 34,
-                    width: 150,
-                    margin: '6 0 0 0',
-                    minValue: 1,
-                    maxValue: 400,
-                    allowDecimals: false,
-                    hideTrigger: true,
-                    emptyText: 'kg'
                 }, {
                     xtype: 'container',
                     layout: 'column',
@@ -911,6 +939,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         maxLength: 100},
                     {xtype: 'textfield', itemId: 'ncTelephone', fieldLabel: 'Téléphone *', allowBlank: false,
                         maskRe: /[0-9 +.]/, maxLength: 30},
+                    /* Facultative (30/09) : saisie guidee jj/mm/aa, reprise ensuite par ses ordonnances. */
+                    {xtype: 'champdatenaissance', itemId: 'ncNaissance', fieldLabel: 'Né(e) le', width: 250},
                     {xtype: 'combobox', itemId: 'ncSexe', fieldLabel: 'Genre', editable: false, queryMode: 'local',
                         store: [['', '—'], ['F', 'Féminin'], ['M', 'Masculin']], value: ''},
                     {xtype: 'checkbox', itemId: 'ncConsentement', fieldLabel: '&nbsp;', labelSeparator: '',
@@ -1124,7 +1154,20 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, value: 1}},
                 {text: 'POSOLOGIE', dataIndex: 'posologie', flex: 2, itemId: 'colPosologie',
                     renderer: me.texteAvecBulle,
-                    editor: {xtype: 'textfield', maxLength: 150, emptyText: 'ex. 1 cp matin et soir'}},
+                    editor: {xtype: 'textfield', maxLength: 150, emptyText: 'ex. 1 cp matin et soir',
+                        /* Entree valide la posologie et ramene a la recherche produit (30/09) : produit suivant. */
+                        listeners: {
+                            specialkey: function (champ, e) {
+                                if (e.getKey() === e.ENTER) {
+                                    var grille = me.down('#grilleProduits');
+                                    Ext.defer(function () {
+                                        if (grille && !grille.isDestroyed) {
+                                            grille.fireEvent('posologievalidee');
+                                        }
+                                    }, 60);
+                                }
+                            }
+                        }}},
                 {text: 'DURÉE', dataIndex: 'duree', width: 100, itemId: 'colDuree', renderer: me.texteAvecBulle,
                     editor: {xtype: 'textfield', maxLength: 50, emptyText: 'ex. 7 jours'}},
                 {
@@ -1248,11 +1291,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
     /** Liste des clients : large et sur une seule ligne, le telephone en gris (22/09). */
     listeClients: function () {
         return {
-            minWidth: 480,
+            minWidth: 520,
+            /* Nom, type et telephone sur chaque ligne (30/09) : deux homonymes se distinguent d'un coup d'oeil. */
             getInnerTpl: function () {
-                return '<div style="white-space:nowrap">{strFIRSTNAME} {strLASTNAME}'
-                        + '<tpl if="strTELEPHONE"> <span style="color:#777">'
-                        + '({strTELEPHONE})</span></tpl></div>';
+                return '<div class="ordo-client-ligne"><span class="ordo-client-nom">{strFIRSTNAME} {strLASTNAME}</span>'
+                        + '<tpl if="libelleTypeClient"><span class="ordo-client-type ordo-client-type-{typeClient}">'
+                        + '{libelleTypeClient}</span></tpl>'
+                        + '<span class="ordo-client-tel">{strTELEPHONE}</span></div>';
             }
         };
     },

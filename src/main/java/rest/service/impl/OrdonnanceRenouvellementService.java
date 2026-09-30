@@ -131,6 +131,17 @@ public class OrdonnanceRenouvellementService {
             if (poids != null) {
                 requete.put("poidsPatient", entier(poids));
             }
+            /*
+             * Date de naissance de l'origine (30/09) : l'age du renouvellement en est recalcule au jour du
+             * renouvellement.
+             */
+            Object naissance = em
+                    .createNativeQuery(
+                            "SELECT dt_NAISSANCE_PATIENT FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID = ?1")
+                    .setParameter(1, origineId).getSingleResult();
+            if (naissance != null) {
+                requete.put("dateNaissance", String.valueOf(naissance).substring(0, 10));
+            }
             JSONObject cree = ordonnanceService.enregistrer(requete, operateur);
             if (!cree.optBoolean("success", false)) {
                 return cree;

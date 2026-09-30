@@ -147,6 +147,11 @@ public class ClientServiceImpl implements ClientService {
             tc.setStrCODEINTERNE(DateConverter.getShortId(6));
             tc.setEmail(clientLambda.getEmail());
             tc.setBoolCONSENTSMS(clientLambda.consentSmsValeur());
+            /* Date de naissance facultative (30/09) : retenue seulement si elle est possible. */
+            if (DateNaissance.valider(clientLambda.getDtNAISSANCE(), java.time.LocalDate.now()) == null) {
+                java.time.LocalDate naissance = DateNaissance.lire(clientLambda.getDtNAISSANCE());
+                tc.setDtNAISSANCE(naissance == null ? null : java.sql.Date.valueOf(naissance));
+            }
             this.getEmg().persist(tc);
             createCompteClient(tc);
             return tc;

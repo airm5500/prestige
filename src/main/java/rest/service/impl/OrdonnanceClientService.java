@@ -26,6 +26,7 @@ import javax.persistence.Tuple;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import util.Constant;
 import rest.service.impl.OrdonnanceClientSql.Criteres;
 
 /**
@@ -204,6 +205,11 @@ public class OrdonnanceClientService {
                     .createNativeQuery("SELECT int_POIDS_PATIENT FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID = ?1")
                     .setParameter(1, ordonnanceId).getSingleResult();
             entete.put("poidsPatient", poids == null ? JSONObject.NULL : entier(poids));
+            Object naissance = em
+                    .createNativeQuery(
+                            "SELECT dt_NAISSANCE_PATIENT FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID = ?1")
+                    .setParameter(1, ordonnanceId).getSingleResult();
+            entete.put("dateNaissance", StringUtils.left(jour(naissance), 10));
             return new JSONObject().put("success", true).put("ordonnance", entete).put("produits", produits);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "detail d'une ordonnance client", e);
@@ -230,6 +236,10 @@ public class OrdonnanceClientService {
             if (motif != null) {
                 refus.add(motif);
             }
+        }
+        String motifNaissance = DateNaissance.valider(requete.optString("dateNaissance", null), LocalDate.now());
+        if (motifNaissance != null) {
+            refus.add(motifNaissance);
         }
         Integer poids = poids(requete);
         if (poids != null && (poids < 1 || poids > MAX_POIDS)) {
@@ -277,7 +287,12 @@ public class OrdonnanceClientService {
             ordonnance.setStrETABLISSEMENT(OrdonnanceClientSaisie.tronquer(requete.optString("etablissement", null),
                     OrdonnanceClientSaisie.MAX_ETABLISSEMENT));
             ordonnance.setStrOBSERVATIONS(StringUtils.trimToNull(requete.optString("observations", null)));
-            ordonnance.setIntAGEPATIENT(OrdonnanceClientSaisie.agePatient(requete));
+            /*
+             * Date de naissance (30/09) : l'age en est DEDUIT, au jour de l'ordonnance ; il ne peut pas la contredire.
+             */
+            LocalDate naissance = DateNaissance.lire(requete.optString("dateNaissance", null));
+            ordonnance.setIntAGEPATIENT(naissance != null ? Integer.valueOf(DateNaissance.age(naissance, jour))
+                    : OrdonnanceClientSaisie.agePatient(requete));
             ordonnance.setStrSEXEPATIENT(OrdonnanceClientSaisie.sexePatient(requete));
             ordonnance.setBoolGROSSESSE(requete.optBoolean("grossesse", false));
             ordonnance.setBoolALLAITEMENT(requete.optBoolean("allaitement", false));
@@ -294,6 +309,23 @@ public class OrdonnanceClientService {
              */
             if (requete.has("terrains")) {
                 terrainService.remplacer(ordonnance.getLgORDONNANCEID(), requete.optJSONArray("terrains"));
+            }
+            if (requete.has("dateNaissance")) {
+                em.createNativeQuery(
+                        "UPDATE t_ordonnance_client SET dt_NAISSANCE_PATIENT = ?1 WHERE lg_ORDONNANCE_ID = ?2")
+                        .setParameter(1, naissance == null ? null : java.sql.Date.valueOf(naissance))
+                        .setParameter(2, ordonnance.getLgORDONNANCEID()).executeUpdate();
+                /*
+                 * Reportee sur la fiche du client STANDARD (30/09), pour etre reprise aux ordonnances suivantes. Un
+                 * client assurance ou carnet a deja sa date dans sa fiche, geree par son propre ecran : on n'y touche
+                 * pas.
+                 */
+                if (naissance != null && client.getLgTYPECLIENTID() != null
+                        && Constant.STANDART_CLIENT_ID.equals(client.getLgTYPECLIENTID().getLgTYPECLIENTID())) {
+                    em.createNativeQuery("UPDATE t_client SET dt_NAISSANCE = ?1 WHERE lg_CLIENT_ID = ?2")
+                            .setParameter(1, java.sql.Date.valueOf(naissance)).setParameter(2, client.getLgCLIENTID())
+                            .executeUpdate();
+                }
             }
             if (requete.has("poidsPatient")) {
                 em.createNativeQuery(
@@ -955,6 +987,68 @@ public class OrdonnanceClientService {
             LOG.log(Level.SEVERE, "types de client", e);
         }
         return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    /**
+     * Recherche d'un client pour la fiche et le filtre de l'historique (30/09) : par le nom (« commence par », comme
+     * v1/client/list) ou par le telephone (« contient »). Chaque ligne porte le type et le telephone du client, et sa
+     * date de naissance pour la fiche.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject clients(String saisie, int start, int limit) {
+        JSONArray data = new JSONArray();
+        String nom = RechercheClientOrdonnance.nom(saisie);
+        String chiffres = RechercheClientOrdonnance.chiffres(saisie);
+        StringBuilder filtre = new StringBuilder(" FROM t_client c LEFT JOIN t_type_client t"
+                + " ON t.lg_TYPE_CLIENT_ID = c.lg_TYPE_CLIENT_ID WHERE c.str_STATUT = 'enable'");
+        if (!nom.isEmpty()) {
+            filtre.append(" AND (c.str_FIRST_NAME LIKE :nom OR c.str_LAST_NAME LIKE :nom")
+                    .append(" OR CONCAT(COALESCE(c.str_FIRST_NAME, ''), ' ', COALESCE(c.str_LAST_NAME, '')) LIKE :nom")
+                    .append(" OR CONCAT(COALESCE(c.str_LAST_NAME, ''), ' ', COALESCE(c.str_FIRST_NAME, '')) LIKE :nom")
+                    .append(" OR c.str_CODE_INTERNE LIKE :nom");
+            if (chiffres != null) {
+                filtre.append(" OR REGEXP_REPLACE(COALESCE(c.str_TELEPHONE, ''), '[^0-9]', '') LIKE :chiffres")
+                        .append(" OR REGEXP_REPLACE(COALESCE(c.str_ADRESSE, ''), '[^0-9]', '') LIKE :chiffres");
+            }
+            filtre.append(")");
+        }
+        int total = 0;
+        try {
+            Query compte = em.createNativeQuery("SELECT COUNT(*)" + filtre);
+            Query q = em.createNativeQuery(
+                    "SELECT c.lg_CLIENT_ID AS id, c.str_FIRST_NAME AS prenom,"
+                            + " c.str_LAST_NAME AS nom, c.str_TELEPHONE AS telephone, c.str_ADRESSE AS adresse,"
+                            + " c.lg_TYPE_CLIENT_ID AS typeId, t.str_NAME AS type, c.dt_NAISSANCE AS naissance,"
+                            + " c.str_SEXE AS sexe" + filtre + " ORDER BY c.str_FIRST_NAME, c.str_LAST_NAME",
+                    Tuple.class);
+            for (Query x : new Query[] { compte, q }) {
+                if (!nom.isEmpty()) {
+                    x.setParameter("nom", nom + "%");
+                    if (chiffres != null) {
+                        x.setParameter("chiffres", "%" + chiffres + "%");
+                    }
+                }
+            }
+            total = ((Number) compte.getSingleResult()).intValue();
+            q.setFirstResult(Math.max(start, 0)).setMaxResults(limit > 0 ? Math.min(limit, 100) : 30);
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                Object naissance = t.get("naissance");
+                data.put(new JSONObject().put("lgCLIENTID", t.get("id", String.class))
+                        .put("strFIRSTNAME", StringUtils.defaultString(t.get("prenom", String.class)))
+                        .put("strLASTNAME", StringUtils.defaultString(t.get("nom", String.class)))
+                        .put("strTELEPHONE",
+                                RechercheClientOrdonnance.telephone(t.get("telephone", String.class),
+                                        t.get("adresse", String.class)))
+                        .put("typeClient", StringUtils.defaultString(t.get("typeId", String.class)))
+                        .put("libelleTypeClient", StringUtils.defaultString(t.get("type", String.class)))
+                        .put("dtNAISSANCE", StringUtils.left(jour(naissance), 10))
+                        .put("strSEXE", StringUtils.defaultString(t.get("sexe", String.class))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "recherche de client (ordonnances)", e);
+            return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
+        }
+        return new JSONObject().put("success", true).put("total", total).put("data", data);
     }
 
     /** Les prescripteurs actifs, pour le choix de l'ecran : le referentiel medecins existant, pas un nouveau. */

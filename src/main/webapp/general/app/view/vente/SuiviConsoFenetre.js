@@ -26,6 +26,22 @@ Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
     mois: 12,
     clientId: null,
 
+    statics: {
+        /**
+         * Ouvre le suivi du client de la vente en cours, depuis un bouton de l'ecran de vente (client standard ou
+         * assure). Le controleur de la caisse n'est que lu.
+         */
+        ouvrirDepuis: function (bouton) {
+            var ctr = testextjs.app.getController(bouton.up('doventeendepot') ? 'VenteEnDepotCtr' : 'VenteCtr');
+            var client = ctr && ctr.getClient ? ctr.getClient() : null;
+            Ext.create('testextjs.view.vente.SuiviConsoFenetre', {
+                clientId: client && client.get ? client.get('lgCLIENTID') : null,
+                nomClient: client && client.get ? Ext.String.trim((client.get('strFIRSTNAME') || '') + ' '
+                        + (client.get('strLASTNAME') || '')) : ''
+            }).show();
+        }
+    },
+
     initComponent: function () {
         var me = this;
         me.html = '<div class="vc"><div class="vc-chargement">Chargement du suivi…</div></div>';

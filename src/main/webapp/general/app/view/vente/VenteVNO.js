@@ -9,7 +9,7 @@
 
 Ext.define('testextjs.view.vente.VenteVNO', {
     extend: 'Ext.panel.Panel',
-    requires: ['testextjs.view.vente.SuiviConsoFenetre'],
+    requires: ['testextjs.view.vente.SuiviConsoFenetre', 'testextjs.view.vente.ClientStandardFenetre'],
     xtype: 'ventevno',
 //    frame: true,
     border: 0,
@@ -222,6 +222,20 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             margin: '0 0 0 6',
                                             width: 34, height: 34,
                                             xtype: 'button'
+                                        },
+                                        {
+                                            /* Suivi de consommation de l'assure (retour du 30/09), comme pour le
+                                             * client standard : fenetre en lecture seule. */
+                                            itemId: 'suiviConsoAssure',
+                                            icon: 'resources/images/icons/fam/chart_bar.png',
+                                            tooltip: 'Suivi de consommation de ce client',
+                                            cls: 'vp-btn-plat',
+                                            margin: '0 0 0 2',
+                                            width: 34, height: 34,
+                                            xtype: 'button',
+                                            handler: function (bouton) {
+                                                testextjs.view.vente.SuiviConsoFenetre.ouvrirDepuis(bouton);
+                                            }
                                         },
                                         {
                                             // Ressort : occupe le reste de la carte.
@@ -845,16 +859,53 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     height: 30,
                                                     tooltip: 'Suivi de consommation de ce client',
                                                     handler: function (bouton) {
+                                                        testextjs.view.vente.SuiviConsoFenetre.ouvrirDepuis(bouton);
+                                                    }
+                                                },
+                                                {
+                                                    /*
+                                                     * Modifier la fiche du client standard (retour du 30/09) : montre
+                                                     * seulement a qui a le droit P_CLIENT_STANDARD_MAJ.
+                                                     */
+                                                    xtype: 'button',
+                                                    itemId: 'modifierClientStandard',
+                                                    text: 'Modifier',
+                                                    icon: 'resources/images/icons/fam/user_edit.png',
+                                                    cls: 'vc-ouvrir',
+                                                    margin: '0 0 0 6',
+                                                    height: 30,
+                                                    hidden: true,
+                                                    tooltip: 'Modifier la fiche de ce client standard',
+                                                    listeners: {
+                                                        afterrender: function (bouton) {
+                                                            testextjs.view.vente.ClientStandardFenetre.peutModifier(function (ok) {
+                                                                if (!bouton.isDestroyed) {
+                                                                    bouton.setVisible(ok);
+                                                                }
+                                                            });
+                                                        }
+                                                    },
+                                                    handler: function (bouton) {
                                                         var nomCtr = bouton.up('doventeendepot') ? 'VenteEnDepotCtr'
                                                                 : 'VenteCtr';
                                                         var ctr = testextjs.app.getController(nomCtr);
                                                         var client = ctr && ctr.getClient ? ctr.getClient() : null;
-                                                        var id = client && client.get ? client.get('lgCLIENTID') : null;
-                                                        Ext.create('testextjs.view.vente.SuiviConsoFenetre', {
-                                                            clientId: id,
-                                                            nomClient: client && client.get ? Ext.String.trim(
-                                                                    (client.get('strFIRSTNAME') || '') + ' '
-                                                                    + (client.get('strLASTNAME') || '')) : ''
+                                                        var vente = ctr && ctr.getCurrent ? ctr.getCurrent() : null;
+                                                        var zone = bouton.up('#infosClientStandard');
+                                                        Ext.create('testextjs.view.vente.ClientStandardFenetre', {
+                                                            clientId: client && client.get ? client.get('lgCLIENTID') : null,
+                                                            venteId: vente ? vente.lgPREENREGISTREMENTID : null,
+                                                            /* La caisse affiche aussitot la fiche corrigee. */
+                                                            surEnregistre: function (c) {
+                                                                if (client && client.set) {
+                                                                    client.set('strFIRSTNAME', c.nom);
+                                                                    client.set('strLASTNAME', c.prenoms);
+                                                                    client.set('strADRESSE', c.telephone);
+                                                                }
+                                                                zone.down('#nomClient').setValue(c.nom);
+                                                                zone.down('#prenomClient').setValue(c.prenoms);
+                                                                zone.down('#telephoneClient').setValue(c.telephone);
+                                                            }
                                                         }).show();
                                                     }
                                                 }

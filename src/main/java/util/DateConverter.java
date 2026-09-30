@@ -196,6 +196,8 @@ public final class DateConverter {
     public static final String P_SM_PILOTAGE = "P_SM_PILOTAGE";
     public static final String P_ORDONNANCE_CLIENT = "P_ORDONNANCE_CLIENT";
     public static final String P_ORDONNANCE_CLIENT_MAJ = "P_ORDONNANCE_CLIENT_MAJ";
+    /** Modifier la fiche d'un client standard depuis l'ecran de vente (30/09) : reserve, pas a toute la caisse. */
+    public static final String P_CLIENT_STANDARD_MAJ = "P_CLIENT_STANDARD_MAJ";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
     public static final String TIERS_PAYANT_CARNET_ID = "2";
     public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE = "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";
