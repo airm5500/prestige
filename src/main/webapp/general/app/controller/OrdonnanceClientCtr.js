@@ -130,7 +130,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #vueConso button[itemId=pososConso]': {click: me.analyserConso},
             'ordonnanceclient #vueAnalyse': {activate: me.surOngletAnalyse},
             /* Parametrage des terrains cliniques (30/09) : modification directe, enregistree aussitot. */
-            'ordonnanceclient #vueTerrains': {activate: me.chargerParametrageTerrains, edit: me.surEditionTerrain},
+            /* Onglet « Terrains, allergies et parametres » (30/09) : la liste des terrains est une de ses deux grilles. */
+            'ordonnanceclient #vueParametrage': {activate: me.chargerParametrageTerrains},
+            'ordonnanceclient #vueTerrains': {edit: me.surEditionTerrain},
             'ordonnanceclient #vueTerrains checkcolumn[itemId=colTerrainActif]': {checkchange: me.surActifTerrain},
             'ordonnanceclient #vueTerrains button[itemId=ajouterTerrain]': {click: me.ajouterTerrain},
             'ordonnanceclient #vueAnalyse button[itemId=calculerAnalyse]': {click: me.calculerAnalyse},
@@ -249,7 +251,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=creerPrevente]');
         basculer('#vueFiche button[itemId=renouvelerFiche]');
-        var parametrage = ecran.down('#vueTerrains');
+        var parametrage = ecran.down('#vueParametrage');
         if (parametrage && parametrage.tab) {
             parametrage.tab.setVisible(peutEcrire);
         }
@@ -1127,6 +1129,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         this.afficherRenouvellement(null);
         this.cocherTerrains([]);
         fiche.down('#naissancePatient').clearInvalid();
+        fiche.down('#allergiesClient').hide();
         fiche.down('#agePatient').setReadOnly(false);
         this.naissanceDuClient = false;
         var recherche = fiche.down('#rechercheProduit');
@@ -1213,6 +1216,69 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (!verrou) {
             this.majAgeDepuisNaissance();
         }
+        this.afficherResumeClinique(verrou);
+    },
+
+    /**
+     * Consultation (30/09) : le contexte clinique se lit en texte, SEULEMENT ce qui est renseigne ou coche. Les champs
+     * et les cases sont caches (on ne coche pas en visualisation) ; ils reviennent des que la fiche est modifiable.
+     */
+    afficherResumeClinique: function (verrou) {
+        var fiche = this.getEcran().down('#vueFiche');
+        var resume = fiche.down('#resumeClinique');
+        if (!resume) {
+            return;
+        }
+        Ext.each(['#ligneNaissance', '#lignePoids', '#casesContexte', '#terrainsFiche'], function (s) {
+            var c = fiche.down(s);
+            if (c) {
+                c.setVisible(!verrou);
+            }
+        });
+        if (!verrou) {
+            resume.hide();
+            return;
+        }
+        var enc = Ext.String.htmlEncode;
+        var lignes = [];
+        var ajouter = function (libelle, valeur) {
+            lignes.push('<div class="ordo-resume-ligne"><span>' + libelle + '</span><b>' + enc(String(valeur)) + '</b></div>');
+        };
+        var naissance = fiche.down('#naissancePatient').getRawValue();
+        var age = fiche.down('#agePatient').getValue();
+        if (naissance) {
+            ajouter('Né(e) le', naissance + (age !== null && age !== '' ? ' · ' + age + ' ans' : ''));
+        } else if (age !== null && age !== '') {
+            ajouter('Âge', age + ' ans');
+        }
+        var sexe = fiche.down('#sexePatient').getValue();
+        if (sexe) {
+            ajouter('Sexe', sexe === 'F' ? 'Féminin' : 'Masculin');
+        }
+        var poids = fiche.down('#poidsPatient').getValue();
+        if (poids) {
+            ajouter('Poids', poids + ' kg');
+        }
+        var coches = [];
+        Ext.each(['grossesse', 'allaitement', 'insuffisanceRenale', 'insuffisanceHepatique'], function (n) {
+            var c = fiche.down('#' + n);
+            if (c.getValue() === true) {
+                coches.push(c.boxLabel);
+            }
+        });
+        Ext.each(this.casesTerrains(), function (c) {
+            if (c.getValue() === true) {
+                coches.push(c.boxLabel);
+            }
+        });
+        var html = lignes.join('');
+        if (coches.length) {
+            html += '<div class="ordo-resume-puces">' + Ext.Array.map(coches, function (t) {
+                return '<span class="ordo-resume-puce">' + enc(t) + '</span>';
+            }).join('') + '</div>';
+        }
+        resume.update(html || '<div class="ordo-aide">Aucun contexte clinique renseigné sur cette ordonnance.</div>');
+        resume.show();
     },
 
     /** Double-clic sur une ligne : consultation. */
@@ -1408,6 +1474,39 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             fiche.down('#sexePatient').setValue(sexe);
         }
         this.majAgeDepuisNaissance();
+        this.reprendreDossier(client ? client.get('lgCLIENTID') : null);
+    },
+
+    /**
+     * Dossier du client (30/09) : ses terrains et allergies permanents sont coches (en plus de ceux deja coches), et
+     * ses allergies en texte libre s'affichent sous son nom.
+     */
+    reprendreDossier: function (clientId) {
+        var me = this;
+        var fiche = me.getEcran().down('#vueFiche');
+        var bandeau = fiche.down('#allergiesClient');
+        bandeau.hide();
+        if (!clientId) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(clientId) + '/dossier',
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true || fiche.down('#ficheClient').getValue() !== clientId || me.ficheVerrouillee) {
+                    return;
+                }
+                if ((r.terrains || []).length) {
+                    me.cocherTerrains(Ext.Array.union(me.terrainsCoches(), r.terrains));
+                }
+                if (r.allergies) {
+                    bandeau.update('<div class="ordo-allergies"><b>Allergies :</b> ' + Ext.String.htmlEncode(r.allergies)
+                            + '</div>');
+                    bandeau.show();
+                }
+            }
+        });
     },
 
     /**
@@ -2045,6 +2144,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (ecran && ecran.storeTerrains) {
             ecran.storeTerrains.load();
         }
+        if (ecran && ecran.storeParametres) {
+            ecran.storeParametres.load();
+        }
     },
 
     ajouterTerrain: function () {
@@ -2054,7 +2156,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ecran.storeTerrains.each(function (r) {
             ordre = Math.max(ordre, r.get('ordre') || 0);
         });
-        var rec = ecran.storeTerrains.add({id: '', code: '', libelle: '', ordre: ordre + 10, actif: true, utilise: 0})[0];
+        var rec = ecran.storeTerrains.add({id: '', code: '', libelle: '', ordre: ordre + 10, actif: true, utilise: 0,
+            categorie: 'terrain'})[0];
         var edition = (grille.plugins || [])[0];
         Ext.defer(function () {
             edition.startEdit(rec, grille.down('#colTerrainLibelle'));
@@ -2088,7 +2191,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             method: 'POST',
             url: '../api/v1/ordonnance-client/terrains',
             jsonData: {id: rec.get('id') || '', libelle: rec.get('libelle'), ordre: rec.get('ordre') || 0,
-                actif: rec.get('actif') === true},
+                actif: rec.get('actif') === true, categorie: rec.get('categorie') || 'terrain'},
             success: function (reponse) {
                 var r = Ext.decode(reponse.responseText, true) || {};
                 if (r.success !== true) {

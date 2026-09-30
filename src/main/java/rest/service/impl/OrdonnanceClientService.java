@@ -59,6 +59,9 @@ public class OrdonnanceClientService {
     private TerrainCliniqueService terrainService;
 
     @javax.ejb.EJB
+    private DossierClientService dossierService;
+
+    @javax.ejb.EJB
     private rest.service.utils.ReportExcelExportService excelService;
 
     /**
@@ -365,6 +368,14 @@ public class OrdonnanceClientService {
                         "UPDATE t_ordonnance_client SET int_POIDS_PATIENT = ?1 WHERE lg_ORDONNANCE_ID = ?2")
                         .setParameter(1, poids(requete)).setParameter(2, ordonnance.getLgORDONNANCEID())
                         .executeUpdate();
+            }
+            /*
+             * Fiche client (30/09) : le poids saisi rejoint le suivi des parametres du client, les terrains coches
+             * enrichissent son dossier (sans rien en retirer).
+             */
+            if (requete.has("poidsPatient") || requete.has("terrains")) {
+                dossierService.depuisOrdonnance(client.getLgCLIENTID(), ordonnance.getLgORDONNANCEID(), jour,
+                        requete.has("poidsPatient"), poids(requete), requete.optJSONArray("terrains"), operateur);
             }
             /*
              * Renouvellements (30/09) : portes par l'ordonnance d'ORIGINE seulement. Un renouvellement herite des
@@ -1082,6 +1093,41 @@ public class OrdonnanceClientService {
             return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
         }
         return new JSONObject().put("success", true).put("total", total).put("data", data);
+    }
+
+    /**
+     * Recherche de produit des ordonnances (retour du 30/09) : nom, CIP, EAN ou code article, « commence par », avec le
+     * stock de l'emplacement de l'operateur et le prix. Une seule requete legere : la recherche de la caisse
+     * (v1/vente/search) prepare des lignes de vente completes et prenait pres d'une seconde. Elle n'est pas touchee.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject produits(String saisie, String emplacementId, int limit) {
+        JSONArray data = new JSONArray();
+        String q = StringUtils.trimToEmpty(saisie);
+        if (q.isEmpty() || StringUtils.isBlank(emplacementId)) {
+            return new JSONObject().put("success", true).put("total", 0).put("data", data);
+        }
+        try {
+            List<Tuple> lignes = em.createNativeQuery("SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip,"
+                    + " TRIM(f.str_NAME) AS nom, f.int_PRICE AS prix, s.int_NUMBER_AVAILABLE AS stock"
+                    + " FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                    + " AND s.lg_EMPLACEMENT_ID = :emplacement WHERE f.str_STATUT = 'enable' AND (f.str_NAME LIKE :q"
+                    + " OR f.int_CIP LIKE :q OR f.int_EAN13 LIKE :q OR f.code_ean_fabriquant LIKE :q"
+                    + " OR EXISTS (SELECT 1 FROM t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                    + " AND g.str_CODE_ARTICLE LIKE :q)) ORDER BY f.str_NAME", Tuple.class)
+                    .setParameter("emplacement", emplacementId).setParameter("q", q + "%")
+                    .setMaxResults(limit > 0 ? Math.min(limit, 50) : 15).getResultList();
+            for (Tuple t : lignes) {
+                data.put(new JSONObject().put("lgFAMILLEID", t.get("id", String.class))
+                        .put("intCIP", t.get("cip") == null ? "" : String.valueOf(t.get("cip")))
+                        .put("strNAME", StringUtils.defaultString(t.get("nom", String.class)))
+                        .put("intPRICE", entier(t.get("prix"))).put("intNUMBERAVAILABLE", entier(t.get("stock"))));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "recherche de produit (ordonnances)", e);
+            return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
     }
 
     /** Les prescripteurs actifs, pour le choix de l'ecran : le referentiel medecins existant, pas un nouveau. */

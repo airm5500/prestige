@@ -53,8 +53,9 @@ function nettoyer() {
       .map((c) => ({ libelle: c.boxLabel, visible: c.isVisible(), coche: c.getValue(), lecture: c.readOnly, id: c.getId() })));
 
     /* ------------------------------------------------ parametrage : liste de depart + ajout */
-    const onglet = await p.evaluate(() => { const t = Ext.ComponentQuery.query('ordonnanceclient #vueTerrains')[0]; return t.tab.isVisible() ? t.tab.getId() : null; });
-    ok('Onglet « Terrains cliniques » visible pour qui peut modifier', !!onglet);
+    /* Depuis le 30/09 : onglet « Terrains, allergies et paramètres », la liste des terrains en est une grille. */
+    const onglet = await p.evaluate(() => { const t = Ext.ComponentQuery.query('ordonnanceclient #vueParametrage')[0]; return t.tab.isVisible() ? t.tab.getId() : null; });
+    ok('Onglet « Terrains, allergies et paramètres » visible pour qui peut modifier', !!onglet);
     await p.click('#' + onglet);
     await p.waitForFunction(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeTerrains.getCount() >= 10, null, { timeout: 15000 });
     const liste = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeTerrains.getRange().map((r) => r.get('libelle')));

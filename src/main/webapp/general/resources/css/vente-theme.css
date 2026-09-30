@@ -2154,3 +2154,77 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .ordo-hist-bt a { display: inline-block; margin-right: 6px; padding: 2px 10px; border: 1px solid #c3cfdb; border-radius: 4px;
     color: #1e3a5f; text-decoration: none; font-size: 12px; }
 .ordo-hist-bt a:hover { background: #e3edf7; }
+
+/* Consultation d'une ordonnance (30/09) : le contexte clinique en lecture, seulement ce qui est renseigne. */
+.ordo-resume-ligne { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #eef2f6; }
+.ordo-resume-ligne span { color: #6b7b8c; }
+.ordo-resume-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ordo-resume-puce { background: #fdf0d5; color: #92400e; border-radius: 12px; padding: 3px 10px; font-weight: bold; font-size: 12px; }
+
+/* ===== Carte (theme commun, 30/09) : un panneau ou une grille sans le bandeau bleu ExtJS. ===== */
+.ordo-carte, .ordo-carte.x-panel { border: 1px solid #d5dee8 !important; border-radius: 8px; overflow: hidden; background: #fff; }
+.ordo-carte > .x-panel-header, .ordo-carte .x-panel-header-default { background: #fff !important; background-image: none !important;
+    border: 0 !important; border-bottom: 1px solid #e3e9f0 !important; padding: 10px 14px !important; }
+.ordo-carte .x-panel-header-text, .ordo-carte .x-panel-header-text-default { color: #1e3a5f !important; font-size: 12px !important;
+    letter-spacing: .08em; text-transform: uppercase; font-weight: bold; }
+.ordo-carte .x-grid-header-ct, .ordo-carte .x-column-header { background: #f6f8fb !important; background-image: none !important;
+    border-color: #e3e9f0 !important; }
+.ordo-carte .x-column-header-inner .x-column-header-text { color: #6b7b8c; font-size: 11px; letter-spacing: .05em; }
+.ordo-carte .x-panel-body { border: 0 !important; }
+.ordo-carte .x-grid-row-over .x-grid-td { background: #f4f8fc !important; }
+.ordo-barre-analyse { background: #eef2f7 !important; border: 1px solid #d5dee8 !important; border-radius: 6px; margin: 6px; padding: 8px 10px !important; }
+/* Tuiles de l'analyse : cartes blanches, chiffre marine. */
+
+/* Allergies du client, rappelees sur la fiche ordonnance (30/09). */
+.ordo-allergies { background: #fdecea; color: #8e2a1f; border: 1px solid #f3c2bb; border-radius: 6px; padding: 6px 10px; }
+
+/* ===== Fiche client (2e onglet, 30/09) ===== */
+.fc-vide { padding: 40px 20px; text-align: center; color: #6b7b8c; font-size: 14px; }
+.fc-vide-petit { padding: 18px; text-align: center; color: #6b7b8c; }
+.fc-ok { color: #17987e; font-weight: bold; }
+.fc-carte { background: #fff; border: 1px solid #d5dee8; border-radius: 8px; padding: 12px 14px; }
+.fc-nom { font-size: 18px; font-weight: bold; color: #1e3a5f; }
+.fc-sous { color: #6b7b8c; margin: 4px 0 8px; }
+.fc-ligne { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid #eef2f6; }
+.fc-ligne span { color: #6b7b8c; }
+.fc-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.fc-puce { border: 1px solid #c3cfdb; background: #fff; color: #1e2a36; border-radius: 14px; padding: 4px 11px; cursor: pointer;
+    font: inherit; font-size: 12px; }
+.fc-puce:hover { border-color: #2E75B6; }
+.fc-puce-on.fc-puce-terrain { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+.fc-puce-on.fc-puce-allergie { background: #c0392b; border-color: #c0392b; color: #fff; }
+.fc-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.fc-tuile { text-align: left; background: #fff; border: 1px solid #d5dee8; border-radius: 8px; padding: 10px 12px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 4px; font: inherit; color: #1e2a36; }
+.fc-tuile:hover { border-color: #2E75B6; }
+.fc-tuile-active { border-color: #1e3a5f; box-shadow: inset 0 0 0 1px #1e3a5f; }
+.fc-tuile-calcul { cursor: default; background: #f6f8fb; }
+.fc-tuile-libelle { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6b7b8c; font-weight: bold; }
+.fc-tuile-valeur { font-size: 20px; font-weight: bold; color: #1e3a5f; font-variant-numeric: tabular-nums; }
+.fc-tuile-valeur small { font-size: 12px; color: #6b7b8c; font-weight: normal; }
+.fc-tuile-pied { display: flex; justify-content: space-between; align-items: center; color: #6b7b8c; font-size: 11px; }
+.fc-etat { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; }
+.fc-etat-normal { background: #e3f4ef; color: #0f6e5a; }
+.fc-etat-haut { background: #fbe4e1; color: #b0352a; }
+.fc-etat-bas { background: #fdf0d5; color: #9a5b00; }
+.fc-etat-inconnu { background: #eceff3; color: #6b7b8c; }
+.fc-svg { width: 100%; height: auto; display: block; }
+.fc-bande { fill: #e3f4ef; }
+.fc-bande2 { fill: #d5eee6; opacity: .7; }
+.fc-grille { stroke: #eef2f6; stroke-width: 1; }
+.fc-axe { fill: #8a99a8; font-size: 11px; }
+.fc-ligne-courbe { fill: none; stroke-width: 2; }
+.fc-sys { stroke: #1e3a5f; }
+.fc-dia { stroke: #2E75B6; stroke-dasharray: 5 4; }
+.fc-droit { opacity: .75; }
+.fc-point { stroke: #fff; stroke-width: 1.5; }
+.fc-point-normal { fill: #17987e; }
+.fc-point-haut { fill: #c0392b; }
+.fc-point-bas { fill: #d97f06; }
+.fc-point-inconnu { fill: #8a99a8; }
+.fc-legende { display: flex; flex-wrap: wrap; gap: 14px; color: #6b7b8c; font-size: 12px; margin-top: 4px; }
+.fc-legende i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 5px; border-top: 2px solid #1e3a5f; }
+.fc-legende .fc-l-dia { border-top: 2px dashed #2E75B6; }
+.fc-legende .fc-l-bande { height: 10px; border: 0; background: #e3f4ef; }
+.fc-saisie { background: #f6f8fb; border-radius: 6px; padding: 8px 10px; }
+.fc-retirer { border: 0; background: transparent; color: #c0392b; cursor: pointer; font-weight: bold; }

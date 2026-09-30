@@ -33,7 +33,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         deferredRender: false
     },
     activeItem: 0,
-    requires: ['testextjs.view.serviceclient.ordonnance.ChampDateNaissance'],
+    requires: ['testextjs.view.serviceclient.ordonnance.ChampDateNaissance',
+        'testextjs.view.serviceclient.ordonnance.FicheClientVue'],
 
     initComponent: function () {
         var me = this;
@@ -163,7 +164,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/vente/search',
+                url: '../api/v1/ordonnance-client/produits',
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}
             }
         });
@@ -179,7 +180,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     {name: 'intPRICE', type: 'int'}],
                 pageSize: 15,
                 autoLoad: false,
-                proxy: {type: 'ajax', url: '../api/v1/vente/search',
+                proxy: {type: 'ajax', url: '../api/v1/ordonnance-client/produits',
                     reader: {type: 'json', root: 'data', totalProperty: 'total'}}
             });
         };
@@ -309,7 +310,9 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     cls: 'ordo-onglets',
                     border: false,
                     plain: true,
-                    items: [me.vueHistorique(), me.vueAnalyse(), me.vueTerrains()]
+                    /* « Fiche client » en 2e onglet (30/09). */
+                    items: [me.vueHistorique(), {xtype: 'ordofichesclient', ecran: me}, me.vueAnalyse(),
+                        me.vueParametrage()]
                 }, me.vueFiche(), me.vueConso(), me.vueScan()]
         });
         me.callParent(arguments);
@@ -811,6 +814,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         }]
                 }, {
                     /* Les AUTRES ordonnances du client encore dues (30/09), avec un lien pour les voir. */
+                    /* Allergies en texte libre du dossier du client (30/09), rappelees des qu'il est choisi. */
+                    xtype: 'component',
+                    itemId: 'allergiesClient',
+                    margin: '6 0 0 0',
+                    hidden: true,
+                    html: ''
+                }, {
                     xtype: 'component',
                     itemId: 'resteClient',
                     margin: '6 0 0 0',
@@ -825,10 +835,20 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             + '<div class="ordo-aide">Sert à l\'analyse, aucune donnée du client ne sort.</div>'
                 }, {
                     /*
+                     * En CONSULTATION (30/09) : seulement ce qui a ete renseigne ou coche, en texte. Les champs et les
+                     * cases vides sont caches : on ne doit pas etre tente de cocher en visualisation.
+                     */
+                    xtype: 'component',
+                    itemId: 'resumeClinique',
+                    hidden: true,
+                    html: ''
+                }, {
+                    /*
                      * Date de naissance AVANT l'age (30/09), saisie guidee jj/mm/aa : l'age en est calcule et ne se
                      * saisit plus a la main tant qu'elle est renseignee (il ne peut pas la contredire).
                      */
                     xtype: 'container',
+                    itemId: 'ligneNaissance',
                     layout: {type: 'hbox', align: 'middle'},
                     items: [{
                             xtype: 'champdatenaissance',
@@ -851,6 +871,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         }]
                 }, {
                     xtype: 'container',
+                    itemId: 'lignePoids',
                     layout: {type: 'hbox', align: 'middle'},
                     margin: '6 0 0 0',
                     items: [{
@@ -879,6 +900,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         }]
                 }, {
                     xtype: 'container',
+                    itemId: 'casesContexte',
                     layout: 'column',
                     margin: '8 0 0 0',
                     defaults: {columnWidth: 0.5},
@@ -1339,13 +1361,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             emptyText: 'Rechercher un produit (nom ou CIP)',
                             listConfig: me.listeArticles()
                         }, {
-                            xtype: 'button',
-                            itemId: 'ajouterProduit',
-                            text: 'Ajouter un produit',
-                            iconCls: 'add',
-                            cls: 'ordo-btn',
-                            tooltip: 'Ajouter une ligne vide, à saisir dans la grille (produit hors référentiel compris)'
-                        }, {
+                            /* « Ajouter un produit » retire (30/09) : la recherche suffit, texte libre + Entree compris. */
                             xtype: 'button',
                             itemId: 'toutServir',
                             text: 'Tout servi',
@@ -1978,11 +1994,135 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
      * Parametrage des terrains cliniques proposes dans la fiche : ajouter, renommer, reordonner, desactiver. Un
      * terrain ne se supprime pas : les ordonnances qui le portent le gardent.
      */
+    /**
+     * Onglet « Terrains, allergies et parametres » (30/09) : la liste des terrains et allergies, et celle des
+     * parametres suivis (libelle, unite, bornes de saisie, ordre, actif). Modification directe, enregistree aussitot.
+     */
+    vueParametrage: function () {
+        var me = this;
+        return {
+            xtype: 'container',
+            itemId: 'vueParametrage',
+            title: 'Terrains, allergies et paramètres',
+            padding: 8,
+            layout: {type: 'hbox', align: 'stretch'},
+            items: [me.vueTerrains(), me.grilleParametres()]
+        };
+    },
+
+    grilleParametres: function () {
+        var me = this;
+        me.storeParametres = new Ext.data.Store({
+            fields: ['id', 'code', 'libelle', 'unite', 'genre', {name: 'decimales', type: 'int'},
+                {name: 'saisieMin', useNull: true}, {name: 'saisieMax', useNull: true}, {name: 'ordre', type: 'int'},
+                {name: 'actif', type: 'boolean'}, {name: 'mesures', type: 'int'}, 'normes'],
+            autoLoad: false,
+            proxy: {type: 'ajax', url: '../api/v1/ordonnance-client/parametres?tous=true',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        var sauver = function (rec) {
+            if (!Ext.String.trim(rec.get('libelle') || '')) {
+                if (!rec.get('id')) {
+                    me.storeParametres.remove(rec);
+                }
+                return;
+            }
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/ordonnance-client/parametres',
+                jsonData: {id: rec.get('id') || '', libelle: rec.get('libelle'), unite: rec.get('unite') || '',
+                    decimales: rec.get('decimales') || 0, saisieMin: rec.get('saisieMin'), saisieMax: rec.get('saisieMax'),
+                    ordre: rec.get('ordre') || 0, actif: rec.get('actif') === true},
+                success: function (reponse) {
+                    var r = Ext.decode(reponse.responseText, true) || {};
+                    if (r.success !== true) {
+                        Ext.Msg.alert('Paramètres', Ext.String.htmlEncode(r.message || 'Le paramètre n\'a pas pu être enregistré.'));
+                    }
+                    me.storeParametres.load();
+                }
+            });
+        };
+        var nombre = {xtype: 'numberfield', hideTrigger: true, decimalSeparator: ','};
+        return {
+            xtype: 'gridpanel',
+            itemId: 'grilleParametres',
+            title: 'Paramètres suivis',
+            cls: 'ordo-carte',
+            flex: 1.4,
+            store: me.storeParametres,
+            columnLines: true,
+            selType: 'cellmodel',
+            plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+            listeners: {
+                edit: function (ed, e) {
+                    if (e.value !== e.originalValue || !e.record.get('id')) {
+                        sauver(e.record);
+                    }
+                }
+            },
+            columns: [
+                {text: 'PARAMÈTRE', dataIndex: 'libelle', flex: 2, itemId: 'colParametreLibelle',
+                    editor: {xtype: 'textfield', allowBlank: false, maxLength: 80}},
+                {text: 'UNITÉ', dataIndex: 'unite', width: 70, editor: {xtype: 'textfield', maxLength: 20}},
+                {text: 'DÉC.', dataIndex: 'decimales', width: 55, align: 'right',
+                    editor: {xtype: 'numberfield', minValue: 0, maxValue: 3, allowDecimals: false}},
+                {text: 'SAISIE MIN', dataIndex: 'saisieMin', width: 90, align: 'right', editor: nombre},
+                {text: 'SAISIE MAX', dataIndex: 'saisieMax', width: 90, align: 'right', editor: nombre},
+                {text: 'NORMES', dataIndex: 'normes', flex: 2,
+                    renderer: function (v, meta) {
+                        var n = Ext.Array.map(v || [], function (x) {
+                            return x.plage + (x.source ? ' (' + x.source + ')' : '');
+                        });
+                        if (n.length) {
+                            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(n.join(' ; '))) + '"';
+                        }
+                        return n.length ? Ext.String.htmlEncode(n.join(' ; ')) : '<span style="color:#999">—</span>';
+                    }},
+                {text: 'ORDRE', dataIndex: 'ordre', width: 70, align: 'right',
+                    editor: {xtype: 'numberfield', minValue: 0, maxValue: 9999, allowDecimals: false}},
+                {xtype: 'checkcolumn', text: 'ACTIF', dataIndex: 'actif', width: 65,
+                    listeners: {checkchange: function (c, i, coche, rec) {
+                            if (rec && rec.get('id')) {
+                                sauver(rec);
+                            }
+                        }}},
+                {text: 'MESURES', dataIndex: 'mesures', width: 80, align: 'right'}
+            ],
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'button',
+                            itemId: 'ajouterParametre',
+                            text: 'Ajouter un paramètre',
+                            iconCls: 'add',
+                            cls: 'ordo-btn',
+                            handler: function (b) {
+                                var grille = b.up('gridpanel');
+                                var ordre = 0;
+                                me.storeParametres.each(function (r) {
+                                    ordre = Math.max(ordre, r.get('ordre') || 0);
+                                });
+                                var rec = me.storeParametres.add({id: '', libelle: '', unite: '', genre: 'simple',
+                                    decimales: 0, ordre: ordre + 10, actif: true, mesures: 0, normes: []})[0];
+                                Ext.defer(function () {
+                                    grille.plugins[0].startEdit(rec, grille.down('#colParametreLibelle'));
+                                }, 80);
+                            }
+                        }, {
+                            xtype: 'tbtext',
+                            style: 'color:#777',
+                            text: 'Normes par âge : analyse de chaque mesure. Bornes de saisie : au-delà, faute de frappe.'
+                        }]
+                }]
+        };
+    },
+
     vueTerrains: function () {
         var me = this;
         me.storeTerrains = new Ext.data.Store({
             fields: ['id', 'code', 'libelle', {name: 'ordre', type: 'int'}, {name: 'actif', type: 'boolean'},
-                {name: 'utilise', type: 'int'}],
+                {name: 'utilise', type: 'int'}, {name: 'categorie', defaultValue: 'terrain'}],
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -1993,14 +2133,24 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         return {
             xtype: 'gridpanel',
             itemId: 'vueTerrains',
-            title: 'Terrains cliniques',
+            title: 'Terrains et allergies',
+            cls: 'ordo-carte',
+            flex: 1,
+            margin: '0 10 0 0',
             store: me.storeTerrains,
             columnLines: true,
             selType: 'cellmodel',
             plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
             columns: [
-                {text: 'TERRAIN', dataIndex: 'libelle', flex: 3, itemId: 'colTerrainLibelle',
+                {text: 'TERRAIN / ALLERGIE', dataIndex: 'libelle', flex: 3, itemId: 'colTerrainLibelle',
                     editor: {xtype: 'textfield', allowBlank: false, maxLength: 80}},
+                {text: 'CATÉGORIE', dataIndex: 'categorie', width: 110, itemId: 'colTerrainCategorie',
+                    renderer: function (v) {
+                        return v === 'allergie' ? '<span class="ordo-etat ordo-etat-reste">Allergie</span>'
+                                : '<span class="ordo-etat ordo-etat-a_renseigner">Terrain</span>';
+                    },
+                    editor: {xtype: 'combobox', editable: false, queryMode: 'local',
+                        store: [['terrain', 'Terrain'], ['allergie', 'Allergie']]}},
                 {text: 'ORDRE', dataIndex: 'ordre', width: 90, align: 'right',
                     editor: {xtype: 'numberfield', minValue: 0, maxValue: 9999, allowDecimals: false}},
                 {xtype: 'checkcolumn', text: 'ACTIF', dataIndex: 'actif', width: 80, itemId: 'colTerrainActif'},
@@ -2021,14 +2171,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     items: [{
                             xtype: 'button',
                             itemId: 'ajouterTerrain',
-                            text: 'Ajouter un terrain',
+                            text: 'Ajouter un terrain ou une allergie',
                             iconCls: 'add',
                             cls: 'ordo-btn'
                         }, {
                             xtype: 'tbtext',
                             style: 'color:#777',
-                            text: 'Modification directe dans la grille, enregistrée aussitôt. Décocher « Actif » retire le'
-                                    + ' terrain de la fiche sans l\'effacer des ordonnances.'
+                            text: 'Modification directe, enregistrée aussitôt. Décocher « Actif » retire'
+                                    + ' de la fiche sans effacer des ordonnances.'
                         }]
                 }]
         };
@@ -2058,8 +2208,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 xtype: 'gridpanel',
                 itemId: itemId,
                 title: titre,
+                /* Carte au nouveau style (30/09) : plus de bandeau bleu ExtJS. */
+                cls: 'ordo-carte',
                 flex: 1,
-                margin: '0 6 0 0',
+                margin: '0 8 0 0',
                 store: store,
                 columnLines: true,
                 columns: colonnesVentilation(entete)
@@ -2075,6 +2227,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     xtype: 'toolbar',
                     dock: 'top',
                     itemId: 'barreAnalyse',
+                    cls: 'ordo-barre-analyse',
                     items: [{
                             xtype: 'datefield',
                             itemId: 'anaDebut',
@@ -2154,6 +2307,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     xtype: 'gridpanel',
                     itemId: 'anaProduits',
                     title: 'Produits les plus prescrits (ordonnances annulées exclues)',
+                    cls: 'ordo-carte',
                     flex: 1,
                     minHeight: 200,
                     margin: '0 6 6 6',

@@ -72,6 +72,9 @@ public class OrdonnanceClientRessource {
     @EJB
     private rest.service.impl.OrdonnanceScanService scanService;
 
+    @EJB
+    private rest.service.impl.DossierClientService dossierService;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -797,6 +800,113 @@ public class OrdonnanceClientRessource {
         return Response.ok().entity(scanService.historiqueProduits(clientId, ids, memeDci).toString()).build();
     }
 
+    /*
+     * ============================================================================================= FICHE CLIENT
+     * (retour du 30/09) : dossier, parametres suivis et mesures. Lecture : P_ORDONNANCE_CLIENT ; saisie :
+     * P_ORDONNANCE_CLIENT_MAJ, le meme droit que la saisie des ordonnances.
+     * =============================================================================================
+     */
+
+    private static JSONObject lireCorps(String corps) {
+        try {
+            return new JSONObject(corps == null || corps.trim().isEmpty() ? "{}" : corps);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    @GET
+    @Path("parametres")
+    public Response parametres(@QueryParam("tous") @DefaultValue("false") boolean tous) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(dossierService.parametres(tous).toString()).build();
+    }
+
+    @POST
+    @Path("parametres")
+    public Response enregistrerParametre(String corps) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject r = lireCorps(corps);
+        return r == null ? refus("La saisie n'a pas pu être lue.")
+                : Response.ok().entity(dossierService.enregistrerParametre(r).toString()).build();
+    }
+
+    @GET
+    @Path("client/{clientId}/dossier")
+    public Response dossier(@PathParam("clientId") String clientId) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(dossierService.dossier(clientId).toString()).build();
+    }
+
+    @POST
+    @Path("client/{clientId}/dossier")
+    public Response enregistrerDossier(@PathParam("clientId") String clientId, String corps) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject r = lireCorps(corps);
+        return r == null ? refus("La saisie n'a pas pu être lue.")
+                : Response.ok().entity(dossierService.enregistrerDossier(clientId, r, operateur).toString()).build();
+    }
+
+    @GET
+    @Path("client/{clientId}/mesures")
+    public Response mesures(@PathParam("clientId") String clientId, @QueryParam("parametreId") String parametreId) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(dossierService.mesures(clientId, parametreId).toString()).build();
+    }
+
+    @POST
+    @Path("client/{clientId}/mesures")
+    public Response ajouterMesures(@PathParam("clientId") String clientId, String corps) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject r = lireCorps(corps);
+        return r == null ? refus("La saisie n'a pas pu être lue.")
+                : Response.ok().entity(dossierService.ajouterMesures(clientId, r, null, operateur).toString()).build();
+    }
+
+    @POST
+    @Path("mesures/{mesureId}/retirer")
+    public Response retirerMesure(@PathParam("mesureId") String mesureId) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(dossierService.supprimerMesure(mesureId).toString()).build();
+    }
+
     /** Reste a delivrer d'un client (30/09) : ses ordonnances encore dues, la plus ancienne d'abord. */
     @GET
     @Path("client/{clientId}/reste")
@@ -848,6 +958,22 @@ public class OrdonnanceClientRessource {
             return refusConsultation();
         }
         return Response.ok().entity(ordonnanceService.clients(query, start, limit).toString()).build();
+    }
+
+    /** Recherche de produit des ordonnances (30/09) : legere, stock de l'emplacement de l'operateur. */
+    @GET
+    @Path("produits")
+    public Response produits(@QueryParam("query") String query, @QueryParam("limit") @DefaultValue("15") int limit) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        String emplacement = operateur.getLgEMPLACEMENTID() == null ? null
+                : operateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        return Response.ok().entity(ordonnanceService.produits(query, emplacement, limit).toString()).build();
     }
 
     /** Types de client (carnet, assurance, standard) pour le filtre de l'historique. */

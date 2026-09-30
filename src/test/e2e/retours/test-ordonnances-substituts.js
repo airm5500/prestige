@@ -96,7 +96,8 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
     ok('« Remplacer » : la ligne prend le produit choisi et GARDE sa posologie', ligne0.libelle === premier && ligne0.posologie === '1 cp 3 fois par jour' && ligne0.cache, JSON.stringify(ligne0) + ' / ' + premier);
 
     /* --------------------------------------------------------------- marge etroite, sans DCI */
-    await clic('ordonnanceclient #grilleProduits button[itemId=ajouterProduit]');
+    /* Le bouton « Ajouter un produit » est retire (30/09) : une ligne vide, comme la recherche en cree une. */
+    await p.evaluate(() => { testextjs.app.getController('OrdonnanceClientCtr').ajouterProduit(false); }); await p.waitForTimeout(400);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     await choisirProduit(1, 'LEVOTHYROX 75', 'LEVOTHYROX 75MCG CPR SEC B/30');
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
@@ -104,7 +105,8 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
     await icone(1);
     const levo = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #grilleSubstituts')[0].down('#messageSubstituts').getEl().dom.textContent);
     ok('Lévothyroxine : « substitution à éviter », marge thérapeutique étroite', /à éviter/.test(levo) && /marge/.test(levo), levo.slice(0, 200));
-    await clic('ordonnanceclient #grilleProduits button[itemId=ajouterProduit]');
+    /* Le bouton « Ajouter un produit » est retire (30/09) : une ligne vide, comme la recherche en cree une. */
+    await p.evaluate(() => { testextjs.app.getController('OrdonnanceClientCtr').ajouterProduit(false); }); await p.waitForTimeout(400);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     await choisirProduit(2, 'FERCEFOL', 'FERCEFOL CPR B/30');
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);

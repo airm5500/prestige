@@ -33,7 +33,7 @@ public class TerrainCliniqueService {
         JSONArray data = new JSONArray();
         List<Tuple> lignes = em
                 .createNativeQuery("SELECT t.lg_TERRAIN_ID AS id, t.str_CODE AS code, t.str_LIBELLE AS libelle,"
-                        + " t.int_ORDRE AS ordre, t.bool_ACTIF AS actif,"
+                        + " t.int_ORDRE AS ordre, t.bool_ACTIF AS actif, t.str_CATEGORIE AS categorie,"
                         + " (SELECT COUNT(*) FROM t_ordonnance_client_terrain ot WHERE ot.lg_TERRAIN_ID = t.lg_TERRAIN_ID) AS utilise"
                         + " FROM t_terrain_clinique t" + (tous ? "" : " WHERE t.bool_ACTIF = 1")
                         + " ORDER BY t.int_ORDRE, t.str_LIBELLE", Tuple.class)
@@ -42,7 +42,9 @@ public class TerrainCliniqueService {
             data.put(new JSONObject().put("id", t.get("id", String.class))
                     .put("code", StringUtils.defaultString(t.get("code", String.class)))
                     .put("libelle", t.get("libelle", String.class)).put("ordre", entier(t.get("ordre")))
-                    .put("actif", vrai(t.get("actif"))).put("utilise", entier(t.get("utilise"))));
+                    .put("actif", vrai(t.get("actif"))).put("utilise", entier(t.get("utilise")))
+                    /* Terrain ou allergie (30/09) : les deux alimentent l'analyse. */
+                    .put("categorie", categorie(t.get("categorie", String.class))));
         }
         return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
     }
@@ -56,6 +58,7 @@ public class TerrainCliniqueService {
             return refus(motif);
         }
         int ordre = requete.optInt("ordre", 100);
+        String categorie = categorie(requete.optString("categorie", null));
         boolean actif = requete.optBoolean("actif", true);
         try {
             Number doublon = (Number) em
@@ -69,15 +72,18 @@ public class TerrainCliniqueService {
                 id = UUID.randomUUID().toString();
                 em.createNativeQuery(
                         "INSERT INTO t_terrain_clinique (lg_TERRAIN_ID, str_LIBELLE, int_ORDRE, bool_ACTIF,"
-                                + " dt_CREATED) VALUES (?1, ?2, ?3, ?4, ?5)")
+                                + " dt_CREATED, str_CATEGORIE) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
                         .setParameter(1, id).setParameter(2, libelle).setParameter(3, ordre)
-                        .setParameter(4, actif ? 1 : 0).setParameter(5, new Date()).executeUpdate();
+                        .setParameter(4, actif ? 1 : 0).setParameter(5, new Date()).setParameter(6, categorie)
+                        .executeUpdate();
             } else {
                 int n = em
                         .createNativeQuery("UPDATE t_terrain_clinique SET str_LIBELLE = ?1, int_ORDRE = ?2,"
-                                + " bool_ACTIF = ?3, dt_UPDATED = ?4 WHERE lg_TERRAIN_ID = ?5")
+                                + " bool_ACTIF = ?3, dt_UPDATED = ?4, str_CATEGORIE = COALESCE(?6, str_CATEGORIE)"
+                                + " WHERE lg_TERRAIN_ID = ?5")
                         .setParameter(1, libelle).setParameter(2, ordre).setParameter(3, actif ? 1 : 0)
-                        .setParameter(4, new Date()).setParameter(5, id).executeUpdate();
+                        .setParameter(4, new Date()).setParameter(5, id)
+                        .setParameter(6, requete.has("categorie") ? categorie : null).executeUpdate();
                 if (n == 0) {
                     return refus("Terrain inconnu.");
                 }
@@ -121,6 +127,11 @@ public class TerrainCliniqueService {
                         .setParameter(1, ordonnanceId).setParameter(2, t).executeUpdate();
             }
         }
+    }
+
+    /** « allergie » ou « terrain » (par defaut). */
+    static String categorie(String v) {
+        return "allergie".equalsIgnoreCase(StringUtils.trimToEmpty(v)) ? "allergie" : "terrain";
     }
 
     private static JSONObject refus(String message) {
