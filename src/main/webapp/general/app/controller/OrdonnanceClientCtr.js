@@ -126,15 +126,30 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             if (bulle && origine === null) {
                 origine = bulle.dismissDelay;
                 bulle.dismissDelay = 0;
+                /* Une bulle ne doit jamais prendre le clic destine a la cellule qu'elle recouvre (bord d'ecran). */
+                bulle.addCls('ordo-bulle-traversante');
             }
         });
         el.on('mouseleave', function () {
             var bulle = Ext.tip.QuickTipManager.getQuickTip();
             if (bulle && origine !== null) {
                 bulle.dismissDelay = origine;
+                bulle.removeCls('ordo-bulle-traversante');
                 origine = null;
             }
         });
+        /*
+         * Une bulle sans delai ne se ferme qu'en quittant son element. Si un clic fait DISPARAITRE cet element (icone
+         * « Consulter », changement de vue), elle resterait bloquee par-dessus la fiche : tout clic la ferme.
+         */
+        el.on('mousedown', this.fermerBulle, this);
+    },
+
+    fermerBulle: function () {
+        var bulle = Ext.tip && Ext.tip.QuickTipManager ? Ext.tip.QuickTipManager.getQuickTip() : null;
+        if (bulle && bulle.isVisible()) {
+            bulle.hide();
+        }
     },
 
     /**
@@ -293,6 +308,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     montrer: function (index) {
         var ecran = this.getEcran();
+        this.fermerBulle();
         if (ecran) {
             ecran.getLayout().setActiveItem(index);
         }

@@ -95,6 +95,11 @@ function nettoyer() {
         img.id = 'act' + Date.now(); return img.id;
       }, [ordre.indexOf(nb), nom]);
       await p.click('#' + id); await p.waitForTimeout(1500);
+      /* La fiche est chargee (produits en place) avant tout clic dans sa grille : sous charge, le dessin peut tarder. */
+      if (nom === 'consulter' || nom === 'modifier') {
+        await p.waitForFunction((n) => { const e = Ext.ComponentQuery.query('ordonnanceclient')[0]; return e.getLayout().getActiveItem().itemId === 'vueFiche' && e.storeProduits.getCount() === n && !Ext.Ajax.isLoading(); }, nb, { timeout: 20000 });
+        await p.waitForTimeout(500);
+      }
     };
     const cellule = async (rang, col) => {
       const id = await marquer(([r, c]) => {
@@ -102,6 +107,7 @@ function nettoyer() {
         const td = g.getView().getNode(r).querySelectorAll('td')[c];
         td.id = 'cel' + Date.now(); return td.id;
       }, [rang, col]);
+      await p.locator('#' + id).scrollIntoViewIfNeeded();
       await p.click('#' + id); await p.waitForTimeout(500);
     };
     const nbLignes = () => p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeProduits.getCount());
