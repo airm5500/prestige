@@ -55,6 +55,18 @@ const crees = [];
     await clic('Toutes');
     const tout = await p.evaluate((r) => { const m = Ext.ComponentQuery.query('cloturerventemanager')[0]; return { combo: m.down('#typeVente').getValue(), trouve: m.down('gridpanel').getStore().findExact('strREF', r) }; }, refs[1]);
     ok('Puce « Toutes » : filtre retiré, les ventes reviennent', !tout.combo && tout.trouve >= 0, JSON.stringify(tout));
+    /* Pagination numerotee (theme commun) : une vente par page, le numero 2 mene a la page 2. */
+    await p.evaluate(() => { const st = Ext.ComponentQuery.query('cloturerventemanager gridpanel')[0].getStore(); st.pageSize = 1; st.loadPage(1); });
+    await p.waitForFunction(() => document.querySelectorAll('.pg-zone .pg-num').length >= 2, null, { timeout: 15000 });
+    const pg = await p.evaluate(() => { const bar = Ext.ComponentQuery.query('cloturerventemanager pagingtoolbar')[0];
+      return { nums: [...document.querySelectorAll('.pg-zone .pg-num, .pg-zone .pg-trou')].map((x) => x.textContent), actif: (document.querySelector('.pg-zone .pg-actif') || {}).textContent,
+        saisieCachee: !bar.child('#inputItem').isVisible() }; });
+    ok('Pagination numérotée : numéros au lieu du champ « Page », la page 1 active', pg.nums[0] === '1' && pg.nums[1] === '2' && pg.actif === '1' && pg.saisieCachee, JSON.stringify(pg));
+    await p.click('.pg-zone .pg-num[data-page="2"]');
+    await p.waitForFunction(() => (document.querySelector('.pg-zone .pg-actif') || {}).textContent === '2', null, { timeout: 15000 });
+    ok('Clic sur « 2 » : la page 2 est chargée', (await p.evaluate(() => Ext.ComponentQuery.query('cloturerventemanager gridpanel')[0].getStore().currentPage)) === 2);
+    await p.evaluate(() => { const st = Ext.ComponentQuery.query('cloturerventemanager gridpanel')[0].getStore(); st.pageSize = 9999; st.loadPage(1); });
+    await p.waitForTimeout(1200);
     /* Recherche par Entree. */
     await p.click('#' + await p.evaluate(() => Ext.ComponentQuery.query('cloturerventemanager #query')[0].inputEl.id));
     await p.keyboard.type(refs[0]); await p.keyboard.press('Enter'); await p.waitForTimeout(1500);

@@ -2288,3 +2288,41 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .theme-chargement::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 30%; background: #2E75B6; z-index: 20;
     animation: theme-course 1s ease-in-out infinite; }
 @keyframes theme-course { 0% { left: -30%; } 100% { left: 100%; } }
+
+/* ===== Boutons segmentes poses sur un combo (plugin segments) : ligne type / nature / vendeur de l'ecran de vente ===== */
+.seg-ligne { background: #fff; border: 1px solid #e0e7ef; border-radius: 8px; }
+.seg-lib { font-size: 11px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase; color: #6b7b8c; padding-top: 9px !important; }
+.seg-combo .x-form-trigger-wrap { display: none !important; }
+.seg-groupe { display: inline-flex; background: #eef2f7; border-radius: 8px; padding: 3px; gap: 2px; white-space: nowrap; }
+.seg-bouton { border: 0; background: transparent; border-radius: 6px; padding: 5px 14px; font: bold 13px/18px inherit; font-family: inherit;
+    color: #6b7b8c; cursor: pointer; }
+.seg-bouton:hover:not([disabled]) { color: #1e3a5f; }
+.seg-bouton:focus-visible { outline: 2px solid #2E75B6; outline-offset: 1px; }
+.seg-bouton.seg-actif { background: #fff; color: #1e3a5f; box-shadow: 0 1px 2px rgba(30, 58, 95, .18); }
+.seg-bouton[disabled] { cursor: default; opacity: .6; }
+.seg-bouton.seg-actif[disabled] { opacity: 1; }
+
+/* ===== Suivi de consommation : fiche du client en tete (maquette validee le 30/09) ===== */
+.sc-fiche { margin: 0 18px 10px; border: 1px solid #e0e7ef; border-radius: 8px; background: #f8fafc; padding: 8px 12px; }
+.sc-ligne { display: flex; gap: 18px; flex-wrap: wrap; }
+.sc-ligne + .sc-ligne { border-top: 1px dashed #d5dee8; margin-top: 8px; padding-top: 8px; }
+.sc-champ { display: flex; flex-direction: column; min-width: 120px; }
+.sc-clinique .sc-champ:last-child { flex: 1; }
+.sc-lib { font-size: 10px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase; color: #6b7b8c; }
+.sc-val { font-size: 13px; color: #1e2a36; margin-top: 2px; }
+.sc-puce { display: inline-block; background: #e0ecff; color: #1d4ed8; border-radius: 10px; padding: 1px 8px; font-size: 11px;
+    font-weight: bold; margin: 0 4px 2px 0; }
+.sc-puce-allergie, .sc-allergies { background: #fdecea; color: #b42318; }
+.sc-allergies { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: bold; }
+.sc-mesure { display: inline-block; border: 1px solid #d5dee8; border-radius: 6px; padding: 1px 7px; font-size: 12px; margin: 0 4px 2px 0;
+    background: #fff; }
+.sc-mesure-alerte { border-color: #f0b4ad; background: #fff5f4; color: #b42318; }
+
+/* ===== Pagination numerotee (plugin paginationnumerotee) et raccourcis de periode ===== */
+.pg-zone { display: inline-flex; align-items: center; gap: 3px; margin: 0 4px; }
+.pg-num { min-width: 28px; height: 26px; border: 1px solid #d5dee8; border-radius: 6px; background: #fff; color: #1e3a5f;
+    font: bold 12px/24px inherit; font-family: inherit; cursor: pointer; padding: 0 6px; }
+.pg-num:hover:not([disabled]) { border-color: #2E75B6; background: #eef4fb; }
+.pg-num.pg-actif { background: #1e3a5f; border-color: #1e3a5f; color: #fff; cursor: default; }
+.pg-trou { color: #9aa8b6; padding: 0 2px; }
+.periode-menu .x-menu-item-text { font-size: 13px; }

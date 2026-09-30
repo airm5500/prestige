@@ -14,6 +14,7 @@
 Ext.define('testextjs.view.vente.Pending', {
     extend: 'Ext.panel.Panel',
     xtype: 'cloturerventemanager',
+    requires: ['testextjs.view.commun.PaginationNumerotee'],
     frame: true,
     title: 'Liste Des Ventes',
     iconCls: 'icon-grid',
@@ -269,7 +270,7 @@ Ext.define('testextjs.view.vente.Pending', {
                         xtype: 'pagingtoolbar',
                         store: vente,
                         dock: 'bottom',
-                        cls: 'theme-pagination',
+                        plugins: ['paginationnumerotee'],
                         displayInfo: true,
                         displayMsg: 'Ventes {0} – {1} sur {2}',
                         emptyMsg: 'Aucune vente en attente'

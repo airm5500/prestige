@@ -33,7 +33,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         deferredRender: false
     },
     activeItem: 0,
-    requires: ['testextjs.view.serviceclient.ordonnance.ChampDateNaissance',
+    requires: ['testextjs.view.serviceclient.ordonnance.ChampDateNaissance', 'testextjs.view.commun.PaginationNumerotee',
+        'testextjs.view.commun.RaccourcisPeriode',
         'testextjs.view.serviceclient.ordonnance.FicheClientVue'],
 
     initComponent: function () {
@@ -647,6 +648,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 }, {
                     xtype: 'pagingtoolbar',
                     dock: 'bottom',
+                    plugins: ['paginationnumerotee'],
                     store: me.storeOrdonnances,
                     displayInfo: true,
                     displayMsg: 'Ordonnances {0} - {1} sur {2}',
@@ -1927,6 +1929,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             labelWidth: 24,
                             width: 150,
                             format: 'd/m/Y',
+                            plugins: [{ptype: 'raccourcisperiode', debut: 'consoDebut', declencher: 'actualiserConso'}],
                             value: new Date()
                         }, {
                             xtype: 'button',
@@ -2244,6 +2247,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             labelWidth: 24,
                             width: 150,
                             format: 'd/m/Y',
+                            plugins: [{ptype: 'raccourcisperiode', debut: 'anaDebut', declencher: 'calculerAnalyse'}],
                             value: new Date()
                         }, {
                             xtype: 'combobox',
