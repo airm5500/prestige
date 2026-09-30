@@ -201,11 +201,11 @@ public class ClientServiceImpl implements ClientService {
                     cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), Constant.STANDART_CLIENT_ID)));
 
             if (query != null && !query.equals("")) {
-                query = query + "%";
-                predicates.add(cb.or(cb.like(root.get(TClient_.strFIRSTNAME), query),
-                        cb.like(root.get(TClient_.strLASTNAME), query),
-                        cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "),
-                                root.get(TClient_.strLASTNAME)), query)));
+                query = query.trim() + "%"; // espaces parasites ignores, dans la saisie comme en base
+                predicates.add(cb.or(cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
+                        cb.like(cb.trim(root.get(TClient_.strLASTNAME)), query),
+                        cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
+                                cb.trim(root.get(TClient_.strLASTNAME))), query)));
             }
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -234,11 +234,11 @@ public class ClientServiceImpl implements ClientService {
                 predicates.add(cb.and(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId)));
             }
             if (!StringUtils.isEmpty(query)) {
-                query = query + "%";
+                query = query.trim() + "%"; // espaces parasites ignores, dans la saisie comme en base
                 predicates.add(cb.or(cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), query),
-                        cb.like(root.get(TClient_.strFIRSTNAME), query),
-                        cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "),
-                                root.get(TClient_.strLASTNAME)), query)));
+                        cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
+                        cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
+                                cb.trim(root.get(TClient_.strLASTNAME))), query)));
             }
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = emg.createQuery(cq);
@@ -1698,11 +1698,11 @@ public class ClientServiceImpl implements ClientService {
             predicates.add(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId));
         }
         if (StringUtils.isNotEmpty(query)) {
-            query = query + "%";
-            predicates.add(cb.or(cb.like(root.get(TClient_.strFIRSTNAME), query),
-                    cb.like(root.get(TClient_.strLASTNAME), query),
-                    cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "), root.get(TClient_.strLASTNAME)),
-                            query),
+            query = query.trim() + "%"; // espaces parasites ignores, dans la saisie comme en base
+            predicates.add(cb.or(cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
+                    cb.like(cb.trim(root.get(TClient_.strLASTNAME)), query),
+                    cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
+                            cb.trim(root.get(TClient_.strLASTNAME))), query),
                     cb.like(root.get(TClient_.strADRESSE), query), cb.like(root.get(TClient_.strCODEINTERNE), query)));
         }
         return predicates;

@@ -1051,9 +1051,10 @@ public class OrdonnanceClientService {
         StringBuilder filtre = new StringBuilder(" FROM t_client c LEFT JOIN t_type_client t"
                 + " ON t.lg_TYPE_CLIENT_ID = c.lg_TYPE_CLIENT_ID WHERE c.str_STATUT = 'enable'");
         if (!nom.isEmpty()) {
-            filtre.append(" AND (c.str_FIRST_NAME LIKE :nom OR c.str_LAST_NAME LIKE :nom")
-                    .append(" OR CONCAT(COALESCE(c.str_FIRST_NAME, ''), ' ', COALESCE(c.str_LAST_NAME, '')) LIKE :nom")
-                    .append(" OR CONCAT(COALESCE(c.str_LAST_NAME, ''), ' ', COALESCE(c.str_FIRST_NAME, '')) LIKE :nom")
+            // Espaces parasites en tete ou en fin de nom ignores (fiches saisies avec une espace de trop).
+            filtre.append(" AND (TRIM(c.str_FIRST_NAME) LIKE :nom OR TRIM(c.str_LAST_NAME) LIKE :nom").append(
+                    " OR CONCAT(TRIM(COALESCE(c.str_FIRST_NAME, '')), ' ', TRIM(COALESCE(c.str_LAST_NAME, ''))) LIKE :nom")
+                    .append(" OR CONCAT(TRIM(COALESCE(c.str_LAST_NAME, '')), ' ', TRIM(COALESCE(c.str_FIRST_NAME, ''))) LIKE :nom")
                     .append(" OR c.str_CODE_INTERNE LIKE :nom");
             if (chiffres != null) {
                 filtre.append(" OR REGEXP_REPLACE(COALESCE(c.str_TELEPHONE, ''), '[^0-9]', '') LIKE :chiffres")
