@@ -34,7 +34,8 @@ const MARQUE = 'E2E-2209';
 
     /* Un client qui a des achats (pour le suivi), un produit en stock (pour la recherche). */
     const client = q("SELECT c.lg_CLIENT_ID FROM t_client c JOIN t_preenregistrement p ON p.lg_CLIENT_ID=c.lg_CLIENT_ID"
-      + " WHERE c.str_STATUT='enable' AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND LENGTH(TRIM(c.str_LAST_NAME))>=6"
+      /* nom sans espace parasite en tete : la recherche est « commence par » */
+      + " WHERE c.str_STATUT='enable' AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND LENGTH(TRIM(c.str_LAST_NAME))>=6 AND c.str_LAST_NAME = TRIM(c.str_LAST_NAME)"
       /* Un nom que personne d'autre ne porte : la liste des clients est paginee, un nom courant l'y noierait. */
       + " AND (SELECT COUNT(*) FROM t_client x WHERE x.str_LAST_NAME LIKE CONCAT('%', LEFT(TRIM(c.str_LAST_NAME), 6), '%')"
       + "      OR x.str_FIRST_NAME LIKE CONCAT('%', LEFT(TRIM(c.str_LAST_NAME), 6), '%')) = 1"

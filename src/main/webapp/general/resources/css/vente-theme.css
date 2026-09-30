@@ -2076,8 +2076,10 @@ body.x-body,
 .ordo-onglets .x-tab-default-top { background: transparent !important; background-image: none !important; border: 0 !important;
     border-radius: 6px !important; box-shadow: none !important; margin-right: 2px; }
 .ordo-onglets .x-tab-default-top .x-tab-inner { color: #6b7b8c !important; font-weight: bold; font-size: 13px; }
-.ordo-onglets .x-tab-default-top.x-tab-active { background: #fff !important; box-shadow: 0 1px 2px rgba(30, 58, 95, .18) !important; }
-.ordo-onglets .x-tab-default-top.x-tab-active .x-tab-inner { color: #1e3a5f !important; }
+/* Onglet actif au style du menu Vente (demande du 30/09) : bleu fonce, texte blanc. */
+.ordo-onglets .x-tab-default-top.x-tab-active { background: #1e3a5f !important; box-shadow: 0 1px 3px rgba(30, 58, 95, .35) !important; }
+.ordo-onglets .x-tab-default-top.x-tab-active .x-tab-inner, .ordo-onglets .x-tab-default-top.x-tab-active.x-tab-over .x-tab-inner { color: #fff !important; }
+.ordo-onglets .x-tab-default-top.x-tab-over:not(.x-tab-active) { background: #dde5ee !important; }
 .ordo-onglets .x-tab-default-top.x-tab-over:not(.x-tab-active) .x-tab-inner { color: #1e3a5f !important; }
 .ordo-onglets > .x-panel-body { border: 0 !important; }
 /* Carte des criteres. */
@@ -2365,3 +2367,4 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .theme-liste .x-action-col-cell .x-grid-cell-inner { padding: 5px 1px !important; text-overflow: clip; }
 .theme-liste .x-grid-cell .act-ico { width: 24px !important; height: 24px !important; background-size: 14px 14px; }
 .theme-liste .x-grid-cell { border-right: 0 !important; }
+.act-imprimer-vert { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f8a4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9V2h12v7'/%3E%3Crect x='6' y='14' width='12' height='8'/%3E%3Cpath d='M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'/%3E%3C/svg%3E"); }

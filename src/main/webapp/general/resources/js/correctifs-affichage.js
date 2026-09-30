@@ -815,8 +815,17 @@ window.PrestigeAffichage.ECRANS_COLLES = [
  * change, les controleurs lisent et ecoutent les memes composants qu'avant.
  */
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
-    'preenregistrementmanager', 'devismanager'
+    // lot 1
+    'preenregistrementmanager', 'devismanager',
+    // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
+    'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier'
 ];
+
+/**
+ * Ecrans qui prennent seulement les COULEURS du menu Vente (fond clair, cadre gris-bleu), sans autre habillage :
+ * leur presentation est deja au theme commun (ordonnances clients, demande du 30/09).
+ */
+window.PrestigeAffichage.ECRANS_FOND_VENTE = ['ordonnanceclient'];
 
 /**
  * Icones d'action au trait du theme commun, reconnues par le nom de l'image d'origine. Une icone absente de
@@ -824,6 +833,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
  */
 window.PrestigeAffichage.ICONES_TRAIT = [
     [/page_white_edit|pencil|edit|modif/i, 'act-modifier'],
+    // ticket modifie (imprimante verte) : garde sa couleur pour rester distinct du ticket ordinaire
+    [/printergreen/i, 'act-imprimer-vert'],
     [/delete|trash|remove|cross|poubelle/i, 'act-supprimer'],
     [/printer|print|imprim/i, 'act-imprimer'],
     [/pdf/i, 'act-pdf'],
@@ -861,23 +872,26 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
             barre.margin = '10 10 8 10';
         }
         // Champs de date a largeur fixe : etires, ils repoussaient la recherche et les boutons.
+        // (largeur MAXIMALE seulement : le champ garde sa souplesse et se resserre si la barre est pleine)
         Ext.each(barre.query('datefield'), function (champ) {
-            if (champ.flex) {
-                delete champ.flex;
-                champ.width = (champ.hideLabel || !champ.fieldLabel ? 0 : (champ.labelWidth || 100) + 5) + 125;
+            if (champ.flex && !champ.maxWidth) {
+                champ.maxWidth = (champ.hideLabel || !champ.fieldLabel ? 0 : (champ.labelWidth || 100) + 5) + 130;
             }
         });
         // Listes de choix (filtres) a largeur fixe elles aussi ; la recherche texte garde la place restante.
         Ext.each(barre.query('combobox'), function (champ) {
-            if (champ.flex && !champ.isXType('datefield')) {
-                delete champ.flex;
-                champ.width = (champ.hideLabel || !champ.fieldLabel ? 0 : (champ.labelWidth || 100) + 5) + 220;
+            if (champ.flex && !champ.maxWidth && !champ.isXType('datefield')) {
+                champ.maxWidth = (champ.hideLabel || !champ.fieldLabel ? 0 : (champ.labelWidth || 100) + 5) + 240;
             }
         });
         Ext.each(barre.query('button'), function (b) {
             var texte = String(b.text || '');
             b.addCls(/^(nouveau|nouvelle|ajouter|cr[ée]er)/i.test(texte) ? 'ordo-btn-primaire' : 'ordo-btn');
         });
+    });
+    // Onglets en boutons segmentes, l'actif en bleu fonce (meme dessin que l'historique des ordonnances).
+    Ext.each(ecran.isXType('tabpanel') ? [ecran].concat(ecran.query('tabpanel')) : ecran.query('tabpanel'), function (onglets) {
+        onglets.addCls('ordo-onglets');
     });
     Ext.each(ecran.query('gridpanel'), function (grille) {
         grille.addCls('ordo-carte theme-grille');
@@ -938,6 +952,11 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     });
     if (styleVente) {
         window.PrestigeAffichage.habillerStyleVente(ecran);
+    }
+    if (Ext.Array.some(window.PrestigeAffichage.ECRANS_FOND_VENTE, function (xtype) {
+        return ecran.isXType(xtype);
+    })) {
+        ecran.addCls('mv-panneau');
     }
     // Retours des tests du 12/09 (point 5) : sur un videoprojecteur, la resolution change en cours de
     // session sans que le navigateur envoie toujours un redimensionnement ; l'ecran suivant s'ouvrait

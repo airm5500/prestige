@@ -1,4 +1,4 @@
-/* STYLE DU MENU VENTE sur les anciens ecrans (demande de l'officine du 30/09) : lot 1, preventes et devis.
+/* STYLE DU MENU VENTE sur les anciens ecrans (demande de l'officine du 30/09) : lot 1 (preventes, devis), puis les lots\n * suivants compares avant / apres habillage.
  *
  * L'habillage (correctifs-affichage.js, habillerStyleVente) ne doit toucher qu'a la presentation. Le test pose une
  * proforma et une prevente de test, ouvre chaque ecran par son menu et verifie : fond et barre du theme, pagination
@@ -14,6 +14,7 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const crees = [];
+let ordoVente = null;
 
 /* Ecrans du lot : xtype, evenements attendus des icones de la ligne de test (dans l'ordre des colonnes). */
 const ECRANS = [
@@ -53,7 +54,7 @@ const ECRANS = [
         const barres = c.query('toolbar').filter((t) => t.hasCls('mv-barre'));
         return { theme: c.hasCls('theme-liste'), barre: barres.length, grille: g.hasCls('theme-grille'), pages: !!c.down('#pagesNumerotees'),
           icones: [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length, images: [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')).length,
-          deborde: barres.some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)) }; }, { x: e.xtype, ref: refs[e.ligne] });
+          deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)) }; }, { x: e.xtype, ref: refs[e.ligne] });
       ok(e.xtype + ' : fond et barre du thème, tableau, pagination numérotée, sans débordement', d.theme && d.barre >= 1 && d.grille && d.pages && !d.deborde, JSON.stringify(d));
       ok(e.xtype + ' : toutes les icônes de la ligne au trait (' + e.evenements.length + ')', d.icones === e.evenements.length && d.images === 0, JSON.stringify(d));
       /* chaque icone : l'evenement emis est capture (et annule) pour verifier le branchement sans executer l'action */
@@ -66,15 +67,70 @@ const ECRANS = [
       ok(e.xtype + ' : chaque icône émet le même événement qu\'avant vers le contrôleur', JSON.stringify(emis) === JSON.stringify(e.evenements), emis.join(','));
       await p.screenshot({ path: '/home/user/prestige/captures/style-' + e.xtype + '.png' });
     }
+
+    /* Lots suivants : sur des donnees existantes, comparaison AVANT / APRES habillage. L'ecran est ouvert une fois sans
+       habillage (liste videe le temps de l'ouverture), puis une fois habille ; sur la meme ligne, chaque icone doit
+       emettre le meme evenement (capture et annule : aucune action n'est executee). */
+    const COMPARES = ['ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier'];
+    const releve = (x, habille) => p.evaluate(async (a) => {
+      const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice();
+      if (!a.habille) { liste.length = 0; }
+      try {
+        Ext.ComponentQuery.query(a.x).forEach((c) => c.destroy());
+        testextjs.app.getController('App').onLoadNewComponent(a.x, a.x, '');
+      } finally { liste.length = 0; garde.forEach((y) => liste.push(y)); }
+      const attendre = async (f, ms) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) { return true; } await new Promise((r) => setTimeout(r, 200)); } return false; };
+      await attendre(() => { const c = Ext.ComponentQuery.query(a.x)[0]; return c && c.down('gridpanel') && c.down('gridpanel').rendered; }, 30000);
+      const c = Ext.ComponentQuery.query(a.x)[0];
+      const g = c.down('gridpanel');
+      /* periode large pour avoir des lignes, puis la recherche de l'ecran */
+      const d = c.down('#dtStart'); if (d) { d.setValue(new Date(2020, 0, 1)); }
+      const bt = c.down('#rechercher') || c.query('button').find((b) => /recherch/i.test(b.text || ''));
+      if (bt) { if (bt.handler) { Ext.callback(bt.handler, bt.scope || bt, [bt]); } else { bt.fireEvent('click', bt); } } else { g.getStore().load(); }
+      await attendre(() => !g.getStore().isLoading() && g.getStore().getCount() > 0, 30000);
+      await new Promise((r) => setTimeout(r, 800));
+      const n = g.getView().getNode(0);
+      const barres = c.query('toolbar').filter((t) => t.hasCls('mv-barre'));
+      const sortie = { lignes: g.getStore().getCount(), theme: c.hasCls('theme-liste'), barres: barres.length, pages: !!c.down('#pagesNumerotees'),
+        images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')).length : -1,
+        traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length : -1,
+        deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)),
+        itemIds: c.query('[itemId]').map((x) => x.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','), evenements: [] };
+      if (n) {
+        g.query('actioncolumn').forEach((col) => Ext.util.Observable.capture(col, (nom, v, ri, ci, item) => { sortie.evenements.push(nom + (item && item.action ? ':' + item.action : '')); return false; }));
+        for (const i of [...n.querySelectorAll('img.x-action-col-icon')].filter((x) => x.offsetParent !== null)) { i.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); }
+        g.query('actioncolumn').forEach((col) => Ext.util.Observable.releaseCapture(col));
+      }
+      return sortie;
+    }, { x, habille });
+    /* L'ordonnancier ne liste que des ventes cloturees avec prescripteur : le banc n'en a pas. Un prescripteur de test
+       est pose le temps du test sur une vente cloturee, puis retire (finally). */
+    exec("INSERT INTO medecin (id, num_ordre, nom, created_at) VALUES ('e2e-style-medecin', 'E2E-STYLE-0001', 'ZZ DR STYLE E2E', NOW())");
+    ordoVente = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE str_STATUT='is_Closed' AND b_IS_CANCEL=0 AND medecin_id IS NULL ORDER BY dt_UPDATED DESC LIMIT 1");
+    exec("UPDATE t_preenregistrement SET medecin_id='e2e-style-medecin' WHERE lg_PREENREGISTREMENT_ID='" + ordoVente + "'");
+    for (const x of COMPARES) {
+      const avant = await releve(x, false);
+      const apres = await releve(x, true);
+      await p.screenshot({ path: '/home/user/prestige/captures/style-' + x + '.png' });
+      ok(x + ' : habillé (fond, barres, tableau, pagination numérotée), sans débordement', !avant.theme && apres.theme && apres.barres >= 1 && apres.pages && !apres.deborde, JSON.stringify({ avant: [avant.theme, avant.barres], apres }));
+      ok(x + ' : icônes au trait, autant qu\'avant', apres.lignes > 0 && apres.images === 0 && apres.traits === avant.images, 'avant ' + avant.images + ' images, après ' + apres.traits + ' traits, ' + apres.images + ' images, lignes ' + apres.lignes);
+      ok(x + ' : chaque icône émet le même événement qu\'avant', avant.evenements.length >= avant.images && JSON.stringify(apres.evenements) === JSON.stringify(avant.evenements), 'avant ' + avant.evenements.join(',') + ' / après ' + apres.evenements.join(','));
+      ok(x + ' : mêmes composants nommés (itemId) qu\'avant', apres.itemIds === avant.itemIds, avant.itemIds === apres.itemIds ? '' : 'avant ' + avant.itemIds + ' / après ' + apres.itemIds);
+    }
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (ex) {
     ok('Parcours sans exception', false, ex.message);
   } finally {
     await b.close();
+    if (ordoVente) {
+      exec("UPDATE t_preenregistrement SET medecin_id=NULL WHERE lg_PREENREGISTREMENT_ID='" + ordoVente + "' AND medecin_id='e2e-style-medecin'");
+    }
+    exec("DELETE FROM medecin WHERE id='e2e-style-medecin'");
     for (const id of crees) {
       exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + id + "'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "';");
     }
-    ok('Jeu d\'essai retiré', crees.every((id) => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "'") === '0'));
+    ok('Jeu d\'essai retiré (ventes de test, prescripteur de test)', crees.every((id) => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "'") === '0')
+      && q("SELECT COUNT(*) FROM medecin WHERE id='e2e-style-medecin'") === '0' && q("SELECT COUNT(*) FROM t_preenregistrement WHERE medecin_id='e2e-style-medecin'") === '0');
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
     process.exit(ko ? 1 : 0);
