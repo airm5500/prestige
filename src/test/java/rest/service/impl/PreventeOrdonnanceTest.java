@@ -54,9 +54,8 @@ public class PreventeOrdonnanceTest {
         assertTrue(PreventeOrdonnance.decider(ligne(null, 1, null, 10, 500)).motif.contains("hors référentiel"));
         assertTrue(PreventeOrdonnance.decider(ligne("A", 2, 2, 10, 500)).motif.contains("déjà servi"));
         assertTrue(PreventeOrdonnance.decider(ligne("A", 2, null, 10, 0)).motif.contains("prix"));
-        String stock = PreventeOrdonnance.decider(ligne("A", 5, null, 3, 500)).motif;
-        assertTrue(stock.contains("stock insuffisant") && stock.contains("3 en stock") && stock.contains("5 à servir"),
-                stock);
+        String rupture = PreventeOrdonnance.decider(ligne("A", 5, null, 0, 500)).motif;
+        assertTrue(rupture.contains("en rupture") && rupture.contains("5 à servir"), rupture);
         PreventeOrdonnance.Decision inactif = PreventeOrdonnance
                 .decider(new PreventeOrdonnance.Ligne("A", "X", 1, null, 10, 500, false));
         assertFalse(inactif.retenue());
@@ -64,16 +63,29 @@ public class PreventeOrdonnanceTest {
     }
 
     @Test
+    public void stockInsuffisantMetEnPreventeCeQuiEstDisponible() {
+        PreventeOrdonnance.Decision d = PreventeOrdonnance.decider(ligne("A", 5, 1, 3, 500));
+        assertTrue(d.retenue(), "prise en partie, pas ecartee");
+        assertEquals(3, d.quantite, "les 3 en stock, sur 4 a servir");
+        assertTrue(d.partiel.contains("3 en stock") && d.partiel.contains("4 à servir")
+                && d.partiel.contains("1 restera à servir"), d.partiel);
+        assertNull(PreventeOrdonnance.decider(ligne("A", 2, null, 5, 500)).partiel, "stock suffisant : rien a dire");
+    }
+
+    @Test
     public void memeProduitSurDeuxLignesPartageLeStock() {
-        List<PreventeOrdonnance.Decision> d = PreventeOrdonnance.decider(
-                Arrays.asList(ligne("A", 3, null, 4, 500), ligne("A", 2, null, 4, 500), ligne("B", 1, null, 1, 800)));
-        assertTrue(d.get(0).retenue());
+        List<PreventeOrdonnance.Decision> d = PreventeOrdonnance.decider(Arrays.asList(ligne("A", 3, null, 4, 500),
+                ligne("A", 2, null, 4, 500), ligne("A", 1, null, 4, 500), ligne("B", 1, null, 1, 800)));
         assertEquals(3, d.get(0).quantite);
-        assertFalse(d.get(1).retenue(), "il ne reste qu'une boite pour la seconde ligne");
-        assertNotNull(d.get(1).motif);
-        assertTrue(d.get(1).motif.contains("1 en stock"), d.get(1).motif);
+        assertNull(d.get(0).partiel);
+        assertTrue(d.get(1).retenue(), "il reste une boite pour la seconde ligne : prise en partie");
+        assertEquals(1, d.get(1).quantite);
+        assertNotNull(d.get(1).partiel);
+        assertTrue(d.get(1).partiel.contains("1 en stock"), d.get(1).partiel);
         assertEquals("PRODUIT A", d.get(1).ligne.libelle);
-        assertTrue(d.get(2).retenue());
+        assertFalse(d.get(2).retenue(), "plus rien pour la troisieme : rupture");
+        assertTrue(d.get(2).motif.contains("en rupture"), d.get(2).motif);
+        assertTrue(d.get(3).retenue());
     }
 
     private static PreventeOrdonnance.LigneService ls(String id, String article, int prescrite, Integer servie) {

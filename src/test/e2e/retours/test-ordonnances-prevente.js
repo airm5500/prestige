@@ -99,8 +99,13 @@ function poser() {
   const sansStock = q("SELECT f.lg_FAMILLE_ID, f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
     + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE = 0 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
     + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 LIMIT 1").split('\t');
+  /* Un article au stock FAIBLE (2 a 5) : prescrit au-dela, il est pris en partie (retour du 30/09). */
+  const faible = q("SELECT f.lg_FAMILLE_ID, f.str_NAME, s.int_NUMBER_AVAILABLE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
+    + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE BETWEEN 2 AND 5 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
+    + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = '' LIMIT 1").split('\t');
+  const stockFaible = Number(faible[2]);
   /* La cloture bouge le stock : il est remis a l'identique a la fin. */
-  stocksOrigine = articles.map((a) => { const r = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + a[0] + "' AND lg_EMPLACEMENT_ID='" + emplacement + "'").split('|'); return { id: r[0], dispo: r[1], total: r[2] }; });
+  stocksOrigine = articles.concat([faible]).map((a) => { const r = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + a[0] + "' AND lg_EMPLACEMENT_ID='" + emplacement + "'").split('|'); return { id: r[0], dispo: r[1], total: r[2] }; });
   /* La cloture exige une caisse ouverte pour l'operateur (precondition, pas l'objet du test). */
   const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='admin'");
   if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID='" + admin + "' AND str_STATUT='is_Using'") === '0') {
@@ -130,10 +135,12 @@ function poser() {
       { articleId: articles[1][0], libelle: articles[1][1], quantite: 2 },
       { articleId: articles[0][0], libelle: articles[0][1], quantite: 2, qteServie: 2 },
       { articleId: sansStock[0], libelle: sansStock[1], quantite: 1 },
-      { libelle: 'PRÉPARATION MAGISTRALE ZZ', quantite: 1 }
+      { libelle: 'PRÉPARATION MAGISTRALE ZZ', quantite: 1 },
+      { articleId: faible[0], libelle: faible[1], quantite: stockFaible + 2 }
     ];
     const ordStd = await api('../api/v1/ordonnance-client/enregistrer', 'POST', { clientId: STD, dateOrdonnance: aujourdhui, produits });
     const ordAss = await api('../api/v1/ordonnance-client/enregistrer', 'POST', { clientId: ASS, dateOrdonnance: aujourdhui, produits: produits.slice(0, 2) });
+    ok('Précondition : un article au stock faible (' + stockFaible + ')', stockFaible >= 2 && !!faible[0], faible.join(' | '));
     const ordCar = await api('../api/v1/ordonnance-client/enregistrer', 'POST', { clientId: CAR, dateOrdonnance: aujourdhui, produits: produits.slice(1, 2) });
     ok('Préconditions : trois ordonnances (standard, assurance, carnet)', ordStd.success && ordAss.success && ordCar.success, JSON.stringify([ordStd, ordAss, ordCar]).slice(0, 300));
 
@@ -149,17 +156,19 @@ function poser() {
     const apercu = await p.evaluate(() => Ext.MessageBox.isVisible() ? Ext.MessageBox.msg.getEl().dom.textContent : '');
     ok('Aperçu avant création : comptant, au nom du client', /Au comptant/.test(apercu) && /ZZPVSTANDARD/.test(apercu), apercu);
     ok('Aperçu : quantités = reste à servir (3 - 1 = 2 et 2)', apercu.indexOf(articles[0][1] + ' × 2') >= 0 && apercu.indexOf(articles[1][1] + ' × 2') >= 0, apercu);
-    ok('Aperçu : non repris, chacun avec son motif (déjà servi, stock, hors référentiel)', /déjà servi/.test(apercu) && /stock insuffisant/.test(apercu) && /hors référentiel/.test(apercu), apercu);
+    ok('Aperçu : non repris, chacun avec son motif (déjà servi, rupture, hors référentiel)', /déjà servi/.test(apercu) && /en rupture/.test(apercu) && /hors référentiel/.test(apercu), apercu);
+    ok('Aperçu : stock insuffisant, la ligne est prise EN PARTIE et le reste dû est dit', apercu.indexOf(faible[1] + ' × ' + stockFaible) >= 0 && apercu.indexOf('partiel : ' + stockFaible + ' en stock pour ' + (stockFaible + 2) + ' à servir, 2 restera à servir') >= 0, apercu);
     await p.evaluate(() => Ext.MessageBox.msgButtons.yes.el.dom.click());
     await p.waitForTimeout(2500);
     const resultat = await p.evaluate(() => { const t = Ext.MessageBox.isVisible() ? Ext.MessageBox.msg.getEl().dom.textContent : ''; if (Ext.MessageBox.isVisible()) { Ext.MessageBox.msgButtons.ok.el.dom.click(); } return t; });
     ok('Confirmation : « Prévente … créée : reprenez-la à la caisse »', /Prévente .* créée/.test(resultat) && /caisse/.test(resultat), resultat);
     const vente = q("SELECT CONCAT_WS('|', p.lg_PREENREGISTREMENT_ID, p.str_STATUT, p.lg_TYPE_VENTE_ID, p.str_TYPE_VENTE, p.lg_NATURE_VENTE_ID, p.int_PRICE, p.str_REF) FROM t_preenregistrement p WHERE p.lg_CLIENT_ID='" + STD + "'").split('|');
     const lignesStd = q("SELECT GROUP_CONCAT(CONCAT(d.lg_FAMILLE_ID, ':', d.int_QUANTITY) ORDER BY d.lg_FAMILLE_ID) FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID='" + vente[0] + "'");
-    const attendu = [articles[0][0] + ':2', articles[1][0] + ':2'].sort().join(',');
+    const attendu = [articles[0][0] + ':2', articles[1][0] + ':2', faible[0] + ':' + stockFaible].sort().join(',');
     ok('En base : une vente EN ATTENTE (pending), au comptant, nature prescription', vente[1] === 'pending' && vente[2] === '1' && vente[4] === '1', vente.join(' | '));
-    ok('En base : les deux produits, aux quantités restant à servir', lignesStd === attendu, lignesStd + ' / attendu ' + attendu);
-    ok('Le montant est celui des prix de vente', Number(vente[5]) === 2 * Number(articles[0][2]) + 2 * Number(articles[1][2]), vente[5]);
+    ok('En base : les produits aux quantités restant à servir, le stock faible pris en entier', lignesStd === attendu, lignesStd + ' / attendu ' + attendu);
+    const prixFaible = Number(q("SELECT int_PRICE FROM t_famille WHERE lg_FAMILLE_ID='" + faible[0] + "'"));
+    ok('Le montant est celui des prix de vente', Number(vente[5]) === 2 * Number(articles[0][2]) + 2 * Number(articles[1][2]) + stockFaible * prixFaible, vente[5]);
     ok('Le lien ordonnance - prévente est gardé', q("SELECT COUNT(*) FROM t_ordonnance_client_prevente WHERE lg_ORDONNANCE_ID='" + ordStd.id + "' AND lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === '1');
     const etiquette = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #preventesFiche')[0].getEl().dom.textContent);
     ok('La fiche affiche la prévente et son état', etiquette.indexOf(vente[6]) >= 0 && /En attente à la caisse/.test(etiquette), etiquette);
@@ -207,16 +216,16 @@ function poser() {
       return vue;
     };
     const repriseStd = await reprendre(vente[0], vente[6]);
-    ok('Caisse : la prévente standard se reprend, avec ses 2 produits, au comptant', repriseStd.vente === vente[0] && repriseStd.lignes === 2 && repriseStd.type === '1', JSON.stringify(repriseStd));
+    ok('Caisse : la prévente standard se reprend, avec ses 3 produits, au comptant', repriseStd.vente === vente[0] && repriseStd.lignes === 3 && repriseStd.type === '1', JSON.stringify(repriseStd));
     const refAss = q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + ass[0] + "'");
     const repriseAss = await reprendre(ass[0], refAss);
     ok('Caisse : la prévente assurance se reprend, en assurance, avec son tiers payant et son assuré', repriseAss.vente === ass[0] && repriseAss.lignes === 2 && repriseAss.type === '2' && repriseAss.tp >= 1 && /ZZPVASSURE/.test(repriseAss.assure), JSON.stringify(repriseAss));
-    ok('Reprise sans modification : la vente reste en attente, intacte', q("SELECT CONCAT(str_STATUT, '|', (SELECT COUNT(*) FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID)) FROM t_preenregistrement p WHERE p.lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === 'pending|2');
+    ok('Reprise sans modification : la vente reste en attente, intacte', q("SELECT CONCAT(str_STATUT, '|', (SELECT COUNT(*) FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID)) FROM t_preenregistrement p WHERE p.lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === 'pending|3');
 
     /* ---------------------------------------------------------------- cloture a la caisse : report du service */
     const servies = () => q("SELECT GROUP_CONCAT(COALESCE(int_QTE_SERVIE, 'x') ORDER BY int_ORDRE) FROM t_ordonnance_client_detail WHERE lg_ORDONNANCE_ID='" + ordStd.id + "'");
     const avantCloture = servies();
-    ok('La prévente elle-même ne change pas l\'ordonnance (quantités servies inchangées)', avantCloture === '1,x,2,x,x', avantCloture);
+    ok('La prévente elle-même ne change pas l\'ordonnance (quantités servies inchangées)', avantCloture === '1,x,2,x,x,x', avantCloture);
     const cloture = await api('../api/v1/vente/cloturer/vno', 'POST', { venteId: vente[0], typeVenteId: '1', typeRegleId: '1',
       montantRecu: Number(vente[5]), montantRendu: 0, montantPaye: Number(vente[5]), montantVerse: Number(vente[5]) });
     ok('Précondition : la prévente est clôturée par le service de la caisse', cloture.success === true && q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === 'is_Closed', JSON.stringify(cloture).slice(0, 200));
@@ -229,11 +238,12 @@ function poser() {
     const icone2 = await p.evaluate(() => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleOrdonnances')[0]; const k = g.getView().getNode(0).querySelector('.ordo-act-consulter'); k.id = 'consulterPv2'; return k.id; });
     await p.click('#' + icone2); await p.waitForTimeout(2000);
     const fiche = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeProduits.getRange().map((r) => r.get('qteServie') === null ? 'x' : r.get('qteServie')).join(','));
-    ok('Après clôture : qté servie reportée (1 → 3 et à renseigner → 2), les autres lignes intactes', servies() === '3,2,2,x,x' && fiche === '3,2,2,x,x', servies() + ' / fiche ' + fiche);
+    const apres = '3,2,2,x,x,' + stockFaible;
+    ok('Après clôture : qté servie reportée (1 → 3, à renseigner → 2, ligne partielle → ' + stockFaible + '), les autres intactes', servies() === apres && fiche === apres, servies() + ' / fiche ' + fiche);
     const etiquette2 = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #preventesFiche')[0].getEl().dom.textContent);
-    ok('La fiche dit « Clôturée — 4 servi(s) reporté(s) »', /Clôturée — 4 servi\(s\) reporté\(s\)/.test(etiquette2), etiquette2);
+    ok('La fiche dit « Clôturée — N servi(s) reporté(s) »', new RegExp('Clôturée — ' + (4 + stockFaible) + ' servi\\(s\\) reporté\\(s\\)').test(etiquette2), etiquette2);
     const historique = await api('../api/v1/ordonnance-client/liste?query=ZZPVSTANDARD', 'GET');
-    ok('L\'historique la dit « partielle » (3 lignes servies sur 5) ; une seconde lecture ne reporte pas deux fois', historique.data && historique.data[0].etatService === 'partielle' && servies() === '3,2,2,x,x', JSON.stringify(historique.data && historique.data[0]).slice(0, 200));
+    ok('L\'historique la dit « partielle » (3 lignes servies en entier sur 6) ; une seconde lecture ne reporte pas deux fois', historique.data && historique.data[0].etatService === 'partielle' && servies() === apres, JSON.stringify(historique.data && historique.data[0]).slice(0, 200));
     /* Annulation de la vente a la caisse : le report est defait. */
     const annulation = await api('../api/v1/vente/annulation/' + vente[0], 'GET');
     await api('../api/v1/ordonnance-client/' + ordStd.id, 'GET');

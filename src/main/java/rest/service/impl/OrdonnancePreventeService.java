@@ -97,7 +97,8 @@ public class OrdonnancePreventeService {
                     venteId = data.optString("lgPREENREGISTREMENTID", null);
                     ref = data.optString("strREF", "");
                 }
-                ajoutees.add(new JSONObject().put("libelle", d.ligne.libelle).put("quantite", d.quantite));
+                ajoutees.add(new JSONObject().put("libelle", d.ligne.libelle).put("quantite", d.quantite).put("partiel",
+                        d.partiel == null ? "" : d.partiel));
             } else {
                 /* Le motif de la caisse elle-meme : stock a forcer, detail invendable... */
                 ecartees.add(new JSONObject().put("libelle", d.ligne.libelle).put("motif",
@@ -318,7 +319,7 @@ public class OrdonnancePreventeService {
             for (PreventeOrdonnance.Decision d : decisions) {
                 if (d.retenue()) {
                     retenues.put(new JSONObject().put("libelle", d.ligne.libelle).put("quantite", d.quantite)
-                            .put("prix", d.ligne.prix));
+                            .put("prix", d.ligne.prix).put("partiel", d.partiel == null ? "" : d.partiel));
                 }
             }
             return new JSONObject().put("typeVente", typeVente == null ? "" : typeVente)

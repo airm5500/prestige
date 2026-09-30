@@ -1147,7 +1147,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var me = this;
         var enc = Ext.String.htmlEncode;
         var produits = Ext.Array.map(r.retenues || [], function (l) {
-            return '<li>' + enc(l.libelle) + ' <b>× ' + l.quantite + '</b></li>';
+            /* Ligne prise en partie, faute de stock (30/09) : ce qui restera a servir est dit. */
+            return '<li>' + enc(l.libelle) + ' <b>× ' + l.quantite + '</b>'
+                    + (l.partiel ? ' <span class="ordo-prevente-partiel">(' + enc(l.partiel) + ')</span>' : '') + '</li>';
         }).join('');
         var enAttente = Ext.Array.filter(r.preventes || [], function (p) {
             return p.enAttente;

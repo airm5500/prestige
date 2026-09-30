@@ -17,9 +17,9 @@ import java.util.List;
  *
  * <p>
  * Quantite mise en prevente = ce qui RESTE a servir : la quantite prescrite, moins la quantite deja servie quand elle
- * est renseignee. Une ligne n'est ecartee que pour une raison dite a l'operateur : produit hors referentiel, article
- * desactive, deja servie, sans prix, ou stock insuffisant. Rien n'est force : le pharmacien complete la prevente a la
- * caisse s'il le souhaite.
+ * est renseignee. Si le stock ne couvre qu'une partie, la prevente prend ce qui est disponible et le dit (retour du
+ * 30/09). Une ligne n'est ecartee que pour une raison dite a l'operateur : produit hors referentiel, article desactive,
+ * deja servie, sans prix, ou rupture. Rien n'est force : le pharmacien complete a la caisse s'il le souhaite.
  */
 public final class PreventeOrdonnance {
 
@@ -104,11 +104,18 @@ public final class PreventeOrdonnance {
         public final Ligne ligne;
         public final int quantite;
         public final String motif;
+        /** Ligne retenue en PARTIE (stock insuffisant) : ce qui manque, dit a l'operateur ; null sinon. */
+        public final String partiel;
 
         Decision(Ligne ligne, int quantite, String motif) {
+            this(ligne, quantite, motif, null);
+        }
+
+        Decision(Ligne ligne, int quantite, String motif, String partiel) {
             this.ligne = ligne;
             this.quantite = quantite;
             this.motif = motif;
+            this.partiel = partiel;
         }
 
         public boolean retenue() {
@@ -130,9 +137,13 @@ public final class PreventeOrdonnance {
         if (l.prix <= 0) {
             return new Decision(l, 0, "prix de vente non renseigné");
         }
+        if (l.stock <= 0) {
+            return new Decision(l, 0, "en rupture : 0 en stock pour " + reste + " à servir");
+        }
+        /* Stock insuffisant (retour du 30/09) : on met en prevente ce qui est disponible, et on dit ce qui reste du. */
         if (reste > l.stock) {
-            return new Decision(l, 0,
-                    "stock insuffisant : " + Math.max(0, l.stock) + " en stock pour " + reste + " à servir");
+            return new Decision(l, l.stock, null, "partiel : " + l.stock + " en stock pour " + reste + " à servir, "
+                    + (reste - l.stock) + " restera à servir");
         }
         return new Decision(l, reste, null);
     }
@@ -152,7 +163,7 @@ public final class PreventeOrdonnance {
             Ligne vue = dejaPris == 0 ? l
                     : new Ligne(l.articleId, l.libelle, l.prescrite, l.servie, l.stock - dejaPris, l.prix, l.actif);
             Decision d = decider(vue);
-            sortie.add(new Decision(l, d.quantite, d.motif));
+            sortie.add(new Decision(l, d.quantite, d.motif, d.partiel));
             if (d.retenue()) {
                 pris.merge(l.articleId, d.quantite, Integer::sum);
             }

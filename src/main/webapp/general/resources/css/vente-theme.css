@@ -1995,3 +1995,4 @@ body.x-body,
 .ordo-prevente-ecartees { margin: 4px 0 0 18px; padding: 0; list-style: disc; }
 /* Info-bulles de l'ecran des ordonnances (30/09) : elles restent affichees mais laissent passer le clic. */
 .x-tip.ordo-bulle-traversante, .x-tip.ordo-bulle-traversante * { pointer-events: none !important; }
+.ordo-prevente-partiel { color: #b35900; }
