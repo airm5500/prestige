@@ -25,10 +25,8 @@ Ext.define('testextjs.view.vente.Segments', {
         combo.on('enable', me.dessiner, me);
         combo.on('disable', me.dessiner, me);
         combo.on('writeablechange', me.dessiner, me);
-        combo.getStore().on('load', me.dessiner, me);
-        combo.on('destroy', function () {
-            combo.getStore().un('load', me.dessiner, me);
-        });
+        /* Ecoute geree par le combo : retiree avec lui (a sa destruction, son store est deja detache). */
+        combo.mon(combo.getStore(), 'load', me.dessiner, me);
     },
 
     monter: function () {

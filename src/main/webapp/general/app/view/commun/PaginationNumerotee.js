@@ -6,7 +6,8 @@
  *
  * Plugin pose sur un pagingtoolbar ExtJS : la barre reste la meme (memes boutons premier / precedent / suivant /
  * dernier / actualiser, meme evenement beforechange, meme store), seul le champ de saisie de page est remplace a
- * l'ecran par des numeros cliquables. Un clic appelle move(n), comme la saisie d'un numero de page.
+ * l'ecran par des numeros cliquables. Un clic suit le chemin de la saisie d'un numero de page : 'beforechange', puis
+ * loadPage(n).
  */
 Ext.define('testextjs.view.commun.PaginationNumerotee', {
     extend: 'Ext.AbstractPlugin',
@@ -36,14 +37,30 @@ Ext.define('testextjs.view.commun.PaginationNumerotee', {
             }
         });
         var prec = barre.child('#prev');
-        me.zone = barre.insert(prec ? barre.items.indexOf(prec) + 1 : 2, {xtype: 'component', itemId: 'pagesNumerotees', cls: 'pg-zone'});
-        me.zone.getEl().on('click', function (e) {
-            var b = e.getTarget('button.pg-num');
-            if (b && !b.disabled) {
-                barre.move(parseInt(b.getAttribute('data-page'), 10));
-            }
-        });
+        me.zone = barre.insert(prec ? barre.items.indexOf(prec) + 1 : 2, {xtype: 'component', itemId: 'pagesNumerotees',
+            cls: 'pg-zone'});
+        /* Clic ecoute sur l'element du composant, des qu'il existe. */
+        var brancher = function () {
+            me.zone.getEl().on('click', function (e) {
+                var b = e.getTarget('button.pg-num');
+                if (b && !b.disabled) {
+                    me.aller(parseInt(b.getAttribute('data-page'), 10));
+                }
+            });
+        };
+        if (me.zone.rendered) {
+            brancher();
+        } else {
+            me.zone.on('afterrender', brancher, me, {single: true});
+        }
         me.dessiner();
+    },
+
+    aller: function (page) {
+        var barre = this.barre;
+        if (page >= 1 && page <= barre.getPageData().pageCount && barre.fireEvent('beforechange', barre, page) !== false) {
+            barre.store.loadPage(page);
+        }
     },
 
     dessiner: function () {
