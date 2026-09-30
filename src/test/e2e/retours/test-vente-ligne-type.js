@@ -42,6 +42,11 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     ok('Libellés Type / Nature / Vendeur centrés sur leurs choix, espacés ; vendeur à largeur fixe', dessin.libs.join('|') === 'Type|Nature|Vendeur' && dessin.ecarts.every((x) => x <= 2)
       && dessin.espace >= 24 && dessin.vendeur === 300, JSON.stringify(dessin));
     ok('Type actif : pastille clignotante (seulement sur le type), fond foncé', dessin.pastilleType && dessin.pastilleAilleurs === 1 && dessin.fondActif === 'rgb(30, 58, 95)', JSON.stringify(dessin));
+    /* Survol : le libelle reste lisible, sur le choix actif comme sur les autres. */
+    const survol = async (sel) => { await p.hover(sel); await p.waitForTimeout(250); return p.evaluate((s) => { const b = document.querySelector(s); const c = getComputedStyle(b); return c.color + ' / ' + c.backgroundColor; }, sel); };
+    const sActif = await survol('.seg-bouton.seg-actif[data-valeur="1"]'), sAutre = await survol('.seg-bouton[data-valeur="2"]');
+    ok('Survol : texte blanc sur le choix actif, bleu sur fond clair pour les autres (toujours lisible)', sActif.startsWith('rgb(255, 255, 255)') && sAutre.startsWith('rgb(30, 58, 95)') && !/rgb\(30, 58, 95\)$/.test(sAutre), sActif + ' | ' + sAutre);
+    await p.mouse.move(5, 5);
     await p.click('.seg-bouton[data-valeur="2"]'); await p.waitForTimeout(1200);
     const e1 = await etat();
     const actif = await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #clientSearchTextField')[0]; return c && document.activeElement === c.inputEl.dom; });
