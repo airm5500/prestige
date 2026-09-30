@@ -45,6 +45,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #barreCriteres combobox[itemId=medecin]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres checkbox[itemId=annulees]': {change: me.rechercher},
             'ordonnanceclient #barreCriteres checkbox[itemId=reste]': {change: me.rechercher},
+            'ordonnanceclient #barreCriteres checkbox[itemId=renouveler]': {change: me.rechercher},
+            'ordonnanceclient #vueFiche button[itemId=renouvelerFiche]': {click: me.renouveler},
+            'ordonnanceclient #vueFiche button[itemId=rappelRenouvellement]': {click: me.rappelRenouvellement},
+            'ordonnanceclient #vueFiche numberfield[itemId=renouvellements]': {change: me.majPeriodicite},
             'ordonnanceclient #grilleOrdonnances': {
                 /* Les icones d'action de chaque ligne (22/09) remontent toutes par cet evenement. */
                 actionordonnance: me.surAction,
@@ -202,6 +206,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#grilleProduits button[itemId=toutServir]');
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=creerPrevente]');
+        basculer('#vueFiche button[itemId=renouvelerFiche]');
+        basculer('#vueFiche button[itemId=rappelRenouvellement]');
         basculer('#vueFiche button[itemId=nouveauClient]');
         basculer('#grillePieces button[itemId=joindrePiece]');
         basculer('#grillePieces filefield[itemId=fichierPiece]');
@@ -248,7 +254,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             dtStart: jour('#barreCriteres #dtStart'),
             dtEnd: jour('#barreCriteres #dtEnd'),
             annulees: lire('#barreCriteres #annulees') === true,
-            reste: lire('#barreCriteres #reste') === true
+            reste: lire('#barreCriteres #reste') === true,
+            renouveler: lire('#barreCriteres #renouveler') === true
         };
     },
 
@@ -273,7 +280,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 c.setValue(null);
             }
         });
-        Ext.each(['#annulees', '#reste'], function (s) {
+        Ext.each(['#annulees', '#reste', '#renouveler'], function (s) {
             var c = ecran.down('#barreCriteres ' + s);
             if (c) {
                 c.suspendEvents(false);
@@ -439,6 +446,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ecran.storeProduits.removeAll();
         this.ficheAnnulee = false;
         this.afficherPreventes([]);
+        this.afficherRenouvellement(null);
         var recherche = fiche.down('#rechercheProduit');
         if (recherche) {
             recherche.clearValue();
@@ -471,7 +479,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var fiche = ecran.down('#vueFiche');
         Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations',
             '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
-            '#insuffisanceHepatique'],
+            '#insuffisanceHepatique', '#renouvellements', '#periodicite'],
                 function (s) {
                     var c = fiche.down(s);
                     if (c) {
@@ -609,6 +617,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.afficherTypeClient(o.typeClient || '');
         me.chargerResteClient(o.clientId, o.client);
         me.ficheAnnulee = o.statut === 'annulee';
+        me.afficherRenouvellement(o);
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
         me.chargerPieces();
         me.montrer(1);
@@ -1060,7 +1069,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             });
         });
         var contexte = me.contexteFiche();
-        return {
+        var requete = {
             id: fiche.down('#ordonnanceId').getValue() || '',
             clientId: fiche.down('#ficheClient').getValue() || '',
             dateOrdonnance: date ? Ext.Date.format(date, 'Y-m-d') : '',
@@ -1075,6 +1084,13 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             insuffisanceHepatique: contexte.insuffisanceHepatique === true,
             produits: produits
         };
+        /* Un renouvellement herite des reglages de son origine : il ne les envoie pas. */
+        if (!(me.renouvellement && me.renouvellement.rang > 0)) {
+            var nb = fiche.down('#renouvellements').getValue() || 0;
+            requete.renouvellements = nb;
+            requete.periodicite = nb > 0 ? (fiche.down('#periodicite').getValue() || null) : null;
+        }
+        return requete;
     },
 
     enregistrer: function () {
@@ -1103,6 +1119,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 me.chargerPieces();
                 me.majBoutonConso();
                 me.memoriserEtat();
+                me.relireRenouvellement(r.id);
             },
             failure: function () {
                 Ext.Msg.alert('Ordonnances', "L'ordonnance n'a pas pu être enregistrée.");
@@ -1200,6 +1217,166 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     exporterExcel: function () {
         window.location = '../api/v1/ordonnance-client/historique/excel?'
             + Ext.Object.toQueryString(this.parametres());
+    },
+
+    /* ------------------------------------------------------------------- renouvellements (30/09) */
+
+    /**
+     * Réglages et état du renouvellement sur la fiche. Sur l'ORIGINE : « Renouvelable N fois, tous les X jours » et
+     * l'avancement ; sur un RENOUVELLEMENT : son rang et son origine, sans réglage (il hérite de l'origine).
+     */
+    afficherRenouvellement: function (o) {
+        var ecran = this.getEcran();
+        var fiche = ecran ? ecran.down('#vueFiche') : null;
+        if (!fiche) {
+            return;
+        }
+        this.renouvellement = o ? {rang: o.rang || 0, renouvAutorises: o.renouvAutorises || 0,
+            renouvFaits: o.renouvFaits || 0, prochain: o.prochainRenouvellement || '',
+            origineNumero: o.origineNumero || ''} : null;
+        var nb = fiche.down('#renouvellements');
+        var periode = fiche.down('#periodicite');
+        var info = fiche.down('#infoRenouvellement');
+        var estRenouvellement = !!(o && o.rang > 0);
+        Ext.each(fiche.query('#ligneRenouvellement > *'), function (c) {
+            if (c !== info) {
+                c.setVisible(!estRenouvellement);
+            }
+        });
+        Ext.each([nb, periode], function (c) {
+            c.suspendEvents(false);
+        });
+        nb.setValue(o && !estRenouvellement ? (o.renouvAutorises || 0) : 0);
+        periode.setValue(o && o.periodicite ? o.periodicite : 30);
+        Ext.each([nb, periode], function (c) {
+            c.resumeEvents();
+        });
+        this.majPeriodicite();
+        var texte = '';
+        if (o) {
+            var prochain = o.prochainRenouvellement ? Ext.Date.format(Ext.Date.parse(o.prochainRenouvellement, 'Y-m-d'),
+                    'd/m/Y') : '';
+            if (estRenouvellement) {
+                texte = '<span class="ordo-pastille">Renouvellement ' + o.rang + '/' + o.renouvAutorises + '</span> de '
+                        + Ext.String.htmlEncode(o.origineNumero);
+            } else if (o.renouvAutorises > 0) {
+                texte = o.renouvFaits + '/' + o.renouvAutorises + ' renouvellement(s) fait(s)';
+            }
+            if (prochain) {
+                texte += (texte ? ' — ' : '') + 'prochain le <b>' + prochain + '</b>';
+            }
+        }
+        info.update(texte ? '<span class="ordo-info-renouv">' + texte + '</span>' : '');
+        this.majImpressionFiche();
+    },
+
+    /** « tous les X jours » n'a de sens que si l'ordonnance est renouvelable. */
+    majPeriodicite: function () {
+        var ecran = this.getEcran();
+        var fiche = ecran ? ecran.down('#vueFiche') : null;
+        if (!fiche) {
+            return;
+        }
+        var nb = fiche.down('#renouvellements').getValue() || 0;
+        fiche.down('#periodicite').setDisabled(nb <= 0);
+    },
+
+    /** Après enregistrement : l'avancement des renouvellements peut avoir changé (réglage modifié). */
+    relireRenouvellement: function (id) {
+        var me = this;
+        if (!id) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/' + encodeURIComponent(id),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success === true && me.ordonnanceOuverte() === id) {
+                    me.afficherRenouvellement(r.ordonnance || null);
+                    me.memoriserEtat();
+                }
+            }
+        });
+    },
+
+    /** « Renouveler » : une nouvelle ordonnance liée, datée du jour, ouverte en saisie. */
+    renouveler: function () {
+        var me = this;
+        var id = me.ordonnanceOuverte();
+        var r = me.renouvellement;
+        if (!id || !r) {
+            return;
+        }
+        if (!me.ficheVerrouillee && me.saisieEnCours()) {
+            Ext.Msg.alert('Renouvellement', 'Enregistrez d\'abord les changements de l\'ordonnance.');
+            return;
+        }
+        var rang = r.renouvFaits + 1;
+        Ext.Msg.confirm('Renouveler l\'ordonnance', 'Créer le renouvellement <b>' + rang + '/' + r.renouvAutorises
+                + '</b> : une nouvelle ordonnance datée d\'aujourd\'hui, avec les mêmes produits ?', function (bouton) {
+                    if (bouton !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ordonnance-client/renouvellement/' + encodeURIComponent(id),
+                        success: function (reponse) {
+                            var res = Ext.decode(reponse.responseText, true) || {};
+                            if (res.success !== true) {
+                                Ext.Msg.alert('Renouvellement', Ext.String.htmlEncode(res.message
+                                        || 'Le renouvellement n\'a pas pu être créé.'));
+                                return;
+                            }
+                            /* Le renouvellement s'ouvre en saisie : on y renseigne le service, on crée la prévente. */
+                            me.ouvrirParId(res.id, false);
+                        },
+                        failure: function () {
+                            Ext.Msg.alert('Renouvellement', 'Le renouvellement n\'a pas pu être créé.');
+                        }
+                    });
+                });
+    },
+
+    ouvrirParId: function (id, enLecture) {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/' + encodeURIComponent(id),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success === true) {
+                    me.remplirFiche(r, enLecture);
+                }
+            }
+        });
+    },
+
+    /** « Rappel SMS » : prévient le client maintenant (le rappel automatique part aussi tout seul, avant l'échéance). */
+    rappelRenouvellement: function () {
+        var me = this;
+        var id = me.ordonnanceOuverte();
+        if (!id) {
+            return;
+        }
+        Ext.Msg.confirm('Rappel SMS', 'Envoyer maintenant au client le SMS de rappel du prochain renouvellement ?',
+                function (bouton) {
+                    if (bouton !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ordonnance-client/renouvellement/' + encodeURIComponent(id) + '/rappel',
+                        success: function (reponse) {
+                            var r = Ext.decode(reponse.responseText, true) || {};
+                            Ext.Msg.alert('Rappel SMS', Ext.String.htmlEncode(r.message
+                                    || 'Le rappel n\'a pas pu être envoyé.'));
+                        },
+                        failure: function () {
+                            Ext.Msg.alert('Rappel SMS', 'Le rappel n\'a pas pu être envoyé.');
+                        }
+                    });
+                });
     },
 
     /* ------------------------------------------------------------------- prévente (30/09) */
@@ -1397,6 +1574,15 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (prevente) {
             prevente.setDisabled(!this.ordonnanceOuverte() || this.ficheAnnulee === true);
         }
+        /* Renouveler / rappeler : il reste un renouvellement dans la chaine (origine ou renouvellement ouvert). */
+        var r = this.renouvellement;
+        var reste = !!(r && r.renouvAutorises > r.renouvFaits);
+        Ext.each(['renouvelerFiche', 'rappelRenouvellement'], function (b) {
+            var bouton = ecran ? ecran.down('#vueFiche button[itemId=' + b + ']') : null;
+            if (bouton) {
+                bouton.setDisabled(!this.ordonnanceOuverte() || this.ficheAnnulee === true || !reste);
+            }
+        }, this);
     },
 
     /**

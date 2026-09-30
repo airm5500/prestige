@@ -107,6 +107,12 @@ public class OrdonnanceClientService {
                 .put("nbRenseignees", entier(t.get("nbRenseignees"))).put("nbServies", entier(t.get("nbServies")))
                 .put("qteServie", entier(t.get("qteServie"))).put("nbReste", entier(t.get("nbReste")))
                 .put("qteReste", entier(t.get("qteReste")))
+                .put("origineId", StringUtils.defaultString(t.get("origineId", String.class)))
+                .put("origineNumero", StringUtils.defaultString(t.get("origineNumero", String.class)))
+                .put("rang", entier(t.get("rang"))).put("renouvAutorises", entier(t.get("renouvAutorises")))
+                .put("renouvFaits", entier(t.get("renouvFaits")))
+                .put("periodicite", t.get("periodicite") == null ? JSONObject.NULL : entier(t.get("periodicite")))
+                .put("prochainRenouvellement", prochainRenouvellement(t))
                 .put("etatService",
                         OrdonnanceClientSaisie.etatService(entier(t.get("nbProduits")), entier(t.get("nbRenseignees")),
                                 entier(t.get("nbServies")), entier(t.get("qteServie"))))
@@ -149,6 +155,15 @@ public class OrdonnanceClientService {
             return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
         }
         return new JSONObject().put("success", true).put("total", data.length()).put("qteReste", qte).put("data", data);
+    }
+
+    /** Echeance du renouvellement suivant de la chaine (AAAA-MM-JJ), ou vide s'il n'en reste pas. */
+    private static String prochainRenouvellement(Tuple t) {
+        String derniere = jour(t.get("derniereDelivrance"));
+        LocalDate prochaine = RenouvellementOrdonnance.prochaine(entier(t.get("renouvAutorises")),
+                entier(t.get("renouvFaits")), derniere.isEmpty() ? null : LocalDate.parse(derniere.substring(0, 10)),
+                t.get("periodicite") == null ? null : entier(t.get("periodicite")));
+        return prochaine == null ? "" : prochaine.toString();
     }
 
     /** Une ordonnance et ses produits, pour la fiche de consultation. */
@@ -201,7 +216,13 @@ public class OrdonnanceClientService {
      * des lignes fantomes au moindre ecart.
      */
     public JSONObject enregistrer(JSONObject requete, TUser operateur) {
-        List<String> refus = OrdonnanceClientSaisie.valider(requete, LocalDate.now());
+        List<String> refus = new ArrayList<>(OrdonnanceClientSaisie.valider(requete, LocalDate.now()));
+        if (requete.has("renouvellements")) {
+            String motif = RenouvellementOrdonnance.valider(requete.optInt("renouvellements", 0), periodicite(requete));
+            if (motif != null) {
+                refus.add(motif);
+            }
+        }
         if (!refus.isEmpty()) {
             return new JSONObject().put("success", false).put("message", String.join(" ", refus));
         }
@@ -256,6 +277,19 @@ public class OrdonnanceClientService {
             }
             remplacerProduits(ordonnance, requete.optJSONArray("produits"));
             em.flush();
+            /*
+             * Renouvellements (30/09) : portes par l'ordonnance d'ORIGINE seulement. Un renouvellement herite des
+             * reglages de son origine ; les champs arrivant de sa fiche sont ignores.
+             */
+            if (requete.has("renouvellements")) {
+                int nb = requete.optInt("renouvellements", 0);
+                Integer periodicite = periodicite(requete);
+                em.createNativeQuery(
+                        "UPDATE t_ordonnance_client SET int_RENOUVELLEMENTS = ?1, int_PERIODICITE_JOURS = ?2"
+                                + " WHERE lg_ORDONNANCE_ID = ?3 AND lg_ORDONNANCE_ORIGINE_ID IS NULL")
+                        .setParameter(1, nb).setParameter(2, nb > 0 ? periodicite : null)
+                        .setParameter(3, ordonnance.getLgORDONNANCEID()).executeUpdate();
+            }
             return new JSONObject().put("success", true).put("id", ordonnance.getLgORDONNANCEID())
                     .put("numero", ordonnance.getStrNUMERO())
                     .put("message", creation ? "Ordonnance " + ordonnance.getStrNUMERO() + " enregistrée."
@@ -264,6 +298,10 @@ public class OrdonnanceClientService {
             LOG.log(Level.SEVERE, "enregistrement d'une ordonnance client", e);
             return new JSONObject().put("success", false).put("message", "L'ordonnance n'a pas pu être enregistrée.");
         }
+    }
+
+    private static Integer periodicite(JSONObject requete) {
+        return !requete.has("periodicite") || requete.isNull("periodicite") ? null : requete.optInt("periodicite");
     }
 
     private void remplacerProduits(TOrdonnanceClient ordonnance, JSONArray produits) {

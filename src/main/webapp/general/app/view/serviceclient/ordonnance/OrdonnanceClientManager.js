@@ -66,7 +66,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 {name: 'nbServies', type: 'int'},
                 /* Reste a delivrer (30/09) : lignes encore dues et quantite encore due. */
                 {name: 'nbReste', type: 'int'},
-                {name: 'qteReste', type: 'int'}
+                {name: 'qteReste', type: 'int'},
+                /* Renouvellements (30/09). */
+                {name: 'origineId', type: 'string'},
+                {name: 'origineNumero', type: 'string'},
+                {name: 'rang', type: 'int'},
+                {name: 'renouvAutorises', type: 'int'},
+                {name: 'renouvFaits', type: 'int'},
+                {name: 'prochainRenouvellement', type: 'string'}
             ],
             pageSize: 50,
             autoLoad: false,
@@ -368,6 +375,12 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             margin: '0 6 0 12',
                             boxLabel: 'Avec un reste à délivrer'
                         }, {
+                            /* Renouvellements (30/09) : echeance passee ou dans la semaine. */
+                            xtype: 'checkbox',
+                            itemId: 'renouveler',
+                            margin: '0 6 0 12',
+                            boxLabel: 'À renouveler (7 jours)'
+                        }, {
                             xtype: 'button',
                             itemId: 'rechercher',
                             text: 'Rechercher',
@@ -430,6 +443,29 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         meta.tdAttr = 'data-qtip="' + rec.get('nbServies') + ' ligne(s) servie(s) en entier sur '
                                 + rec.get('nbProduits') + ' - ' + rec.get('nbRenseignees') + ' renseignée(s)"';
                         return me.badgeService(v);
+                    }},
+                {text: 'RENOUV.', dataIndex: 'renouvAutorises', width: 120, align: 'center', itemId: 'colRenouv',
+                    renderer: function (v, meta, rec) {
+                        if (rec.get('statut') === 'annulee') {
+                            return '';
+                        }
+                        if (rec.get('rang') > 0) {
+                            meta.tdAttr = 'data-qtip="Renouvellement de ' + Ext.String.htmlEncode(rec.get('origineNumero')) + '"';
+                            return 'Renouv. ' + rec.get('rang') + '/' + rec.get('renouvAutorises');
+                        }
+                        if (!v) {
+                            return '';
+                        }
+                        var prochain = rec.get('prochainRenouvellement');
+                        if (!prochain) {
+                            return rec.get('renouvFaits') + '/' + v + ' — terminé';
+                        }
+                        var date = Ext.Date.parse(prochain, 'Y-m-d');
+                        var jours = Math.round((date - Ext.Date.clearTime(new Date(), true)) / 86400000);
+                        var cls = jours < 0 ? 'ordo-etat-non_servie' : (jours <= 7 ? 'ordo-etat-reste' : 'ordo-etat-a_renseigner');
+                        meta.tdAttr = 'data-qtip="Prochain renouvellement le ' + Ext.Date.format(date, 'd/m/Y') + '"';
+                        return '<span class="ordo-etat ' + cls + '">' + rec.get('renouvFaits') + '/' + v + ' · '
+                                + Ext.Date.format(date, 'd/m') + '</span>';
                     }},
                 {text: 'RESTE', dataIndex: 'qteReste', width: 100, align: 'center', itemId: 'colReste',
                     renderer: function (v, meta, rec) {
@@ -563,6 +599,25 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             scale: 'medium',
                             disabled: true,
                             tooltip: 'Prépare une vente en attente avec ce qui reste à servir, à reprendre à la caisse'
+                        }, {
+                            /* Renouvellement (30/09) : une nouvelle ordonnance liee, datee du jour. */
+                            xtype: 'button',
+                            itemId: 'renouvelerFiche',
+                            text: 'Renouveler',
+                            icon: 'resources/images/icons/fam/page_copy.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium',
+                            disabled: true,
+                            tooltip: 'Crée le renouvellement suivant : mêmes produits, daté d\'aujourd\'hui'
+                        }, {
+                            xtype: 'button',
+                            itemId: 'rappelRenouvellement',
+                            text: 'Rappel SMS',
+                            icon: 'resources/images/icons/fam/rss_go.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium',
+                            disabled: true,
+                            tooltip: 'Envoie maintenant au client le SMS de rappel du prochain renouvellement'
                         }, {
                             xtype: 'tbtext',
                             itemId: 'preventesFiche',
@@ -770,6 +825,45 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             maxLength: 100
                         }, me.boutonPlus('nouvelEtablissement', 'Nouvel établissement'), {
                             xtype: 'component', width: 196
+                        }]
+                }, {
+                    /*
+                     * Renouvellements (30/09) : sur l'ordonnance d'ORIGINE. Un renouvellement affiche seulement son
+                     * rang et son origine.
+                     */
+                    xtype: 'container',
+                    itemId: 'ligneRenouvellement',
+                    layout: {type: 'hbox', align: 'middle'},
+                    margin: '6 0 0 0',
+                    items: [{
+                            xtype: 'numberfield',
+                            itemId: 'renouvellements',
+                            fieldLabel: 'Renouvelable',
+                            labelWidth: 110,
+                            width: 170,
+                            minValue: 0,
+                            maxValue: 12,
+                            allowDecimals: false,
+                            value: 0
+                        }, {
+                            xtype: 'displayfield', value: 'fois, tous les', margin: '0 8 0 8'
+                        }, {
+                            xtype: 'numberfield',
+                            itemId: 'periodicite',
+                            hideLabel: true,
+                            width: 70,
+                            minValue: 1,
+                            maxValue: 365,
+                            allowDecimals: false,
+                            value: 30
+                        }, {
+                            xtype: 'displayfield', value: 'jours', margin: '0 0 0 8'
+                        }, {
+                            xtype: 'component',
+                            itemId: 'infoRenouvellement',
+                            flex: 1,
+                            margin: '0 0 0 16',
+                            html: ''
                         }]
                 }]
         };

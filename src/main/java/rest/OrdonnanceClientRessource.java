@@ -60,6 +60,12 @@ public class OrdonnanceClientRessource {
     @EJB
     private rest.service.impl.OrdonnancePreventeService preventeService;
 
+    @EJB
+    private rest.service.impl.OrdonnanceRenouvellementService renouvellementService;
+
+    @EJB
+    private rest.service.SmsService smsService;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -117,6 +123,7 @@ public class OrdonnanceClientRessource {
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("annulees") @DefaultValue("false") boolean annulees,
             @QueryParam("reste") @DefaultValue("false") boolean reste,
+            @QueryParam("renouveler") @DefaultValue("false") boolean renouveler,
             @QueryParam("start") @DefaultValue("0") int start, @QueryParam("limit") @DefaultValue("50") int limit) {
         if (utilisateur() == null) {
             return deconnecte();
@@ -126,9 +133,11 @@ public class OrdonnanceClientRessource {
         }
         /* Preventes cloturees a la caisse depuis la derniere lecture : leur service est reporte d'abord (30/09). */
         preventeService.reporterServices(null);
-        return Response.ok().entity(ordonnanceService
-                .liste(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste), start, limit)
-                .toString()).build();
+        return Response.ok()
+                .entity(ordonnanceService.liste(
+                        criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste, renouveler),
+                        start, limit).toString())
+                .build();
     }
 
     /** Une ordonnance et ses produits. */
@@ -363,6 +372,42 @@ public class OrdonnanceClientRessource {
                 .build();
     }
 
+    /**
+     * Renouvellement (30/09) : une NOUVELLE ordonnance liee a l'origine, datee du jour, avec les memes produits. Droit
+     * d'ecriture des ordonnances.
+     */
+    @POST
+    @Path("renouvellement/{id}")
+    public Response renouveler(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(renouvellementService.renouveler(id, utilisateur()).toString()).build();
+    }
+
+    /**
+     * Rappel SMS du renouvellement, tout de suite (bouton de la fiche). La notification est enregistree et validee par
+     * le service, PUIS envoyee par le module SMS : il la relit dans sa propre transaction.
+     */
+    @POST
+    @Path("renouvellement/{id}/rappel")
+    public Response rappelRenouvellement(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject r = renouvellementService.preparerRappel(id, utilisateur());
+        if (r.optBoolean("success", false)) {
+            smsService.sendSMSByNotificationIdAsync(r.getString("notificationId"));
+        }
+        return Response.ok().entity(r.toString()).build();
+    }
+
     /** Creation rapide d'un prescripteur depuis la fiche (23/09) : droit d'ecriture des ordonnances. */
     @POST
     @Path("medecins/creer")
@@ -442,6 +487,7 @@ public class OrdonnanceClientRessource {
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("annulees") @DefaultValue("false") boolean annulees,
             @QueryParam("reste") @DefaultValue("false") boolean reste,
+            @QueryParam("renouveler") @DefaultValue("false") boolean renouveler,
             @QueryParam("clientLibelle") String clientLibelle, @QueryParam("typeLibelle") String typeLibelle,
             @QueryParam("medecinLibelle") String medecinLibelle) {
         TUser operateur = utilisateur();
@@ -454,8 +500,8 @@ public class OrdonnanceClientRessource {
         try {
             preventeService.reporterServices(null);
             byte[] pdf = ordonnanceService.pdfHistorique(operateur,
-                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste), clientLibelle,
-                    typeLibelle, medecinLibelle);
+                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste, renouveler),
+                    clientLibelle, typeLibelle, medecinLibelle);
             return Response.ok(pdf).type("application/pdf")
                     .header("Content-Disposition", "inline; filename=\"ordonnances_historique.pdf\"").build();
         } catch (Exception e) {
@@ -472,7 +518,8 @@ public class OrdonnanceClientRessource {
             @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("annulees") @DefaultValue("false") boolean annulees,
-            @QueryParam("reste") @DefaultValue("false") boolean reste) {
+            @QueryParam("reste") @DefaultValue("false") boolean reste,
+            @QueryParam("renouveler") @DefaultValue("false") boolean renouveler) {
         if (utilisateur() == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -481,8 +528,8 @@ public class OrdonnanceClientRessource {
         }
         try {
             preventeService.reporterServices(null);
-            byte[] classeur = ordonnanceService
-                    .excelHistorique(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste));
+            byte[] classeur = ordonnanceService.excelHistorique(
+                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste, renouveler));
             return Response.ok(classeur).type("application/vnd.ms-excel")
                     .header("Content-Disposition", "attachment; filename=\"ordonnances_clients.xls\"").build();
         } catch (Exception e) {
@@ -623,13 +670,14 @@ public class OrdonnanceClientRessource {
 
     private static OrdonnanceClientSql.Criteres criteres(String query, String clientId, String typeClientId,
             String medecinId, String debut, String fin, boolean annulees) {
-        return criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, false);
+        return criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, false, false);
     }
 
     private static OrdonnanceClientSql.Criteres criteres(String query, String clientId, String typeClientId,
-            String medecinId, String debut, String fin, boolean annulees, boolean reste) {
+            String medecinId, String debut, String fin, boolean annulees, boolean reste, boolean renouveler) {
         LocalDate d = OrdonnanceClientSaisie.date(debut);
         LocalDate f = OrdonnanceClientSaisie.date(fin);
-        return new OrdonnanceClientSql.Criteres(query, clientId, typeClientId, medecinId, d, f, annulees, reste);
+        return new OrdonnanceClientSql.Criteres(query, clientId, typeClientId, medecinId, d, f, annulees, reste,
+                renouveler);
     }
 }

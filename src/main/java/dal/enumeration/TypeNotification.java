@@ -24,7 +24,9 @@ public enum TypeNotification {
     MODIFICATION_INFO_PRODUIT_COMMANDE("Modification info produit à la commande"),
     MASSE("Notification informationnelle"), MODIFICATION_VENTE("Modification de vente"),
     SAISIS_PERIMES("Saisis de périmés"), AJOUT_DE_NOUVEAU_PRODUIT("Ajout de nouveau produit"),
-    AJOUT_DE_DETAIL_PRODUIT("Creation de detail de  produit");
+    AJOUT_DE_DETAIL_PRODUIT("Creation de detail de  produit"),
+    /* Rappel SMS du renouvellement d'une ordonnance client (30/09), canal SMS. */
+    RAPPEL_RENOUVELLEMENT("Rappel de renouvellement d'ordonnance");
 
     private final String value;
 
