@@ -26,11 +26,22 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       return { type: t.getValue(), nature: n.getValue(), titre: v.title, assure: v.down('#assureContainer').isVisible(),
         segType: (t.bodyEl.dom.querySelector('.seg-actif') || {}).textContent, segNature: (n.bodyEl.dom.querySelector('.seg-actif') || {}).textContent,
         boutonsType: [...t.bodyEl.dom.querySelectorAll('.seg-bouton')].map((x) => x.textContent), boutonsNature: [...n.bodyEl.dom.querySelectorAll('.seg-bouton')].map((x) => x.textContent),
-        listeCachee: !t.triggerWrap.isVisible(), vendeur: v.down('#user').isVisible() && v.down('#user').triggerWrap.isVisible() }; });
+        listeCachee: !t.triggerWrap.isVisible(), vendeur: v.down('#user').isVisible() && v.down('#user').triggerWrap.isVisible(), point: !!t.bodyEl.dom.querySelector('.seg-actif .seg-point') }; });
     const e0 = await etat();
     ok('Type et nature en boutons segmentés, la liste déroulante n\'est plus affichée ; vendeur en combo', e0.boutonsType.join('|') === 'Au comptant|Assurance|Carnet'
       && e0.boutonsNature.indexOf('Prescription') >= 0 && e0.listeCachee && e0.vendeur, JSON.stringify(e0));
     ok('Au départ : Au comptant et Prescription actifs, comme les valeurs des combos', e0.type === '1' && e0.segType === 'Au comptant' && e0.nature === '1' && e0.segNature === 'Prescription', JSON.stringify(e0));
+    const dessin = await p.evaluate(() => { const v = Ext.ComponentQuery.query('doventemanager')[0]; const ligne = v.down('#ligneTypeVente');
+      const centre = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+      const libs = [...ligne.getEl().dom.querySelectorAll('.seg-lib')];
+      const ctrl = [v.down('#typeVente').bodyEl.dom.querySelector('.seg-groupe'), v.down('#nature').bodyEl.dom.querySelector('.seg-groupe'), v.down('#user').inputEl.dom];
+      const actif = v.down('#typeVente').bodyEl.dom.querySelector('.seg-actif');
+      return { libs: libs.map((l) => l.textContent), ecarts: libs.map((l, i) => Math.round(Math.abs(centre(l) - centre(ctrl[i])))),
+        pastilleType: !!actif.querySelector('.seg-point'), pastilleAilleurs: document.querySelectorAll('.seg-point').length, fondActif: getComputedStyle(actif).backgroundColor,
+        vendeur: v.down('#user').getWidth(), espace: Math.round(libs[1].getBoundingClientRect().left - ctrl[0].getBoundingClientRect().right) }; });
+    ok('Libellés Type / Nature / Vendeur centrés sur leurs choix, espacés ; vendeur à largeur fixe', dessin.libs.join('|') === 'Type|Nature|Vendeur' && dessin.ecarts.every((x) => x <= 2)
+      && dessin.espace >= 24 && dessin.vendeur === 300, JSON.stringify(dessin));
+    ok('Type actif : pastille clignotante (seulement sur le type), fond foncé', dessin.pastilleType && dessin.pastilleAilleurs === 1 && dessin.fondActif === 'rgb(30, 58, 95)', JSON.stringify(dessin));
     await p.click('.seg-bouton[data-valeur="2"]'); await p.waitForTimeout(1200);
     const e1 = await etat();
     const actif = await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #clientSearchTextField')[0]; return c && document.activeElement === c.inputEl.dom; });
@@ -47,7 +58,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.evaluate(() => { Ext.ComponentQuery.query('doventemanager #typeVente')[0].setValue('3'); Ext.ComponentQuery.query('doventemanager #nature')[0].setValue('1'); });
     await p.waitForTimeout(300);
     const e4 = await etat();
-    ok('Une valeur posée par le code (reprise d\'une vente) est reprise par les boutons', e4.segType === 'Carnet' && e4.segNature === 'Prescription', JSON.stringify(e4));
+    ok('Une valeur posée par le code (reprise d\'une vente) est reprise par les boutons, pastille comprise', e4.point && e4.segType === 'Carnet' && e4.segNature === 'Prescription', JSON.stringify(e4));
     await p.evaluate(() => Ext.ComponentQuery.query('doventemanager #typeVente')[0].setReadOnly(true));
     await p.waitForTimeout(200);
     const lecture = await p.evaluate(() => { return [...Ext.ComponentQuery.query('doventemanager #typeVente')[0].bodyEl.dom.querySelectorAll('.seg-bouton')].every((x) => x.disabled); });

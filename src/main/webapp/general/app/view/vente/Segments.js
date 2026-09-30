@@ -8,13 +8,15 @@
  * pose la valeur et emet 'select' exactement comme un choix dans la liste. Les changements venus du code (setValue)
  * sont repris a l'ecran, et un combo en lecture seule ou desactive rend les boutons inactifs.
  *
- * Options : libelles (valeur -> texte affiche), exclure (valeurs a ne pas proposer).
+ * Options : libelles (valeur -> texte affiche), exclure (valeurs a ne pas proposer), pastille (point clignotant sur le
+ * bouton actif).
  */
 Ext.define('testextjs.view.vente.Segments', {
     extend: 'Ext.AbstractPlugin',
     alias: 'plugin.segments',
     libelles: null,
     exclure: null,
+    pastille: false,
 
     init: function (combo) {
         var me = this;
@@ -32,6 +34,7 @@ Ext.define('testextjs.view.vente.Segments', {
     monter: function () {
         var me = this, combo = me.combo, store = combo.getStore();
         me.zone = Ext.DomHelper.append(combo.bodyEl, {tag: 'div', cls: 'seg-groupe', role: 'radiogroup'}, true);
+        combo.bodyEl.setStyle('width', 'auto');
         me.zone.on('click', function (e) {
             var bouton = e.getTarget('button.seg-bouton');
             if (bouton) {
@@ -69,9 +72,21 @@ Ext.define('testextjs.view.vente.Segments', {
             var actif = v === courant;
             html.push('<button type="button" class="seg-bouton' + (actif ? ' seg-actif' : '') + '" role="radio" aria-checked="'
                     + actif + '" data-valeur="' + Ext.String.htmlEncode(v) + '"' + (inactif ? ' disabled' : '') + '>'
+                    + (actif && me.pastille ? '<span class="seg-point"></span>' : '')
                     + Ext.String.htmlEncode(me.libelle(rec)) + '</button>');
         });
         me.zone.update(html.join(''));
+        /* Le combo prend la largeur de ses boutons : l'espacement avec le champ suivant reste celui de la marge. */
+        var boutons = me.zone.dom.querySelectorAll('button.seg-bouton'), largeur = boutons.length ? 6 + 2 * (boutons.length - 1) : 0;
+        Ext.each(boutons, function (b) {
+            largeur += b.offsetWidth;
+        });
+        if (combo.rendered && largeur && Math.abs(combo.getWidth() - largeur) > 1) {
+            combo.setWidth(largeur);
+            if (combo.ownerCt) {
+                combo.ownerCt.updateLayout();
+            }
+        }
     },
 
     choisir: function (valeur) {
