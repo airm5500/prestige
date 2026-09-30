@@ -1115,6 +1115,13 @@ public class OrdonnanceClientService {
     private rest.service.ClientConsommationService consommationService;
 
     @SuppressWarnings("unchecked")
+    /** Nom et prenom d'un client, ou null s'il n'existe pas (suivi de consommation depuis la caisse, 30/09). */
+    public String nomClient(String clientId) {
+        TClient client = StringUtils.isBlank(clientId) ? null : em.find(TClient.class, clientId);
+        return client == null ? null : StringUtils.normalizeSpace(StringUtils.defaultString(client.getStrFIRSTNAME())
+                + " " + StringUtils.defaultString(client.getStrLASTNAME()));
+    }
+
     public JSONObject consommationClient(String clientId, String debut, String fin, String emplacementId) {
         if (StringUtils.isBlank(clientId)) {
             return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray()).put("message",

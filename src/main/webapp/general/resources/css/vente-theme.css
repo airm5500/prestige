@@ -2001,3 +2001,51 @@ body.x-body,
 .ordo-reste-client { padding: 5px 8px; background: #fff4e0; border-left: 3px solid #e67e22; color: #7a4500; font-size: 12px; }
 .ordo-reste-client a { color: #1E5FA8; font-weight: bold; }
 .ordo-info-renouv { color: #1e3a5f; font-size: 12px; }
+
+/* ------------------------------------------------------------------ Ecran de vente : suivi de consommation (30/09) */
+/* Bouton de la ligne du client standard : discret, dans le style des champs voisins. */
+.x-btn.vc-ouvrir { background: #e3edf7 !important; background-image: none !important; border: 1px solid #9fb3c8 !important;
+    border-radius: 4px; }
+.x-btn.vc-ouvrir .x-btn-inner { color: #1e3a5f !important; font-weight: bold; }
+.x-btn.vc-ouvrir.x-btn-over { background: #d3e2f1 !important; }
+/* Fenetre : dessin propre, sans barre ni boutons ExtJS. */
+.vc-fenetre.x-window { border: 0 !important; border-radius: 10px; box-shadow: 0 24px 60px rgba(15, 30, 50, .35); overflow: hidden; }
+.vc-fenetre .x-window-body { background: #f6f8fb !important; border: 0 !important; }
+.vc { display: flex; flex-direction: column; height: 100%; font-family: inherit; color: #1e2a36; }
+.vc-tete { display: flex; justify-content: space-between; align-items: center; padding: 16px 22px;
+    background: linear-gradient(135deg, #1e3a5f, #2E75B6); color: #fff; }
+.vc-sur { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; opacity: .8; }
+.vc-nom { font-size: 20px; font-weight: bold; margin-top: 2px; }
+.vc-croix { border: 0; background: rgba(255, 255, 255, .15); color: #fff; width: 34px; height: 34px; border-radius: 50%;
+    font-size: 22px; line-height: 30px; cursor: pointer; }
+.vc-croix:hover { background: rgba(255, 255, 255, .3); }
+.vc-periodes { display: flex; gap: 8px; padding: 12px 22px 4px; }
+.vc-puce { border: 1px solid #c3cfdb; background: #fff; color: #1e3a5f; border-radius: 16px; padding: 5px 14px;
+    font-weight: bold; cursor: pointer; font-size: 12px; }
+.vc-puce:hover { border-color: #2E75B6; }
+.vc-puce-active { background: #1e3a5f; border-color: #1e3a5f; color: #fff; }
+.vc-corps { flex: 1; overflow: auto; padding: 8px 22px 12px; }
+.vc-tuiles { display: flex; gap: 10px; margin-bottom: 12px; }
+.vc-tuile { flex: 1; background: #fff; border: 1px solid #e0e7ef; border-radius: 8px; padding: 10px 14px; }
+.vc-tuile-valeur { font-size: 20px; font-weight: bold; color: #1e3a5f; font-variant-numeric: tabular-nums; }
+.vc-tuile-libelle { font-size: 11px; color: #6b7b8c; text-transform: uppercase; letter-spacing: .06em; }
+.vc-tableau { background: #fff; border: 1px solid #e0e7ef; border-radius: 8px; overflow: hidden; }
+.vc-tableau table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.vc-tableau th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7b8c;
+    background: #f4f7fa; padding: 8px 10px; border-bottom: 1px solid #e0e7ef; }
+.vc-tableau td { padding: 7px 10px; border-bottom: 1px solid #eef2f6; }
+.vc-tableau tr:last-child td { border-bottom: 0; }
+.vc-tableau tbody tr:hover { background: #f4f8fc; }
+.vc-n { text-align: right !important; }
+.vc-produit { max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+.vc-cip { color: #8a99a8; font-weight: normal; }
+.vc-stock { color: #1E5FA8; font-weight: bold; }
+.vc-rupture { color: #c0392b; font-weight: bold; }
+.vc-habitude { background: #e3edf7; color: #1e3a5f; border-radius: 10px; padding: 1px 8px; font-size: 11px; }
+.vc-vide, .vc-chargement { padding: 40px; text-align: center; color: #6b7b8c; }
+.vc-pied { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px; background: #fff;
+    border-top: 1px solid #e0e7ef; color: #6b7b8c; font-size: 12px; }
+.vc-bouton { border: 0; background: #1e3a5f; color: #fff; border-radius: 6px; padding: 8px 22px; font-weight: bold;
+    cursor: pointer; }
+.vc-bouton:hover { background: #2E75B6; }
+.vc-croix:focus-visible, .vc-puce:focus-visible, .vc-bouton:focus-visible { outline: 2px solid #f0a23a; outline-offset: 2px; }

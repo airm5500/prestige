@@ -9,6 +9,7 @@
 
 Ext.define('testextjs.view.vente.VenteVNO', {
     extend: 'Ext.panel.Panel',
+    requires: ['testextjs.view.vente.SuiviConsoFenetre'],
     xtype: 'ventevno',
 //    frame: true,
     border: 0,
@@ -828,6 +829,34 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     margin: '0 15 0 0',
                                                     enableKeyEvents: true
 
+                                                },
+                                                {
+                                                    /*
+                                                     * Suivi de consommation du client (retour du 30/09), seul ajout a
+                                                     * l'ecran de vente : une fenetre autonome, lecture seule. Le
+                                                     * controleur de la caisse n'est pas modifie : on lui lit seulement
+                                                     * le client choisi.
+                                                     */
+                                                    xtype: 'button',
+                                                    itemId: 'suiviConsoClient',
+                                                    text: 'Suivi conso',
+                                                    icon: 'resources/images/icons/fam/chart_bar.png',
+                                                    cls: 'vc-ouvrir',
+                                                    height: 30,
+                                                    tooltip: 'Suivi de consommation de ce client',
+                                                    handler: function (bouton) {
+                                                        var nomCtr = bouton.up('doventeendepot') ? 'VenteEnDepotCtr'
+                                                                : 'VenteCtr';
+                                                        var ctr = testextjs.app.getController(nomCtr);
+                                                        var client = ctr && ctr.getClient ? ctr.getClient() : null;
+                                                        var id = client && client.get ? client.get('lgCLIENTID') : null;
+                                                        Ext.create('testextjs.view.vente.SuiviConsoFenetre', {
+                                                            clientId: id,
+                                                            nomClient: client && client.get ? Ext.String.trim(
+                                                                    (client.get('strFIRSTNAME') || '') + ' '
+                                                                    + (client.get('strLASTNAME') || '')) : ''
+                                                        }).show();
+                                                    }
                                                 }
                                             ]
                                         }
