@@ -43,7 +43,7 @@ const MARQUE = 'E2E-BOUTONS';
     const clic = async (sel) => { const id = await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].getId(), sel); await p.click('#' + id); await p.waitForTimeout(1500); };
     const vue = () => p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].getLayout().getActiveItem().itemId);
     const fiche = () => p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #vueFiche')[0]; const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
-      return { titre: f.down('#titreFiche').getValue(), client: f.down('#ficheClient').getRawValue(), medecin: f.down('#ficheMedecin').getRawValue(), etab: f.down('#ficheEtablissement').getRawValue(), produits: e.storeProduits.getCount(), premierLibelle: e.storeProduits.getCount() ? e.storeProduits.getAt(0).get('libelle') : '', lectureSeule: f.down('#ficheClient').readOnly === true || f.down('#ficheClient').isDisabled(), nbClientsStore: e.storeClients.getCount() }; });
+      return { titre: f.down('#enteteOrdonnance').title, client: f.down('#ficheClient').getRawValue(), medecin: f.down('#ficheMedecin').getRawValue(), etab: f.down('#ficheEtablissement').getRawValue(), produits: e.storeProduits.getCount(), premierLibelle: e.storeProduits.getCount() ? e.storeProduits.getAt(0).get('libelle') : '', lectureSeule: f.down('#ficheClient').readOnly === true || f.down('#ficheClient').isDisabled(), nbClientsStore: e.storeClients.getCount() }; });
     /* On vise la ligne par l'IDENTIFIANT de l'ordonnance, pas par le rang : la liste va de la plus recente a
        la plus ancienne, et deux ordonnances du meme jour se rangent dans l'ordre de leur creation. */
     /* Les actions sont PAR LIGNE depuis le 22/09 : on clique l'icone de la ligne visee, avec la souris. */
@@ -61,13 +61,13 @@ const MARQUE = 'E2E-BOUTONS';
 
     await icone(AVEC, 'consulter');
     let f = await fiche();
-    ok('CONSULTER ouvre la fiche, remplie, en lecture', (await vue()) === 'vueFiche' && /Ordonnance ORD/.test(f.titre) && f.client.length > 2 && f.produits === 1, JSON.stringify(f));
+    ok('CONSULTER ouvre la fiche, remplie, en lecture', (await vue()) === 'vueFiche' && /N° ORD/.test(f.titre) && f.client.length > 2 && f.produits === 1, JSON.stringify(f));
     await clic('ordonnanceclient #retourHistorique');
     await clic('ordonnanceclient #nouvelle');
     f = await fiche();
     /* La fiche neuve porte volontairement UNE ligne produit vide, prete a la saisie : c'est « vide ». */
     ok('NOUVELLE ORDONNANCE après une fiche consultée : la fiche s ouvre VIDE (une ligne produit prête), sans erreur', (await vue()) === 'vueFiche' && f.titre === 'Nouvelle ordonnance' && f.client === '' && f.medecin === '' && f.etab === '' && f.produits <= 1 && f.premierLibelle === '' && err.length === 0, JSON.stringify(f) + ' ' + JSON.stringify(err));
-    await clic('ordonnanceclient #abandonner');
+    await clic('ordonnanceclient #retourHistorique');
     await p.waitForTimeout(800);
     /* Une boite de confirmation peut s'ouvrir : on repond oui si elle est la. */
     await p.evaluate(() => { if (Ext.MessageBox.isVisible() && Ext.MessageBox.msgButtons.yes.isVisible()) { Ext.MessageBox.msgButtons.yes.el.dom.click(); } });
@@ -75,7 +75,7 @@ const MARQUE = 'E2E-BOUTONS';
     if ((await vue()) !== 'vueHistorique') { await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].getLayout().setActiveItem(0)); }
     await icone(SANS, 'modifier');
     f = await fiche();
-    ok('MODIFIER ouvre la seconde ordonnance (sans prescripteur ni établissement) en saisie', (await vue()) === 'vueFiche' && /Ordonnance ORD/.test(f.titre) && f.medecin === '' && f.etab === '' && !f.lectureSeule && f.produits === 1, JSON.stringify(f));
+    ok('MODIFIER ouvre la seconde ordonnance (sans prescripteur ni établissement) en saisie', (await vue()) === 'vueFiche' && /N° ORD/.test(f.titre) && f.medecin === '' && f.etab === '' && !f.lectureSeule && f.produits === 1, JSON.stringify(f));
     await clic('ordonnanceclient #retourHistorique');
     await icone(AVEC, 'consulter');
     f = await fiche();

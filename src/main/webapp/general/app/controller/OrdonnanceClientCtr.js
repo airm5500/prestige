@@ -35,7 +35,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #barreCriteres button[itemId=rechercher]': {click: me.rechercher},
             'ordonnanceclient #barreCriteres button[itemId=reinitialiser]': {click: me.reinitialiser},
             'ordonnanceclient #grilleOrdonnances button[itemId=nouvelle]': {click: me.nouvelleOrdonnance},
-            'ordonnanceclient #barreCriteres textfield[itemId=recherche]': {specialkey: me.surTouche},
+            'ordonnanceclient #barreCriteres textfield[itemId=recherche]': {
+                specialkey: me.surTouche,
+                /* Recherche automatique pendant la frappe (30/09), en « contient » : le serveur cherche %texte%. */
+                change: {fn: me.surFrappeRecherche, buffer: 400}
+            },
             'ordonnanceclient #barreCriteres combobox[itemId=typeClient]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=client]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=medecin]': {select: me.rechercher},
@@ -45,36 +49,45 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 actionordonnance: me.surAction,
                 itemdblclick: me.consulter
             },
-            'ordonnanceclient #vueFiche button[itemId=retourHistorique]': {click: me.retourHistorique},
-            'ordonnanceclient #vueFiche button[itemId=abandonner]': {click: me.retourHistorique},
+            'ordonnanceclient #vueFiche button[itemId=retourHistorique]': {click: me.demanderRetour},
             'ordonnanceclient #vueFiche button[itemId=enregistrer]': {click: me.enregistrer},
             'ordonnanceclient #vueFiche button[itemId=nouveauClient]': {click: me.nouveauClient},
-            'ordonnanceclient #vueFiche button[itemId=creerClient]': {click: me.creerClient},
-            'ordonnanceclient #vueFiche button[itemId=annulerClient]': {click: me.annulerNouveauClient},
             'ordonnanceclient #vueFiche button[itemId=nouveauMedecin]': {click: me.nouveauMedecin},
-            'ordonnanceclient #vueFiche button[itemId=creerMedecin]': {click: me.creerMedecin},
-            'ordonnanceclient #vueFiche button[itemId=annulerMedecin]': {click: me.fermerNouveauMedecin},
             'ordonnanceclient #vueFiche button[itemId=nouvelEtablissement]': {click: me.nouvelEtablissement},
-            'ordonnanceclient #vueFiche button[itemId=ajouterEtablissement]': {click: me.ajouterEtablissement},
-            'ordonnanceclient #vueFiche button[itemId=annulerEtablissement]': {click: me.fermerNouvelEtablissement},
+            /* Fenetres de creation rapide (30/09) : elles ne sont pas dans l'ecran, d'ou leur propre identifiant. */
+            'window#fenNouveauClient button[itemId=creerClient]': {click: me.creerClient},
+            'window#fenNouveauClient button[itemId=annulerClient]': {click: me.annulerNouveauClient},
+            'window#fenNouveauClient field': {specialkey: me.entreeCreerClient},
+            'window#fenNouveauMedecin button[itemId=creerMedecin]': {click: me.creerMedecin},
+            'window#fenNouveauMedecin button[itemId=annulerMedecin]': {click: me.fermerNouveauMedecin},
+            'window#fenNouveauMedecin field': {specialkey: me.entreeCreerMedecin},
+            'window#fenNouvelEtablissement button[itemId=ajouterEtablissement]': {click: me.ajouterEtablissement},
+            'window#fenNouvelEtablissement button[itemId=annulerEtablissement]': {click: me.fermerNouvelEtablissement},
+            'window#fenNouvelEtablissement field': {specialkey: me.entreeAjouterEtablissement},
             'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
             'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
             'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
             'ordonnanceclient #grillePieces button[itemId=joindrePiece]': {click: me.joindrePiece},
-            'ordonnanceclient #grillePieces button[itemId=voirPiece]': {click: me.voirPiece},
-            'ordonnanceclient #grillePieces button[itemId=telechargerPiece]': {click: me.telechargerPiece},
-            'ordonnanceclient #grillePieces button[itemId=retirerPiece]': {click: me.retirerPiece},
             'ordonnanceclient #grillePieces filefield[itemId=fichierPiece]': {change: me.surChoixFichier},
-            'ordonnanceclient #grillePieces': {selectionchange: me.surSelectionPiece},
+            /* Voir, telecharger, retirer : sur CHAQUE ligne de piece (30/09). */
+            'ordonnanceclient #grillePieces': {actionpiece: me.surActionPiece},
             'ordonnanceclient #grilleProduits button[itemId=ajouterProduit]': {click: me.ajouterProduit},
             'ordonnanceclient #grilleProduits combobox[itemId=editeurProduit]': {select: me.surChoixArticle},
             'ordonnanceclient #grilleProduits button[itemId=toutServir]': {click: me.toutServir},
-            'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents},
+            'ordonnanceclient #grilleProduits': {equivalents: me.montrerEquivalents, retirerligne: me.retirerLigne},
+            'ordonnanceclient #grilleProduits combobox[itemId=rechercheProduit]': {
+                select: me.surRechercheProduit,
+                specialkey: me.surToucheRechercheProduit
+            },
             'ordonnanceclient #grilleSubstituts': {remplacer: me.remplacerParEquivalent},
             'ordonnanceclient #alertesFiche': {proposes: me.montrerProposes},
             'ordonnanceclient #vueFiche button[itemId=analyserPosos]': {click: me.analyserFiche},
             'ordonnanceclient #vueFiche button[itemId=consoFiche]': {click: me.consoDepuisFiche},
-            'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso},
+            'ordonnanceclient #vueFiche combobox[itemId=ficheClient]': {change: me.majBoutonConso, select: me.surChoixClient},
+            /* Apres chacun de ces choix, le curseur va dans la recherche produit (30/09). */
+            'ordonnanceclient #vueFiche combobox[itemId=sexePatient]': {select: me.allerRechercheProduit},
+            'ordonnanceclient #vueFiche combobox[itemId=ficheMedecin]': {select: me.allerRechercheProduit},
+            'ordonnanceclient #vueFiche combobox[itemId=ficheEtablissement]': {select: me.allerRechercheProduit},
             'ordonnanceclient #vueConso button[itemId=retourConso]': {click: me.retourConso},
             'ordonnanceclient #vueConso button[itemId=actualiserConso]': {click: me.chargerConso},
             'ordonnanceclient #vueConso button[itemId=pososConso]': {click: me.analyserConso},
@@ -89,10 +102,38 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     surAffichage: function (ecran) {
         var me = this;
+        me.bullesLongues(ecran);
         ecran.storeTypesClient.load();
         ecran.storeMedecins.load();
         me.chargerDroits();
         me.rechercher();
+    },
+
+    /**
+     * Info-bulles LONGUES sur cet ecran (30/09) : elles restent tant que la souris est sur la cellule, au lieu de
+     * disparaitre au bout de 5 secondes. Le reglage d'origine est remis des que la souris quitte l'ecran : les
+     * autres menus gardent le leur.
+     */
+    bullesLongues: function (ecran) {
+        var el = ecran.getEl();
+        if (!el || !Ext.tip || !Ext.tip.QuickTipManager) {
+            return;
+        }
+        var origine = null;
+        el.on('mouseenter', function () {
+            var bulle = Ext.tip.QuickTipManager.getQuickTip();
+            if (bulle && origine === null) {
+                origine = bulle.dismissDelay;
+                bulle.dismissDelay = 0;
+            }
+        });
+        el.on('mouseleave', function () {
+            var bulle = Ext.tip.QuickTipManager.getQuickTip();
+            if (bulle && origine !== null) {
+                bulle.dismissDelay = origine;
+                origine = null;
+            }
+        });
     },
 
     /**
@@ -141,8 +182,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=nouveauClient]');
         basculer('#grillePieces button[itemId=joindrePiece]');
-        basculer('#grillePieces button[itemId=retirerPiece]');
         basculer('#grillePieces filefield[itemId=fichierPiece]');
+        this.rafraichirPieces();
     },
 
     /* ----------------------------------------------------------------- historique */
@@ -151,6 +192,19 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (e.getKey() === e.ENTER) {
             this.rechercher();
         }
+    },
+
+    /** Pendant la frappe : a partir de 2 caracteres, ou quand le champ est vide (on retrouve tout). */
+    surFrappeRecherche: function (champ, valeur) {
+        var texte = Ext.String.trim(valeur || '');
+        if (champ.isDestroyed || (texte.length > 0 && texte.length < 2)) {
+            return;
+        }
+        if (texte === this.derniereRecherche) {
+            return;
+        }
+        this.derniereRecherche = texte;
+        this.rechercher();
     },
 
     parametres: function () {
@@ -183,6 +237,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
         var store = ecran.storeOrdonnances;
         store.getProxy().extraParams = me.parametres();
+        me.derniereRecherche = store.getProxy().extraParams.query;
         store.loadPage(1);
     },
 
@@ -246,12 +301,53 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         this.rechercher();
     },
 
+    /**
+     * « Retour a l'historique » (30/09) : si une saisie est en cours, on demande avant de la perdre. En
+     * consultation, ou sans rien de change depuis l'ouverture ou le dernier enregistrement, on revient tout de suite.
+     */
+    demanderRetour: function () {
+        var me = this;
+        if (me.ficheVerrouillee || !me.saisieEnCours()) {
+            me.retourHistorique();
+            return;
+        }
+        Ext.Msg.confirm('Retour à l\'historique', 'Une saisie est en cours. Abandonner la saisie et revenir à '
+                + 'l\'historique ?', function (bouton) {
+                    if (bouton === 'yes') {
+                        me.retourHistorique();
+                    }
+                });
+    },
+
+    /** Photographie de ce que la fiche contient, pour savoir si une saisie est en cours. */
+    etatFiche: function () {
+        var requete = this.requeteFiche();
+        delete requete.id;
+        return Ext.encode(requete);
+    },
+
+    memoriserEtat: function () {
+        this.etatInitial = this.etatFiche();
+    },
+
+    saisieEnCours: function () {
+        return this.etatInitial !== undefined && this.etatFiche() !== this.etatInitial;
+    },
+
+    /** Titre de la section « L'ordonnance » : le N° y figure (30/09). */
+    titreFiche: function (texte) {
+        var entete = this.getEcran().down('#vueFiche #enteteOrdonnance');
+        if (entete) {
+            entete.setTitle(texte);
+        }
+    },
+
     nouvelleOrdonnance: function () {
         var me = this;
         var ecran = me.getEcran();
         me.viderFiche();
         ecran.down('#vueFiche #ficheDate').setValue(new Date());
-        ecran.down('#vueFiche #titreFiche').setValue('Nouvelle ordonnance');
+        me.titreFiche('Nouvelle ordonnance');
         me.lectureSeule(false);
         me.montrer(1);
         /*
@@ -266,6 +362,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             champClient.focus(false, 150);
         }
         me.chargerPieces();
+        me.memoriserEtat();
     },
 
     /*
@@ -300,7 +397,18 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             }
             c.resumeEvents();
         });
+        /*
+         * « getId, a is undefined » au clic sur Consulter (30/09) : la grille des produits garde la position de la
+         * derniere cellule choisie, et ExtJS 4.2 relit sa ligne quand la grille se redessine - apres le vidage, une
+         * ligne qui n'existe plus. On oublie cette position AVANT de vider.
+         */
+        this.oublierCellule(ecran.down('#grilleProduits'));
         ecran.storeProduits.removeAll();
+        var recherche = fiche.down('#rechercheProduit');
+        if (recherche) {
+            recherche.clearValue();
+        }
+        this.afficherTypeClient('');
         /* Les alertes d'une autre ordonnance ne doivent jamais rester affichees sous celle-ci. */
         ecran.storeAlertesFiche.removeAll();
         var alertes = fiche.down('#alertesFiche');
@@ -312,10 +420,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             substituts.hide();
         }
         this.ligneASubstituer = null;
-        var nc = fiche.down('#formNouveauClient');
-        if (nc && nc.isVisible()) {
-            this.annulerNouveauClient();
-        }
+        this.annulerNouveauClient();
         this.fermerNouveauMedecin();
         this.fermerNouvelEtablissement();
     },
@@ -325,6 +430,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var ecran = this.getEcran();
         /* Memorise : les boutons des pieces suivent le meme verrou que le reste de la fiche. */
         this.ficheVerrouillee = verrou === true;
+        /* Lu aussi par l'icone « Retirer » de chaque piece. */
+        ecran.ficheVerrouillee = this.ficheVerrouillee;
         var fiche = ecran.down('#vueFiche');
         Ext.each(['#ficheClient', '#ficheDate', '#ficheMedecin', '#ficheEtablissement', '#observations',
             '#agePatient', '#sexePatient', '#grossesse', '#allaitement', '#insuffisanceRenale',
@@ -346,6 +453,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             var ajouter = grille.down('button[itemId=ajouterProduit]');
             if (ajouter) {
                 ajouter.setVisible(!verrou);
+            }
+            var recherche = grille.down('combobox[itemId=rechercheProduit]');
+            if (recherche) {
+                recherche.setVisible(!verrou);
             }
             var servir = grille.down('button[itemId=toutServir]');
             if (servir) {
@@ -456,12 +567,15 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             });
         });
         ecran.storeProduits.commitChanges();
-        fiche.down('#titreFiche').setValue('Ordonnance ' + (o.numero || '') + ' — ' + (o.client || '')
-                + (o.statut === 'annulee' ? ' (ANNULÉE : ' + (o.motifAnnulation || '') + ')' : ''));
+        me.titreFiche('L\'ordonnance N° ' + Ext.String.htmlEncode(o.numero || '')
+                + (o.statut === 'annulee' ? ' <span class="ordo-titre-annulee">ANNULÉE : '
+                        + Ext.String.htmlEncode(o.motifAnnulation || '') + '</span>' : ''));
+        me.afficherTypeClient(o.typeClient || '');
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
         me.chargerPieces();
         me.montrer(1);
         me.majBoutonConso();
+        me.memoriserEtat();
     },
 
     /* ------------------------------------------------------------------- produits */
@@ -478,6 +592,139 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             if (edition && edition.startEditByPosition) {
                 edition.startEditByPosition({row: ligne, column: 0});
             }
+        }
+    },
+
+    /**
+     * Oublie la cellule choisie dans la grille des produits, et ferme une saisie de cellule en cours. A faire AVANT
+     * de retirer des lignes : ExtJS 4.2 relit sinon, au dessin suivant, une ligne qui n'existe plus (30/09).
+     * CellModel.deselect() ne remet pas sa position a zero : on le fait a la main.
+     */
+    oublierCellule: function (grille) {
+        if (!grille) {
+            return;
+        }
+        try {
+            var edition = (grille.plugins || [])[0];
+            if (edition && edition.editing && edition.cancelEdit) {
+                edition.cancelEdit();
+            }
+            var modele = grille.getSelectionModel();
+            if (modele) {
+                modele.selection = null;
+                modele.nextSelection = null;
+                modele.lastSelection = null;
+            }
+        } catch (e) {
+            /* Oublier une position ne doit jamais empecher d'ouvrir ou de vider la fiche. */
+        }
+    },
+
+    /** Icone « Retirer cette ligne », en premiere colonne (30/09). */
+    retirerLigne: function (ligne) {
+        var ecran = this.getEcran();
+        if (!ligne || this.ficheVerrouillee) {
+            return;
+        }
+        this.oublierCellule(ecran.down('#grilleProduits'));
+        ecran.storeProduits.remove(ligne);
+    },
+
+    /** Le curseur dans la recherche produit (30/09) : apres le client, le sexe, le prescripteur, l'etablissement. */
+    allerRechercheProduit: function () {
+        var ecran = this.getEcran();
+        var champ = ecran ? ecran.down('#vueFiche #rechercheProduit') : null;
+        if (champ && champ.isVisible() && !this.ficheVerrouillee) {
+            champ.focus(false, 120);
+        }
+    },
+
+    surChoixClient: function (combo, lignes) {
+        var client = lignes && lignes.length ? lignes[0] : null;
+        this.afficherTypeClient(client ? (client.get('libelleTypeClient') || client.get('typeClient')) : '');
+        this.allerRechercheProduit();
+    },
+
+    /** Pastille du type de client sous son nom (vide si inconnu). */
+    afficherTypeClient: function (type) {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#vueFiche #typeClientFiche') : null;
+        if (zone) {
+            zone.update(type ? '<span class="ordo-pastille">' + Ext.String.htmlEncode(type) + '</span>' : '');
+        }
+    },
+
+    /**
+     * Produit choisi dans la recherche au-dessus de la grille (30/09) : il remplit la premiere ligne vide, ou une
+     * nouvelle ligne ; le curseur va ensuite dans sa posologie, comme avec la saisie dans la grille.
+     */
+    surRechercheProduit: function (combo, lignes) {
+        var article = lignes && lignes.length ? lignes[0] : null;
+        if (!article) {
+            return;
+        }
+        var ligne = this.ligneAVide();
+        ligne.set('articleId', article.get('lgFAMILLEID'));
+        ligne.set('libelle', article.get('strNAME'));
+        ligne.set('cip', article.get('intCIP') || '');
+        combo.clearValue();
+        if (article.get('intNUMBERAVAILABLE') <= 0) {
+            this.montrerEquivalents(ligne, true);
+        }
+        this.editerPosologie(ligne);
+    },
+
+    /** Entree sur un texte qui n'est pas dans la liste : un produit hors referentiel, saisi tel quel. */
+    surToucheRechercheProduit: function (combo, e) {
+        if (e.getKey() !== e.ENTER) {
+            return;
+        }
+        var me = this;
+        /* Laisse d'abord la liste traiter l'Entree : si elle choisit un produit, « select » s'en charge. */
+        Ext.defer(function () {
+            if (combo.isDestroyed || combo.isExpanded) {
+                return;
+            }
+            var texte = Ext.String.trim(combo.getRawValue() || '');
+            var choisi = combo.getValue() && combo.findRecordByValue(combo.getValue());
+            if (!texte || choisi) {
+                return;
+            }
+            var ligne = me.ligneAVide();
+            ligne.set('articleId', '');
+            ligne.set('libelle', texte.toUpperCase());
+            ligne.set('cip', '');
+            combo.clearValue();
+            me.editerPosologie(ligne);
+        }, 50);
+    },
+
+    /** La premiere ligne sans produit, ou une nouvelle. */
+    ligneAVide: function () {
+        var store = this.getEcran().storeProduits;
+        var vide = null;
+        store.each(function (r) {
+            if (!vide && !Ext.String.trim(r.get('libelle') || '')) {
+                vide = r;
+            }
+        });
+        if (vide) {
+            return vide;
+        }
+        return store.add({articleId: '', libelle: '', cip: '', quantite: 1, posologie: '', duree: '',
+            qteServie: null})[0];
+    },
+
+    editerPosologie: function (ligne) {
+        var grille = this.getGrilleProduits();
+        var edition = grille ? (grille.plugins || [])[0] : null;
+        var colonne = grille ? grille.down('#colPosologie') : null;
+        if (edition && colonne) {
+            Ext.defer(function () {
+                if (!grille.isDestroyed) {
+                    edition.startEdit(ligne, colonne);
+                }
+            }, 80);
         }
     },
 
@@ -677,7 +924,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     /* --------------------------------------------------------------- enregistrement */
 
-    enregistrer: function () {
+    /** Ce que la fiche enverrait au serveur ; sert aussi a savoir si une saisie est en cours. */
+    requeteFiche: function () {
         var me = this;
         var ecran = me.getEcran();
         var fiche = ecran.down('#vueFiche');
@@ -696,7 +944,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             });
         });
         var contexte = me.contexteFiche();
-        var requete = {
+        return {
             id: fiche.down('#ordonnanceId').getValue() || '',
             clientId: fiche.down('#ficheClient').getValue() || '',
             dateOrdonnance: date ? Ext.Date.format(date, 'Y-m-d') : '',
@@ -711,6 +959,13 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             insuffisanceHepatique: contexte.insuffisanceHepatique === true,
             produits: produits
         };
+    },
+
+    enregistrer: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var fiche = ecran.down('#vueFiche');
+        var requete = me.requeteFiche();
         Ext.Ajax.request({
             url: '../api/v1/ordonnance-client/enregistrer',
             method: 'POST',
@@ -727,9 +982,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                  * qu'on a sous la main. Le retour a l'historique reste a un clic.
                  */
                 fiche.down('#ordonnanceId').setValue(r.id || '');
-                fiche.down('#titreFiche').setValue('Ordonnance ' + (r.numero || '') + ' enregistrée');
+                me.titreFiche('L\'ordonnance N° ' + Ext.String.htmlEncode(r.numero || '')
+                        + ' <span class="ordo-titre-ok">enregistrée</span>');
                 me.chargerPieces();
                 me.majBoutonConso();
+                me.memoriserEtat();
             },
             failure: function () {
                 Ext.Msg.alert('Ordonnances', "L'ordonnance n'a pas pu être enregistrée.");
@@ -857,7 +1114,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             if (rappel) {
                 rappel.setValue('Enregistrez l\'ordonnance pour pouvoir y joindre une pièce.');
             }
-            me.basculerBoutonsPieces(false, false);
+            me.basculerBoutonsPieces(false);
             return;
         }
         if (rappel) {
@@ -868,7 +1125,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         me.majImpressionFiche();
         ecran.storePieces.getProxy().url = '../api/v1/ordonnance-client/pieces/' + encodeURIComponent(id);
         ecran.storePieces.load();
-        me.basculerBoutonsPieces(peutEcrire && !me.ficheVerrouillee, false);
+        me.basculerBoutonsPieces(peutEcrire && !me.ficheVerrouillee);
     },
 
     /** Le bouton d'impression de la fiche n'a de sens que sur une ordonnance déjà enregistrée. */
@@ -880,44 +1137,51 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
     },
 
-    basculerBoutonsPieces: function (envoiPossible, pieceChoisie) {
+    /**
+     * Le fichier a envoyer et le bouton « Joindre ». Voir, telecharger et retirer sont sur chaque ligne de piece
+     * (30/09) : leurs icones relisent les droits et le verrou de la fiche a chaque dessin de la grille.
+     */
+    basculerBoutonsPieces: function (envoiPossible) {
         var ecran = this.getEcran();
         var grille = ecran ? ecran.down('#grillePieces') : null;
         if (!grille) {
             return;
         }
-        var actif = function (selecteur, etat) {
-            var b = grille.down(selecteur);
-            if (b) {
-                b.setDisabled(!etat);
-            }
-        };
         var fichier = grille.down('#fichierPiece');
         if (fichier) {
             fichier.setDisabled(!envoiPossible);
         }
-        actif('button[itemId=joindrePiece]', envoiPossible && !!(fichier && fichier.getValue()));
-        actif('button[itemId=voirPiece]', pieceChoisie);
-        actif('button[itemId=telechargerPiece]', pieceChoisie);
-        actif('button[itemId=retirerPiece]', envoiPossible && pieceChoisie);
+        var joindre = grille.down('button[itemId=joindrePiece]');
+        if (joindre) {
+            joindre.setDisabled(!(envoiPossible && !!(fichier && fichier.getValue())));
+        }
+        this.rafraichirPieces();
+    },
+
+    rafraichirPieces: function () {
+        var ecran = this.getEcran();
+        var grille = ecran ? ecran.down('#grillePieces') : null;
+        if (grille && grille.rendered && grille.getView()) {
+            grille.getView().refresh();
+        }
     },
 
     surChoixFichier: function () {
         var me = this;
-        me.basculerBoutonsPieces(!!(me.droits && me.droits.modifier) && !me.ficheVerrouillee,
-            me.pieceSelectionnee() !== null);
+        me.basculerBoutonsPieces(!!(me.droits && me.droits.modifier) && !me.ficheVerrouillee);
     },
 
-    pieceSelectionnee: function () {
-        var grille = this.getGrillePieces();
-        var lignes = grille ? grille.getSelectionModel().getSelection() : [];
-        return lignes.length === 1 ? lignes[0] : null;
-    },
-
-    surSelectionPiece: function () {
+    /** Une icone d'une ligne de piece : voir, telecharger ou retirer CETTE piece. */
+    surActionPiece: function (nom, piece) {
         var me = this;
-        me.basculerBoutonsPieces(!!(me.droits && me.droits.modifier) && !me.ficheVerrouillee,
-            me.pieceSelectionnee() !== null);
+        var ecran = me.getEcran();
+        if (nom === 'voir') {
+            me.voirPiece(piece);
+        } else if (nom === 'telecharger') {
+            me.telechargerPiece(piece);
+        } else if (nom === 'retirer' && ecran && ecran.peutEcrire && !me.ficheVerrouillee) {
+            me.retirerPiece(piece);
+        }
     },
 
     /**
@@ -967,16 +1231,14 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     },
 
     /** « Voir » ouvre la pièce EN FLUX dans un onglet du navigateur : ni fenêtre surgissante, ni téléchargement. */
-    voirPiece: function () {
-        var piece = this.pieceSelectionnee();
+    voirPiece: function (piece) {
         if (!piece) {
             return;
         }
         window.open('../api/v1/ordonnance-client/piece/' + encodeURIComponent(piece.get('id')), '_blank');
     },
 
-    telechargerPiece: function () {
-        var piece = this.pieceSelectionnee();
+    telechargerPiece: function (piece) {
         if (!piece) {
             return;
         }
@@ -988,9 +1250,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
      * Retrait d'une pièce : la seule suppression de ce menu, et elle est nécessaire — une pièce jointe au
      * mauvais patient est un problème de confidentialité, pas une coquille. L'ordonnance ne se supprime pas.
      */
-    retirerPiece: function () {
+    retirerPiece: function (piece) {
         var me = this;
-        var piece = me.pieceSelectionnee();
         if (!piece) {
             return;
         }
@@ -1022,24 +1283,66 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
      * fenetre de la caisse reutilisee jusqu'ici s'ouvrait VIDE hors de l'ecran de vente.
      */
     nouveauClient: function () {
-        var fiche = this.getEcran().down('#vueFiche');
-        var form = fiche.down('#formNouveauClient');
-        if (!form) {
-            return;
+        var me = this;
+        var fiche = me.getEcran().down('#vueFiche');
+        var fen = me.ouvrirFenetre('client');
+        var nom = fen.down('#ncNom');
+        /* Ce qui a ete tape dans la recherche du client sert de nom, pour ne pas le retaper. */
+        var combo = fiche.down('#ficheClient');
+        var tape = Ext.String.trim(combo.getRawValue() || '');
+        /* Le combo garde le texte tape comme valeur : un client est CHOISI seulement si la valeur est un
+           enregistrement de la liste. */
+        var choisi = combo.getValue() && combo.findRecordByValue(combo.getValue());
+        if (tape && !choisi) {
+            nom.setValue(tape.toUpperCase());
         }
-        form.setVisible(!form.isVisible());
-        if (form.isVisible()) {
-            var nom = form.down('#ncNom');
-            /* Ce qui a ete tape dans la recherche du client sert de nom, pour ne pas le retaper. */
-            var combo = fiche.down('#ficheClient');
-            var tape = Ext.String.trim(combo.getRawValue() || '');
-            /* Le combo garde le texte tape comme valeur : un client est CHOISI seulement si la valeur est un
-               enregistrement de la liste. */
-            var choisi = combo.getValue() && combo.findRecordByValue(combo.getValue());
-            if (tape && !choisi) {
-                nom.setValue(tape.toUpperCase());
+        nom.focus(false, 150);
+    },
+
+    /**
+     * Fenetre de creation rapide (30/09), une seule a la fois. Elle est detruite a la fermeture : une nouvelle
+     * s'ouvre toujours vide.
+     */
+    ouvrirFenetre: function (genre) {
+        var ecran = this.getEcran();
+        Ext.each(['#fenNouveauClient', '#fenNouveauMedecin', '#fenNouvelEtablissement'], function (id) {
+            var ouverte = Ext.ComponentQuery.query('window' + id)[0];
+            if (ouverte) {
+                ouverte.destroy();
             }
-            nom.focus(false, 100);
+        });
+        var fen = ecran.fenetreCreation(genre);
+        fen.show();
+        return fen;
+    },
+
+    fenetre: function (itemId) {
+        return Ext.ComponentQuery.query('window#' + itemId)[0] || null;
+    },
+
+    fermerFenetre: function (itemId) {
+        var fen = this.fenetre(itemId);
+        if (fen) {
+            fen.destroy();
+        }
+    },
+
+    /** Entree dans un champ d'une fenetre : meme effet que « Creer ». */
+    entreeCreerClient: function (champ, e) {
+        if (e.getKey() === e.ENTER && !champ.isXType('combobox')) {
+            this.creerClient();
+        }
+    },
+
+    entreeCreerMedecin: function (champ, e) {
+        if (e.getKey() === e.ENTER) {
+            this.creerMedecin();
+        }
+    },
+
+    entreeAjouterEtablissement: function (champ, e) {
+        if (e.getKey() === e.ENTER) {
+            this.ajouterEtablissement();
         }
     },
 
@@ -1047,35 +1350,28 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     nouveauMedecin: function () {
         var fiche = this.getEcran().down('#vueFiche');
-        var form = fiche.down('#formNouveauMedecin');
-        form.setVisible(!form.isVisible());
-        if (form.isVisible()) {
-            /* Ce qui a ete tape dans le prescripteur sert de nom. */
-            var combo = fiche.down('#ficheMedecin');
-            var tape = Ext.String.trim(combo.getRawValue() || '');
-            if (tape && !(combo.getValue() && combo.findRecordByValue(combo.getValue()))) {
-                form.down('#nmNom').setValue(tape.toUpperCase());
-            }
-            form.down('#nmNom').focus(false, 100);
+        var fen = this.ouvrirFenetre('medecin');
+        /* Ce qui a ete tape dans le prescripteur sert de nom. */
+        var combo = fiche.down('#ficheMedecin');
+        var tape = Ext.String.trim(combo.getRawValue() || '');
+        if (tape && !(combo.getValue() && combo.findRecordByValue(combo.getValue()))) {
+            fen.down('#nmNom').setValue(tape.toUpperCase());
         }
+        fen.down('#nmNom').focus(false, 150);
     },
 
     fermerNouveauMedecin: function () {
-        var form = this.getEcran().down('#vueFiche #formNouveauMedecin');
-        if (!form) {
-            return;
-        }
-        Ext.each(['#nmNom', '#nmPrenom', '#nmSpecialite', '#nmTelephone'], function (s) {
-            form.down(s).reset();
-        });
-        form.hide();
+        this.fermerFenetre('fenNouveauMedecin');
     },
 
     creerMedecin: function () {
         var me = this;
         var ecran = me.getEcran();
         var fiche = ecran.down('#vueFiche');
-        var form = fiche.down('#formNouveauMedecin');
+        var form = me.fenetre('fenNouveauMedecin');
+        if (!form) {
+            return;
+        }
         if (!form.down('#nmNom').validate()) {
             Ext.Msg.alert('Nouveau prescripteur', 'Le nom du prescripteur est obligatoire.');
             return;
@@ -1101,6 +1397,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 }
                 fiche.down('#ficheMedecin').setValue(r.id);
                 me.fermerNouveauMedecin();
+                me.allerRechercheProduit();
             },
             failure: function () {
                 Ext.Msg.alert('Nouveau prescripteur', 'Le prescripteur n\'a pas pu être créé.');
@@ -1110,24 +1407,16 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     nouvelEtablissement: function () {
         var fiche = this.getEcran().down('#vueFiche');
-        var form = fiche.down('#formNouvelEtablissement');
-        form.setVisible(!form.isVisible());
-        if (form.isVisible()) {
-            var tape = Ext.String.trim(fiche.down('#ficheEtablissement').getRawValue() || '');
-            if (tape) {
-                form.down('#neNom').setValue(tape.toUpperCase());
-            }
-            form.down('#neNom').focus(false, 100);
+        var fen = this.ouvrirFenetre('etablissement');
+        var tape = Ext.String.trim(fiche.down('#ficheEtablissement').getRawValue() || '');
+        if (tape) {
+            fen.down('#neNom').setValue(tape.toUpperCase());
         }
+        fen.down('#neNom').focus(false, 150);
     },
 
     fermerNouvelEtablissement: function () {
-        var form = this.getEcran().down('#vueFiche #formNouvelEtablissement');
-        if (!form) {
-            return;
-        }
-        form.down('#neNom').reset();
-        form.hide();
+        this.fermerFenetre('fenNouvelEtablissement');
     },
 
     /**
@@ -1137,7 +1426,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     ajouterEtablissement: function () {
         var ecran = this.getEcran();
         var fiche = ecran.down('#vueFiche');
-        var form = fiche.down('#formNouvelEtablissement');
+        var form = this.fenetre('fenNouvelEtablissement');
+        if (!form) {
+            return;
+        }
         var champ = form.down('#neNom');
         if (!champ.validate()) {
             Ext.Msg.alert('Nouvel établissement', 'Le nom de l\'établissement est obligatoire.');
@@ -1149,22 +1441,21 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         }
         fiche.down('#ficheEtablissement').setValue(nom);
         this.fermerNouvelEtablissement();
+        this.allerRechercheProduit();
     },
 
     annulerNouveauClient: function () {
-        var form = this.getEcran().down('#vueFiche #formNouveauClient');
-        Ext.each(['#ncNom', '#ncPrenom', '#ncTelephone'], function (s) {
-            form.down(s).reset();
-        });
-        form.down('#ncSexe').setValue('');
-        form.hide();
+        this.fermerFenetre('fenNouveauClient');
     },
 
     creerClient: function () {
         var me = this;
         var ecran = me.getEcran();
         var fiche = ecran.down('#vueFiche');
-        var form = fiche.down('#formNouveauClient');
+        var form = me.fenetre('fenNouveauClient');
+        if (!form) {
+            return;
+        }
         var champs = ['#ncNom', '#ncPrenom', '#ncTelephone'];
         var valide = true;
         Ext.each(champs, function (s) {
@@ -1211,7 +1502,9 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                     fiche.down('#sexePatient').setValue(sexe);
                 }
                 me.annulerNouveauClient();
+                me.afficherTypeClient('Client standard');
                 me.majBoutonConso();
+                me.allerRechercheProduit();
             },
             failure: function () {
                 Ext.Msg.alert('Nouveau client', 'Le client n\'a pas pu être créé.');

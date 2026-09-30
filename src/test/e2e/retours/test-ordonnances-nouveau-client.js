@@ -38,42 +38,43 @@ const PRENOM = 'ESSAI' + Date.now().toString().slice(-5);
     await p.keyboard.type(NOM, { delay: 40 });
     await p.waitForTimeout(1500);
     await clic('ordonnanceclient #vueFiche button[itemId=nouveauClient]');
-    const ouvert = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #formNouveauClient')[0]; const r = f.getEl().dom.getBoundingClientRect(); return { visible: f.isVisible(), hauteur: r.height, nom: f.down('#ncNom').getValue(), fenetres: Ext.ComponentQuery.query('window[title=NOUVEAU CLIENT]').length }; });
-    ok('« Nouveau client » ouvre un formulaire REMPLI dans la fiche, pas une fenêtre vide', ouvert.visible && ouvert.hauteur > 30 && ouvert.fenetres === 0, JSON.stringify(ouvert));
+    /* Depuis le 30/09 : une fenetre de creation dessinee, et non plus la fenetre de la caisse qui s'ouvrait vide. */
+    const ouvert = await p.evaluate(() => { const f = Ext.ComponentQuery.query('window#fenNouveauClient')[0]; const r = f.getEl().dom.getBoundingClientRect(); return { visible: f.isVisible(), hauteur: r.height, nom: f.down('#ncNom').getValue(), fenetres: Ext.ComponentQuery.query('window[title=NOUVEAU CLIENT]').length }; });
+    ok('« Nouveau client » ouvre une fenêtre de création REMPLIE, pas la fenêtre vide de la caisse', ouvert.visible && ouvert.hauteur > 100 && ouvert.fenetres === 0, JSON.stringify(ouvert));
     ok('Le nom tapé dans la recherche est repris', ouvert.nom === NOM, ouvert.nom);
-    await clic('ordonnanceclient #formNouveauClient button[itemId=creerClient]');
+    await clic('window#fenNouveauClient button[itemId=creerClient]');
     await p.waitForTimeout(600);
     const refus = await p.evaluate(() => { const vis = Ext.MessageBox.isVisible(); const t = vis ? Ext.MessageBox.msg.getEl().dom.textContent : ''; if (vis) { Ext.MessageBox.hide(); } return t; });
     ok('Sans prénom ni téléphone : refusé, avec la raison', /obligatoires/.test(refus), refus);
-    await saisir('ordonnanceclient #formNouveauClient #ncPrenom', PRENOM);
-    await saisir('ordonnanceclient #formNouveauClient #ncTelephone', '0707070707');
-    await p.evaluate(() => { Ext.ComponentQuery.query('ordonnanceclient #formNouveauClient #ncSexe')[0].setValue('F'); });
-    await clic('ordonnanceclient #formNouveauClient button[itemId=creerClient]');
+    await saisir('window#fenNouveauClient #ncPrenom', PRENOM);
+    await saisir('window#fenNouveauClient #ncTelephone', '0707070707');
+    await p.evaluate(() => { Ext.ComponentQuery.query('window#fenNouveauClient #ncSexe')[0].setValue('F'); });
+    await clic('window#fenNouveauClient button[itemId=creerClient]');
     await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheClient')[0]; return !!(c.getValue() && c.findRecordByValue(c.getValue())); }, null, { timeout: 15000 });
     const enBase = q("SELECT CONCAT_WS('|', c.lg_CLIENT_ID, c.lg_TYPE_CLIENT_ID, t.str_NAME, c.str_ADRESSE, c.str_SEXE) FROM t_client c JOIN t_type_client t ON t.lg_TYPE_CLIENT_ID=c.lg_TYPE_CLIENT_ID WHERE c.str_FIRST_NAME='" + NOM + "' AND c.str_LAST_NAME='" + PRENOM + "'").split('|');
     ok('Client créé en STANDARD, avec son téléphone et son genre', enBase[2] === 'Standard' && enBase[3] === '0707070707' && enBase[4] === 'F', enBase.join(' | '));
-    const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #vueFiche')[0]; return { id: f.down('#ficheClient').getValue(), affiche: f.down('#ficheClient').getRawValue(), sexe: f.down('#sexePatient').getValue(), formCache: !f.down('#formNouveauClient').isVisible() }; });
+    const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #vueFiche')[0]; return { id: f.down('#ficheClient').getValue(), affiche: f.down('#ficheClient').getRawValue(), sexe: f.down('#sexePatient').getValue(), formCache: Ext.ComponentQuery.query('window#fenNouveauClient').length === 0 }; });
     ok('Le client créé est choisi dans la fiche, le formulaire se referme, le genre passe au contexte clinique', fiche.id === enBase[0] && new RegExp(NOM).test(fiche.affiche) && fiche.sexe === 'F' && fiche.formCache, JSON.stringify(fiche));
     /* ---------------------------------------------------- prescripteur rapide (23/09) */
     await p.click('#' + (await idDe('ordonnanceclient #vueFiche #ficheMedecin')) + '-inputEl');
     await p.keyboard.type('ZZDOCTEUR', { delay: 30 });
     await clic('ordonnanceclient #vueFiche button[itemId=nouveauMedecin]');
-    const nm = await p.evaluate(() => { const f = Ext.ComponentQuery.query('ordonnanceclient #formNouveauMedecin')[0]; return { visible: f.isVisible(), nom: f.down('#nmNom').getValue() }; });
+    const nm = await p.evaluate(() => { const f = Ext.ComponentQuery.query('window#fenNouveauMedecin')[0]; return { visible: !!f && f.isVisible(), nom: f ? f.down('#nmNom').getValue() : null }; });
     ok('Prescripteur : « Nouveau » ouvre la saisie rapide, le nom tapé est repris', nm.visible && nm.nom === 'ZZDOCTEUR', JSON.stringify(nm));
-    await saisir('ordonnanceclient #formNouveauMedecin #nmPrenom', 'Awa');
-    await saisir('ordonnanceclient #formNouveauMedecin #nmSpecialite', 'Pédiatre');
-    await clic('ordonnanceclient #formNouveauMedecin button[itemId=creerMedecin]');
+    await saisir('window#fenNouveauMedecin #nmPrenom', 'Awa');
+    await saisir('window#fenNouveauMedecin #nmSpecialite', 'Pédiatre');
+    await clic('window#fenNouveauMedecin button[itemId=creerMedecin]');
     await p.waitForTimeout(600);
     const med = q("SELECT CONCAT_WS('|', lg_MEDECIN_ID, str_FIRST_NAME, str_LAST_NAME, str_Commentaire, str_STATUT) FROM t_medecin WHERE str_LAST_NAME='ZZDOCTEUR'").split('|');
-    const choixMed = await p.evaluate(() => { const c = Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheMedecin')[0]; return { id: c.getValue(), affiche: c.getRawValue(), cache: !Ext.ComponentQuery.query('ordonnanceclient #formNouveauMedecin')[0].isVisible() }; });
+    const choixMed = await p.evaluate(() => { const c = Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheMedecin')[0]; return { id: c.getValue(), affiche: c.getRawValue(), cache: Ext.ComponentQuery.query('window#fenNouveauMedecin').length === 0 }; });
     ok('Prescripteur créé (actif, spécialité notée) et choisi dans la fiche', med[1] === 'AWA' && med[3] === 'Pédiatre' && med[4] === 'enable' && choixMed.id === med[0] && /ZZDOCTEUR/.test(choixMed.affiche) && choixMed.cache, JSON.stringify([med, choixMed]));
     const doublon = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/ordonnance-client/medecins/creer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: 'zzdocteur', prenom: 'awa' }) })).text()));
     ok('Même nom et prénom : pas de doublon, le prescripteur existant est rendu', doublon.existant === true && doublon.id === med[0] && q("SELECT COUNT(*) FROM t_medecin WHERE str_LAST_NAME='ZZDOCTEUR'") === '1', JSON.stringify(doublon));
 
     /* ---------------------------------------------------- etablissement rapide (23/09) */
     await clic('ordonnanceclient #vueFiche button[itemId=nouvelEtablissement]');
-    await saisir('ordonnanceclient #formNouvelEtablissement #neNom', 'Clinique ZZ Essai');
-    await clic('ordonnanceclient #formNouvelEtablissement button[itemId=ajouterEtablissement]');
+    await saisir('window#fenNouvelEtablissement #neNom', 'Clinique ZZ Essai');
+    await clic('window#fenNouvelEtablissement button[itemId=ajouterEtablissement]');
     const etab = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheEtablissement')[0].getRawValue());
     ok('Établissement ajouté et posé dans la fiche', etab === 'CLINIQUE ZZ ESSAI', etab);
 

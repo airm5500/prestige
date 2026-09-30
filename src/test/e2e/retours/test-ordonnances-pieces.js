@@ -120,7 +120,8 @@ function poser() {
       /Enregistrez/.test(avantEnregistrement.rappel) && avantEnregistrement.joindre === true
       && avantEnregistrement.fichier === true, JSON.stringify(avantEnregistrement));
     await p.evaluate(() => {
-      Ext.ComponentQuery.query('ordonnanceclient #vueFiche button[itemId=abandonner]')[0].el.dom.click();
+      /* Un seul bouton de sortie depuis le 30/09 : « Retour a l'historique ». */
+      Ext.ComponentQuery.query('ordonnanceclient #vueFiche button[itemId=retourHistorique]')[0].el.dom.click();
     });
     await p.waitForTimeout(800);
 
@@ -323,17 +324,27 @@ function poser() {
       await p2.waitForFunction(() => Ext.ComponentQuery.query('ordonnanceclient #grillePieces').length > 0,
         null, { timeout: 30000 });
       await p2.waitForTimeout(3000);
+      /* Voir, telecharger, retirer sont sur chaque ligne de piece depuis le 30/09 : on ouvre la fiche. */
+      await p2.evaluate(async (id) => {
+        const r = await fetch('../api/v1/ordonnance-client/' + encodeURIComponent(id));
+        testextjs.app.getController('OrdonnanceClientCtr').remplirFiche(JSON.parse(await r.text()), false);
+      }, ordonnanceId);
+      await p2.waitForFunction(() => Ext.ComponentQuery.query('ordonnanceclient #grillePieces')[0].getStore().getCount() > 0,
+        null, { timeout: 20000 });
+      await p2.waitForTimeout(800);
       const vue = await p2.evaluate(() => {
         const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
         const g = e.down('#grillePieces');
+        const ligne = g.getView().getNode(0);
+        const inactif = (c) => { const k = ligne.querySelector('.ordo-act-piece-' + c); return k ? k.classList.contains('x-item-disabled') : null; };
         return { joindre: g.down('button[itemId=joindrePiece]').isVisible(),
-          retirer: g.down('button[itemId=retirerPiece]').isVisible(),
+          retirer: inactif('retirer') === false,
           fichier: g.down('#fichierPiece').isVisible(),
-          voir: g.down('button[itemId=voirPiece]').isVisible() };
+          voir: inactif('voir') === false };
       });
-      ok('Sans le privilège d écriture, la zone de dépôt et le retrait disparaissent',
+      ok('Sans le privilège d écriture, la zone de dépôt disparaît et le retrait de la ligne est grisé',
         vue.joindre === false && vue.retirer === false && vue.fichier === false, JSON.stringify(vue));
-      ok('Mais le bouton « Voir » reste : la consultation n est pas de l écriture', vue.voir === true);
+      ok('Mais « Voir » reste actif sur la ligne : la consultation n est pas de l écriture', vue.voir === true);
       const refusDepot = await p2.evaluate(async (id) => {
         const donnees = new FormData();
         donnees.append('fichier', new Blob([new Uint8Array([37, 80, 68, 70])]), 'tentative.pdf');

@@ -114,7 +114,7 @@ const MARQUE = 'E2E-2209';
     await p.keyboard.type(MARQUE);
     await clic('ordonnanceclient #vueFiche button[itemId=enregistrer]');
     await p.waitForTimeout(1000);
-    const titre = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #titreFiche')[0].getValue());
+    const titre = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #enteteOrdonnance')[0].title);
     const numero = (titre.match(/ORD-\d{6}-\d{4}/) || [''])[0];
     const enBase = q("SELECT CONCAT_WS('|', o.int_AGE_PATIENT, o.bool_GROSSESSE, d.int_QUANTITE, d.int_QTE_SERVIE, d.str_POSOLOGIE) FROM t_ordonnance_client o JOIN t_ordonnance_client_detail d ON d.lg_ORDONNANCE_ID=o.lg_ORDONNANCE_ID WHERE o.str_NUMERO='" + numero + "'");
     ok('Enregistrée : âge 34, grossesse, 2 prescrits, 1 servi, posologie tapée', enBase === '34|1|2|1|1 cp matin et soir', numero + ' -> ' + enBase);
