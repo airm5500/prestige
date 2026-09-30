@@ -1,5 +1,7 @@
-var url_services_data_modificationprix = '../webservices/sm_user/prixmodifies/ws_data.jsp';
-var url_services_data_modificationprix_generate_pdf = '../webservices/sm_user/prixmodifies/ws_generate_pdf.jsp';
+/* Mouchard des prix de vente passe en API (demande du 30/09) : memes parametres et memes champs que les anciennes
+   pages webservices/sm_user/prixmodifies/ws_data.jsp et ws_generate_pdf.jsp, conservees mais plus appelees. */
+var url_services_data_modificationprix = '../api/v1/mouchard-prix/liste';
+var url_services_data_modificationprix_generate_pdf = '../api/v1/mouchard-prix/pdf';
 
 
 var Me;

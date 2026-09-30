@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mouchard des prix de vente (API v1/mouchard-prix, demande du 30/09) : les prix modifies, groupes par mouvement, dans
+     l'ordre de l'ecran. Alimente par les lignes de l'API (source de donnees en memoire), plus par une requete SQL. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="mouchard_prix_vente" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <field name="mouvement" class="java.lang.String"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="reference" class="java.lang.String"/>
+    <field name="date" class="java.lang.String"/>
+    <field name="heure" class="java.lang.String"/>
+    <field name="ancienPrix" class="java.lang.Integer"/>
+    <field name="nouveauPrix" class="java.lang.Integer"/>
+    <field name="ecart" class="java.lang.Integer"/>
+    <field name="operateur" class="java.lang.String"/>
+    <variable name="V_ECART" class="java.lang.Integer" resetType="Group" resetGroup="mouvement" calculation="Sum"><variableExpression><![CDATA[$F{ecart}]]></variableExpression></variable>
+    <group name="mouvement">
+        <groupExpression><![CDATA[$F{mouvement}]]></groupExpression>
+        <groupHeader>
+            <band height="18">
+                <textField isBlankWhenNull="true"><reportElement mode="Opaque" x="0" y="2" width="802" height="14" backcolor="#EEF2F7"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA["  MOUVEMENT : " + $F{mouvement}]]></textFieldExpression></textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="16">
+                <staticText><reportElement x="560" y="1" width="110" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Total écart]]></text></staticText>
+                <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="670" y="1" width="50" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{V_ECART}]]></textFieldExpression></textField>
+            </band>
+        </groupFooter>
+    </group>
+    <title>
+        <band height="66">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="34" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="4" y="0" width="60" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="66" y="0" width="230" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Désignation]]></text></staticText>
+                <staticText><reportElement x="298" y="0" width="90" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Référence]]></text></staticText>
+                <staticText><reportElement x="390" y="0" width="60" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Date]]></text></staticText>
+                <staticText><reportElement x="452" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Heure]]></text></staticText>
+                <staticText><reportElement x="494" y="0" width="70" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Ancien prix]]></text></staticText>
+                <staticText><reportElement x="566" y="0" width="70" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Nouveau prix]]></text></staticText>
+                <staticText><reportElement x="670" y="0" width="50" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Écart]]></text></staticText>
+                <staticText><reportElement x="726" y="0" width="76" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Opérateur]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="14">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="13" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true"><reportElement x="4" y="0" width="60" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="66" y="0" width="230" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="298" y="0" width="90" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{reference}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="390" y="0" width="60" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{date}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="452" y="0" width="40" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{heure}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="494" y="0" width="70" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{ancienPrix}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="566" y="0" width="70" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{nouveauPrix}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="670" y="0" width="50" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{ecart}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="726" y="0" width="76" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{operateur}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucun prix modifié sur cette période.]]></text></staticText></band>
+    </noData>
+</jasperReport>
