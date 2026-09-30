@@ -9,7 +9,8 @@
 
 Ext.define('testextjs.view.vente.VenteVNO', {
     extend: 'Ext.panel.Panel',
-    requires: ['testextjs.view.vente.SuiviConsoFenetre', 'testextjs.view.vente.ClientStandardFenetre'],
+    requires: ['testextjs.view.vente.SuiviConsoFenetre', 'testextjs.view.vente.ClientStandardFenetre',
+        'testextjs.view.vente.VentesAttenteFenetre'],
     xtype: 'ventevno',
 //    frame: true,
     border: 0,

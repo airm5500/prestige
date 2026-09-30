@@ -2228,3 +2228,40 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .fc-legende .fc-l-bande { height: 10px; border: 0; background: #e3f4ef; }
 .fc-saisie { background: #f6f8fb; border-radius: 6px; padding: 8px 10px; }
 .fc-retirer { border: 0; background: transparent; color: #c0392b; cursor: pointer; font-weight: bold; }
+
+/* ===== Ventes en attente (30/09, maquette validee) ===== */
+.va .vc-tete { flex: none; }
+.va-corps { flex: 1; display: flex; gap: 14px; padding: 14px 18px; min-height: 0; background: #f6f8fb; }
+.va-gauche { width: 400px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.va-champ { height: 36px; border: 1px solid #c3cfdb; border-radius: 6px; padding: 0 12px; font: inherit; width: 100%;
+    box-sizing: border-box; background: #fff; }
+.va-champ:focus { outline: 2px solid #2E75B6; outline-offset: 1px; }
+.va-liste { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.va-carte { text-align: left; font: inherit; color: #1e2a36; background: #fff; border: 1px solid #d5dee8; border-radius: 8px;
+    padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 5px; }
+.va-carte:hover { border-color: #2E75B6; }
+.va-carte-active { border-color: #1e3a5f; box-shadow: inset 0 0 0 1px #1e3a5f; background: #f4f8fc; }
+.va-l1, .va-l2 { display: flex; justify-content: space-between; gap: 8px; }
+.va-l2 { color: #6b7b8c; font-size: 12px; }
+.va-ticket, .va-mono { font-family: Consolas, "Courier New", monospace; }
+.va-montant { font-variant-numeric: tabular-nums; }
+.va-droite { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+.va-droite .vc-tuiles { margin: 0; }
+.va-droite .vc-tuile-valeur { font-size: 18px; }
+.va-client { background: #fff; border: 1px solid #e0e7ef; border-radius: 8px; padding: 8px 12px; color: #1e2a36; }
+.va-articles { flex: 1; overflow-y: auto; min-height: 0; }
+.va-pied { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.va-aide { color: #6b7b8c; font-size: 12px; }
+.va-rappeler { background: #17987e !important; padding: 10px 22px; font-size: 14px; }
+.va-rappeler:hover { background: #12806a !important; }
+.va-pill { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; }
+.va-p-ok { background: #e3f4ef; color: #0f6e5a; }
+.va-p-info { background: #e0ecff; color: #1d4ed8; }
+.va-p-att { background: #fdf0d5; color: #92400e; }
+.va-p-gris { background: #eceff3; color: #6b7b8c; }
+.va-vide { padding: 30px 16px; text-align: center; color: #6b7b8c; display: flex; justify-content: center; }
+/* Chargement moderne (theme commun) : un anneau qui tourne, a la place du « Chargement… » d'ExtJS. */
+.rond-chargement { width: 24px; height: 24px; border-radius: 50%; border: 3px solid #e3e9f0; border-top-color: #17987e;
+    animation: rond-tourne .8s linear infinite; }
+@keyframes rond-tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rond-chargement { animation: none; } }

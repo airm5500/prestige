@@ -8093,14 +8093,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     // Si un seul résultat, charger directement
                     me.loadExistantSale(data[0].lgPREENREGISTREMENTID);
                 } else {
-                    // Si plusieurs résultats, ouvrir la fenêtre de sélection
-                    me.openPreventeSearchWindow();
-                    // Appliquer le filtre
-                    const searchWindow = me.getPreventeSearchWindow();
-                    if (searchWindow) {
-                        searchWindow.down('#preventeFilterField').setValue(value);
-                        me.filterPreventes(value);
-                    }
+                    // Si plusieurs résultats, la fenêtre des ventes en attente s'ouvre sur ce filtre.
+                    me.openPreventeSearchWindow(value);
                 }
             },
             failure: function () {
@@ -8178,44 +8172,21 @@ Ext.define('testextjs.controller.VenteCtr', {
         win.show();
     },
 
-    openPreventeSearchWindow: function () {
+    /**
+     * Ventes en attente (maquette validee le 30/09) : nouvelle fenetre du theme commun, liste en cartes et detail,
+     * premiere prevente ouverte d'office, fleches et Entree. Le rappel passe par loadExistantSale, comme avant.
+     * {@code filtre} : texte de recherche deja tape a la caisse.
+     */
+    openPreventeSearchWindow: function (filtre) {
         const me = this;
-
-        // Créer la fenêtre de recherche de préventes
-        const searchWindow = Ext.create('Ext.window.Window', {
-            title: 'RÉSULTATS DE RECHERCHE DES PRÉVENTES',
-            layout: 'fit',
-            width: 1500, // Plus large pour accommoder les nouvelles colonnes et la zone agrandie
-            height: 750, // Légèrement plus haute
-            modal: true,
-            closable: true,
-            maximizable: true,
-            items: [{
-                    xtype: 'container',
-                    /* align: 'stretch' est ce qui donne aux deux panneaux la hauteur de la
-                     * fenetre. Sans lui, une rangee hbox laisse chaque panneau prendre la
-                     * hauteur de son contenu : avec trente-cinq articles, le panneau de detail
-                     * depassait la fenetre et emportait ses boutons hors de l'ecran. */
-                    layout: {
-                        type: 'hbox',
-                        align: 'stretch'
-                    },
-                    padding: 15, // Plus de padding
-                    items: [
-                        me.buildPreventeListPanel(),
-                        me.buildPreventeDetailPanel()
-                    ]
-                }],
-            listeners: {
-                afterrender: function () {
-                    // Charger les préventes au démarrage
-                    me.loadAllPreventes();
-                }
+        const fenetre = Ext.create('testextjs.view.vente.VentesAttenteFenetre', {
+            filtreInitial: filtre || '',
+            surRappel: function (id) {
+                me.loadExistantSale(id);
             }
         });
-
-        searchWindow.show();
-        return searchWindow;
+        fenetre.show();
+        return fenetre;
     },
 
     buildPreventeListPanel: function () {
