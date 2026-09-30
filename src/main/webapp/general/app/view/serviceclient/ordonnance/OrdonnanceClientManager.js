@@ -2048,7 +2048,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             itemId: 'grilleParametres',
             title: 'Paramètres suivis',
             cls: 'ordo-carte',
-            flex: 1.4,
+            flex: 1.25,
             store: me.storeParametres,
             columnLines: true,
             selType: 'cellmodel',
@@ -2142,23 +2142,24 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             selType: 'cellmodel',
             plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
             columns: [
-                {text: 'TERRAIN / ALLERGIE', dataIndex: 'libelle', flex: 3, itemId: 'colTerrainLibelle',
+                {text: 'TERRAIN / ALLERGIE', dataIndex: 'libelle', flex: 1, minWidth: 190, itemId: 'colTerrainLibelle',
+                    renderer: me.texteAvecBulle,
                     editor: {xtype: 'textfield', allowBlank: false, maxLength: 80}},
-                {text: 'CATÉGORIE', dataIndex: 'categorie', width: 110, itemId: 'colTerrainCategorie',
+                {text: 'CATÉGORIE', dataIndex: 'categorie', width: 95, itemId: 'colTerrainCategorie',
                     renderer: function (v) {
                         return v === 'allergie' ? '<span class="ordo-etat ordo-etat-reste">Allergie</span>'
                                 : '<span class="ordo-etat ordo-etat-a_renseigner">Terrain</span>';
                     },
                     editor: {xtype: 'combobox', editable: false, queryMode: 'local',
                         store: [['terrain', 'Terrain'], ['allergie', 'Allergie']]}},
-                {text: 'ORDRE', dataIndex: 'ordre', width: 90, align: 'right',
+                {text: 'ORDRE', dataIndex: 'ordre', width: 65, align: 'right',
                     editor: {xtype: 'numberfield', minValue: 0, maxValue: 9999, allowDecimals: false}},
-                {xtype: 'checkcolumn', text: 'ACTIF', dataIndex: 'actif', width: 80, itemId: 'colTerrainActif'},
-                {text: 'UTILISÉ SUR', dataIndex: 'utilise', width: 130, align: 'right',
+                {xtype: 'checkcolumn', text: 'ACTIF', dataIndex: 'actif', width: 60, itemId: 'colTerrainActif'},
+                {text: 'UTILISÉ SUR', dataIndex: 'utilise', width: 105, align: 'right',
                     renderer: function (v) {
                         return v ? v + ' ordonnance(s)' : '';
                     }},
-                {text: 'ANALYSE', dataIndex: 'code', width: 160,
+                {text: 'ANALYSE', dataIndex: 'code', width: 125,
                     renderer: function (v, meta) {
                         meta.tdAttr = 'data-qtip="' + (v ? 'Connu des règles de l\'analyse' : 'Enregistré et imprimé ;'
                                 + ' aucune règle de l\'analyse ne le connaît') + '"';
