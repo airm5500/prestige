@@ -56,10 +56,12 @@ const MARQUE = 'E2E-2209';
     const place = await p.evaluate(() => {
       const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
       const g = e.down('#grilleOrdonnances'); const n = g.down('button[itemId=nouvelle]');
-      return { droite: n.getEl().getRight(), grille: g.getEl().getRight(), clientCritere: e.down('#barreCriteres #client').getWidth(),
+      const x = g.down('button[itemId=exporterExcel]');
+      return { gauche: n.getEl().getLeft(), grilleGauche: g.getEl().getLeft(), exporterDroite: x.getEl().getRight(), droite: n.getEl().getRight(), grille: g.getEl().getRight(), clientCritere: e.down('#barreCriteres #client').getWidth(),
         liste: e.down('#vueFiche #ficheClient').listConfig.minWidth };
     });
-    ok('« Nouvelle ordonnance » est à DROITE de l historique', place.grille - place.droite < 40, JSON.stringify(place));
+    /* Permute le 30/09 : « Nouvelle ordonnance » a GAUCHE, Imprimer et Exporter a droite. */
+    ok('« Nouvelle ordonnance » est à GAUCHE de l historique, Exporter à droite', place.gauche - place.grilleGauche < 40 && place.grille - place.exporterDroite < 40, JSON.stringify(place));
     ok('Zones client élargies (critère 360, liste 480 au moins)', place.clientCritere >= 360 && place.liste >= 480, JSON.stringify(place));
 
     /* ------------------------------------------------------------------ saisie d une ordonnance */
