@@ -114,6 +114,8 @@ const NOM = 'ZZFICHE';
     const gly = tu.find((t) => /Glycémie à jeun/.test(t)); const imc = tu.find((t) => /IMC/.test(t));
     ok('Glycémie à jeun 1,32 g/L : élevée', /1,32/.test(gly) && /Élevée/.test(gly), gly);
     ok('IMC calculé (80 kg, 175 cm) : 26,1, surpoids', /26,1/.test(imc) && /Surpoids/.test(imc), imc);
+    const tPoids = tu.find((t) => /^Poids/.test(t)); const tTaille = tu.find((t) => /^Taille/.test(t));
+    ok('Poids et taille : plus de « Pas de norme », renvoi vers l\'IMC', /IMC 26,1 · Surpoids/.test(tPoids) && /IMC 26,1/.test(tTaille) && !/Pas de norme/.test(tPoids + tTaille), tPoids + ' / ' + tTaille);
 
     /* Retrait d'une mesure erronee. */
     await choisir('Glycémie à jeun');

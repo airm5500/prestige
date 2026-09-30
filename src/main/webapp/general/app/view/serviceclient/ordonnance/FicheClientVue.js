@@ -344,8 +344,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                     + '<span class="fc-tuile-libelle">' + enc(p.libelle) + '</span>'
                     + '<span class="fc-tuile-valeur">' + valeur + ' <small>' + enc(p.valeur !== undefined ? p.unite : '')
                     + (p.cote ? ' · bras ' + (p.cote === 'G' ? 'gauche' : 'droit') : '') + '</small></span>'
-                    + '<span class="fc-tuile-pied">' + (p.etat ? '<span class="fc-etat fc-etat-' + p.etat + '">'
-                            + enc(p.analyse) + '</span>' : '<span class="ordo-aide">aucune mesure</span>')
+                    + '<span class="fc-tuile-pied">' + me.analyseTuile(p, r.imc)
                     + '<span>' + date + '</span></span></button>';
         });
         if (r.imc) {
@@ -355,6 +354,25 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                     + enc(r.imc.analyse) + '</span></span></div>');
         }
         me.down('#fcTuiles').update('<div class="fc-tuiles">' + html.join('') + '</div>');
+    },
+
+    /**
+     * Pied d'une tuile : l'analyse selon la norme. Le poids et la taille n'ont pas de norme propre : c'est l'IMC qui
+     * les juge (30/09) ; leur tuile renvoie donc a l'IMC, ou dit ce qui manque pour le calculer.
+     */
+    analyseTuile: function (p, imc) {
+        var enc = Ext.String.htmlEncode;
+        if (!p.etat) {
+            return '<span class="ordo-aide">aucune mesure</span>';
+        }
+        if ((p.code === 'POIDS' || p.code === 'TAILLE') && p.etat === 'inconnu') {
+            if (imc) {
+                return '<span class="fc-etat fc-etat-' + imc.etat + '" title="Poids et taille sont jugés par l\'IMC">'
+                        + 'IMC ' + this.format(imc.valeur, 1) + ' · ' + enc(imc.analyse) + '</span>';
+            }
+            return '<span class="ordo-aide">IMC : saisir ' + (p.code === 'POIDS' ? 'la taille' : 'le poids') + '</span>';
+        }
+        return '<span class="fc-etat fc-etat-' + p.etat + '">' + enc(p.analyse) + '</span>';
     },
 
     format: function (v, decimales) {
@@ -570,7 +588,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                 + svg.join('') + '</svg><div class="fc-legende">' + legende
                 + (norme ? '<span><i class="fc-l-bande"></i>valeurs normales' + (norme.plage ? ' (' + Ext.String.htmlEncode(
                         norme.plage) + ')' : '') + '</span><span class="ordo-aide">' + Ext.String.htmlEncode(norme.source || '')
-                        + '</span>' : '<span class="ordo-aide">Pas de norme pour ce paramètre.</span>') + '</div>');
+                        + '</span>' : (p && (p.code === 'POIDS' || p.code === 'TAILLE') ? '<span class="ordo-aide">Jugé par l\'IMC'
+                        + (me.dossier && me.dossier.imc ? ' : ' + me.format(me.dossier.imc.valeur, 1) + ', '
+                                + Ext.String.htmlEncode(me.dossier.imc.analyse) : '') + '.</span>'
+                        : '<span class="ordo-aide">Pas de norme pour ce paramètre.</span>')) + '</div>');
     },
 
     /** Les mesures, de la plus recente a la plus ancienne, avec le retrait d'une mesure erronee. */
@@ -586,7 +607,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             var v = me.format(m.valeur, p && p.decimales) + (m.valeur2 !== null ? ' / ' + me.format(m.valeur2, 0) : '');
             return '<tr><td>' + Ext.Date.format(Ext.Date.parse(m.date, 'Y-m-d\\TH:i'), 'd/m/Y H:i') + '</td>'
                     + '<td class="vc-n"><b>' + v + '</b></td><td>' + (m.cote ? (m.cote === 'G' ? 'gauche' : 'droit') : '')
-                    + '</td><td><span class="fc-etat fc-etat-' + m.etat + '">' + enc(m.analyse) + '</span></td>'
+                    + '</td><td>' + (m.etat === 'inconnu' && p && (p.code === 'POIDS' || p.code === 'TAILLE') ? ''
+                            : '<span class="fc-etat fc-etat-' + m.etat + '">' + enc(m.analyse) + '</span>') + '</td>'
                     + '<td>' + enc(m.commentaire || '') + (m.ordonnance ? ' <span class="ordo-aide">(ordonnance '
                             + enc(m.ordonnance) + ')</span>' : '') + '</td><td>' + enc(m.par || '') + '</td>'
                     + '<td>' + (ecrire ? '<button type="button" class="fc-retirer" data-fc="retirer" data-id="'
