@@ -54,6 +54,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 {name: 'client', type: 'string'},
                 {name: 'typeClient', type: 'string'},
                 {name: 'telephone', type: 'string'},
+                {name: 'telephoneAffiche', type: 'string'},
                 {name: 'medecinId', type: 'string'},
                 {name: 'medecin', type: 'string'},
                 {name: 'nbProduits', type: 'int'},
@@ -167,6 +168,43 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             }
         });
 
+        /*
+         * Scan d'une ordonnance papier (30/09) : scans a traiter, lignes a controler, historique du patient. Les
+         * recherches de produit du scan ont leurs propres stores : deux listes deroulantes ne partagent pas un store.
+         */
+        var storeArticles = function () {
+            return new Ext.data.Store({
+                fields: [{name: 'lgFAMILLEID', type: 'string'}, {name: 'strNAME', type: 'string'},
+                    {name: 'intCIP', type: 'string'}, {name: 'intNUMBERAVAILABLE', type: 'int'},
+                    {name: 'intPRICE', type: 'int'}],
+                pageSize: 15,
+                autoLoad: false,
+                proxy: {type: 'ajax', url: '../api/v1/vente/search',
+                    reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+            });
+        };
+        me.storeArticlesScan = storeArticles();
+        me.storeArticlesScanEditeur = storeArticles();
+        me.storeScans = new Ext.data.Store({
+            fields: ['id', 'nom', 'source', 'lecture', 'depose', 'par'],
+            autoLoad: false,
+            proxy: {type: 'ajax', url: '../api/v1/ordonnance-client/scans',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        me.storeScanLignes = new Ext.data.Store({
+            fields: [{name: 'articleId', type: 'string'}, {name: 'libelle', type: 'string'},
+                {name: 'cip', type: 'string'}, {name: 'texteLu', type: 'string'},
+                {name: 'posologie', type: 'string'}, {name: 'duree', type: 'string'},
+                {name: 'quantite', type: 'int', defaultValue: 1}, {name: 'stock', useNull: true},
+                {name: 'aVerifier', type: 'boolean'}],
+            data: []
+        });
+        me.storeHistoriquePatient = new Ext.data.Store({
+            fields: ['articleId', 'libelle', 'quantite', 'servie', 'posologie', 'date', 'numero', 'delivrance',
+                'medecin'],
+            data: []
+        });
+
         /* Pieces justificatives de l'ordonnance ouverte (vague 2). */
         me.storePieces = new Ext.data.Store({
             fields: [
@@ -267,10 +305,12 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             items: [{
                     xtype: 'tabpanel',
                     itemId: 'onglets',
+                    /* Onglets en boutons segmentes (30/09), et non plus l'aspect ExtJS brut. */
+                    cls: 'ordo-onglets',
                     border: false,
                     plain: true,
                     items: [me.vueHistorique(), me.vueAnalyse(), me.vueTerrains()]
-                }, me.vueFiche(), me.vueConso()]
+                }, me.vueFiche(), me.vueConso(), me.vueScan()]
         });
         me.callParent(arguments);
     },
@@ -289,46 +329,44 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
         };
     },
 
+    /**
+     * Criteres de l'historique, presentation revue du 30/09 (maquette validee) : une carte sur deux rangees, libelles
+     * au-dessus des champs, periode, type de client et filtres « afficher seulement » en puces choisies d'un clic.
+     * Les champs gardent leurs identifiants (recherche, client, dtStart, dtEnd, typeClient, medecin, annulees, reste,
+     * renouveler) : le controleur les lit comme avant. Le type de client reste un combo, cache, que les puces posent.
+     */
     barreCriteres: function () {
         var me = this;
+        var puce = function (itemId, texte, info) {
+            return {xtype: 'button', itemId: itemId, text: texte, cls: 'ordo-puce', enableToggle: true,
+                toggleGroup: 'ordoPeriode', allowDepress: true, tooltip: info};
+        };
+        var caseFiltre = function (itemId, texte) {
+            return {xtype: 'checkbox', itemId: itemId, boxLabel: texte, cls: 'ordo-puce-case', margin: '0 6 0 0'};
+        };
         return {
-            xtype: 'toolbar',
+            xtype: 'container',
             itemId: 'barreCriteres',
-            padding: 6,
-            /*
-             * Deux rangees : les criteres au-dessus, les actions en dessous. Une seule rangee obligerait a
-             * defiler horizontalement sur un ecran de comptoir en 1280 de large.
-             */
+            cls: 'ordo-criteres',
+            padding: '10 12 10 12',
+            margin: '0 0 8 0',
             layout: {type: 'vbox', align: 'stretch'},
+            defaults: {xtype: 'container', layout: {type: 'hbox', align: 'bottom'}},
             items: [{
-                    xtype: 'container',
-                    layout: {type: 'hbox', align: 'middle'},
-                    defaults: {margin: '0 6 4 0'},
+                    margin: '0 0 10 0',
+                    defaults: {margin: '0 12 0 0', labelAlign: 'top', labelSeparator: ''},
                     items: [{
                             xtype: 'textfield',
                             itemId: 'recherche',
-                            emptyText: 'N° ordonnance, client, prescripteur...',
-                            width: 250,
+                            fieldLabel: 'Rechercher',
+                            emptyText: 'N° d\'ordonnance, client, prescripteur, établissement…',
+                            flex: 1.1,
                             enableKeyEvents: true
                         }, {
                             xtype: 'combobox',
-                            itemId: 'typeClient',
-                            fieldLabel: 'Type',
-                            labelWidth: 40,
-                            width: 200,
-                            store: me.storeTypesClient,
-                            displayField: 'nom',
-                            valueField: 'id',
-                            queryMode: 'local',
-                            editable: false,
-                            emptyText: 'Tous'
-                        }, {
-                            xtype: 'combobox',
                             itemId: 'client',
-                            fieldLabel: 'Client',
-                            labelWidth: 42,
-                            /* Elargi (22/09) : un nom ne doit plus passer sur deux lignes. */
-                            width: 360,
+                            fieldLabel: 'Client (nom ou téléphone)',
+                            flex: 1.2,
                             store: me.storeClients,
                             displayField: 'nomComplet',
                             valueField: 'lgCLIENTID',
@@ -338,66 +376,103 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             emptyText: 'Tous les clients',
                             listConfig: me.listeClients()
                         }, {
-                            xtype: 'datefield',
-                            itemId: 'dtStart',
-                            fieldLabel: 'Du',
-                            labelWidth: 24,
-                            width: 150,
-                            format: 'd/m/Y',
-                            emptyText: 'début'
-                        }, {
-                            xtype: 'datefield',
-                            itemId: 'dtEnd',
-                            fieldLabel: 'au',
-                            labelWidth: 24,
-                            width: 150,
-                            format: 'd/m/Y',
-                            emptyText: 'fin'
+                            xtype: 'container',
+                            itemId: 'periodes',
+                            margin: 0,
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [{
+                                    xtype: 'component', cls: 'ordo-lib', html: 'Période'
+                                }, {
+                                    xtype: 'container',
+                                    layout: {type: 'hbox', align: 'middle'},
+                                    defaults: {margin: '0 4 0 0'},
+                                    items: [
+                                        puce('periodeJour', 'Aujourd\'hui', 'Les ordonnances du jour'),
+                                        puce('periode7', '7 jours', 'Les 7 derniers jours'),
+                                        puce('periode30', '30 jours', 'Les 30 derniers jours'),
+                                        {
+                                            xtype: 'datefield',
+                                            itemId: 'dtStart',
+                                            width: 118,
+                                            margin: '0 4 0 8',
+                                            format: 'd/m/Y',
+                                            emptyText: 'du'
+                                        }, {
+                                            xtype: 'datefield',
+                                            itemId: 'dtEnd',
+                                            width: 118,
+                                            format: 'd/m/Y',
+                                            emptyText: 'au'
+                                        }]
+                                }]
                         }]
                 }, {
-                    xtype: 'container',
-                    layout: {type: 'hbox', align: 'middle'},
-                    defaults: {margin: '0 6 0 0'},
+                    defaults: {margin: '0 16 0 0', labelAlign: 'top', labelSeparator: ''},
                     items: [{
+                            xtype: 'container',
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [{
+                                    xtype: 'component', cls: 'ordo-lib', html: 'Type de client'
+                                }, {
+                                    /* Les puces sont posees par le controleur quand les types sont lus. */
+                                    xtype: 'container',
+                                    itemId: 'typesPuces',
+                                    layout: {type: 'hbox', align: 'middle'},
+                                    defaults: {margin: '0 4 0 0'},
+                                    items: []
+                                }, {
+                                    xtype: 'combobox',
+                                    itemId: 'typeClient',
+                                    hidden: true,
+                                    store: me.storeTypesClient,
+                                    displayField: 'nom',
+                                    valueField: 'id',
+                                    queryMode: 'local',
+                                    editable: false
+                                }]
+                        }, {
                             xtype: 'combobox',
                             itemId: 'medecin',
                             fieldLabel: 'Prescripteur',
-                            labelWidth: 78,
-                            width: 300,
+                            width: 260,
                             store: me.storeMedecins,
                             displayField: 'nom',
                             valueField: 'id',
                             queryMode: 'local',
                             emptyText: 'Tous'
                         }, {
-                            xtype: 'checkbox',
-                            itemId: 'annulees',
-                            boxLabel: 'Voir aussi les ordonnances annulées'
+                            xtype: 'container',
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [{
+                                    xtype: 'component', cls: 'ordo-lib', html: 'Afficher seulement'
+                                }, {
+                                    xtype: 'container',
+                                    layout: {type: 'hbox', align: 'middle'},
+                                    items: [
+                                        /* Reste a delivrer et renouvellements (30/09). */
+                                        caseFiltre('reste', 'Avec un reste à délivrer'),
+                                        caseFiltre('renouveler', 'À renouveler (7 jours)'),
+                                        caseFiltre('annulees', 'Y compris annulées')
+                                    ]
+                                }]
                         }, {
-                            /* Reste a delivrer (30/09) : les ordonnances servies en partie, encore dues. */
-                            xtype: 'checkbox',
-                            itemId: 'reste',
-                            margin: '0 6 0 12',
-                            boxLabel: 'Avec un reste à délivrer'
+                            xtype: 'component', flex: 1, margin: 0
                         }, {
-                            /* Renouvellements (30/09) : echeance passee ou dans la semaine. */
-                            xtype: 'checkbox',
-                            itemId: 'renouveler',
-                            margin: '0 6 0 12',
-                            boxLabel: 'À renouveler (7 jours)'
+                            xtype: 'button',
+                            itemId: 'reinitialiser',
+                            text: 'Réinitialiser',
+                            icon: 'resources/images/icons/fam/table_refresh.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium',
+                            margin: '0 8 0 0'
                         }, {
                             xtype: 'button',
                             itemId: 'rechercher',
                             text: 'Rechercher',
                             icon: 'resources/images/search.png',
                             cls: 'ordo-btn-primaire',
-                            margin: '0 6 0 12'
-                        }, {
-                            xtype: 'button',
-                            itemId: 'reinitialiser',
-                            text: 'Réinitialiser',
-                            icon: 'resources/images/icons/fam/table_refresh.png',
-                            cls: 'ordo-btn'
+                            scale: 'medium',
+                            margin: 0
                         }]
                 }]
         };
@@ -423,31 +498,48 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 }
             },
             columns: [
-                {text: 'N°', dataIndex: 'numero', width: 140, itemId: 'colNumero'},
-                {text: 'DATE', dataIndex: 'dateOrdonnance', width: 100, itemId: 'colDate',
-                    renderer: function (v) {
-                        return v ? Ext.Date.format(Ext.Date.parse(v, 'Y-m-d'), 'd/m/Y') : '';
-                    }},
-                {text: 'CLIENT', dataIndex: 'client', flex: 2, itemId: 'colClient', renderer: me.texteAvecBulle},
-                {text: 'TYPE', dataIndex: 'typeClient', width: 100},
-                {text: 'PRESCRIPTEUR', dataIndex: 'medecin', flex: 2, itemId: 'colMedecin', renderer: me.texteAvecBulle},
-                {text: 'ÉTABLISSEMENT', dataIndex: 'etablissement', flex: 2, renderer: me.texteAvecBulle},
-                {text: 'PRODUITS', dataIndex: 'nbProduits', width: 90, align: 'right'},
-                {text: 'PIÈCES', dataIndex: 'nbPieces', width: 80, align: 'right', itemId: 'colPieces'},
-                {text: 'SAISIE', dataIndex: 'creeLe', width: 130},
-                {text: 'PAR', dataIndex: 'creePar', width: 130},
-                {text: 'ÉTAT', dataIndex: 'statut', width: 90, itemId: 'colStatut',
+                /*
+                 * Moins de colonnes (30/09, maquette validee) : N° et date ensemble ; type et telephone sous le nom du
+                 * client ; etablissement sous le prescripteur ; saisie et auteur en info-bulle du N°.
+                 */
+                {text: 'N° / DATE', dataIndex: 'numero', width: 150, itemId: 'colNumero',
                     renderer: function (v, meta, rec) {
-                        if (v !== 'annulee') {
-                            return '';
-                        }
-                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(rec.get('motifAnnulation') || '') + '"';
-                        return 'Annulée';
+                        var d = rec.get('dateOrdonnance');
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('Saisie le '
+                                + (rec.get('creeLe') || '') + (rec.get('creePar') ? ' par ' + rec.get('creePar') : ''))) + '"';
+                        return '<div class="ordo-cellule"><span class="ordo-num">' + Ext.String.htmlEncode(v || '')
+                                + '</span><small>' + (d ? Ext.Date.format(Ext.Date.parse(d, 'Y-m-d'), 'd/m/Y') : '')
+                                + '</small></div>';
                     }},
+                {text: 'CLIENT', dataIndex: 'client', flex: 2, itemId: 'colClient',
+                    renderer: function (v, meta, rec) {
+                        var type = rec.get('typeClient') || '';
+                        var tel = rec.get('telephoneAffiche') || '';
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(v || '')) + '"';
+                        return '<div class="ordo-cellule"><b>' + Ext.String.htmlEncode(v || '') + '</b><small>'
+                                + (type ? '<span class="ordo-client-type ordo-type-' + Ext.String.htmlEncode(type.toLowerCase())
+                                        + '">' + Ext.String.htmlEncode(type) + '</span> ' : '')
+                                + Ext.String.htmlEncode(tel) + '</small></div>';
+                    }},
+                {text: 'PRESCRIPTEUR', dataIndex: 'medecin', flex: 2, itemId: 'colMedecin',
+                    renderer: function (v, meta, rec) {
+                        var etab = rec.get('etablissement') || '';
+                        var bulle = (v || '') + (etab ? ' — ' + etab : '');
+                        if (bulle) {
+                            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(bulle)) + '"';
+                        }
+                        return '<div class="ordo-cellule">' + Ext.String.htmlEncode(v || '')
+                                + '<small>' + Ext.String.htmlEncode(etab) + '</small></div>';
+                    }},
+                {text: 'PRODUITS', dataIndex: 'nbProduits', width: 90, align: 'right'},
+                {text: 'PIÈCES', dataIndex: 'nbPieces', width: 75, align: 'right', itemId: 'colPieces'},
                 {text: 'SERVICE', dataIndex: 'etatService', width: 110, itemId: 'colService',
                     renderer: function (v, meta, rec) {
+                        /* Une ordonnance annulee le dit ici (l'ancienne colonne ETAT), motif en info-bulle. */
                         if (rec.get('statut') === 'annulee') {
-                            return '';
+                            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(
+                                    rec.get('motifAnnulation') || '')) + '"';
+                            return '<span class="ordo-etat ordo-etat-annulee">Annulée</span>';
                         }
                         meta.tdAttr = 'data-qtip="' + rec.get('nbServies') + ' ligne(s) servie(s) en entier sur '
                                 + rec.get('nbProduits') + ' - ' + rec.get('nbRenseignees') + ' renseignée(s)"';
@@ -512,6 +604,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                      * « Nouvelle ordonnance » A GAUCHE, Imprimer et Exporter a droite (30/09) ; chaque bouton a son
                      * icone et le dessin de ceux de la fiche.
                      */
+                    cls: 'ordo-barre-actions',
                     items: [{
                             xtype: 'button',
                             itemId: 'nouvelle',
@@ -520,10 +613,19 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             cls: 'ordo-btn-primaire',
                             scale: 'medium'
                         }, {
-                            xtype: 'tbtext',
-                            itemId: 'rappelHistorique',
-                            text: 'De la plus récente à la plus ancienne - actions à droite de chaque ligne.',
-                            style: 'color:#777'
+                            /* Scan d'une ordonnance papier (30/09) : ecran en 3 parties. */
+                            xtype: 'button',
+                            itemId: 'scanner',
+                            text: 'Scanner une ordonnance',
+                            icon: 'resources/images/icons/fam/image_add.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium'
+                        }, {
+                            /* Compteurs cliquables (30/09) : un clic filtre la liste. Poses par le controleur. */
+                            xtype: 'component',
+                            itemId: 'compteursHistorique',
+                            margin: '0 0 0 12',
+                            html: ''
                         }, '->', {
                             xtype: 'button',
                             itemId: 'imprimerHistorique',
@@ -1485,6 +1587,293 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
      * (achats, frequence, dernier achat, habitude), plus le STOCK disponible de chaque produit. On peut en
      * envoyer les produits a Posos avec le contexte clinique de l'ordonnance ouverte.
      */
+    /* ============================================================ scan (30/09) */
+
+    /**
+     * SCAN D'UNE ORDONNANCE, en 3 parties (maquette validee le 30/09) : l'ordonnance scannee a gauche, le controle de
+     * la delivrance au centre, le patient et son historique a droite. En haut, les scans a traiter (poste et, plus
+     * tard, application mobile). Carte 3 de l'ecran, apres la fiche et le suivi de consommation.
+     */
+    vueScan: function () {
+        var me = this;
+        return {
+            xtype: 'panel',
+            itemId: 'vueScan',
+            border: false,
+            cls: 'ordo-scan',
+            layout: {type: 'vbox', align: 'stretch'},
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    cls: 'ordo-barre-actions',
+                    items: [{
+                            xtype: 'component', cls: 'ordo-lib', html: 'Scans à traiter', margin: '0 8 0 4'
+                        }, {
+                            xtype: 'component', itemId: 'fileScans', flex: 1, html: ''
+                        }, {
+                            xtype: 'form',
+                            itemId: 'formScan',
+                            border: false,
+                            bodyStyle: 'background:transparent',
+                            items: [{
+                                    xtype: 'filefield',
+                                    itemId: 'fichierScan',
+                                    name: 'fichier',
+                                    buttonOnly: true,
+                                    buttonText: 'Choisir une photo ou un PDF',
+                                    buttonConfig: {cls: 'ordo-btn-primaire', scale: 'medium',
+                                        icon: 'resources/images/icons/fam/image_add.png'}
+                                }]
+                        }, {
+                            xtype: 'button', itemId: 'ecarterScan', text: 'Écarter ce scan', cls: 'ordo-btn',
+                            scale: 'medium', disabled: true,
+                            icon: 'resources/images/icons/fam/delete.png',
+                            tooltip: 'Photo ratée, doublon... : le scan quitte la liste (il reste tracé)'
+                        }, {
+                            xtype: 'button', itemId: 'retourScan', text: 'Retour à l\'historique', iconCls: 'back',
+                            cls: 'ordo-btn', scale: 'medium'
+                        }]
+                }],
+            items: [{
+                    xtype: 'container',
+                    flex: 1,
+                    layout: {type: 'hbox', align: 'stretch'},
+                    items: [me.scanDocument(), me.scanControle(), me.scanPatient()]
+                }]
+        };
+    },
+
+    /** Partie gauche : l'image ou le PDF, avec zoom et rotation. */
+    scanDocument: function () {
+        var outil = function (itemId, texte, info) {
+            return {xtype: 'button', itemId: itemId, text: texte, cls: 'ordo-btn', tooltip: info};
+        };
+        return {
+            xtype: 'panel',
+            itemId: 'scanDocument',
+            title: 'Ordonnance scannée',
+            cls: 'ordo-scan-col',
+            width: 400,
+            margin: '0 8 0 0',
+            layout: 'fit',
+            tools: [],
+            items: [{
+                    xtype: 'component',
+                    itemId: 'visuScan',
+                    autoScroll: true,
+                    cls: 'ordo-scan-visu',
+                    html: '<div class="ordo-scan-vide">Choisissez une photo ou un PDF, ou un scan de la liste.</div>'
+                }],
+            bbar: [outil('zoomMoins', '−', 'Réduire'), outil('zoomPlus', '+', 'Agrandir'),
+                outil('pivoter', '⟳', 'Pivoter d\'un quart de tour'), '->', {
+                    xtype: 'button', itemId: 'lireScan', text: 'Lire l\'ordonnance', cls: 'ordo-btn', disabled: true,
+                    icon: 'resources/images/icons/fam/page_white_edit.png',
+                    tooltip: 'Lecture automatique des produits, du patient et du prescripteur'
+                }]
+        };
+    },
+
+    /** Partie centrale : les produits a delivrer, lus puis controles. */
+    scanControle: function () {
+        var me = this;
+        return {
+            xtype: 'gridpanel',
+            itemId: 'grilleScan',
+            title: 'Contrôle de la délivrance',
+            cls: 'ordo-scan-col',
+            flex: 1,
+            margin: '0 8 0 0',
+            store: me.storeScanLignes,
+            columnLines: true,
+            selType: 'cellmodel',
+            plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+            viewConfig: {
+                emptyText: '<div class="ordo-scan-vide">Les produits lus apparaissent ici. Sinon, ajoutez-les avec la '
+                        + 'recherche ci-dessus en regardant l\'image.</div>',
+                deferEmptyText: false,
+                getRowClass: function (r) {
+                    return r.get('aVerifier') ? 'ordo-scan-doute' : '';
+                }
+            },
+            tbar: [{
+                    xtype: 'combobox',
+                    itemId: 'rechercheScan',
+                    flex: 1,
+                    store: me.storeArticlesScan,
+                    displayField: 'strNAME',
+                    valueField: 'lgFAMILLEID',
+                    queryParam: 'query',
+                    minChars: 2,
+                    typeAhead: false,
+                    hideTrigger: true,
+                    forceSelection: false,
+                    enableKeyEvents: true,
+                    emptyText: 'Ajouter un produit (nom ou CIP)',
+                    listConfig: me.listeArticles()
+                }],
+            columns: [{
+                    xtype: 'actioncolumn', width: 34, itemId: 'colRetirerScan', menuDisabled: true, sortable: false,
+                    items: [{
+                            icon: 'resources/images/icons/fam/delete.png',
+                            iconCls: 'ordo-act ordo-act-retirer-scan',
+                            tooltip: 'Retirer cette ligne',
+                            handler: function (vue, i, c, item, e, rec) {
+                                vue.up('gridpanel').fireEvent('lignescan', 'retirer', rec);
+                            }
+                        }]
+                }, {
+                    text: '', dataIndex: 'aVerifier', width: 38, align: 'center', menuDisabled: true,
+                    renderer: function (v, meta) {
+                        meta.tdAttr = 'data-qtip="' + (v ? 'À vérifier : lecture incertaine ou produit non trouvé'
+                                : 'Produit reconnu') + '"';
+                        return '<span class="ordo-scan-coche' + (v ? ' ordo-scan-coche-doute' : '') + '">'
+                                + (v ? '?' : '✓') + '</span>';
+                    }
+                }, {
+                    text: 'LU SUR L\'ORDONNANCE', dataIndex: 'texteLu', flex: 1.2, itemId: 'colLu',
+                    renderer: function (v, meta) {
+                        return v ? '<span class="ordo-scan-lu">' + me.texteAvecBulle(v, meta) + '</span>'
+                                : '<span class="ordo-scan-manuel">ajouté à la main</span>';
+                    }
+                }, {
+                    text: 'PRODUIT DÉLIVRÉ', dataIndex: 'libelle', flex: 2, itemId: 'colProduitScan',
+                    renderer: me.texteAvecBulle,
+                    editor: {xtype: 'combobox', itemId: 'editeurProduitScan', store: me.storeArticlesScanEditeur,
+                        displayField: 'strNAME', valueField: 'strNAME', queryParam: 'query', minChars: 2,
+                        typeAhead: false, hideTrigger: true, forceSelection: false, listConfig: me.listeArticles()}
+                }, {
+                    text: 'POSOLOGIE', dataIndex: 'posologie', flex: 1.6, itemId: 'colPosologieScan',
+                    renderer: me.texteAvecBulle,
+                    editor: {xtype: 'textfield', maxLength: 150, emptyText: 'ex. 1 cp matin et soir'}
+                }, {
+                    text: 'DURÉE', dataIndex: 'duree', width: 90, renderer: me.texteAvecBulle,
+                    editor: {xtype: 'textfield', maxLength: 50}
+                }, {
+                    text: 'STOCK', dataIndex: 'stock', width: 70, align: 'right',
+                    renderer: function (v) {
+                        if (v === null || v === undefined || v === '') {
+                            return '<span style="color:#999">—</span>';
+                        }
+                        return '<span class="' + (v > 0 ? 'vc-stock' : 'vc-rupture') + '">' + v + '</span>';
+                    }
+                }, {
+                    /* Quantite en boites, − / + (comme la maquette) : le clic est lu par le controleur (cellclick). */
+                    text: 'QTÉ', dataIndex: 'quantite', width: 96, align: 'center', itemId: 'colQuantiteScan',
+                    renderer: function (v) {
+                        /* Des boutons et non des liens « # » : un lien changerait l'adresse de la page. */
+                        return '<span class="ordo-qte"><button type="button" data-qte="moins" title="Une boîte de moins">−'
+                                + '</button><b>' + (v || 1) + '</b><button type="button" data-qte="plus"'
+                                + ' title="Une boîte de plus">+</button></span>';
+                    }
+                }],
+            bbar: [{
+                    xtype: 'component', itemId: 'messageScan', flex: 1, html: ''
+                }, {
+                    xtype: 'button', itemId: 'validerScan', text: 'Créer l\'ordonnance · Ctrl+Entrée',
+                    icon: 'resources/images/icons/fam/accept.png', cls: 'ordo-btn-primaire', scale: 'medium',
+                    disabled: true
+                }]
+        };
+    },
+
+    /** Partie droite : le patient (reconnu, ou nouveau client standard) et ce qu'il a deja eu. */
+    scanPatient: function () {
+        var me = this;
+        return {
+            xtype: 'panel',
+            itemId: 'scanPatient',
+            title: 'Patient',
+            cls: 'ordo-scan-col',
+            width: 360,
+            autoScroll: true,
+            bodyPadding: '8 10 8 10',
+            layout: {type: 'vbox', align: 'stretch'},
+            defaults: {labelAlign: 'top', labelSeparator: '', margin: '0 0 8 0'},
+            items: [{
+                    xtype: 'component', itemId: 'patientLu', html: ''
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'scanClient',
+                    fieldLabel: 'Client (nom ou téléphone)',
+                    store: me.storeClients,
+                    displayField: 'nomComplet',
+                    valueField: 'lgCLIENTID',
+                    queryParam: 'query',
+                    minChars: 2,
+                    typeAhead: false,
+                    emptyText: 'Chercher le client',
+                    listConfig: me.listeClients()
+                }, {
+                    xtype: 'component', itemId: 'infoScanClient', html: ''
+                }, {
+                    /* Client introuvable : il sera cree en client standard a la validation. */
+                    xtype: 'fieldset',
+                    itemId: 'nouveauScanClient',
+                    title: 'Nouveau client standard',
+                    padding: '4 8 6 8',
+                    layout: {type: 'vbox', align: 'stretch'},
+                    defaults: {labelWidth: 78, margin: '0 0 6 0', enableKeyEvents: true},
+                    items: [
+                        {xtype: 'textfield', itemId: 'scNom', fieldLabel: 'Nom *', maxLength: 100},
+                        {xtype: 'textfield', itemId: 'scPrenoms', fieldLabel: 'Prénom(s)', maxLength: 100},
+                        {xtype: 'textfield', itemId: 'scTelephone', fieldLabel: 'Téléphone', maskRe: /[0-9 +.]/,
+                            maxLength: 30},
+                        {xtype: 'component', cls: 'ordo-aide',
+                            html: 'Aucun client choisi : il sera créé en client standard.'}
+                    ]
+                }, {
+                    xtype: 'container',
+                    layout: {type: 'hbox', align: 'bottom'},
+                    defaults: {labelAlign: 'top', labelSeparator: ''},
+                    items: [{
+                            xtype: 'champdatenaissance', itemId: 'scNaissance', fieldLabel: 'Né(e) le', width: 120
+                        }, {
+                            xtype: 'datefield', itemId: 'scanDate', fieldLabel: 'Date de l\'ordonnance',
+                            format: 'd/m/Y', maxValue: new Date(), flex: 1, margin: '0 0 0 10'
+                        }]
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'scanMedecin',
+                    fieldLabel: 'Prescripteur',
+                    store: me.storeMedecins,
+                    displayField: 'nom',
+                    valueField: 'id',
+                    queryMode: 'local',
+                    emptyText: 'Choisir le prescripteur'
+                }, {
+                    xtype: 'container',
+                    layout: {type: 'hbox', align: 'middle'},
+                    margin: '6 0 4 0',
+                    items: [{
+                            xtype: 'component', cls: 'ordo-lib', html: 'Historique patient', flex: 1
+                        }, {
+                            xtype: 'button', itemId: 'histDci', text: 'Même DCI', cls: 'ordo-puce', enableToggle: true,
+                            toggleGroup: 'ordoHistScan', allowDepress: false, pressed: true, margin: '0 4 0 0'
+                        }, {
+                            xtype: 'button', itemId: 'histTous', text: 'Tous', cls: 'ordo-puce', enableToggle: true,
+                            toggleGroup: 'ordoHistScan', allowDepress: false
+                        }]
+                }, {
+                    xtype: 'dataview',
+                    itemId: 'histPatient',
+                    store: me.storeHistoriquePatient,
+                    itemSelector: 'div.ordo-hist',
+                    emptyText: '<div class="ordo-aide">Rien sur ordonnance pour ce patient'
+                            + ' (ou pas de même DCI).</div>',
+                    deferEmptyText: false,
+                    tpl: new Ext.XTemplate('<tpl for=".">',
+                            '<div class="ordo-hist"><div class="ordo-hist-l1"><span>{libelle:htmlEncode}</span>',
+                            '<span class="ordo-etat {[values.delivrance.indexOf("Renouv") === 0 ? "ordo-etat-reste"',
+                            ' : "ordo-etat-a_renseigner"]}">{delivrance}</span></div>',
+                            '<small>{[Ext.Date.format(Ext.Date.parse(values.date, "Y-m-d"), "d/m/Y")]}',
+                            '<tpl if="medecin"> · {medecin:htmlEncode}</tpl> · qté {quantite}</small>',
+                            '<div class="ordo-hist-bt"><a href="#" data-action="ajouter">Ajouter</a>',
+                            '<a href="#" data-action="remplacer">Remplacer</a></div></div>',
+                            '</tpl>')
+                }]
+        };
+    },
+
     vueConso: function () {
         var me = this;
         var douzeMois = Ext.Date.add(new Date(), Ext.Date.MONTH, -12);

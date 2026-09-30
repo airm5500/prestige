@@ -69,6 +69,9 @@ public class OrdonnanceClientRessource {
     @EJB
     private rest.service.SmsService smsService;
 
+    @EJB
+    private rest.service.impl.OrdonnanceScanService scanService;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -639,6 +642,159 @@ public class OrdonnanceClientRessource {
             LOG.log(java.util.logging.Level.SEVERE, "edition de l'analyse des ordonnances", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /*
+     * ============================================================================================= SCAN D'UNE
+     * ORDONNANCE PAPIER (retour du 30/09) : ecran en 3 parties.
+     * =============================================================================================
+     */
+
+    /** Depot d'un scan (photo ou PDF). Reponse en text/html : envoi par iframe cachee, comme les pieces. */
+    @POST
+    @Path("scans")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.TEXT_HTML)
+    public Response deposerScan(@QueryParam("source") String source) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        try {
+            ServletFileUpload upload = new ServletFileUpload(new DiskFileItemFactory());
+            for (FileItem item : upload.parseRequest(servletRequest)) {
+                if (!item.isFormField()) {
+                    return Response.ok()
+                            .entity(scanService
+                                    .deposer(item.getName(), item.getInputStream(), item.getSize(), source, operateur)
+                                    .toString())
+                            .build();
+                }
+            }
+            return refus("Aucun fichier reçu.");
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "depot d'un scan d'ordonnance", e);
+            return refus("Le fichier n'a pas pu être lu.");
+        }
+    }
+
+    /** Les scans a traiter (poste et application mobile). */
+    @GET
+    @Path("scans")
+    public Response scans() {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(scanService.aTraiter().toString()).build();
+    }
+
+    @GET
+    @Path("scans/{scanId}")
+    public Response scan(@PathParam("scanId") String scanId) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(scanService.detail(scanId).toString()).build();
+    }
+
+    /** L'image ou le PDF du scan, EN FLUX (inline) : il s'affiche dans la partie gauche de l'ecran. */
+    @GET
+    @Path("scans/{scanId}/fichier")
+    @Produces(MediaType.WILDCARD)
+    public Response fichierScan(@PathParam("scanId") String scanId) {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        java.nio.file.Path fichier = scanService.fichier(scanId);
+        if (fichier == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        String nom = rest.service.impl.OrdonnancePieces.assainir(scanService.nomDuScan(scanId));
+        return Response.ok(fichier.toFile()).type(rest.service.impl.OrdonnancePieces.typeMime(nom))
+                .header("Content-Disposition", "inline; filename=\"" + nom + "\"")
+                .header("Cache-Control", "private, no-store").build();
+    }
+
+    /** Lecture automatique (Posos, si elle est branchee) et propositions pour l'ecran. */
+    @POST
+    @Path("scans/{scanId}/lire")
+    public Response lireScan(@PathParam("scanId") String scanId,
+            @QueryParam("relancer") @DefaultValue("false") boolean relancer) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        String emplacement = operateur.getLgEMPLACEMENTID() == null ? null
+                : operateur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        return Response.ok().entity(scanService.lire(scanId, emplacement, relancer).toString()).build();
+    }
+
+    @POST
+    @Path("scans/{scanId}/ecarter")
+    public Response ecarterScan(@PathParam("scanId") String scanId) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(scanService.ecarter(scanId, operateur).toString()).build();
+    }
+
+    /** Validation : l'ordonnance est creee (et le client standard s'il est nouveau), le scan y est joint. */
+    @POST
+    @Path("scans/{scanId}/valider")
+    public Response validerScan(@PathParam("scanId") String scanId, String corps) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject requete;
+        try {
+            requete = new JSONObject(corps);
+        } catch (RuntimeException e) {
+            return refus("La saisie n'a pas pu être lue.");
+        }
+        return Response.ok().entity(scanService.valider(scanId, requete, operateur).toString()).build();
+    }
+
+    /** Ce que le patient a deja eu sur ordonnance ; {@code memeDci} : seulement les memes DCI que {@code articles}. */
+    @GET
+    @Path("client/{clientId}/historique-produits")
+    public Response historiqueProduits(@PathParam("clientId") String clientId, @QueryParam("articles") String articles,
+            @QueryParam("memeDci") @DefaultValue("false") boolean memeDci) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        List<String> ids = new java.util.ArrayList<>();
+        for (String a : org.apache.commons.lang3.StringUtils.defaultString(articles).split(",")) {
+            if (!a.trim().isEmpty()) {
+                ids.add(a.trim());
+            }
+        }
+        return Response.ok().entity(scanService.historiqueProduits(clientId, ids, memeDci).toString()).build();
     }
 
     /** Reste a delivrer d'un client (30/09) : ses ordonnances encore dues, la plus ancienne d'abord. */

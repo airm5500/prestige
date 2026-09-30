@@ -194,6 +194,54 @@ public class PososClient {
         return resultat;
     }
 
+    /**
+     * Lecture d'une ordonnance scannee (retour du 30/09). Rend {"disponible": true, "lecture": {...}} ou {"disponible":
+     * false, "message"}. Ni l'image ni la reponse ne sont journalisees : seulement l'adresse, le code de retour et la
+     * taille du document.
+     */
+    public JSONObject lireOrdonnance(PososConfiguration config, byte[] document, String typeMime) {
+        if (config == null || !config.lectureActive()) {
+            return new JSONObject().put("disponible", false).put("message",
+                    "La lecture automatique n'est pas encore branchée : saisissez les produits en regardant l'image.");
+        }
+        if (document == null || document.length == 0) {
+            return new JSONObject().put("disponible", false).put("message", "Le document est vide.");
+        }
+        String acces = jeton(config);
+        if (acces == null) {
+            return new JSONObject().put("disponible", false).put("message",
+                    "Posos a refusé la connexion. Vérifiez les identifiants côté serveur.");
+        }
+        Map<String, String> entetes = new LinkedHashMap<>();
+        entetes.put(HttpHeaders.AUTHORIZATION, "Bearer " + acces);
+        String corps = new JSONObject().put("document", Base64.getEncoder().encodeToString(document))
+                .put("mimeType", typeMime == null ? "application/octet-stream" : typeMime).toString();
+        Reponse reponse = appelant.posterJson(config.urlLecture(), entetes, corps, Math.max(config.delaiMs(), 30000));
+        if (reponse != null && (reponse.statut == 401 || reponse.statut == 403)) {
+            oublierJeton();
+            String nouveau = jeton(config);
+            if (nouveau != null) {
+                entetes.put(HttpHeaders.AUTHORIZATION, "Bearer " + nouveau);
+                reponse = appelant.posterJson(config.urlLecture(), entetes, corps, Math.max(config.delaiMs(), 30000));
+            }
+        }
+        int code = reponse == null ? 0 : reponse.statut;
+        LOG.log(Level.INFO, "Posos : lecture d'ordonnance ({0} octets), code {1}",
+                new Object[] { document.length, code });
+        if (reponse == null || code < 200 || code >= 300) {
+            return new JSONObject().put("disponible", false).put("message",
+                    reponse == null ? "Posos n'a pas répondu : saisissez les produits en regardant l'image."
+                            : "Posos a refusé la lecture (code " + code + ").");
+        }
+        try {
+            return new JSONObject().put("disponible", true).put("lecture",
+                    PososLectureOrdonnance.lire(new JSONObject(reponse.corps)));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Posos : reponse de lecture illisible ({0})", config.urlLecture());
+            return new JSONObject().put("disponible", false).put("message", "La réponse de Posos n'a pas pu être lue.");
+        }
+    }
+
     private PososResultat appeler(PososConfiguration config, PososDemande demande, String acces) {
         Map<String, String> entetes = new LinkedHashMap<>();
         entetes.put(HttpHeaders.AUTHORIZATION, "Bearer " + acces);

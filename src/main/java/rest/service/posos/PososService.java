@@ -36,6 +36,16 @@ public class PososService {
         return PososConfiguration.duServeur().estConfiguree();
     }
 
+    /** Lecture d'une ordonnance scannee (30/09) : voir {@link PososClient#lireOrdonnance}. */
+    public org.json.JSONObject lireOrdonnance(byte[] document, String typeMime) {
+        return client.lireOrdonnance(PososConfiguration.duServeur(), document, typeMime);
+    }
+
+    /** Vrai si la lecture des ordonnances scannees est branchee. */
+    public boolean lectureActive() {
+        return PososConfiguration.duServeur().lectureActive();
+    }
+
     /** Analyse d'une demande deja constituee (l'ecran envoie des noms de produits). */
     public PososResultat analyser(PososDemande demande) {
         return client.analyser(PososConfiguration.duServeur(), demande);

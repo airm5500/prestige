@@ -74,6 +74,13 @@ public final class PososConfiguration {
      * Ne se regle que cote serveur.
      */
     static final String CLE_MODE = "POSOS_MODE";
+    /**
+     * Lecture d'ordonnance scannee (retour du 30/09) : chemin du service de Posos qui lit une photo ou un PDF. SANS
+     * valeur par defaut : tant qu'il n'est pas renseigne (avec la documentation et les acces fournis par Posos), la
+     * lecture est desactivee et l'ecran de scan fonctionne en saisie assistee. L'image d'une ordonnance porte le nom du
+     * patient : l'activer suppose l'accord de l'officine avec Posos sur ces donnees.
+     */
+    static final String CLE_LECTURE_PATH = "POSOS_PRESCRIPTION_PATH";
 
     static final String TOKEN_PATH_DEFAUT = "/oauth/token";
     static final String ANALYSIS_PATH_DEFAUT = "/v1/analysis";
@@ -212,6 +219,20 @@ public final class PososConfiguration {
         return joindre(url(), cheminAnalyse());
     }
 
+    /** Chemin du service de lecture d'ordonnance, ou null s'il n'est pas renseigne. */
+    public String cheminLecture() {
+        return lire(CLE_LECTURE_PATH);
+    }
+
+    /** Vrai si la lecture des ordonnances scannees peut etre demandee a Posos. */
+    public boolean lectureActive() {
+        return estConfiguree() && cheminLecture() != null;
+    }
+
+    public String urlLecture() {
+        return joindre(url(), cheminLecture());
+    }
+
     /**
      * Ce que le statut peut montrer sans rien trahir : l'adresse, les chemins, l'identifiant masque et des booleans.
      * Jamais le secret, jamais l'identifiant en clair.
@@ -228,6 +249,7 @@ public final class PososConfiguration {
         d.put("secretRenseigne", clientSecret() != null);
         d.put("scopeRenseigne", scope() != null);
         d.put("delaiMs", delaiMs());
+        d.put("lectureOrdonnance", lectureActive());
         // Ou deposer le fichier, et s'il y est : la question « je ne le vois nulle part » ne doit plus se poser.
         String attendu = fichierAttendu();
         d.put("fichierAttendu", attendu);
@@ -272,7 +294,12 @@ public final class PososConfiguration {
             + "# Tant que Posos n'est pas configure, l'analyse passe par le MODE DEMONSTRATION\n"
             + "# (regles preparees, bandeau rouge a l'ecran). Des que les identifiants ci-dessus\n"
             + "# sont renseignes, c'est Posos. Pour forcer : demonstration ; pour desactiver : aucun.\n" + "#"
-            + PososConfiguration.CLE_MODE + "=demonstration\n";
+            + PososConfiguration.CLE_MODE + "=demonstration\n" + "\n"
+            + "# Facultatif : lecture des ordonnances SCANNEES par Posos (chemin du service,\n"
+            + "# donne par Posos). Vide : l'ecran de scan fonctionne en saisie assistee.\n"
+            + "# L'image d'une ordonnance porte le nom du patient : a n'activer qu'avec\n"
+            + "# l'accord de l'officine et de Posos sur ces donnees.\n" + "#" + PososConfiguration.CLE_LECTURE_PATH
+            + "=\n";
 
     /**
      * Cree {@code posos.properties} au deploiement s'il n'existe pas, dans le dossier de {@code dicisms.properties} -

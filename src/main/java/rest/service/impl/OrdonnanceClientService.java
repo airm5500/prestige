@@ -91,7 +91,34 @@ public class OrdonnanceClientService {
             return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray()).put("message",
                     "L'historique des ordonnances n'a pas pu être lu.");
         }
-        return new JSONObject().put("success", true).put("total", total).put("data", data);
+        return new JSONObject().put("success", true).put("total", total).put("data", data).put("compteurs",
+                compteurs(criteres));
+    }
+
+    /**
+     * Compteurs cliquables de l'historique (30/09) : parmi les ordonnances des memes criteres, combien ont un reste a
+     * delivrer et combien sont a renouveler sous 7 jours. Un compteur illisible vaut -1 (non affiche), sans empecher la
+     * liste.
+     */
+    private JSONObject compteurs(Criteres c) {
+        JSONObject r = new JSONObject();
+        Criteres reste = new Criteres(c.recherche, c.clientId, c.typeClientId, c.medecinId, c.debut, c.fin,
+                c.inclureAnnulees, true, false);
+        Criteres renouveler = new Criteres(c.recherche, c.clientId, c.typeClientId, c.medecinId, c.debut, c.fin,
+                c.inclureAnnulees, false, true);
+        r.put("reste", compter(reste)).put("renouveler", compter(renouveler));
+        return r;
+    }
+
+    private long compter(Criteres c) {
+        try {
+            Query q = em.createNativeQuery(OrdonnanceClientSql.compte(c));
+            OrdonnanceClientSql.lier(q, c);
+            return ((Number) q.getSingleResult()).longValue();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "compteur de l'historique des ordonnances", e);
+            return -1;
+        }
     }
 
     private static JSONObject ligne(Tuple t) {
@@ -105,6 +132,12 @@ public class OrdonnanceClientService {
                 .put("client", StringUtils.trimToEmpty(t.get("client", String.class)))
                 .put("typeClient", StringUtils.defaultString(t.get("typeClient", String.class)))
                 .put("telephone", StringUtils.defaultString(t.get("telephone", String.class)))
+                /*
+                 * Le numero a montrer sous le nom (30/09) : le normalise, sinon l'ancien champ s'il a forme de numero.
+                 */
+                .put("telephoneAffiche",
+                        RechercheClientOrdonnance.telephone(t.get("telephone", String.class),
+                                t.get("adresse", String.class)))
                 .put("medecinId", StringUtils.defaultString(t.get("medecinId", String.class)))
                 .put("medecin", StringUtils.trimToEmpty(t.get("medecin", String.class)))
                 .put("nbProduits", entier(t.get("nbProduits"))).put("nbPieces", entier(t.get("nbPieces")))

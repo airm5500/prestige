@@ -41,6 +41,29 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 change: {fn: me.surFrappeRecherche, buffer: 400}
             },
             'ordonnanceclient #barreCriteres combobox[itemId=typeClient]': {select: me.rechercher},
+            /* Presentation revue (30/09) : periode et type de client en puces. */
+            'ordonnanceclient #barreCriteres #periodes button': {click: me.choisirPeriode},
+            'ordonnanceclient #barreCriteres #typesPuces button': {click: me.choisirTypeClient},
+            'ordonnanceclient #barreCriteres datefield': {select: me.oublierPeriode},
+            'ordonnanceclient #grilleOrdonnances button[itemId=scanner]': {click: me.ouvrirScan},
+            /* Scan d'une ordonnance papier (30/09), carte 3. */
+            'ordonnanceclient #vueScan button[itemId=retourScan]': {click: me.retourDuScan},
+            'ordonnanceclient #vueScan filefield[itemId=fichierScan]': {change: me.deposerScan},
+            'ordonnanceclient #vueScan button[itemId=ecarterScan]': {click: me.ecarterScan},
+            'ordonnanceclient #vueScan button[itemId=lireScan]': {click: me.lireScanManuel},
+            'ordonnanceclient #vueScan button[itemId=zoomPlus]': {click: me.zoomerScan},
+            'ordonnanceclient #vueScan button[itemId=zoomMoins]': {click: me.zoomerScan},
+            'ordonnanceclient #vueScan button[itemId=pivoter]': {click: me.pivoterScan},
+            'ordonnanceclient #vueScan combobox[itemId=rechercheScan]': {select: me.ajouterProduitScan},
+            'ordonnanceclient #vueScan combobox[itemId=editeurProduitScan]': {select: me.changerProduitScan},
+            'ordonnanceclient #vueScan #grilleScan': {lignescan: me.surLigneScan, cellclick: me.surClicQuantiteScan,
+                edit: me.majBoutonsScan},
+            'ordonnanceclient #vueScan button[itemId=validerScan]': {click: me.validerScan},
+            'ordonnanceclient #vueScan combobox[itemId=scanClient]': {select: me.surClientScan,
+                change: me.surSaisieClientScan},
+            'ordonnanceclient #vueScan button[itemId=histDci]': {click: me.chargerHistoriqueScan},
+            'ordonnanceclient #vueScan button[itemId=histTous]': {click: me.chargerHistoriqueScan},
+            'ordonnanceclient #vueScan #histPatient': {itemclick: me.surHistoriqueScan},
             'ordonnanceclient #barreCriteres combobox[itemId=client]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=medecin]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres checkbox[itemId=annulees]': {change: me.rechercher},
@@ -125,7 +148,12 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         if (reste && reste.getEl()) {
             reste.getEl().on('click', me.voirResteClient, me, {delegate: 'a.ordo-lien-reste'});
         }
-        ecran.storeTypesClient.load();
+        ecran.storeTypesClient.load({callback: me.poserPucesTypes, scope: me});
+        ecran.storeOrdonnances.on('load', me.afficherCompteurs, me);
+        var compteurs = ecran.down('#compteursHistorique');
+        if (compteurs && compteurs.getEl()) {
+            compteurs.getEl().on('click', me.surCompteur, me, {delegate: '[data-filtre]'});
+        }
         me.chargerTerrains();
         ecran.storeMedecins.load();
         me.chargerDroits();
@@ -216,6 +244,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             }
         };
         basculer('#grilleOrdonnances button[itemId=nouvelle]');
+        basculer('#grilleOrdonnances button[itemId=scanner]');
         basculer('#grilleProduits button[itemId=toutServir]');
         basculer('#vueFiche button[itemId=enregistrer]');
         basculer('#vueFiche button[itemId=creerPrevente]');
@@ -288,9 +317,640 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         store.loadPage(1);
     },
 
+    /* ============================================================ scan d'ordonnance (30/09) */
+
+    getVueScan: function () {
+        var ecran = this.getEcran();
+        return ecran ? ecran.down('#vueScan') : null;
+    },
+
+    /** « Scanner une ordonnance » : l'ecran en 3 parties, sur le scan a traiter le plus recent. */
+    ouvrirScan: function () {
+        var me = this;
+        var vue = me.getVueScan();
+        me.montrer(3);
+        if (!me.cleScan) {
+            /* Ctrl+Entree cree l'ordonnance, depuis n'importe quel champ de l'ecran. */
+            me.cleScan = new Ext.util.KeyMap({target: vue.getEl(), key: Ext.EventObject.ENTER, ctrl: true,
+                fn: function (k, e) {
+                    e.stopEvent();
+                    me.validerScan();
+                }});
+            vue.down('#fileScans').getEl().on('click', me.surFileScans, me, {delegate: '[data-scan]'});
+        }
+        me.scanCourant = null;
+        me.viderScan();
+        me.chargerScans(null);
+    },
+
+    retourDuScan: function () {
+        this.scanCourant = null;
+        this.retourHistorique();
+    },
+
+    /** Les scans a traiter ; {@code choisir} : celui a ouvrir (sinon le plus recent). */
+    chargerScans: function (choisir) {
+        var me = this;
+        var ecran = me.getEcran();
+        ecran.storeScans.load({
+            callback: function (lignes, operation, ok) {
+                var brut = ecran.storeScans.getProxy().getReader().rawData || {};
+                me.lectureActive = brut.lectureActive === true;
+                me.afficherFileScans();
+                var vise = choisir || (me.scanCourant && ecran.storeScans.getById(me.scanCourant) ? me.scanCourant : null);
+                if (!vise && ecran.storeScans.getCount()) {
+                    vise = ecran.storeScans.getAt(0).get('id');
+                }
+                if (vise && vise !== me.scanCourant) {
+                    me.ouvrirUnScan(vise);
+                } else if (!vise) {
+                    me.viderScan();
+                    me.direScan('Aucun scan à traiter : choisissez une photo ou un PDF.');
+                }
+            }
+        });
+    },
+
+    afficherFileScans: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var zone = me.getVueScan().down('#fileScans');
+        var puces = [];
+        ecran.storeScans.each(function (r) {
+            var d = Ext.Date.parse(String(r.get('depose')).substring(0, 19), 'Y-m-d H:i:s');
+            puces.push('<a href="#" class="ordo-puce-scan' + (r.get('id') === me.scanCourant ? ' ordo-puce-scan-active' : '')
+                    + '" data-scan="' + Ext.String.htmlEncode(r.get('id')) + '" title="' + Ext.String.htmlEncode(r.get('nom'))
+                    + '">Scan de ' + (d ? Ext.Date.format(d, 'H:i') : '') + ' · '
+                    + (r.get('source') === 'mobile' ? 'app mobile' : 'poste') + '</a>');
+        });
+        zone.update(puces.length ? puces.join('') : '<span class="ordo-aide">Aucun scan en attente.</span>');
+    },
+
+    surFileScans: function (e, cible) {
+        e.preventDefault();
+        this.ouvrirUnScan(cible.getAttribute('data-scan'));
+    },
+
+    /** Vide les trois parties (sans toucher a la liste des scans). */
+    viderScan: function () {
+        var me = this;
+        var vue = me.getVueScan();
+        var ecran = me.getEcran();
+        ecran.storeScanLignes.removeAll();
+        ecran.storeHistoriquePatient.removeAll();
+        me.zoomScan = 1;
+        me.rotationScan = 0;
+        vue.down('#visuScan').update('<div class="ordo-scan-vide">Choisissez une photo ou un PDF, ou un scan de la liste.</div>');
+        vue.down('#scanClient').clearValue();
+        Ext.each(['#scNom', '#scPrenoms', '#scTelephone', '#scanMedecin'], function (s) {
+            var c = vue.down(s);
+            if (c.isXType('combobox')) {
+                c.clearValue();
+            } else {
+                c.setValue('');
+            }
+        });
+        vue.down('#scNaissance').setIso('');
+        vue.down('#scanDate').setValue(new Date());
+        vue.down('#patientLu').update('');
+        vue.down('#infoScanClient').update('');
+        vue.down('#nouveauScanClient').show();
+        vue.down('#scanDocument').setTitle('Ordonnance scannée');
+        me.direScan('');
+        me.majBoutonsScan();
+    },
+
+    direScan: function (texte, erreur) {
+        var m = this.getVueScan().down('#messageScan');
+        m.update(texte ? '<span class="' + (erreur ? 'ordo-scan-erreur' : 'ordo-aide') + '">' + Ext.String.htmlEncode(texte)
+                + '</span>' : '');
+    },
+
+    majBoutonsScan: function () {
+        var vue = this.getVueScan();
+        if (!vue) {
+            return;
+        }
+        var ouvert = !!this.scanCourant;
+        var ecrire = !!(this.droits && this.droits.modifier);
+        vue.down('#ecarterScan').setDisabled(!ouvert || !ecrire);
+        vue.down('#lireScan').setDisabled(!ouvert || !ecrire || !this.lectureActive);
+        vue.down('#lireScan').setTooltip(this.lectureActive ? 'Lecture automatique par Posos'
+                : 'La lecture automatique n\'est pas encore branchée : saisie assistée');
+        vue.down('#validerScan').setDisabled(!ouvert || !ecrire || this.getEcran().storeScanLignes.getCount() === 0);
+    },
+
+    ouvrirUnScan: function (id) {
+        var me = this;
+        me.scanCourant = id;
+        me.viderScan();
+        me.afficherFileScans();
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/scans/' + encodeURIComponent(id),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true || me.scanCourant !== id) {
+                    me.direScan(r.message || 'Le scan n\'a pas pu être lu.', true);
+                    return;
+                }
+                me.lectureActive = r.lectureActive === true;
+                me.scanOuvert = r.scan;
+                me.getVueScan().down('#scanDocument').setTitle('Ordonnance scannée · '
+                        + Ext.String.htmlEncode(r.scan.nom || ''));
+                me.afficherDocumentScan();
+                me.majBoutonsScan();
+                if (r.scan.lecture || me.lectureActive) {
+                    me.lireScan(false);
+                } else {
+                    me.direScan('Lecture automatique non branchée : ajoutez les produits en regardant l\'image.');
+                    me.focusRechercheScan();
+                }
+            }
+        });
+    },
+
+    /** L'image (zoom, rotation) ou le PDF (lecteur du navigateur) du scan ouvert, EN FLUX : aucune fenetre. */
+    afficherDocumentScan: function () {
+        var me = this;
+        var s = me.scanOuvert;
+        var visu = me.getVueScan().down('#visuScan');
+        if (!s) {
+            return;
+        }
+        var url = '../api/v1/ordonnance-client/scans/' + encodeURIComponent(s.id) + '/fichier';
+        if (s.pdf) {
+            visu.update('<iframe class="ordo-scan-pdf" src="' + url + '" title="Ordonnance scannée"></iframe>');
+        } else {
+            visu.update('<div class="ordo-scan-cadre"><img class="ordo-scan-image" alt="Ordonnance scannée" src="' + url
+                    + '" style="transform: scale(' + me.zoomScan + ') rotate(' + me.rotationScan + 'deg)"></div>');
+        }
+    },
+
+    zoomerScan: function (bouton) {
+        var z = (this.zoomScan || 1) + (bouton.getItemId() === 'zoomPlus' ? 0.25 : -0.25);
+        this.zoomScan = Math.min(Math.max(z, 0.5), 3);
+        this.transformerImageScan();
+    },
+
+    pivoterScan: function () {
+        this.rotationScan = ((this.rotationScan || 0) + 90) % 360;
+        this.transformerImageScan();
+    },
+
+    transformerImageScan: function () {
+        var img = this.getVueScan().getEl().down('img.ordo-scan-image');
+        if (img) {
+            img.setStyle('transform', 'scale(' + this.zoomScan + ') rotate(' + this.rotationScan + 'deg)');
+        }
+    },
+
+    /** Depot d'un scan des qu'un fichier est choisi : il s'ouvre aussitot. */
+    deposerScan: function (champ) {
+        var me = this;
+        if (!champ.getValue()) {
+            return;
+        }
+        champ.up('form').getForm().submit({
+            url: '../api/v1/ordonnance-client/scans?source=poste',
+            waitMsg: 'Envoi du scan...',
+            success: function (form, action) {
+                var r = Ext.decode(action.response.responseText, true) || {};
+                champ.reset();
+                me.chargerScans(r.id);
+            },
+            failure: function (form, action) {
+                var r = Ext.decode(action && action.response ? action.response.responseText : '', true) || {};
+                champ.reset();
+                me.direScan(r.message || 'Le scan n\'a pas pu être envoyé.', true);
+            }
+        });
+    },
+
+    ecarterScan: function () {
+        var me = this;
+        var id = me.scanCourant;
+        if (!id) {
+            return;
+        }
+        Ext.Msg.confirm('Écarter ce scan', 'Le scan quitte la liste des scans à traiter (il reste tracé). Continuer ?',
+                function (b) {
+                    if (b !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ordonnance-client/scans/' + encodeURIComponent(id) + '/ecarter',
+                        success: function (reponse) {
+                            var r = Ext.decode(reponse.responseText, true) || {};
+                            if (r.success !== true) {
+                                me.direScan(r.message, true);
+                                return;
+                            }
+                            me.scanCourant = null;
+                            me.chargerScans(null);
+                        }
+                    });
+                });
+    },
+
+    lireScanManuel: function () {
+        this.lireScan(true);
+    },
+
+    /** Lecture automatique, puis pre-remplissage des trois parties avec ce qui a ete reconnu. */
+    lireScan: function (relancer) {
+        var me = this;
+        var id = me.scanCourant;
+        me.direScan('Lecture de l\'ordonnance…');
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/ordonnance-client/scans/' + encodeURIComponent(id) + '/lire'
+                    + (relancer ? '?relancer=true' : ''),
+            success: function (reponse) {
+                if (me.scanCourant !== id) {
+                    return;
+                }
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true || r.lu !== true) {
+                    me.direScan(r.message || 'La lecture n\'a pas abouti : ajoutez les produits en regardant l\'image.');
+                    me.focusRechercheScan();
+                    return;
+                }
+                me.appliquerProposition(r.proposition || {});
+            },
+            failure: function () {
+                me.direScan('La lecture n\'a pas abouti : ajoutez les produits en regardant l\'image.', true);
+            }
+        });
+    },
+
+    appliquerProposition: function (p) {
+        var me = this;
+        var ecran = me.getEcran();
+        var vue = me.getVueScan();
+        ecran.storeScanLignes.removeAll();
+        Ext.each(p.lignes || [], function (l) {
+            ecran.storeScanLignes.add({articleId: l.articleId || '', libelle: l.libelle || '', cip: l.cip || '',
+                texteLu: l.texteLu || '', posologie: l.posologie || '', duree: l.duree || '',
+                quantite: l.quantite || 1, stock: l.stock === undefined ? null : l.stock, aVerifier: l.aVerifier === true});
+        });
+        var patient = p.patient || {};
+        vue.down('#patientLu').update(patient.nom ? '<div class="ordo-scan-patient-lu">Lu : <b>'
+                + Ext.String.htmlEncode(patient.nom) + '</b>' + (patient.age !== undefined ? ' · ' + patient.age + ' ans' : '')
+                + '</div>' : '');
+        if (p.clientId) {
+            me.choisirClientScan(p.clientId, patient.nom || '');
+        } else if (patient.nom) {
+            var mots = Ext.String.trim(patient.nom).split(/\s+/);
+            vue.down('#scNom').setValue(mots.shift().toUpperCase());
+            vue.down('#scPrenoms').setValue(mots.join(' ').toUpperCase());
+        }
+        if (patient.naissance) {
+            vue.down('#scNaissance').setIso(patient.naissance);
+        }
+        if (p.medecinId) {
+            /* La liste des prescripteurs est bornee : le prescripteur reconnu y est ajoute s'il n'y est pas. */
+            if (ecran.storeMedecins.findExact('id', p.medecinId) < 0) {
+                ecran.storeMedecins.add({id: p.medecinId, nom: p.medecinNom || (p.prescripteur || {}).nom || ''});
+            }
+            vue.down('#scanMedecin').setValue(p.medecinId);
+        }
+        if (p.dateOrdonnance) {
+            vue.down('#scanDate').setValue(Ext.Date.parse(p.dateOrdonnance, 'Y-m-d'));
+        }
+        var doutes = ecran.storeScanLignes.queryBy(function (r) {
+            return r.get('aVerifier');
+        }).getCount();
+        me.direScan(ecran.storeScanLignes.getCount() + ' produit(s) lu(s)'
+                + (doutes ? ', dont ' + doutes + ' à vérifier (en orange).' : '. Contrôlez puis validez.'));
+        me.majBoutonsScan();
+        me.chargerHistoriqueScan();
+    },
+
+    /** Pose un client connu par son identifiant (recherche par le nom lu pour avoir sa ligne complete). */
+    choisirClientScan: function (clientId, nom) {
+        var me = this;
+        var ecran = me.getEcran();
+        var combo = me.getVueScan().down('#scanClient');
+        ecran.storeClients.load({
+            params: {query: nom},
+            callback: function () {
+                var rec = ecran.storeClients.getById(clientId);
+                if (rec) {
+                    combo.setValue(clientId);
+                    me.surClientScan(combo, [rec]);
+                }
+            }
+        });
+    },
+
+    /** Client choisi : son type et son telephone s'affichent, le nouveau client standard n'a plus lieu d'etre. */
+    surClientScan: function (combo, lignes) {
+        var me = this;
+        var vue = me.getVueScan();
+        var c = lignes && lignes.length ? lignes[0] : null;
+        if (!c) {
+            return;
+        }
+        vue.down('#infoScanClient').update('<div class="ordo-scan-client"><span class="ordo-client-type ordo-client-type-'
+                + Ext.String.htmlEncode(c.get('typeClient') || '') + '">' + Ext.String.htmlEncode(c.get('libelleTypeClient') || '')
+                + '</span> ' + Ext.String.htmlEncode(c.get('strTELEPHONE') || '') + '</div>');
+        vue.down('#nouveauScanClient').hide();
+        if (c.get('dtNAISSANCE')) {
+            vue.down('#scNaissance').setIso(c.get('dtNAISSANCE'));
+        }
+        me.chargerHistoriqueScan();
+    },
+
+    /** Le client est efface : on revient au nouveau client standard. */
+    surSaisieClientScan: function (combo) {
+        var choisi = combo.getValue() && combo.findRecordByValue(combo.getValue());
+        if (!choisi) {
+            var vue = this.getVueScan();
+            vue.down('#infoScanClient').update('');
+            vue.down('#nouveauScanClient').show();
+            this.getEcran().storeHistoriquePatient.removeAll();
+        }
+    },
+
+    clientScan: function () {
+        var combo = this.getVueScan().down('#scanClient');
+        return combo.getValue() && combo.findRecordByValue(combo.getValue()) ? combo.getValue() : null;
+    },
+
+    /** Historique du patient : memes DCI que les produits de l'ordonnance, ou tout. */
+    chargerHistoriqueScan: function () {
+        var me = this;
+        var ecran = me.getEcran();
+        var client = me.clientScan();
+        if (!client) {
+            ecran.storeHistoriquePatient.removeAll();
+            return;
+        }
+        var articles = [];
+        ecran.storeScanLignes.each(function (r) {
+            if (r.get('articleId')) {
+                articles.push(r.get('articleId'));
+            }
+        });
+        var memeDci = me.getVueScan().down('#histDci').pressed;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(client) + '/historique-produits',
+            params: {articles: articles.join(','), memeDci: memeDci && articles.length > 0},
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                ecran.storeHistoriquePatient.loadData(r.data || []);
+            }
+        });
+    },
+
+    /** Ajouter : le produit rejoint l'ordonnance. Remplacer : il remplace le produit de la ligne choisie au centre. */
+    surHistoriqueScan: function (vue, rec, item, index, e) {
+        var action = e.getTarget('[data-action]');
+        if (!action) {
+            return;
+        }
+        e.preventDefault();
+        var me = this;
+        var ecran = me.getEcran();
+        var grille = me.getVueScan().down('#grilleScan');
+        if (action.getAttribute('data-action') === 'ajouter') {
+            ecran.storeScanLignes.add({articleId: rec.get('articleId'), libelle: rec.get('libelle'), texteLu: '',
+                posologie: rec.get('posologie') || '', quantite: rec.get('quantite') || 1, stock: null,
+                aVerifier: false});
+            me.majBoutonsScan();
+            return;
+        }
+        var position = grille.getSelectionModel().getCurrentPosition();
+        var ligne = position ? ecran.storeScanLignes.getAt(position.row) : null;
+        if (!ligne) {
+            me.direScan('Cliquez d\'abord la ligne à remplacer, au centre.', true);
+            return;
+        }
+        ligne.set({articleId: rec.get('articleId'), libelle: rec.get('libelle'), cip: '', stock: null, aVerifier: false});
+    },
+
+    focusRechercheScan: function () {
+        var c = this.getVueScan().down('#rechercheScan');
+        if (c && c.isVisible()) {
+            c.focus(false, 150);
+        }
+    },
+
+    /** Produit ajoute a la main depuis la recherche : nouvelle ligne, curseur dans sa posologie. */
+    ajouterProduitScan: function (combo, lignes) {
+        var me = this;
+        var a = lignes && lignes.length ? lignes[0] : null;
+        if (!a) {
+            return;
+        }
+        var ligne = me.getEcran().storeScanLignes.add({articleId: a.get('lgFAMILLEID'), libelle: a.get('strNAME'),
+            cip: a.get('intCIP') || '', texteLu: '', quantite: 1, stock: a.get('intNUMBERAVAILABLE'), aVerifier: false})[0];
+        combo.clearValue();
+        me.majBoutonsScan();
+        me.chargerHistoriqueScan();
+        var grille = me.getVueScan().down('#grilleScan');
+        var edition = (grille.plugins || [])[0];
+        Ext.defer(function () {
+            if (!grille.isDestroyed && edition) {
+                edition.startEdit(ligne, grille.down('#colPosologieScan'));
+            }
+        }, 80);
+    },
+
+    /** Le produit d'une ligne change dans la grille : on recopie celui du catalogue, avec son stock. */
+    changerProduitScan: function (combo, lignes) {
+        var a = lignes && lignes.length ? lignes[0] : null;
+        var grille = this.getVueScan().down('#grilleScan');
+        var position = grille.getSelectionModel().getCurrentPosition();
+        var ligne = position ? grille.getStore().getAt(position.row) : null;
+        if (!a || !ligne) {
+            return;
+        }
+        ligne.set({articleId: a.get('lgFAMILLEID'), libelle: a.get('strNAME'), cip: a.get('intCIP') || '',
+            stock: a.get('intNUMBERAVAILABLE'), aVerifier: false});
+    },
+
+    surLigneScan: function (action, ligne) {
+        if (action === 'retirer') {
+            this.oublierCellule(this.getVueScan().down('#grilleScan'));
+            this.getEcran().storeScanLignes.remove(ligne);
+            this.majBoutonsScan();
+        }
+    },
+
+    /** − / + de la quantite (une boite de moins, de plus ; jamais moins d'une). */
+    surClicQuantiteScan: function (vue, td, colonne, ligne, tr, rang, e) {
+        var cible = e.getTarget('[data-qte]');
+        if (!cible) {
+            return;
+        }
+        e.preventDefault();
+        var q = (ligne.get('quantite') || 1) + (cible.getAttribute('data-qte') === 'plus' ? 1 : -1);
+        ligne.set('quantite', Math.min(Math.max(q, 1), 999));
+    },
+
+    /**
+     * Validation (bouton ou Ctrl+Entree) : l'ordonnance est creee, avec le nouveau client standard si aucun client
+     * n'est choisi, et le scan y est joint. La fiche de l'ordonnance creee s'ouvre ensuite.
+     */
+    validerScan: function () {
+        var me = this;
+        var vue = me.getVueScan();
+        var ecran = me.getEcran();
+        var id = me.scanCourant;
+        if (!id || vue.down('#validerScan').isDisabled() || me.validationScanEnCours) {
+            return;
+        }
+        var naissance = vue.down('#scNaissance');
+        if (!naissance.validate()) {
+            me.direScan('Date de naissance : ' + naissance.getErrors().join(' '), true);
+            return;
+        }
+        var date = vue.down('#scanDate').getValue();
+        var produits = [];
+        ecran.storeScanLignes.each(function (r) {
+            produits.push({articleId: r.get('articleId') || '', libelle: r.get('libelle') || '',
+                quantite: r.get('quantite') || 1, posologie: r.get('posologie') || '', duree: r.get('duree') || ''});
+        });
+        var requete = {
+            clientId: me.clientScan() || '',
+            dateOrdonnance: date ? Ext.Date.format(date, 'Y-m-d') : '',
+            medecinId: vue.down('#scanMedecin').getValue() || '',
+            dateNaissance: naissance.getIso(),
+            observations: 'Saisie depuis le scan « ' + ((me.scanOuvert && me.scanOuvert.nom) || '') + ' ».',
+            produits: produits
+        };
+        if (!requete.clientId) {
+            requete.nouveauClient = {
+                nom: Ext.String.trim(vue.down('#scNom').getValue() || ''),
+                prenoms: Ext.String.trim(vue.down('#scPrenoms').getValue() || ''),
+                telephone: Ext.String.trim(vue.down('#scTelephone').getValue() || '')
+            };
+            if (!requete.nouveauClient.nom) {
+                me.direScan('Choisissez le client, ou saisissez le nom du nouveau client standard.', true);
+                vue.down('#scNom').focus(false, 50);
+                return;
+            }
+        }
+        me.validationScanEnCours = true;
+        me.direScan('Création de l\'ordonnance…');
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/ordonnance-client/scans/' + encodeURIComponent(id) + '/valider',
+            jsonData: requete,
+            callback: function () {
+                me.validationScanEnCours = false;
+            },
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true) {
+                    me.direScan(r.message || 'L\'ordonnance n\'a pas pu être créée.', true);
+                    return;
+                }
+                me.scanCourant = null;
+                /* La fiche de l'ordonnance creee s'ouvre, scan joint : prevente, pieces... tout y est. */
+                me.ouvrirParId(r.id, false);
+            },
+            failure: function () {
+                me.direScan('L\'ordonnance n\'a pas pu être créée.', true);
+            }
+        });
+    },
+
+    /* ------------------------------------------------ criteres en puces (30/09) */
+
+    /** Puces du type de client : « Tous » puis chaque type lu. Elles posent le combo (cache) que lit la recherche. */
+    poserPucesTypes: function () {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#barreCriteres #typesPuces') : null;
+        if (!zone) {
+            return;
+        }
+        var courant = ecran.down('#barreCriteres #typeClient').getValue() || '';
+        var puces = [{xtype: 'button', text: 'Tous', typeId: '', cls: 'ordo-puce', enableToggle: true,
+                toggleGroup: 'ordoTypeClient', allowDepress: false, pressed: !courant}];
+        ecran.storeTypesClient.each(function (t) {
+            puces.push({xtype: 'button', text: t.get('nom'), typeId: t.get('id'), cls: 'ordo-puce',
+                enableToggle: true, toggleGroup: 'ordoTypeClient', allowDepress: false, pressed: courant === t.get('id')});
+        });
+        zone.removeAll();
+        zone.add(puces);
+    },
+
+    choisirTypeClient: function (bouton) {
+        var combo = this.getEcran().down('#barreCriteres #typeClient');
+        combo.setValue(bouton.typeId || null);
+        bouton.toggle(true);
+        this.rechercher();
+    },
+
+    /** Aujourd'hui, 7 jours, 30 jours : pose les dates du critere et relance la recherche. Recliquee, elle s'efface. */
+    choisirPeriode: function (bouton) {
+        var ecran = this.getEcran();
+        var debut = ecran.down('#barreCriteres #dtStart');
+        var fin = ecran.down('#barreCriteres #dtEnd');
+        var jours = {periodeJour: 0, periode7: 6, periode30: 29}[bouton.getItemId()];
+        if (bouton.pressed) {
+            var aujourdhui = Ext.Date.clearTime(new Date());
+            debut.setValue(Ext.Date.add(aujourdhui, Ext.Date.DAY, -jours));
+            fin.setValue(aujourdhui);
+        } else {
+            debut.setValue(null);
+            fin.setValue(null);
+        }
+        this.rechercher();
+    },
+
+    /** Une date choisie a la main : plus aucune puce de periode n'est enfoncee. */
+    oublierPeriode: function () {
+        Ext.each(this.getEcran().query('#barreCriteres #periodes button'), function (b) {
+            b.toggle(false, true);
+        });
+    },
+
+    /** Compteurs cliquables au-dessus de la liste : reste a delivrer, a renouveler. */
+    afficherCompteurs: function (store) {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#compteursHistorique') : null;
+        if (!zone || zone.isDestroyed) {
+            return;
+        }
+        var brut = store.getProxy().getReader().rawData || {};
+        var c = brut.compteurs || {};
+        var total = store.getTotalCount();
+        var p = store.getProxy().extraParams || {};
+        var puce = function (filtre, n, libelle, actif) {
+            if (n === undefined || n < 0) {
+                return '';
+            }
+            return '<a href="#" class="ordo-compteur ordo-compteur-' + filtre + (actif ? ' ordo-compteur-actif' : '')
+                    + '" data-filtre="' + filtre + '"><b>' + n + '</b> ' + libelle + '</a>';
+        };
+        zone.update('<span class="ordo-compteurs"><span class="ordo-compteur ordo-compteur-total"><b>' + total
+                + '</b> ordonnance' + (total > 1 ? 's' : '') + '</span>'
+                + puce('reste', c.reste, 'avec un reste à délivrer', p.reste === true)
+                + puce('renouveler', c.renouveler, 'à renouveler sous 7 jours', p.renouveler === true) + '</span>');
+    },
+
+    /** Un clic sur un compteur coche (ou decoche) le filtre correspondant : la liste se recharge d'elle-meme. */
+    surCompteur: function (e, cible) {
+        e.preventDefault();
+        var caseFiltre = this.getEcran().down('#barreCriteres #' + cible.getAttribute('data-filtre'));
+        if (caseFiltre) {
+            caseFiltre.setValue(!caseFiltre.getValue());
+        }
+    },
+
     reinitialiser: function () {
         var me = this;
         var ecran = me.getEcran();
+        me.oublierPeriode();
+        Ext.each(ecran.query('#barreCriteres #typesPuces button'), function (b) {
+            b.toggle(!b.typeId, true);
+        });
         Ext.each(['#recherche', '#typeClient', '#client', '#medecin', '#dtStart', '#dtEnd'], function (s) {
             var c = ecran.down('#barreCriteres ' + s);
             if (c) {
