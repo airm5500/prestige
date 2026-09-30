@@ -482,7 +482,9 @@ public class OrdonnanceClientService {
             ordonnance.setLgUSERUPDATED(operateur == null ? null : operateur.getLgUSERID());
             ordonnance.setDtUPDATED(new Date());
             em.flush();
-            /* Une ordonnance annulee ne compte plus : le poids qu'elle avait verse au suivi du client en sort (30/09). */
+            /*
+             * Une ordonnance annulee ne compte plus : le poids qu'elle avait verse au suivi du client en sort (30/09).
+             */
             em.createNativeQuery("DELETE FROM t_client_mesure WHERE lg_ORDONNANCE_ID = ?1")
                     .setParameter(1, ordonnance.getLgORDONNANCEID()).executeUpdate();
             return new JSONObject().put("success", true).put("message",
