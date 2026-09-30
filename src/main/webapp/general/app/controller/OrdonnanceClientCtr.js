@@ -67,6 +67,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #grilleOrdonnances button[itemId=imprimerHistorique]': {click: me.imprimerHistorique},
             'ordonnanceclient #grilleOrdonnances button[itemId=exporterExcel]': {click: me.exporterExcel},
             'ordonnanceclient #vueFiche button[itemId=imprimerFicheOuverte]': {click: me.imprimerFicheOuverte},
+            'ordonnanceclient #vueFiche button[itemId=creerPrevente]': {click: me.creerPrevente},
             'ordonnanceclient #grillePieces button[itemId=joindrePiece]': {click: me.joindrePiece},
             'ordonnanceclient #grillePieces filefield[itemId=fichierPiece]': {change: me.surChoixFichier},
             /* Voir, telecharger, retirer : sur CHAQUE ligne de piece (30/09). */
@@ -180,6 +181,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         basculer('#grilleOrdonnances button[itemId=nouvelle]');
         basculer('#grilleProduits button[itemId=toutServir]');
         basculer('#vueFiche button[itemId=enregistrer]');
+        basculer('#vueFiche button[itemId=creerPrevente]');
         basculer('#vueFiche button[itemId=nouveauClient]');
         basculer('#grillePieces button[itemId=joindrePiece]');
         basculer('#grillePieces filefield[itemId=fichierPiece]');
@@ -404,6 +406,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
          */
         this.oublierCellule(ecran.down('#grilleProduits'));
         ecran.storeProduits.removeAll();
+        this.ficheAnnulee = false;
+        this.afficherPreventes([]);
         var recherche = fiche.down('#rechercheProduit');
         if (recherche) {
             recherche.clearValue();
@@ -571,6 +575,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 + (o.statut === 'annulee' ? ' <span class="ordo-titre-annulee">ANNULÉE : '
                         + Ext.String.htmlEncode(o.motifAnnulation || '') + '</span>' : ''));
         me.afficherTypeClient(o.typeClient || '');
+        me.ficheAnnulee = o.statut === 'annulee';
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
         me.chargerPieces();
         me.montrer(1);
@@ -1086,6 +1091,144 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             + Ext.Object.toQueryString(this.parametres());
     },
 
+    /* ------------------------------------------------------------------- prévente (30/09) */
+
+    /**
+     * « Créer la prévente » : on montre d'abord ce qui sera créé (type de vente, tiers payant, produits et quantités,
+     * produits non repris et pourquoi), puis on crée sur confirmation. La prévente se reprend à la caisse, dans la
+     * liste des préventes ; l'écran de vente n'est pas touché.
+     */
+    creerPrevente: function () {
+        var me = this;
+        var id = me.ordonnanceOuverte();
+        if (!id) {
+            return;
+        }
+        if (!me.ficheVerrouillee && me.saisieEnCours()) {
+            Ext.Msg.alert('Prévente', 'Enregistrez d\'abord les changements de l\'ordonnance : la prévente part de '
+                    + 'l\'ordonnance enregistrée.');
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/prevente/' + encodeURIComponent(id) + '/apercu',
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (r.success !== true) {
+                    Ext.Msg.alert('Prévente', Ext.String.htmlEncode(r.message || 'La prévente n\'a pas pu être préparée.')
+                            + me.listeEcartees(r.ecartees));
+                    return;
+                }
+                me.confirmerPrevente(id, r);
+            },
+            failure: function () {
+                Ext.Msg.alert('Prévente', 'La prévente n\'a pas pu être préparée.');
+            }
+        });
+    },
+
+    confirmerPrevente: function (id, r) {
+        var me = this;
+        var enc = Ext.String.htmlEncode;
+        var produits = Ext.Array.map(r.retenues || [], function (l) {
+            return '<li>' + enc(l.libelle) + ' <b>× ' + l.quantite + '</b></li>';
+        }).join('');
+        var enAttente = Ext.Array.filter(r.preventes || [], function (p) {
+            return p.enAttente;
+        });
+        var texte = '<div class="ordo-prevente">'
+                + '<div><b>' + enc(r.typeVenteLibelle) + '</b> — ' + enc(r.client)
+                + (r.tiersPayant ? ' — tiers payant : <b>' + enc(r.tiersPayant) + '</b>' : '') + '</div>'
+                + '<div style="margin-top:6px">Produits (ce qui reste à servir) :</div><ul>' + produits + '</ul>'
+                + me.listeEcartees(r.ecartees)
+                + (enAttente.length ? '<div class="ordo-prevente-alerte">Une prévente de cette ordonnance est déjà '
+                        + 'en attente à la caisse (' + enc(enAttente[0].ref) + ').</div>' : '')
+                + '</div>';
+        Ext.Msg.show({
+            title: 'Créer la prévente ?',
+            msg: texte,
+            width: 520,
+            buttons: Ext.Msg.YESNO,
+            buttonText: {yes: 'Créer la prévente', no: 'Annuler'},
+            icon: Ext.Msg.QUESTION,
+            fn: function (bouton) {
+                if (bouton === 'yes') {
+                    me.envoyerPrevente(id);
+                }
+            }
+        });
+    },
+
+    envoyerPrevente: function (id) {
+        var me = this;
+        var bouton = me.getEcran().down('#vueFiche button[itemId=creerPrevente]');
+        if (bouton) {
+            bouton.setDisabled(true);
+        }
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/ordonnance-client/prevente/' + encodeURIComponent(id),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                me.majImpressionFiche();
+                me.chargerPreventes();
+                Ext.Msg.alert(r.success === true ? 'Prévente créée' : 'Prévente',
+                        Ext.String.htmlEncode(r.message || 'La prévente n\'a pas pu être créée.')
+                        + me.listeEcartees(r.ecartees));
+            },
+            failure: function () {
+                me.majImpressionFiche();
+                Ext.Msg.alert('Prévente', 'La prévente n\'a pas pu être créée.');
+            }
+        });
+    },
+
+    /** Les produits non repris, avec leur motif : rien n'est écarté en silence. */
+    listeEcartees: function (ecartees) {
+        if (!ecartees || !ecartees.length) {
+            return '';
+        }
+        return '<div style="margin-top:6px">Non repris :</div><ul class="ordo-prevente-ecartees">'
+                + Ext.Array.map(ecartees, function (e) {
+                    return '<li>' + Ext.String.htmlEncode(e.libelle) + ' — <i>' + Ext.String.htmlEncode(e.motif)
+                            + '</i></li>';
+                }).join('') + '</ul>';
+    },
+
+    /** Les préventes déjà nées de l'ordonnance ouverte, à côté du bouton. */
+    chargerPreventes: function () {
+        var me = this;
+        var id = me.ordonnanceOuverte();
+        if (!id) {
+            me.afficherPreventes([]);
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/prevente/' + encodeURIComponent(id),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                /* Une autre ordonnance a pu être ouverte entre-temps. */
+                if (me.ordonnanceOuverte() === id) {
+                    me.afficherPreventes(r.data || []);
+                }
+            }
+        });
+    },
+
+    afficherPreventes: function (preventes) {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#vueFiche #preventesFiche') : null;
+        if (!zone) {
+            return;
+        }
+        zone.setText(preventes.length ? 'Préventes : ' + Ext.Array.map(preventes, function (p) {
+            return '<span class="ordo-pastille" data-qtip="' + Ext.String.htmlEncode(p.typeVente + ', '
+                    + p.lignes + ' produit(s), ' + Ext.util.Format.number(p.montant || 0, '0,000') + ' F') + '">'
+                    + Ext.String.htmlEncode(p.ref) + ' — ' + Ext.String.htmlEncode(p.etat) + '</span>';
+        }).join(' ') : '');
+    },
+
     /* ------------------------------------------------------------------- pièces jointes */
 
     /** Identifiant de l'ordonnance ouverte dans la fiche, ou une chaîne vide pour une saisie en cours. */
@@ -1123,6 +1266,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 : 'Consultation seule : votre profil ne permet pas de joindre ni de retirer une pièce.');
         }
         me.majImpressionFiche();
+        me.chargerPreventes();
         ecran.storePieces.getProxy().url = '../api/v1/ordonnance-client/pieces/' + encodeURIComponent(id);
         ecran.storePieces.load();
         me.basculerBoutonsPieces(peutEcrire && !me.ficheVerrouillee);
@@ -1134,6 +1278,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         var bouton = ecran ? ecran.down('#vueFiche button[itemId=imprimerFicheOuverte]') : null;
         if (bouton) {
             bouton.setDisabled(!this.ordonnanceOuverte());
+        }
+        /* La prevente part d'une ordonnance ENREGISTREE et non annulee ; en consultation aussi : elle ne la modifie pas. */
+        var prevente = ecran ? ecran.down('#vueFiche button[itemId=creerPrevente]') : null;
+        if (prevente) {
+            prevente.setDisabled(!this.ordonnanceOuverte() || this.ficheAnnulee === true);
         }
     },
 

@@ -1987,3 +1987,9 @@ body.x-body,
 .x-btn.ordo-btn.x-btn-pressed, .x-btn.ordo-btn.x-btn-menu-active { background: #d3e2f1 !important; }
 .x-btn.ordo-btn.x-item-disabled .x-btn-inner { color: #8a99a8 !important; }
 .x-btn.ordo-btn-plus .x-btn-inner { color: #1E5FA8 !important; }
+/* Prevente depuis l'ordonnance (30/09) : recapitulatif avant creation. */
+.ordo-prevente ul { margin: 4px 0 0 18px; padding: 0; list-style: disc; }
+.ordo-prevente-ecartees li { color: #8a5a00; }
+.ordo-prevente-alerte { margin-top: 8px; padding: 4px 8px; background: #fff4e0; border-left: 3px solid #e07b18;
+    color: #7a4500; }
+.ordo-prevente-ecartees { margin: 4px 0 0 18px; padding: 0; list-style: disc; }

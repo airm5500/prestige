@@ -533,6 +533,23 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             cls: 'ordo-btn',
                             scale: 'medium',
                             disabled: true
+                        }, {
+                            /*
+                             * Prevente depuis l'ordonnance (30/09) : une vente en attente, reprise a la caisse. Standard =
+                             * comptant, assurance et carnet = leur tiers payant principal.
+                             */
+                            xtype: 'button',
+                            itemId: 'creerPrevente',
+                            text: 'Créer la prévente',
+                            icon: 'resources/images/icons/fam/panier.png',
+                            cls: 'ordo-btn',
+                            scale: 'medium',
+                            disabled: true,
+                            tooltip: 'Prépare une vente en attente avec ce qui reste à servir, à reprendre à la caisse'
+                        }, {
+                            xtype: 'tbtext',
+                            itemId: 'preventesFiche',
+                            text: ''
                         }, '->', {
                             xtype: 'button',
                             itemId: 'enregistrer',

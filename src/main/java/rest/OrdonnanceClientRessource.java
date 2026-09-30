@@ -57,6 +57,9 @@ public class OrdonnanceClientRessource {
     @EJB
     private rest.service.impl.SubstitutionService substitutionService;
 
+    @EJB
+    private rest.service.impl.OrdonnancePreventeService preventeService;
+
     private TUser utilisateur() {
         return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
     }
@@ -311,6 +314,50 @@ public class OrdonnanceClientRessource {
             return refusEcriture();
         }
         return Response.ok().entity(ordonnanceService.purgerPiecesOrphelines().toString()).build();
+    }
+
+    /**
+     * Prevente depuis l'ordonnance (30/09) : ce qui serait cree, sans rien creer. L'ecran le montre avant de demander
+     * confirmation.
+     */
+    @GET
+    @Path("prevente/{id}/apercu")
+    public Response apercuPrevente(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(preventeService.apercu(id).toString()).build();
+    }
+
+    /** Cree la prevente : une vente en attente, reprise ensuite a la caisse. Droit d'ecriture des ordonnances. */
+    @POST
+    @Path("prevente/{id}")
+    public Response creerPrevente(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        return Response.ok().entity(preventeService.creer(id, utilisateur()).toString()).build();
+    }
+
+    /** Les preventes deja nees de l'ordonnance, avec leur etat a la caisse. */
+    @GET
+    @Path("prevente/{id}")
+    public Response preventes(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("success", true).put("data", preventeService.preventes(id)).toString())
+                .build();
     }
 
     /** Creation rapide d'un prescripteur depuis la fiche (23/09) : droit d'ecriture des ordonnances. */
