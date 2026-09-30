@@ -243,6 +243,60 @@ public class DossierClientService {
     }
 
     /**
+     * Fiche du client pour le SUIVI DE CONSOMMATION de l'ecran de vente (maquette validee le 30/09) : identite
+     * (telephone, naissance, age, type) et assurances pour tout operateur ; terrains, allergies et derniers parametres
+     * seulement si {@code clinique} (le droit de consulter les ordonnances clients). Lecture seule.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject ficheVente(String clientId, boolean clinique) {
+        JSONObject d = dossier(clientId);
+        if (!d.optBoolean("success")) {
+            return d;
+        }
+        JSONObject sortie = new JSONObject().put("success", true).put("client", d.getJSONObject("client"))
+                .put("clinique", clinique);
+        try {
+            JSONArray assurances = new JSONArray();
+            for (Tuple t : (List<Tuple>) em
+                    .createNativeQuery("SELECT COALESCE(NULLIF(tp.str_FULLNAME, ''), tp.str_NAME) AS nom,"
+                            + " cp.int_POURCENTAGE AS taux, cp.b_IS_RO AS ro FROM t_compte_client cc"
+                            + " JOIN t_compte_client_tiers_payant cp ON cp.lg_COMPTE_CLIENT_ID = cc.lg_COMPTE_CLIENT_ID"
+                            + " JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = cp.lg_TIERS_PAYANT_ID"
+                            + " WHERE cc.lg_CLIENT_ID = ?1 AND (cp.str_STATUT IS NULL OR cp.str_STATUT = 'enable')"
+                            + " ORDER BY cp.b_IS_RO DESC, cp.int_PRIORITY", Tuple.class)
+                    .setParameter(1, clientId).getResultList()) {
+                assurances.put(new JSONObject().put("nom", StringUtils.defaultString(t.get("nom", String.class)))
+                        .put("taux", t.get("taux") == null ? JSONObject.NULL : entier(t.get("taux"))));
+            }
+            sortie.put("assurances", assurances);
+            if (clinique) {
+                JSONArray terrains = new JSONArray();
+                for (Tuple t : (List<Tuple>) em.createNativeQuery("SELECT tc.str_LIBELLE AS libelle,"
+                        + " tc.str_CATEGORIE AS categorie FROM t_client_terrain ct"
+                        + " JOIN t_terrain_clinique tc ON tc.lg_TERRAIN_ID = ct.lg_TERRAIN_ID WHERE ct.lg_CLIENT_ID = ?1"
+                        + " ORDER BY tc.int_ORDRE, tc.str_LIBELLE", Tuple.class).setParameter(1, clientId)
+                        .getResultList()) {
+                    terrains.put(new JSONObject().put("libelle", t.get("libelle", String.class)).put("categorie",
+                            StringUtils.defaultString(t.get("categorie", String.class))));
+                }
+                JSONArray mesures = new JSONArray();
+                JSONArray parametres = d.optJSONArray("parametres");
+                for (int i = 0; parametres != null && i < parametres.length(); i++) {
+                    if (parametres.getJSONObject(i).has("valeur")) {
+                        mesures.put(parametres.getJSONObject(i));
+                    }
+                }
+                sortie.put("terrains", terrains).put("allergies", d.optString("allergies", ""))
+                        .put("parametres", mesures).put("imc", d.opt("imc") == null ? JSONObject.NULL : d.get("imc"));
+            }
+            return sortie;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "fiche client de la vente", e);
+            return refus("La fiche du client n'a pas pu être lue.");
+        }
+    }
+
+    /**
      * Age revolu du client : par sa date de naissance, sinon par l'age de sa derniere ordonnance (vieilli des annees
      * ecoulees depuis). Null si on ne sait pas.
      */

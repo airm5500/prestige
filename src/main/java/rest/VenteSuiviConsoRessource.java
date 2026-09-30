@@ -11,7 +11,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
+import util.CommonUtils;
+import dal.TPrivilege;
+import java.util.List;
+import rest.service.impl.DossierClientService;
 import rest.service.impl.OrdonnanceClientService;
+import util.DateConverter;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -33,6 +38,29 @@ public class VenteSuiviConsoRessource {
 
     @EJB
     private OrdonnanceClientService ordonnanceService;
+
+    @EJB
+    private DossierClientService dossierService;
+
+    /**
+     * Fiche du client en tete du suivi (maquette validee le 30/09). La partie clinique (terrains, allergies,
+     * parametres) n'est rendue qu'avec le droit de consulter les ordonnances clients, verifie ici.
+     */
+    @GET
+    @Path("client/{clientId}/fiche")
+    @SuppressWarnings("unchecked")
+    public Response fiche(@PathParam("clientId") String clientId) {
+        TUser operateur = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (operateur == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        boolean clinique = CommonUtils.hasAuthorityByName(
+                (List<TPrivilege>) servletRequest.getSession().getAttribute(commonparameter.USER_LIST_PRIVILEGE),
+                DateConverter.P_ORDONNANCE_CLIENT);
+        return Response.ok().entity(dossierService.ficheVente(clientId, clinique).toString()).build();
+    }
 
     @GET
     @Path("client/{clientId}")

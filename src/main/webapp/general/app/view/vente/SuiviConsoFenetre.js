@@ -8,6 +8,10 @@
  * dernier achat, habitude, montant) et le stock de chaque produit. Echap ou un clic hors de la fenetre la ferme.
  *
  * Elle ne depend pas du controleur de la caisse : le bouton lui passe l'identifiant du client.
+ *
+ * En tete, la fiche du client (maquette validee le 30/09) : telephone, naissance et age, type, assurances ; avec le droit
+ * de consulter les ordonnances, aussi ses terrains, allergies et derniers parametres (le serveur ne rend rien de plus
+ * sans ce droit).
  */
 Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
     extend: 'Ext.window.Window',
@@ -19,7 +23,7 @@ Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
     draggable: false,
     closeAction: 'destroy',
     width: 960,
-    height: 580,
+    height: 640,
     bodyPadding: 0,
     layout: 'fit',
     /** Periode affichee, en mois. */
@@ -54,6 +58,7 @@ Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
                 me.mon(me.zIndexManager.mask, 'click', me.close, me);
             }
             me.charger();
+            me.chargerFiche();
         });
         me.on('destroy', function () {
             if (me.cle) {
@@ -95,8 +100,74 @@ Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
         });
     },
 
+    chargerFiche: function () {
+        var me = this;
+        if (!me.clientId) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente-suivi-conso/client/' + encodeURIComponent(me.clientId) + '/fiche',
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                if (!me.isDestroyed && r.success) {
+                    me.fiche = r;
+                    me.dessiner(me.dernier, me.dernierEnCours);
+                }
+            }
+        });
+    },
+
+    /* Carte de la fiche client : identite et assurances, puis la partie clinique si le serveur l'a rendue. */
+    dessinerFiche: function () {
+        var f = this.fiche, enc = Ext.String.htmlEncode;
+        if (!f || !f.client) {
+            return '';
+        }
+        var c = f.client;
+        var champ = function (libelle, valeur) {
+            return '<div class="sc-champ"><span class="sc-lib">' + libelle + '</span><span class="sc-val">' + (valeur || '—')
+                    + '</span></div>';
+        };
+        var naissance = c.naissance ? Ext.Date.format(Ext.Date.parse(c.naissance, 'Y-m-d'), 'd/m/Y') : '';
+        var age = c.age === null || c.age === undefined ? '' : c.age + ' ans';
+        var assurances = Ext.Array.map(f.assurances || [], function (a) {
+            return enc(a.nom) + (a.taux !== null && a.taux !== undefined ? ' <b>' + a.taux + ' %</b>' : '');
+        }).join(' · ');
+        var html = '<div class="sc-fiche"><div class="sc-ligne">'
+                + champ('Téléphone', enc(c.telephone || ''))
+                + champ('Naissance · âge', enc([naissance, age].filter(Boolean).join(' · ')))
+                + champ('Type', enc(c.type || ''))
+                + champ('Assurance', assurances) + '</div>';
+        if (f.clinique) {
+            var terrains = Ext.Array.map(f.terrains || [], function (t) {
+                return '<span class="sc-puce' + (t.categorie === 'allergie' ? ' sc-puce-allergie' : '') + '">' + enc(t.libelle)
+                        + '</span>';
+            }).join('');
+            var mesures = Ext.Array.map(f.parametres || [], function (m) {
+                var v = Ext.util.Format.number(m.valeur, m.decimales ? '0.' + Ext.String.repeat('0', m.decimales) : '0')
+                        + (m.valeur2 !== null && m.valeur2 !== undefined ? '/' + Ext.util.Format.number(m.valeur2, '0') : '');
+                var etat = m.etat === 'bas' || m.etat === 'haut' ? ' sc-mesure-alerte' : '';
+                return '<span class="sc-mesure' + etat + '" title="' + enc((m.analyse || '') + (m.date ? ' — ' + m.date : ''))
+                        + '">' + enc(m.libelle) + ' <b>' + v + '</b> ' + enc(m.unite || '') + '</span>';
+            });
+            if (f.imc) {
+                mesures.push('<span class="sc-mesure' + (f.imc.etat === 'bas' || f.imc.etat === 'haut' ? ' sc-mesure-alerte' : '')
+                        + '">IMC <b>' + Ext.util.Format.number(f.imc.valeur, '0.0') + '</b> · ' + enc(f.imc.analyse || '') + '</span>');
+            }
+            html += '<div class="sc-ligne sc-clinique">'
+                    + champ('Terrains', terrains)
+                    + champ('Allergies', f.allergies ? '<span class="sc-allergies">' + enc(f.allergies) + '</span>' : '')
+                    + champ('Derniers paramètres', mesures.join(''))
+                    + '</div>';
+        }
+        return html + '</div>';
+    },
+
     dessiner: function (r, enCours) {
         var me = this;
+        me.dernier = r;
+        me.dernierEnCours = enCours;
         var enc = Ext.String.htmlEncode;
         var nombre = function (v) {
             return Ext.util.Format.number(v || 0, '0,000');
@@ -150,6 +221,7 @@ Ext.define('testextjs.view.vente.SuiviConsoFenetre', {
         me.update('<div class="vc">'
                 + '<div class="vc-tete"><div><div class="vc-sur">Suivi de consommation</div><div class="vc-nom">' + nom + '</div></div>'
                 + '<button type="button" class="vc-croix" data-action="fermer" aria-label="Fermer">&times;</button></div>'
+                + me.dessinerFiche()
                 + '<div class="vc-periodes">' + periodes + '</div>'
                 + '<div class="vc-corps">' + corps + '</div>'
                 + '<div class="vc-pied"><span>Lecture seule : achats du client et stock de votre emplacement.</span>'

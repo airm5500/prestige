@@ -82,6 +82,14 @@ let venteId = null;
     ok('Fenêtre modale au nom du client', fen.modal && fen.nom.indexOf(client[1]) >= 0, JSON.stringify(fen));
     ok('Dessin propre : ni barre de titre ni bouton ExtJS standard', fen.boutonsExt === 0 && !fen.barreExt, JSON.stringify(fen));
     ok('Tuiles et tableau des achats (12 mois par défaut)', fen.tuiles.length === 4 && fen.lignes > 0 && fen.periode === '12 mois', JSON.stringify(fen));
+    /* Fiche du client en tete (maquette validee le 30/09) : identite pour tous, clinique selon le droit ordonnances. */
+    await p.waitForFunction(() => !!Ext.ComponentQuery.query('suiviconsofenetre')[0].getEl().dom.querySelector('.sc-fiche'), null, { timeout: 15000 });
+    const fiche = await p.evaluate(async (id) => { const d = Ext.ComponentQuery.query('suiviconsofenetre')[0].getEl().dom;
+      const api = JSON.parse(await (await fetch('../api/v1/vente-suivi-conso/client/' + id + '/fiche')).text());
+      return { libelles: [...d.querySelectorAll('.sc-fiche .sc-lib')].map((x) => x.textContent), clinique: !!d.querySelector('.sc-clinique'),
+        apiClinique: api.clinique, apiTerrains: api.hasOwnProperty('terrains'), type: api.client && api.client.type }; }, client[0]);
+    ok('Fiche client en tête : téléphone, naissance · âge, type, assurance', ['Téléphone', 'Naissance · âge', 'Type', 'Assurance'].every((l) => fiche.libelles.indexOf(l) >= 0), JSON.stringify(fiche));
+    ok('Partie clinique affichée seulement avec le droit ordonnances (le serveur ne la rend pas sinon)', fiche.clinique === fiche.apiClinique && fiche.apiTerrains === fiche.apiClinique, JSON.stringify(fiche));
     await p.click('.vc-puce[data-mois="3"]');
     await p.waitForFunction(() => { const d = Ext.ComponentQuery.query('suiviconsofenetre')[0].getEl().dom; return (d.querySelector('.vc-puce-active') || {}).textContent === '3 mois' && d.querySelector('.vc-tuiles, .vc-vide'); }, null, { timeout: 20000 });
     ok('La puce « 3 mois » recharge la période', true);
