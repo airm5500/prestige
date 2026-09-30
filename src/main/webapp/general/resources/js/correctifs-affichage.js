@@ -818,7 +818,9 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot 1
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
-    'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier'
+    'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
+    // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse
+    'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager'
 ];
 
 /**
@@ -843,7 +845,8 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/duplicate|copy|copie/i, 'act-dupliquer'],
     [/application_go|arrow|go\.png|transform/i, 'act-transformer'],
     [/folder_wrench|wrench|cog|config/i, 'act-reglage'],
-    [/detail|view|eye|loupe|search|zoom|information|info/i, 'act-voir']
+    [/book\.png|valid|accept|tick|check/i, 'act-valider'],
+    [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir']
 ];
 
 /**
@@ -893,8 +896,9 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
     Ext.each(ecran.isXType('tabpanel') ? [ecran].concat(ecran.query('tabpanel')) : ecran.query('tabpanel'), function (onglets) {
         onglets.addCls('ordo-onglets');
     });
-    Ext.each(ecran.query('gridpanel'), function (grille) {
-        grille.addCls('ordo-carte theme-grille');
+    // L'ecran peut etre lui-meme la grille (articles vendus, mouvements de caisse).
+    Ext.each(ecran.isXType('gridpanel') ? [ecran].concat(ecran.query('gridpanel')) : ecran.query('gridpanel'), function (grille) {
+        grille.addCls(grille === ecran ? 'theme-grille' : 'ordo-carte theme-grille');
         if (grille.ownerCt === ecran && grille.margin === undefined) {
             grille.margin = '0 10 10 10';
         }

@@ -71,7 +71,10 @@ const ECRANS = [
     /* Lots suivants : sur des donnees existantes, comparaison AVANT / APRES habillage. L'ecran est ouvert une fois sans
        habillage (liste videe le temps de l'ouverture), puis une fois habille ; sur la meme ligne, chaque icone doit
        emettre le meme evenement (capture et annule : aucune action n'est executee). */
-    const COMPARES = ['ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier'];
+    const COMPARES = ['ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
+      'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager'];
+    /* Posos s'ouvre vide (une analyse se lance a la demande) : pas de ligne a comparer, seul l'habillage est verifie. */
+    const SANS_LIGNES = ['pososmanager'];
     const releve = (x, habille) => p.evaluate(async (a) => {
       const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice();
       if (!a.habille) { liste.length = 0; }
@@ -80,14 +83,14 @@ const ECRANS = [
         testextjs.app.getController('App').onLoadNewComponent(a.x, a.x, '');
       } finally { liste.length = 0; garde.forEach((y) => liste.push(y)); }
       const attendre = async (f, ms) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) { return true; } await new Promise((r) => setTimeout(r, 200)); } return false; };
-      await attendre(() => { const c = Ext.ComponentQuery.query(a.x)[0]; return c && c.down('gridpanel') && c.down('gridpanel').rendered; }, 30000);
+      await attendre(() => { const c = Ext.ComponentQuery.query(a.x)[0]; const gg = c && (c.isXType('gridpanel') ? c : c.down('gridpanel')); return gg && gg.rendered; }, 30000);
       const c = Ext.ComponentQuery.query(a.x)[0];
-      const g = c.down('gridpanel');
+      const g = c.isXType('gridpanel') ? c : c.down('gridpanel');
       /* periode large pour avoir des lignes, puis la recherche de l'ecran */
-      const d = c.down('#dtStart'); if (d) { d.setValue(new Date(2020, 0, 1)); }
+      const d = c.down('#dtStart') || c.down('datefield'); if (d) { d.setValue(new Date(2020, 0, 1)); }
       const bt = c.down('#rechercher') || c.query('button').find((b) => /recherch/i.test(b.text || ''));
       if (bt) { if (bt.handler) { Ext.callback(bt.handler, bt.scope || bt, [bt]); } else { bt.fireEvent('click', bt); } } else { g.getStore().load(); }
-      await attendre(() => !g.getStore().isLoading() && g.getStore().getCount() > 0, 30000);
+      await attendre(() => !g.getStore().isLoading() && g.getStore().getCount() > 0, a.x === 'pososmanager' ? 2000 : 90000);
       await new Promise((r) => setTimeout(r, 800));
       const n = g.getView().getNode(0);
       const barres = c.query('toolbar').filter((t) => t.hasCls('mv-barre'));
@@ -95,10 +98,23 @@ const ECRANS = [
         images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')).length : -1,
         traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length : -1,
         deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)),
-        itemIds: c.query('[itemId]').map((x) => x.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','), evenements: [] };
+        barresPages: c.query('pagingtoolbar').length, icones: [], itemIds: c.query('[itemId]').map((x) => x.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','), evenements: [] };
       if (n) {
+        /* Chaque icone visible de la ligne : son info-bulle et sa fonction (signature du code), puis, si elle passe par un
+           evenement (fireEvent, ou clic de colonne sans fonction propre), l'evenement emis, capture et annule. Une icone
+           qui appelle directement son action (reimpression...) n'est PAS cliquee : sa fonction identique suffit. */
         g.query('actioncolumn').forEach((col) => Ext.util.Observable.capture(col, (nom, v, ri, ci, item) => { sortie.evenements.push(nom + (item && item.action ? ':' + item.action : '')); return false; }));
-        for (const i of [...n.querySelectorAll('img.x-action-col-icon')].filter((x) => x.offsetParent !== null)) { i.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); }
+        for (const col of g.query('actioncolumn')) {
+          const cell = n.querySelector('.x-grid-cell-' + col.id);
+          for (let i = 0; cell && i < (col.items || []).length; i++) {
+            const el = cell.querySelector('.x-action-col-' + i);
+            if (!el || el.offsetParent === null || el.classList.contains('x-hide-display')) { continue; }
+            const item = col.items[i];
+            const code = item.handler ? String(item.handler).replace(/\s+/g, ' ') : '';
+            sortie.icones.push((item.tooltip || item.altText || '') + ' | ' + code.slice(0, 160));
+            if (!item.handler || /fireEvent/.test(code)) { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); }
+          }
+        }
         g.query('actioncolumn').forEach((col) => Ext.util.Observable.releaseCapture(col));
       }
       return sortie;
@@ -112,9 +128,10 @@ const ECRANS = [
       const avant = await releve(x, false);
       const apres = await releve(x, true);
       await p.screenshot({ path: '/home/user/prestige/captures/style-' + x + '.png' });
-      ok(x + ' : habillé (fond, barres, tableau, pagination numérotée), sans débordement', !avant.theme && apres.theme && apres.barres >= 1 && apres.pages && !apres.deborde, JSON.stringify({ avant: [avant.theme, avant.barres], apres }));
-      ok(x + ' : icônes au trait, autant qu\'avant', apres.lignes > 0 && apres.images === 0 && apres.traits === avant.images, 'avant ' + avant.images + ' images, après ' + apres.traits + ' traits, ' + apres.images + ' images, lignes ' + apres.lignes);
-      ok(x + ' : chaque icône émet le même événement qu\'avant', avant.evenements.length >= avant.images && JSON.stringify(apres.evenements) === JSON.stringify(avant.evenements), 'avant ' + avant.evenements.join(',') + ' / après ' + apres.evenements.join(','));
+      ok(x + ' : habillé (fond, barres, tableau, pagination numérotée), sans débordement', !avant.theme && apres.theme && apres.barres >= 1 && (apres.pages || apres.barresPages === 0) && !apres.deborde, JSON.stringify({ avant: [avant.theme, avant.barres], apres }));
+      ok(x + ' : icônes au trait, autant qu\'avant', (apres.lignes > 0 ? apres.images === 0 && apres.traits === avant.images : SANS_LIGNES.indexOf(x) >= 0), 'avant ' + avant.images + ' images, après ' + apres.traits + ' traits, ' + apres.images + ' images, lignes ' + apres.lignes);
+      ok(x + ' : chaque icône garde sa fonction et son info-bulle, et émet le même événement qu\'avant', JSON.stringify(apres.icones) === JSON.stringify(avant.icones) && (avant.icones.length === avant.images || (avant.images === -1 && avant.icones.length === 0))
+        && JSON.stringify(apres.evenements) === JSON.stringify(avant.evenements), 'icones ' + JSON.stringify(avant.icones).slice(0, 300) + ' / evenements avant ' + avant.evenements.join(',') + ' après ' + apres.evenements.join(','));
       ok(x + ' : mêmes composants nommés (itemId) qu\'avant', apres.itemIds === avant.itemIds, avant.itemIds === apres.itemIds ? '' : 'avant ' + avant.itemIds + ' / après ' + apres.itemIds);
     }
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
