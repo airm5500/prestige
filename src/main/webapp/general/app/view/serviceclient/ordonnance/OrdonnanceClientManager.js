@@ -1929,7 +1929,6 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             labelWidth: 24,
                             width: 150,
                             format: 'd/m/Y',
-                            plugins: [{ptype: 'raccourcisperiode', debut: 'consoDebut', declencher: 'actualiserConso'}],
                             value: new Date()
                         }, {
                             xtype: 'button',
