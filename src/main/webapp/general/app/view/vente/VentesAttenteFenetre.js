@@ -321,9 +321,9 @@ Ext.define('testextjs.view.vente.VentesAttenteFenetre', {
                 + tuile(me.pastille(p), 'type') + tuile(enc(me.heure(p)), enc(p.userFullName || '')) + '</div>'
                 + client + '<div class="va-articles">' + lignes + '</div>'
                 + '<div class="va-pied"><span class="va-aide">↑ ↓ pour changer de prévente · Entrée pour la rappeler'
-                + ' · Échap pour fermer</span><span><button type="button" class="vc-bouton vc-bouton-second"'
-                + ' data-action="fermer">Fermer</button> <button type="button" class="vc-bouton va-rappeler"'
-                + ' data-action="rappeler">Rappeler cette prévente · Entrée</button></span></div>');
+                + ' · Échap pour fermer</span><span class="va-boutons"><button type="button" class="vc-bouton vc-bouton-second"'
+                + ' data-action="fermer">Fermer</button><button type="button" class="vc-bouton va-rappeler"'
+                + ' data-action="rappeler">Rappeler cette prévente</button></span></div>');
     },
 
     rappeler: function () {

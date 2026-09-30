@@ -50,6 +50,9 @@ const crees = [];
     ok('Liste en cartes, la plus récente d\'abord ; la première est ouverte d\'office (détail et articles affichés)', f.cartes[0] === refs[1] && f.cartes.indexOf(refs[0]) > 0 && f.active === refs[1] && f.tuiles === 4 && f.lignes === 1, JSON.stringify(f));
     const actif = await p.evaluate(() => { const a = document.activeElement; return a ? a.tagName + '#' + a.id + '.' + a.className : ''; });
     ok('Titre : nombre de préventes, curseur dans la recherche', /prévente/.test(f.titre) && f.focus, f.titre + ' ' + actif);
+    const pied = await p.evaluate(() => { const d = Ext.ComponentQuery.query('ventesattentefenetre')[0].getEl().dom; const f = d.querySelector('[data-action=fermer].vc-bouton-second'), r = d.querySelector('[data-action=rappeler]');
+      return { memeLigne: Math.abs(f.getBoundingClientRect().top - r.getBoundingClientRect().top) < 3, texte: r.textContent }; });
+    ok('Pied : « Fermer » et « Rappeler cette prévente » sur la même ligne, sans « Entrée » dans le bouton', pied.memeLigne && pied.texte === 'Rappeler cette prévente', JSON.stringify(pied));
     const i1 = f.cartes.indexOf(refs[0]);
     for (let i = 0; i < i1; i++) { await p.keyboard.press('ArrowDown'); await p.waitForTimeout(150); }
     await p.waitForTimeout(1200);
