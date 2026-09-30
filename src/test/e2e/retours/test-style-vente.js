@@ -72,9 +72,13 @@ const ECRANS = [
        habillage (liste videe le temps de l'ouverture), puis une fois habille ; sur la meme ligne, chaque icone doit
        emettre le meme evenement (capture et annule : aucune action n'est executee). */
     const COMPARES = ['ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
-      'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager'];
+      'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
+      'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente'];
     /* Posos s'ouvre vide (une analyse se lance a la demande) : pas de ligne a comparer, seul l'habillage est verifie. */
-    const SANS_LIGNES = ['pososmanager'];
+    const SANS_LIGNES = ['pososmanager', 'facturesubrogatoireother'];
+    /* Ventes ratees : registre vide sur le banc, une ligne de test est posee (retiree en fin de test). */
+    exec("INSERT INTO t_vente_ratee (lg_VENTE_RATEE_ID, str_DESIGNATION, str_DESIGNATION_NORM, int_QUANTITE, str_MOTIF, dt_CREATED, str_STATUT)"
+      + " VALUES ('e2e-style-vr', 'ZZ PRODUIT STYLE E2E', 'zz produit style e2e', 1, 'Rupture', NOW(), 'enable')");
     const releve = (x, habille) => p.evaluate(async (a) => {
       const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice();
       if (!a.habille) { liste.length = 0; }
@@ -98,7 +102,11 @@ const ECRANS = [
         images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')).length : -1,
         traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length : -1,
         deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)),
-        barresPages: c.query('pagingtoolbar').length, icones: [], itemIds: c.query('[itemId]').map((x) => x.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','), evenements: [] };
+        barresPages: c.query('pagingtoolbar').length, icones: [],
+        /* configuration des icones, meme sans ligne : info-bulle, fonction, masquage conditionnel ; et dessin au trait */
+        config: g.query('actioncolumn').map((col) => (col.items || []).map((it) => (it.tooltip || '') + ' | ' + (it.handler ? String(it.handler).replace(/\s+/g, ' ').slice(0, 160) : '') + ' | ' + (it.getClass ? 'getClass' : '')).join(' / ')),
+        nonTrait: [].concat(...g.query('actioncolumn').map((col) => (col.items || []).filter((it) => (it.icon || it.iconCls) && !/act-ico/.test(String(it.iconCls || '')) && !(it.getClass && /trait/.test(String(it.getClass)))).map((it) => (it.tooltip || '') + ' ' + (it.icon || it.iconCls)))),
+        itemIds: c.query('[itemId]').map((x) => x.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','), evenements: [] };
       if (n) {
         /* Chaque icone visible de la ligne : son info-bulle et sa fonction (signature du code), puis, si elle passe par un
            evenement (fireEvent, ou clic de colonne sans fonction propre), l'evenement emis, capture et annule. Une icone
@@ -112,7 +120,7 @@ const ECRANS = [
             const item = col.items[i];
             const code = item.handler ? String(item.handler).replace(/\s+/g, ' ') : '';
             sortie.icones.push((item.tooltip || item.altText || '') + ' | ' + code.slice(0, 160));
-            if (!item.handler || /fireEvent/.test(code)) { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); }
+            if (!item.handler || /this\.fireEvent/.test(code)) { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); }
           }
         }
         g.query('actioncolumn').forEach((col) => Ext.util.Observable.releaseCapture(col));
@@ -129,6 +137,7 @@ const ECRANS = [
       const apres = await releve(x, true);
       await p.screenshot({ path: '/home/user/prestige/captures/style-' + x + '.png' });
       ok(x + ' : habillé (fond, barres, tableau, pagination numérotée), sans débordement', !avant.theme && apres.theme && apres.barres >= 1 && (apres.pages || apres.barresPages === 0) && !apres.deborde, JSON.stringify({ avant: [avant.theme, avant.barres], apres }));
+      ok(x + ' : configuration des icônes identique (fonctions, info-bulles), toutes au trait', JSON.stringify(apres.config) === JSON.stringify(avant.config) && apres.nonTrait.length === 0, 'non au trait : ' + JSON.stringify(apres.nonTrait) + ' ; ' + JSON.stringify(avant.config).slice(0, 200));
       ok(x + ' : icônes au trait, autant qu\'avant', (apres.lignes > 0 ? apres.images === 0 && apres.traits === avant.images : SANS_LIGNES.indexOf(x) >= 0), 'avant ' + avant.images + ' images, après ' + apres.traits + ' traits, ' + apres.images + ' images, lignes ' + apres.lignes);
       ok(x + ' : chaque icône garde sa fonction et son info-bulle, et émet le même événement qu\'avant', JSON.stringify(apres.icones) === JSON.stringify(avant.icones) && (avant.icones.length === avant.images || (avant.images === -1 && avant.icones.length === 0))
         && JSON.stringify(apres.evenements) === JSON.stringify(avant.evenements), 'icones ' + JSON.stringify(avant.icones).slice(0, 300) + ' / evenements avant ' + avant.evenements.join(',') + ' après ' + apres.evenements.join(','));
@@ -143,6 +152,7 @@ const ECRANS = [
       exec("UPDATE t_preenregistrement SET medecin_id=NULL WHERE lg_PREENREGISTREMENT_ID='" + ordoVente + "' AND medecin_id='e2e-style-medecin'");
     }
     exec("DELETE FROM medecin WHERE id='e2e-style-medecin'");
+    exec("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID='e2e-style-vr'");
     for (const id of crees) {
       exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + id + "'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "';");
     }

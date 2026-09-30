@@ -518,30 +518,21 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                 Ext.getCmp('summaryCmp').removeAll();
 
                 if (data?.modes?.length > 0) {
+                    /* Totaux en pastilles « libelle + montant » insecables (retour du 30/09) : un champ par mode de
+                       reglement faisait deborder les libelles longs sur le montant voisin. */
+                    const enc = Ext.String.htmlEncode;
+                    const pastille = function (libelle, montant, total) {
+                        return '<span class="mc-total' + (total ? ' mc-total-general' : '') + '"><span class="mc-total-lib">'
+                                + enc(libelle) + '</span> ' + amountformatbis(montant) + '</span>';
+                    };
                     Ext.getCmp('summaryCmp').add({
-                        xtype: 'displayfield',
+                        xtype: 'component',
                         flex: 1,
-                        fieldLabel: 'TOTAL:',
-                        labelWidth: 50,
-                        renderer: amountformatbis,
-                        fieldStyle: "color:blue;",
-                        value: data.total
+                        cls: 'mc-totaux',
+                        html: pastille('Total', data.total, true) + Ext.Array.map(data.modes, function (it) {
+                            return pastille(it.modeReglement, it.montant, false);
+                        }).join('')
                     });
-
-                    Ext.each(data.modes, function (it) {
-                        Ext.getCmp('summaryCmp').add({
-                            xtype: 'displayfield',
-                            flex: 1,
-                            fieldLabel: it.modeReglement,
-                            //  labelWidth: it.modeReglement.length + 2,
-                            renderer: amountformatbis,
-                            fieldStyle: "color:blue;",
-                            value: it.montant
-                        });
-
-                    });
-
-
                 }
 
             }

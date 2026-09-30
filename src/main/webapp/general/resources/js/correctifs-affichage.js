@@ -820,7 +820,9 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
     'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
     // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse
-    'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager'
+    'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
+    // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
+    'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente'
 ];
 
 /**
@@ -846,6 +848,8 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/application_go|arrow|go\.png|transform/i, 'act-transformer'],
     [/folder_wrench|wrench|cog|config/i, 'act-reglage'],
     [/book\.png|valid|accept|tick|check/i, 'act-valider'],
+    [/download|telecharg/i, 'act-telecharger'],
+    [/table_refresh|calendar/i, 'act-date'],
     [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir']
 ];
 
