@@ -1758,7 +1758,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                     }
                 }, {
                     /* Quantite en boites, − / + (comme la maquette) : le clic est lu par le controleur (cellclick). */
-                    text: 'QTÉ', dataIndex: 'quantite', width: 96, align: 'center', itemId: 'colQuantiteScan',
+                    text: 'QTÉ', dataIndex: 'quantite', width: 110, align: 'center', itemId: 'colQuantiteScan',
                     renderer: function (v) {
                         /* Des boutons et non des liens « # » : un lien changerait l'adresse de la page. */
                         return '<span class="ordo-qte"><button type="button" data-qte="moins" title="Une boîte de moins">−'

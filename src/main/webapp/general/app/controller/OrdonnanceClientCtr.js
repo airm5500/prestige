@@ -636,7 +636,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
         ecran.storeClients.load({
             params: {query: nom},
             callback: function () {
-                var rec = ecran.storeClients.getById(clientId);
+                var i = ecran.storeClients.findExact('lgCLIENTID', clientId);
+                var rec = i >= 0 ? ecran.storeClients.getAt(i) : null;
                 if (rec) {
                     combo.setValue(clientId);
                     me.surClientScan(combo, [rec]);

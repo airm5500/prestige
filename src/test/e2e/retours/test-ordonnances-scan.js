@@ -160,6 +160,9 @@ let serveur = null;
     confOrigine = fs.readFileSync(CONF, 'utf8');
     fs.writeFileSync(CONF, 'POSOS_API_URL=http://127.0.0.1:' + serveur.address().port + '\nPOSOS_CLIENT_ID=test\nPOSOS_CLIENT_SECRET=test\n'
       + 'POSOS_PRESCRIPTION_PATH=/v1/prescription\n');
+    /* Le patient lu EXISTE deja (client standard de test) : il doit etre choisi, pas recree. */
+    const koffi = await p.evaluate(async (n) => JSON.parse(await (await fetch('../api/v1/client/add/lambda', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strFIRSTNAME: n, strLASTNAME: 'KOFFI', strADRESSE: '0701020304', lgTYPECLIENTID: '6', consentSms: 'true' }) })).text()), NOM);
     await p.evaluate(() => testextjs.app.getController('OrdonnanceClientCtr').ouvrirScan());
     await p.waitForTimeout(1500);
     const f2 = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueScan #fichierScan')[0].fileInputEl.dom.id);
@@ -169,11 +172,13 @@ let serveur = null;
     scans.push(q('SELECT lg_SCAN_ID FROM t_ordonnance_scan ORDER BY dt_CREATED DESC LIMIT 1'));
     const lu = await p.evaluate(() => { const e = Ext.ComponentQuery.query('ordonnanceclient')[0]; const v = e.down('#vueScan');
       return { lignes: e.storeScanLignes.getRange().map((r) => ({ lu: r.get('texteLu'), art: !!r.get('articleId'), lib: r.get('libelle'), poso: r.get('posologie'), q: r.get('quantite'), doute: r.get('aVerifier') })),
+        client: v.down('#scanClient').getValue(), nouveauCache: v.down('#nouveauScanClient').hidden, info: v.down('#infoScanClient').getEl().dom.textContent,
         nom: v.down('#scNom').getValue(), prenoms: v.down('#scPrenoms').getValue(), medecin: v.down('#scanMedecin').getValue(), patientLu: v.down('#patientLu').getEl().dom.textContent,
         orange: document.querySelectorAll('.ordo-scan-doute').length, message: v.down('#messageScan').getEl().dom.textContent, lire: !v.down('#lireScan').isDisabled() }; });
     ok('Lecture automatique : produit lu rapproché du catalogue, posologie et quantité reprises', lu.lignes[0].art && lu.lignes[0].lib.indexOf(mot) === 0 && lu.lignes[0].poso === '2 fois par jour' && lu.lignes[0].q === 3 && !lu.lignes[0].doute, JSON.stringify(lu.lignes[0]));
     ok('Ligne illisible : gardée telle que lue, à vérifier (en orange)', lu.lignes[1].doute && !lu.lignes[1].art && lu.orange === 1 && /1 à vérifier/.test(lu.message), JSON.stringify(lu.lignes[1]) + ' ' + lu.message);
-    ok('Patient lu (nouveau client standard pré-rempli), prescripteur retrouvé', lu.nom === NOM && lu.prenoms === 'KOFFI' && /7 ans/.test(lu.patientLu) && lu.medecin === medecin[0] && lu.lire, JSON.stringify(lu));
+    ok('Patient lu et déjà client : il est choisi (type et téléphone affichés), pas de nouveau client ; prescripteur retrouvé',
+      lu.client === koffi.data.lgCLIENTID && lu.nouveauCache && /Standard/.test(lu.info) && /0701020304/.test(lu.info) && /7 ans/.test(lu.patientLu) && lu.medecin === medecin[0] && lu.lire, JSON.stringify(lu));
     const appel = recu.find((r) => r.url === '/v1/prescription');
     ok('Posos a reçu le document, avec le jeton', appel && appel.taille > 1000 && appel.auth === 'Bearer jeton-test', JSON.stringify(recu.map((r) => r.url)));
     ok('La lecture est gardée en base (pas de nouvel appel à la réouverture)', q("SELECT str_ETAT_LECTURE FROM t_ordonnance_scan WHERE lg_SCAN_ID='" + scans[1] + "'") === 'lu');
