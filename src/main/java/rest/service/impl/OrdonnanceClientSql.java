@@ -36,9 +36,20 @@ public final class OrdonnanceClientSql {
          * effacees, mais elles n'ont pas a polluer la lecture courante de l'historique.
          */
         public final boolean inclureAnnulees;
+        /**
+         * Seulement les ordonnances avec un RESTE A DELIVRER (retour du 30/09) : au moins une ligne dont le service est
+         * renseigne et inferieur a la prescription. Une ligne « a renseigner » n'est pas un reste : on ne sait pas.
+         */
+        public final boolean resteSeulement;
 
         public Criteres(String recherche, String clientId, String typeClientId, String medecinId, LocalDate debut,
                 LocalDate fin, boolean inclureAnnulees) {
+            this(recherche, clientId, typeClientId, medecinId, debut, fin, inclureAnnulees, false);
+        }
+
+        public Criteres(String recherche, String clientId, String typeClientId, String medecinId, LocalDate debut,
+                LocalDate fin, boolean inclureAnnulees, boolean resteSeulement) {
+            this.resteSeulement = resteSeulement;
             this.recherche = recherche;
             this.clientId = clientId;
             this.typeClientId = typeClientId;
@@ -48,6 +59,9 @@ public final class OrdonnanceClientSql {
             this.inclureAnnulees = inclureAnnulees;
         }
     }
+
+    /** Une ligne (alias d) encore due : service RENSEIGNE et inferieur a la prescription. */
+    static final String LIGNE_EN_RESTE = "d.int_QTE_SERVIE IS NOT NULL AND d.int_QTE_SERVIE < d.int_QUANTITE";
 
     private static final String COLONNES = "SELECT o.lg_ORDONNANCE_ID AS id, o.str_NUMERO AS numero,"
             + " o.dt_ORDONNANCE AS dateOrdonnance, o.str_STATUT AS statut,"
@@ -68,6 +82,11 @@ public final class OrdonnanceClientSql {
             + "   AND d.int_QTE_SERVIE >= d.int_QUANTITE) AS nbServies,"
             + " (SELECT COALESCE(SUM(d.int_QTE_SERVIE), 0) FROM t_ordonnance_client_detail d"
             + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID) AS qteServie,"
+            /* Reste a delivrer (30/09) : lignes servies en partie ou non servies, et la quantite encore due. */
+            + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+            + "   AND " + LIGNE_EN_RESTE + ") AS nbReste,"
+            + " (SELECT COALESCE(SUM(d.int_QUANTITE - d.int_QTE_SERVIE), 0) FROM t_ordonnance_client_detail d"
+            + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID AND " + LIGNE_EN_RESTE + ") AS qteReste,"
             + " o.int_AGE_PATIENT AS agePatient, o.str_SEXE_PATIENT AS sexePatient, o.bool_GROSSESSE AS grossesse,"
             + " o.bool_ALLAITEMENT AS allaitement, o.bool_INSUF_RENALE AS insuffisanceRenale,"
             + " o.bool_INSUF_HEPATIQUE AS insuffisanceHepatique," + " (SELECT COUNT(*) FROM t_ordonnance_client_piece p"
@@ -117,6 +136,11 @@ public final class OrdonnanceClientSql {
         if (c.fin != null) {
             sb.append(" AND o.dt_ORDONNANCE <= :fin ");
         }
+        if (c.resteSeulement) {
+            /* Une ordonnance annulee n'a plus rien a delivrer. */
+            sb.append(" AND o.str_STATUT <> 'annulee' AND EXISTS (SELECT 1 FROM t_ordonnance_client_detail d"
+                    + " WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID AND " + LIGNE_EN_RESTE + ") ");
+        }
         if (StringUtils.isNotBlank(c.recherche)) {
             /*
              * On cherche dans ce que l'operateur a sous les yeux : le numero, le nom du client, celui du prescripteur.
@@ -137,6 +161,22 @@ public final class OrdonnanceClientSql {
 
     public static String compte(Criteres c) {
         return "SELECT COUNT(*) " + JOINTURES + conditions(c);
+    }
+
+    /**
+     * Les ordonnances d'un client qui ont un reste a delivrer (30/09), la plus ancienne d'abord : c'est elle qu'on sert
+     * en premier. Une ordonnance peut etre exclue (celle ouverte dans la fiche).
+     */
+    public static String resteClient(boolean sauf) {
+        return "SELECT o.lg_ORDONNANCE_ID AS id, o.str_NUMERO AS numero, o.dt_ORDONNANCE AS dateOrdonnance,"
+                + " (SELECT COUNT(*) FROM t_ordonnance_client_detail d WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+                + "   AND " + LIGNE_EN_RESTE + ") AS nbReste,"
+                + " (SELECT COALESCE(SUM(d.int_QUANTITE - d.int_QTE_SERVIE), 0) FROM t_ordonnance_client_detail d"
+                + "   WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID AND " + LIGNE_EN_RESTE + ") AS qteReste"
+                + " FROM t_ordonnance_client o WHERE o.lg_CLIENT_ID = :client AND o.str_STATUT <> 'annulee'"
+                + (sauf ? " AND o.lg_ORDONNANCE_ID <> :sauf" : "")
+                + " AND EXISTS (SELECT 1 FROM t_ordonnance_client_detail d WHERE d.lg_ORDONNANCE_ID = o.lg_ORDONNANCE_ID"
+                + " AND " + LIGNE_EN_RESTE + ") ORDER BY o.dt_ORDONNANCE ASC, o.dt_CREATED ASC";
     }
 
     /** Les produits d'une ordonnance, dans l'ordre ou ils ont ete saisis. */

@@ -116,6 +116,7 @@ public class OrdonnanceClientRessource {
             @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("annulees") @DefaultValue("false") boolean annulees,
+            @QueryParam("reste") @DefaultValue("false") boolean reste,
             @QueryParam("start") @DefaultValue("0") int start, @QueryParam("limit") @DefaultValue("50") int limit) {
         if (utilisateur() == null) {
             return deconnecte();
@@ -125,11 +126,9 @@ public class OrdonnanceClientRessource {
         }
         /* Preventes cloturees a la caisse depuis la derniere lecture : leur service est reporte d'abord (30/09). */
         preventeService.reporterServices(null);
-        return Response.ok()
-                .entity(ordonnanceService
-                        .liste(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees), start, limit)
-                        .toString())
-                .build();
+        return Response.ok().entity(ordonnanceService
+                .liste(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste), start, limit)
+                .toString()).build();
     }
 
     /** Une ordonnance et ses produits. */
@@ -442,6 +441,7 @@ public class OrdonnanceClientRessource {
             @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
             @QueryParam("annulees") @DefaultValue("false") boolean annulees,
+            @QueryParam("reste") @DefaultValue("false") boolean reste,
             @QueryParam("clientLibelle") String clientLibelle, @QueryParam("typeLibelle") String typeLibelle,
             @QueryParam("medecinLibelle") String medecinLibelle) {
         TUser operateur = utilisateur();
@@ -454,7 +454,7 @@ public class OrdonnanceClientRessource {
         try {
             preventeService.reporterServices(null);
             byte[] pdf = ordonnanceService.pdfHistorique(operateur,
-                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees), clientLibelle,
+                    criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste), clientLibelle,
                     typeLibelle, medecinLibelle);
             return Response.ok(pdf).type("application/pdf")
                     .header("Content-Disposition", "inline; filename=\"ordonnances_historique.pdf\"").build();
@@ -471,7 +471,8 @@ public class OrdonnanceClientRessource {
     public Response historiqueExcel(@QueryParam("query") String query, @QueryParam("clientId") String clientId,
             @QueryParam("typeClientId") String typeClientId, @QueryParam("medecinId") String medecinId,
             @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
-            @QueryParam("annulees") @DefaultValue("false") boolean annulees) {
+            @QueryParam("annulees") @DefaultValue("false") boolean annulees,
+            @QueryParam("reste") @DefaultValue("false") boolean reste) {
         if (utilisateur() == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -481,7 +482,7 @@ public class OrdonnanceClientRessource {
         try {
             preventeService.reporterServices(null);
             byte[] classeur = ordonnanceService
-                    .excelHistorique(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees));
+                    .excelHistorique(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, reste));
             return Response.ok(classeur).type("application/vnd.ms-excel")
                     .header("Content-Disposition", "attachment; filename=\"ordonnances_clients.xls\"").build();
         } catch (Exception e) {
@@ -558,6 +559,21 @@ public class OrdonnanceClientRessource {
         }
     }
 
+    /** Reste a delivrer d'un client (30/09) : ses ordonnances encore dues, la plus ancienne d'abord. */
+    @GET
+    @Path("client/{clientId}/reste")
+    public Response resteClient(@PathParam("clientId") String clientId, @QueryParam("sauf") String sauf) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        /* Une prevente cloturee depuis la derniere lecture change le reste : on la reporte d'abord. */
+        preventeService.reporterServices(null);
+        return Response.ok().entity(ordonnanceService.resteClient(clientId, sauf).toString()).build();
+    }
+
     /**
      * Suivi de consommation d'un client, vu depuis ses ordonnances : le service de la gestion des clients, plus le
      * stock disponible de chaque produit sur l'emplacement de l'operateur.
@@ -607,8 +623,13 @@ public class OrdonnanceClientRessource {
 
     private static OrdonnanceClientSql.Criteres criteres(String query, String clientId, String typeClientId,
             String medecinId, String debut, String fin, boolean annulees) {
+        return criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees, false);
+    }
+
+    private static OrdonnanceClientSql.Criteres criteres(String query, String clientId, String typeClientId,
+            String medecinId, String debut, String fin, boolean annulees, boolean reste) {
         LocalDate d = OrdonnanceClientSaisie.date(debut);
         LocalDate f = OrdonnanceClientSaisie.date(fin);
-        return new OrdonnanceClientSql.Criteres(query, clientId, typeClientId, medecinId, d, f, annulees);
+        return new OrdonnanceClientSql.Criteres(query, clientId, typeClientId, medecinId, d, f, annulees, reste);
     }
 }

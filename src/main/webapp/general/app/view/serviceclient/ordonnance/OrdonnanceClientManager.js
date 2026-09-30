@@ -63,7 +63,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                 {name: 'modifiePar', type: 'string'},
                 {name: 'etatService', type: 'string'},
                 {name: 'nbRenseignees', type: 'int'},
-                {name: 'nbServies', type: 'int'}
+                {name: 'nbServies', type: 'int'},
+                /* Reste a delivrer (30/09) : lignes encore dues et quantite encore due. */
+                {name: 'nbReste', type: 'int'},
+                {name: 'qteReste', type: 'int'}
             ],
             pageSize: 50,
             autoLoad: false,
@@ -359,6 +362,12 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             itemId: 'annulees',
                             boxLabel: 'Voir aussi les ordonnances annulées'
                         }, {
+                            /* Reste a delivrer (30/09) : les ordonnances servies en partie, encore dues. */
+                            xtype: 'checkbox',
+                            itemId: 'reste',
+                            margin: '0 6 0 12',
+                            boxLabel: 'Avec un reste à délivrer'
+                        }, {
                             xtype: 'button',
                             itemId: 'rechercher',
                             text: 'Rechercher',
@@ -421,6 +430,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         meta.tdAttr = 'data-qtip="' + rec.get('nbServies') + ' ligne(s) servie(s) en entier sur '
                                 + rec.get('nbProduits') + ' - ' + rec.get('nbRenseignees') + ' renseignée(s)"';
                         return me.badgeService(v);
+                    }},
+                {text: 'RESTE', dataIndex: 'qteReste', width: 100, align: 'center', itemId: 'colReste',
+                    renderer: function (v, meta, rec) {
+                        if (rec.get('statut') === 'annulee' || !v) {
+                            return '';
+                        }
+                        meta.tdAttr = 'data-qtip="' + rec.get('nbReste') + ' ligne(s) servie(s) en partie ou non servie(s)"';
+                        return '<span class="ordo-etat ordo-etat-reste">' + v + ' à servir</span>';
                     }},
                 {
                     /*
@@ -620,6 +637,13 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             cls: 'ordo-btn',
                             tooltip: 'Achats, fréquence et stock des produits de ce client'
                         }]
+                }, {
+                    /* Les AUTRES ordonnances du client encore dues (30/09), avec un lien pour les voir. */
+                    xtype: 'component',
+                    itemId: 'resteClient',
+                    margin: '6 0 0 0',
+                    hidden: true,
+                    html: ''
                 }, {
                     xtype: 'component',
                     itemId: 'contexteClinique',
@@ -998,6 +1022,17 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                         }
                         var couleur = v >= rec.get('quantite') ? '#17987e' : (v > 0 ? '#e67e22' : '#c0392b');
                         return '<span style="color:' + couleur + ';font-weight:bold">' + v + '</span>';
+                    }},
+                {
+                    /* Reste a delivrer de la ligne (30/09) : seulement quand le service est renseigne. */
+                    text: 'RESTE', dataIndex: 'qteServie', width: 70, align: 'right', itemId: 'colResteLigne',
+                    sortable: false,
+                    renderer: function (v, meta, rec) {
+                        if (v === null || v === undefined || v === '') {
+                            return '';
+                        }
+                        var reste = (rec.get('quantite') || 0) - v;
+                        return reste > 0 ? '<span style="color:#e67e22;font-weight:bold">' + reste + '</span>' : '';
                     }},
                 {
                     /* Equivalents du produit de la ligne (23/09) : memes DCI, avec stock et prix. */

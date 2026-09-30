@@ -44,6 +44,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             'ordonnanceclient #barreCriteres combobox[itemId=client]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres combobox[itemId=medecin]': {select: me.rechercher},
             'ordonnanceclient #barreCriteres checkbox[itemId=annulees]': {change: me.rechercher},
+            'ordonnanceclient #barreCriteres checkbox[itemId=reste]': {change: me.rechercher},
             'ordonnanceclient #grilleOrdonnances': {
                 /* Les icones d'action de chaque ligne (22/09) remontent toutes par cet evenement. */
                 actionordonnance: me.surAction,
@@ -104,6 +105,10 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     surAffichage: function (ecran) {
         var me = this;
         me.bullesLongues(ecran);
+        var reste = ecran.down('#vueFiche #resteClient');
+        if (reste && reste.getEl()) {
+            reste.getEl().on('click', me.voirResteClient, me, {delegate: 'a.ordo-lien-reste'});
+        }
         ecran.storeTypesClient.load();
         ecran.storeMedecins.load();
         me.chargerDroits();
@@ -242,7 +247,8 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             medecinId: lire('#barreCriteres #medecin') || '',
             dtStart: jour('#barreCriteres #dtStart'),
             dtEnd: jour('#barreCriteres #dtEnd'),
-            annulees: lire('#barreCriteres #annulees') === true
+            annulees: lire('#barreCriteres #annulees') === true,
+            reste: lire('#barreCriteres #reste') === true
         };
     },
 
@@ -267,10 +273,14 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 c.setValue(null);
             }
         });
-        var annulees = ecran.down('#barreCriteres #annulees');
-        if (annulees) {
-            annulees.setValue(false);
-        }
+        Ext.each(['#annulees', '#reste'], function (s) {
+            var c = ecran.down('#barreCriteres ' + s);
+            if (c) {
+                c.suspendEvents(false);
+                c.setValue(false);
+                c.resumeEvents();
+            }
+        });
         me.rechercher();
     },
 
@@ -316,6 +326,11 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
 
     retourHistorique: function () {
         this.montrer(0);
+        var filtre = this.filtreApresRetour;
+        this.filtreApresRetour = null;
+        if (filtre) {
+            this.poserFiltreReste(filtre);
+        }
         this.rechercher();
     },
 
@@ -429,6 +444,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
             recherche.clearValue();
         }
         this.afficherTypeClient('');
+        this.afficherResteClient(null);
         /* Les alertes d'une autre ordonnance ne doivent jamais rester affichees sous celle-ci. */
         ecran.storeAlertesFiche.removeAll();
         var alertes = fiche.down('#alertesFiche');
@@ -591,6 +607,7 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
                 + (o.statut === 'annulee' ? ' <span class="ordo-titre-annulee">ANNULÉE : '
                         + Ext.String.htmlEncode(o.motifAnnulation || '') + '</span>' : ''));
         me.afficherTypeClient(o.typeClient || '');
+        me.chargerResteClient(o.clientId, o.client);
         me.ficheAnnulee = o.statut === 'annulee';
         me.lectureSeule(enLecture === true || o.statut === 'annulee');
         me.chargerPieces();
@@ -663,7 +680,85 @@ Ext.define('testextjs.controller.OrdonnanceClientCtr', {
     surChoixClient: function (combo, lignes) {
         var client = lignes && lignes.length ? lignes[0] : null;
         this.afficherTypeClient(client ? (client.get('libelleTypeClient') || client.get('typeClient')) : '');
+        this.chargerResteClient(client ? client.get('lgCLIENTID') : null, client ? client.get('nomComplet') : '');
         this.allerRechercheProduit();
+    },
+
+    /**
+     * Reste à délivrer du client (30/09) : ses AUTRES ordonnances encore dues sont signalées sous son nom, dès qu'il
+     * est choisi. On les sert à cette visite, avec un lien pour les voir dans l'historique.
+     */
+    chargerResteClient: function (clientId, nom) {
+        var me = this;
+        me.afficherResteClient(null);
+        if (!clientId) {
+            return;
+        }
+        var sauf = me.ordonnanceOuverte();
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(clientId) + '/reste'
+                    + (sauf ? '?sauf=' + encodeURIComponent(sauf) : ''),
+            success: function (reponse) {
+                var r = Ext.decode(reponse.responseText, true) || {};
+                var combo = me.getEcran() ? me.getEcran().down('#vueFiche #ficheClient') : null;
+                /* Un autre client a pu être choisi entre-temps. */
+                if (r.success === true && combo && combo.getValue() === clientId) {
+                    me.afficherResteClient(r, clientId, nom);
+                }
+            }
+        });
+    },
+
+    afficherResteClient: function (r, clientId, nom) {
+        var ecran = this.getEcran();
+        var zone = ecran ? ecran.down('#vueFiche #resteClient') : null;
+        if (!zone) {
+            return;
+        }
+        this.resteClient = r && r.total ? {clientId: clientId, nom: nom || ''} : null;
+        if (!r || !r.total) {
+            zone.update('');
+            zone.hide();
+            return;
+        }
+        var numeros = Ext.Array.map(r.data || [], function (o) {
+            return Ext.String.htmlEncode(o.numero) + ' (' + o.qteReste + ')';
+        }).join(', ');
+        zone.update('<div class="ordo-reste-client" data-qtip="' + Ext.String.htmlEncode(numeros) + '">'
+                + '<b>' + r.total + ' autre(s) ordonnance(s) avec un reste à délivrer</b> — ' + r.qteReste
+                + ' à servir. <a href="#" class="ordo-lien-reste">Voir</a></div>');
+        zone.show();
+    },
+
+    /** « Voir » : l'historique, filtré sur ce client et son reste à délivrer (après confirmation si saisie en cours). */
+    voirResteClient: function (e) {
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
+        if (!this.resteClient) {
+            return;
+        }
+        this.filtreApresRetour = this.resteClient;
+        this.demanderRetour();
+    },
+
+    poserFiltreReste: function (filtre) {
+        var ecran = this.getEcran();
+        var combo = ecran.down('#barreCriteres #client');
+        var reste = ecran.down('#barreCriteres #reste');
+        if (ecran.storeClients.findExact('lgCLIENTID', filtre.clientId) < 0) {
+            var modele = ecran.storeClients.getProxy().getModel();
+            ecran.storeClients.add(new modele({lgCLIENTID: filtre.clientId, strFIRSTNAME: filtre.nom, strLASTNAME: ''}));
+        }
+        Ext.each([combo, reste], function (c) {
+            c.suspendEvents(false);
+        });
+        combo.setValue(filtre.clientId);
+        reste.setValue(true);
+        Ext.each([combo, reste], function (c) {
+            c.resumeEvents();
+        });
     },
 
     /** Pastille du type de client sous son nom (vide si inconnu). */

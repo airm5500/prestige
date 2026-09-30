@@ -105,7 +105,8 @@ public class OrdonnanceClientService {
                 .put("medecin", StringUtils.trimToEmpty(t.get("medecin", String.class)))
                 .put("nbProduits", entier(t.get("nbProduits"))).put("nbPieces", entier(t.get("nbPieces")))
                 .put("nbRenseignees", entier(t.get("nbRenseignees"))).put("nbServies", entier(t.get("nbServies")))
-                .put("qteServie", entier(t.get("qteServie")))
+                .put("qteServie", entier(t.get("qteServie"))).put("nbReste", entier(t.get("nbReste")))
+                .put("qteReste", entier(t.get("qteReste")))
                 .put("etatService",
                         OrdonnanceClientSaisie.etatService(entier(t.get("nbProduits")), entier(t.get("nbRenseignees")),
                                 entier(t.get("nbServies")), entier(t.get("qteServie"))))
@@ -118,6 +119,36 @@ public class OrdonnanceClientService {
                 .put("creePar", StringUtils.trimToEmpty(t.get("creePar", String.class)))
                 .put("modifieLe", horodatage(t.get("modifieLe")))
                 .put("modifiePar", StringUtils.trimToEmpty(t.get("modifiePar", String.class)));
+    }
+
+    /**
+     * Reste a delivrer d'un client (retour du 30/09) : ses ordonnances non annulees ayant au moins une ligne servie en
+     * partie ou non servie, la plus ancienne d'abord. La fiche le signale des que le client est choisi.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject resteClient(String clientId, String saufOrdonnanceId) {
+        JSONArray data = new JSONArray();
+        int qte = 0;
+        try {
+            boolean sauf = StringUtils.isNotBlank(saufOrdonnanceId);
+            Query q = em.createNativeQuery(OrdonnanceClientSql.resteClient(sauf), Tuple.class).setParameter("client",
+                    StringUtils.defaultString(clientId));
+            if (sauf) {
+                q.setParameter("sauf", saufOrdonnanceId);
+            }
+            for (Tuple t : (List<Tuple>) q.getResultList()) {
+                int reste = entier(t.get("qteReste"));
+                qte += reste;
+                data.put(new JSONObject().put("id", t.get("id", String.class))
+                        .put("numero", t.get("numero", String.class))
+                        .put("dateOrdonnance", jour(t.get("dateOrdonnance"))).put("nbReste", entier(t.get("nbReste")))
+                        .put("qteReste", reste));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "reste a delivrer d'un client", e);
+            return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("qteReste", qte).put("data", data);
     }
 
     /** Une ordonnance et ses produits, pour la fiche de consultation. */
