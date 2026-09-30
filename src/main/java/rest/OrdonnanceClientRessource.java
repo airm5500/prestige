@@ -123,6 +123,8 @@ public class OrdonnanceClientRessource {
         if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
             return refusConsultation();
         }
+        /* Preventes cloturees a la caisse depuis la derniere lecture : leur service est reporte d'abord (30/09). */
+        preventeService.reporterServices(null);
         return Response.ok()
                 .entity(ordonnanceService
                         .liste(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees), start, limit)
@@ -140,6 +142,7 @@ public class OrdonnanceClientRessource {
         if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
             return refusConsultation();
         }
+        preventeService.reporterServices(id);
         return Response.ok().entity(ordonnanceService.detail(id).toString()).build();
     }
 
@@ -355,6 +358,7 @@ public class OrdonnanceClientRessource {
         if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
             return refusConsultation();
         }
+        preventeService.reporterServices(id);
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("data", preventeService.preventes(id)).toString())
                 .build();
@@ -414,6 +418,7 @@ public class OrdonnanceClientRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
+            preventeService.reporterServices(id);
             byte[] pdf = ordonnanceService.pdfFiche(operateur, id);
             return Response.ok(pdf).type("application/pdf")
                     .header("Content-Disposition", "inline; filename=\"ordonnance.pdf\"").build();
@@ -447,6 +452,7 @@ public class OrdonnanceClientRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
+            preventeService.reporterServices(null);
             byte[] pdf = ordonnanceService.pdfHistorique(operateur,
                     criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees), clientLibelle,
                     typeLibelle, medecinLibelle);
@@ -473,6 +479,7 @@ public class OrdonnanceClientRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
+            preventeService.reporterServices(null);
             byte[] classeur = ordonnanceService
                     .excelHistorique(criteres(query, clientId, typeClientId, medecinId, debut, fin, annulees));
             return Response.ok(classeur).type("application/vnd.ms-excel")
@@ -498,6 +505,7 @@ public class OrdonnanceClientRessource {
         if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
             return refusConsultation();
         }
+        preventeService.reporterServices(null);
         return Response
                 .ok().entity(ordonnanceService
                         .analyse(criteres(query, clientId, typeClientId, medecinId, debut, fin, true)).toString())
@@ -539,6 +547,7 @@ public class OrdonnanceClientRessource {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
+            preventeService.reporterServices(null);
             byte[] pdf = ordonnanceService.pdfAnalyse(operateur,
                     criteres(null, null, typeClientId, medecinId, debut, fin, true), typeLibelle, medecinLibelle);
             return Response.ok(pdf).type("application/pdf")

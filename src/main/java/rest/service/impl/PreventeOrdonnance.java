@@ -159,4 +159,77 @@ public final class PreventeOrdonnance {
         }
         return sortie;
     }
+
+    /* ------------------------------------------------------------------ report du service a la cloture */
+
+    /** Une ligne de l'ordonnance, vue par le report : son produit, sa quantite prescrite et deja servie. */
+    public static final class LigneService {
+        public final String detailId;
+        public final String articleId;
+        public final int prescrite;
+        public final Integer servie;
+
+        public LigneService(String detailId, String articleId, int prescrite, Integer servie) {
+            this.detailId = detailId;
+            this.articleId = articleId;
+            this.prescrite = prescrite;
+            this.servie = servie;
+        }
+    }
+
+    /** Ce que le report change sur une ligne : la quantite servie avant (null = non renseignee) et apres. */
+    public static final class Report {
+        public final String detailId;
+        public final Integer avant;
+        public final int apres;
+
+        public Report(String detailId, Integer avant, int apres) {
+            this.detailId = detailId;
+            this.avant = avant;
+            this.apres = apres;
+        }
+
+        public int ajoute() {
+            return apres - (avant == null ? 0 : avant);
+        }
+    }
+
+    /**
+     * Repartit ce qui a ete VENDU a la cloture (quantite par produit) sur les lignes de l'ordonnance, dans leur ordre,
+     * sans jamais depasser la quantite prescrite d'une ligne. Ce qui depasse, ou un produit qui n'est pas sur
+     * l'ordonnance (remplace a la caisse), n'est pas reporte : on ne declare pas servi ce qui n'a pas ete prescrit.
+     */
+    public static List<Report> repartir(List<LigneService> lignes, java.util.Map<String, Integer> vendus) {
+        List<Report> sortie = new ArrayList<>();
+        if (lignes == null || vendus == null) {
+            return sortie;
+        }
+        java.util.Map<String, Integer> restant = new java.util.HashMap<>(vendus);
+        for (LigneService l : lignes) {
+            if (l.articleId == null || !restant.containsKey(l.articleId)) {
+                continue;
+            }
+            int dispo = restant.get(l.articleId);
+            int deja = l.servie == null ? 0 : l.servie;
+            int ajout = Math.min(dispo, Math.max(0, l.prescrite - deja));
+            if (ajout <= 0) {
+                continue;
+            }
+            sortie.add(new Report(l.detailId, l.servie, deja + ajout));
+            restant.put(l.articleId, dispo - ajout);
+        }
+        return sortie;
+    }
+
+    /**
+     * Ce que devient une ligne quand la vente reportee est ANNULEE : si personne n'y a touche depuis, elle retrouve sa
+     * valeur d'avant (non renseignee comprise) ; sinon on retire seulement ce que le report avait ajoute.
+     */
+    public static Integer defaire(Report r, Integer actuelle) {
+        if (actuelle != null && actuelle == r.apres) {
+            return r.avant;
+        }
+        int base = actuelle == null ? 0 : actuelle;
+        return Math.max(0, base - r.ajoute());
+    }
 }

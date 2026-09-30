@@ -75,4 +75,44 @@ public class PreventeOrdonnanceTest {
         assertEquals("PRODUIT A", d.get(1).ligne.libelle);
         assertTrue(d.get(2).retenue());
     }
+
+    private static PreventeOrdonnance.LigneService ls(String id, String article, int prescrite, Integer servie) {
+        return new PreventeOrdonnance.LigneService(id, article, prescrite, servie);
+    }
+
+    @Test
+    public void reportDuVenduSurLesLignesSansDepasserLaPrescription() {
+        java.util.Map<String, Integer> vendus = new java.util.HashMap<>();
+        vendus.put("A", 4);
+        vendus.put("B", 1);
+        vendus.put("Z", 3);
+        List<PreventeOrdonnance.Report> r = PreventeOrdonnance.repartir(Arrays.asList(ls("1", "A", 3, 1),
+                ls("2", "A", 5, null), ls("3", "B", 2, null), ls("4", null, 1, null), ls("5", "C", 1, null)), vendus);
+        assertEquals(3, r.size(), "Z (remplace a la caisse), la ligne libre et C non vendu ne sont pas touches");
+        assertEquals("1", r.get(0).detailId);
+        assertEquals(3, r.get(0).apres, "1 deja servi + 2 : la ligne est complete");
+        assertEquals(2, r.get(0).ajoute());
+        assertEquals("2", r.get(1).detailId);
+        assertEquals(2, r.get(1).apres, "le reste des 4 vendus passe a la ligne suivante du meme produit");
+        assertNull(r.get(1).avant);
+        assertEquals(1, r.get(2).apres);
+    }
+
+    @Test
+    public void rienAReporterQuandToutEstDejaServi() {
+        java.util.Map<String, Integer> vendus = new java.util.HashMap<>();
+        vendus.put("A", 2);
+        assertTrue(PreventeOrdonnance.repartir(Arrays.asList(ls("1", "A", 2, 2)), vendus).isEmpty());
+    }
+
+    @Test
+    public void annulationDeLaVenteDefaitLeReport() {
+        PreventeOrdonnance.Report r = new PreventeOrdonnance.Report("1", null, 2);
+        assertNull(PreventeOrdonnance.defaire(r, 2), "personne n'y a touche : la ligne redevient « a renseigner »");
+        assertEquals(1, PreventeOrdonnance.defaire(r, 3),
+                "modifiee depuis : on retire seulement ce qui avait ete ajoute");
+        assertEquals(0, PreventeOrdonnance.defaire(r, 1), "jamais negatif");
+        PreventeOrdonnance.Report r2 = new PreventeOrdonnance.Report("2", 1, 3);
+        assertEquals(1, PreventeOrdonnance.defaire(r2, 3));
+    }
 }

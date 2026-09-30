@@ -24,8 +24,45 @@ const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding
 const M = 'E2E-PV';
 const STD = M + '-STD', ASS = M + '-ASS', CAR = M + '-CAR';
 
+const CAISSE = M + '-CAISSE';
+let stocksOrigine = [];
+
+/* Ventes de test : celles des clients d'essai, et leurs clones d'annulation. */
+function ventesDuTest() {
+  const clients = "('" + STD + "','" + ASS + "','" + CAR + "')";
+  const ids = q("SELECT GROUP_CONCAT(lg_PREENREGISTREMENT_ID) FROM t_preenregistrement WHERE lg_CLIENT_ID IN " + clients);
+  const liste = ids && ids !== 'NULL' ? ids.split(',') : [];
+  if (liste.length) {
+    const filles = q("SELECT GROUP_CONCAT(lg_PREENREGISTREMENT_ID) FROM t_preenregistrement WHERE lg_PARENT_ID IN ('" + liste.join("','")
+      + "') OR lg_PREENGISTREMENT_ANNULE_ID IN ('" + liste.join("','") + "')");
+    (filles && filles !== 'NULL' ? filles.split(',') : []).forEach((x) => { if (liste.indexOf(x) < 0) { liste.push(x); } });
+  }
+  return liste;
+}
+
 function nettoyer() {
   const clients = "('" + STD + "','" + ASS + "','" + CAR + "')";
+  const ventes = ventesDuTest();
+  if (ventes.length) {
+    const liste = "('" + ventes.join("','") + "')";
+    /* Ce que la cloture et l'annulation ecrivent, retire comme dans test-vente-contexte-depot. */
+    exec("CREATE TEMPORARY TABLE e2e_pv_lignes AS SELECT lg_PREENREGISTREMENT_DETAIL_ID id FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN " + liste + ";"
+      + "DELETE FROM hmvtproduit WHERE lg_PREENREGISTREMENT_DETAIL_ID IN (SELECT id FROM e2e_pv_lignes);"
+      + "DELETE FROM hmvtproduit WHERE pkey IN " + liste + ";"
+      + "DELETE FROM mvttransaction WHERE pkey IN " + liste + ";"
+      + "DELETE FROM t_recettes WHERE str_REF_FACTURE IN " + liste + ";"
+      + "CREATE TEMPORARY TABLE e2e_pv_regl AS SELECT lg_REGLEMENT_ID id FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN " + liste + " AND lg_REGLEMENT_ID IS NOT NULL;"
+      + "UPDATE t_preenregistrement SET lg_PREENGISTREMENT_ANNULE_ID=NULL, lg_PARENT_ID=NULL, lg_REGLEMENT_ID=NULL WHERE lg_PREENREGISTREMENT_ID IN " + liste + ";"
+      + "DELETE FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID IN " + liste + ";"
+      + "DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN " + liste + ";"
+      + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN " + liste + ";"
+      + "DELETE FROM t_reglement WHERE lg_REGLEMENT_ID IN (SELECT id FROM e2e_pv_regl);"
+      + "DELETE FROM t_reglement WHERE str_REF_RESSOURCE IN " + liste + ";"
+      + "DROP TEMPORARY TABLE IF EXISTS e2e_pv_regl; DROP TEMPORARY TABLE IF EXISTS e2e_pv_lignes;");
+  }
+  exec("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID='" + CAISSE + "';");
+  stocksOrigine.forEach((st) => exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=" + st.dispo + ", int_NUMBER=" + st.total
+    + " WHERE lg_FAMILLE_STOCK_ID='" + st.id + "'"));
   exec("DELETE t FROM t_preenregistrement_compte_client_tiers_payent t JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=t.lg_PREENREGISTREMENT_ID WHERE p.lg_CLIENT_ID IN " + clients + ";"
     + "DELETE d FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID WHERE p.lg_CLIENT_ID IN " + clients + ";"
     + "DELETE FROM t_preenregistrement WHERE lg_CLIENT_ID IN " + clients + ";"
@@ -62,6 +99,14 @@ function poser() {
   const sansStock = q("SELECT f.lg_FAMILLE_ID, f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
     + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE = 0 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
     + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 LIMIT 1").split('\t');
+  /* La cloture bouge le stock : il est remis a l'identique a la fin. */
+  stocksOrigine = articles.map((a) => { const r = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + a[0] + "' AND lg_EMPLACEMENT_ID='" + emplacement + "'").split('|'); return { id: r[0], dispo: r[1], total: r[2] }; });
+  /* La cloture exige une caisse ouverte pour l'operateur (precondition, pas l'objet du test). */
+  const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='admin'");
+  if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID='" + admin + "' AND str_STATUT='is_Using'") === '0') {
+    exec("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED, lg_UPDATED_BY, str_STATUT)"
+      + " VALUES ('" + CAISSE + "', '" + admin + "', 0, 0, CURDATE(), NOW(), '" + admin + "', NOW(), '" + admin + "', 'is_Using');");
+  }
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -168,6 +213,32 @@ function poser() {
     ok('Caisse : la prévente assurance se reprend, en assurance, avec son tiers payant et son assuré', repriseAss.vente === ass[0] && repriseAss.lignes === 2 && repriseAss.type === '2' && repriseAss.tp >= 1 && /ZZPVASSURE/.test(repriseAss.assure), JSON.stringify(repriseAss));
     ok('Reprise sans modification : la vente reste en attente, intacte', q("SELECT CONCAT(str_STATUT, '|', (SELECT COUNT(*) FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID)) FROM t_preenregistrement p WHERE p.lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === 'pending|2');
 
+    /* ---------------------------------------------------------------- cloture a la caisse : report du service */
+    const servies = () => q("SELECT GROUP_CONCAT(COALESCE(int_QTE_SERVIE, 'x') ORDER BY int_ORDRE) FROM t_ordonnance_client_detail WHERE lg_ORDONNANCE_ID='" + ordStd.id + "'");
+    const avantCloture = servies();
+    ok('La prévente elle-même ne change pas l\'ordonnance (quantités servies inchangées)', avantCloture === '1,x,2,x,x', avantCloture);
+    const cloture = await api('../api/v1/vente/cloturer/vno', 'POST', { venteId: vente[0], typeVenteId: '1', typeRegleId: '1',
+      montantRecu: Number(vente[5]), montantRendu: 0, montantPaye: Number(vente[5]), montantVerse: Number(vente[5]) });
+    ok('Précondition : la prévente est clôturée par le service de la caisse', cloture.success === true && q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + vente[0] + "'") === 'is_Closed', JSON.stringify(cloture).slice(0, 200));
+    ok('La clôture elle-même ne touche pas l\'ordonnance (la caisse n\'est pas modifiée)', servies() === avantCloture, servies());
+    /* Ouvrir la fiche (icone Consulter) : le service vendu y est reporte. */
+    /* L'ecran des ordonnances a ete rouvert apres le passage a la caisse : on refiltre sur le client standard. */
+    await p.evaluate(() => { const e = Ext.ComponentQuery.query('ordonnanceclient')[0]; e.getLayout().setActiveItem(0); e.down('#barreCriteres #recherche').setValue('ZZPVSTANDARD'); });
+    await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('ordonnanceclient')[0].storeOrdonnances; return !st.isLoading() && st.getCount() === 1 && /ZZPVSTANDARD/.test(st.getAt(0).get('client')); }, null, { timeout: 20000 });
+    await p.waitForTimeout(600);
+    const icone2 = await p.evaluate(() => { const g = Ext.ComponentQuery.query('ordonnanceclient #grilleOrdonnances')[0]; const k = g.getView().getNode(0).querySelector('.ordo-act-consulter'); k.id = 'consulterPv2'; return k.id; });
+    await p.click('#' + icone2); await p.waitForTimeout(2000);
+    const fiche = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient')[0].storeProduits.getRange().map((r) => r.get('qteServie') === null ? 'x' : r.get('qteServie')).join(','));
+    ok('Après clôture : qté servie reportée (1 → 3 et à renseigner → 2), les autres lignes intactes', servies() === '3,2,2,x,x' && fiche === '3,2,2,x,x', servies() + ' / fiche ' + fiche);
+    const etiquette2 = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #preventesFiche')[0].getEl().dom.textContent);
+    ok('La fiche dit « Clôturée — 4 servi(s) reporté(s) »', /Clôturée — 4 servi\(s\) reporté\(s\)/.test(etiquette2), etiquette2);
+    const historique = await api('../api/v1/ordonnance-client/liste?query=ZZPVSTANDARD', 'GET');
+    ok('L\'historique la dit « partielle » (3 lignes servies sur 5) ; une seconde lecture ne reporte pas deux fois', historique.data && historique.data[0].etatService === 'partielle' && servies() === '3,2,2,x,x', JSON.stringify(historique.data && historique.data[0]).slice(0, 200));
+    /* Annulation de la vente a la caisse : le report est defait. */
+    const annulation = await api('../api/v1/vente/annulation/' + vente[0], 'GET');
+    await api('../api/v1/ordonnance-client/' + ordStd.id, 'GET');
+    ok('Vente annulée à la caisse : le report est défait (retour à 1 et à « à renseigner »)', servies() === avantCloture, JSON.stringify(annulation).slice(0, 150) + ' / ' + servies());
+
     /* ---------------------------------------------------------------- refus */
     exec("UPDATE t_compte_client_tiers_payant SET str_STATUT='disable' WHERE lg_COMPTE_CLIENT_TIERS_PAYANT_ID='" + M + "-CC-CAR-TP'");
     const sansTp = await api('../api/v1/ordonnance-client/prevente/' + ordCar.id + '/apercu', 'GET');
@@ -178,7 +249,6 @@ function poser() {
     }, ordAss.id);
     const annulee = await api('../api/v1/ordonnance-client/prevente/' + ordAss.id, 'POST');
     ok('Ordonnance annulée : refus, aucune nouvelle vente', annulee.success === false && /annulée/.test(annulee.message) && q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_CLIENT_ID='" + ASS + "'") === '1', annulee.message);
-    ok('L\'ordonnance elle-même n\'est pas modifiée par la prévente (quantités servies inchangées)', q("SELECT GROUP_CONCAT(COALESCE(int_QTE_SERVIE, 'x') ORDER BY int_ORDRE) FROM t_ordonnance_client_detail WHERE lg_ORDONNANCE_ID='" + ordStd.id + "'") === '1,x,2,x,x');
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Parcours sans exception', false, e.message);

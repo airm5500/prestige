@@ -124,13 +124,13 @@ public class OrdonnancePreventeService {
     @SuppressWarnings("unchecked")
     public JSONArray preventes(String ordonnanceId) {
         JSONArray sortie = new JSONArray();
-        List<Tuple> lignes = em
-                .createNativeQuery("SELECT l.lg_PREENREGISTREMENT_ID AS venteId, l.str_REF AS ref,"
-                        + " l.str_TYPE_VENTE AS typeVente, l.int_NB_LIGNES AS nb, l.dt_CREATED AS creeLe,"
-                        + " p.str_STATUT AS statut, p.str_REF AS refVente, p.int_PRICE AS montant"
-                        + " FROM t_ordonnance_client_prevente l"
-                        + " LEFT JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = l.lg_PREENREGISTREMENT_ID"
-                        + " WHERE l.lg_ORDONNANCE_ID = ?1 ORDER BY l.dt_CREATED DESC", Tuple.class)
+        List<Tuple> lignes = em.createNativeQuery("SELECT l.lg_PREENREGISTREMENT_ID AS venteId, l.str_REF AS ref,"
+                + " l.str_TYPE_VENTE AS typeVente, l.int_NB_LIGNES AS nb, l.dt_CREATED AS creeLe,"
+                + " p.str_STATUT AS statut, p.str_REF AS refVente, p.int_PRICE AS montant,"
+                + " COALESCE(p.b_IS_CANCEL, 0) AS annulee, l.dt_REPORT_SERVICE AS reporte, l.int_QTE_REPORTEE AS qteReportee"
+                + " FROM t_ordonnance_client_prevente l"
+                + " LEFT JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = l.lg_PREENREGISTREMENT_ID"
+                + " WHERE l.lg_ORDONNANCE_ID = ?1 ORDER BY l.dt_CREATED DESC", Tuple.class)
                 .setParameter(1, ordonnanceId).getResultList();
         for (Tuple t : lignes) {
             String statut = t.get("statut", String.class);
@@ -139,9 +139,138 @@ public class OrdonnancePreventeService {
                     .put("typeVente", PreventeOrdonnance.libelleTypeVente(t.get("typeVente", String.class)))
                     .put("lignes", entier(t.get("nb"))).put("montant", entier(t.get("montant")))
                     .put("creeLe", t.get("creeLe") == null ? "" : String.valueOf(t.get("creeLe")))
-                    .put("etat", etat(statut)).put("enAttente", Constant.STATUT_PENDING.equals(statut)));
+                    .put("etat",
+                            entier(t.get("annulee")) == 1 ? "Annulée à la caisse"
+                                    : etat(statut) + (t.get("reporte") != null
+                                            ? " — " + entier(t.get("qteReportee")) + " servi(s) reporté(s)" : ""))
+                    .put("enAttente", Constant.STATUT_PENDING.equals(statut)));
         }
         return sortie;
+    }
+
+    /**
+     * Report du SERVICE (retour du 30/09) : une prevente nee d'une ordonnance et CLOTUREE a la caisse met a jour la
+     * quantite servie des lignes de l'ordonnance, avec ce qui a ete reellement vendu. Une vente reportee puis ANNULEE
+     * voit son report defait.
+     *
+     * <p>
+     * Appele a la lecture (fiche, historique, analyse, editions) : la cloture de la caisse n'est pas modifiee. Chaque
+     * prevente n'est reportee qu'UNE fois : la ligne de lien est marquee dans la meme transaction, et l'UPDATE
+     * conditionnel empeche deux lectures simultanees de reporter deux fois.
+     *
+     * @param ordonnanceId
+     *            une ordonnance, ou null pour toutes
+     *
+     * @return le nombre de preventes reportees ou defaites
+     */
+    @SuppressWarnings("unchecked")
+    public int reporterServices(String ordonnanceId) {
+        int traitees = 0;
+        try {
+            String filtre = StringUtils.isBlank(ordonnanceId) ? "" : " AND l.lg_ORDONNANCE_ID = :ordonnance";
+            javax.persistence.Query aReporter = em.createNativeQuery("SELECT l.lg_LIEN_ID AS lien,"
+                    + " l.lg_ORDONNANCE_ID AS ordonnance, l.lg_PREENREGISTREMENT_ID AS vente"
+                    + " FROM t_ordonnance_client_prevente l JOIN t_preenregistrement p"
+                    + " ON p.lg_PREENREGISTREMENT_ID = l.lg_PREENREGISTREMENT_ID"
+                    + " WHERE l.dt_REPORT_SERVICE IS NULL AND p.str_STATUT = :cloturee AND COALESCE(p.b_IS_CANCEL, 0) = 0"
+                    + filtre, Tuple.class).setParameter("cloturee", Constant.STATUT_IS_CLOSED);
+            javax.persistence.Query aDefaire = em.createNativeQuery(
+                    "SELECT l.lg_LIEN_ID AS lien," + " l.lg_ORDONNANCE_ID AS ordonnance, l.str_REPORT AS report"
+                            + " FROM t_ordonnance_client_prevente l JOIN t_preenregistrement p"
+                            + " ON p.lg_PREENREGISTREMENT_ID = l.lg_PREENREGISTREMENT_ID"
+                            + " WHERE l.dt_REPORT_SERVICE IS NOT NULL AND l.dt_ANNULATION_REPORT IS NULL"
+                            + " AND COALESCE(p.b_IS_CANCEL, 0) = 1" + filtre,
+                    Tuple.class);
+            if (!filtre.isEmpty()) {
+                aReporter.setParameter("ordonnance", ordonnanceId);
+                aDefaire.setParameter("ordonnance", ordonnanceId);
+            }
+            for (Tuple t : (List<Tuple>) aReporter.getResultList()) {
+                if (reporter(t.get("lien", String.class), t.get("ordonnance", String.class),
+                        t.get("vente", String.class))) {
+                    traitees++;
+                }
+            }
+            for (Tuple t : (List<Tuple>) aDefaire.getResultList()) {
+                if (defaire(t.get("lien", String.class), t.get("report", String.class))) {
+                    traitees++;
+                }
+            }
+        } catch (Exception e) {
+            /*
+             * Un report manque ne doit jamais empecher de lire les ordonnances : il sera refait a la lecture suivante.
+             */
+            LOG.log(Level.SEVERE, "report du service des preventes cloturees", e);
+        }
+        return traitees;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean reporter(String lienId, String ordonnanceId, String venteId) {
+        /* On prend la ligne de lien : si une autre lecture l'a deja fait, on s'arrete. */
+        int pris = em
+                .createNativeQuery("UPDATE t_ordonnance_client_prevente SET dt_REPORT_SERVICE = ?1"
+                        + " WHERE lg_LIEN_ID = ?2 AND dt_REPORT_SERVICE IS NULL")
+                .setParameter(1, new Date()).setParameter(2, lienId).executeUpdate();
+        if (pris != 1) {
+            return false;
+        }
+        java.util.Map<String, Integer> vendus = new java.util.HashMap<>();
+        for (Tuple t : (List<Tuple>) em
+                .createNativeQuery("SELECT d.lg_FAMILLE_ID AS article,"
+                        + " SUM(d.int_QUANTITY) AS qte FROM t_preenregistrement_detail d"
+                        + " WHERE d.lg_PREENREGISTREMENT_ID = ?1 GROUP BY d.lg_FAMILLE_ID", Tuple.class)
+                .setParameter(1, venteId).getResultList()) {
+            vendus.put(t.get("article", String.class), entier(t.get("qte")));
+        }
+        List<PreventeOrdonnance.LigneService> lignes = new ArrayList<>();
+        for (Tuple t : (List<Tuple>) em
+                .createNativeQuery("SELECT d.lg_DETAIL_ID AS id, d.lg_FAMILLE_ID AS article,"
+                        + " d.int_QUANTITE AS prescrite, d.int_QTE_SERVIE AS servie FROM t_ordonnance_client_detail d"
+                        + " WHERE d.lg_ORDONNANCE_ID = ?1 ORDER BY d.int_ORDRE", Tuple.class)
+                .setParameter(1, ordonnanceId).getResultList()) {
+            Object servie = t.get("servie");
+            lignes.add(new PreventeOrdonnance.LigneService(t.get("id", String.class), t.get("article", String.class),
+                    entier(t.get("prescrite")), servie == null ? null : entier(servie)));
+        }
+        List<PreventeOrdonnance.Report> reports = PreventeOrdonnance.repartir(lignes, vendus);
+        JSONArray trace = new JSONArray();
+        int total = 0;
+        for (PreventeOrdonnance.Report r : reports) {
+            em.createNativeQuery("UPDATE t_ordonnance_client_detail SET int_QTE_SERVIE = ?1 WHERE lg_DETAIL_ID = ?2")
+                    .setParameter(1, r.apres).setParameter(2, r.detailId).executeUpdate();
+            trace.put(new JSONObject().put("d", r.detailId).put("a", r.avant == null ? JSONObject.NULL : r.avant)
+                    .put("p", r.apres));
+            total += r.ajoute();
+        }
+        em.createNativeQuery("UPDATE t_ordonnance_client_prevente SET int_QTE_REPORTEE = ?1, str_REPORT = ?2"
+                + " WHERE lg_LIEN_ID = ?3").setParameter(1, total).setParameter(2, trace.toString())
+                .setParameter(3, lienId).executeUpdate();
+        return true;
+    }
+
+    private boolean defaire(String lienId, String report) {
+        int pris = em
+                .createNativeQuery("UPDATE t_ordonnance_client_prevente SET dt_ANNULATION_REPORT = ?1"
+                        + " WHERE lg_LIEN_ID = ?2 AND dt_ANNULATION_REPORT IS NULL")
+                .setParameter(1, new Date()).setParameter(2, lienId).executeUpdate();
+        if (pris != 1) {
+            return false;
+        }
+        JSONArray trace = new JSONArray(StringUtils.defaultIfBlank(report, "[]"));
+        for (int i = 0; i < trace.length(); i++) {
+            JSONObject o = trace.getJSONObject(i);
+            PreventeOrdonnance.Report r = new PreventeOrdonnance.Report(o.getString("d"),
+                    o.isNull("a") ? null : o.getInt("a"), o.getInt("p"));
+            Object actuelle = em
+                    .createNativeQuery(
+                            "SELECT int_QTE_SERVIE FROM t_ordonnance_client_detail" + " WHERE lg_DETAIL_ID = ?1")
+                    .setParameter(1, r.detailId).getResultList().stream().findFirst().orElse(null);
+            Integer nouvelle = PreventeOrdonnance.defaire(r, actuelle == null ? null : entier(actuelle));
+            em.createNativeQuery("UPDATE t_ordonnance_client_detail SET int_QTE_SERVIE = ?1 WHERE lg_DETAIL_ID = ?2")
+                    .setParameter(1, nouvelle).setParameter(2, r.detailId).executeUpdate();
+        }
+        return true;
     }
 
     static String etat(String statut) {
