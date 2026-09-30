@@ -563,7 +563,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             xtype: 'fieldset',
             itemId: 'blocPatient',
             title: 'Patient',
-            width: 350,
+            /* Assez large pour un nom complet sur une ligne (22/09) : le champ client y fait environ 370 px. */
+            width: 420,
             padding: '4 10 8 10',
             layout: {type: 'vbox', align: 'stretch'},
             items: [{

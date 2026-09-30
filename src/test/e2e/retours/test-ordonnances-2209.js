@@ -57,13 +57,17 @@ const MARQUE = 'E2E-2209';
       const e = Ext.ComponentQuery.query('ordonnanceclient')[0];
       const g = e.down('#grilleOrdonnances'); const n = g.down('button[itemId=nouvelle]');
       return { droite: n.getEl().getRight(), grille: g.getEl().getRight(), clientCritere: e.down('#barreCriteres #client').getWidth(),
-        clientFiche: e.down('#vueFiche #ficheClient').width, liste: e.down('#vueFiche #ficheClient').listConfig.minWidth };
+        liste: e.down('#vueFiche #ficheClient').listConfig.minWidth };
     });
     ok('« Nouvelle ordonnance » est à DROITE de l historique', place.grille - place.droite < 40, JSON.stringify(place));
-    ok('Zones client élargies (critère 360, fiche 520, liste 480 au moins)', place.clientCritere >= 360 && place.clientFiche >= 520 && place.liste >= 480, JSON.stringify(place));
+    ok('Zones client élargies (critère 360, liste 480 au moins)', place.clientCritere >= 360 && place.liste >= 480, JSON.stringify(place));
 
     /* ------------------------------------------------------------------ saisie d une ordonnance */
     await clic('ordonnanceclient #grilleOrdonnances button[itemId=nouvelle]');
+    /* Presentation B (30/09) : le client est dans la colonne patient ; mesure faite fiche affichee, le champ y fait au
+       moins 360 px, comme le critere de l'historique. */
+    const largeurFiche = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheClient')[0].getWidth());
+    ok('Champ client de la fiche : 360 px au moins', largeurFiche >= 360, largeurFiche);
     ok('La fiche neuve s ouvre', (await vue()) === 'vueFiche');
     const focusClient = await p.evaluate(() => document.activeElement && document.activeElement.id === Ext.ComponentQuery.query('ordonnanceclient #vueFiche #ficheClient')[0].getId() + '-inputEl');
     ok('Fiche neuve : le curseur est dans le CLIENT', focusClient);
