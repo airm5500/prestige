@@ -1,7 +1,8 @@
 # Migration JDK 11 → JDK 17 et évolution de Payara — plan détaillé
 
-**Date** : 1er octobre 2026
-**Statut** : plan à valider — aucune modification de production, aucune modification de code
+**Date** : 1er octobre 2026 — mis à jour le même jour avec le `domain.xml` de l'officine (§ 2.7)
+**Statut** : plan à valider — aucune modification de production, aucune modification de code.
+Lot 0 entamé : version de Payara et options JVM relevées et rejouées au banc.
 **Fondement** : mesures faites sur banc les 30 septembre et 1er octobre 2026 (§ 2), et non
 une lecture du code seule
 **Exigence de départ** : aucune régression
@@ -56,8 +57,8 @@ même WAR, même base réinitialisée avant chaque passage, locale `fr_FR`.
 | Constat | Mesure | Gravité |
 |---|---|---|
 | **Les séparateurs de milliers disparaissent de 12 états sur 13** : `1 234 568` devient `1234568` | texte des PDF comparé ; image à l'appui | **élevée** — relevés et bons envoyés aux organismes |
-| Le JDK 17 **refuse de démarrer** avec `-XX:MaxPermSize`, `-XX:PermSize`, les options du ramasse-miettes CMS, `-XX:+AggressiveOpts`, `-XX:+UseParallelOldGC` | testé option par option | **bloquante** si présentes dans votre `domain.xml` |
-| Changer la version de Payara change **en silence** des bibliothèques dont dépend l'application | interrogé dans l'application en marche (§ 2.4) | **élevée** pour le lot 5 |
+| Le JDK 17 **refuse de démarrer** avec `-XX:MaxPermSize`, `-XX:PermSize`, les options du ramasse-miettes CMS, `-XX:+AggressiveOpts`, `-XX:+UseParallelOldGC` | testé option par option | **levée** : aucune dans votre `domain.xml` (§ 2.7) |
+| Changer la version de Payara change **en silence** des bibliothèques dont dépend l'application | interrogé dans l'application en marche (§ 2.4) | **sans objet** : vous êtes déjà en 5.2022.5 |
 | Retirer le `formatter-maven-plugin` sans déclarer Guava **casse la facture normalisée électronique** (`FneServiceImpl`) | dépendance Maven + imports | **élevée** si l'ordre n'est pas respecté |
 
 ### 2.3 La cause des séparateurs, et ce qui est exposé
@@ -116,8 +117,52 @@ répond :
 Sans données réelles ni poste Windows, le banc n'a couvert ni les parcours métier complets, ni
 l'impression des tickets sur une imprimante réelle (Java2D, polices Windows), ni l'afficheur
 client et le port série (`jSerialComm`, bibliothèque native), ni les SMS, ni les traitements
-nocturnes avec données, ni **vos états de site** (`D:\CONF\LABOREX\REPORTS`), ni **votre** version
-de Payara. Chaque point est repris par un lot ci-dessous.
+nocturnes avec données, ni **vos états de site** (`D:\CONF\LABOREX\REPORTS`). Chaque point est
+repris par un lot ci-dessous.
+
+### 2.7 Votre serveur : le `domain.xml` rejoué au banc
+
+L'officine tourne en **Payara 5.2022.5**, la version même du banc. Le bloc `<java-config>` de son
+`domain.xml` — 74 options JVM — a été appliqué tel quel aux deux Payara du banc. Seules trois options
+propres au banc ont été ajoutées : la génération des tables par Hibernate (base vide) et la locale
+`fr_FR` (sur Windows, elle vient des réglages régionaux ; sous Linux il faut la fixer).
+
+| Vérification avec vos options | JDK 11 | JDK 17 | JDK 17, bytecode 17 |
+|---|---|---|---|
+| Démarrage, options refusées ou ignorées | 0 | 0 | 0 |
+| Déploiement avec précompilation | réussi | réussi | réussi |
+| JSP compilées | 545 | 545 | 545 |
+| Signatures d'exceptions distinctes | 13 | 13 | 13 |
+| **Écarts avec le JDK 11** | — | **0** | **0** |
+| États : identiques au JDK 11 | — | **1 / 13** (séparateurs) | — |
+
+Lecture des options, une à une :
+
+| Constat | Conséquence |
+|---|---|
+| Aucune option refusée par le JDK 17 (`MaxPermSize`, CMS, `AggressiveOpts`… absentes) | **rien à retirer** avant la bascule |
+| `-XX:+UseG1GC` déjà en place | pas de changement de ramasse-miettes |
+| Options `[17\|]` déjà présentes (fournies par Payara) | elles s'activent d'elles-mêmes sur JDK 17 |
+| `-Dfile.encoding=UTF-8` | le passage à UTF-8 par défaut du JDK 18 ne vous concernera pas ; **sans effet sur la régression des séparateurs** (mesuré) |
+| `-Duser.timezone=Africa/Abidjan` | identique sur les deux JDK |
+| TLS sortant limité à TLSv1.2, magasin de certificats propre au domaine (`cacerts.jks`) | les appels sortants ne dépendent pas des certificats du JDK ; FNE et SMS restent à la recette |
+| **Locale non fixée** (aucun `-Duser.language`) | elle vient de la région Windows : à lire avec `scripts/migration-jdk17/ws_diag_jvm.jsp` |
+| Application déployée en répertoire depuis `D:/projet/rm/prestige/target/prestige/` | si c'est la production, un `mvn clean` sur cette machine supprime l'application en marche — à confirmer |
+| Pool `UbiSenderProDS` | non utilisé par Prestige |
+| Propriétés `WA_WEB_URL`, `WA_WEB_TOKEN` | non lues par le code Java de la branche, ni de `dev` |
+
+Hors migration, à traiter à part : les deux pools se connectent en **`root`**, mot de passe en clair
+dans `domain.xml`. Un alias de mot de passe (`asadmin create-password-alias`) et un utilisateur
+MariaDB dédié réduiraient l'exposition.
+
+Observation à suivre au lot 3 : le déploiement avec précompilation des 545 JSP a été plus long sur
+JDK 17 lors des deux comparaisons (296 s contre 274 s, puis 246 s contre 216 s). Deux mesures ne font
+pas une conclusion, et ce temps ne concerne pas la production, où les JSP se compilent à leur premier
+appel ; il sera suivi.
+
+Enfin, la branche `dev` compte 13 commits absents de la branche mesurée, avec **des dépendances
+strictement identiques** : la surface sensible au JDK est la même. La référence du lot 0 sera tout de
+même refaite sur le code réellement déployé.
 
 ---
 
@@ -130,7 +175,7 @@ de Payara. Chaque point est repris par un lot ci-dessous.
 | **2** | Assainissement du WAR | POM (formatter-plugin, Guava) | JDK 11 | redéployer le WAR précédent | recommandé |
 | **3** | **Bascule de la JVM** | JDK 11 → 17, WAR inchangé | JDK 17 | **remettre le JDK 11, quelques minutes** | oui |
 | **4** | Compilation en 17 | bytecode 11 → 17 | JDK 17 | redéployer le dernier WAR en bytecode 11 | oui |
-| **5** | Version de Payara | le serveur | selon le lot 0 | basculer sur l'ancienne installation | conditionnel |
+| **5** | Version de Payara | — | — | — | **sans objet** : déjà en 5.2022.5 |
 
 **Pourquoi séparer les lots 3 et 4.** Un WAR en bytecode 11 tourne indifféremment sur JDK 11 et
 JDK 17. Changer d'abord la JVM seule rend la première bascule **réversible en quelques minutes,
@@ -247,10 +292,18 @@ Pas un prérequis du JDK 17, mais une décision à prendre et à écrire : répa
 qui les appellent, ou les laisser en l'état. Dans tous les cas, la précompilation du banc les
 exclut nommément, pour que leur échec ne masque pas le reste.
 
-### 5.4 Mise en production, retour arrière, passage
+### 5.4 Locale de la JVM
+
+Si la page de diagnostic du lot 0 montre une locale `fr_FR` héritée de Windows : ajouter
+`-Duser.language=fr` et `-Duser.country=FR` aux options JVM. Sur JDK 11, l'ajout ne change rien —
+vérification : 0 différence avec la référence — et il rend le comportement des états indépendant
+d'un changement de région Windows. Changement de configuration, pas de code : il se fait dans une
+fenêtre distincte du déploiement du WAR, pour respecter le principe n° 1.
+
+### 5.5 Mise en production, retour arrière, passage
 
 - Déploiement normal sur le **JDK 11** actuel.
-- Retour arrière : redéployer le WAR précédent.
+- Retour arrière : redéployer le WAR précédent ; pour la locale, retirer les deux options.
 - Observation : une semaine.
 - **Critère de passage** : 0 différence avec la référence ; aucun nouveau message `SEVERE` en production.
 
@@ -288,20 +341,20 @@ Bénéfice : un WAR plus léger, des bibliothèques de 2010 retirées, et une am
 ### 7.1 Prérequis
 
 - Lots 0 et 1 en production (le lot 2 recommandé).
-- Votre version de Payara démarre sur JDK 17 (testé au lot 0) — sinon, lot 5 d'abord.
+- Votre version de Payara démarre sur JDK 17 : **acquis** — 5.2022.5 avec vos options, mesuré (§ 2.7).
 - **JDK 17 retenu** : une distribution LTS maintenue, à sa dernière mise à jour, Windows x64
   (par exemple Eclipse Temurin 17). Installé **à côté** du JDK 11, qu'on ne désinstalle pas.
 
 ### 7.2 Options JVM
 
-1. Retirer de `domain.xml` les options refusées par le JDK 17 : `-XX:MaxPermSize`,
-   `-XX:PermSize`, `-XX:+AggressiveOpts`, `-XX:+UseParallelOldGC`, et toutes les options CMS.
-2. **Si le serveur utilise aujourd'hui le ramasse-miettes CMS**, ce n'est pas une simple ligne à
-   retirer : c'est un changement de comportement mémoire. Il se fait **à part, sur JDK 11**, en
-   passant à G1 (le défaut depuis le JDK 9), avec observation, avant la bascule.
-3. `-XX:MaxPermSize` et `-XX:PermSize` sont déjà ignorées par le JDK 11 : les retirer sur JDK 11
-   ne change rien et peut se faire dès le lot 1.
-4. Conserver la locale du serveur telle qu'elle est (`fr_FR` attendu).
+**Aucune option à retirer** : votre `domain.xml` n'en contient aucune que le JDK 17 refuse, et le
+serveur est déjà en G1 (§ 2.7, mesuré). Le `domain.xml` ne change pas pour la bascule.
+
+Reste la locale, aujourd'hui héritée de la région Windows. **Recommandation** : la fixer
+explicitement (`-Duser.language=fr`, `-Duser.country=FR`) **au lot 1, sur JDK 11** — si la région
+Windows est déjà en français, l'ajout ne change rien (vérifiable : 0 différence avec la référence), et
+il met le serveur à l'abri d'un changement de région Windows. Si la page de diagnostic montre une
+autre locale, la décision est à reprendre, car le comportement des états en dépend.
 
 ### 7.3 La bascule
 
@@ -371,17 +424,15 @@ Retour arrière : redéployer le WAR archivé. Observation : deux semaines.
 
 ---
 
-## 9. Lot 5 — Version de Payara (conditionnel)
+## 9. Lot 5 — Version de Payara : sans objet
 
-Le contenu dépend du relevé du lot 0.
+**La production est en Payara 5.2022.5** (relevé du 1er octobre) : rien à faire dans ce projet.
+C'est la dernière version communautaire de Payara 5 ; la suite (support étendu chez l'éditeur, ou
+passage à Jakarta) est une décision à part, à instruire avec l'éditeur.
 
-**Si la production est déjà en Payara 5.2022.5** : rien à faire dans ce projet. C'est la dernière
-version communautaire de Payara 5 ; la suite (support étendu chez l'éditeur, ou passage à Jakarta)
-est une décision à part, à instruire avec l'éditeur.
-
-**Si la production est sur une version antérieure, ou sur GlassFish** : montée en 5.2022.5, en
-lot séparé — **avant le lot 3 si votre version ne démarre pas sur JDK 17**, après le lot 4 sinon,
-jamais en même temps qu'eux.
+La démarche ci-dessous reste valable pour tout serveur d'une autre officine qui serait sur une
+version antérieure ou sur GlassFish : montée en 5.2022.5 en lot séparé — **avant le lot 3 si la
+version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même temps qu'eux.
 
 1. Nouvelle installation **à côté** de l'ancienne, dans un autre dossier.
 2. Domaine recréé par script à partir de l'inventaire (pool, ressources, options JVM, pilote),
@@ -403,7 +454,8 @@ jamais en même temps qu'eux.
 | Jakarta EE / Payara 6 et 7 | espace de noms `jakarta.*` : imports, descripteurs, JSP, serveur ; Payara 7 exige en plus le JDK 21 |
 | Hibernate 6 | va avec Jakarta |
 | MariaDB ≥ 10.10 | exige d'abord un autre pilote (5.1.23 plante, mesuré) |
-| JDK 21 | la passerelle `COMPAT` y devient dépréciée ; l'encodage par défaut devient UTF-8 dès le JDK 18, ce qui touche Windows (Cp1252 aujourd'hui) |
+| JDK 21 | la passerelle `COMPAT` y devient dépréciée ; le passage de l'encodage par défaut à UTF-8 (JDK 18) ne vous touche pas, votre JVM est déjà en `-Dfile.encoding=UTF-8` |
+| Sécurité des pools | connexion en `root`, mot de passe en clair dans `domain.xml` : alias de mot de passe et utilisateur dédié |
 | Groovy 2.4 | seulement si des états de site l'utilisent |
 
 ---
@@ -413,26 +465,31 @@ jamais en même temps qu'eux.
 | # | Risque | Probabilité | Impact | État | Traitement | Lot |
 |---|---|---|---|---|---|---|
 | 1 | Séparateurs de milliers perdus dans 12 états | **certaine** | élevé | mesuré | fabrique de formats commune | 1 |
-| 2 | Options JVM refusées : Payara ne démarre pas | à vérifier | bloquant | testé option par option | inventaire, retrait | 0, 3 |
-| 3 | Votre Payara ne démarre pas sur JDK 17 | inconnue | bloquant | 5.2022.5 démarre (mesuré) | test de votre version | 0, 5 |
+| 2 | Options JVM refusées : Payara ne démarre pas | **levé** | — | vos 74 options rejouées : 0 refusée | rien à retirer | — |
+| 3 | Votre Payara ne démarre pas sur JDK 17 | **levé** | — | 5.2022.5 avec vos options : démarre (mesuré) | — | — |
 | 4 | États de site en Groovy | inconnue | moyen | non mesuré | inventaire puis banc | 0 |
 | 5 | Impression des tickets sous Windows | inconnue | **élevé** | non mesuré | recette sur imprimante réelle | 3 |
 | 6 | Afficheur, port série | inconnue | moyen | non mesuré | recette | 3 |
-| 7 | Bibliothèques du serveur modifiées | certaine si lot 5 | élevé | liste mesurée | comparaisons JSON et SQL | 5 |
+| 7 | Bibliothèques du serveur modifiées | **sans objet** (déjà en 5.2022.5) | — | liste mesurée | — | — |
 | 8 | FNE cassée par le retrait du formatter-plugin | certaine si l'ordre n'est pas respecté | élevé | dépendance identifiée | Guava déclaré d'abord | 2 |
-| 9 | Ramasse-miettes CMS en production | à vérifier | moyen | — | passage à G1 sur JDK 11, à part | 3 |
+| 9 | Ramasse-miettes CMS en production | **levé** | — | `-XX:+UseG1GC` déjà en place | — | — |
 | 10 | Migration Flyway mêlée à une bascule | procédure | élevé | — | principe n° 4 | tous |
 | 11 | `cleanOnValidationError` | latente | **critique** (base effacée) | code lu | retrait | 1 |
 | 12 | Échecs des 12 JSP mortes imputés au JDK | certaine | confusion | mesuré | documentées, exclues du banc | 0, 1 |
+| 13 | Locale héritée de la région Windows | inconnue | moyen (comportement des états) | non fixée dans `domain.xml` | lecture par la page de diagnostic, puis fixation sur JDK 11 | 0, 1 |
+| 14 | Application déployée depuis un dossier de compilation | à confirmer | élevé (un `mvn clean` la supprime) | lu dans `domain.xml` | déployer un WAR archivé, hors arborescence de développement | 0 |
 
 ---
 
 ## 12. Décisions attendues
 
-1. **Version exacte** de Payara ou de GlassFish en production (`asadmin version`).
+1. ~~Version exacte de Payara~~ — **obtenue** : 5.2022.5.
 2. **Ce que recouvre « évoluer en Payara »** : rester sur Payara 5, ou préparer Jakarta ?
-3. Le bloc **`<java-config>`** de votre `domain.xml`.
-4. Le dossier **REPORTS** du site et un **dump de base**, pour le banc.
-5. Un **poste de recette Windows** équipé comme la production.
-6. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
-7. Lot 2 retenu ou non.
+3. ~~Le bloc `<java-config>`~~ — **obtenu** et rejoué au banc (§ 2.7).
+4. **Ce `domain.xml` est-il celui de la production** ou d'un poste de développement ? (déploiement
+   depuis `D:/projet/rm/prestige/target/prestige/`)
+5. **La locale de la JVM de production**, lue avec `scripts/migration-jdk17/ws_diag_jvm.jsp`.
+6. Le dossier **REPORTS** du site et un **dump de base**, pour le banc.
+7. Un **poste de recette Windows** équipé comme la production.
+8. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
+9. Lot 2 retenu ou non.
