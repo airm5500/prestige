@@ -66,8 +66,8 @@ public class EspaceProduitRessource {
             return Response.ok().entity(reponse.put("total", 0).put("data", lignes).toString()).build();
         }
         String motif = "%" + texte + "%";
-        // Stock rayon = stock total moins la reserve : la table des stocks par type n'est pas
-        // entretenue sur toutes les bases, seul le couple (total, reserve) est fiable partout.
+        // t_famille_stock.int_NUMBER_AVAILABLE est le stock RAYON : un assort vers la reserve l'en retire
+        // (ReserveServiceImpl.doMove). Le stock total est donc rayon + reserve, comme dans ArticleDTO.
         String sql = "SELECT f.int_CIP, f.str_NAME, z.str_LIBELLEE, f.int_PRICE,"
                 + " COALESCE(reserve.int_NUMBER, 0), s.int_NUMBER_AVAILABLE, f.lg_FAMILLE_ID" + " FROM t_famille f"
                 + " INNER JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.str_STATUT = 'enable'"
@@ -94,12 +94,12 @@ public class EspaceProduitRessource {
 
         for (Object[] r : resultats) {
             long reserve = nombreDe(r[4]);
-            long total = nombreDe(r[5]);
-            // rayon = total - reserve, SANS ecretage : un rayon negatif doit se voir
+            long rayon = nombreDe(r[5]);
+            // SANS ecretage : un rayon negatif doit se voir
             // (la ligne passe en rouge quand rayon et total sont negatifs)
             lignes.put(new JSONObject().put("cip", texteDe(r[0])).put("designation", texteDe(r[1]))
-                    .put("emplacement", texteDe(r[2])).put("prixVente", nombreDe(r[3]))
-                    .put("stockRayon", total - reserve).put("stockReserve", reserve).put("stockTotal", total)
+                    .put("emplacement", texteDe(r[2])).put("prixVente", nombreDe(r[3])).put("stockRayon", rayon)
+                    .put("stockReserve", reserve).put("stockTotal", stockTotal(rayon, reserve))
                     .put("id", texteDe(r[6])));
         }
         return Response.ok().entity(reponse.put("total", lignes.length()).put("data", lignes).toString()).build();
@@ -192,6 +192,11 @@ public class EspaceProduitRessource {
         }
         return Response.ok().entity(reponse.put("annee", annee).put("designation", designation).put("cip", cip)
                 .put("data", data).toString()).build();
+    }
+
+    /** Stock total de l'officine : le rayon plus la reserve, qui n'est pas comptee dans le rayon. */
+    static long stockTotal(long rayon, long reserve) {
+        return rayon + reserve;
     }
 
     private static String texteDe(Object valeur) {
