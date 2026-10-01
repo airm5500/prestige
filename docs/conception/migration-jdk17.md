@@ -311,8 +311,10 @@ directement depuis un dossier de compilation — `D:/projet/p3/prestige/target/p
 
 ### 4 bis.1 Ce qui vit dans le dossier de l'application
 
-Le code écrit des fichiers **dans le dossier servi par l'application**, parce qu'il les sert ensuite
-par une adresse relative :
+Le code écrit des fichiers à un chemin absolu lu dans `config_laborex_v1.xml`, puis les fait télécharger
+par une adresse **relative à l'application** (les JSP redirigent vers
+`request.getContextPath() + "/data/reports/pdf/…"`, `ReportUtil` renvoie `/data/reports/pdf/…`). Aucune
+servlet ne sert `/data/*` : le fichier doit donc se trouver dans le dossier servi par l'application.
 
 | Fichiers | Écrits dans | Servis à l'adresse | Nature |
 |---|---|---|---|
@@ -323,6 +325,31 @@ par une adresse relative :
 Un simple passage au WAR casserait donc les téléchargements de PDF (écrits hors du dossier servi), et
 chaque redéploiement effacerait ce qui est écrit dans le dossier de l'application. **Les chemins exacts
 se lisent dans le `config_laborex_v1.xml` de chaque site** (relevé du lot 0).
+
+**Ce que montre la configuration de `danane`** (reçue le 1er octobre) — et ce qu'elle ne suffit pas à
+trancher :
+
+| Clé | Chemin à `danane` | Lecture |
+|---|---|---|
+| `scr_report_pdf` | `D:\payara5\…\domain1\applications\laborex\data\reports\pdf\` | dossier d'une **ancienne application « laborex »**, pas celui de Prestige |
+| `path_export_txt`, `path_export_csv`, `path_file_generate_absolute_imported/_exported`, `path_pharmaml_client`, `path_injecteur` | sous `D:\payara5\…\applications\laborex\` | idem |
+| `path_photo_absolute` | `D:\PROJECTS\JAVA\LABOREX\laborex\build\web\data\` | dossier de compilation d'un ancien projet |
+| `path_file_generate_absolute` | `D:\JAVA\PROJECTS\LABOREX\…\ecap_2i_map\build\web\…` | idem |
+| `scr_report_file`, logo, codes-barres, journal | `D:\CONF\LABOREX\…` | hors de toute application : sain |
+
+Or l'application `prestige` est servie depuis `D:/projet/p3/prestige/target/prestige/`. Si ce fichier
+était bien celui qui est chargé, un PDF généré ne serait pas téléchargeable. Il reste trois explications,
+qu'une page de diagnostic départage en un appel (`scripts/migration-jdk17/ws_diag_fichiers.jsp`, validée
+au banc sur les trois cas) :
+
+1. **un autre `config_laborex_v1.xml` est chargé** : `TOOLKITS` essaie onze emplacements dans un ordre
+   fixe, et sous Windows `C:\CONF\LABOREX\CONF\` passe **avant** `D:\CONF\LABOREX\CONF\` ;
+2. le dossier `data` de Prestige est une **jonction Windows** vers l'ancien dossier `laborex` ;
+3. ces téléchargements ne fonctionnent pas à `danane`.
+
+La page indique aussi, pour chaque chemin, s'il existe, son chemin réel (jonctions résolues), son nombre
+de fichiers et la date du plus récent — ce qui montre lesquels sont réellement utilisés. **Le détail des
+étapes B et C ci-dessous dépend de sa réponse.**
 
 ### 4 bis.2 Le mécanisme retenu, mesuré au banc
 
@@ -596,7 +623,7 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | Hibernate 6 | va avec Jakarta |
 | MariaDB ≥ 10.10 | exige d'abord un autre pilote (5.1.23 plante, mesuré) |
 | JDK 21 | la passerelle `COMPAT` y devient dépréciée ; l'encodage par défaut passe à UTF-8 dès le JDK 18 : sans effet à `dabou` (déjà en `-Dfile.encoding=UTF-8`), **changement réel à `danane`** (aujourd'hui Cp1252, l'encodage de Windows) — à instruire pour les exports, les fichiers et les impressions |
-| Sécurité des pools | connexion en `root`, mot de passe en clair dans `domain.xml` : alias de mot de passe et utilisateur dédié |
+| Sécurité des secrets | pools en `root` avec mot de passe en clair dans `domain.xml` ; `config_laborex_v1.xml` contient lui aussi en clair les accès à la base, à un serveur SQL Server, à une passerelle SMS et à des comptes de messagerie : alias de mot de passe, utilisateurs dédiés, et renouvellement de ces secrets, qui ont circulé |
 | Groovy 2.4 | seulement si des états de site l'utilisent |
 
 ---
@@ -635,8 +662,8 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 5. **La locale et la version exacte du JDK 11 de chaque site**, lues avec
    `scripts/migration-jdk17/ws_diag_jvm.jsp` — `danane` en premier.
 6. ~~Le site pilote~~ — **`danane`**.
-7. Pour `danane`, avant le lot 0 bis : son **`config_laborex_v1.xml`** (chemins des PDF et des
-   photos), l'**état Git** de `D:\projet\p3\prestige` (dernier commit et modifications non
+7. Pour `danane`, avant le lot 0 bis : ~~son `config_laborex_v1.xml`~~ — **reçu** (§ 4 bis.1) ; le
+   résultat de **`scripts/migration-jdk17/ws_diag_fichiers.jsp`** sur le serveur ; l'**état Git** de `D:\projet\p3\prestige` (dernier commit et modifications non
    commitées), et une réponse claire : **modifie-t-on des fichiers à chaud dans `target/prestige`** ?
 8. Le dossier **REPORTS** du site pilote et un **dump de sa base**, pour le banc.
 9. Un **poste de recette Windows** équipé comme la production.
