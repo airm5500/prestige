@@ -16,6 +16,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.PrePersist;
+import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -203,6 +205,19 @@ public class TMouvementprice implements Serializable {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Ecart du mouchard des prix = nouveau prix - ancien prix (une hausse est positive), quel que soit l'ecran qui
+     * enregistre le changement. C'est la convention du trigger t_mouvementprice_before_insert des bases en service ;
+     * sans lui, la vente ecrivait l'inverse et la commande ne renseignait pas l'ecart.
+     */
+    @PrePersist
+    @PreUpdate
+    void calculerEcart() {
+        if (intPRICENEW != null && intPRICEOLD != null) {
+            intECART = intPRICENEW - intPRICEOLD;
+        }
     }
 
     @Override

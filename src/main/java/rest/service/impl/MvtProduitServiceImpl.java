@@ -113,7 +113,6 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         mouvementprice.setDtCREATED(new Date());
         mouvementprice.setDtDAY(new Date());
         mouvementprice.setIntPRICENEW(newPu);
-        mouvementprice.setIntECART(old - newPu);
         mouvementprice.setIntPRICEOLD(old);
         mouvementprice.setDtUPDATED(new Date());
         mouvementprice.setLgUSERID(user);
