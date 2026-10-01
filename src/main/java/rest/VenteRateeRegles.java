@@ -42,6 +42,21 @@ public final class VenteRateeRegles {
                 + ". Souhaitez-vous marquer comme commandées toutes les lignes de ce produit ?";
     }
 
+    /**
+     * Ordre chronologique des jours « dd/MM/yyyy » de l'analyse : compares en texte, 01/03 passait avant 02/01. Un
+     * libelle hors format est range apres les dates, dans l'ordre du texte.
+     */
+    public static final java.util.Comparator<String> ORDRE_DES_JOURS = java.util.Comparator
+            .comparing(VenteRateeRegles::cleChronologique);
+
+    static String cleChronologique(String jour) {
+        String j = StringUtils.defaultString(jour).trim();
+        if (j.matches("\\d{2}/\\d{2}/\\d{4}")) {
+            return j.substring(6, 10) + j.substring(3, 5) + j.substring(0, 2);
+        }
+        return "~" + j;
+    }
+
     /** La confirmation groupee ne se pose que si le produit apparait dans PLUSIEURS demandes actives. */
     public static boolean confirmationGroupeeNecessaire(int nbDemandesActives) {
         return nbDemandesActives > 1;

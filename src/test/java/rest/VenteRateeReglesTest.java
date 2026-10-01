@@ -14,6 +14,17 @@ import org.junit.jupiter.api.Test;
 class VenteRateeReglesTest {
 
     @Test
+    @DisplayName("Analyse par jour : ordre chronologique, pas l'ordre du texte dd/MM/yyyy")
+    void ordreDesJours() {
+        java.util.TreeMap<String, Integer> jours = new java.util.TreeMap<>(VenteRateeRegles.ORDRE_DES_JOURS);
+        for (String j : new String[] { "01/03/2026", "02/01/2026", "15/12/2025", "01/04/2026", "31/01/2026" }) {
+            jours.put(j, 1);
+        }
+        assertEquals(java.util.Arrays.asList("15/12/2025", "02/01/2026", "31/01/2026", "01/03/2026", "01/04/2026"),
+                new java.util.ArrayList<>(jours.keySet()));
+    }
+
+    @Test
     @DisplayName("Normalisation : casse et espaces ne creent pas de doublons")
     void normalisation() {
         assertEquals("doliprane 1000", VenteRateeRegles.normaliser("  Doliprane   1000 "));

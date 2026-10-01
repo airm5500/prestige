@@ -294,7 +294,7 @@ public class VentesRateesServiceImpl implements VentesRateesService {
         Map<String, int[]> parProduit = new LinkedHashMap<>(); // cle -> [demandes, quantite, nonCommandees]
         Map<String, String> libelleProduit = new LinkedHashMap<>();
         Map<String, int[]> parMotif = new LinkedHashMap<>();
-        Map<String, int[]> parJour = new java.util.TreeMap<>();
+        Map<String, int[]> parJour = new java.util.TreeMap<>(VenteRateeRegles.ORDRE_DES_JOURS);
         Map<String, int[]> parUtilisateur = new LinkedHashMap<>();
         Map<String, int[]> libresFrequents = new LinkedHashMap<>();
 
