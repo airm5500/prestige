@@ -3,6 +3,7 @@
 **Date** : 1er octobre 2026 — mis à jour le même jour avec les `domain.xml` des sites `dabou` et `danane` (§ 2.7)
 **Statut** : plan à valider — aucune modification de production, aucune modification de code.
 Lot 0 entamé : version de Payara et options JVM de deux sites relevées et rejouées au banc.
+`dabou` et `danane` confirmés comme serveurs de production ; **site pilote : `danane`**.
 **Fondement** : mesures faites sur banc les 30 septembre et 1er octobre 2026 (§ 2), et non
 une lecture du code seule
 **Exigence de départ** : aucune régression
@@ -204,6 +205,7 @@ même refaite sur le code réellement déployé.
 | Lot | Objectif | Ce qui change | Plate-forme | Retour arrière | Bloquant ? |
 |---|---|---|---|---|---|
 | **0** | Inventaire et référence JDK 11 | rien en production | — | sans objet | oui |
+| **0 bis** | Sortir l'application du dossier de compilation | données hors déploiement, puis livraison par WAR archivé | JDK 11 | revenir au déploiement en répertoire | **oui** |
 | **1** | Correctifs préparatoires | code (séparateurs, sûreté Flyway) | JDK 11 | redéployer le WAR précédent | oui |
 | **2** | Assainissement du WAR | POM (formatter-plugin, Guava) | JDK 11 | redéployer le WAR précédent | recommandé |
 | **3** | **Bascule de la JVM** | JDK 11 → 17, WAR inchangé | JDK 17 | **remettre le JDK 11, quelques minutes** | oui |
@@ -217,6 +219,12 @@ fois la JVM éprouvée en production.
 
 **Pourquoi les lots 1 et 2 passent sur JDK 11.** Ils doivent produire **zéro différence** sur le
 JDK 11 actuel. C'est leur preuve d'innocuité, établie avant même que le JDK change.
+
+**Pourquoi un lot 0 bis, et pourquoi il bloque.** Les retours arrière des lots 1 à 4 reposent sur un
+WAR identifié et conservé. Or en production l'application tourne directement depuis un dossier de
+compilation : la prochaine compilation sur la machine la réécrit, et un `mvn clean` la supprime —
+avec les PDF générés et, selon la configuration, les photos. Tant que ce point n'est pas réglé, aucun
+retour arrière n'est garanti.
 
 ---
 
@@ -285,6 +293,99 @@ les mesures.
 
 Inventaire complet, version de Payara connue et testée sur JDK 17, options JVM recensées, référence
 produite et archivée, 12 JSP mortes documentées.
+
+---
+
+## 4 bis. Lot 0 bis — Sortir l'application du dossier de compilation, sur JDK 11
+
+**Constat, confirmé le 1er octobre** : sur les deux sites de production, Payara sert l'application
+directement depuis un dossier de compilation — `D:/projet/p3/prestige/target/prestige/` à `danane`,
+`D:/projet/rm/prestige/target/prestige/` à `dabou`. Conséquences :
+
+- une compilation sur la machine **modifie l'application en production** sans déploiement ;
+  un `mvn clean` la **supprime** ;
+- on ne sait pas exactement quel code tourne : la dernière compilation, peut-être avec des
+  modifications jamais commitées ;
+- aucun retour arrière des lots suivants ne peut s'appuyer sur un WAR identifié ;
+- les deux sites peuvent tourner sur des codes différents.
+
+### 4 bis.1 Ce qui vit dans le dossier de l'application
+
+Le code écrit des fichiers **dans le dossier servi par l'application**, parce qu'il les sert ensuite
+par une adresse relative :
+
+| Fichiers | Écrits dans | Servis à l'adresse | Nature |
+|---|---|---|---|
+| PDF des états (`ReportUtil`) | `jdom.scr_report_pdf` (chemin absolu de `config_laborex_v1.xml`) | `/prestige/data/reports/pdf/…` | régénérés à chaque édition |
+| Photos des clients (dépôts) | `jdom.path_photo_absolute` | `jdom.path_photo_relatif` | **données à conserver** |
+| CSV de travail (commandes, migrations) | `WEB-INF/…` de l'application | — | temporaires |
+
+Un simple passage au WAR casserait donc les téléchargements de PDF (écrits hors du dossier servi), et
+chaque redéploiement effacerait ce qui est écrit dans le dossier de l'application. **Les chemins exacts
+se lisent dans le `config_laborex_v1.xml` de chaque site** (relevé du lot 0).
+
+### 4 bis.2 Le mécanisme retenu, mesuré au banc
+
+Payara peut servir une partie des adresses d'une application depuis un **dossier extérieur**
+(propriété `alternatedocroot` du descripteur `glassfish-web.xml`). Mesures sur Payara 5.2022.5 :
+
+| Essai | Résultat |
+|---|---|
+| Réglage au niveau du serveur virtuel (`asadmin set … virtual-server …`) | **sans effet** sur l'application `/prestige`, même après redémarrage |
+| `glassfish-web.xml` : `from=/data/* dir=<chemin écrit en dur>` | fichier extérieur servi (HTTP 200) |
+| `glassfish-web.xml` : `from=/data/* dir=${prestige.dossier.donnees}`, propriété système définie sur le domaine | fichier extérieur servi (HTTP 200) — **un seul WAR pour tous les sites** |
+| Même WAR, propriété **non définie** | **le déploiement échoue**, l'application ne démarre pas |
+| Retrait de l'application | le dossier extérieur est **conservé** |
+| Redéploiement à chaud par-dessus l'application en place | peut échouer (« Unable to find CDI BeanManager ») ; retrait, redémarrage, puis déploiement : réussit |
+
+Deux règles en découlent :
+
+1. **La propriété `prestige.dossier.donnees` doit être définie sur un site avant qu'il reçoive ce WAR.**
+   Pour un site encore en déploiement en répertoire, il suffit de la faire pointer sur le dossier actuel
+   de l'application : `/data/` reste servi au même endroit, rien ne change.
+2. **Toute livraison se fait par retrait, redémarrage, puis déploiement** — pas par redéploiement à chaud.
+
+### 4 bis.3 Étapes, à `danane` d'abord
+
+Chaque étape est une fenêtre distincte, sur JDK 11, avec sa vérification et son retour arrière.
+
+**Étape A — préparer, sans effet.** Créer le dossier de données hors de toute arborescence de
+développement (par exemple `D:\PRESTIGE\donnees`), y **copier** le contenu actuel de `data/` et des
+photos, et définir la propriété `prestige.dossier.donnees` sur le domaine. Le WAR actuel ne la lit pas :
+aucun effet en production. La syntaxe exacte de la commande `asadmin` sous Windows (échappement du
+`:` de `D:`) est validée au préalable sur le poste de recette.
+
+**Étape B — les données sortent du déploiement.** Une livraison qui contient, et seulement cela :
+- le `glassfish-web.xml` avec la règle `from=/data/*` (et une seconde règle pour les photos si leur
+  adresse n'est pas sous `/data/`, selon `config_laborex_v1.xml`) ;
+- dans `config_laborex_v1.xml`, les chemins d'écriture (`scr_report_pdf`, `path_photo_absolute`…)
+  repointés vers le dossier de données ;
+- une dernière synchronisation des fichiers juste avant la bascule.
+
+Vérification : édition et téléchargement d'un état, affichage d'une photo existante, ajout d'une
+photo, et plus aucune écriture dans le dossier de compilation. Retour arrière : restaurer
+`config_laborex_v1.xml`, redéployer comme avant, recopier les fichiers créés entre-temps.
+
+**Étape C — livraison par WAR archivé.**
+1. Identifier le code en production : état Git de `D:\projet\p3\prestige` (dernier commit, et surtout
+   les modifications non commitées).
+2. Construire le WAR **de ce même code**, sur un poste de construction et non sur le serveur.
+   Vérifier fichier par fichier qu'il est identique au dossier déployé.
+3. Archiver le WAR avec sa somme de contrôle, dans un dossier de livraisons
+   (par exemple `D:\PRESTIGE\livraisons\prestige-<date>-<commit>.war`).
+4. Fenêtre de maintenance : retrait de l'application, redémarrage, déploiement du WAR archivé.
+5. Vérification : recette courte (connexion, vente, ticket, édition d'un état, photo).
+6. Retour arrière : retrait, redémarrage, redéploiement du dossier comme aujourd'hui.
+
+À partir de là, **plus aucune modification à chaud** dans un dossier déployé, et **plus de compilation
+sur le serveur** : toute livraison est un WAR archivé. Si l'équipe modifie aujourd'hui des fichiers
+directement dans `target/prestige` en production, c'est une pratique qui s'arrête ici — à dire
+explicitement avant de commencer.
+
+**Critère de passage** : une semaine sans régression ; le WAR qui tourne est identifiable et archivé ;
+le dossier de compilation peut être recompilé ou nettoyé sans effet sur la production.
+
+`dabou` suit la même démarche après `danane`.
 
 ---
 
@@ -517,9 +618,10 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | 11 | `cleanOnValidationError` | latente | **critique** (base effacée) | code lu | retrait | 1 |
 | 12 | Échecs des 12 JSP mortes imputés au JDK | certaine | confusion | mesuré | documentées, exclues du banc | 0, 1 |
 | 13 | Locale héritée de la région Windows | inconnue | moyen (comportement des états) | non fixée dans `domain.xml` | lecture par la page de diagnostic, puis fixation sur JDK 11 | 0, 1 |
-| 14 | Application déployée depuis un dossier de compilation | **probable sur tous les sites** (vu à `dabou` et à `danane`) | élevé (un `mvn clean` la supprime) | lu dans les deux `domain.xml` | déployer un WAR archivé, hors arborescence de développement | 0 |
+| 14 | Application déployée depuis un dossier de compilation | **confirmée** en production à `dabou` et à `danane` | **élevé** : un `mvn clean` supprime l'application, ses PDF et selon la configuration les photos ; aucun retour arrière garanti | confirmé le 1er octobre | lot 0 bis : données hors déploiement, puis WAR archivé | 0 bis |
 | 15 | Configurations JVM hétérogènes entre sites | **certaine** (`danane` ⊂ `dabou`) | moyen | comparé option par option | relevé par site, site pilote, harmonisation à part | 0, tous |
 | 16 | Premier affichage des pages plus lent (compilation des JSP) | **mesurée** au banc, 3 fois sur 3 | faible (une fois par page) | + 8 % à + 24 % au déploiement | mesure au site pilote ; précompilation au déploiement si besoin | 3 |
+| 17 | WAR à dossier extérieur livré sur un site sans la propriété `prestige.dossier.donnees` | certaine si l'ordre n'est pas respecté | **bloquant** : l'application ne démarre pas (mesuré) | mesuré au banc | propriété définie avant toute livraison de ce WAR, sur chaque site | 0 bis |
 
 ---
 
@@ -529,12 +631,14 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 2. **Ce que recouvre « évoluer en Payara »** : rester sur Payara 5, ou préparer Jakarta ?
 3. ~~Le bloc `<java-config>`~~ — **obtenu** et rejoué au banc (§ 2.7).
 4. **La liste de tous les sites**, et pour chacun son `domain.xml` — deux reçus à ce jour, `dabou`
-   et `danane`, qui diffèrent. Confirmer qu'il s'agit bien de serveurs de production : l'application
-   y est déployée depuis un dossier de compilation (`D:/projet/rm/…`, `D:/projet/p3/…`).
+   et `danane`. ~~Serveurs de production ?~~ — **confirmé** pour les deux.
 5. **La locale et la version exacte du JDK 11 de chaque site**, lues avec
-   `scripts/migration-jdk17/ws_diag_jvm.jsp`.
-6. **Le site pilote** du premier passage.
-7. Le dossier **REPORTS** du site pilote et un **dump de sa base**, pour le banc.
-8. Un **poste de recette Windows** équipé comme la production.
-9. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
-10. Lot 2 retenu ou non.
+   `scripts/migration-jdk17/ws_diag_jvm.jsp` — `danane` en premier.
+6. ~~Le site pilote~~ — **`danane`**.
+7. Pour `danane`, avant le lot 0 bis : son **`config_laborex_v1.xml`** (chemins des PDF et des
+   photos), l'**état Git** de `D:\projet\p3\prestige` (dernier commit et modifications non
+   commitées), et une réponse claire : **modifie-t-on des fichiers à chaud dans `target/prestige`** ?
+8. Le dossier **REPORTS** du site pilote et un **dump de sa base**, pour le banc.
+9. Un **poste de recette Windows** équipé comme la production.
+10. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
+11. Lot 2 retenu ou non.
