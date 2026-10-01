@@ -1,8 +1,8 @@
 # Migration JDK 11 → JDK 17 et évolution de Payara — plan détaillé
 
-**Date** : 1er octobre 2026 — mis à jour le même jour avec le `domain.xml` de l'officine (§ 2.7)
+**Date** : 1er octobre 2026 — mis à jour le même jour avec les `domain.xml` des sites `dabou` et `danane` (§ 2.7)
 **Statut** : plan à valider — aucune modification de production, aucune modification de code.
-Lot 0 entamé : version de Payara et options JVM relevées et rejouées au banc.
+Lot 0 entamé : version de Payara et options JVM de deux sites relevées et rejouées au banc.
 **Fondement** : mesures faites sur banc les 30 septembre et 1er octobre 2026 (§ 2), et non
 une lecture du code seule
 **Exigence de départ** : aucune régression
@@ -25,6 +25,10 @@ Ces règles valent pour chaque lot. Un lot qui ne peut pas les respecter ne part
 5. **Les données réelles restent strictement locales**, rien n'est exporté. **Aucun SMS réel**
    n'est envoyé depuis un banc.
 6. **On garde le JDK 11 installé** jusqu'à la fin de la période d'observation du dernier lot.
+7. **Site par site.** Les serveurs des officines n'ont pas tous la même configuration (§ 2.7).
+   Chaque lot passe d'abord sur **un site pilote**, puis sur les autres un par un, après relevé de
+   la configuration propre à chacun. Harmoniser les configurations entre sites est un changement en
+   soi : il ne se fait jamais en même temps qu'un lot.
 
 ---
 
@@ -57,8 +61,8 @@ même WAR, même base réinitialisée avant chaque passage, locale `fr_FR`.
 | Constat | Mesure | Gravité |
 |---|---|---|
 | **Les séparateurs de milliers disparaissent de 12 états sur 13** : `1 234 568` devient `1234568` | texte des PDF comparé ; image à l'appui | **élevée** — relevés et bons envoyés aux organismes |
-| Le JDK 17 **refuse de démarrer** avec `-XX:MaxPermSize`, `-XX:PermSize`, les options du ramasse-miettes CMS, `-XX:+AggressiveOpts`, `-XX:+UseParallelOldGC` | testé option par option | **levée** : aucune dans votre `domain.xml` (§ 2.7) |
-| Changer la version de Payara change **en silence** des bibliothèques dont dépend l'application | interrogé dans l'application en marche (§ 2.4) | **sans objet** : vous êtes déjà en 5.2022.5 |
+| Le JDK 17 **refuse de démarrer** avec `-XX:MaxPermSize`, `-XX:PermSize`, les options du ramasse-miettes CMS, `-XX:+AggressiveOpts`, `-XX:+UseParallelOldGC` | testé option par option | **levée** : aucune dans les deux `domain.xml` reçus (§ 2.7) |
+| Changer la version de Payara change **en silence** des bibliothèques dont dépend l'application | interrogé dans l'application en marche (§ 2.4) | **sans objet** : les deux sites relevés sont déjà en 5.2022.5 |
 | Retirer le `formatter-maven-plugin` sans déclarer Guava **casse la facture normalisée électronique** (`FneServiceImpl`) | dépendance Maven + imports | **élevée** si l'ordre n'est pas respecté |
 
 ### 2.3 La cause des séparateurs, et ce qui est exposé
@@ -120,45 +124,59 @@ client et le port série (`jSerialComm`, bibliothèque native), ni les SMS, ni l
 nocturnes avec données, ni **vos états de site** (`D:\CONF\LABOREX\REPORTS`). Chaque point est
 repris par un lot ci-dessous.
 
-### 2.7 Votre serveur : le `domain.xml` rejoué au banc
+### 2.7 Vos serveurs : deux `domain.xml` rejoués au banc
 
-L'officine tourne en **Payara 5.2022.5**, la version même du banc. Le bloc `<java-config>` de son
-`domain.xml` — 74 options JVM — a été appliqué tel quel aux deux Payara du banc. Seules trois options
-propres au banc ont été ajoutées : la génération des tables par Hibernate (base vide) et la locale
-`fr_FR` (sur Windows, elle vient des réglages régionaux ; sous Linux il faut la fixer).
+Deux sites ont transmis leur `domain.xml` : **`dabou`** et **`danane`** (noms des bases). Tous deux
+tournent en **Payara 5.2022.5**, la version même du banc. Leurs configurations JVM **diffèrent** :
+les 62 options de `danane` sont exactement un sous-ensemble des 74 de `dabou`.
 
-| Vérification avec vos options | JDK 11 | JDK 17 | JDK 17, bytecode 17 |
-|---|---|---|---|
-| Démarrage, options refusées ou ignorées | 0 | 0 | 0 |
-| Déploiement avec précompilation | réussi | réussi | réussi |
-| JSP compilées | 545 | 545 | 545 |
-| Signatures d'exceptions distinctes | 13 | 13 | 13 |
-| **Écarts avec le JDK 11** | — | **0** | **0** |
-| États : identiques au JDK 11 | — | **1 / 13** (séparateurs) | — |
+| Options présentes à `dabou`, absentes à `danane` | Effet à `danane` |
+|---|---|
+| `-Dfile.encoding=UTF-8` | encodage de Windows (Cp1252 en français) |
+| `-Duser.timezone=Africa/Abidjan` | fuseau de Windows |
+| `-Dhttps.protocols=TLSv1.2`, `-Djdk.tls.client.protocols=TLSv1.2` | protocoles TLS par défaut du JDK |
+| `-XX:+UseG1GC` | ramasse-miettes choisi par la JVM (G1 sur une machine d'au moins 2 processeurs et 2 Go) |
+| `-XX:MetaspaceSize`, `-XX:MaxMetaspaceSize`, `-XX:+UseStringDeduplication`, `-XX:+HeapDumpOnOutOfMemoryError`, `-Djava.net.preferIPv4Stack=true` | valeurs par défaut |
+| `-DWA_WEB_URL`, `-DWA_WEB_TOKEN` | — (non lues par le code Java) |
 
-Lecture des options, une à une :
+Chaque configuration a été appliquée **telle quelle** aux deux Payara du banc. Seules des options
+propres au banc ont été ajoutées : la génération des tables par Hibernate (base vide), la locale
+`fr_FR` (sur Windows elle vient des réglages régionaux) et, pour `danane`, l'encodage Cp1252 d'un
+Windows français.
+
+| Vérification | `dabou` JDK 11 | `dabou` JDK 17 | `dabou` JDK 17, bytecode 17 | `danane` JDK 11 | `danane` JDK 17 |
+|---|---|---|---|---|---|
+| Démarrage, options refusées ou ignorées | 0 | 0 | 0 | 0 | 0 |
+| Déploiement avec précompilation | réussi | réussi | réussi | *mesure en cours* | *mesure en cours* |
+| JSP compilées | 545 | 545 | 545 | *en cours* | *en cours* |
+| Signatures d'exceptions distinctes | 13 | 13 | 13 | *en cours* | *en cours* |
+| **Écarts avec le JDK 11 du même site** | — | **0** | **0** | — | *en cours* |
+| États : identiques au JDK 11 | — | **1 / 13** (séparateurs) | — | — | **1 / 13** (séparateurs) |
+
+Sur JDK 11, les états sortent **strictement identiques en Cp1252 et en UTF-8** (13/13) : l'encodage
+de la JVM n'a aucun effet sur eux, et le correctif des séparateurs vaut pour les deux sites.
+
+Lecture des options :
 
 | Constat | Conséquence |
 |---|---|
-| Aucune option refusée par le JDK 17 (`MaxPermSize`, CMS, `AggressiveOpts`… absentes) | **rien à retirer** avant la bascule |
-| `-XX:+UseG1GC` déjà en place | pas de changement de ramasse-miettes |
+| Aucune option refusée par le JDK 17 sur aucun des deux sites | **rien à retirer** avant la bascule |
+| G1 explicite à `dabou`, choix par défaut à `danane` | même règle de choix sur JDK 11 et 17 : pas de changement |
 | Options `[17\|]` déjà présentes (fournies par Payara) | elles s'activent d'elles-mêmes sur JDK 17 |
-| `-Dfile.encoding=UTF-8` | le passage à UTF-8 par défaut du JDK 18 ne vous concernera pas ; **sans effet sur la régression des séparateurs** (mesuré) |
-| `-Duser.timezone=Africa/Abidjan` | identique sur les deux JDK |
-| TLS sortant limité à TLSv1.2, magasin de certificats propre au domaine (`cacerts.jks`) | les appels sortants ne dépendent pas des certificats du JDK ; FNE et SMS restent à la recette |
-| **Locale non fixée** (aucun `-Duser.language`) | elle vient de la région Windows : à lire avec `scripts/migration-jdk17/ws_diag_jvm.jsp` |
-| Application déployée en répertoire depuis `D:/projet/rm/prestige/target/prestige/` | si c'est la production, un `mvn clean` sur cette machine supprime l'application en marche — à confirmer |
-| Pool `UbiSenderProDS` | non utilisé par Prestige |
-| Propriétés `WA_WEB_URL`, `WA_WEB_TOKEN` | non lues par le code Java de la branche, ni de `dev` |
+| Encodage : UTF-8 à `dabou`, Cp1252 à `danane` | inchangé par le JDK 17 ; **changera à `danane` avec le JDK 18 et plus** (§ 10) |
+| TLS : 1.2 imposé à `dabou`, protocoles par défaut à `danane` | identiques entre un JDK 11 récent (11.0.11 et plus) et le JDK 17 ; un JDK 11 plus ancien acceptait encore TLS 1.0 et 1.1 — la version exacte se lit avec la page de diagnostic |
+| Magasin de certificats propre au domaine (`cacerts.jks`) sur les deux sites | les appels sortants ne dépendent pas des certificats du JDK ; FNE et SMS restent à la recette |
+| **Locale non fixée** sur les deux sites | elle vient de la région Windows : à lire avec `scripts/migration-jdk17/ws_diag_jvm.jsp` |
+| Application déployée en répertoire depuis un dossier de compilation (`D:/projet/rm/…`, `D:/projet/p3/…`) | si ce sont des serveurs de production, un `mvn clean` sur la machine supprime l'application en marche — à confirmer |
+| Pool `UbiSenderProDS` (à `dabou` seulement) | non utilisé par Prestige |
 
-Hors migration, à traiter à part : les deux pools se connectent en **`root`**, mot de passe en clair
-dans `domain.xml`. Un alias de mot de passe (`asadmin create-password-alias`) et un utilisateur
-MariaDB dédié réduiraient l'exposition.
+Hors migration, à traiter à part : les pools se connectent en **`root`**, mot de passe en clair dans
+`domain.xml`. Un alias de mot de passe (`asadmin create-password-alias`) et un utilisateur MariaDB
+dédié réduiraient l'exposition.
 
 Observation à suivre au lot 3 : le déploiement avec précompilation des 545 JSP a été plus long sur
-JDK 17 lors des deux comparaisons (296 s contre 274 s, puis 246 s contre 216 s). Deux mesures ne font
-pas une conclusion, et ce temps ne concerne pas la production, où les JSP se compilent à leur premier
-appel ; il sera suivi.
+JDK 17 à chaque comparaison (`dabou` : 296 s contre 274 s ; options par défaut de Payara : 246 s contre 216 s ; `danane` : mesure en cours). Ce temps ne concerne pas la production, où les JSP se
+compilent à leur premier appel ; il sera suivi.
 
 Enfin, la branche `dev` compte 13 commits absents de la branche mesurée, avec **des dépendances
 strictement identiques** : la surface sensible au JDK est la même. La référence du lot 0 sera tout de
@@ -192,7 +210,11 @@ JDK 11 actuel. C'est leur preuve d'innocuité, établie avant même que le JDK c
 **Objectif** : savoir exactement ce qui tourne, et produire la référence de comparaison.
 **Aucun changement en production.**
 
-### 4.1 Relevés de production
+### 4.1 Relevés de production — pour chaque site
+
+Les relevés se font **site par site** : deux sites relevés à ce jour ont des configurations
+différentes (§ 2.7). La page `scripts/migration-jdk17/ws_diag_jvm.jsp` donne en une fois la version
+exacte du JDK, la locale, les encodages, le fuseau et la mémoire maximale.
 
 | Relevé | Commande ou emplacement | Pourquoi |
 |---|---|---|
@@ -341,14 +363,15 @@ Bénéfice : un WAR plus léger, des bibliothèques de 2010 retirées, et une am
 ### 7.1 Prérequis
 
 - Lots 0 et 1 en production (le lot 2 recommandé).
-- Votre version de Payara démarre sur JDK 17 : **acquis** — 5.2022.5 avec vos options, mesuré (§ 2.7).
+- Payara démarre sur JDK 17 : **acquis** pour `dabou` et `danane` — 5.2022.5 avec leurs options, mesuré (§ 2.7) ; à vérifier pour chaque autre site.
 - **JDK 17 retenu** : une distribution LTS maintenue, à sa dernière mise à jour, Windows x64
   (par exemple Eclipse Temurin 17). Installé **à côté** du JDK 11, qu'on ne désinstalle pas.
 
 ### 7.2 Options JVM
 
-**Aucune option à retirer** : votre `domain.xml` n'en contient aucune que le JDK 17 refuse, et le
-serveur est déjà en G1 (§ 2.7, mesuré). Le `domain.xml` ne change pas pour la bascule.
+**Aucune option à retirer** : aucun des deux `domain.xml` reçus n'en contient une que le JDK 17
+refuse, et le ramasse-miettes reste G1 (§ 2.7, mesuré). Le `domain.xml` ne change pas pour la
+bascule. Chaque autre site est vérifié de la même façon au lot 0.
 
 Reste la locale, aujourd'hui héritée de la région Windows. **Recommandation** : la fixer
 explicitement (`-Duser.language=fr`, `-Duser.country=FR`) **au lot 1, sur JDK 11** — si la région
@@ -426,7 +449,8 @@ Retour arrière : redéployer le WAR archivé. Observation : deux semaines.
 
 ## 9. Lot 5 — Version de Payara : sans objet
 
-**La production est en Payara 5.2022.5** (relevé du 1er octobre) : rien à faire dans ce projet.
+**Les deux sites relevés sont en Payara 5.2022.5** (1er octobre) : rien à faire dans ce projet pour
+eux ; la version de chaque autre site est vérifiée au lot 0.
 C'est la dernière version communautaire de Payara 5 ; la suite (support étendu chez l'éditeur, ou
 passage à Jakarta) est une décision à part, à instruire avec l'éditeur.
 
@@ -454,7 +478,7 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | Jakarta EE / Payara 6 et 7 | espace de noms `jakarta.*` : imports, descripteurs, JSP, serveur ; Payara 7 exige en plus le JDK 21 |
 | Hibernate 6 | va avec Jakarta |
 | MariaDB ≥ 10.10 | exige d'abord un autre pilote (5.1.23 plante, mesuré) |
-| JDK 21 | la passerelle `COMPAT` y devient dépréciée ; le passage de l'encodage par défaut à UTF-8 (JDK 18) ne vous touche pas, votre JVM est déjà en `-Dfile.encoding=UTF-8` |
+| JDK 21 | la passerelle `COMPAT` y devient dépréciée ; l'encodage par défaut passe à UTF-8 dès le JDK 18 : sans effet à `dabou` (déjà en `-Dfile.encoding=UTF-8`), **changement réel à `danane`** (aujourd'hui Cp1252, l'encodage de Windows) — à instruire pour les exports, les fichiers et les impressions |
 | Sécurité des pools | connexion en `root`, mot de passe en clair dans `domain.xml` : alias de mot de passe et utilisateur dédié |
 | Groovy 2.4 | seulement si des états de site l'utilisent |
 
@@ -465,19 +489,20 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | # | Risque | Probabilité | Impact | État | Traitement | Lot |
 |---|---|---|---|---|---|---|
 | 1 | Séparateurs de milliers perdus dans 12 états | **certaine** | élevé | mesuré | fabrique de formats commune | 1 |
-| 2 | Options JVM refusées : Payara ne démarre pas | **levé** | — | vos 74 options rejouées : 0 refusée | rien à retirer | — |
-| 3 | Votre Payara ne démarre pas sur JDK 17 | **levé** | — | 5.2022.5 avec vos options : démarre (mesuré) | — | — |
+| 2 | Options JVM refusées : Payara ne démarre pas | **levé** pour `dabou` et `danane` | — | options des deux sites rejouées : 0 refusée | rien à retirer ; vérifier chaque autre site | 0 |
+| 3 | Payara ne démarre pas sur JDK 17 | **levé** pour `dabou` et `danane` | — | 5.2022.5 avec leurs options : démarre (mesuré) | vérifier chaque autre site | 0 |
 | 4 | États de site en Groovy | inconnue | moyen | non mesuré | inventaire puis banc | 0 |
 | 5 | Impression des tickets sous Windows | inconnue | **élevé** | non mesuré | recette sur imprimante réelle | 3 |
 | 6 | Afficheur, port série | inconnue | moyen | non mesuré | recette | 3 |
 | 7 | Bibliothèques du serveur modifiées | **sans objet** (déjà en 5.2022.5) | — | liste mesurée | — | — |
 | 8 | FNE cassée par le retrait du formatter-plugin | certaine si l'ordre n'est pas respecté | élevé | dépendance identifiée | Guava déclaré d'abord | 2 |
-| 9 | Ramasse-miettes CMS en production | **levé** | — | `-XX:+UseG1GC` déjà en place | — | — |
+| 9 | Ramasse-miettes CMS en production | **levé** | — | G1 explicite à `dabou`, par défaut à `danane` | — | — |
 | 10 | Migration Flyway mêlée à une bascule | procédure | élevé | — | principe n° 4 | tous |
 | 11 | `cleanOnValidationError` | latente | **critique** (base effacée) | code lu | retrait | 1 |
 | 12 | Échecs des 12 JSP mortes imputés au JDK | certaine | confusion | mesuré | documentées, exclues du banc | 0, 1 |
 | 13 | Locale héritée de la région Windows | inconnue | moyen (comportement des états) | non fixée dans `domain.xml` | lecture par la page de diagnostic, puis fixation sur JDK 11 | 0, 1 |
-| 14 | Application déployée depuis un dossier de compilation | à confirmer | élevé (un `mvn clean` la supprime) | lu dans `domain.xml` | déployer un WAR archivé, hors arborescence de développement | 0 |
+| 14 | Application déployée depuis un dossier de compilation | **probable sur tous les sites** (vu à `dabou` et à `danane`) | élevé (un `mvn clean` la supprime) | lu dans les deux `domain.xml` | déployer un WAR archivé, hors arborescence de développement | 0 |
+| 15 | Configurations JVM hétérogènes entre sites | **certaine** (`danane` ⊂ `dabou`) | moyen | comparé option par option | relevé par site, site pilote, harmonisation à part | 0, tous |
 
 ---
 
@@ -486,10 +511,13 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 1. ~~Version exacte de Payara~~ — **obtenue** : 5.2022.5.
 2. **Ce que recouvre « évoluer en Payara »** : rester sur Payara 5, ou préparer Jakarta ?
 3. ~~Le bloc `<java-config>`~~ — **obtenu** et rejoué au banc (§ 2.7).
-4. **Ce `domain.xml` est-il celui de la production** ou d'un poste de développement ? (déploiement
-   depuis `D:/projet/rm/prestige/target/prestige/`)
-5. **La locale de la JVM de production**, lue avec `scripts/migration-jdk17/ws_diag_jvm.jsp`.
-6. Le dossier **REPORTS** du site et un **dump de base**, pour le banc.
-7. Un **poste de recette Windows** équipé comme la production.
-8. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
-9. Lot 2 retenu ou non.
+4. **La liste de tous les sites**, et pour chacun son `domain.xml` — deux reçus à ce jour, `dabou`
+   et `danane`, qui diffèrent. Confirmer qu'il s'agit bien de serveurs de production : l'application
+   y est déployée depuis un dossier de compilation (`D:/projet/rm/…`, `D:/projet/p3/…`).
+5. **La locale et la version exacte du JDK 11 de chaque site**, lues avec
+   `scripts/migration-jdk17/ws_diag_jvm.jsp`.
+6. **Le site pilote** du premier passage.
+7. Le dossier **REPORTS** du site pilote et un **dump de sa base**, pour le banc.
+8. Un **poste de recette Windows** équipé comme la production.
+9. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
+10. Lot 2 retenu ou non.
