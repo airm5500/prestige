@@ -405,9 +405,9 @@ photo, et plus aucune écriture dans le dossier de compilation. Retour arrière 
 6. Retour arrière : retrait, redémarrage, redéploiement du dossier comme aujourd'hui.
 
 À partir de là, **plus aucune modification à chaud** dans un dossier déployé, et **plus de compilation
-sur le serveur** : toute livraison est un WAR archivé. Si l'équipe modifie aujourd'hui des fichiers
-directement dans `target/prestige` en production, c'est une pratique qui s'arrête ici — à dire
-explicitement avant de commencer.
+sur le serveur** : toute livraison est un WAR archivé. **Confirmé le 1er octobre : aucun fichier n'est
+modifié à chaud dans `target/prestige` en production** ; le passage au WAR archivé ne supprime donc
+aucune pratique en place.
 
 **Critère de passage** : une semaine sans régression ; le WAR qui tourne est identifiable et archivé ;
 le dossier de compilation peut être recompilé ou nettoyé sans effet sur la production.
@@ -664,7 +664,7 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 6. ~~Le site pilote~~ — **`danane`**.
 7. Pour `danane`, avant le lot 0 bis : ~~son `config_laborex_v1.xml`~~ — **reçu** (§ 4 bis.1) ; le
    résultat de **`scripts/migration-jdk17/ws_diag_fichiers.jsp`** sur le serveur ; l'**état Git** de `D:\projet\p3\prestige` (dernier commit et modifications non
-   commitées), et une réponse claire : **modifie-t-on des fichiers à chaud dans `target/prestige`** ?
+   commitées), et ~~modifie-t-on des fichiers à chaud dans `target/prestige` ?~~ — **non** (1er octobre).
 8. Le dossier **REPORTS** du site pilote et un **dump de sa base**, pour le banc.
 9. Un **poste de recette Windows** équipé comme la production.
 10. Le sort des **12 JSP mortes** et des 5 écrans qui en appellent 8.
