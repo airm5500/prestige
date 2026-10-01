@@ -628,12 +628,13 @@ public final class StockMovementDataHelper implements AutoCloseable {
         return new Rows(datas.size(), rows);
     }
 
-    // --- AJUSTEMENT : nouveau type, requête dédiée sur les détails d'ajustement ---
+    // --- AJUSTEMENT : seuls les détails appliqués d'un ajustement validé sont des mouvements ---
     private Rows fetchAjustements(String search, String grossisteId, String familleArticleId, String zoneGeoId,
             Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
         StringBuilder jpql = new StringBuilder("SELECT t FROM TAjustementDetail t"
-                + " JOIN FETCH t.lgFAMILLEID JOIN FETCH t.lgAJUSTEMENTID LEFT JOIN FETCH t.typeAjustement WHERE"
-                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " JOIN FETCH t.lgFAMILLEID JOIN FETCH t.lgAJUSTEMENTID LEFT JOIN FETCH t.typeAjustement"
+                + " WHERE t.lgAJUSTEMENTID.strSTATUT = :statut AND t.strSTATUT = :statut"
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
                 + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)"
                 + " AND t.lgAJUSTEMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = :emplacement");
         if (dtDebut != null) {
@@ -656,6 +657,9 @@ public final class StockMovementDataHelper implements AutoCloseable {
         }
         jpql.append(" ORDER BY t.dtUPDATED DESC");
         TypedQuery<TAjustementDetail> q = odataManager.getEm().createQuery(jpql.toString(), TAjustementDetail.class);
+        // SnapshotManager exige un parent enable ; ClosureAjustementDetail passe aussi le détail à enable.
+        // Exclure les lignes is_Process/delete, y compris sous un parent déjà validé.
+        q.setParameter("statut", Constant.STATUT_ENABLE);
         q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
         q.setParameter("emplacement", user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
         if (dtDebut != null) {
