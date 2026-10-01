@@ -147,10 +147,10 @@ Windows français.
 | Vérification | `dabou` JDK 11 | `dabou` JDK 17 | `dabou` JDK 17, bytecode 17 | `danane` JDK 11 | `danane` JDK 17 |
 |---|---|---|---|---|---|
 | Démarrage, options refusées ou ignorées | 0 | 0 | 0 | 0 | 0 |
-| Déploiement avec précompilation | réussi | réussi | réussi | *mesure en cours* | *mesure en cours* |
-| JSP compilées | 545 | 545 | 545 | *en cours* | *en cours* |
-| Signatures d'exceptions distinctes | 13 | 13 | 13 | *en cours* | *en cours* |
-| **Écarts avec le JDK 11 du même site** | — | **0** | **0** | — | *en cours* |
+| Déploiement avec précompilation | réussi | réussi | réussi | réussi | réussi |
+| JSP compilées | 545 | 545 | 545 | 545 | 545 |
+| Signatures d'exceptions distinctes | 13 | 13 | 13 | 13 | 13 |
+| **Écarts avec le JDK 11 du même site** | — | **0** | **0** | — | **0** |
 | États : identiques au JDK 11 | — | **1 / 13** (séparateurs) | — | — | **1 / 13** (séparateurs) |
 
 Sur JDK 11, les états sortent **strictement identiques en Cp1252 et en UTF-8** (13/13) : l'encodage
@@ -174,9 +174,24 @@ Hors migration, à traiter à part : les pools se connectent en **`root`**, mot 
 `domain.xml`. Un alias de mot de passe (`asadmin create-password-alias`) et un utilisateur MariaDB
 dédié réduiraient l'exposition.
 
-Observation à suivre au lot 3 : le déploiement avec précompilation des 545 JSP a été plus long sur
-JDK 17 à chaque comparaison (`dabou` : 296 s contre 274 s ; options par défaut de Payara : 246 s contre 216 s ; `danane` : mesure en cours). Ce temps ne concerne pas la production, où les JSP se
-compilent à leur premier appel ; il sera suivi.
+Les signatures d'exceptions de `danane` sont aussi **identiques à celles de `dabou`** : les options
+qui distinguent les deux sites ne changent rien au comportement de l'application au déploiement.
+
+**Point à suivre : la compilation des JSP est plus lente sur JDK 17.** Le déploiement avec
+précompilation des 545 JSP a été plus long sur JDK 17 à **chacune** des trois comparaisons :
+
+| Configuration | JDK 11 | JDK 17 | Écart |
+|---|---|---|---|
+| options par défaut de Payara | 216 s | 246 s | + 14 % |
+| `dabou` | 274 s | 296 s | + 8 % |
+| `danane` | 260 s | 323 s | + 24 % |
+
+Trois mesures dans le même sens ne relèvent plus du hasard, même si l'écart varie. Cela ne touche
+que la compilation des JSP : en production elle a lieu au **premier appel** de chaque page, qui
+pourrait donc être un peu plus lent après la bascule, puis plus du tout. Ce n'est pas une
+régression fonctionnelle, mais elle sera mesurée sur le site pilote (temps de premier affichage
+des écrans principaux, avant et après), et on pourra la neutraliser en précompilant les JSP au
+déploiement.
 
 Enfin, la branche `dev` compte 13 commits absents de la branche mesurée, avec **des dépendances
 strictement identiques** : la surface sensible au JDK est la même. La référence du lot 0 sera tout de
@@ -420,6 +435,7 @@ Durée : quelques minutes. C'est tout l'intérêt de ce lot.
 
 - Observation : **deux à quatre semaines**.
 - À suivre : nombre de messages `SEVERE` par jour comparé à avant, mémoire, temps de réponse,
+  **temps de premier affichage des écrans principaux** (compilation des JSP, plus lente sur JDK 17 — § 2.7),
   remontées des utilisateurs.
 - **Critère de passage** : recette sans écart, observation sans régression.
 
@@ -503,6 +519,7 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | 13 | Locale héritée de la région Windows | inconnue | moyen (comportement des états) | non fixée dans `domain.xml` | lecture par la page de diagnostic, puis fixation sur JDK 11 | 0, 1 |
 | 14 | Application déployée depuis un dossier de compilation | **probable sur tous les sites** (vu à `dabou` et à `danane`) | élevé (un `mvn clean` la supprime) | lu dans les deux `domain.xml` | déployer un WAR archivé, hors arborescence de développement | 0 |
 | 15 | Configurations JVM hétérogènes entre sites | **certaine** (`danane` ⊂ `dabou`) | moyen | comparé option par option | relevé par site, site pilote, harmonisation à part | 0, tous |
+| 16 | Premier affichage des pages plus lent (compilation des JSP) | **mesurée** au banc, 3 fois sur 3 | faible (une fois par page) | + 8 % à + 24 % au déploiement | mesure au site pilote ; précompilation au déploiement si besoin | 3 |
 
 ---
 
