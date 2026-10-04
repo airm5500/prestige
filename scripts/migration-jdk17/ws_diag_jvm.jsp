@@ -23,6 +23,23 @@
     out.println(String.format("%-24s %s", "locale de formatage", Locale.getDefault(Locale.Category.FORMAT)));
     out.println(String.format("%-24s %d Mo", "memoire max (-Xmx)", Runtime.getRuntime().maxMemory() / (1024 * 1024)));
     out.println();
+    /* Quelle installation de Payara et quel domaine tournent reellement : deux installations
+     * peuvent coexister sur une machine, et le domain.xml lu n'est pas forcement celui qu'on croit. */
+    out.println("=== Payara reellement en marche ===");
+    out.println(String.format("%-24s %s", "installation", System.getProperty("com.sun.aas.installRoot", "(non defini)")));
+    out.println(String.format("%-24s %s", "domaine", System.getProperty("com.sun.aas.instanceRoot", "(non defini)")));
+    out.println(String.format("%-24s %s", "serveur", application.getServerInfo()));
+    /* Seules les options -X et -XX (memoire, ramasse-miettes) : les -D peuvent porter des secrets. */
+    StringBuilder memoire = new StringBuilder();
+    for (String arg : java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments()) {
+        if (arg.startsWith("-X")) {
+            memoire.append(memoire.length() == 0 ? "" : " ").append(arg);
+        }
+    }
+    out.println(String.format("%-24s %s", "options -X / -XX", memoire.length() == 0 ? "(aucune)" : memoire));
+    out.println(String.format("%-24s %s", "demarree le",
+            new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date(java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime()))));
+    out.println();
     out.println("=== separateur de milliers produit par cette JVM ===");
     out.println("locale par defaut : " + visible(NumberFormat.getInstance().format(1234567)));
     out.println("locale France     : " + visible(NumberFormat.getInstance(Locale.FRANCE).format(1234567)));

@@ -165,7 +165,7 @@ Lecture des options :
 | G1 explicite à `dabou`, choix par défaut à `danane` | même règle de choix sur JDK 11 et 17 : pas de changement |
 | Options `[17\|]` déjà présentes (fournies par Payara) | elles s'activent d'elles-mêmes sur JDK 17 |
 | Encodage : UTF-8 à `dabou`, Cp1252 à `danane` | inchangé par le JDK 17 ; **changera à `danane` avec le JDK 18 et plus** (§ 10) |
-| TLS : 1.2 imposé à `dabou`, protocoles par défaut à `danane` | identiques entre un JDK 11 récent (11.0.11 et plus) et le JDK 17 ; un JDK 11 plus ancien acceptait encore TLS 1.0 et 1.1 — la version exacte se lit avec la page de diagnostic |
+| TLS : 1.2 imposé à `dabou`, protocoles par défaut à `danane` | `danane` tourne en JDK **11.0.9** (relevé du 4 octobre), qui accepte encore TLS 1.0 et 1.1 ; le JDK 17 les refuse : les appels sortants sont à recetter (risque 18) |
 | Magasin de certificats propre au domaine (`cacerts.jks`) sur les deux sites | les appels sortants ne dépendent pas des certificats du JDK ; FNE et SMS restent à la recette |
 | **Locale non fixée** sur les deux sites | elle vient de la région Windows : à lire avec `scripts/migration-jdk17/ws_diag_jvm.jsp` |
 | Application déployée en répertoire depuis un dossier de compilation (`D:/projet/rm/…`, `D:/projet/p3/…`) | si ce sont des serveurs de production, un `mvn clean` sur la machine supprime l'application en marche — à confirmer |
@@ -350,6 +350,31 @@ au banc sur les trois cas) :
 La page indique aussi, pour chaque chemin, s'il existe, son chemin réel (jonctions résolues), son nombre
 de fichiers et la date du plus récent — ce qui montre lesquels sont réellement utilisés. **Le détail des
 étapes B et C ci-dessous dépend de sa réponse.**
+
+**Résultat des deux pages de diagnostic (4 octobre)** — exécutées sur un serveur présenté comme `danane` :
+
+| Constat | Conséquence |
+|---|---|
+| Configuration chargée : `D:\CONF\LABOREX\CONF\config_laborex_v1.xml` | explication 1 écartée |
+| Mais ses valeurs **diffèrent du fichier transmis** : `scr_report_pdf` et `path_file_generate_absolute_imported` y pointent sur `…\applications\prestige\…`, et non `…\applications\laborex\…` | le fichier transmis n'est pas celui qui tourne ; seule la page fait foi |
+| `scr_report_pdf` = `D:\payara5\payara5\glassfish\domains\domain1\applications\prestige\data\reports\pdf\` : **le dossier n'existe pas** | c'est l'emplacement qu'aurait l'application si elle était déployée en WAR, pas celui d'un déploiement en répertoire |
+| Le dossier servi (`D:\projet\p3\prestige\target\prestige\`) n'a pas de sous-dossier `data` | explication 2 écartée : aucune jonction |
+| Le code ne crée jamais ce dossier ; écrire un PDF dans un dossier absent échoue (`FileNotFoundException`, vérifié au banc) | **explication 3 : sur ce serveur, les éditions PDF qui passent par `scr_report_pdf` échouent aujourd'hui** — défaut antérieur à la migration, à ne pas lui imputer |
+| `path_file_generate_absolute_imported` existe, utilisé le 22/09 | les imports écrivent bien dans `…\applications\prestige\data\imported\` |
+| JDK **11.0.9.1** (AdoptOpenJDK, fin 2020), locale `fr_FR`, `Cp1252`, fuseau `UTC` | séparateur U+00A0 aujourd'hui : la perte des séparateurs sur JDK 17 s'applique bien à ce serveur |
+| Mémoire maximale **512 Mo** | contredit le `domain.xml` transmis pour `danane`, qui déclare `-Xmx4g` |
+
+Deux incohérences restent à lever avant d'écrire les étapes B et C : la configuration réellement chargée
+n'est pas le fichier transmis, et la mémoire en vigueur n'est pas celle du `domain.xml` transmis. Soit
+les pages ont été lancées sur une autre machine que `danane`, soit le Payara en marche n'est pas celui
+dont le `domain.xml` a été transmis (deux installations peuvent coexister). La page
+`ws_diag_jvm.jsp` affiche désormais l'installation et le domaine réellement en marche, ainsi que les
+options mémoire appliquées.
+
+Le dossier `…\applications\prestige\` n'est pas anodin : c'est celui que **Payara gère lui-même** pour
+une application déployée en WAR. Il est effacé à chaque retrait de l'application. Y laisser écrire des
+PDF ou des imports, une fois le lot 0 bis fait, les perdrait à chaque livraison — d'où le dossier
+extérieur de l'étape B.
 
 ### 4 bis.2 Le mécanisme retenu, mesuré au banc
 
@@ -649,6 +674,8 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | 15 | Configurations JVM hétérogènes entre sites | **certaine** (`danane` ⊂ `dabou`) | moyen | comparé option par option | relevé par site, site pilote, harmonisation à part | 0, tous |
 | 16 | Premier affichage des pages plus lent (compilation des JSP) | **mesurée** au banc, 3 fois sur 3 | faible (une fois par page) | + 8 % à + 24 % au déploiement | mesure au site pilote ; précompilation au déploiement si besoin | 3 |
 | 17 | WAR à dossier extérieur livré sur un site sans la propriété `prestige.dossier.donnees` | certaine si l'ordre n'est pas respecté | **bloquant** : l'application ne démarre pas (mesuré) | mesuré au banc | propriété définie avant toute livraison de ce WAR, sur chaque site | 0 bis |
+| 18 | Appels sortants en TLS 1.0 ou 1.1 | inconnue | moyen (échec d'un service partenaire) | le JDK 11.0.9 de `danane` les accepte encore, le JDK 17 les refuse | recette des appels sortants (SMS, FNE, messagerie, services de paiement) au lot 3 | 3 |
+| 19 | Éditions PDF en échec avant toute migration | **constatée** sur le serveur diagnostiqué | moyen | dossier `scr_report_pdf` absent, jamais créé par le code | corrigé par le dossier extérieur de l'étape B ; ne pas l'imputer au JDK 17 | 0 bis |
 
 ---
 
