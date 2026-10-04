@@ -363,13 +363,19 @@ de fichiers et la date du plus récent — ce qui montre lesquels sont réelleme
 | `path_file_generate_absolute_imported` existe, utilisé le 22/09 | les imports écrivent bien dans `…\applications\prestige\data\imported\` |
 | JDK **11.0.9.1** (AdoptOpenJDK, fin 2020), locale `fr_FR`, `Cp1252`, fuseau `UTC` | séparateur U+00A0 aujourd'hui : la perte des séparateurs sur JDK 17 s'applique bien à ce serveur |
 | Mémoire maximale **512 Mo** | contredit le `domain.xml` transmis pour `danane`, qui déclare `-Xmx4g` |
+| **Payara en marche : `D:\Payara_Server\glassfish`**, domaine `…\domains\domain1`, options `-Xmx512m -XX:NewRatio=2 -XX:+UnlockDiagnosticVMOptions` (seconde page, 4 octobre) | la configuration TOOLKITS vise `D:\payara5\payara5\glassfish\…`, **une autre installation de Payara**, qui ne tourne pas : c'est la cause des éditions PDF en échec |
 
-Deux incohérences restent à lever avant d'écrire les étapes B et C : la configuration réellement chargée
-n'est pas le fichier transmis, et la mémoire en vigueur n'est pas celle du `domain.xml` transmis. Soit
-les pages ont été lancées sur une autre machine que `danane`, soit le Payara en marche n'est pas celui
-dont le `domain.xml` a été transmis (deux installations peuvent coexister). La page
-`ws_diag_jvm.jsp` affiche désormais l'installation et le domaine réellement en marche, ainsi que les
-options mémoire appliquées.
+**Deux installations de Payara coexistent sur cette machine** : `D:\Payara_Server` tourne, `D:\payara5\payara5`
+est celle que vise la configuration TOOLKITS. Le `domain.xml` transmis pour `danane` (`-Xmx4g`) ne correspond pas
+au serveur en marche (`-Xmx512m`) : il provient vraisemblablement de l'installation inactive. **L'analyse du § 2.7
+pour `danane` porte donc sur un fichier qui ne tourne pas.** Sa conclusion de compatibilité tient néanmoins : la
+configuration en marche est proche de celle d'origine de Payara, mesurée dès le premier jour sur JDK 17 (démarrage
+sans erreur), et `-Xmx512m` n'y change rien. À refaire sur le `domain.xml` réellement en marche, et à vérifier de la
+même façon à `dabou`. Règle pour tous les sites : **d'abord la page `ws_diag_jvm.jsp`, ensuite le `domain.xml` du
+domaine qu'elle désigne.**
+
+Hors migration : 512 Mo de mémoire maximale est faible pour un serveur de production (le contrôle mémoire du
+démarrage de l'application recommande 2 Go). Le relever est un changement de configuration à part, sur JDK 11.
 
 Le dossier `…\applications\prestige\` n'est pas anodin : c'est celui que **Payara gère lui-même** pour
 une application déployée en WAR. Il est effacé à chaque retrait de l'application. Y laisser écrire des
@@ -676,6 +682,7 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
 | 17 | WAR à dossier extérieur livré sur un site sans la propriété `prestige.dossier.donnees` | certaine si l'ordre n'est pas respecté | **bloquant** : l'application ne démarre pas (mesuré) | mesuré au banc | propriété définie avant toute livraison de ce WAR, sur chaque site | 0 bis |
 | 18 | Appels sortants en TLS 1.0 ou 1.1 | inconnue | moyen (échec d'un service partenaire) | le JDK 11.0.9 de `danane` les accepte encore, le JDK 17 les refuse | recette des appels sortants (SMS, FNE, messagerie, services de paiement) au lot 3 | 3 |
 | 19 | Éditions PDF en échec avant toute migration | **constatée** sur le serveur diagnostiqué | moyen | dossier `scr_report_pdf` absent, jamais créé par le code | corrigé par le dossier extérieur de l'étape B ; ne pas l'imputer au JDK 17 | 0 bis |
+| 20 | Plusieurs installations de Payara sur un même serveur | **constatée** sur le serveur diagnostiqué (`D:\Payara_Server` en marche, `D:\payara5\payara5` visée par la configuration) | élevé (configurations relevées sur la mauvaise installation, éditions en échec) | page de diagnostic | identifier l'installation en marche avant tout relevé ; désigner une seule installation par site | 0, 0 bis |
 
 ---
 
