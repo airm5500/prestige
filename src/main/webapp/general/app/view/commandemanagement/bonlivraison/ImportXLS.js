@@ -27,9 +27,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
         const _this = this;
         storetype = new Ext.data.Store({
             fields: ['name', 'value'],
-            data: [{name: 'LABOREX', value: 'Laborex'},
-                {name: 'COPHARMED', value: 'Copharmed'},
-                {name: 'TEDIS_2', value: 'Tedis'},
+            data: [{name: 'LABOREX', value: 'UBIPHARM'},
+                {name: 'COPHARMED', value: 'COPHARMED'},
+                {name: 'TEDIS_2', value: 'TEDIS'},
                 {name: 'DPCI', value: 'DPCI'}
                 , {name: 'CIP_QTE', value: 'MODEL CIP-QTE'}
                 , {name: 'CIP_QTE_CIP_QTER_PA', value: 'MODEL CIP_QTE_PRIX_ACHAT'}

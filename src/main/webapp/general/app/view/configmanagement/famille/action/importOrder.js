@@ -33,7 +33,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
-            data: [{str_TYPE_TRANSACTION: 'BASCULEMENT', str_desc: 'Basculement de donnees'}, {str_TYPE_TRANSACTION: 'INSTALLATION', str_desc: 'Nouvelle installation'}, {str_TYPE_TRANSACTION: 'UPDATEDATA', str_desc: 'Mise a jour des donnees par LABOREX'}, {str_TYPE_TRANSACTION: 'IMPORTFAMILLEDCI', str_desc: 'Importation DCI'}, {str_TYPE_TRANSACTION: 'UPDATEDATAWITHSTOCK', str_desc: 'Fusion avec stock'}, {str_TYPE_TRANSACTION: 'UPDATEDATAWITHOUTSTOCK', str_desc: 'Fusion sans stock'}]
+            data: [{str_TYPE_TRANSACTION: 'BASCULEMENT', str_desc: 'Basculement de donnees'}, {str_TYPE_TRANSACTION: 'INSTALLATION', str_desc: 'Nouvelle installation'}, {str_TYPE_TRANSACTION: 'UPDATEDATA', str_desc: 'Mise a jour des donnees par UBIPHARM'}, {str_TYPE_TRANSACTION: 'IMPORTFAMILLEDCI', str_desc: 'Importation DCI'}, {str_TYPE_TRANSACTION: 'UPDATEDATAWITHSTOCK', str_desc: 'Fusion avec stock'}, {str_TYPE_TRANSACTION: 'UPDATEDATAWITHOUTSTOCK', str_desc: 'Fusion sans stock'}]
         });
         var form = new Ext.form.Panel({
             bodyPadding: 10,
