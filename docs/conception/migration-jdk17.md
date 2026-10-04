@@ -525,6 +525,18 @@ dépendance d'exécution. Il embarque une trentaine de bibliothèques en product
    - parcours FNE au poste de recette.
 4. Retour arrière : redéployer le WAR précédent. Critère : identique au lot 1.
 
+**Mesuré sur le banc (4 octobre, JDK 11, configuration de `danane`)** :
+
+| Contrôle | Résultat |
+|---|---|
+| `WEB-INF/lib` | 146 → 113 bibliothèques, 162 → 125 Mo ; 33 retirées, aucune ajoutée, Guava présente |
+| Références vers une classe retirée | 3, toutes sur du code jamais exécuté : `@SafeHtml` de Hibernate Validator (jsoup, annotation absente du code), deux tâches Ant d'`ecj`, l'analyse de classpath OSGi de Flyway (adresses `bundle:` seulement) |
+| `commons-logging`, `org.w3c.css.sac` | toujours fournis par d'autres bibliothèques |
+| Tests unitaires | 530/530, comme avec le pom actuel |
+| Déploiement (JSP précompilées) | 243 tables, 545 JSP, 0 erreur de compilation ; exceptions du journal **identiques** à la référence |
+
+Reste à faire au poste de recette : le parcours FNE (Guava).
+
 Bénéfice : un WAR plus léger, des bibliothèques de 2010 retirées, et une ambiguïté en moins
 (deux compilateurs JDT dans le même WAR).
 
