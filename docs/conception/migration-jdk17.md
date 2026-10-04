@@ -515,8 +515,8 @@ dépendance d'exécution. Il embarque une trentaine de bibliothèques en product
 `cssparser`… et **Guava**, dont se sert la facture normalisée électronique.
 
 1. **D'abord** : déclarer Guava explicitement, à la version actuelle (32.0.0-jre). Aucun changement.
-2. **Ensuite** : sortir `formatter-maven-plugin` des `<dependencies>` (le déplacer dans
-   `<build><plugins>` si la mise en forme du code est utilisée, sinon le retirer).
+2. **Ensuite** : retirer le bloc `formatter-maven-plugin` des `<dependencies>`. Le même plugin
+   déclaré dans `<build><plugins>` reste en place : il sert à la construction et n'entre pas dans le WAR.
 3. Vérifications :
    - liste de `WEB-INF/lib` avant et après : seules les bibliothèques attendues disparaissent,
      Guava reste ;
@@ -609,6 +609,9 @@ déploiement sans écart).
    `release` interdit en plus l'usage accidentel d'une API postérieure au JDK 17.
 2. Ajouter une règle `maven-enforcer` exigeant un JDK 17 ou plus pour construire, afin qu'un poste
    resté en JDK 11 échoue franchement plutôt que de produire un résultat ambigu.
+   Mesuré (4 octobre, `maven-enforcer-plugin` 3.4.1, règle `requireJavaVersion [17,)`) : sur JDK 17
+   le build passe (bytecode 61) ; sur JDK 11 il s'arrête avant la compilation
+   (« Detected JDK version 11… is not in the allowed range [17,) »).
 3. Postes de développement et de construction en JDK 17.
 4. Vérifications : tests, banc complet, recette allégée (ventes, tickets, états, inventaire).
 
