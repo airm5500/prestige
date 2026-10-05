@@ -1801,6 +1801,96 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
     }
 
+    /*
+     * Lecture des ventes par la date (OrdreLectureVentes) : seuils mesures le 05/10 sur le banc. Le gain est net tant
+     * que la periode ne couvre qu'une partie des ventes (un an sur trois : liste 8,5 s -> 6 s, resume 7,8 s -> 3,2 s,
+     * un an pour un caissier 7,5 s -> 2,6 s, memes resultats) ; au-dela (liste vers la moitie des ventes, resume vers
+     * les trois quarts), l'ordre choisi par MariaDB redevient meilleur et on le laisse.
+     */
+    private static final double PART_MAX_LISTE = 0.40;
+    private static final double PART_MAX_RESUME = 0.60;
+    private static volatile LocalDateTime premiereVente;
+    private static volatile long premiereVenteLue = 0;
+    private static volatile Boolean indexVentesPresent;
+
+    /**
+     * Part (estimee par les dates) de l'historique des ventes couverte par la periode (0 a 1), ou -1 si la lecture par
+     * la date ne doit pas etre imposee : filtre produit, recherche, rayon ou grossiste (l'optimiseur part alors d'un
+     * petit nombre de produits, a bon escient), index absent, ou lecture impossible.
+     */
+    double partDesVentesDeLaPeriode(SalesStatsParams params) {
+        try {
+            // Uniquement sans filtre selectif sur les produits : avec un produit, une recherche, un rayon, un
+            // grossiste,
+            // un filtre de stock, de seuil ou de prix d'achat, l'optimiseur part a bon escient des produits retenus
+            // (mesure : stock = 0 sur un an, 4 s par les produits).
+            if (!StringUtils.isEmpty(params.getProduitId()) || !StringUtils.isEmpty(params.getQuery())
+                    || (!StringUtils.isEmpty(params.getRayonId()) && !"ALL".equals(params.getRayonId()))
+                    || (!StringUtils.isEmpty(params.getGrossisteId()) && !"ALL".equals(params.getGrossisteId()))
+                    || !StringUtils.isEmpty(params.getStockFiltre())
+                    || !StringUtils.isEmpty(params.getTypeTransaction())
+                    || !StringUtils.isEmpty(params.getPrixachatFiltre())) {
+                return -1;
+            }
+            if (indexVentesPresent == null) {
+                indexVentesPresent = ((Number) getEntityManager()
+                        .createNativeQuery(
+                                "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE()"
+                                        + " AND TABLE_NAME = 't_preenregistrement' AND INDEX_NAME = ?1")
+                        .setParameter(1, OrdreLectureVentes.INDEX).getSingleResult()).longValue() > 0;
+            }
+            if (!indexVentesPresent) {
+                return -1;
+            }
+            // Part estimee par les DATES (aucune requete par appel : un comptage des ventes de la periode coutait
+            // jusqu'a
+            // plusieurs secondes sur tout l'historique) : duree de la periode rapportee a celle de l'historique, depuis
+            // la premiere vente (lue une fois par heure, par l'index de date).
+            long maintenant = System.currentTimeMillis();
+            if (premiereVente == null || maintenant - premiereVenteLue > 60 * 60 * 1000L) {
+                Object min = getEntityManager().createNativeQuery("SELECT MIN(dt_UPDATED) FROM t_preenregistrement")
+                        .getSingleResult();
+                if (min == null) {
+                    return -1;
+                }
+                premiereVente = ((java.sql.Timestamp) min).toLocalDateTime();
+                premiereVenteLue = maintenant;
+            }
+            LocalDateTime fin = LocalDateTime.now();
+            LocalDateTime debut = LocalDateTime.of(params.getDtStart(), params.gethStart());
+            LocalDateTime finPeriode = LocalDateTime.of(params.getDtEnd(), params.gethEnd());
+            if (debut.isBefore(premiereVente)) {
+                debut = premiereVente;
+            }
+            if (finPeriode.isAfter(fin)) {
+                finPeriode = fin;
+            }
+            double historique = java.time.Duration.between(premiereVente, fin).toMinutes();
+            if (historique <= 0) {
+                return -1;
+            }
+            double periode = Math.max(0, java.time.Duration.between(debut, finPeriode).toMinutes());
+            return Math.min(1d, periode / historique);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "part des ventes de la periode", e);
+            return -1;
+        }
+    }
+
+    /** Execute la lecture en imposant l'ordre « ventes d'abord » si la periode le justifie (seuil donne). */
+    private <T> T lireVentesParDate(SalesStatsParams params, double seuil, java.util.function.Supplier<T> lecture) {
+        double part = partDesVentesDeLaPeriode(params);
+        if (part < 0 || part > seuil) {
+            return lecture.get();
+        }
+        OrdreLectureVentes.activer();
+        try {
+            return lecture.get();
+        } finally {
+            OrdreLectureVentes.desactiver();
+        }
+    }
+
     @Override
     public List<VenteDetailsDTO> getArticlesVendusRecap(SalesStatsParams params) {
         try {
@@ -1831,7 +1921,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 q.setFirstResult(params.getStart());
                 q.setMaxResults(params.getLimit());
             }
-            List<VenteDetailsDTO> resultats = q.getResultList();
+            List<VenteDetailsDTO> resultats = lireVentesParDate(params, PART_MAX_LISTE, q::getResultList);
             enrichirStockReserve(resultats, params);
             return resultats;
         } catch (Exception e) {
@@ -1860,7 +1950,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         cq.having(filtreQteVendue(cb, root, params));
         long nombre = 0;
         long montant = 0;
-        for (Tuple t : getEntityManager().createQuery(cq).getResultList()) {
+        TypedQuery<Tuple> requete = getEntityManager().createQuery(cq);
+        for (Tuple t : lireVentesParDate(params, PART_MAX_LISTE, requete::getResultList)) {
             nombre++;
             montant += t.get("montant", Long.class);
         }
@@ -1884,7 +1975,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             cq.multiselect(cb.countDistinct(root.get(TPreenregistrementDetail_.lgFAMILLEID)).alias("count"),
                     cb.coalesce(cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE)), 0L).alias("montantTotal"));
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            Tuple tuple = getEntityManager().createQuery(cq).getSingleResult();
+            TypedQuery<Tuple> requete = getEntityManager().createQuery(cq);
+            Tuple tuple = lireVentesParDate(params, PART_MAX_RESUME, requete::getSingleResult);
             return new long[] { tuple.get("count", Long.class), tuple.get("montantTotal", Long.class) };
 
         } catch (Exception e) {

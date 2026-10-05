@@ -10,6 +10,9 @@
         <exclude-unlisted-classes>false</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5InnoDBDialect"/>
+            <!-- Articles vendus : lecture des ventes par la date sur les requetes marquees par le service (05/10) ;
+                 sans effet sur toutes les autres requetes. -->
+            <property name="hibernate.session_factory.statement_inspector" value="rest.service.impl.OrdreLectureVentes"/>
       <!--   <property name="hibernate.hbm2ddl.auto" value="update"/>
            <property name="hibernate.show_sql" value="true"/>-->
             <property name="hibernate.transaction.jta.platform" value="org.hibernate.service.jta.platform.internal.SunOneJtaPlatform"/>
