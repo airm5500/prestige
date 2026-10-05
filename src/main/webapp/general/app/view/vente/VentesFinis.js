@@ -336,8 +336,13 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             flex: 1
                         },
                         {
+                            /* Une seule colonne pour toutes les actions (retour du 05/10) : une colonne par icone laissait
+                               des cases vides la ou une icone est masquee, et la ligne survolee paraissait coupee. Memes
+                               icones, memes conditions d'affichage, memes evenements vers le controleur. */
                             xtype: 'actioncolumn',
-                            width: 30,
+                            itemId: 'actionsVente',
+                            width: 300,
+                            align: 'right',
                             sortable: false,
                             menuDisabled: true,
                             items: [{
@@ -346,14 +351,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('printTicket', view, rowIndex, colIndex, item, e, record, row);
                                     }
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/printergreen.png',
                                     tooltip: 'ticket vente modifiée',
                                     getClass: function (value, metadata, record) {
@@ -366,15 +365,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('ticketModifie', view, rowIndex, colIndex, item, e, record, row);
                                     }
-                                }]
-                        },
-
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/delete.gif',
                                     tooltip: 'Annuler.Vente',
                                     getClass: function (value, metadata, record) {
@@ -396,14 +388,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('remove', view, rowIndex, colIndex, item, e, record, row);
                                     }
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/printer.png',
                                     tooltip: 'Re-imprimer la facture',
                                     getClass: function (value, metadata, record) {
@@ -421,15 +407,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('facture', view, rowIndex, colIndex, item, e, record, row);
                                     }
-                                }]
-                        },
-
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/folder_go.png',
                                     tooltip: 'Generer une suggestion pour la vente',
                                     getClass: function (value, metadata, record) {
@@ -447,14 +426,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('onSuggestion', view, rowIndex, colIndex, item, e, record, row);
                                     }
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/excel_csv.png',
                                     tooltip: 'Exporter en csv les produits vendus',
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
@@ -468,14 +441,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                             return 'x-hide-display'; //cache l'icone
                                         }
                                     }
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/page_white_edit.png',
                                     tooltip: 'Modifier',
                                     menuDisabled: true,
@@ -489,14 +456,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                         return 'x-hide-display';
                                     }
 
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/editer.png',
                                     tooltip: 'Modifier info client',
                                     menuDisabled: true,
@@ -510,14 +471,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                         return 'x-hide-display';
                                     }
 
-                                }]
-                        },
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/icons/fam/table_refresh.png',
                                     tooltip: 'Modifier la date',
                                     menuDisabled: true,
@@ -531,15 +486,8 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                         return 'x-hide-display';
                                     }
 
-                                }]
-                        },
-
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
+                                },
+                                {
                                     icon: 'resources/images/download.png',
                                     tooltip: 'Exporter',
 
@@ -553,15 +501,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                         return 'x-hide-display';
                                     }
 
-                                }]
-                        },
-
-                        {
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [
+                                },
                                 {
                                     icon: 'resources/images/icons/fam/application_view_list.png',
                                     tooltip: 'Voir détail',
@@ -570,8 +510,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     }
 
 
-                                }
-                            ]
+                                }]
                         }
                     ],
 

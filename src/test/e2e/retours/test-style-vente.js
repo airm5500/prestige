@@ -113,7 +113,7 @@ const ECRANS = [
            qui appelle directement son action (reimpression...) n'est PAS cliquee : sa fonction identique suffit. */
         g.query('actioncolumn').forEach((col) => Ext.util.Observable.capture(col, (nom, v, ri, ci, item) => { sortie.evenements.push(nom + (item && item.action ? ':' + item.action : '')); return false; }));
         for (const col of g.query('actioncolumn')) {
-          const cell = n.querySelector('.x-grid-cell-' + col.id);
+          const cell = n.querySelector('.x-grid-cell-' + col.getItemId());
           for (let i = 0; cell && i < (col.items || []).length; i++) {
             const el = cell.querySelector('.x-action-col-' + i);
             if (!el || el.offsetParent === null || el.classList.contains('x-hide-display')) { continue; }
