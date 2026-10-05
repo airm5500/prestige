@@ -734,6 +734,25 @@ déploiement sans écart).
 
 Retour arrière : redéployer le WAR archivé. Observation : deux semaines.
 
+**Patch sur `dev`** (5 octobre) : `scripts/migration-jdk17/lot4-bytecode17.patch`, à appliquer après
+`lot2-war.patch` (même modification que `pom-lot4.xml`). Mesuré sur `dev` + lot 1 + lot 2 :
+
+| Contrôle | Résultat |
+|---|---|
+| Build JDK 17 | règle enforcer passée, bytecode 61, 113 bibliothèques (comme le lot 2) |
+| Build JDK 11 | refusé avant compilation |
+| Tests | 1071 / 1071 |
+| 40 états sur JDK 17 | identiques à la référence JDK 11 |
+| Déploiement JDK 17 | 247 tables, 546 JSP, 0 erreur ; journal Flyway identique au lot 2 sur JDK 11 |
+| Avertissements de compilation | 69, tous `new Double(...)` / `new Integer(...)`, dépréciés mais toujours présents en JDK 17 et 21 : nettoyage hors migration |
+
+Écarts d'exceptions entre déploiements : ils concernent les tâches de démarrage qui lisent des tables
+absentes de la base vide du banc, et varient d'un passage à l'autre selon le moment où elles
+tournent. Une fois, sur JDK 17 avec le WAR du lot 2, Payara a refusé l'appel de démarrage de
+`PilotageAgregatScheduler` (« Client not authorized », contrôle JACC sur une méthode sans aucune
+règle de sécurité) : non reproduit sur 10 déploiements répétés sans précompilation (5 par JDK). Si
+cela arrivait en production, l'étape est sautée et les agrégats sont recalculés la nuit (00 h 25).
+
 ---
 
 ## 9. Lot 5 — Version de Payara : sans objet
