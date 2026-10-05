@@ -2386,3 +2386,54 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .fc-tuile-courbe::before { content: ""; width: 14px; height: 14px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 15l4-5 3 3 5-7'/%3E%3C/svg%3E") no-repeat center / contain; }
 .fc-tuile-courbe:hover { background: #24685a; }
 .fc-fenetre-courbe .fc-courbe-fenetre .fc-svg { width: 100%; height: auto; }
+
+/* ===== Ecran de vente : boites de message et ouverture de caisse au dessin du theme (demande du 05/10) =====
+   Les boites restent celles d'ExtJS (memes boutons, meme bouton par defaut, memes touches) : seul le dessin change. */
+.x-message-box.mb-theme, .x-window.ouv-caisse { border: 0 !important; border-radius: 10px !important; padding: 0 !important;
+    background: #f6f8fb !important; box-shadow: 0 24px 60px rgba(15, 30, 50, .35) !important; overflow: hidden; }
+.x-message-box.mb-theme .x-window-header, .x-window.ouv-caisse > .x-window-header { background: linear-gradient(135deg, #1e3a5f, #2E75B6) !important;
+    border: 0 !important; border-radius: 0 !important; padding: 10px 16px !important; box-shadow: none !important; }
+.x-message-box.mb-theme .x-window-header-text, .x-window.ouv-caisse > .x-window-header .x-window-header-text { color: #fff !important;
+    font-size: 14px !important; font-weight: bold !important; letter-spacing: .02em; text-shadow: none !important; }
+.x-message-box.mb-theme .x-tool-close, .x-window.ouv-caisse > .x-window-header .x-tool-close { background: none !important;
+    position: relative; }
+.x-message-box.mb-theme .x-tool, .x-window.ouv-caisse > .x-window-header .x-tool { border-radius: 50%; background: rgba(255, 255, 255, .15); }
+.x-message-box.mb-theme .x-tool:hover, .x-window.ouv-caisse > .x-window-header .x-tool:hover { background: rgba(255, 255, 255, .3); }
+.x-message-box.mb-theme .x-tool::after, .x-window.ouv-caisse > .x-window-header .x-tool::after { content: '\00D7'; position: absolute;
+    left: 0; top: 0; width: 100%; height: 100%; color: #fff; font-size: 15px; font-weight: bold; line-height: 15px; text-align: center; }
+.x-message-box.mb-theme .x-window-body, .x-window.ouv-caisse > .x-window-body { background: #f6f8fb !important; border: 0 !important; }
+.x-message-box.mb-theme .x-window-body .x-form-display-field, .x-message-box.mb-theme .x-window-text {
+    color: #1e2a36 !important; font-size: 13px !important; line-height: 19px !important; }
+.x-message-box.mb-theme .x-window-body { padding: 14px 18px 6px !important; }
+/* Pied : boutons du theme ; Oui / OK en principal (classe posee par correctifs-affichage.js), les autres en secondaire. */
+.x-message-box.mb-theme .x-toolbar, .x-window.ouv-caisse .x-toolbar-footer { background: #fff !important; border: 0 !important;
+    border-top: 1px solid #e0e7ef !important; padding: 10px 14px !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn, .x-window.ouv-caisse .x-toolbar-footer .x-btn { background: #fff !important;
+    background-image: none !important; border: 1px solid #c3cfdb !important; border-radius: 6px !important; box-shadow: none !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn .x-btn-inner, .x-window.ouv-caisse .x-toolbar-footer .x-btn .x-btn-inner {
+    color: #1e3a5f !important; font-weight: bold !important; text-shadow: none !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn.x-btn-over { background: #e3edf7 !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn.mb-principal, .x-window.ouv-caisse .x-toolbar-footer .x-btn {
+    background: #1e3a5f !important; border-color: #1e3a5f !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn.mb-principal .x-btn-inner, .x-window.ouv-caisse .x-toolbar-footer .x-btn .x-btn-inner { color: #fff !important; }
+.x-message-box.mb-theme .x-toolbar .x-btn.mb-principal.x-btn-over, .x-window.ouv-caisse .x-toolbar-footer .x-btn.x-btn-over { background: #2E75B6 !important; }
+.x-message-box.mb-theme .x-btn-focus, .x-window.ouv-caisse .x-btn-focus { outline: 2px solid #f0a23a !important; outline-offset: 2px; }
+/* Attente (« Veuillez patienter ») : barre fine animee aux couleurs du theme, sans le texte de la barre ExtJS. */
+.x-message-box.mb-theme .x-progress { height: 6px !important; border: 0 !important; border-radius: 3px; background: #dfe7f0 !important;
+    overflow: hidden; margin-top: 4px; }
+.x-message-box.mb-theme .x-progress-bar { background: linear-gradient(90deg, #1e3a5f, #2E75B6, #1e3a5f) !important;
+    background-size: 200% 100% !important; border: 0 !important; border-radius: 3px; height: 6px !important;
+    animation: mb-attente 1.2s linear infinite; }
+.x-message-box.mb-theme .x-progress-text { display: none !important; }
+@keyframes mb-attente { from { background-position: 0 0; } to { background-position: -200% 0; } }
+/* Ouverture de caisse : le formulaire en carte, le montant bien visible. */
+.x-window.ouv-caisse .x-panel-header { display: none !important; }
+.x-window.ouv-caisse .x-panel, .x-window.ouv-caisse .x-panel-body { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.x-window.ouv-caisse fieldset { background: #fff !important; border: 1px solid #e0e7ef !important; border-radius: 8px; padding: 6px 14px 10px !important; }
+.x-window.ouv-caisse legend, .x-window.ouv-caisse .x-fieldset-header-text { color: #6b7b8c !important; font-size: 11px !important;
+    font-weight: bold; letter-spacing: .08em; background: transparent !important; }
+.x-window.ouv-caisse .x-form-item-label { color: #6b7b8c !important; font-weight: bold; }
+.x-window.ouv-caisse .x-form-display-field { color: #1e3a5f !important; font-size: 15px !important; }
+.x-window.ouv-caisse .x-form-field.x-form-text { border: 1px solid #9fb3c8 !important; border-radius: 6px; font-size: 18px !important;
+    font-weight: bold; color: #1e3a5f; background-image: none !important; }
+.x-window.ouv-caisse .x-form-focus { border-color: #2E75B6 !important; box-shadow: 0 0 0 3px rgba(46, 117, 182, .18); }

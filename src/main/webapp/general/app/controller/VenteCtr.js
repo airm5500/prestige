@@ -4439,6 +4439,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
             Ext.create('Ext.window.Window', {
                 title: 'Ouverture de caisse',
+                /* Dessin du theme (05/10) : seule la presentation change. */
+                cls: 'ouv-caisse',
+                /* Le curseur dans le montant : la fenetre prenait le focus apres le champ, il fallait cliquer. */
+                defaultFocus: '#coffreCaisseAmount',
                 modal: true,
                 width: 470,
                 autoScroll: true,

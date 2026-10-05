@@ -1046,6 +1046,21 @@ Ext.onReady(function () {
             return;
         }
         boite.correctifTexteTronque = true;
+        /* Ecran de vente (demande du 05/10) : les boites ouvertes pendant la vente (attente, impression du ticket,
+           caisse fermee...) prennent le dessin du theme. Seule une classe est posee : memes boutons, meme focus,
+           memes touches. */
+        boite.on('beforeshow', function () {
+            var vente = Ext.Array.some(Ext.ComponentQuery.query('doventemanager'), function (c) {
+                return c.isVisible(true);
+            });
+            this[vente ? 'addCls' : 'removeCls']('mb-theme');
+            // Oui / OK en bouton principal (les boutons caches restent dans la barre : pas de :first-child).
+            Ext.Object.each(this.msgButtons || {}, function (nom, b) {
+                if (b && b.addCls) {
+                    b[vente && (nom === 'yes' || nom === 'ok') ? 'addCls' : 'removeCls']('mb-principal');
+                }
+            });
+        });
         boite.on('show', function () {
             var fenetre = this;
             // meme raison que pour les info-bulles : la mise en page n'est pas encore
