@@ -1,0 +1,58 @@
+From 35c0ef15c0776ddb2d045c1a402766efa326d9e3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 15:54:44 +0000
+Subject: [PATCH] Lot 4 : compilation en bytecode 17
+
+release 17 a la place de source/target 11, et regle maven-enforcer qui
+refuse de construire avec un JDK inferieur a 17. Un WAR ainsi compile ne
+demarre plus sur un JDK 11 : le retour arriere est le dernier WAR archive.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ pom.xml | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/pom.xml b/pom.xml
+index 396c0bb..47d16de 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -279,10 +279,33 @@
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <version>3.11.0</version>
+                 <configuration>
+-                    <source>11</source>
+-                    <target>11</target>
++                    <!-- Lot 4 de la migration JDK 17 : bytecode 17. release interdit en plus
++                         l'usage d'une API posterieure au JDK 17. Un WAR ainsi compile ne
++                         demarre plus sur un JDK 11 : le retour arriere est le dernier WAR archive. -->
++                    <release>17</release>
+                 </configuration>
+             </plugin>
++            <!-- Un poste reste en JDK 11 echoue franchement au lieu de produire un WAR ambigu. -->
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-enforcer-plugin</artifactId>
++                <version>3.4.1</version>
++                <executions>
++                    <execution>
++                        <id>jdk-17-requis</id>
++                        <goals>
++                            <goal>enforce</goal>
++                        </goals>
++                        <configuration>
++                            <rules>
++                                <requireJavaVersion>
++                                    <version>[17,)</version>
++                                </requireJavaVersion>
++                            </rules>
++                        </configuration>
++                    </execution>
++                </executions>
++            </plugin>
+             <!-- Execution des tests unitaires : mvn test (le build de livraison utilise
+                  -DskipTests et n'est donc pas impacte) -->
+             <plugin>
+-- 
+2.43.0
+

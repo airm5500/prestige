@@ -1,0 +1,41 @@
+From e65450b7aacbfc3bdc0d1288646ffd92007fc3bd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 15:54:44 +0000
+Subject: [PATCH] Lot 2 : Guava declaree, formatter-maven-plugin retire des
+ dependances
+
+Le plugin de mise en forme etait declare comme dependance d'execution et
+embarquait 33 bibliotheques dans le WAR (plate-forme Eclipse, OSGi, cglib
+et asm de 2010...). Guava, utilisee par la FNE, n'arrivait que par lui :
+elle est declaree explicitement. Le plugin reste dans <build><plugins>.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ pom.xml | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/pom.xml b/pom.xml
+index b407cd2..396c0bb 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -201,10 +201,13 @@
+             <artifactId>groovy-all</artifactId>
+             <version>2.4.16</version>
+         </dependency>
++        <!-- Guava : utilisee par AccountResource, MainteanceServiceImpl et FneServiceImpl.
++             Elle n'arrivait jusqu'ici que par formatter-maven-plugin, retire des
++             dependances au lot 2 de la migration JDK 17 (il reste dans <build><plugins>). -->
+         <dependency>
+-            <groupId>net.revelc.code.formatter</groupId>
+-            <artifactId>formatter-maven-plugin</artifactId>
+-            <version>2.23.0</version>
++            <groupId>com.google.guava</groupId>
++            <artifactId>guava</artifactId>
++            <version>32.0.0-jre</version>
+         </dependency>
+         
+         <dependency>
+-- 
+2.43.0
+
