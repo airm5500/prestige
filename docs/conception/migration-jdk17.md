@@ -542,6 +542,19 @@ vérification : 0 différence avec la référence — et il rend le comportement
 d'un changement de région Windows. Changement de configuration, pas de code : il se fait dans une
 fenêtre distincte du déploiement du WAR, pour respecter le principe n° 1.
 
+`danane` remplit la condition (diagnostic du 4 octobre : `user.language` fr, `user.country` FR, locale
+par défaut et locale de formatage `fr_FR`). `dabou` reste à relever avant de l'y appliquer. Commandes,
+domaine démarré, installation réellement en marche (`D:\Payara_Server`) :
+
+```
+D:\Payara_Server\bin\asadmin create-jvm-options "-Duser.language=fr:-Duser.country=FR"
+D:\Payara_Server\bin\asadmin restart-domain
+```
+
+Contrôle avec `ws_diag_jvm.jsp` : les deux options apparaissent, locales par défaut et de formatage
+`fr_FR`, séparateur U+00A0, comme avant. Retour arrière :
+`asadmin delete-jvm-options "-Duser.language=fr:-Duser.country=FR"` puis `restart-domain`.
+
 ### 5.5 Mise en production, retour arrière, passage
 
 - Déploiement normal sur le **JDK 11** actuel.
