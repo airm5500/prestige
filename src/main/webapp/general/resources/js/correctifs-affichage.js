@@ -751,6 +751,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'promotionhistorymanager', 'promotionmanager', 'balanceagee_detail', 'balanceagee', 'remisemanager', 'groupetierspayant',
     // lot C
     'reservemanager',
+    // lot D
+    'info_officine', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'tvastat', 'menunotification', 'rolemanager',
+    'myaccountmanager',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
     'recapOrganisme',
@@ -838,7 +841,11 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot C : achats et stock
     'etatscontrolemanager', 'bonlivraisonmanager', 'i_order_manager', 'retourfrsmanager', 'detailsmanager', 'ajustementmanager',
     'inventaire', 'peremptionquery', 'monitoringarticlecomplet', 'etatstock', 'evaluationventemoyenne', 'reservemanager',
-    'saisieperime', 'gestionsurstock', 'i_sugg_manager'
+    'saisieperime', 'gestionsurstock', 'i_sugg_manager',
+    // lot D : statistiques, parametres, administration
+    'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'gardemanager',
+    'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
+    'menunotification', 'evolutionstock', 'stockmort', 'articlemvtgrid'
 ];
 
 /**
@@ -857,6 +864,7 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/disable/i, 'act-desactiver'],
     [/enable/i, 'act-activer'],
     [/order_tracking|envoi|send/i, 'act-envoyer'],
+    [/connect/i, 'act-tester'],
     [/upload|import/i, 'act-importer'],
     [/inventaire/i, 'act-inventaire'],
     [/\/add\.(png|gif)|ajout/i, 'act-ajouter'],
@@ -920,6 +928,10 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
         });
         Ext.each(barre.query('button'), function (b) {
             var texte = String(b.text || '');
+            // Bouton deja au dessin du theme (puces « Par jour / Par mois », segments...) : laisse tel quel.
+            if (/(^|\s)(ordo-|seg-|vc-|mv-)/.test(String(b.cls || ''))) {
+                return;
+            }
             b.addCls(/^(nouveau|nouvelle|ajouter|cr[ée]er)/i.test(texte) ? 'ordo-btn-primaire' : 'ordo-btn');
         });
         // Barre trop chargee (le dernier bouton sortait deja de l'ecran sur certains postes, ex. suggestions) : elle passe

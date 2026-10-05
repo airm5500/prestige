@@ -55,7 +55,8 @@ const ECRANS = process.env.LOT ? process.env.LOT.split(',').map((l) => LOTS[l]).
       const n = g && g.getView && g.getView().getNode(0);
       const barres = c.query('toolbar').filter((t) => t.hasCls('mv-barre'));
       const sortie = { lignes: g && g.getStore ? g.getStore().getCount() : -1, grille: !!g, theme: c.hasCls('theme-liste'), barres: barres.length,
-        pages: c.query('#pagesNumerotees').filter((y) => y.rendered).length, barresPages: c.query('pagingtoolbar').filter((y) => y.rendered).length,
+        /* barres de pagination affichees : chacune doit porter les numeros (ceux d'un onglet cache se dessinent a son affichage) */
+        pages: c.query('pagingtoolbar').filter((y) => y.rendered && y.child('#pagesNumerotees')).length, barresPages: c.query('pagingtoolbar').filter((y) => y.rendered).length,
         /* les intercalaires vides (item sans icone ni info-bulle : image transparente) ne comptent pas */
         images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')
           && !(/^data:image\/gif/.test(i.getAttribute('src') || '') && !i.getAttribute('data-qtip') && i.className.trim().split(/\s+/).length <= 2)).length : -1,

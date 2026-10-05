@@ -2388,6 +2388,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .act-importer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15V3'/%3E%3Cpath d='M7 8l5-5 5 5'/%3E%3Cpath d='M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/%3E%3C/svg%3E"); }
 .act-inventaire { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='4' width='12' height='18' rx='2'/%3E%3Cpath d='M9 2h6v4H9z'/%3E%3Cpath d='M9 12h6M9 16h4'/%3E%3C/svg%3E"); }
 .act-ajouter { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317987e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v8M8 12h8'/%3E%3C/svg%3E"); }
+.act-tester { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2L4 14h7l-1 8 9-12h-7z'/%3E%3C/svg%3E"); }
 
 /* Fiche client : bouton « Courbe » de chaque tuile (retour du 05/10), la courbe s'ouvre dans une fenetre. */
 .fc-tuile { position: relative; }
@@ -2530,3 +2531,15 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mv-barre.mv-barre-serree .x-btn-inner { padding-right: 3px !important; font-size: 11px !important; }
 .mv-barre.mv-barre-serree .x-btn-noicon .x-btn-inner, .mv-barre.mv-barre-serree .x-btn-inner:only-child { padding-left: 3px !important; }
 .mv-barre.mv-barre-serree .x-toolbar-separator { display: none !important; }
+
+/* Ecrans habilles : panneaux internes et boutons restes au bleu ExtJS (gardes : « Filtres », « Effacer les filtres » ;
+   fiche officine, mon compte : « Enregistrer »). Dessin seulement. */
+.mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default:not(.x-tab-bar) { background: #eef4fb !important; background-image: none !important;
+    border: 0 !important; border-bottom: 1px solid #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default .x-panel-header-text-default { color: #1e3a5f !important; font-weight: bold; }
+.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton),
+.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) {
+    background: #f4f7fa !important; background-image: none !important; border: 1px solid #c3cfdb !important; border-radius: 4px; }
+.mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton) .x-btn-inner,
+.mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) .x-btn-inner { color: #1e3a5f !important; font-weight: bold; text-shadow: none !important; }
+.mv-panneau .x-btn-default-small.x-btn-over:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) { background: #e3edf7 !important; }
