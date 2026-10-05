@@ -745,6 +745,8 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
  * d'oeil lesquels sont concernes. App.onLoadNewComponent la consulte a l'ouverture d'un menu.
  */
 window.PrestigeAffichage.ECRANS_COLLES = [
+    // retours du 05/10 (lot A)
+    'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
     'recapOrganisme',
@@ -822,7 +824,10 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse
     'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
     // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
-    'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente'
+    'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente',
+    // retours du 05/10, lot A : facturation et caisse
+    'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
+    'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition'
 ];
 
 /**
