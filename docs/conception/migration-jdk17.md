@@ -522,6 +522,12 @@ Rejoué contre MariaDB, avec un script déjà passé puis modifié après coup (
 | corrigé | désactivée (production) | migration terminée, 3 ventes sur 3 conservées |
 | corrigé | réactivée | migration **refusée**, 3 ventes sur 3 conservées |
 
+Déploiement au banc (JDK 11, base vide, JSP précompilées) de `dev` seul, puis de `dev` avec les deux
+patchs du lot 1 : 247 tables, 545 JSP, 0 erreur de compilation dans les deux cas ; exceptions du
+journal **identiques, nombres compris** (23 signatures distinctes) ; journal Flyway **identique**.
+L'échec de `V3.1__tableau.sql` y figure des deux côtés : il tient à la base vide du banc (procédure
+absente), pas aux correctifs.
+
 ### 5.3 Les 12 JSP mortes
 
 Pas un prérequis du JDK 17, mais une décision à prendre et à écrire : réparer, retirer les écrans
