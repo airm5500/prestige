@@ -568,8 +568,12 @@ autre locale, la décision est à reprendre, car le comportement des états en d
 ### 7.3 La bascule
 
 1. Arrêt du domaine. Sauvegarde de `domain.xml` et de `asenv.bat`.
-2. Dans `glassfish\config\asenv.bat` : `AS_JAVA` pointe sur le JDK 17. Si Payara tourne en service
-   Windows, vérifier que la configuration du service suit.
+2. Dans `glassfish\config\asenv.bat` : `AS_JAVA` pointe sur le JDK 17 (modèle :
+   `scripts/migration-jdk17/asenv-lot3.bat`). Si Payara tourne en service Windows, vérifier que la
+   configuration du service suit. Ordre de choix du lanceur de Payara 5.2022.5 (lu dans son code) :
+   l'attribut `java-home` de `<java-config>` dans `domain.xml` s'il existe, **puis** `AS_JAVA`. Les
+   deux `domain.xml` reçus n'ont pas de `java-home` ; à vérifier sur celui de `D:\Payara_Server`. Sans
+   `AS_JAVA`, `asadmin.bat` prend le `java` du PATH, pas `JAVA_HOME`.
 3. Démarrage. Contrôle dans `server.log` : la ligne de lancement montre bien le JDK 17.
 4. **Aucun redéploiement** : le WAR en place reste celui du lot précédent.
 
