@@ -1,0 +1,4690 @@
+From df79f186731d95cffa7731c9130877b7f36fa69c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 15:45:46 +0000
+Subject: [PATCH] JSP mortes : prix du BL repare, 11 pages retirees
+
+Les 12 JSP qui ne compilaient pas (classes retirees du projet) :
+
+- bonlivraison/ws_transaction.jsp : seule page encore appelee par un ecran
+  vivant (Modifier Article du detail d'un BL). Le mode reglement, deja
+  sans effet et appele par personne, est retire avec BLService ; le mode
+  modifproductprice refonctionne. changePrice trace desormais le
+  changement de prix de vente au mouchard des prix, comme la commande.
+- 11 pages supprimees, avec ce qui ne menait qu'a elles : fonctions jamais
+  appelees de index.jsp, bouton masque des quinzaines, fenetres des
+  alertes et des quinzaines.
+- Rapport d'activite, modeles de notification et notifications sortantes :
+  l'entree de menu ouvre un message vers l'ecran qui les remplace au lieu
+  d'une erreur 500.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ .../bonLivraisonManagement.java               |  30 +
+ src/main/webapp/general/app.js                |   5 -
+ .../view/Report/activities/rapportactivite.js | 772 +-----------------
+ .../etats/EtatControleManager.js              |  25 +-
+ .../etats/action/addQuinzaine.js              | 241 ------
+ .../etats/action/quinzaineManager.js          | 288 -------
+ .../sm_user/alertevent/AlerteventManager.js   | 390 +--------
+ .../app/view/sm_user/alertevent/action/add.js | 177 ----
+ .../action/adduserphonealertevent.js          | 399 ---------
+ .../alertevent/action/adduserphonetoalert.js  | 153 ----
+ .../outboudmessage/OutboudmessageManager.js   | 479 +----------
+ src/main/webapp/general/index.jsp             |  51 --
+ .../Report/recapactivities/ws_data.jsp        |  56 --
+ .../recapactivities/ws_generate_pdf.jsp       | 258 ------
+ .../bonlivraison/ws_quinzaine_data.jsp        | 171 ----
+ .../bonlivraison/ws_quinzaine_transaction.jsp |  69 --
+ .../bonlivraison/ws_transaction.jsp           |  22 +-
+ .../sm_user/alertevent/ws_transaction.jsp     | 206 -----
+ .../sm_user/gestcaisse/ws_data.jsp            | 228 ------
+ .../ws_check_notification_mijournee_web.jsp   |  97 ---
+ .../ws_check_notification_web.jsp             |  50 --
+ .../ws_check_notificationavoir_web.jsp        |  47 --
+ .../sm_user/outboudmessage/ws_data.jsp        |  67 --
+ .../sm_user/outboudmessage/ws_transaction.jsp |  92 ---
+ 24 files changed, 67 insertions(+), 4306 deletions(-)
+ delete mode 100644 src/main/webapp/general/app/view/commandemanagement/etats/action/addQuinzaine.js
+ delete mode 100644 src/main/webapp/general/app/view/commandemanagement/etats/action/quinzaineManager.js
+ delete mode 100644 src/main/webapp/general/app/view/sm_user/alertevent/action/add.js
+ delete mode 100644 src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonealertevent.js
+ delete mode 100644 src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonetoalert.js
+ delete mode 100644 src/main/webapp/webservices/Report/recapactivities/ws_data.jsp
+ delete mode 100644 src/main/webapp/webservices/Report/recapactivities/ws_generate_pdf.jsp
+ delete mode 100644 src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_data.jsp
+ delete mode 100644 src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/alertevent/ws_transaction.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/gestcaisse/ws_data.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_mijournee_web.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_web.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notificationavoir_web.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/outboudmessage/ws_data.jsp
+ delete mode 100644 src/main/webapp/webservices/sm_user/outboudmessage/ws_transaction.jsp
+
+diff --git a/src/main/java/bll/commandeManagement/bonLivraisonManagement.java b/src/main/java/bll/commandeManagement/bonLivraisonManagement.java
+index 5a310cf..2a25aa4 100644
+--- a/src/main/java/bll/commandeManagement/bonLivraisonManagement.java
++++ b/src/main/java/bll/commandeManagement/bonLivraisonManagement.java
+@@ -10,6 +10,7 @@ import java.time.LocalDate;
+ import java.util.ArrayList;
+ import java.util.Date;
+ import java.util.List;
++import java.util.UUID;
+ 
+ import javax.persistence.EntityManager;
+ import javax.persistence.ParameterMode;
+@@ -52,6 +53,7 @@ import dal.TGrossiste;
+ import dal.TLot;
+ import dal.TLot_;
+ import dal.TMouvement;
++import dal.TMouvementprice;
+ import dal.TMouvementSnapshot;
+ import dal.TOrder;
+ import dal.TOrderDetail;
+@@ -1398,10 +1400,13 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
+                 json.put("montantMHT", amountMHT);
+                 json.put("amountMTTC", amountMTTC);
+ 
++                Integer ancienPrixVente = OTFamille != null ? OTFamille.getIntPRICE() : null;
+                 updatePriceArticleByDuringCommand(OTFamille,
+                         OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID(), int_PRIX_VENTE,
+                         int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande,
+                         OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), "", em);
++                tracerPrixVente(OTFamille, ancienPrixVente, int_PRIX_VENTE,
++                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), em);
+                 em.getTransaction().commit();
+             }
+ 
+@@ -1415,6 +1420,31 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
+         return json;
+     }
+ 
++    /**
++     * Trace du changement de prix de vente dans le mouchard des prix, dans la transaction de la modification : un prix
++     * change depuis le bon de livraison apparait au mouchard comme un prix change a la commande
++     * (OrderServiceImpl.saveMouvementPrice).
++     */
++    private void tracerPrixVente(TFamille famille, Integer ancienPrix, int nouveauPrix, String reference,
++            EntityManager em) {
++        if (famille == null || ancienPrix == null || ancienPrix == nouveauPrix) {
++            return;
++        }
++        Date maintenant = new Date();
++        TMouvementprice mouvement = new TMouvementprice(UUID.randomUUID().toString());
++        mouvement.setLgUSERID(this.getOTUser());
++        mouvement.setStrACTION(Constant.ACTION_COMMANDE);
++        mouvement.setDtCREATED(maintenant);
++        mouvement.setDtUPDATED(maintenant);
++        mouvement.setDtDAY(maintenant);
++        mouvement.setIntPRICENEW(nouveauPrix);
++        mouvement.setIntPRICEOLD(ancienPrix);
++        mouvement.setStrREF(reference);
++        mouvement.setStrSTATUT(Constant.STATUT_ENABLE);
++        mouvement.setLgFAMILLEID(famille);
++        em.persist(mouvement);
++    }
++
+     public boolean checkEntreeStock(String lgFamilleID) {
+         boolean isExist = false;
+         try {
+diff --git a/src/main/webapp/general/app.js b/src/main/webapp/general/app.js
+index 7064b16..c7bd191 100644
+--- a/src/main/webapp/general/app.js
++++ b/src/main/webapp/general/app.js
+@@ -67,10 +67,7 @@ Ext.application({
+         'testextjs.view.sm_user.user_phone.UserphoneManager',
+         'testextjs.view.sm_user.alertevent.AlerteventManager',
+         'testextjs.model.Alertevent',
+-        'testextjs.view.sm_user.alertevent.action.add',
+-        'testextjs.view.sm_user.alertevent.action.adduserphonealertevent',
+         'testextjs.model.Userphonealertevent',
+-        'testextjs.view.sm_user.alertevent.action.adduserphonetoalert',
+         'testextjs.model.Outboudmessage',
+         'testextjs.view.sm_user.outboudmessage.OutboudmessageManager',
+         'testextjs.model.Preenregistrement',
+@@ -723,9 +720,7 @@ Ext.application({
+         'testextjs.model.Vente',
+         'testextjs.view.tierspayantmanagement.tierspayant.action.detailstierspayant',
+         'testextjs.view.configmanagement.litige.action.add',
+-        'testextjs.view.commandemanagement.etats.action.quinzaineManager',
+         'testextjs.view.commandemanagement.etats.action.paybls',
+-        'testextjs.view.commandemanagement.etats.action.addQuinzaine',
+         'testextjs.store.Lot',
+         'testextjs.model.Quinzaine',
+         'testextjs.view.configmanagement.famille.action.detailArticleVendus',
+diff --git a/src/main/webapp/general/app/view/Report/activities/rapportactivite.js b/src/main/webapp/general/app/view/Report/activities/rapportactivite.js
+index 068fd5a..3d42ed5 100644
+--- a/src/main/webapp/general/app/view/Report/activities/rapportactivite.js
++++ b/src/main/webapp/general/app/view/Report/activities/rapportactivite.js
+@@ -1,767 +1,15 @@
+ /* global Ext */
+ 
++/*
++ * Ancien ecran, remplace : ses pages serveur appelaient des classes retirees du projet et rendaient HTTP 500.
++ * La classe et le xtype sont conserves pour que l'entree de menu, si la base en contient une, ouvre ce message
++ * au lieu d'une erreur.
++ */
+ Ext.define('testextjs.view.Report.activities.rapportactivite', {
+     extend: 'Ext.panel.Panel',
+     xtype: 'activitiessummary',
+-    initComponent: function () {
+-        var me = this;
+-        var castore = new Ext.data.Store({
+-            fields: [
+-                {name: 'montTTC', type: 'string'},
+-                {name: 'montHT', type: 'string'},
+-                {name: 'remiseHT', type: 'string'},
+-                {name: 'montantHTCNET', type: 'string'},
+-                {name: 'montTTC', type: 'string'},
+-                {name: 'VNO', type: 'string'},
+-                {name: 'VO', type: 'string'},
+-                {name: 'datatva', type: 'auto'},
+-                {name: 'name', type: 'string'},
+-                {name: 'montant', type: 'string'},
+-                {name: 'value', type: 'number'},
+-                {name: 'recettes', type: 'auto'},
+-                {name: 'achats', type: 'auto'}
+-
+-            ],
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_data.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-        var mvtstore = new Ext.data.Store({
+-            fields: [
+-                {name: 'mvt', type: 'string'},
+-                {name: 'montant', type: 'string'},
+-                {name: 'totalmvt', type: 'number'}
+-            ],
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_mvts.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-        var achatsgrossisstes = new Ext.data.Store({
+-            fields: [
+-                {name: 'grossiste', type: 'string'},
+-                {name: 'th', type: 'string'},
+-                {name: 'ttc', type: 'string'}, {name: 'tva', type: 'string'}
+-            ],
+-            autoLoad: true,
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_achats.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-        var totauxstore = new Ext.data.Store({
+-            fields: [
+-                {name: 'montant', type: 'string'},
+-                {name: 'nbclient', type: 'string'},
+-                {name: 'nb', type: 'string'}
+-            ],
+-            autoLoad: true,
+-            pageSize: 1,
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_totaux.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-
+-        var reglementStore = new Ext.data.Store({
+-            fields: [
+-                {name: 'montant', type: 'string'},
+-                {name: 'montantfact', type: 'string'},
+-                {name: 'rest', type: 'string'},
+-                {name: 'code', type: 'string'},
+-                {name: 'nametp', type: 'string'},
+-                {name: 'nametypetp', type: 'string'}
+-            ],
+-            autoLoad: true,
+-            pageSize: 10,
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_reglements.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-        var storeCredits = new Ext.data.Store({
+-            fields: [
+-                {name: 'montant', type: 'string'},
+-                {name: 'nb', type: 'string'},
+-                {name: 'name', type: 'string'},
+-                {name: 'nametype', type: 'string'},
+-                {name: 'nbclient', type: 'string'}
+-            ],
+-            pageSize: 10,
+-            autoLoad: true,
+-            proxy: {
+-                type: 'ajax',
+-                url: '../webservices/Report/recapactivities/ws_credits.jsp',
+-                reader: {
+-                    type: 'json',
+-                    root: 'data',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 2400000
+-            }
+-
+-        });
+-        var tplca = Ext.create("Ext.XTemplate",
+-                '<table class="caTTCtable"> <tplfor="."><tr class="cadata"><td>CA Total HT:</td> <td>{montHT}</td>  <td>Total remise:</td> <td>{remiseHT}</td>  </tr><tr><td>Total Net:</td>\n\
+-  <td>{montantHTCNET}</td>  <td>Chiffre d\'Affaire TTC:</td><td>{montTTC} </td></tr></tpl></table>'
+-                );
+-        var tpltva = Ext.create("Ext.XTemplate",
+-                '<table class="caTTCtable"> <tplfor="."><tr class="tvadata"><td>{name}</td> <td>{montant}</td> </tr></tpl></table>'
+-
+-                );
+-        var tplcmt = Ext.create("Ext.XTemplate",
+-                '<table class="caTTCtable"> <tplfor="."><tr class="cmpdata"><td>Comptant:</td> <td>{VNO}</td></tr><tr><td>Crédit:</td> <td>{VO}</td></tr></tpl></table>'
+-                );
+-        var tplrecette = Ext.create("Ext.XTemplate",
+-                '<ul class="ulrecette"> <tplfor="."><li class="recettitem"><span> Ventes {name}: </span><span>{montant} CFA</span></li></tpl></ul>'
+-                );
+-        var tplmvt = Ext.create("Ext.XTemplate",
+-                '<ul class="ulrecette"> <tplfor="."><li class="mvttitem"><span> {mvt}: </span><span>{montant} CFA</span></li></tpl></ul>'
+-                );
+-        var tplMarge = Ext.create("Ext.XTemplate",
+-                '<table class="caTTCtable" style="width: 100%;" > <tplfor="."><tr class="margeitem"><td>Total HT:</td> <td>{th} CFA</td>  <td>Total TVA:</td> <td>{tva} CFA</td> <td>Total TTC:</td> <td>{ttc} CFA</td><td>Marge:</td> <td>{marge} CFA</td><td>Ratio:</td> <td>{ratio}</td> </tr></tpl></table>'
+-                );
+-        var tplgrossistes = Ext.create("Ext.XTemplate",
+-                '<table class="cagrossiste"><thead><tr><th></th><th>MONTANT HT </th><th>MONTANT TVA</th><th>MONTANT TTC</th></tr></thead><tbody> <tplfor="."><tr class="grositem"><td>{grossiste}</td><td style="text-align: right;">{th} CFA</td>  <td style="text-align: right;">{tva} CFA</td><td style="text-align: right;">{ttc} CFA</td></tr></tpl></tbody></table>'
+-                );
+-        var tvaStore = Ext.create("Ext.data.Store", {
+-            fields: ["name", "montant", "value"],
+-            data: []
+-        });
+-        var tvaCmt = Ext.create("Ext.data.Store", {
+-            fields: ["VNO", "VO"],
+-            data: []
+-        });
+-        var recettes = Ext.create("Ext.data.Store", {
+-            fields: ["name", "montant"],
+-            data: []
+-        });
+-        var achatsstore = Ext.create("Ext.data.Store", {
+-            fields: ["th", "ttc", "marge", "ratio", "tva"],
+-            data: []
+-        });
+-        castore.on({
+-            'load': {
+-                fn: function (store, records, success, eOpts) {
+-                    tvaStore.removeAll();
+-                    tvaCmt.removeAll();
+-                    recettes.removeAll();
+-                    achatsstore.removeAll();
+-                    Ext.each(records, function (record, index, records) {
+-                        tvaCmt.add({'VNO': record.get('VNO'), 'VO': record.get('VO')});
+-                        Ext.each(record.data.datatva, function (r, i) {
+-
+-                            tvaStore.add(r);
+-                        });
+-                        Ext.each(record.data.recettes, function (r, i) {
+-
+-                            recettes.add(r);
+-                        });
+-                        Ext.each(record.data.achats, function (r, i) {
+-
+-                            achatsstore.add(r);
+-                        });
+-                    }, this);
+-                },
+-                scope: this
+-            }
+-        });
+-        castore.load();
+-
+-
+-        totauxstore.on({
+-            'load': {
+-                fn: function (store, records, success, eOpts) {
+-
+-                    Ext.each(records, function (record, index, records) {
+-
+-                        Ext.getCmp("totalnb").setValue(record.get('nb'));
+-                        Ext.getCmp("totalmontant").setValue(record.get('montant'));
+-                        Ext.getCmp("totalnbclient").setValue(record.get('nbclient'));
+-                    }, this);
+-
+-                },
+-                scope: this
+-            }
+-        });
+-
+-        mvtstore.on({
+-            'load': {
+-                fn: function (store, records, success, eOpts) {
+-                    var total = 0;
+-                    Ext.each(records, function (record, index, records) {
+-                        total += Number(record.get('totalmvt'));
+-
+-                    }, this);
+-                    Ext.getCmp('totalmvt').setValue(total);
+-                },
+-                scope: this
+-            }
+-        });
+-        mvtstore.load();
+-        var myCAview = Ext.create('Ext.view.View', {
+-            store: castore, tpl: tplca,
+-            padding: 5,
+-            flex: 2,
+-            itemSelector: 'tr.cadata',
+-            emptyText: ''
+-        });
+-        var myTVAview = Ext.create('Ext.view.View', {
+-            store: tvaStore, tpl: tpltva,
+-            padding: 5,
+-            flex: 1,
+-            itemSelector: 'tr.tpltva',
+-            emptyText: ''
+-        });
+-        var mytplcmt = Ext.create('Ext.view.View', {
+-            store: tvaCmt, tpl: tplcmt,
+-            padding: 5,
+-            flex: 1,
+-            itemSelector: 'tr.cmpdata',
+-            emptyText: ''
+-        });
+-        var recetteView = Ext.create('Ext.view.View', {
+-            store: recettes, tpl: tplrecette,
+-            padding: 5,
+-            width: '100%',
+-            itemSelector: 'li.recettitem',
+-            emptyText: ''
+-        });
+-        var mvtsView = Ext.create('Ext.view.View', {
+-            store: mvtstore, tpl: tplmvt,
+-            padding: 5,
+-            width: '100%',
+-            itemSelector: 'li.mvttitem',
+-            emptyText: ''
+-        });
+-        var viewMarge = Ext.create('Ext.view.View', {
+-            store: achatsstore, tpl: tplMarge,
+-            padding: 5,
+-            width: '100%',
+-            itemSelector: 'tr.margeitem',
+-            emptyText: ''
+-        });
+-        var viewGRo = Ext.create('Ext.view.View', {
+-            store: achatsgrossisstes, tpl: tplgrossistes,
+-            padding: 5,
+-            width: '100%',
+-            itemSelector: 'tr.grositem',
+-            emptyText: ''
+-        });
+-        me.title = 'Récapitulatif activité',
+-                me.width = '98%',
+-//                me.height = 570,
+-                me.minHeight = 800,
+-//                me.maxHeight = 800,
+-                me.autoScroll = true,
+-//        me.frame = true,
+-                me.items = [
+-                    {
+-                        xtype: 'fieldset',
+-                        collapsible: false,
+-                        layout: 'hbox',
+-                        title: '',
+-                        margin: '5',
+-                        items: [
+-                            {
+-                                xtype: 'container',
+-                                layout: 'hbox',
+-                                margin: '5 15 5 5',
+-                                items: [
+-                                    {
+-                                        xtype: 'datefield',
+-                                        format: 'd/m/Y',
+-                                        emptyText: 'Date debut',
+-                                        submitFormat: 'Y-m-d',
+-                                        fieldLabel: 'Du',
+-                                        labelWidth: 30,
+-                                        margin: '0 10 0 0',
+-                                        value: new Date(),
+-                                        width: 350,
+-                                        id: 'dt_start_activities',
+-                                        listeners: {
+-                                            change: function () {
+-                                                Ext.getCmp('dt_end_activities').setMinValue(this.getValue());
+-                                            }
+-                                        }
+-
+-                                    }, {
+-                                        xtype: 'tbseparator'
+-                                    },
+-                                    {
+-                                        xtype: 'datefield',
+-                                        format: 'd/m/Y',
+-                                        emptyText: 'Date fin',
+-                                        submitFormat: 'Y-m-d',
+-                                        fieldLabel: 'Au',
+-                                        labelWidth: 30,
+-                                        value: new Date(),
+-                                        width: 350,
+-                                        id: 'dt_end_activities',
+-                                        listeners: {
+-                                            change: function () {
+-                                                Ext.getCmp('dt_start_activities').setMaxValue(this.getValue());
+-                                            }
+-                                        }
+-
+-                                    }
+-                                    ,
+-                                    {
+-
+-                                        xtype: 'button',
+-                                        style: 'margin-left:5px;',
+-                                        iconCls: 'activitiessearch',
+-                                        text: 'Rechercher',
+-                                        handler: function () {
+-                                            var dt_start_activities = Ext.getCmp('dt_start_activities').getSubmitValue();
+-                                            var dt_end_activities = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                            castore.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities
+-
+-                                                }
+-                                            });
+-                                            mvtstore.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities
+-
+-                                                }
+-                                            });
+-                                            achatsgrossisstes.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities
+-
+-                                                }
+-                                            });
+-
+-                                            storeCredits.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities,
+-                                                    search_value: Ext.getCmp('crediSearch').getValue()
+-
+-                                                }
+-                                            });
+-                                            totauxstore.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities,
+-                                                    search_value: Ext.getCmp('crediSearch').getValue()
+-
+-                                                }
+-                                            });
+-                                            reglementStore.load({
+-                                                params: {
+-                                                    dt_end: dt_end_activities,
+-                                                    dt_start: dt_start_activities,
+-                                                    search_value: Ext.getCmp('regSearch').getValue()
+-
+-                                                }
+-                                            });
+-                                        }
+-
+-                                    },
+-                                    {
+-
+-                                        // width: 100,
+-                                        xtype: 'button',
+-                                        style: 'margin-left:5px;',
+-                                        iconCls: 'activitiessearch',
+-                                        text: 'Imprimer',
+-                                        listeners: {
+-                                            click: function () {
+-
+-                                                var search_value = Ext.getCmp('regSearch').getValue();
+-                                                var search = Ext.getCmp('crediSearch').getValue();
+-                                                var dt_start_activities = Ext.getCmp('dt_start_activities').getSubmitValue();
+-                                                var dt_end_activities = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                                var linkUrl = "../webservices/Report/recapactivities/ws_generate_pdf.jsp" + "?dt_end=" + dt_end_activities + "&dt_start=" + dt_start_activities + "&search_value=" + search_value + "&search=" + search;
+-                                                window.open(linkUrl);
+-                                            }
+-                                        }
+-
+-
+-                                    }
+-
+-                                ]
+-                            }
+-                        ]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'CHIFFRE D\'AFFAIRE',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelca',
+-                        layout: 'hbox',
+-                        border: true,
+-                        items: [myCAview, myTVAview, mytplcmt]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'RECETTES',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelrc',
+-                        layout: 'fit',
+-                        border: true,
+-                        items: [recetteView]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'MOUVEMENTS DE CAISSE',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelmv',
+-                        layout: 'vbox',
+-                        border: true,
+-                        items: [mvtsView, {
+-
+-                                xtype: 'displayfield',
+-                                fieldLabel: 'Total mouvements',
+-                                labelWidth: 120,
+-                                id: 'totalmvt',
+-                                fieldStyle: "color:blue;font-weight:800;",
+-                                margin: '0 10 0 50',
+-                                renderer: function (value) {
+-                                    return Ext.util.Format.number(value, '0,000') + " CFA";
+-                                }
+-
+-                            }]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'ACHATS',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelorders',
+-                        layout: 'vbox',
+-                        border: true,
+-                        items: [viewMarge, viewGRo]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'CREDITS ACCORDES',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelcredit',
+-                        // layout:'fit',
+-                        border: true,
+-                        dockedItems: [{
+-                                xtype: "toolbar",
+-                                dock: "top",
+-                                items: [{
+-                                        xtype: "tbtext",
+-                                        text: "Recherche"
+-                                    },
+-                                    "-",
+-                                    {
+-                                        xtype: "textfield",
+-                                        emptyText: 'Recherche',
+-                                        id: 'crediSearch',
+-                                        width: 350,
+-                                        enableKeyEvents: true,
+-                                        listeners: {
+-                                            specialKey: function (field, e, options) {
+-                                                if (e.getKey() === e.ENTER) {
+-                                                    var grid = Ext.getCmp('crditacordeID');
+-
+-                                                    var dt_end = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                                    var dt_start = Ext.getCmp('dt_start_activities').getSubmitValue();
+-                                                    grid.getStore().load({
+-                                                        params: {
+-                                                            dt_end: dt_end,
+-                                                            dt_start: dt_start,
+-                                                            search_value: field.getValue()
+-
+-                                                        }
+-                                                    });
+-                                                    totauxstore.load({
+-                                                        params: {
+-                                                            dt_end: dt_end,
+-                                                            dt_start: dt_start,
+-                                                            search_value: field.getValue()
+-
+-                                                        }
+-                                                    });
+-                                                }
+-                                            }
+-                                        }
+-
+-                                    }
+-
+-                                ]
+-
+-                            }
+-
+-                        ],
+-                        items: [
+-
+-                            /*************************/
+-                            {
+-                                xtype: 'grid',
+-                                id: 'crditacordeID',
+-                                store: storeCredits,
+-                                columns: [{
+-                                        header: 'Nom TP',
+-                                        dataIndex: 'name',
+-                                        flex: 1
+-
+-                                    },
+-                                    {
+-                                        header: 'Type',
+-                                        dataIndex: 'nametype',
+-                                        flex: 1
+-
+-                                    },
+-                                    {
+-                                        header: 'Nb.Bons',
+-                                        dataIndex: 'nb',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    },
+-                                    {
+-                                        header: 'Montant',
+-                                        dataIndex: 'montant',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    },
+-                                    {
+-                                        header: 'Nb.Clients',
+-                                        dataIndex: 'nbclient',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    }
+-                                ],
+-
+-                                bbar: {
+-                                    xtype: 'pagingtoolbar',
+-                                    store: storeCredits,
+-                                    dock: 'bottom',
+-                                    pageSize: 10,
+-                                    displayInfo: true,
+-                                    listeners: {
+-                                        beforechange: function (page, currentPage) {
+-                                            var myProxy = this.store.getProxy();
+-                                            myProxy.params = {
+-
+-                                                dt_start: '',
+-                                                dt_end: '',
+-                                                search_value: ''
+-                                            };
+-                                            var dt_end = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                            var dt_start = Ext.getCmp('dt_start_activities').getSubmitValue();
+-
+-                                            var search_value = Ext.getCmp('crediSearch').getValue();
+-                                            myProxy.setExtraParam('dt_start', dt_start);
+-                                            myProxy.setExtraParam('dt_end', dt_end);
+-                                            myProxy.setExtraParam('search_value', search_value);
+-
+-                                        }
+-
+-                                    },
+-                                    items: [
+-
+-                                        {
+-                                            xtype: 'displayfield',
+-                                            fieldLabel: 'Total Nb Bons',
+-                                            labelWidth: 110,
+-                                            id: 'totalnb',
+-                                            fieldStyle: "color:blue;font-weight:800;",
+-                                            margin: '0 10 0 10'
+-                                        },
+-                                        {
+-                                            xtype: 'displayfield',
+-                                            fieldLabel: 'Total Montant',
+-                                            labelWidth: 110,
+-                                            id: 'totalmontant',
+-                                            fieldStyle: "color:blue;font-weight:800;",
+-                                            margin: '0 10 0 10'
+-                                        },
+-                                        {
+-                                            xtype: 'displayfield',
+-                                            fieldLabel: ' Total Nb Clients',
+-                                            labelWidth: 110,
+-                                            id: 'totalnbclient',
+-                                            fieldStyle: "color:blue;font-weight:800;",
+-                                            margin: '0 10 0 10'
+-                                        }
+-
+-
+-                                    ]
+-                                }
+-                            }
+-
+-
+-                            /********end ***********************/
+-                        ]
+-                    },
+-                    {
+-                        xtype: 'panel',
+-                        title: 'REGLEMENTS TP / TP',
+-                        width: '99%',
+-                        margin: '5',
+-                        id: 'panelrgtp',
+-                        border: true,
+-                        dockedItems: [{
+-                                xtype: "toolbar",
+-                                dock: "top",
+-                                items: [{
+-                                        xtype: "tbtext",
+-                                        text: "Recherche"
+-                                    },
+-                                    "-",
+-                                    {
+-                                        xtype: "textfield",
+-                                        emptyText: 'Recherche',
+-                                        id: 'regSearch',
+-                                        width: 350,
+-                                        enableKeyEvents: true,
+-
+-                                        listeners: {
+-                                            specialKey: function (field, e, options) {
+-                                                if (e.getKey() === e.ENTER) {
+-                                                    var grid = Ext.getCmp('regID');
+-
+-                                                    var dt_end = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                                    var dt_start = Ext.getCmp('dt_start_activities').getSubmitValue();
+-
+-
+-                                                    grid.getStore().load({
+-                                                        params: {
+-                                                            dt_end: dt_end,
+-                                                            dt_start: dt_start,
+-                                                            search_value: field.getValue()
+-
+-                                                        }
+-                                                    });
+-                                                }
+-                                            }
+-                                        }
+-
+-                                    }
+-
+-                                ]
+-
+-                            }
+-
+-                        ],
+-                        items: [
+-
+-                            {
+-                                xtype: 'grid',
+-                                id: 'regID',
+-                                store: reglementStore,
+-                                columns: [{
+-                                        header: 'Nom TP',
+-                                        dataIndex: 'nametp',
+-                                        flex: 1
+-
+-                                    },
+-                                    {
+-                                        header: 'Type',
+-                                        dataIndex: 'nametypetp',
+-                                        flex: 1
+-
+-                                    },
+-                                    {
+-                                        header: 'Facture',
+-                                        dataIndex: 'code',
+-                                        flex: 1
+-
+-                                    },
+-                                    {
+-                                        header: 'Montant Facture',
+-                                        dataIndex: 'montantfact',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    },
+-                                    {
+-                                        header: 'Montant Régl',
+-                                        dataIndex: 'montant',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    },
+-                                    {
+-                                        header: 'Montant Restant',
+-                                        dataIndex: 'rest',
+-                                        align: 'right',
+-                                        flex: 1
+-                                    }
+-                                ],
+-
+-                                bbar: {
+-                                    xtype: 'pagingtoolbar',
+-                                    store: reglementStore,
+-                                    dock: 'bottom',
+-                                    pageSize: 10,
+-                                    displayInfo: true,
+-                                    listeners: {
+-                                        beforechange: function (page, currentPage) {
+-                                            var myProxy = this.store.getProxy();
+-                                            myProxy.params = {
+-
+-                                                dt_start: '',
+-                                                dt_end: '',
+-                                                search_value: ''
+-                                            };
+-                                            var dt_end = Ext.getCmp('dt_end_activities').getSubmitValue();
+-                                            var dt_start = Ext.getCmp('dt_start_activities').getSubmitValue();
+-
+-                                            var search_value = Ext.getCmp('regSearch').getValue();
+-                                            myProxy.setExtraParam('dt_start', dt_start);
+-                                            myProxy.setExtraParam('dt_end', dt_end);
+-                                            myProxy.setExtraParam('search_value', search_value);
+-
+-                                        }
+-
+-                                    }
+-                                }
+-                            }
+-
+-                        ]
+-                    }
+-
+-                ];
+-        me.callParent();
+-    }
+-});
+\ No newline at end of file
++    title: 'Rapport d\'activit&eacute;',
++    frame: true,
++    bodyPadding: 20,
++    html: 'Cet &eacute;cran est remplac&eacute; par l\'&eacute;cran <b>R&eacute;capitulatif</b> du tableau de bord (ventes, achats, cr&eacute;dits et r&egrave;glements tiers payant, avec leur &eacute;dition PDF).'
++});
+diff --git a/src/main/webapp/general/app/view/commandemanagement/etats/EtatControleManager.js b/src/main/webapp/general/app/view/commandemanagement/etats/EtatControleManager.js
+index aafd827..262c062 100644
+--- a/src/main/webapp/general/app/view/commandemanagement/etats/EtatControleManager.js
++++ b/src/main/webapp/general/app/view/commandemanagement/etats/EtatControleManager.js
+@@ -593,22 +593,13 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
+                     handler: this.onInventaireDeLaSelection
+                 }, '-',
+                 /*
+-                 * Ces deux boutons etaient caches en dur depuis l'origine. Ils ont ete affiches le temps de la
+-                 * recette, et sont remis en retrait sur demande, en attendant l'arbitrage :
+-                 *
+-                 * - REGLER UNE SELECTION DE BL fonctionne desormais : il postait vers ws_transaction2.jsp, page
+-                 *   qui n'a jamais existe dans le projet, et passe par un service REST depuis la reprise. Il est
+-                 *   pret a etre reaffiche, il suffit de retirer le hidden.
+-                 * - GESTION DES QUINZAINES reste inoperant : les pages qui le servent appellent des classes
+-                 *   com.asc.prestige2.business.bonlivraisons absentes du projet, en source comme en bibliotheque,
+-                 *   et rendent HTTP 500. Ne le reafficher qu'une fois ces pages reprises.
++                 * REGLER UNE SELECTION DE BL etait cache en dur depuis l'origine. Il a ete affiche le temps de la
++                 * recette, et remis en retrait sur demande, en attendant l'arbitrage : il postait vers
++                 * ws_transaction2.jsp, page qui n'a jamais existe dans le projet, et passe par un service REST
++                 * depuis la reprise. Il est pret a etre reaffiche, il suffit de retirer le hidden.
++                 * (Le bouton GESTION DES QUINZAINES, cache lui aussi, a ete retire avec ses pages, qui appelaient
++                 * des classes absentes du projet.)
+                  */
+-                {
+-                    text: 'GESTION DES QUINZAINES',
+-                    hidden: true,
+-                    scope: this,
+-                    handler: this.onGestionQuinzaine
+-                }, '-',
+                 {
+                     text: 'REGLER UNE SELECTION DE BL',
+                     hidden: true,
+@@ -837,10 +828,6 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
+         this.getStore().load({params: criteresControleAchat()});
+     },
+ 
+-    onGestionQuinzaine: function () {
+-        const xtype = "quinzaineManager";
+-        testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion des quinzaines", "0");
+-    },
+     onCheckChange: function (column, rowIndex, checked, eOpts) {
+         let store = Ext.getCmp('gridID').getStore(), rec = store.getAt(rowIndex);
+         if (checked) {
+diff --git a/src/main/webapp/general/app/view/commandemanagement/etats/action/addQuinzaine.js b/src/main/webapp/general/app/view/commandemanagement/etats/action/addQuinzaine.js
+deleted file mode 100644
+index 0cd18f9..0000000
+--- a/src/main/webapp/general/app/view/commandemanagement/etats/action/addQuinzaine.js
++++ /dev/null
+@@ -1,241 +0,0 @@
+-/* global Ext */
+-
+-var Me;
+-var ref;
+-var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
+-var url_services_quinzaine_transaction = '../webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp';
+-var Oview;
+-var mode;
+-var record;
+-var saveText;
+-var lg_GROSSISTE_ID;
+-var lg_QUINZAINE_ID;
+-var PARAMS  = {};
+-
+-Ext.define('testextjs.view.commandemanagement.etats.action.addQuinzaine', {
+-    extend: 'Ext.window.Window',
+-    xtype: 'addQuinzaine',
+-    id: 'addQuinzaineID',
+-    requires: [
+-        'Ext.form.*',
+-        'Ext.window.Window',
+-        'testextjs.model.Client'
+-    ],
+-    config: {
+-        odatasource: '',
+-        parentview: '',
+-        mode: '',
+-        titre: '',
+-        record: ''
+-
+-    },
+-    initComponent: function () {
+-
+-        Oview = this.getParentview();
+-        mode = this.getMode();
+-        Me = this;
+-        var itemsPerPage = 20;
+-
+-        var store_grossiste = new Ext.data.Store({
+-            model: 'testextjs.model.Grossiste',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                   url: '../api/v1/grossiste/all',
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 240000
+-            }
+-
+-        });
+-
+-
+-        var dt_START_DATE_FIELD = new Ext.form.field.Date({
+-            fieldLabel: 'Du:',
+-            allowBlank: false,
+-            submitFormat: 'Y-m-d',
+-            format: 'd/m/Y',
+-            flex: 1,
+-            name: 'dt_QUINZAINE_START_DATE',
+-            id: 'dt_QUINZAINE_START_DATE',
+-            minValue: new Date(),
+-            listener: {
+-                change: function (me) {
+-                    //Ext.getCmp('dt_START_DATE_ID').setMaxValue(me.getValue());
+-                }
+-            }
+-        });
+-
+-        var dt_END_DATE_FIELD = new Ext.form.field.Date({
+-            fieldLabel: 'Au:',
+-            allowBlank: false,
+-            submitFormat: 'Y-m-d',
+-            format: 'd/m/Y',
+-            //labelWidth: 20,
+-            flex: 1,
+-//            margin: '0 25 0 10',
+-            name: 'dt_QUINZAINE_END_DATE',
+-            id: 'dt_QUINZAINE_END_DATE',
+-            minValue: new Date(),
+-            listener: {
+-                change: function (me) {
+-                    // Ext.getCmp('dt_START_DATE_ID').setMaxValue(me.getValue());
+-                }
+-            }
+-        });
+-
+-        var GROSSISTE_FIELD = new Ext.form.field.ComboBox({
+-            fieldLabel: 'Grossiste',
+-            name: 'lg_GROSSISTE_ID',
+-            id: 'lg_QUINZAINE_GROSSISTE_LIBELLE',
+-            store: store_grossiste,
+-            //disabled: true,
+-            width: 170,
+-            valueField: 'lg_GROSSISTE_ID',
+-            displayField: 'str_LIBELLE',
+-            typeAhead: true,
+-            queryMode: 'remote',
+-            flex: 1,
+-            emptyText: 'Selectionner grossiste...',
+-            listeners: {
+-                select: function (cmp) {
+-                    
+-                    //var record = cmp.getStore().findRecord('str_LIBELLE', grossiste_libelle);
+-                    lg_GROSSISTE_ID = cmp.getValue();
+-
+-                }
+-            }
+-
+-        });
+-
+-
+-        var form = new Ext.form.Panel({
+-            bodyPadding: 10,
+-            width: '100%',
+-            fieldDefaults: {
+-                labelAlign: 'left',
+-                labelWidth: 140,
+-                msgTarget: 'side'
+-            },
+-            items: [{
+-                    xtype: 'fieldset',
+-                    title: 'Informations de la Quinzaine',
+-                    defaultType: 'textfield',
+-                    defaults: {
+-                        anchor: '100%'
+-                    },
+-                    items: [GROSSISTE_FIELD, dt_START_DATE_FIELD, dt_END_DATE_FIELD]
+-                }
+-            ]
+-        });
+-
+-        if (mode === 'create') {
+-            saveText = "Céer";
+-        }
+-        if (mode === "update") {
+-            record = this.getRecord();
+-            lg_QUINZAINE_ID = record.get('lg_QUINZAINE_ID');
+-            var start_date = record.get('dt_START_DATE');
+-            var end_date = record.get('dt_END_DATE');
+-            var grossiste_libelle = record.get('str_GROSSISTE_LIBELLE');
+-
+-            //console.log("start date: ", start_date, " end date: ", end_date, " grossiste libelle ", grossiste_libelle);
+-            saveText = "Modifier";
+-            Ext.getCmp('dt_QUINZAINE_START_DATE').setValue(start_date);
+-            Ext.getCmp('dt_QUINZAINE_END_DATE').setValue(end_date);
+-            Ext.getCmp('lg_QUINZAINE_GROSSISTE_LIBELLE').setValue(grossiste_libelle);
+-
+-        }
+-
+-
+-
+-        var win = new Ext.window.Window({
+-            autoShow: true,
+-            title: this.getTitre(),
+-            width: 450,
+-            //autoHeight: true,
+-            height: 200,
+-            minWidth: 200,
+-//            minHeight: 200,
+-            layout: 'fit',
+-            plain: true,
+-            items: form,
+-            buttons: [{
+-                    text: saveText,
+-                    //disabled: true,
+-                    id: 'quinzain_save_btn',
+-                    handler: this.onbtnsave
+-                }, {
+-                    text: 'Annuler',
+-                    handler: function () {
+-                        win.close();
+-                    }
+-                }]
+-        });
+-
+-    },
+-    onbtnsave: function (btn) {
+-
+-        var fenetre = btn.up('window'),
+-            formulaire = fenetre.down('form');
+-        if (formulaire.isValid()) {
+-            var dt_QUINZAINE_START_DATE = Ext.getCmp('dt_QUINZAINE_START_DATE').getSubmitValue();
+-            var dt_QUINZAINE_END_DATE = Ext.getCmp('dt_QUINZAINE_END_DATE').getSubmitValue();
+-            var str_GROSSISTE_LIBELLE = Ext.getCmp('lg_QUINZAINE_GROSSISTE_LIBELLE').getValue();
+-            console.log("dt_QUINZAINE_START_DATE: ",dt_QUINZAINE_START_DATE, "dt_QUINZAINE_END_DATE: ", dt_QUINZAINE_END_DATE, "lg_GROSSISTE_ID: ", str_GROSSISTE_LIBELLE);
+-            
+-            Ext.Ajax.request({
+-                url: url_services_quinzaine_transaction,
+-                params: {
+-                    lg_QUINZAINE_ID: lg_QUINZAINE_ID,
+-                    lg_GROSSISTE_ID: lg_GROSSISTE_ID,
+-                    dt_START_DATE: dt_QUINZAINE_START_DATE,
+-                    dt_END_DATE: dt_QUINZAINE_END_DATE,
+-                    mode: mode
+-                },
+-                success: function (response) {
+-                    var jsonResponseStringyfied = Ext.JSON.decode(response.responseText);
+-                    Me.processQuinzaineCreation(jsonResponseStringyfied, btn);
+-                },
+-                failure: function (error) {
+-                    console.error('Error occured');
+-                }
+-            });
+-
+-        }
+-    },
+-    processQuinzaineCreation: function (response, btn) {
+-        // if the response is a success response, then take time to refresh the parent's store
+-        if (response.success === true) {
+-            Oview.getStore().reload();
+-            Ext.MessageBox.show({
+-                title: 'Création de la quinzaine',
+-                width: 320,
+-                msg: 'Quinzaine créée avec succès.',
+-                buttons: Ext.MessageBox.OK,
+-                icon: Ext.MessageBox.SUCC,
+-                fn: function (bt) {
+-                    btn.up('window').close();
+-           }
+-            });
+-            lg_GROSSISTE_ID = '';
+-        } else {
+-            Ext.MessageBox.show({
+-                title: 'Création de la quinzaine',
+-                width: 320,
+-                msg: 'Erreur lors de la création de la quinzaine',
+-                buttons: Ext.MessageBox.ERROR,
+-                icon: Ext.MessageBox.ERROR,
+-                fn: function (bt) {}
+-            });
+-            lg_GROSSISTE_ID = '';
+-        }
+-
+-    }
+-
+-
+-});
+diff --git a/src/main/webapp/general/app/view/commandemanagement/etats/action/quinzaineManager.js b/src/main/webapp/general/app/view/commandemanagement/etats/action/quinzaineManager.js
+deleted file mode 100644
+index 5895559..0000000
+--- a/src/main/webapp/general/app/view/commandemanagement/etats/action/quinzaineManager.js
++++ /dev/null
+@@ -1,288 +0,0 @@
+-/* global Ext */
+-var itemsPerPage = 20;
+-var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
+-var url_services_quinzaine_data = '../webservices/commandemanagement/bonlivraison/ws_quinzaine_data.jsp';
+-var url_services_quinzaine_transaction = '../webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp';
+-var Me;
+-
+-Ext.define('testextjs.view.commandemanagement.etats.action.quinzaineManager', {
+-    extend: 'Ext.grid.Panel',
+-    xtype: 'quinzaineManager',
+-    id: 'quinzainManagerID',
+-    require: [
+-        'Ext.selection.CellModel',
+-        'Ext.grid.*',
+-        'Ext.window.Window',
+-        'Ext.data.*',
+-        'Ext.util.*',
+-        'Ext.form.*',
+-        'Ext.JSON.*',
+-        'testextjs.model.Quinzaine'
+-    ],
+-    frame: true,
+-//    collapsible: true,
+-    animCollapse: false,
+-    title: 'Gestion des quinzaines',
+-    initComponent: function () {
+-        Me = this;
+-
+-        var store_grossiste = new Ext.data.Store({
+-            model: 'testextjs.model.Grossiste',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                  url: '../api/v1/grossiste/all',
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 240000
+-            }
+-
+-        });
+-        
+-        var store_quinzaine = new Ext.data.Store({
+-            model: 'testextjs.model.Quinzaine', // to be created
+-            pageSize: itemsPerPage,
+-            autoLoad: true,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_quinzaine_data,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                },
+-                timeout: 240000
+-            }
+-
+-        });
+-
+-
+-        Ext.apply(this, {
+-            width: '98%',
+-            height: 580,
+-            store: store_quinzaine,
+-            id: 'quinzaineGridID',
+-            columns: [
+-                {
+-                    header: 'ID',
+-                    dataIndex: 'lg_QUINZAINE_ID',
+-                    flex: 1.5,
+-                    hidden: true
+-                },
+-                {
+-                    header: 'GROSSISTE',
+-                    dataIndex: 'str_GROSSISTE_LIBELLE',
+-                    flex: 1.5
+-                },
+-                {
+-                    header: 'Date Début',
+-                    dataIndex: 'dt_START_DATE',
+-                    flex: 1.5
+-                },
+-                {
+-                    header: 'Date Fin',
+-                    dataIndex: 'dt_END_DATE',
+-                    flex: 1.5
+-                }, {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [
+-                        {
+-                            icon: 'resources/images/icons/fam/delete.png',
+-                            tooltip: 'Suppression de la quinzaine',
+-                            scope: this,
+-                            handler: this.onRemoveClick
+-                        }
+-
+-                    ]
+-                },
+-                {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [
+-                        {
+-                            icon: 'resources/images/icons/fam/page_white_edit.png',
+-                            tooltip: 'Modifier la quinzaine',
+-                            scope: this,
+-                            handler: this.onUpdateClick
+-                        }
+-                    ]
+-                }
+-            ],
+-            tbar: [
+-                {
+-                    text: 'Créer',
+-                    tooltip: 'créer une quinzaine',
+-                    scope: this,
+-                    handler: this.onCreateClick
+-                },'-',
+-                {
+-                    xtype: 'combobox',
+-                    name: 'lg_GROSSISTE_ID',
+-                    margins: '0 0 0 10',
+-                    id: 'lg_GROSSISTE_ID',
+-                    store: store_grossiste,
+-                    //disabled: true,
+-                    valueField: 'lg_GROSSISTE_ID',
+-                    displayField: 'str_LIBELLE',
+-                    typeAhead: true,
+-                    queryMode: 'remote',
+-                    flex: 1,
+-                    emptyText: 'Selectionner grossiste...',
+-                    listeners: {
+-                        select: function (cmp) {
+-                            Ext.getCmp('quinzaineGridID').getStore().load({
+-                                lg_GROSSISTE_ID: cmp.getValue()
+-                            });
+-                        }
+-                    }
+-
+-                },'-',
+-                {
+-                    xtype: 'datefield',
+-                    id: 'datedebutQuinzaine',
+-                    name: 'datedebut',
+-                    emptyText: 'Date debut',
+-                    submitFormat: 'Y-m-d',
+-                    maxValue: new Date(),
+-                    flex: 0.7,
+-                    format: 'd/m/Y',
+-                    listeners: {
+-                        'change': function (me) {
+-                            valdatedebut = me.getSubmitValue();
+-                        }
+-                    }
+-                }, '-', {
+-                    xtype: 'datefield',
+-                    id: 'datefinQuinzaine',
+-                    name: 'datefin',
+-                    emptyText: 'Date fin',
+-                    maxValue: new Date(),
+-                    flex: 0.7,
+-                    submitFormat: 'Y-m-d',
+-                    format: 'd/m/Y',
+-                    listeners: {
+-                        'change': function (me) {
+-                            valdatefin = me.getSubmitValue();
+-                        }
+-                    }
+-                }, '-',
+-                {
+-                    xtype: 'textfield',
+-                    id: 'rechecherQuinzaine',
+-                    name: 'suggestion',
+-                    emptyText: 'Rech',
+-                    listeners: {
+-                        'render': function (cmp) {
+-                            cmp.getEl().on('keypress', function (e) {
+-                                if (e.getKey() === e.ENTER) {
+-                                    Me.onRechClick();
+-
+-                                }
+-                            });
+-                        }
+-                    }
+-                },
+-                {
+-                    text: 'rechercher',
+-                    tooltip: 'rechercher',
+-                    scope: this,
+-                    handler: this.onRechClick
+-                }
+-            ],
+-            bbar: {
+-                xtype: 'pagingtoolbar',
+-                pageSize: 10,
+-                store: store_quinzaine,
+-                displayInfo: true,
+-                plugins: new Ext.ux.ProgressBarPager()
+-            }
+-
+-        });
+-
+-        this.callParent();
+-        this.on('afterlayout', this.loadStore, this, {
+-            delay: 1,
+-            single: true
+-        });
+-    },
+-    onCreateClick: function () {
+-       
+-       new testextjs.view.commandemanagement.etats.action.addQuinzaine({
+-            odatasource: "",
+-            parentview: Me,
+-            mode: "create",
+-            titre: "Créer une quinzaine",
+-            type: "addQuinzaine",
+-            record: {}
+-        });
+-    },
+-    
+-   
+-    loadStore: function () {},
+-    
+-    onRemoveClick: function (grid, rowIndex) {
+-        var record = grid.getStore().getAt(rowIndex);
+-        var params = {
+-                        lg_QUINZAINE_ID: record.get('lg_QUINZAINE_ID'),
+-                        mode: 'delete'
+-                      };
+-        Ext.Ajax.request({
+-            url: url_services_quinzaine_transaction,
+-            params: params,
+-            success: function(response){
+-                var jsonResponse = Ext.JSON.decode(response.responseText);
+-                Me.processRemoveResponse(jsonResponse, grid);
+-            },
+-            failure: function(error){
+-                console.error(error);
+-            }
+-        });
+-    },
+-    
+-    processRemoveResponse: function(response, grid){
+-       
+-        if(response.success === true){
+-          Ext.MessageBox.show({
+-                title: 'Suppression de quinzaine',
+-                width: 320,
+-                msg: 'Quinzaine supprimée avec succès',
+-                buttons: Ext.MessageBox.OK,
+-                icon: Ext.MessageBox.SUCC,
+-                fn: function (bt) {
+-                      grid.getStore().reload();
+-                }
+-            }); 
+-       }else{
+-           Ext.MessageBox.show({
+-                title: 'Suppression de quinzaine',
+-                width: 320,
+-                msg: 'Erreur lors de la Suppression de la quinzaine',
+-                buttons: Ext.MessageBox.ERROR,
+-                icon: Ext.MessageBox.ERROR,
+-                fn: function (btn) {}
+-            });
+-       } 
+-    },
+-    
+-    onUpdateClick: function (grid, rowIndex) {
+-        var record = grid.getStore().getAt(rowIndex);
+-        console.log(record);        
+-        new testextjs.view.commandemanagement.etats.action.addQuinzaine({
+-            odatasource: "",
+-            parentview: Me,
+-            mode: "update",
+-            record: record,
+-            titre: "Modifier la quinzaine "+ record.get('lg_QUINZAINE_ID'),
+-            type: "addQuinzaine"
+-        });
+-    }
+-});
+\ No newline at end of file
+diff --git a/src/main/webapp/general/app/view/sm_user/alertevent/AlerteventManager.js b/src/main/webapp/general/app/view/sm_user/alertevent/AlerteventManager.js
+index 0170cac..f39a707 100644
+--- a/src/main/webapp/general/app/view/sm_user/alertevent/AlerteventManager.js
++++ b/src/main/webapp/general/app/view/sm_user/alertevent/AlerteventManager.js
+@@ -1,385 +1,15 @@
+-var url_services_data_alertevent = '../webservices/sm_user/alertevent/ws_data.jsp';
+-var url_services_transaction_alertevent = '../webservices/sm_user/alertevent/ws_transaction.jsp?mode=';
+-
++/* global Ext */
+ 
++/*
++ * Ancien ecran, remplace : ses pages serveur appelaient des classes retirees du projet et rendaient HTTP 500.
++ * La classe et le xtype sont conserves pour que l'entree de menu, si la base en contient une, ouvre ce message
++ * au lieu d'une erreur.
++ */
+ Ext.define('testextjs.view.sm_user.alertevent.AlerteventManager', {
+-    extend: 'Ext.grid.Panel',
++    extend: 'Ext.panel.Panel',
+     xtype: 'alerteventmanager',
+-    id: 'alerteventmanagerID',
+-    requires: [
+-        'Ext.selection.CellModel',
+-        'Ext.grid.*',
+-        'Ext.window.Window',
+-        'Ext.data.*',
+-        'Ext.util.*',
+-        'Ext.form.*',
+-        'Ext.JSON.*',
+-        'testextjs.model.Alertevent',
+-        'testextjs.view.sm_user.user.action.add',
+-        'testextjs.view.sm_user.user.action.addpwd',
+-        'Ext.ux.ProgressBarPager',
+-        'Ext.ux.grid.Printer'
+-
+-    ],
+     title: 'Gestion Model de notification',
+-    closable: true,
+     frame: true,
+-    initComponent: function () {
+-
+-
+-
+-        var itemsPerPage = 20;
+-        var store = new Ext.data.Store({
+-            model: 'testextjs.model.Alertevent',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_alertevent,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            }
+-
+-        });
+-
+-        this.cellEditing = new Ext.grid.plugin.CellEditing({
+-            clicksToEdit: 1
+-        });
+-
+-
+-        Ext.apply(this, {
+-            width: 950,
+-            height: 580,
+-            plugins: [this.cellEditing],
+-            store: store,
+-            columns: [{
+-                    header: 'Ref',
+-                    dataIndex: 'str_Event',
+-                    hidden: true,
+-                    flex: 1,
+-                    editor: {
+-                        allowBlank: false
+-                    }
+-                },{
+-                    header: 'Description',
+-                    dataIndex: 'str_DESCRIPTION',
+-                    flex: 1
+-                }, 
+-                
+-                {
+-                    header: 'Sms fr',
+-                    dataIndex: 'str_SMS_French_Text',
+-                    flex: 1
+-                }, 
+-                {
+-                    header: 'Mail fr',
+-                    dataIndex: 'str_MAIL_French_Text',
+-                    flex: 1
+-                },{
+-                    header: 'Sms en',
+-                    dataIndex: 'str_SMS_English_Text',
+-                    flex: 1
+-                }, 
+-                {
+-                    header: 'Mail en',
+-                    dataIndex: 'str_MAIL_English_Text',
+-                    flex: 1
+-                },  {
+-                    header: 'Fonction',
+-                    dataIndex: 'str_FONCTION',
+-                    hidden: true,
+-                    flex: 1
+-                }, {
+-                    header: 'Type',
+-                    dataIndex: 'str_TYPE',
+-                    hidden: true,
+-                    flex: 1
+-                }, {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/page_white_edit.png',
+-                            tooltip: 'Modifier',
+-                            scope: this,
+-                            handler: this.onEditClick
+-                        }]
+-                },
+-                {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/cog_edit.png',
+-                            tooltip: 'Executer la commande',
+-                            scope: this,
+-                            handler: this.onEditpwdClick
+-                        }]
+-                }
+-               /* 
+-                ,{
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon:  'resources/images/icons/fam/folder_go.png',
+-                            tooltip: 'Associer Numero',
+-                            scope: this,
+-                            handler: this.onManageFoneClick
+-                        }]
+-                },
+-                
+-                
+-                {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/delete.png',
+-                            tooltip: 'Supprimer',
+-                            scope: this,
+-                            handler: this.onRemoveClick
+-                        }]
+-                }
+-            */
+-            ],
+-            selModel: {
+-                selType: 'cellmodel'
+-            },
+-            tbar: [
+-                {
+-                    text: 'Print',
+-                    id: 'P_BT_usermanager_PRINT',
+-                    iconCls: 'resources/images/icons/fam/printer.png',
+-                   // disabled: true,
+-                    handler: this.onPrintClick
+-                }, '-', {
+-                    xtype: 'textfield',
+-                    id: 'TXT_SEARCH',
+-                    name: 'user',
+-                    emptyText: 'Rech'
+-                }, {
+-                    text: 'rechercher',
+-                    tooltip: 'rechercher',
+-                   // id: 'P_BT_usermanager_FIND',
+-                    scope: this,
+-                   // disabled: true,
+-                    handler: this.onRechClick
+-                }],
+-            bbar: {
+-                xtype: 'pagingtoolbar',
+-                store: store, // same store GridPanel is using
+-                dock: 'bottom',
+-                displayInfo: true
+-            }
+-        });
+-
+-        this.callParent();
+-        //this.checkPrivilegeToUI();
+-        this.on('afterlayout', this.loadStore, this, {
+-            delay: 1,
+-            single: true
+-        });
+-
+-
+-        this.on('edit', function (editor, e) {
+-
+-
+-
+-            Ext.Ajax.request({
+-                url: url_services_transaction_utilisateur + 'update',
+-                params: {
+-                    lg_USER_ID: e.record.data.lg_USER_ID,
+-                    lg_ROLE_ID: e.record.data.lg_ROLE_ID,
+-                    str_LOGIN: e.record.data.str_LOGIN,
+-                    str_LAST_NAME: e.record.data.str_LAST_NAME,
+-                    str_FIRST_NAME: e.record.data.str_FIRST_NAME,
+-                    lg_SKIN_ID: e.record.data.lg_SKIN_ID,
+-                    lg_Language_ID: e.record.data.lg_Language_ID,
+-                    str_IDS: e.record.data.str_IDS
+-
+-                },
+-                success: function (response)
+-                {
+-                    console.log(response.responseText);
+-                    e.record.commit();
+-                    store.reload();
+-                },
+-                failure: function (response)
+-                {
+-                    console.log("Bug " + response.responseText);
+-                    alert(response.responseText);
+-                }
+-            });
+-        });
+-        //  this.checkPrivilegeToUI();
+-    },
+-    loadStore: function () {
+-        this.getStore().load({
+-            callback: this.onStoreLoad
+-        });
+-    },
+-    onManageFoneClick: function(grid, rowIndex){
+-    
+-        var rec = grid.getStore().getAt(rowIndex);
+-        var xtype = "userphonemanager";
+-        var  alias ='widget.' + xtype;
+-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype,"",rec.get('str_FIRST_NAME'),rec.data);
+-        
+-    },
+-    onStoreLoad: function () {
+-    },
+-    onAddClick: function () {
+-
+-        new testextjs.view.sm_user.alertevent.action.add({
+-            odatasource: "",
+-            parentview: this,
+-            mode: "create",
+-            titre: "Ajouter Utilisateur"
+-        });
+-    },
+-    onPrintClick: function () {
+-
+-        window.print();
+-        body :{
+-            visibility:visible
+-        }
+-        print: {
+-            visibility:visible
+-        }
+-
+-
+-    },
+-    onRemoveClick: function (grid, rowIndex) {
+-        Ext.MessageBox.confirm('Message',
+-                'confirm la suppresssion',
+-                function (btn) {
+-                    if (btn === 'yes') {
+-                        var rec = grid.getStore().getAt(rowIndex);
+-                        Ext.Ajax.request({
+-                            url: url_services_transaction_alertevent + 'delete',
+-                            params: {
+-                                lg_USER_ID: rec.get('lg_USER_ID')
+-                            },
+-                            success: function (response)
+-                            {
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success === 0) {
+-                                    Ext.MessageBox.alert('Error Message', object.errors);
+-                                    return;
+-                                }
+-                                grid.getStore().reload();
+-                            },
+-                            failure: function (response)
+-                            {
+-
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                //  alert(object);
+-
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-                            }
+-                        });
+-                        return;
+-                    }
+-                });
+-
+-
+-    },
+-    onEditClick: function (grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-
+-
+-        new testextjs.view.sm_user.alertevent.action.add({
+-            odatasource: rec.data,
+-            parentview: this,
+-            mode: "update",
+-            titre: "Modification Model Notif  [" + rec.get('str_DESCRIPTION') + "]"
+-        });
+-
+-
+-
+-    },
+-    onEditpwdClick: function (grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-
+-       
+-        new testextjs.view.sm_user.alertevent.action.adduserphonealertevent({
+-            obtntext: "Client",
+-            odatasource: rec.data,
+-            nameintern: "Ayant droit",
+-            parentview: this,
+-            mode: "detail",
+-            titre: "Gestion utilisateur a associer [" + rec.get('str_DESCRIPTION') + "]",
+-            
+-        });
+-      
+-
+-    },
+-    onRechClick: function () {
+-        var val = Ext.getCmp('rechecher');
+-        this.getStore().load({
+-            params: {
+-                search_value: val.value
+-            }
+-        }, url_services_data_alertevent);
+-    }
+-
+-    , checkPrivilegeToUI: function () {
+-
+-        var url_services_data_ws_get_privilege_by_bt = '../webservices/sm_user/privilege/ws_get_privilege_by_bt.jsp';
+-        var storePrivilege = new Ext.data.Store({
+-            model: 'testextjs.model.Privilege',
+-            // pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_ws_get_privilege_by_bt,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            }
+-        });
+-
+-
+-
+-        storePrivilege.load({
+-            callback: function () {
+-                var index;
+-                var tab_component = new Array(
+-                        "P_BT_usermanager_PRINT",
+-                        "P_BT_usermanager_FIND",
+-                        "P_BT_usermanager_CREATE"
+-                        );
+-                var tab_privilege = [];
+-                for (i = 0; i < storePrivilege.getCount(); i++) {
+-                    tab_privilege[i] = storePrivilege.getAt(i).get('str_NAME');
+-                }
+-                for (i = 0; i < tab_component.length; ++i) {
+-                    Ext.getCmp(tab_component[i]).disable();
+-                    console.log(tab_component[i]);
+-                    for (k = 0; k < tab_privilege.length; ++k) {
+-                        if (tab_component[i] === tab_privilege[k]) {
+-                            //Activer le component
+-                            Ext.getCmp(tab_component[i]).enable();
+-                            // return;
+-                        }
+-                    }
+-                }
+-            }
+-        });
+-        storePrivilege.load({});
+-    }
+-
+-
+-});
+\ No newline at end of file
++    bodyPadding: 20,
++    html: 'Cet &eacute;cran est remplac&eacute; par l\'&eacute;cran <b>Menu notifications</b> : les SMS et e-mails (cl&ocirc;ture de caisse, avoirs, modifications de prix...) y sont list&eacute;s et peuvent y &ecirc;tre renvoy&eacute;s.'
++});
+diff --git a/src/main/webapp/general/app/view/sm_user/alertevent/action/add.js b/src/main/webapp/general/app/view/sm_user/alertevent/action/add.js
+deleted file mode 100644
+index 88635c4..0000000
+--- a/src/main/webapp/general/app/view/sm_user/alertevent/action/add.js
++++ /dev/null
+@@ -1,177 +0,0 @@
+-var url_services_data_role = '../webservices/sm_user/role/ws_data.jsp';
+-var url_services_data_skin = '../webservices/sm_user/skin/ws_data.jsp';
+-var url_services_data_language = '../webservices/sm_user/language/ws_data.jsp';
+-var url_services_data_alertevent = '../webservices/sm_user/alertevent/ws_data.jsp';
+-var url_services_transaction_alertevent = '../webservices/sm_user/alertevent/ws_transaction.jsp?mode=';
+-var Oview;
+-var Omode;
+-var Me;
+-var ref;
+-
+-var OmyuserGrid;
+-
+-
+-Ext.define('testextjs.view.sm_user.alertevent.action.add', {
+-    extend: 'Ext.window.Window',
+-    xtype: 'addalertevent',
+-    id: 'alerteventID',
+-    requires: [
+-        'Ext.form.*',
+-        'Ext.window.Window'
+-
+-    ],
+-    config: {
+-        odatasource: '',
+-        parentview: '',
+-        mode: '',
+-        titre: ''
+-    },
+-    initComponent: function () {
+-
+-        Oview = this.getParentview();
+-
+-
+-        Omode = this.getMode();
+-
+-
+-
+-        Me = this;
+-
+-
+-        var form = new Ext.form.Panel({
+-            bodyPadding: 10,
+-            fieldDefaults: {
+-                labelAlign: 'right',
+-                labelWidth: 115,
+-                msgTarget: 'side'
+-            },
+-            items: [{
+-                    xtype: 'fieldset',
+-                    //   width: 55,
+-                    title: 'Information Utilisateur',
+-                    defaultType: 'textfield',
+-                    defaults: {
+-                        anchor: '100%'
+-                    },
+-                    items: [
+-                        //str_IDS
+-                        {
+-                            xtype: 'textareafield',
+-                            grow: true,
+-                            name: 'str_SMS_French_Text',
+-                            fieldLabel: 'Sms fr',
+-                            id: 'str_SMS_French_Text',
+-                            anchor: '100%',
+-                            emptyText: 'Saisiser votre Sms ( 160  caracter pour un sms)'
+-
+-                        },
+-                        {
+-                            xtype: 'textareafield',
+-                            grow: true,
+-                            name: 'str_MAIL_French_Text',
+-                            fieldLabel: 'Mail fr',
+-                            id: 'str_MAIL_French_Text',
+-                            anchor: '100%',
+-                            emptyText: 'Saisiser votre Mail'
+-
+-                        }, {
+-                            xtype: 'displayfield',
+-                            //allowBlank: false,
+-                            fieldLabel: 'Role',
+-                            name: 'str_INFOS',
+-                            id: 'str_INFOS'
+-                                    //emptyText: 'lg_ROLE_ID'
+-                        }
+-
+-
+-                    ]
+-                }]
+-        });
+-
+-
+-
+-        //Initialisation des valeur
+-        if (Omode === "update") {
+-
+-            ref = this.getOdatasource().str_Event;
+-
+-            Ext.getCmp('str_SMS_French_Text').setValue(this.getOdatasource().str_SMS_French_Text);
+-            Ext.getCmp('str_MAIL_French_Text').setValue(this.getOdatasource().str_MAIL_French_Text);
+-            Ext.getCmp('str_INFOS').setValue("NB ne pas suppimer les param [X_VALUE]");
+-
+-
+-
+-        }
+-
+-
+-
+-        var win = new Ext.window.Window({
+-            autoShow: true,
+-            title: this.getTitre(),
+-            width: 500,
+-            height: 300,
+-            minWidth: 300,
+-            minHeight: 200,
+-            layout: 'fit',
+-            plain: true,
+-            items: form,
+-            buttons: [{
+-                    text: 'Enregistrer',
+-                    handler: this.onbtnsave
+-                }, {
+-                    text: 'Annuler',
+-                    handler: function () {
+-                        win.close();
+-                    }
+-                }]
+-        });
+-
+-    },
+-    onbtnsave: function () {
+-
+-        var internal_url = "";
+-
+-
+-        if (Omode === "create") {
+-            internal_url = url_services_transaction_alertevent + 'create';
+-        } else {
+-            internal_url = url_services_transaction_alertevent + 'update&str_Event=' + ref;
+-        }
+-
+- 
+-
+-//alert(internal_url);
+-        Ext.Ajax.request({
+-            url: internal_url,
+-            params: {
+-                str_SMS_French_Text: Ext.getCmp('str_SMS_French_Text').getValue(),
+-                str_MAIL_French_Text: Ext.getCmp('str_MAIL_French_Text').getValue()
+-                
+-
+-            },
+-            success: function (response)
+-            {
+-                var object = Ext.JSON.decode(response.responseText, false);
+-
+-                if (object.success === 0) {
+-                    Ext.MessageBox.alert('Error Message', object.errors);
+-                    return;
+-                }
+-                Oview.getStore().reload();
+-
+-            },
+-            failure: function (response)
+-            {
+-
+-                var object = Ext.JSON.decode(response.responseText, false);
+-                console.log("Bug " + response.responseText);
+-                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-            }
+-        });
+-
+-
+-        this.up('window').close();
+-
+-    }
+-});
+\ No newline at end of file
+diff --git a/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonealertevent.js b/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonealertevent.js
+deleted file mode 100644
+index c7c58a6..0000000
+--- a/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonealertevent.js
++++ /dev/null
+@@ -1,399 +0,0 @@
+-var url_services_data_userphonealertevent = '../webservices/sm_user/userphonealertevent/ws_data.jsp';
+-
+-var url_services_transaction_client_addclt_ayantdroit = '../webservices/sm_user/ayantdroit/ws_transaction.jsp?mode=';
+-
+-
+-var OCltgridpanelID;
+-var Oview;
+-var Omode;
+-var Me;
+-var ref_add;
+-var cust_name;
+-var cust_id;
+-var cust_account_id;
+-var Ogrid;
+-var OmyType;
+-var OcustGrid;
+-var str_Event;
+-var ref_vente;
+-
+-
+-
+-Ext.util.Format.decimalSeparator = ',';
+-Ext.util.Format.thousandSeparator = '.';
+-function amountformat(val) {
+-    return Ext.util.Format.number(val, '0,000.');
+-}
+-
+-Ext.define('testextjs.view.sm_user.alertevent.action.adduserphonealertevent', {
+-    extend: 'Ext.window.Window',
+-    xtype: 'adduserphonealertevent',
+-    id: 'adduserphonealerteventID',
+-    requires: [
+-        'Ext.form.*',
+-        'Ext.window.Window',
+-        'testextjs.store.Statut',
+-        'Ext.grid.*',
+-        'Ext.layout.container.Column',
+-        'testextjs.model.Famille',
+-        'testextjs.model.CompteClient',
+-        'testextjs.view.sm_user.dovente.action.add'
+-
+-    ],
+-    config: {
+-        odatasource: '',
+-        parentview: '',
+-        mode: '',
+-        titre: '',
+-        obtntext: '',
+-        nameintern: ''
+-    },
+-    title: 'Choix.Client',
+-    bodyPadding: 5,
+-    layout: 'column',
+-    initComponent: function () {
+-
+-        url_services_data_userphonealertevent = '../webservices/sm_user/userphonealertevent/ws_data.jsp';
+-
+-        Oview = this.getParentview();
+-        Omode = this.getMode();
+-        Me = this;
+-        Ogrid = this.getObtntext();
+-
+-
+-        //ref_add = this.getOdatasource();
+-        ref_vente = this.getNameintern();
+-
+-        // alert("Ogrid   " + Ogrid);
+-
+-
+-
+-
+-
+-        var itemsPerPage = 20;
+-        var store = new Ext.data.Store({
+-            model: 'testextjs.model.Userphonealertevent',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_userphonealertevent + "?str_Event=" + this.getOdatasource().str_Event,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            },
+-            autoLoad: true
+-
+-        });
+-
+-
+-
+-
+-        var form = new Ext.form.Panel({
+-            width: 500,
+-            layout: {
+-                type: 'hbox'
+-            },
+-            defaults: {
+-                flex: 1
+-            },
+-            items: ['CltgridpanelID'],
+-            autoHeight: true,
+-            fieldDefaults: {
+-                labelAlign: 'left',
+-                labelWidth: 90,
+-                anchor: '100%',
+-                msgTarget: 'side'
+-            },
+-            items: [{
+-                    columnWidth: 0.65,
+-                    xtype: 'gridpanel',
+-                    id: 'CltgridpanelID',
+-                    store: store,
+-                    height: 400,
+-                    columns: [{
+-                            text: 'lg_ID',
+-                            flex: 1,
+-                            sortable: true,
+-                            hidden: true,
+-                            dataIndex: 'lg_ID'
+-                        }, {
+-                            text: 'str_Event',
+-                            flex: 1,
+-                            sortable: true,
+-                            hidden: true,
+-                            dataIndex: 'str_Event'
+-                        }, {
+-                            text: 'Utilisateur',
+-                            flex: 1,
+-                            dataIndex: 'lg_USER_FONE_ID'
+-                        }, {
+-                            text: 'Telephone',
+-                            flex: 1,
+-                            dataIndex: 'str_LIST_PHONE'
+-                        }, {
+-                            header: 'Statut',
+-                            dataIndex: 'str_STATUT',
+-                            flex: 1
+-
+-                        }/*, {
+-                         xtype: 'actioncolumn',
+-                         width: 30,
+-                         sortable: false,
+-                         menuDisabled: true,
+-                         items: [{
+-                         icon: 'resources/images/icons/fam/page_white_edit.png',
+-                         tooltip: 'Modifier',
+-                         scope: this,
+-                         handler: this.onEditClick
+-                         }]
+-                         }*/, /* {
+-                          xtype: 'actioncolumn',
+-                          width: 30,
+-                          sortable: false,
+-                          menuDisabled: true,
+-                          items: [{
+-                          icon: 'resources/images/icons/fam/add.gif',
+-                          tooltip: 'Choisir Client',
+-                          scope: this,
+-                          handler: this.onChooseCustomerClick
+-                          }]
+-                          },*/ {
+-                            xtype: 'actioncolumn',
+-                            width: 30,
+-                            sortable: false,
+-                            menuDisabled: true,
+-                            items: [{
+-                                    icon: 'resources/images/icons/fam/delete.png',
+-                                    tooltip: 'Supprimer',
+-                                    scope: this,
+-                                    handler: this.onRemoveClick
+-                                }]
+-                        }/*, {
+-                         xtype: 'actioncolumn',
+-                         width: 30,
+-                         sortable: false,
+-                         menuDisabled: true,
+-                         items: [{
+-                         icon: 'resources/images/icons/fam/application_view_list.png',
+-                         tooltip: 'Tiers.Payant',
+-                         scope: this,
+-                         handler: this.onChooseTiersClick,
+-                         getClass: function () {
+-                         if (Ogrid === "Client") {
+-                         return 'x-hide-display';
+-                         } else if (Ogrid === "Tiers.Payant") {
+-                         return '';
+-                         }
+-                         }
+-                         }]
+-                         }*/],
+-                    tbar: [
+-                        {
+-                            text: 'Creer',
+-                            scope: this,
+-                            handler: this.onAddClick
+-                        }, '-', {
+-                            xtype: 'textfield',
+-                            id: 'rechercher',
+-                            name: 'user',
+-                            emptyText: 'Rech'}, {
+-                            text: 'rechercher',
+-                            tooltip: 'rechercher',
+-                            scope: this,
+-                            handler: this.onRechClick
+-                        }],
+-                    listeners: {
+-                        scope: this},
+-                    bbar: {
+-                        xtype: 'pagingtoolbar',
+-                        store: store,
+-                        dock: 'bottom',
+-                        displayInfo: true
+-                    }
+-                }/*, {
+-                 columnWidth: 0.35,
+-                 margin: '10 10 10 10',
+-                 xtype: 'fieldset',
+-                 title: 'Information du client',
+-                 id: 'info_client',
+-                 layout: 'anchor',
+-                 defaultType: 'textfield',
+-                 items: [id_customer_chosen,
+-                 str_customer_chosen,
+-                 solde_customer_chosen
+-                 
+-                 ]
+-                 
+-                 }*/]
+-        });
+-
+-        this.callParent();
+-        OCltgridpanelID = Ext.getCmp('CltgridpanelID');
+-        str_Event = this.getOdatasource().str_Event;
+-        if (Omode === "detail") {
+-            str_Event = this.getOdatasource().str_Event;
+-
+-
+-        }
+-        /* if (Ogrid === "Tiers.Payant") {
+-         Ext.getCmp('info_client').hide(); 
+-         
+-         }*/
+-
+-        var win = new Ext.window.Window({
+-            autoShow: true,
+-            id: 'cltwinID',
+-            title: this.getTitre(),
+-            width: 600,
+-            Height: 500,
+-            layout: 'fit',
+-            plain: true,
+-            items: form,
+-            buttons: [{
+-                    text: 'Envoyer des notification',
+-                    //handler: this.onbtnsave
+-                    handler: function () {
+-
+-
+-                        var url_services_notify = '../webservices/sm_user/alertevent/ws_transaction.jsp?mode=notify';
+-                        Ext.Ajax.request({
+-                            url: url_services_notify,
+-                            params: {
+-                                str_Event: str_Event,
+-                                // str_Event: ref
+-                            },
+-                            success: function (response)
+-                            {
+-                                //alert("succes");
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success === 0) {
+-                                    Ext.MessageBox.alert('Infos Message', 'CREER AVEC SUCCES');
+-                                    return;
+-                                } else {
+-                                    Ext.MessageBox.alert('  Message', object.errors);
+-                                }
+-                                Oview.getStore().reload();
+-                            },
+-                            failure: function (response)
+-                            {
+-                                //alert("echec");
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('  Message', response.responseText);
+-                            }
+-                        });
+-                        win.close();
+-                    }
+-                }, {
+-                    text: 'Annuler',
+-                    handler: function () {
+-                        win.close();
+-                    }
+-                }]
+-        });
+-    },
+-    onChooseCustomerClick: function (grid, rowIndex) {
+-
+-
+-    },
+-    onbtnsave: function () {
+-        var xtype = "doventemanager";
+-        this.up('window').close();
+-        testextjs.app.getController('App').onLoadNewComponentWith2DataSource(xtype, "by_cloturer_vente_add", cust_name, ref_add, cust_account_id);
+-
+-        /* if (Ogrid === "Tiers.Payant"){
+-         testextjs.app.getController('App').onLoadNewComponentWith2DataSource(xtype, "by_cloturer_vente_add", cust_name, ref_add, cust_account_id);
+-         } else if (Ogrid === "Client") {
+-         testextjs.app.getController('App').onLoadNewComponentWith2DataSource(xtype, "by_cloturer_vente_add", cust_name, ref_add, cust_account_id);
+-         }*/
+-
+-    }, onEditClick: function (grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-        new testextjs.view.configmanagement.ayantdroit.action.add({
+-            odatasource: rec.data,
+-            parentview: this,
+-            mode: "update",
+-            type: "clientmanager",
+-            titre: "Modification de l'ayant droit du client [" + this.getOdatasource().str_FIRST_LAST_NAME + "]"
+-        });
+-    },
+-    onChooseTiersClick: function (grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-        new testextjs.view.sm_user.dovente.action.addTiersPayant({
+-            odatasource: rec.data,
+-            parentview: this,
+-            mode: "updatecarnet",
+-            titre: "Tiers.Payant  Client  [" + rec.get('str_LAST_NAME') + "]"
+-        });
+-    },
+-    onAddClick: function () {
+-
+-        new testextjs.view.sm_user.alertevent.action.adduserphonetoalert({
+-            odatasource: this.getOdatasource(),
+-            parentview: this,
+-            mode: "createayantdroitByclt",
+-            titre: "Ajouter un numero utilisateur [" + this.getOdatasource().str_Event + "]",
+-            type: "clientmanager"
+-        });
+-    }, onRemoveClick: function (grid, rowIndex) {
+-        var str_Event = this.getOdatasource().str_Event;
+-        Ext.MessageBox.confirm('Message',
+-                'Confirmation de la suppresssion',
+-                function (btn) {
+-                    if (btn === 'yes') {
+-                        var rec = grid.getStore().getAt(rowIndex);
+-                        
+-                         var url_services_userphonealertevent_transaction_delete = '../webservices/sm_user/userphonealertevent/ws_transaction.jsp?mode=';
+-                        
+-                        
+-                        Ext.Ajax.request({
+-                            url: url_services_userphonealertevent_transaction_delete + 'delete',
+-                            params: {
+-                              //  lg_AYANTS_DROITS_ID: rec.get('lg_AYANTS_DROITS_ID'),
+-                                lg_ID: rec.get('lg_ID')
+-                               
+-                            },
+-                            success: function (response)
+-                            {
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success === 0) {
+-                                    Ext.MessageBox.alert('Error Message', object.errors);
+-                                    return;
+-                                } else {
+-                                    Ext.MessageBox.alert('confirmation', object.errors);
+-                                    var OGrid = Ext.getCmp('CltgridpanelID');
+-
+-                                    OGrid.getStore().reload();
+-                                }
+-                                grid.getStore().reload();
+-                            },
+-                            failure: function (response)
+-                            {
+-
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                //  alert(object);
+-
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-                            }
+-                        });
+-                        return;
+-                    }
+-                });
+-
+-
+-    },
+-    onRechClick: function () {
+-
+-        var val = Ext.getCmp('rechercher');
+-        OCltgridpanelID.getStore().load({
+-            params: {
+-                search_value: val.value
+-            }
+-        }, url_services_data_client_addclt_ayantdroit);
+-    }
+-});
+\ No newline at end of file
+diff --git a/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonetoalert.js b/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonetoalert.js
+deleted file mode 100644
+index d890a80..0000000
+--- a/src/main/webapp/general/app/view/sm_user/alertevent/action/adduserphonetoalert.js
++++ /dev/null
+@@ -1,153 +0,0 @@
+-var url_services_data_categorieayantdroit = '../webservices/configmanagement/categorieayantdroit/ws_data.jsp';
+-var url_services_transaction_categorieayantdroit = '../webservices/configmanagement/categorieayantdroit/ws_transaction.jsp?mode=';
+-
+-Ext.define('testextjs.view.sm_user.alertevent.action.adduserphonetoalert', {
+-    extend: 'Ext.window.Window',
+-    xtype: 'adduserphonetoalert',
+-    id: 'adduserphonetoalertID',
+-    requires: [
+-        'Ext.form.*',
+-        'Ext.window.Window',
+-        'testextjs.model.CategorieAyantdroit'
+-    ],
+-    config: {
+-        odatasource: '',
+-        parentview: '',
+-        mode: '',
+-        titre: ''
+-    },
+-    initComponent: function () {
+-
+-        Oview = this.getParentview();
+-        Omode = this.getMode();
+-        Me = this;
+-        var itemsPerPage = 20;
+-        //var url_services_data_menu = '../webservices/sm_user/menu/ws_data.jsp';
+-        var url_services_data_userphone_single = '../webservices/sm_user/userphone/ws_data.jsp?lg_USER_ID=ALL';
+-        var store = new Ext.data.Store({
+-            model: 'testextjs.model.UserPhone',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_userphone_single,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            }
+-
+-        });
+-
+-
+-        var form = new Ext.form.Panel({
+-            bodyPadding: 10,
+-            fieldDefaults: {
+-                labelAlign: 'right',
+-                labelWidth: 160,
+-                msgTarget: 'side'
+-            },
+-            items: [{
+-                    xtype: 'fieldset',
+-                    title: 'Information Categorie Ayant Droit',
+-                    defaultType: 'textfield',
+-                    defaults: {
+-                        anchor: '100%'
+-                    },
+-                    items: [
+-                        // str_CODE
+-                        {
+-                            xtype: 'combobox',
+-                            fieldLabel: 'Menu',
+-                            name: 'lg_USER_FONE_ID',
+-                            id: 'lg_USER_FONE_ID',
+-                            store: store,
+-                            valueField: 'lg_USER_FONE_ID',
+-                            displayField: 'lg_USER_ID',
+-                            typeAhead: true,
+-                            queryMode: 'remote',
+-                            emptyText: 'Choisir un menu...'
+-                        }
+-                    ]
+-                }]
+-        });
+-        //Initialisation des valeur
+-
+-        ref = this.getOdatasource().str_Event;
+-       // alert(ref);
+-        if (Omode === "update") {
+-
+-            ref = this.getOdatasource().str_Event;
+-          //  Ext.getCmp('str_CODE').setValue(this.getOdatasource().str_CODE);
+-           // Ext.getCmp('str_LIBELLE_CATEGORIE_AYANTDROIT').setValue(this.getOdatasource().str_LIBELLE_CATEGORIE_AYANTDROIT);
+-        }
+-
+-
+-
+-        var win = new Ext.window.Window({
+-            autoShow: true,
+-            title: this.getTitre(),
+-            width: 500,
+-            height: 100,
+-            minWidth: 300,
+-            minHeight: 200,
+-            layout: 'fit',
+-            plain: true,
+-            items: form,
+-            buttons: [{
+-                    text: 'Enregistrer',
+-                    handler: this.onbtnsave
+-                }, {
+-                    text: 'Annuler',
+-                    handler: function () {
+-                        win.close();
+-                    }
+-                }]
+-        });
+-    },
+-    onbtnsave: function () {
+-        var url_services_transaction_userphone = '../webservices/sm_user/userphonealertevent/ws_transaction.jsp?mode=';
+-        var internal_url = "";
+-        if (Omode === "create") {
+-            internal_url = url_services_transaction_userphone + 'create';
+-        } else {
+-           // internal_url = url_services_transaction_categorieayantdroit + 'update&lg_CATEGORIE_AYANTDROIT_ID=' + ref;
+-             internal_url = url_services_transaction_userphone + 'create';
+-        
+-        }
+-
+-//alert(Ext.getCmp('lg_USER_FONE_ID').getValue());
+-//alert(internal_url);
+-
+-        Ext.Ajax.request({
+-            url: internal_url,
+-            params: {
+-                lg_USER_FONE_ID: Ext.getCmp('lg_USER_FONE_ID').getValue(),
+-                str_Event: ref
+-            },
+-            success: function (response)
+-            {
+-                //alert("succes");
+-                var object = Ext.JSON.decode(response.responseText, false);
+-                if (object.success === 0) {
+-                    Ext.MessageBox.alert('Infos Message', 'CREER AVEC SUCCES');
+-                    return;
+-                } else {
+-                    Ext.MessageBox.alert('  Message', object.errors);
+-                }
+-                Oview.getStore().reload();
+-            },
+-            failure: function (response)
+-            {
+-                //alert("echec");
+-                var object = Ext.JSON.decode(response.responseText, false);
+-                console.log("Bug " + response.responseText);
+-                Ext.MessageBox.alert('  Message', response.responseText);
+-            }
+-        });
+-        this.up('window').close();
+-    }
+-});
+-
+-
+diff --git a/src/main/webapp/general/app/view/sm_user/outboudmessage/OutboudmessageManager.js b/src/main/webapp/general/app/view/sm_user/outboudmessage/OutboudmessageManager.js
+index 3ab1707..5d02d1c 100644
+--- a/src/main/webapp/general/app/view/sm_user/outboudmessage/OutboudmessageManager.js
++++ b/src/main/webapp/general/app/view/sm_user/outboudmessage/OutboudmessageManager.js
+@@ -1,474 +1,15 @@
+-var url_services_data_outboudmessage = '../webservices/sm_user/outboudmessage/ws_data.jsp';
+-var url_services_transaction_outboudmessage = '../webservices/sm_user/outboudmessage/ws_transaction.jsp?mode=';
++/* global Ext */
+ 
+-var Me;
++/*
++ * Ancien ecran, remplace : ses pages serveur appelaient des classes retirees du projet et rendaient HTTP 500.
++ * La classe et le xtype sont conserves pour que l'entree de menu, si la base en contient une, ouvre ce message
++ * au lieu d'une erreur.
++ */
+ Ext.define('testextjs.view.sm_user.outboudmessage.OutboudmessageManager', {
+-    extend: 'Ext.grid.Panel',
++    extend: 'Ext.panel.Panel',
+     xtype: 'outboudmessagemanager',
+-    id: 'outboudmessageID',
+-    requires: [
+-        'Ext.selection.CellModel',
+-        'Ext.grid.*',
+-        'Ext.window.Window',
+-        'Ext.data.*',
+-        'Ext.util.*',
+-        'Ext.form.*',
+-        'Ext.JSON.*',
+-        'testextjs.model.Alertevent',
+-        'testextjs.view.sm_user.user.action.add',
+-        'testextjs.view.sm_user.user.action.addpwd',
+-        'Ext.ux.ProgressBarPager',
+-        'Ext.ux.grid.Printer'
+-
+-    ],
+     title: 'Gestion Notification sortantes',
+-    closable: false,
+     frame: true,
+-    initComponent: function() {
+-
+-
+-
+-        var itemsPerPage = 20;
+-        var store = new Ext.data.Store({
+-            model: 'testextjs.model.Outboudmessage',
+-            pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_outboudmessage,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            }
+-
+-        });
+-
+-        this.cellEditing = new Ext.grid.plugin.CellEditing({
+-            clicksToEdit: 1
+-        });
+-
+-        Me = this;
+-
+-        Ext.apply(this, {
+-            width: '98%',
+-            height: 580,
+-            id: 'GridPanel',
+-            plugins: [this.cellEditing],
+-            store: store,
+-            columns: [{
+-                    header: 'Ref',
+-                    dataIndex: 'lg_OUTBOUND_MESSAGE_ID',
+-                    hidden: true,
+-                    flex: 1,
+-                    editor: {
+-                        allowBlank: false
+-                    }
+-                },
+-                {
+-                    header: 'Telephone',
+-                    dataIndex: 'str_PHONE',
+-                    flex: 0.7
+-                }, {
+-                    header: 'Message',
+-                    dataIndex: 'str_MESSAGE',
+-                    flex: 2
+-                }, {
+-                    header: 'Date',
+-                    dataIndex: 'dt_CREATED',
+-                    flex: 1
+-                },
+-                {
+-                    header: 'Statut',
+-                    dataIndex: 'str_STATUT',
+-                    flex: 1
+-                },
+-                {
+-                    header: 'Mail en',
+-                    dataIndex: 'dt_UPDATED',
+-                    hidden: true,
+-                    flex: 1
+-                },
+-                {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/cog_edit.png',
+-                            tooltip: 'Renvoyer le Messages',
+-                            scope: this,
+-                            handler: this.onReloadSmsClick,
+-                            getClass: function(value, metadata, record) {
+-                                if (record.get('etat') == "is_Waiting") {  //read your condition from the record
+-                                    return ''; //affiche l'icone
+-                                } else {
+-                                    return 'x-hide-display'; //cache l'icone
+-                                }
+-                            }
+-                        }]
+-                },
+-                {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-                    hidden: true,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/delete.png',
+-                            tooltip: 'Supprimer',
+-                            scope: this,
+-                            handler: this.onRemoveClick
+-                        }]
+-                }, {
+-                    xtype: 'actioncolumn',
+-                    width: 30,
+-                    sortable: false,
+-//                    hidden: true,
+-                    menuDisabled: true,
+-                    items: [{
+-                            icon: 'resources/images/icons/fam/paste_plain.png',
+-                            tooltip: 'Voir le detail',
+-                            scope: this,
+-                            handler: this.ModifyClick
+-                        }]
+-                }
+-
+-            ],
+-            selModel: {
+-                selType: 'cellmodel'
+-            },
+-            tbar: [
+-                {
+-                    text: 'Print',
+-                    id: 'P_BT_usermanager_PRINT',
+-                    hidden: true,
+-                    iconCls: 'resources/images/icons/fam/printer.png',
+-                    // disabled: true,
+-                    handler: this.onPrintClick
+-                }, '-', {
+-                    xtype: 'textfield',
+-                    id: 'TXT_SEARCH',
+-                    name: 'user',
+-                    emptyText: 'Rech',
+-                    listeners: {
+-                        'render': function(cmp) {
+-                            cmp.getEl().on('keypress', function(e) {
+-                                if (e.getKey() === e.ENTER) {
+-                                    Me.onRechClick();
+-
+-                                }
+-                            });
+-                        }
+-                    }
+-                }, {
+-                    text: 'Rechercher',
+-                    tooltip: 'rechercher',
+-                    // id: 'P_BT_usermanager_FIND',
+-                    scope: this,
+-                    // disabled: true,
+-                    handler: this.onRechClick
+-                }, '-', {
+-                    text: 'Renvoyer',
+-                    tooltip: 'Renvoyer les notifications en attentes',
+-                    scope: this,
+-                    handler: this.onReloadAllClick
+-                }],
+-            bbar: {
+-                xtype: 'pagingtoolbar',
+-                store: store, // same store GridPanel is using
+-                dock: 'bottom',
+-                displayInfo: true
+-            }
+-        });
+-
+-        this.callParent();
+-        //this.checkPrivilegeToUI();
+-        this.on('afterlayout', this.loadStore, this, {
+-            delay: 1,
+-            single: true
+-        });
+-
+-
+-        this.on('edit', function(editor, e) {
+-
+-
+-
+-            Ext.Ajax.request({
+-                url: url_services_transaction_outboudmessage + 'update',
+-                params: {
+-                    lg_OUTBOUND_MESSAGE_ID: e.record.data.lg_OUTBOUND_MESSAGE_ID,
+-                    lg_ROLE_ID: e.record.data.lg_ROLE_ID,
+-                    str_LOGIN: e.record.data.str_LOGIN,
+-                    str_LAST_NAME: e.record.data.str_LAST_NAME,
+-                    str_FIRST_NAME: e.record.data.str_FIRST_NAME,
+-                    lg_SKIN_ID: e.record.data.lg_SKIN_ID,
+-                    lg_Language_ID: e.record.data.lg_Language_ID,
+-                    str_IDS: e.record.data.str_IDS
+-
+-                },
+-                success: function(response)
+-                {
+-                    console.log(response.responseText);
+-                    e.record.commit();
+-                    store.reload();
+-                },
+-                failure: function(response)
+-                {
+-                    console.log("Bug " + response.responseText);
+-                    alert(response.responseText);
+-                }
+-            });
+-        });
+-        //  this.checkPrivilegeToUI();
+-    },
+-    loadStore: function() {
+-        this.getStore().load({
+-            callback: this.onStoreLoad
+-        });
+-    },
+-    onManageFoneClick: function(grid, rowIndex) {
+-
+-        var rec = grid.getStore().getAt(rowIndex);
+-        var xtype = "userphonemanager";
+-        var alias = 'widget.' + xtype;
+-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", rec.get('str_FIRST_NAME'), rec.data);
+-
+-    },
+-    onStoreLoad: function() {
+-    },
+-    onAddClick: function() {
+-
+-        new testextjs.view.sm_user.alertevent.action.add({
+-            odatasource: "",
+-            parentview: this,
+-            mode: "create",
+-            titre: "Ajouter Utilisateur"
+-        });
+-    },
+-    onPrintClick: function() {
+-
+-        window.print();
+-        body :{
+-            visibility:visible
+-        }
+-        print: {
+-            visibility:visible
+-        }
+-
+-
+-    },
+-    ModifyClick: function(grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-        new testextjs.view.sm_user.outboudmessage.action.add({
+-            odatasource: rec.data,
+-            parentview: this,
+-            mode: "update",
+-            titre: "Detail du message"
+-        });
+-    },
+-    onReloadAllClick: function() {
+-        Ext.MessageBox.confirm('Message',
+-                'Voulez-vous renvoyer les notifications en attente',
+-                function(btn) {
+-                    if (btn === 'yes') {
+-                        Ext.Ajax.request({
+-                            url: url_services_transaction_outboudmessage + 'reloadall',
+-                            params: {
+-                                search_value: Ext.getCmp('TXT_SEARCH').getValue()
+-                            },
+-                            success: function(response)
+-                            {
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success == "0") {
+-                                    Ext.MessageBox.alert('Error Message', object.errors);
+-                                    return;
+-                                } else {
+-                                    Ext.MessageBox.alert('Confirmation', object.errors);
+-                                    Ext.getCmp('GridPanel').getStore().reload();
+-                                }
+-
+-                            },
+-                            failure: function(response)
+-                            {
+-
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                //  alert(object);
+-
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-                            }
+-                        });
+-                        return;
+-                    }
+-                });
+-
+-
+-    },
+-    onReloadSmsClick: function(grid, rowIndex) {
+-        Ext.MessageBox.confirm('Message',
+-                'Voulez-vous renvoyer la notification',
+-                function(btn) {
+-                    if (btn === 'yes') {
+-                        var rec = grid.getStore().getAt(rowIndex);
+-                        Ext.Ajax.request({
+-                            url: url_services_transaction_outboudmessage + 'reload',
+-                            params: {
+-                                lg_OUTBOUND_MESSAGE_ID: rec.get('lg_OUTBOUND_MESSAGE_ID')
+-                            },
+-                            success: function(response)
+-                            {
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success == "0") {
+-                                    Ext.MessageBox.alert('Error Message', object.errors);
+-                                    return;
+-                                } else {
+-                                    Ext.MessageBox.alert('Confirmation', object.errors);
+-                                    grid.getStore().reload();
+-                                }
+-
+-                            },
+-                            failure: function(response)
+-                            {
+-
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                //  alert(object);
+-
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-                            }
+-                        });
+-                        return;
+-                    }
+-                });
+-
+-
+-    },
+-    onRemoveClick: function(grid, rowIndex) {
+-        Ext.MessageBox.confirm('Message',
+-                'confirm la suppresssion',
+-                function(btn) {
+-                    if (btn === 'yes') {
+-                        var rec = grid.getStore().getAt(rowIndex);
+-                        Ext.Ajax.request({
+-                            url: url_services_transaction_outboudmessage + 'delete',
+-                            params: {
+-                                lg_OUTBOUND_MESSAGE_ID: rec.get('lg_OUTBOUND_MESSAGE_ID')
+-                            },
+-                            success: function(response)
+-                            {
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                if (object.success === 0) {
+-                                    Ext.MessageBox.alert('Error Message', object.errors);
+-                                    return;
+-                                }
+-                                grid.getStore().reload();
+-                            },
+-                            failure: function(response)
+-                            {
+-
+-                                var object = Ext.JSON.decode(response.responseText, false);
+-                                //  alert(object);
+-
+-                                console.log("Bug " + response.responseText);
+-                                Ext.MessageBox.alert('Error Message', response.responseText);
+-
+-                            }
+-                        });
+-                        return;
+-                    }
+-                });
+-
+-
+-    },
+-    onEditClick: function(grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-
+-
+-        new testextjs.view.sm_user.alertevent.action.add({
+-            odatasource: rec.data,
+-            parentview: this,
+-            mode: "update",
+-            titre: "Modification Model Notif  [" + rec.get('str_MESSAGE') + "]"
+-        });
+-
+-
+-
+-    },
+-    onEditpwdClick: function(grid, rowIndex) {
+-        var rec = grid.getStore().getAt(rowIndex);
+-
+-
+-        new testextjs.view.sm_user.alertevent.action.adduserphonealertevent({
+-            obtntext: "Client",
+-            odatasource: rec.data,
+-            nameintern: "Ayant droit",
+-            parentview: this,
+-            mode: "detail",
+-            titre: "Gestion utilisateur a associer [" + rec.get('str_MESSAGE') + "]",
+-        });
+-
+-
+-    },
+-    onRechClick: function() {
+-        var val = Ext.getCmp('TXT_SEARCH');
+-        this.getStore().load({
+-            params: {
+-                search_value: val.value
+-            }
+-        }, url_services_data_outboudmessage);
+-    }
+-
+-    , checkPrivilegeToUI: function() {
+-
+-        var url_services_data_ws_get_privilege_by_bt = '../webservices/sm_user/privilege/ws_get_privilege_by_bt.jsp';
+-        var storePrivilege = new Ext.data.Store({
+-            model: 'testextjs.model.Privilege',
+-            // pageSize: itemsPerPage,
+-            autoLoad: false,
+-            proxy: {
+-                type: 'ajax',
+-                url: url_services_data_ws_get_privilege_by_bt,
+-                reader: {
+-                    type: 'json',
+-                    root: 'results',
+-                    totalProperty: 'total'
+-                }
+-            }
+-        });
+-
+-
+-
+-        storePrivilege.load({
+-            callback: function() {
+-                var index;
+-                var tab_component = new Array(
+-                        "P_BT_usermanager_PRINT",
+-                        "P_BT_usermanager_FIND",
+-                        "P_BT_usermanager_CREATE"
+-                        );
+-                var tab_privilege = [];
+-                for (i = 0; i < storePrivilege.getCount(); i++) {
+-                    tab_privilege[i] = storePrivilege.getAt(i).get('str_NAME');
+-                }
+-                for (i = 0; i < tab_component.length; ++i) {
+-                    Ext.getCmp(tab_component[i]).disable();
+-                    console.log(tab_component[i]);
+-                    for (k = 0; k < tab_privilege.length; ++k) {
+-                        if (tab_component[i] === tab_privilege[k]) {
+-                            //Activer le component
+-                            Ext.getCmp(tab_component[i]).enable();
+-                            // return;
+-                        }
+-                    }
+-                }
+-            }
+-        });
+-        storePrivilege.load({});
+-    }
+-
+-
+-});
+\ No newline at end of file
++    bodyPadding: 20,
++    html: 'Cet &eacute;cran est remplac&eacute; par l\'&eacute;cran <b>Menu notifications</b>, qui liste les messages envoy&eacute;s ou en attente et permet de les renvoyer.'
++});
+diff --git a/src/main/webapp/general/index.jsp b/src/main/webapp/general/index.jsp
+index 49b8ce2..a0d307c 100644
+--- a/src/main/webapp/general/index.jsp
++++ b/src/main/webapp/general/index.jsp
+@@ -195,57 +195,6 @@
+                 });
+             }
+ 
+-            function updateALLData() {
+-                UpdateNotification();
+-            }
+-
+-            function updateSmsMiDay() {
+-                updateSmsMiDayNotification();
+-            }
+-
+-            function GenerateALLDataForAvoir() {
+-                GenerateALLDataForAvoirNotification();
+-            }
+-
+-
+-
+-            function UpdateNotification() {
+-                $.get("../webservices/sm_user/outboudmessage/ws_check_notification_web.jsp", {}, function (response) {
+-
+-                    var obj = jQuery.parseJSON(response);
+-
+-                    var DETAIL_MESSAGE = obj.results[0].message;
+-
+-                    if (obj.results[0].statut == "1") {
+-                        NotifiSendPostPersonalMessage(DETAIL_MESSAGE);
+-                    }
+-                });
+-            }
+-
+-            function updateSmsMiDayNotification() {
+-                $.get("../webservices/sm_user/outboudmessage/ws_check_notification_mijournee_web.jsp", {}, function (response) {
+-                    var obj = jQuery.parseJSON(response);
+-                    var DETAIL_MESSAGE = obj.results[0].message;
+-                    if (obj.results[0].statut == "1") {
+-                        NotifiSendPostPersonalMessage(DETAIL_MESSAGE);
+-                    }
+-                });
+-
+-            }
+-
+-
+-            function GenerateALLDataForAvoirNotification() {
+-                $.get("../webservices/sm_user/outboudmessage/ws_check_notificationavoir_web.jsp", {}, function (response) {
+-
+-                    var obj = jQuery.parseJSON(response);
+-
+-                    var DETAIL_MESSAGE = obj.results[0].message;
+-                    if (obj.results[0].statut == "1") {
+-                        NotifiSendPostPersonalMessage(DETAIL_MESSAGE);
+-                    }
+-                });
+-            }
+-
+             function NotifiSendPostPersonalMessage(Oval) {
+                 prestigeToast("Notification-Gestion des sms", Oval, { autoHide: false });
+             }
+diff --git a/src/main/webapp/webservices/Report/recapactivities/ws_data.jsp b/src/main/webapp/webservices/Report/recapactivities/ws_data.jsp
+deleted file mode 100644
+index edeaa4a..0000000
+--- a/src/main/webapp/webservices/Report/recapactivities/ws_data.jsp
++++ /dev/null
+@@ -1,56 +0,0 @@
+-<%-- 
+-    Document   : ws_zone
+-    Created on : 29 juin 2017, 00:27:26
+-    Author     : KKOFFI
+---%>
+-
+-
+-<%@page import="toolkits.parameters.commonparameter"%>
+-<%@page import="dal.TUser"%>
+-<%@page import="dal.TPreenregistrementCompteClientTiersPayent"%>
+-<%@page import="dal.TTiersPayant"%>
+-<%@page import="dal.TGroupeTierspayant"%>
+-<%@page import="bll.configManagement.GroupeTierspayantController"%>
+-
+-<%@page import="java.util.Date"%>
+-<%@page import="toolkits.utils.date"%>
+-
+-<%@page import="dal.dataManager"%>
+-
+-
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="org.json.JSONArray"%>
+-
+-<%@page import="java.util.ArrayList"%>
+-
+-<%@page import="java.util.List"%>
+-
+-<%
+-    dataManager OdataManager = new dataManager();
+-
+-    OdataManager.initEntityManager();
+-    GroupeTierspayantController groupeCtl = new GroupeTierspayantController(OdataManager.getEmf());
+-    String dt_start = date.formatterMysqlShort.format(new Date()), dt_end = dt_start;
+-   
+-    TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-
+-    if (request.getParameter("dt_end") != null && !"".equals(request.getParameter("dt_end"))) {
+-        dt_end = request.getParameter("dt_end");
+-    }
+-
+-    if (request.getParameter("dt_start") != null && !"".equals(request.getParameter("dt_start"))) {
+-        dt_start = request.getParameter("dt_start");
+-    }
+-
+-    String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+-    JSONObject Obj = groupeCtl.getRecap(dt_start, dt_end, empl);
+-  
+-    JSONArray arrayObj = new JSONArray();
+-
+-    JSONObject data = new JSONObject();
+-
+-    data.put("data", arrayObj.put(Obj));
+-    data.put("total", (Obj.length() > 0 ? 1 : 0));
+-%>
+-
+-<%= data%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/Report/recapactivities/ws_generate_pdf.jsp b/src/main/webapp/webservices/Report/recapactivities/ws_generate_pdf.jsp
+deleted file mode 100644
+index 3efb634..0000000
+--- a/src/main/webapp/webservices/Report/recapactivities/ws_generate_pdf.jsp
++++ /dev/null
+@@ -1,258 +0,0 @@
+-<%-- 
+-    Document   : ws_operateur_pdf
+-    Created on : 20 janv. 2016, 10:08:02
+-    Author     : KKOFFI
+---%>
+-
+-<%@page import="toolkits.utils.Util"%>
+-<%@page import="org.json.JSONArray"%>
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="bll.configManagement.GroupeTierspayantController"%>
+-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+-<!DOCTYPE html>
+-<html>
+-    <head>
+-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+-        <title></title>
+-    </head>
+-
+-    <%@page import="bll.common.Parameter"%>
+-
+-
+-    <%@page import="toolkits.utils.conversion"%>
+-
+-
+-    <%@page import="dal.TOfficine"%>
+-    <%@page import="cust_barcode.barecodeManager"%>
+-    <%@page import="dal.TParameters"%>
+-    <%@page import="toolkits.utils.jdom"%>
+-    <%@page import="dal.jconnexion"%>
+-    <%@page import="report.reportManager"%>
+-
+-
+-    <%@page import="toolkits.utils.logger"  %>
+-    <%@page import="dal.dataManager"  %>
+-    <%@page import="dal.TUser"  %>
+-
+-    <%@page import="bll.bllBase"  %>
+-    <%@page import="java.util.*"  %>
+-
+-    <%@page import="toolkits.utils.date"  %>
+-
+-    <%@page import="toolkits.parameters.commonparameter"  %>
+-    <%
+-        TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-        dataManager OdataManager = new dataManager();
+-
+-        String search_value = "%%", search = "%%";
+-        String dt_start = date.formatterMysqlShort.format(new Date()), dt_end = dt_start;
+-
+-        if (request.getParameter("dt_end") != null && !"".equals(request.getParameter("dt_end"))) {
+-            dt_end = request.getParameter("dt_end");
+-        }
+-
+-        if (request.getParameter("dt_start") != null && !"".equals(request.getParameter("dt_start"))) {
+-            dt_start = request.getParameter("dt_start");
+-        }
+-        if (request.getParameter("search_value") != null && !"".equals(request.getParameter("search_value"))) {
+-            search_value = request.getParameter("search_value");
+-        }
+-        if (request.getParameter("search") != null && !"".equals(request.getParameter("search"))) {
+-            search = request.getParameter("search");
+-        }
+-
+-        String pdf_file_name = "rp_activity";
+-
+-      
+-        jdom Ojdom = new jdom();
+-        Ojdom.InitRessource();
+-        Ojdom.LoadRessource();
+-        jconnexion Ojconnexion = new jconnexion();
+-        Ojconnexion.initConnexion();
+-        Ojconnexion.OpenConnexion();
+-        date key = new date();
+-        reportManager OreportManager = new reportManager();
+-        OdataManager.initEntityManager();
+-        GroupeTierspayantController groupeCtl = new GroupeTierspayantController(OdataManager.getEmf());
+-        String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+-        JSONObject Obj = groupeCtl.getRecap(dt_start, dt_end, empl);
+-
+-        TOfficine oTOfficine = OdataManager.getEm().find(dal.TOfficine.class, "1");
+-        Map parameters = new HashMap();
+-        String scr_report_file = pdf_file_name;
+-        String report_generate_file = date.FILENAME.format(new Date());
+-
+-        new logger().OCategory.info("scr_report_file " + scr_report_file);
+-        report_generate_file = report_generate_file + ".pdf";
+-        OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
+-        OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + pdf_file_name + report_generate_file);
+-
+-        String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
+-        String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
+-        String periode = date.formatterShort.format(java.sql.Date.valueOf(dt_start));
+-        String P_PERIODE = "AU :" + periode;
+-        if (!"".equals(dt_end) && !dt_end.equals(dt_start)) {
+-            P_PERIODE = "DU " + periode + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
+-
+-        }
+-
+-        parameters.put("P_H_CLT_INFOS", "RAPPORT PERIODIQUE D'ACTIVITE " + P_PERIODE);
+-
+-        String P_H_LOGO = jdom.scr_report_file_logo;
+-
+-        parameters.put("P_H_LOGO", P_H_LOGO);
+-        parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
+-
+-        parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
+-        parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+-
+-        String P_FOOTER_RC = "";
+-
+-        if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
+-            P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+-        }
+-
+-        if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
+-            P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+-        }
+-        if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
+-            P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+-        }
+-        if (oTOfficine.getStrCENTREIMPOSITION() != null) {
+-            P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+-        }
+-
+-        if (oTOfficine.getStrPHONE() != null) {
+-            String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+-            if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
+-                String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
+-                for (String va : phone) {
+-                    finalphonestring += " / " + conversion.PhoneNumberFormat(va);
+-                }
+-            }
+-            P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
+-        }
+-        if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
+-            P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
+-        }
+-        if (oTOfficine.getStrNUMCOMPTABLE() != null) {
+-            P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+-        }
+-        JSONArray recettes = Obj.optJSONArray("recettes");
+-        JSONArray tva = Obj.optJSONArray("datatva");
+-        String tva0 = "";
+-        String tva18 = "";
+-        for (int idx = 0; idx < tva.length(); idx++) {
+-            JSONObject js = tva.optJSONObject(idx);
+-            if (js.getInt("value") == 0) {
+-                tva0 = js.getString("montant");
+-            } else {
+-                tva18 = js.getString("montant");
+-            }
+-
+-        }
+-        StringBuilder sb = new StringBuilder();
+-        if (recettes != null) {
+-            for (int idx = 0; idx < recettes.length(); idx++) {
+-                JSONObject json = recettes.optJSONObject(idx);
+-
+-                sb.append("<span style='font-weight:900;'><strong><b>"+json.optString("name")).append(": "+"</b><strong></span>").append(json.optString("montant")).append(" ").append("CFA").append("&nbsp;&nbsp;");
+-                if ((idx % 3 == 0) && (idx > 0)) {
+-                    sb.append("<br><br>");
+-                }
+-            }
+-        }
+-        JSONArray grossistes = groupeCtl.getGrossisteAchats(dt_start, dt_end).getJSONArray("data");
+-        JSONObject data = groupeCtl.getMvt(dt_start, dt_end);
+-        StringBuilder mvts = new StringBuilder();
+-        JSONArray mv = data.optJSONArray("data");
+-
+-        long totalmvt = 0;
+-        if (mv != null) {
+-            for (int idx = 0; idx < mv.length(); idx++) {
+-                JSONObject json = mv.optJSONObject(idx);
+-                if ((idx % 3 == 0) && (idx > 0)) {
+-                    mvts.append("<br><br>");
+-                }
+-                totalmvt += json.optLong("totalmvt");
+-                mvts.append("<span style='font-weight:900;'><strong><b>"+ json.optString("mvt")+"</b><strong></span>").append(": ").append(json.optString("montant")).append(" ").append("CFA").append("&nbsp;&nbsp;");
+-                
+-            }
+-           
+-        }
+-        JSONObject achats = Obj.optJSONObject("achats");
+-
+-        JSONObject laborex = grossistes.getJSONObject(0);
+-        parameters.put("LABOLIB", laborex.optString("grossiste"));
+-        parameters.put("LABOHT", laborex.optString("th") );
+-        parameters.put("LABOTVA", laborex.optString("tva") );
+-        parameters.put("LABOTTC", laborex.optString("ttc") );
+-
+-        JSONObject cop = grossistes.getJSONObject(1);
+-        parameters.put("COPHARMEDLIB", cop.optString("grossiste"));
+-        parameters.put("COPHARMEDHT", cop.optString("th") );
+-        parameters.put("COPHARMEDTVA", cop.optString("tva") );
+-        parameters.put("COPHARMEDTTC", cop.optString("ttc") );
+-
+-        JSONObject tedis = grossistes.getJSONObject(2);
+-        parameters.put("TEDISLIB", tedis.optString("grossiste"));
+-        parameters.put("TEDISHT", tedis.optString("th") );
+-        parameters.put("TEDISTVA", tedis.optString("tva") );
+-        parameters.put("TEDISTTC", tedis.optString("ttc") );
+-
+-        JSONObject dpci = grossistes.getJSONObject(3);
+-        parameters.put("DPCILIB", dpci.optString("grossiste"));
+-        parameters.put("DPCIHT", dpci.optString("th") );
+-        parameters.put("DPCITVA", dpci.optString("tva") );
+-        parameters.put("DPCITTC", dpci.optString("ttc") );
+-
+-        JSONObject autres = grossistes.getJSONObject(4);
+-        parameters.put("AUTRESLIB", autres.optString("grossiste"));
+-        parameters.put("AUTRESHT", autres.optString("th") );
+-        parameters.put("AUTRESTVA", autres.optString("tva") );
+-        parameters.put("AUTRESTTC", autres.optString("ttc") );
+-
+-        parameters.put("ACHATHT", "<span style='font-weight:900;'><strong><b>Total HT</b><strong></span>: " + achats.optString("th") );
+-        parameters.put("ACHATTTC", "<span style='font-weight:900;'><strong><b>Total TTC</b><strong></span>: " + achats.optString("ttc") );
+-        parameters.put("MARGE", "<span style='font-weight:900;'><strong><b>Marge</b><strong></span>: " + achats.optString("marge") );
+-        parameters.put("RATIO", "<span style='font-weight:900;'><strong><b>Ratio</b><strong></span>: " + achats.optDouble("ratio"));
+-        parameters.put("ACHATTVA", "<span style='font-weight:900;'><strong><b>Total TVA</b><strong></span>: " + achats.optString("tva") );
+-        parameters.put("totalmvt", "<span style='font-weight:900;'><strong><b>Total mouvements</b><strong></span>: " + Util.getFormattedLongValue(totalmvt) );
+-        parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
+-        parameters.put("P_FOOTER_RC", P_FOOTER_RC);
+-        parameters.put("P_SEARCH", search_value + "%");
+-        parameters.put("P_CAHT", "<span style='font-weight:900;'><strong><b>CA Total HT</b><strong></span>: " + Obj.optString("montHT"));
+-        parameters.put("REMISE",    "<span style='font-weight:900;'><strong><b>Total remise</b><strong></span>: " + Obj.optString("remiseHT"));
+-        parameters.put("COMPTANT", "<span style='font-weight:900;'><strong><b>Comptant</b><strong></span>: " + Obj.optString("VNO"));  
+-        parameters.put("CREDIT", "<span style='font-weight:900;'><strong><b>Crédit</b><strong></span>: " + Obj.optString("VO"));
+-        parameters.put("CATTC", "<span style='font-weight:900;'><strong><b>Chiffre d'Affaires TTC</b><strong></span>: " + Obj.optString("montTTC"));
+-        parameters.put("NET", "<span style='font-weight:900;'><strong><b>Total Net</b><strong></span>: " + Obj.optString("montantHTCNET"));
+-        parameters.put("RECETTES", sb.toString());   
+-        parameters.put("TVA0", "<span style='font-weight:900;'><strong><b>Total TVA 0 </b><strong></span>: " + tva0);
+-        parameters.put("TVA18", "<span style='font-weight:900;'><strong><b>Total TVA 18</b><strong></span> : " + tva18);
+-        parameters.put("mvts", mvts.toString());
+-
+-        // L'edition suit le meme perimetre que l'ecran : l'emplacement, sauf privilege « toutes les activites ».
+-        java.util.List<dal.TPrivilege> lstPrivPdf =
+-                (java.util.List<dal.TPrivilege>) session.getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+-        JSONArray arrayObj = groupeCtl.creditsAccordeTotax(dt_start, dt_end, search, empl, lstPrivPdf != null
+-                && util.DateConverter.hasAuthorityByName(lstPrivPdf, util.Constant.P_SHOW_ALL_ACTIVITY));
+-
+-        JSONObject cr = arrayObj.optJSONObject(0);
+-
+-        parameters.put("NBCLIENT", cr.getString("nbclient"));
+-
+-        parameters.put("P_START", dt_start);
+-        parameters.put("P_END", dt_end);
+-        parameters.put("P_CRITERIA", search + "%");
+-        OreportManager.BuildReport(parameters, Ojconnexion);
+-
+-        Ojconnexion.CloseConnexion();
+-
+-        response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + pdf_file_name + report_generate_file);
+-
+-    %>
+-
+-
+-
+-</html>
+diff --git a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_data.jsp b/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_data.jsp
+deleted file mode 100644
+index 1711bdb..0000000
+--- a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_data.jsp
++++ /dev/null
+@@ -1,171 +0,0 @@
+-<%@page import="dal.TQuinzaine"%>
+-<%@page import="dal.TBonLivraisonDetail"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.concrete.PrestigeBLService"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.BLService"%>
+-<%@page import="dal.TParameters"%>
+-<%@page import="dal.TFamilleGrossiste"%>
+-<%@page import="bll.configManagement.familleGrossisteManagement"%>
+-<%@page import="toolkits.utils.conversion"%>
+-<%@page import="bll.commandeManagement.bonLivraisonManagement"%>
+-<%@page import="bll.commandeManagement.orderManagement"%>
+-<%@page import="dal.TFamilleStock"%>
+-<%@page import="bll.teller.tellerManagement"%>
+-<%@page import="bll.bllBase"%>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="dal.TBonLivraison"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="toolkits.web.json"  %>
+-<%@page import="org.json.JSONObject"  %>          
+-<%@page import="org.json.JSONArray"  %> 
+-<%@page import="dal.TUser"  %>
+-<%@page import="toolkits.utils.jdom"  %>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="java.text.SimpleDateFormat"  %>
+-
+-<jsp:useBean id="Os_Search_poste" class="services.Search"  scope="session"/>
+-<jsp:useBean id="Os_Search_poste_data" class="services.ShowDataBean" scope="session" />
+-
+-<%  
+-   BLService _service = new PrestigeBLService();
+-%>
+-
+-<% Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-    TFamilleGrossiste OTFamilleGrossiste = null;
+-    date key = new date();
+-%>
+-
+-<%
+-    int DATA_PER_PAGE = jdom.int_size_pagination, count = 0, pages_curr = 0;
+-    new logger().OCategory.info("dans webservices.commandemanagement.bonlivraison.ws_quinzaine_data.jsp");
+-%>
+-
+-
+-<!-- logic de gestion des page -->
+-<%
+-    String action = request.getParameter("action"); //get parameter ?action=
+-    int pageAsInt = 0;
+-
+-    try {
+-        if ((action != null) && action.equals("filltable")) {
+-        } else {
+-
+-            String p = request.getParameter("start"); // get paramerer ?page=
+-
+-            if (p != null) {
+-                int int_page = new Integer(p).intValue();
+-                int_page = (int_page / DATA_PER_PAGE) + 1;
+-                p = new Integer(int_page).toString();
+-
+-                // Strip quotation marks
+-                StringBuffer buffer = new StringBuffer();
+-                for (int index = 0; index < p.length(); index++) {
+-                    char c = p.charAt(index);
+-                    if (c != '\\') {
+-                        buffer.append(c);
+-                    }
+-                }
+-                p = buffer.toString();
+-                Integer intTemp = new Integer(p);
+-
+-                pageAsInt = intTemp.intValue();
+-
+-            } else {
+-                pageAsInt = 1;
+-            }
+-
+-        }
+-    } catch (Exception E) {
+-    }
+-
+-
+-%>
+-<!-- fin logic de gestion des page -->
+-
+-<%  List<TQuinzaine> quinzaines = _service.getQuinzaines();
+-    String lg_QUINZAINE_ID = "%%", str_GROSSISTE_LIBELLE = "%%", search_value = "", dt_START_DATE = "%%", dt_END_DATE = "";
+-
+-  
+-
+-    if (request.getParameter("search_value") != null) {
+-        search_value = request.getParameter("search_value");
+-        new logger().OCategory.info("search_value " + search_value);
+-    }
+-    if (request.getParameter("lg_QUINZAINE_ID") != null) {
+-        lg_QUINZAINE_ID = request.getParameter("lg_QUINZAINE_ID").toString();
+-        new logger().OCategory.info("lg_QUINZAINE_ID " + lg_QUINZAINE_ID);
+-    }
+-    if (request.getParameter("str_GROSSISTE_LIBELLE") != null) {
+-        str_GROSSISTE_LIBELLE = request.getParameter("str_GROSSISTE_LIBELLE").toString();
+-        new logger().OCategory.info("str_GROSSISTE_LIBELLE " + str_GROSSISTE_LIBELLE);
+-        
+-    }
+-    
+- if (request.getParameter("dt_START_DATE") != null) {
+-        dt_START_DATE = request.getParameter("dt_START_DATE").toString();
+-        new logger().OCategory.info("dt_START_DATE " + dt_START_DATE);
+-        
+-    }
+- 
+- if (request.getParameter("dt_END_DATE") != null) {
+-        dt_END_DATE = request.getParameter("dt_END_DATE").toString();
+-        new logger().OCategory.info("dt_END_DATE " + dt_END_DATE);
+-        
+-    }
+-    
+-
+-%>
+-
+-<%
+-//Filtre de pagination
+-    try {
+-        if (DATA_PER_PAGE > quinzaines.size()) {
+-            DATA_PER_PAGE = quinzaines.size();
+-        }
+-    } catch (Exception E) {
+-    }
+-
+-    int pgInt = pageAsInt - 1;
+-    int pgInt_Last = pageAsInt - 1;
+-
+-    if (pgInt == 0) {
+-        pgInt_Last = DATA_PER_PAGE;
+-    } else {
+-
+-        pgInt_Last = (quinzaines.size() - (DATA_PER_PAGE * (pgInt)));
+-        pgInt_Last = (DATA_PER_PAGE * (pgInt) + pgInt_Last);
+-        if (pgInt_Last > (DATA_PER_PAGE * (pgInt + 1))) {
+-            pgInt_Last = DATA_PER_PAGE * (pgInt + 1);
+-        }
+-        pgInt = ((DATA_PER_PAGE) * (pgInt));
+-    }
+-
+-%>
+-
+-
+-
+-<%    JSONArray arrayObj = new JSONArray();
+-    for (int i = pgInt; i < pgInt_Last; i++) {
+-        TQuinzaine quinzaine = quinzaines.get(i);
+-        lg_QUINZAINE_ID = quinzaine.getLgQUINZAINEID();
+-        str_GROSSISTE_LIBELLE = quinzaine.getLgGROSSISTEID().getStrLIBELLE();
+-        JSONObject json = new JSONObject();
+-        json.put("lg_QUINZAINE_ID",quinzaine.getLgQUINZAINEID());
+-        json.put("str_GROSSISTE_LIBELLE", quinzaine.getLgGROSSISTEID().getStrLIBELLE());
+-        
+-        json.put("dt_START_DATE", date.formatterOrange.format(quinzaine.getDtDATESTART()));
+-        json.put("dt_END_DATE", date.formatterOrange.format(quinzaine.getDtDATEEND()));
+-       
+-
+-        arrayObj.put(json);
+-    }
+-    String result = "({\"total\":\"" + quinzaines.size() + " \" ,\"results\":" + arrayObj.toString() + "})";
+-    new logger().OCategory.info("result   ----  " + result);
+-    
+-%>
+-
+-<%= result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp b/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp
+deleted file mode 100644
+index b8dd89c..0000000
+--- a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_quinzaine_transaction.jsp
++++ /dev/null
+@@ -1,69 +0,0 @@
+-
+-<%@page import="java.util.HashMap"%>
+-<%@page import="java.util.Map"%>
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.concrete.PrestigeBLService"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.BLService"%>
+-<%@page import="java.text.SimpleDateFormat"%>
+-<% 
+-  
+-  BLService _service = new PrestigeBLService();
+-  String mode = "", lg_QUINZAINE_ID = "",  dt_START_DATE = "", dt_END_DATE = "", str_GROSSISTE_LIBELLE = "", lg_GROSSISTE_ID = "" , result = "";
+-  SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+-  
+-  if(request.getParameter("mode") != null){
+-       mode = request.getParameter("mode");
+-  }
+-  
+-   if(request.getParameter("lg_QUINZAINE_ID") != null){
+-       lg_QUINZAINE_ID = request.getParameter("lg_QUINZAINE_ID");
+-  }
+-  
+-   if(request.getParameter("lg_GROSSISTE_ID") != null){
+-       lg_GROSSISTE_ID = request.getParameter("lg_GROSSISTE_ID");
+-  }
+-  
+-   
+-  if(request.getParameter("dt_START_DATE") != null){
+-       dt_START_DATE = request.getParameter("dt_START_DATE");
+-  }
+-  
+-if(request.getParameter("dt_END_DATE") != null){
+-       dt_END_DATE = request.getParameter("dt_END_DATE");
+- }
+- 
+-
+-if(request.getParameter("str_GROSSISTE_LIBELLE") != null){
+-       str_GROSSISTE_LIBELLE = request.getParameter("str_GROSSISTE_LIBELLE");
+- }
+-
+-if(mode.equalsIgnoreCase("create")){
+-   boolean created = _service.createQuinzaine(lg_GROSSISTE_ID, formatter.parse(dt_START_DATE), formatter.parse(dt_END_DATE));
+-   JSONObject  json = new JSONObject();
+-   json.put("success", created);
+-           
+-   result = json.toString();
+-}else if(mode.equalsIgnoreCase("delete")){
+-   boolean removed = _service.deleteQuinzaine(lg_QUINZAINE_ID);
+-   JSONObject  json = new JSONObject();
+-   json.put("success", removed);
+-   result = json.toString();
+-}else if(mode.equalsIgnoreCase("update")){
+-    boolean updated;
+-    System.out.printf("mode: %s, lg_GROSSISTE_ID: %s, dt_START_DATE: %s, dt_END_DATE: %s\n", mode, lg_GROSSISTE_ID, formatter.parse(dt_START_DATE),formatter.parse(dt_END_DATE) );
+-    
+-    Map<String, Object> record = new HashMap<String, Object>();
+-    record.put("lg_GROSSISTE_ID",lg_GROSSISTE_ID);
+-    record.put("dt_DATE_START",formatter.parse(dt_START_DATE));
+-    record.put("dt_DATE_END",formatter.parse(dt_END_DATE));
+-    updated = _service.updateQuinzaine(lg_QUINZAINE_ID, record);
+-   JSONObject  json = new JSONObject();
+-   json.put("success", updated);
+-           
+-   result = json.toString();
+-}
+-
+-%>
+-
+-
+-<%= result   %>
+diff --git a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_transaction.jsp b/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_transaction.jsp
+index 14156cb..5cf6c29 100644
+--- a/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_transaction.jsp
++++ b/src/main/webapp/webservices/commandemanagement/bonlivraison/ws_transaction.jsp
+@@ -1,7 +1,5 @@
+ <%@page import="org.json.JSONObject"%>
+ <%@page import="bll.warehouse.WarehouseManager"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.concrete.PrestigeBLService"%>
+-<%@page import="com.asc.prestige2.business.bonlivraisons.BLService"%>
+ <%@page import="bll.commandeManagement.bonLivraisonManagement"%>
+ <%@page import="dal.TBonLivraisonDetail"%>
+ <%@page import="toolkits.utils.logger"  %>
+@@ -26,7 +24,6 @@
+ 
+     int int_PRIX_REFERENCE = 0, int_PRIX_VENTE = 0, int_PAF = 0,
+             int_PA_REEL = 0, int_MONTANT_REGLE = 0, amountMHT = 0, amountMTTC = 0;
+-    BLService service = new PrestigeBLService();
+ 
+ %>
+ 
+@@ -75,24 +72,7 @@
+     ObllBase.setDetailmessage("PAS D'ACTION RETOUR");
+     if (request.getParameter("mode") != null) {
+ 
+-        if (request.getParameter("mode").equals("reglement")) {
+-
+-            boolean regle = false;
+-            if (STATUS.equalsIgnoreCase("NON REGLE")) {
+-                regle = service.markNONREGLEBonLivraison(lg_BON_LIVRAISON_ID);
+-            } else if (STATUS.equalsIgnoreCase("REGLE EN PARTIE")) {
+-                regle = service.markREGLEENPARTIEBonLivraison(lg_BON_LIVRAISON_ID, date.stringToDate(dt_DATE_REGLEMENT), int_MONTANT_REGLE);
+-            } else {
+-                //  regle = service.markREGLEBonLivraison(lg_BON_LIVRAISON_ID, date.stringToDate(dt_DATE_REGLEMENT), int_MONTANT_REGLE);
+-            }
+-
+-            if (regle) {
+-                result = "{success:\"" + 1 + "\"}";
+-            } else {
+-                result = "{success:\"" + 0 + "\"}";
+-            }
+-
+-        } else if (request.getParameter("mode").equals("modifproductprice")) {
++        if (request.getParameter("mode").equals("modifproductprice")) {
+ 
+             try {
+                 ObonLivraisonManagement = new bonLivraisonManagement(OdataManager, user);
+diff --git a/src/main/webapp/webservices/sm_user/alertevent/ws_transaction.jsp b/src/main/webapp/webservices/sm_user/alertevent/ws_transaction.jsp
+deleted file mode 100644
+index 3f70196..0000000
+--- a/src/main/webapp/webservices/sm_user/alertevent/ws_transaction.jsp
++++ /dev/null
+@@ -1,206 +0,0 @@
+-<%@page import="bll.gateway.outService.Iservice"%>
+-<%@page import="bll.gateway.outService.ServicesUpdatePriceFamille"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisseVeille"%>
+-<%@page import="dal.TAlertEventUserFone"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisse"%>
+-<%@page import="dal.TAlertEvent"%>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TUser"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="bll.bllBase"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="java.math.BigInteger"  %>
+-<%@page import="bll.userManagement.*"  %>
+-
+-
+-
+-<%!     String str_FIRST_NAME = "%%", str_STATUT = "%%", str_LAST_NAME = "%%", lg_ROLE_ID = "", str_Event = "%%", str_PASSWORD = "%%", str_SMS_French_Text = "%%", str_FUNCTION = "%%", lg_SKIN_ID = "%%", lg_Language_ID = "%%";
+-    date str_LAST_CONNECTION_DATE;
+-    String str_MAIL_French_Text = "";
+-    Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-    date key = new date();
+-    privilege Oprivilege = new privilege();
+-    TRole OTRole = null;
+-    dal.TUser OTUser = null;
+-    user Ouser = null;
+-
+-    List<TUser> lstTUserLogin = new ArrayList<TUser>();
+-
+-%>
+-
+-
+-
+-
+-<%
+-
+-    if (request.getParameter("str_FIRST_NAME") != null) {
+-        str_FIRST_NAME = request.getParameter("str_FIRST_NAME");
+-    }
+-    //str_MAIL_French_Text
+-    if (request.getParameter("str_MAIL_French_Text") != null) {
+-        str_MAIL_French_Text = request.getParameter("str_MAIL_French_Text");
+-        new logger().oCategory.info("str_MAIL_French_Text : " + str_MAIL_French_Text);
+-    }
+-    if (request.getParameter("str_STATUT") != null) {
+-        str_STATUT = request.getParameter("str_STATUT");
+-    }
+-    if (request.getParameter("str_LAST_NAME") != null) {
+-        str_LAST_NAME = request.getParameter("str_LAST_NAME");
+-    }
+-    if (request.getParameter("str_Event") != null) {
+-        str_Event = request.getParameter("str_Event");
+-    }
+-    if (request.getParameter("str_SMS_French_Text") != null) {
+-        str_SMS_French_Text = request.getParameter("str_SMS_French_Text");
+-        new logger().oCategory.info("LOGIN   " + str_SMS_French_Text);
+-    }
+-    if (request.getParameter("str_FUNCTION") != null) {
+-        str_FUNCTION = request.getParameter("str_FUNCTION");
+-    }
+-
+-    if (request.getParameter("lg_Language_ID") != null) {
+-        lg_Language_ID = request.getParameter("lg_Language_ID");
+-    }
+-    // lg_ROLE_ID
+-    if (request.getParameter("lg_ROLE_ID") != null) {
+-        lg_ROLE_ID = request.getParameter("lg_ROLE_ID");
+-    }
+-
+-    if (request.getParameter("str_PASSWORD") != null) {
+-        str_PASSWORD = request.getParameter("str_PASSWORD");
+-    }
+-
+-    TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-
+-    bllBase ObllBase = new bllBase();
+-    ObllBase.setOTUser(OTUser);
+-    ObllBase.LoadDataManger(OdataManager);
+-    ObllBase.LoadMultilange(oTranslate);
+-    ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+-
+-    ObllBase.setDetailmessage("PAS D'ACTION");
+-    new logger().oCategory.info("le mode : " + request.getParameter("mode"));
+-    new logger().oCategory.info("ID " + request.getParameter("str_Event"));
+-
+-    if (request.getParameter("mode") != null) {
+-
+-        if (request.getParameter("mode").toString().equals("create")) {
+-            new logger().oCategory.info("Dans create user   ");
+-
+-            try {
+-
+-                // List<TUser> lstTUserLogin = new ArrayList<TUser>();
+-                OdataManager.initEntityManager();
+-                lstTUserLogin = OdataManager.getEm().createQuery("SELECT t FROM TUser t WHERE t.strLOGIN LIKE ?1  AND t.strSTATUT LIKE ?2")
+-                        .setParameter(1, request.getParameter("str_SMS_French_Text").toString())
+-                        .setParameter(2, commonparameter.statut_enable).getResultList();
+-
+-                new logger().oCategory.info("Resultat " + lstTUserLogin.size());
+-
+-                if (lstTUserLogin.size() == 0) {
+-
+-                    user Ouser = new user(OdataManager);
+-                    //  Ouser.createUser(str_SMS_French_Text, str_PASSWORD, str_MAIL_French_Text, str_FIRST_NAME, str_LAST_NAME, lg_ROLE_ID, lg_Language_ID);
+-                    new logger().oCategory.info("User creer avec succ�s   " + str_FIRST_NAME + " " + str_LAST_NAME);
+-
+-                } else {
+-                    ObllBase.setMessage("0");
+-                    ObllBase.setDetailmessage("Desol� Login " + request.getParameter("str_SMS_French_Text") + "Deja Utilise");
+-                }
+-
+-            } catch (Exception e) {
+-
+-                new logger().oCategory.info("ERROR   ");
+-            }
+-
+-        } else if (request.getParameter("mode").toString().equals("update")) {
+-
+-            try {
+-
+-                new logger().oCategory.info(str_Event + " " + str_SMS_French_Text + "  " + str_MAIL_French_Text + " ");
+-                TAlertEvent oTAlertEvent = (TAlertEvent) ObllBase.find(str_Event, new TAlertEvent());
+-                oTAlertEvent.setStrSMSFrenchText(str_SMS_French_Text);
+-                oTAlertEvent.setStrMAILFrenchText(str_MAIL_French_Text);
+-                ObllBase.persiste(oTAlertEvent);
+-                // user Ouser = new user(OdataManager);
+-                //  Ouser.updateMyUser(str_Event, str_SMS_French_Text, str_MAIL_French_Text, str_FIRST_NAME, str_LAST_NAME, lg_Language_ID);
+-
+-                ObllBase.setMessage("0");
+-                ObllBase.setDetailmessage("User modifi� avec SUCCES " + str_Event);
+-            } catch (Exception e) {
+-                ObllBase.setMessage("0");
+-                ObllBase.setDetailmessage("Echec de modificatuion User " + str_SMS_French_Text);
+-            }
+-
+-        } else if (request.getParameter("mode").toString().equals("notify")) {
+-
+-            try {
+-
+-                new logger().OCategory.info(str_Event);
+-
+-                //  user Ouser = new user(OdataManager);
+-                //  Ouser.updatePassword(str_Event, str_PASSWORD);
+-                TAlertEvent oTAlertEvent = (TAlertEvent) ObllBase.find(str_Event, new TAlertEvent());
+-
+-                int int_price = 0;
+-
+-                List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList(oTAlertEvent.getTAlertEventUserFoneCollection());
+-                Iservice OService = null;
+-                if(str_Event.equals("N_GET_SOLDE_CAISSE")){
+-                    OService = new  ServiceSoldeCaisseVeille(OdataManager, OTUser);
+-                 
+-                }else if(str_Event.equals("N_UPDATE_FAMILLE_PRICE")){
+-                    OService = new ServicesUpdatePriceFamille(OdataManager, OTUser);
+-                 
+-                }
+-                
+-                
+-                for (int k = 0; k < lstTAlertEventUserFone.size(); k++) {
+-                    OService.doservice(lstTAlertEventUserFone.get(k));
+-                    
+-                }
+-
+-                ObllBase.setMessage("1");
+-                ObllBase.setDetailmessage("Encour de traitement");
+-                
+-            } catch (Exception e) {
+-                ObllBase.setMessage("0");
+-                ObllBase.setDetailmessage("Echec de modificatuion MOT DE PASSE User " + str_SMS_French_Text);
+-            }
+-
+-        } else if (request.getParameter("mode").toString().equals("delete")) {
+-
+-            OTUser = ObllBase.getOdataManager().getEm().find(dal.TUser.class, request.getParameter("str_Event"));
+-
+-            OTUser.setStrSTATUT(commonparameter.statut_delete);
+-            ObllBase.persiste(OTUser);
+-
+-            new logger().oCategory.info("Suppression de user " + request.getParameter("str_Event").toString());
+-
+-        } else {
+-        }
+-
+-    }
+-
+-    String result;
+-
+-    if (ObllBase.getMessage()
+-            .equals(commonparameter.PROCESS_SUCCESS)) {
+-        result = "{success:\"" + ObllBase.getMessage() + "\", errors_code: \"" + ObllBase.getMessage() + "\", errors: \"" + ObllBase.getDetailmessage() + "\"}";
+-
+-    } else {
+-        result = "{success:\"" + ObllBase.getMessage() + "\", errors_code: \"" + ObllBase.getMessage() + "\", errors: \"" + ObllBase.getDetailmessage() + "\"}";
+-    }
+-
+-    new logger().OCategory.info("JSON " + result);
+-
+-
+-%>
+-<%=result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/sm_user/gestcaisse/ws_data.jsp b/src/main/webapp/webservices/sm_user/gestcaisse/ws_data.jsp
+deleted file mode 100644
+index 0fd45a5..0000000
+--- a/src/main/webapp/webservices/sm_user/gestcaisse/ws_data.jsp
++++ /dev/null
+@@ -1,228 +0,0 @@
+-<%@page import="com.asc.prestige2.business.cash.concrete.PrestigeCashService"%>
+-<%@page import="com.asc.prestige2.business.cash.CashService"%>
+-<%@page import="bll.common.Parameter"%>
+-<%@page import="bll.userManagement.privilege"%>
+-<%@page import="toolkits.utils.conversion"%>
+-<%@page import="bll.reportventeManagement.Reportvente"%>
+-<%@page import="dal.TResumeCaisse"%>
+-<%@page import="dal.TBilletage"%>
+-<%@page import="bll.bllBase"%>
+-<%@page import="bll.teller.caisseManagement"%>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="toolkits.web.json"  %>
+-<%@page import="org.json.JSONObject"  %>          
+-<%@page import="org.json.JSONArray"  %> 
+-<%@page import="dal.TUser"  %>
+-<%@page import="toolkits.utils.jdom"  %>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="java.text.SimpleDateFormat"  %>
+-
+-<jsp:useBean id="Os_Search_poste" class="services.Search"  scope="session"/>
+-<jsp:useBean id="Os_Search_poste_data" class="services.ShowDataBean" scope="session" />
+-
+-
+-<% Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-    TBilletage OTBilletage = null;
+-    date key = new date();
+-    TUser OTUser = null;
+-
+-%>
+-
+-<%    int DATA_PER_PAGE = 25, count = 0, pages_curr = 0;
+-    new logger().OCategory.info("dans ws data gestion caisse");
+-%>
+-
+-
+-<!-- logic de gestion des page -->
+-<%
+-    String action = request.getParameter("action"); //get parameter ?action=
+-    int pageAsInt = 0;
+-
+-    try {
+-        if ((action != null) && action.equals("filltable")) {
+-        } else {
+-
+-            String p = request.getParameter("start"); // get paramerer ?page=
+-
+-            if (p != null) {
+-                int int_page = new Integer(p).intValue();
+-                int_page = (int_page / DATA_PER_PAGE) + 1;
+-                p = new Integer(int_page).toString();
+-
+-                // Strip quotation marks
+-                StringBuffer buffer = new StringBuffer();
+-                for (int index = 0; index < p.length(); index++) {
+-                    char c = p.charAt(index);
+-                    if (c != '\\') {
+-                        buffer.append(c);
+-                    }
+-                }
+-                p = buffer.toString();
+-                Integer intTemp = new Integer(p);
+-
+-                pageAsInt = intTemp.intValue();
+-
+-            } else {
+-                pageAsInt = 1;
+-            }
+-
+-        }
+-    } catch (Exception E) {
+-    }
+-
+-
+-%>
+-<!-- fin logic de gestion des page -->
+-
+-<%    List<TResumeCaisse> lstTResumeCaisse = new ArrayList<TResumeCaisse>();
+-   // List<TBilletage> lstTBilletage = new ArrayList<TBilletage>();
+-    boolean btn_annulation_cloture_caisse = false;
+-    double int_amount_billetage = 0.0, int_amount_ecart = 0.0, int_amount_annule = 0.0;
+-
+-    String lg_USER_ID = "%%", str_Date_Debut = "", str_Date_Fin = "", OdateDebut = "", OdateFin = "";
+-    Date dt_Date_Debut, dt_Date_Fin;
+-
+-    if (request.getParameter("dt_Date_Debut") != null && !request.getParameter("dt_Date_Debut").equalsIgnoreCase("")) {
+-        str_Date_Debut = request.getParameter("dt_Date_Debut");
+-        new logger().OCategory.info("str_Date_Debut :" + str_Date_Debut);
+-    }
+-    if (request.getParameter("dt_Date_Fin") != null && !request.getParameter("dt_Date_Fin").equalsIgnoreCase("")) {
+-        str_Date_Fin = request.getParameter("dt_Date_Fin");
+-        new logger().OCategory.info("str_Date_Fin :" + str_Date_Fin);
+-    }
+-    if (request.getParameter("lg_USER_ID") != null && !request.getParameter("lg_USER_ID").equalsIgnoreCase("")) {
+-        lg_USER_ID = request.getParameter("lg_USER_ID");
+-        new logger().OCategory.info("lg_USER_ID :" + lg_USER_ID);
+-    }
+-
+-    OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-
+-    /*Date_debut = key.GetDateNowForSearch(-3);
+-     Date_Fin = key.GetDateNowForSearch(1);
+-
+-     dt_Date_Fin = key.stringToDate(Date_Fin, key.formatterShort);
+-     dt_Date_debut = key.stringToDate(Date_debut, key.formatterShort);*/
+-    if (str_Date_Fin.equalsIgnoreCase("") || str_Date_Fin == null) {
+-        dt_Date_Fin = new Date();
+-        OdateFin = key.DateToString(dt_Date_Fin, key.formatterMysqlShort2);
+-    } else {
+-        dt_Date_Fin = key.stringToDate(str_Date_Fin, key.formatterMysqlShort);
+-        OdateFin = key.DateToString(dt_Date_Fin, key.formatterMysqlShort2);
+-    }
+-    dt_Date_Fin = key.getDate(OdateFin, "23:59");
+-    new logger().OCategory.info("dt_Date_Fin *** " + dt_Date_Fin + " OdateFin *** " + OdateFin);
+-    if (str_Date_Debut.equalsIgnoreCase("") || str_Date_Debut == null) {
+-        dt_Date_Debut = key.GetNewDate(dt_Date_Fin, -7);
+-        OdateDebut = key.DateToString(dt_Date_Debut, key.formatterMysqlShort2);
+-    } else {
+-        dt_Date_Debut = key.stringToDate(str_Date_Debut, key.formatterMysqlShort);
+-        OdateDebut = key.DateToString(dt_Date_Debut, key.formatterMysqlShort2);
+-    }
+-    dt_Date_Debut = key.getDate(OdateDebut, "00:00");
+-    new logger().OCategory.info("dt_Date_Debut ---- " + dt_Date_Debut + " OdateDebut ---- " + OdateDebut);
+-
+-    /*lstTResumeCaisse.clear();
+-     lstTBilletage.clear();*/
+-    Reportvente OReportvente = new Reportvente(OdataManager, OTUser);
+-    privilege Oprivilege = new privilege(OdataManager, OTUser);
+-    btn_annulation_cloture_caisse = Oprivilege.isColonneStockMachineIsAuthorize(Parameter.P_BT_ANNULER_CLOTURE_CAISSE);
+-
+-    lstTResumeCaisse = OReportvente.listeTResumeCaisseByUser(dt_Date_Debut, dt_Date_Fin, lg_USER_ID);
+-%>
+-
+-<%
+-//Filtre de pagination
+-    try {
+-        if (DATA_PER_PAGE > lstTResumeCaisse.size()) {
+-            DATA_PER_PAGE = lstTResumeCaisse.size();
+-        }
+-    } catch (Exception E) {
+-    }
+-
+-    int pgInt = pageAsInt - 1;
+-    int pgInt_Last = pageAsInt - 1;
+-
+-    if (pgInt == 0) {
+-        pgInt_Last = DATA_PER_PAGE;
+-    } else {
+-
+-        pgInt_Last = (lstTResumeCaisse.size() - (DATA_PER_PAGE * (pgInt)));
+-        pgInt_Last = (DATA_PER_PAGE * (pgInt) + pgInt_Last);
+-        if (pgInt_Last > (DATA_PER_PAGE * (pgInt + 1))) {
+-            pgInt_Last = DATA_PER_PAGE * (pgInt + 1);
+-        }
+-        pgInt = ((DATA_PER_PAGE) * (pgInt));
+-    }
+-
+-%>
+-
+-
+-<%    //
+-    CashService service = new PrestigeCashService(OdataManager, OTUser);
+-
+-    JSONArray arrayObj = new JSONArray();
+-    for (int i = pgInt; i < pgInt_Last; i++) {
+-        
+-         int_amount_billetage = 0.0;
+-         int_amount_ecart = 0.0;
+-         int_amount_annule = service.getMontantAnnule(lstTResumeCaisse.get(i).getLgUSERID().getLgUSERID(), date.DateToString(lstTResumeCaisse.get(i).getDtCREATED(), date.formatterMysqlShort), date.DateToString(lstTResumeCaisse.get(i).getDtUPDATED(), date.formatterMysqlShort));
+-        try {
+-            OTBilletage = OReportvente.getBilletageByCaisse(lstTResumeCaisse.get(i).getLdCAISSEID(), lg_USER_ID);
+-            int_amount_billetage = Math.abs(OTBilletage.getIntAMOUNT());
+-           // int_amount_ecart = int_amount_billetage - (Math.abs(lstTResumeCaisse.get(i).getIntSOLDESOIR())); // a decommenter en cas de probleme 21/02/2017
+-            int_amount_ecart = int_amount_billetage - (Math.abs(lstTResumeCaisse.get(i).getIntSOLDESOIR()) - int_amount_annule); // code ajout� 21/02/2017
+-        } catch (Exception e) {
+-            int_amount_billetage = 0;
+-            int_amount_ecart = 0;
+-        }
+-
+-        // String Role = "";
+-        String dt_fermeture = "";
+-        if (lstTResumeCaisse.get(i).getDtUPDATED() == null) {
+-            dt_fermeture = "PAS ENCORE FERMEE";
+-        } else {
+-            dt_fermeture = date.DateToString(lstTResumeCaisse.get(i).getDtUPDATED(), date.formatterOrange);
+-        }
+-        JSONObject json = new JSONObject();
+-
+-        json.put("lg_CAISSE_ID", lstTResumeCaisse.get(i).getLdCAISSEID());
+-        json.put("lg_USER_ID", lstTResumeCaisse.get(i).getLgUSERID().getLgUSERID());
+-        // json.put("str_REF", lstTResumeCaisse.get(i).getLdCAISSEID());
+-        json.put("str_NAME_USER", lstTResumeCaisse.get(i).getLgUSERID().getStrFIRSTNAME() + " " + lstTResumeCaisse.get(i).getLgUSERID().getStrLASTNAME());
+-        json.put("str_STATUT", oTranslate.getValue(lstTResumeCaisse.get(i).getStrSTATUT()));
+-        json.put("etat", lstTResumeCaisse.get(i).getStrSTATUT());
+-        json.put("int_SOLDE_MATIN", lstTResumeCaisse.get(i).getIntSOLDEMATIN());
+-        json.put("int_SOLDE_SOIR", lstTResumeCaisse.get(i).getIntSOLDESOIR());
+-        json.put("int_SOLDE_SOIR_STRING", conversion.AmountFormat(lstTResumeCaisse.get(i).getIntSOLDESOIR(), '.'));
+-        if (lstTResumeCaisse.get(i).getStrSTATUT().equalsIgnoreCase(commonparameter.statut_is_Using)) {
+-            json.put("int_SOLDE", lstTResumeCaisse.get(i).getIntSOLDESOIR());
+-            json.put("int_SOLDE_STRING", conversion.AmountFormat(lstTResumeCaisse.get(i).getIntSOLDESOIR(), '.'));
+-
+-        } else {
+-            json.put("int_SOLDE", lstTResumeCaisse.get(i).getIntSOLDESOIR() - lstTResumeCaisse.get(i).getIntSOLDEMATIN());
+-            json.put("int_SOLDE_STRING", conversion.AmountFormat(lstTResumeCaisse.get(i).getIntSOLDESOIR() - lstTResumeCaisse.get(i).getIntSOLDEMATIN(), '.'));
+-        }
+-
+-        json.put("dt_CREATED", date.DateToString(lstTResumeCaisse.get(i).getDtCREATED(), date.formatterOrange));
+-        json.put("dt_UPDATED", dt_fermeture);
+-        json.put("int_AMOUNT_BILLETAGE", Math.abs(int_amount_billetage));
+-        json.put("int_AMOUNT_ECART", int_amount_ecart);
+-        json.put("int_AMOUNT_ECART_BIS", conversion.AmountFormat((int) int_amount_ecart, '.'));
+-
+-        json.put("int_AMOUNT_ANNULE", int_amount_annule);
+-        json.put("btn_annulation", btn_annulation_cloture_caisse);
+-
+-        arrayObj.put(json);
+-    }
+-    String result = "({\"total\":\"" + lstTResumeCaisse.size() + " \",\"results\":" + arrayObj.toString() + "})";
+-
+-%>
+-
+-<%= result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_mijournee_web.jsp b/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_mijournee_web.jsp
+deleted file mode 100644
+index 527552a..0000000
+--- a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_mijournee_web.jsp
++++ /dev/null
+@@ -1,97 +0,0 @@
+-<%@page import="toolkits.utils.conversion"%>
+-<%@page import="bll.common.Parameter"%>
+-<%@page import="dal.TParameters"%>
+-<%@page import="bll.entity.EntityData"%>
+-<%@page import="bll.gateway.outService.ServicesNotifCustomer"%>
+-<%@page import="bll.utils.TparameterManager"%>
+-<%@page import="bll.report.JournalVente"%>
+-<%@page import="bll.teller.caisseManagement"%>
+-<%@page import="org.json.JSONArray"%>
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="bll.gateway.outService.ServicesUpdatePriceFamille"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisseVeille"%>
+-<%@page import="dal.TAlertEventUserFone"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisse"%>
+-<%@page import="dal.TAlertEvent"%>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TUser"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="bll.bllBase"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="java.math.BigInteger"  %>
+-<%@page import="bll.userManagement.*"  %>
+-
+-
+-<%
+-  
+-    dataManager OdataManager = new dataManager();
+-  TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-%>
+-
+-
+-<%
+-Date today = new Date();
+-    String str_Date_Debut = date.DateToString(today, date.formatterMysqlShort), str_Date_Fin = date.DateToString(today, date.formatterMysqlShort), search_value = "",
+-            h_debut = "00:00", h_fin = "13:00",lg_USER_ID = "%%", lg_TYPE_REGLEMENT_ID = "%%";
+-   
+-    OdataManager.initEntityManager();
+-    caisseManagement OcaisseManagement = new caisseManagement(OdataManager, OTUser);
+-    JSONArray arrayObj = new JSONArray();
+-
+-    JSONObject json = new JSONObject();
+-    OcaisseManagement.sendSmsChiffreAffaireMiDay(str_Date_Debut, str_Date_Fin, h_debut, h_fin, lg_USER_ID, lg_TYPE_REGLEMENT_ID); // a decommenter apres 04/09/2016
+-  /*  JournalVente OJournalVente = new JournalVente(OdataManager, OTUser);
+-        TparameterManager OTparameterManager = new TparameterManager(OdataManager);
+-        ServicesNotifCustomer OServicesNotifCustomer = new ServicesNotifCustomer(OdataManager, OTUser);
+-        List<EntityData> listTMvtCaissesFalse = new ArrayList<EntityData>(), listPreenregistrement = new ArrayList<EntityData>();
+-        TParameters OTParameters = null;
+-        Double P_SORTIECAISSE_ESPECE_FALSE = 0.0;
+-        int int_PRICE_TOTAL = 0;
+-        List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<TAlertEventUserFone>();
+-        String message = "R�capitulatif de caisse de mi-journ�e du" + date.formatterShort.format(java.sql.Date.valueOf(str_Date_Debut)) + "\n";
+-        
+-        try {
+-
+-            /*OTParameters = OTparameterManager.getParameter(Parameter.KEY_MOVEMENT_FALSE);
+-            if (OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1 && !str_Date_Debut.equalsIgnoreCase(str_Date_Fin)) {
+-                listTMvtCaissesFalse = OJournalVente.getAllMouvmentsCaisse(str_Date_Debut, str_Date_Fin, false);
+-            }
+-            for (EntityData Odata : listTMvtCaissesFalse) {
+-                P_SORTIECAISSE_ESPECE_FALSE += (-1) * Double.valueOf(Odata.getStr_value1());
+-            }
+-            new logger().OCategory.info("P_SORTIECAISSE_ESPECE_FALSE:" + P_SORTIECAISSE_ESPECE_FALSE);
+-            listPreenregistrement = OJournalVente.getListeCaisse(str_Date_Debut, str_Date_Fin, h_debut, h_fin, lg_USER_ID, lg_TYPE_REGLEMENT_ID);
+-            int_PRICE_TOTAL = OJournalVente.getTotalAmountCashTransaction(listPreenregistrement);
+-            message += "Chiffre d'affaire: "+conversion.AmountFormat(int_PRICE_TOTAL, '.');
+-            if(int_PRICE_TOTAL > 0) {
+-                lstTAlertEventUserFone = OdataManager.getEm().createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.strEvent.strEvent LIKE ?1")
+-                        .setParameter(1, "N_GET_SOLDE_CAISSE").getResultList();
+-                for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
+-                    OServicesNotifCustomer.doservice(message, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(), str_Date_Debut + OTAlertEventUserFone.getLgUSERFONEID().getLgUSERID().getLgUSERID());
+-                    OcaisseManagement.buildSuccesTraceMessage("Op�ration effectu�e avec succ�s");
+-                }
+-                
+-            } else {
+-                OcaisseManagement.buildErrorTraceMessage("Aucun SMS envoy�");
+-            }
+-
+-        } catch (Exception e) {
+-            OcaisseManagement.buildErrorTraceMessage("Echec d'envoi du SMS");
+-        }
+-    
+-    
+-     */
+-    json.put("statut", OcaisseManagement.getMessage());
+-    json.put("message", OcaisseManagement.getDetailmessage());
+-
+-    arrayObj.put(json);
+-    String result = "{\"total\":\"" + OcaisseManagement.getMessage() + " \",\"results\":" + arrayObj.toString() + "}";
+-
+-
+-%>
+-<%= result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_web.jsp b/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_web.jsp
+deleted file mode 100644
+index eb38631..0000000
+--- a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notification_web.jsp
++++ /dev/null
+@@ -1,50 +0,0 @@
+-<%@page import="org.json.JSONArray"%>
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="bll.gateway.outService.ServicesUpdatePriceFamille"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisseVeille"%>
+-<%@page import="dal.TAlertEventUserFone"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisse"%>
+-<%@page import="dal.TAlertEvent"%>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TUser"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="bll.bllBase"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="java.math.BigInteger"  %>
+-<%@page import="bll.userManagement.*"  %>
+-
+-
+-<%
+-    dataManager OdataManager = new dataManager();
+-    date key = new date();
+-
+-%>
+-
+-
+-<%
+-String lg_OUTBOUND_MESSAGE_ID = "%%", search_value = "";
+-int int_MAX_ROW = 20;
+-   TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-    ServicesUpdatePriceFamille OServicesUpdatePriceFamille = new ServicesUpdatePriceFamille(OdataManager, OTUser);
+-    JSONArray arrayObj = new JSONArray();
+-
+-    JSONObject json = new JSONObject();
+-    
+-    
+-     OServicesUpdatePriceFamille.reloadSms(search_value, lg_OUTBOUND_MESSAGE_ID, int_MAX_ROW);
+-     
+-    json.put("statut", OServicesUpdatePriceFamille.getMessage());
+-    json.put("message", OServicesUpdatePriceFamille.getDetailmessage());
+-
+-    arrayObj.put(json);
+-    String result = "{\"total\":\"" + OServicesUpdatePriceFamille.getMessage() + " \",\"results\":" + arrayObj.toString() + "}";
+-
+-
+-%>
+-<%= result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notificationavoir_web.jsp b/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notificationavoir_web.jsp
+deleted file mode 100644
+index 9c9ade2..0000000
+--- a/src/main/webapp/webservices/sm_user/outboudmessage/ws_check_notificationavoir_web.jsp
++++ /dev/null
+@@ -1,47 +0,0 @@
+-<%@page import="bll.preenregistrement.Preenregistrement"%>
+-<%@page import="bll.gateway.outService.ServicesNotifCustomer"%>
+-<%@page import="org.json.JSONArray"%>
+-<%@page import="org.json.JSONObject"%>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TUser"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="bll.bllBase"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="java.math.BigInteger"  %>
+-<%@page import="bll.userManagement.*"  %>
+-
+-
+-<%
+-   // Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-   
+-
+-%>
+-
+-
+-<%
+-
+-   TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-    Preenregistrement OPreenregistrement = new Preenregistrement(OdataManager, OTUser);
+-    JSONArray arrayObj = new JSONArray();
+-
+-    JSONObject json = new JSONObject();
+-    
+-    
+-     OPreenregistrement.generationDataForNotif();
+-     
+-    json.put("statut", OPreenregistrement.getMessage());
+-    json.put("message", OPreenregistrement.getDetailmessage());
+-
+-    arrayObj.put(json);
+-    String result = "{\"total\":\"" + OPreenregistrement.getMessage() + " \",\"results\":" + arrayObj.toString() + "}";
+-
+-
+-%>
+-<%= result%>
+\ No newline at end of file
+diff --git a/src/main/webapp/webservices/sm_user/outboudmessage/ws_data.jsp b/src/main/webapp/webservices/sm_user/outboudmessage/ws_data.jsp
+deleted file mode 100644
+index 0571fbe..0000000
+--- a/src/main/webapp/webservices/sm_user/outboudmessage/ws_data.jsp
++++ /dev/null
+@@ -1,67 +0,0 @@
+-<%@page import="bll.gateway.outService.ServicesUpdatePriceFamille"%>
+-<%@page import="dal.TUser"%>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TOutboudMessage"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="dal.TRoleUser"  %>
+-<%@page import="bll.userManagement.user"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="toolkits.web.json"  %>
+-<%@page import=" org.json.JSONObject"  %>
+-<%@page import="org.json.JSONArray"  %>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.TOutboudMessage"  %>
+-<%@page import="java.text.SimpleDateFormat"  %>
+-
+-<jsp:useBean id="Os_Search_poste" class="services.Search"  scope="session"/>
+-<jsp:useBean id="Os_Search_poste_data" class="services.ShowDataBean" scope="session" />
+-
+-<%
+-    Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-    date key = new date();
+-List<TOutboudMessage> lstTOutboudMessage = new ArrayList<TOutboudMessage>();
+-%>
+-<%
+-
+-     String lg_OUTBOUND_MESSAGE_ID = "%%", search_value = "";
+-    if (request.getParameter("lg_OUTBOUND_MESSAGE_ID") != null) {
+-        lg_OUTBOUND_MESSAGE_ID = request.getParameter("lg_OUTBOUND_MESSAGE_ID");
+-        new logger().OCategory.info("lg_OUTBOUND_MESSAGE_ID " + lg_OUTBOUND_MESSAGE_ID);
+-    }
+-    if (request.getParameter("search_value") != null) {
+-        search_value = request.getParameter("search_value");
+-        new logger().oCategory.info("search_value : " + search_value);
+-    }
+-
+-    TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-    ServicesUpdatePriceFamille OServicesUpdatePriceFamille = new ServicesUpdatePriceFamille(OdataManager, OTUser);
+-
+-    lstTOutboudMessage = OServicesUpdatePriceFamille.getListeMessageWaiting(search_value, lg_OUTBOUND_MESSAGE_ID, 0);
+-
+-    JSONArray arrayObj = new JSONArray();
+-    for (int i = 0; i < lstTOutboudMessage.size(); i++) {
+-        JSONObject json = new JSONObject();
+-        json.put("lg_OUTBOUND_MESSAGE_ID", lstTOutboudMessage.get(i).getLgOUTBOUNDMESSAGEID());
+-        json.put("str_MESSAGE", lstTOutboudMessage.get(i).getStrMESSAGE());
+-        json.put("str_STATUT",oTranslate.getValue(lstTOutboudMessage.get(i).getStrSTATUT()));
+-        json.put("etat",lstTOutboudMessage.get(i).getStrSTATUT());
+-        json.put("str_PHONE", lstTOutboudMessage.get(i).getStrPHONE());
+-        json.put("dt_CREATED", key.DateToString(lstTOutboudMessage.get(i).getDtCREATED(), key.formatterShort)   );
+-        json.put("dt_UPDATED", key.DateToString(lstTOutboudMessage.get(i).getDtUPDATED(), key.formatterShort));
+-
+-       
+-        arrayObj.put(json);
+-    }
+-
+-    String result = "({\"total\":\"" + lstTOutboudMessage.size() + " \",\"results\":" + arrayObj.toString() + "})";
+-
+-
+-%>
+-
+-<%= result%> 
+diff --git a/src/main/webapp/webservices/sm_user/outboudmessage/ws_transaction.jsp b/src/main/webapp/webservices/sm_user/outboudmessage/ws_transaction.jsp
+deleted file mode 100644
+index b419d61..0000000
+--- a/src/main/webapp/webservices/sm_user/outboudmessage/ws_transaction.jsp
++++ /dev/null
+@@ -1,92 +0,0 @@
+-<%@page import="bll.gateway.outService.ServicesUpdatePriceFamille"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisseVeille"%>
+-<%@page import="dal.TAlertEventUserFone"%>
+-<%@page import="bll.gateway.outService.ServiceSoldeCaisse"%>
+-<%@page import="dal.TAlertEvent"%>
+-<%@page import="toolkits.utils.logger"  %>
+-<%@page import="dal.dataManager"  %>
+-<%@page import="dal.TUser"  %>
+-<%@page import="dal.TRole"  %>
+-<%@page import="bll.bllBase"  %>
+-<%@page import="java.util.*"  %>
+-<%@page import="multilangue.Translate"  %>
+-<%@page import="toolkits.utils.date"  %>
+-<%@page import="bll.userManagement.privilege"  %>
+-<%@page import="toolkits.parameters.commonparameter"  %>
+-<%@page import="java.math.BigInteger"  %>
+-<%@page import="bll.userManagement.*"  %>
+-
+-
+-
+-<%
+-    Translate oTranslate = new Translate();
+-    dataManager OdataManager = new dataManager();
+-    date key = new date();
+-
+-%>
+-
+-
+-
+-
+-<%    String lg_OUTBOUND_MESSAGE_ID = "%%", search_value = "";
+-    if (request.getParameter("lg_OUTBOUND_MESSAGE_ID") != null) {
+-        lg_OUTBOUND_MESSAGE_ID = request.getParameter("lg_OUTBOUND_MESSAGE_ID");
+-        new logger().OCategory.info("lg_OUTBOUND_MESSAGE_ID " + lg_OUTBOUND_MESSAGE_ID);
+-    }
+-    if (request.getParameter("search_value") != null) {
+-        search_value = request.getParameter("search_value");
+-        new logger().oCategory.info("search_value : " + search_value);
+-    }
+-
+-    TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+-    OdataManager.initEntityManager();
+-    ServicesUpdatePriceFamille OServicesUpdatePriceFamille = new ServicesUpdatePriceFamille(OdataManager, OTUser);
+-
+-    bllBase ObllBase = new bllBase();
+-    ObllBase.setOTUser(OTUser);
+-    ObllBase.LoadDataManger(OdataManager);
+-    ObllBase.LoadMultilange(oTranslate);
+-    ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+-
+-    ObllBase.setDetailmessage("PAS D'ACTION");
+-    new logger().oCategory.info("le mode : " + request.getParameter("mode"));
+-
+-    if (request.getParameter("mode") != null) {
+-
+-        if (request.getParameter("mode").toString().equals("reload")) {
+-            OServicesUpdatePriceFamille.reloadSms(search_value, lg_OUTBOUND_MESSAGE_ID, 0);
+-            ObllBase.setMessage(OServicesUpdatePriceFamille.getMessage());
+-            ObllBase.setDetailmessage(OServicesUpdatePriceFamille.getDetailmessage());
+-        } else if (request.getParameter("mode").toString().equals("reloadall")) {
+-            OServicesUpdatePriceFamille.reloadSms(search_value, lg_OUTBOUND_MESSAGE_ID, 0);
+-            ObllBase.setMessage(OServicesUpdatePriceFamille.getMessage());
+-            ObllBase.setDetailmessage(OServicesUpdatePriceFamille.getDetailmessage());
+-        } else if (request.getParameter("mode").toString().equals("delete")) {
+-
+-            OTUser = ObllBase.getOdataManager().getEm().find(dal.TUser.class, request.getParameter("str_Event"));
+-
+-            OTUser.setStrSTATUT(commonparameter.statut_delete);
+-            ObllBase.persiste(OTUser);
+-
+-            new logger().oCategory.info("Suppression de user " + request.getParameter("str_Event").toString());
+-
+-        } else {
+-        }
+-
+-    }
+-
+-    String result;
+-
+-    if (ObllBase.getMessage()
+-            .equals(commonparameter.PROCESS_SUCCESS)) {
+-        result = "{success:\"" + ObllBase.getMessage() + "\", errors_code: \"" + ObllBase.getMessage() + "\", errors: \"" + ObllBase.getDetailmessage() + "\"}";
+-
+-    } else {
+-        result = "{success:\"" + ObllBase.getMessage() + "\", errors_code: \"" + ObllBase.getMessage() + "\", errors: \"" + ObllBase.getDetailmessage() + "\"}";
+-    }
+-
+-    new logger().OCategory.info("JSON " + result);
+-
+-
+-%>
+-<%=result%>
+\ No newline at end of file
+-- 
+2.43.0
+

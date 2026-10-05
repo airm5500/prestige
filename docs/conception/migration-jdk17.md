@@ -534,6 +534,30 @@ Pas un prérequis du JDK 17, mais une décision à prendre et à écrire : répa
 qui les appellent, ou les laisser en l'état. Dans tous les cas, la précompilation du banc les
 exclut nommément, pour que leur échec ne masque pas le reste.
 
+**Décidé et réalisé le 5 octobre, sur `dev`** (`scripts/migration-jdk17/lot1-jsp-mortes.patch`) :
+
+| JSP | Appelée par | Décision |
+|---|---|---|
+| `bonlivraison/ws_transaction.jsp` | « Modifier Article » du détail d'un BL, écran vivant, sans équivalent REST | **réparée** : mode `reglement` (déjà sans effet, appelé par personne) retiré avec `BLService` |
+| `recapactivities/ws_data.jsp`, `ws_generate_pdf.jsp` | ancien rapport d'activité | supprimées ; l'écran affiche un renvoi vers le Récapitulatif |
+| `outboudmessage/ws_data.jsp`, `ws_transaction.jsp` | ancien écran des notifications sortantes | supprimées ; renvoi vers « Menu notifications » |
+| `alertevent/ws_transaction.jsp` | ancien écran des modèles de notification (textes lus par aucun code vivant) | supprimée ; renvoi vers « Menu notifications » |
+| `outboudmessage/ws_check_notification*_web.jsp` (3) | fonctions de `index.jsp` jamais appelées | supprimées avec ces fonctions |
+| `ws_quinzaine_data.jsp`, `ws_quinzaine_transaction.jsp` | bouton masqué « GESTION DES QUINZAINES » | supprimées avec le bouton et ses fenêtres |
+| `gestcaisse/ws_data.jsp` | personne (l'écran passe par REST) | supprimée |
+
+**Changement de comportement assumé** : « Modifier Article » refonctionne, et il modifie aussi le
+prix de l'article et du grossiste (code existant `changePrice`). L'ancienne version ne laissait aucune
+trace au mouchard des prix ; la réparation y écrit le changement de prix de vente, comme le fait la
+commande (`OrderServiceImpl`). Ce patch se livre donc **dans son propre WAR**, après ceux des
+séparateurs et de Flyway.
+
+Mesures : 1062 tests sur JDK 11 et 17 ; déploiement au banc **sans aucune exclusion** : 546 JSP
+précompilées, 0 erreur, exceptions identiques à `dev` seul. Essai de « Modifier Article » au banc par
+la vraie page, avec les paramètres de la fenêtre : ligne du BL, total du BL (6 000 → 7 000), prix de
+l'article et du grossiste mis à jour, une ligne au mouchard (COMMANDE, 1 000 → 1 250, référence de
+la commande) ; renvoyer les mêmes prix n'ajoute pas de ligne.
+
 ### 5.4 Locale de la JVM
 
 Si la page de diagnostic du lot 0 montre une locale `fr_FR` héritée de Windows : ajouter
