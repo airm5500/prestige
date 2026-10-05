@@ -124,7 +124,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                                 bodyPadding: '10 12',
                                 layout: {type: 'vbox', align: 'stretch'},
                                 items: [{
-                                        xtype: 'component', itemId: 'fcCourbe', html: ''
+                                        /* La courbe s'ouvre desormais dans une fenetre, depuis le bouton de chaque tuile
+                                           (retour du 05/10, pour gagner de la place) : elle est dessinee ici, cachee,
+                                           puis reprise dans la fenetre. */
+                                        xtype: 'component', itemId: 'fcCourbe', html: '', hidden: true
                                     }, {
                                         /* Nouvelle mesure : les champs suivent le genre du parametre choisi. */
                                         xtype: 'container',
@@ -345,7 +348,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                     + '<span class="fc-tuile-valeur">' + valeur + ' <small>' + enc(p.valeur !== undefined ? p.unite : '')
                     + (p.cote ? ' · bras ' + (p.cote === 'G' ? 'gauche' : 'droit') : '') + '</small></span>'
                     + '<span class="fc-tuile-pied">' + me.analyseTuile(p, r.imc)
-                    + '<span>' + date + '</span></span></button>';
+                    + '<span>' + date + '</span></span>'
+                    + (p.nbMesures ? '<span class="fc-tuile-courbe" role="button" tabindex="0" data-fc="courbe" data-id="'
+                            + enc(p.parametreId) + '" title="Voir la courbe">Courbe</span>' : '')
+                    + '</button>';
         });
         if (r.imc) {
             html.push('<div class="fc-tuile fc-tuile-calcul"><span class="fc-tuile-libelle">IMC (calculé)</span>'
@@ -387,7 +393,10 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
         var me = this;
         var action = cible.getAttribute('data-fc');
         e.preventDefault();
-        if (action === 'parametre') {
+        if (action === 'courbe') {
+            e.stopEvent();
+            me.ouvrirCourbe(cible.getAttribute('data-id'));
+        } else if (action === 'parametre') {
             me.choisirParametre(cible.getAttribute('data-id'));
         } else if (action === 'terrain') {
             if (!me.peutEcrire()) {
@@ -426,7 +435,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
     },
 
     /** Le parametre choisi : sa courbe, ses mesures, et les champs de saisie qui lui correspondent. */
-    choisirParametre: function (id) {
+    choisirParametre: function (id, ensuite) {
         var me = this;
         me.parametreId = id;
         if (me.dossier) {
@@ -458,8 +467,33 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                     me.mesures = r.data || [];
                     me.dessinerCourbe(p, me.mesures, r.norme);
                     me.afficherMesures(p, me.mesures);
+                    if (ensuite) {
+                        ensuite();
+                    }
                 }
             }
+        });
+    },
+
+    /** La courbe d'un parametre dans une fenetre (retour du 05/10) : le parametre est choisi, puis sa courbe reprise. */
+    ouvrirCourbe: function (id) {
+        var me = this;
+        me.choisirParametre(id, function () {
+            var p = me.parametre(id);
+            var deja = Ext.ComponentQuery.query('window[cls~=fc-fenetre-courbe]')[0];
+            if (deja) {
+                deja.destroy();
+            }
+            Ext.create('Ext.window.Window', {
+                title: 'Évolution' + (p ? ' · ' + Ext.String.htmlEncode(p.libelle) + (p.unite ? ' (' + Ext.String.htmlEncode(p.unite)
+                        + ')' : '') : ''),
+                cls: 'fc-fenetre-courbe',
+                modal: true,
+                width: Math.min(900, Ext.getBody().getViewSize().width - 60),
+                bodyPadding: '12 16',
+                closeAction: 'destroy',
+                html: '<div class="fc-courbe-fenetre">' + me.down('#fcCourbe').getEl().dom.innerHTML + '</div>'
+            }).show();
         });
     },
 

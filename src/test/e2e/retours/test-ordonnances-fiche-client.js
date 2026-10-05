@@ -98,6 +98,17 @@ const NOM = 'ZZFICHE';
     const tension = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0]; const d = v.getEl().dom;
       return { etats: [...d.querySelectorAll('#' + v.down('#fcMesures').getEl().id + ' .fc-etat')].map((x) => x.textContent), points: d.querySelectorAll('.fc-svg .fc-point').length, bande: !!d.querySelector('.fc-svg .fc-bande'), legende: v.down('#fcCourbe').getEl().dom.textContent }; });
     ok('Analyse selon la norme adulte : 150/95 élevée, 120/80 normale', tension.etats.join(',') === 'Normale,Élevée', JSON.stringify(tension));
+    /* Courbe en fenetre (retour du 05/10) : plus de courbe dans la page, un bouton « Courbe » sur la tuile l'ouvre. */
+    const courbe0 = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0];
+      const b = [...v.getEl().dom.querySelectorAll('.fc-tuile-courbe')]; const t = b.find((x) => /Tension/i.test(x.closest('.fc-tuile').textContent));
+      if (t) { t.id = 'courbe-tension'; } return { boutons: b.length, cachee: !v.down('#fcCourbe').isVisible(), tension: !!t }; });
+    ok('Courbe : plus dans la page, un bouton « Courbe » sur les tuiles qui ont des mesures', courbe0.cachee && courbe0.boutons >= 1 && courbe0.tension, JSON.stringify(courbe0));
+    await p.click('#courbe-tension');
+    await p.waitForFunction(() => { const w = Ext.ComponentQuery.query('window[cls~=fc-fenetre-courbe]')[0]; return w && w.isVisible() && w.getEl().dom.querySelector('.fc-svg'); }, null, { timeout: 15000 });
+    const fen = await p.evaluate(() => { const w = Ext.ComponentQuery.query('window[cls~=fc-fenetre-courbe]')[0]; return { titre: w.title, points: w.getEl().dom.querySelectorAll('.fc-svg .fc-point').length, bande: !!w.getEl().dom.querySelector('.fc-svg .fc-bande') }; });
+    ok('Clic sur « Courbe » : la courbe de la tension s\'ouvre dans une fenêtre (points, bande des valeurs normales)', /Tension/i.test(fen.titre) && fen.points === tension.points && fen.bande, JSON.stringify(fen));
+    await p.evaluate(() => Ext.ComponentQuery.query('window[cls~=fc-fenetre-courbe]')[0].close());
+    await p.waitForTimeout(300);
     ok('Courbe : bande des valeurs normales, 4 points (systolique et diastolique des deux prises)', tension.bande && tension.points === 4 && /90 - 139 \/ 60 - 89/.test(tension.legende), JSON.stringify(tension));
 
     /* Glycemie, poids, taille : IMC. */
