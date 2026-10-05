@@ -141,6 +141,10 @@ public class SockServlet extends HttpServlet {
             body.setPrixachatFiltre(prixachatFiltre);
             body.setNbre(nbre);
             body.setQteVendu(qteVendu);
+            // Operateur propre a la quantite vendue (demande du 05/10) : total vendu par produit.
+            String qteVenduFiltre = request.getParameter("qteVenduFiltre");
+            body.setQteVenduFiltre(
+                    qteVenduFiltre == null || qteVenduFiltre.trim().isEmpty() ? null : qteVenduFiltre.trim());
             body.setGrossisteId(StringUtils.isNotEmpty(grossisteId) ? grossisteId : null);
             try {
                 body.setDtEnd(LocalDate.parse(dtEnd));

@@ -47,6 +47,11 @@ public class SalesStatsParams implements Serializable {
     private String rayonId;
     private String user;
     private Integer qteVendu;
+    /**
+     * Operateur propre a la quantite vendue (articles vendus recapitulatif, demande du 05/10) : compare le TOTAL vendu
+     * par produit sur la periode. Vide = comportement historique (quantite de chaque ligne, avec l'operateur du stock).
+     */
+    private String qteVenduFiltre;
     private Integer stock;
     private boolean discountStat;
     private String tiersPayantId;
@@ -151,6 +156,14 @@ public class SalesStatsParams implements Serializable {
 
     public void setQteVendu(Integer qteVendu) {
         this.qteVendu = qteVendu;
+    }
+
+    public String getQteVenduFiltre() {
+        return qteVenduFiltre;
+    }
+
+    public void setQteVenduFiltre(String qteVenduFiltre) {
+        this.qteVenduFiltre = qteVenduFiltre;
     }
 
     public boolean isModificationClientTp() {

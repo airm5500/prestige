@@ -212,6 +212,18 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                 {id: 'TOUT', libelle: "Tous"}
             ]
         });
+        /* Operateur propre a la quantite vendue (demande du 05/10) : compare le TOTAL vendu par produit sur la periode. */
+        var filtreQteVendue = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [
+                {id: 'EQUAL', libelle: "="},
+                {id: 'LESS', libelle: "<"},
+                {id: 'MORE', libelle: ">"},
+                {id: 'LESSOREQUAL', libelle: "≤"},
+                {id: 'MOREOREQUAL', libelle: "≥"},
+                {id: 'DIFF', libelle: "≠"}
+            ]
+        });
         var filtreStock = new Ext.data.Store({
             fields: ['id', 'libelle'],
             data: [
@@ -616,6 +628,25 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                             }
                         }, '-',
                         {
+                            xtype: 'combobox',
+                            id: 'qteVenduFiltre',
+                            store: filtreQteVendue,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            value: 'EQUAL',
+                            editable: false,
+                            width: 52,
+                            queryMode: 'local',
+                            tooltip: 'Opérateur de la quantité vendue (total vendu sur la période)',
+                            listeners: {
+                                select: function () {
+                                    if (Ext.getCmp('qteVendu').getValue()) {
+                                        Me.onRechClick();
+                                    }
+                                }
+                            }
+                        },
+                        {
                             xtype: 'textfield',
                             id: 'qteVendu',
                             flex: 0.5,
@@ -709,6 +740,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                             prixachatFiltre: '',
                             stockFiltre: '',
                             qteVendu: null,
+                            qteVenduFiltre: '',
                             grossisteId: ''
                         };
 
@@ -727,6 +759,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                         myProxy.setExtraParam('stockFiltre', Ext.getCmp('stockFiltre').getValue());
                         myProxy.setExtraParam('stock', (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : null));
                         myProxy.setExtraParam('qteVendu', (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : null));
+                        myProxy.setExtraParam('qteVenduFiltre', (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : ''));
                         myProxy.setExtraParam('grossisteId', (Ext.getCmp('grossiste').getValue() != null ? Ext.getCmp('grossiste').getValue() : null));
                         myProxy.setExtraParam('avecStockReserve', (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true'));
 
@@ -803,6 +836,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                 stockFiltre: Ext.getCmp('stockFiltre').getValue(),
                 rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "",
                 qteVendu: (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : null),
+            qteVenduFiltre: (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : ''),
+                qteVenduFiltre: (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : ''),
                 avecStockReserve: (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true')
 
             }
@@ -818,7 +853,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
         linkUrl += "&stock=" + (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : "") + '&stockFiltre=' + (Ext.getCmp('stockFiltre').getValue() != null ? Ext.getCmp('stockFiltre').getValue() : "");
         linkUrl += "&user=" + (Ext.getCmp('lg_USER_ID').getValue() != null ? Ext.getCmp('lg_USER_ID').getValue() : "");
         linkUrl += "&grossisteId=" + (Ext.getCmp('grossiste').getValue() != null ? Ext.getCmp('grossiste').getValue() : "");
-        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=detail&qteVendu=' + (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : "");
+        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=detail&qteVendu=' + (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : "") + '&qteVenduFiltre=' + (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : '');
         linkUrl += '&avecStockReserve=' + (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true');
 
         return linkUrl;
@@ -849,7 +884,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
         linkUrl += "&stock=" + (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : "") + '&stockFiltre=' + (Ext.getCmp('stockFiltre').getValue() != null ? Ext.getCmp('stockFiltre').getValue() : "");
         linkUrl += "&user=" + (Ext.getCmp('lg_USER_ID').getValue() != null ? Ext.getCmp('lg_USER_ID').getValue() : "");
         linkUrl += "&grossisteId=" + (Ext.getCmp('grossiste').getValue() != null ? Ext.getCmp('grossiste').getValue() : "");
-        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=rayon&qteVendu=' + (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : "");
+        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=rayon&qteVendu=' + (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : "") + '&qteVenduFiltre=' + (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : '');
         linkUrl += '&avecStockReserve=' + (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true');
 
         window.open(linkUrl);
@@ -870,6 +905,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
             rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "",
             grossisteId: Ext.getCmp('grossiste').getValue() != null ? Ext.getCmp('grossiste').getValue() : "",
             qteVendu: (Ext.getCmp('qteVendu').getValue() != null ? Ext.getCmp('qteVendu').getValue() : null),
+            qteVenduFiltre: (Ext.getCmp('qteVenduFiltre') && Ext.getCmp('qteVenduFiltre').getValue() ? Ext.getCmp('qteVenduFiltre').getValue() : ''),
             avecStockReserve: (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true')
         };
     },

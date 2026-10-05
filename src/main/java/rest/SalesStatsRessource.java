@@ -1063,6 +1063,9 @@ public class SalesStatsRessource {
         body.setStockFiltre(stockFiltre);
         body.setPrixachatFiltre(prixachatFiltre);
         body.setQteVendu(qteVendu);
+        // Operateur propre a la quantite vendue (demande du 05/10), lu comme la case du stock reserve : liste, recap,
+        // exports, suggestion et inventaire le recoivent d'un coup. Absent = comportement historique.
+        body.setQteVenduFiltre(StringUtils.trimToNull(servletRequest.getParameter("qteVenduFiltre")));
         body.setNbre(nbre);
         body.setProduitId(produitId);
         body.setGrossisteId(grossisteId);

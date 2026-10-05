@@ -1635,7 +1635,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
             }
         }
-        if (!StringUtils.isEmpty(param.getStockFiltre()) && param.getQteVendu() != null) {
+        // Historique : quantite de CHAQUE ligne, avec l'operateur du stock. Remplace par le filtre sur le total vendu
+        // (filtreQteVendue, en HAVING) quand l'ecran envoie son propre operateur.
+        if (StringUtils.isEmpty(param.getQteVenduFiltre()) && !StringUtils.isEmpty(param.getStockFiltre())
+                && param.getQteVendu() != null) {
             switch (param.getStockFiltre()) {
             case Constant.LESS:
                 predicates.add(cb.lessThan(root.get(TPreenregistrementDetail_.intQUANTITY), param.getQteVendu()));
@@ -1669,6 +1672,36 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         return predicates;
 
+    }
+
+    /**
+     * Filtre sur la quantite TOTALE vendue par produit (demande du 05/10), pour les requetes groupees par produit :
+     * condition HAVING sur la somme, avec l'operateur choisi a l'ecran. Null si l'ecran n'en demande pas.
+     */
+    javax.persistence.criteria.Predicate filtreQteVendue(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
+            SalesStatsParams param) {
+        if (StringUtils.isEmpty(param.getQteVenduFiltre()) || param.getQteVendu() == null) {
+            return null;
+        }
+        javax.persistence.criteria.Expression<Long> total = cb
+                .sumAsLong(root.get(TPreenregistrementDetail_.intQUANTITY));
+        long valeur = param.getQteVendu();
+        switch (param.getQteVenduFiltre()) {
+        case Constant.LESS:
+            return cb.lessThan(total, valeur);
+        case Constant.EQUAL:
+            return cb.equal(total, valeur);
+        case Constant.DIFF:
+            return cb.notEqual(total, valeur);
+        case Constant.MORE:
+            return cb.greaterThan(total, valeur);
+        case Constant.MOREOREQUAL:
+            return cb.greaterThanOrEqualTo(total, valeur);
+        case Constant.LESSOREQUAL:
+            return cb.lessThanOrEqualTo(total, valeur);
+        default:
+            return null;
+        }
     }
 
     @Override
@@ -1789,6 +1822,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     .orderBy(cb.asc(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME)));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            if (totalVendu != null) {
+                cq.having(totalVendu);
+            }
             TypedQuery<VenteDetailsDTO> q = getEntityManager().createQuery(cq);
             if (!params.isAll()) {
                 q.setFirstResult(params.getStart());
@@ -1803,8 +1840,38 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
     }
 
+    /**
+     * Nombre de produits et montant du recapitulatif quand le filtre porte sur la quantite TOTALE vendue : la condition
+     * est un HAVING, on compte donc les groupes retenus (un par produit).
+     */
+    @SuppressWarnings("unchecked")
+    private long[] resumeRecapParTotalVendu(SalesStatsParams params) {
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<Tuple> cq = cb.createTupleQuery();
+        Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
+        Join<TPreenregistrementDetail, TPreenregistrement> jp = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
+        Join<TPreenregistrementDetail, TFamille> jf = root.join("lgFAMILLEID", JoinType.INNER);
+        Join<TFamille, TFamilleStock> st = jf.joinCollection("tFamilleStockCollection", JoinType.INNER);
+        List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
+        cq.multiselect(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEID).alias("produit"),
+                cb.coalesce(cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE)), 0L).alias("montant"))
+                .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
+        cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+        cq.having(filtreQteVendue(cb, root, params));
+        long nombre = 0;
+        long montant = 0;
+        for (Tuple t : getEntityManager().createQuery(cq).getResultList()) {
+            nombre++;
+            montant += t.get("montant", Long.class);
+        }
+        return new long[] { nombre, montant };
+    }
+
     private long[] getArticlesVendusRecapSummary(SalesStatsParams params) {
         try {
+            if (!StringUtils.isEmpty(params.getQteVenduFiltre()) && params.getQteVendu() != null) {
+                return resumeRecapParTotalVendu(params);
+            }
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             // CriteriaQuery<Long> cq = cb.createQuery(Long.class);
@@ -1869,6 +1936,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     jf.get(TFamille_.lgFAMILLEPARENTID))).groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            if (totalVendu != null) {
+                cq.having(totalVendu);
+            }
             TypedQuery<VenteDetailsDTO> q = getEntityManager().createQuery(cq);
             datas = q.getResultList();
             List<VenteDetailsDTO> details = new ArrayList<>();
@@ -3115,6 +3186,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            if (totalVendu != null) {
+                cq.having(totalVendu);
+            }
             TypedQuery<String> q = getEntityManager().createQuery(cq);
 
             return q.getResultList();
