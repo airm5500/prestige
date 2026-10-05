@@ -777,6 +777,35 @@ version ne démarre pas sur JDK 17**, après le lot 4 sinon, jamais en même tem
    - démarrage d'Hibernate, qui tourne sur `javassist`, `classmate` et `jboss-logging` du serveur.
 4. Retour arrière : arrêter la nouvelle installation, relancer l'ancienne. Aucune action sur la base.
 
+### 9.1 Et après : Payara 7 — mesures du 5 octobre
+
+Demande du 5 octobre : passer aussi de Payara 5 à Payara 6 ou 7. Mesuré au banc :
+
+| Constat | Mesure |
+|---|---|
+| Payara 6 communautaire | dernière version publiée **6.2025.11** (novembre 2025), plus aucune depuis |
+| Payara 7 communautaire | **7.2026.9** (septembre 2026), publiée chaque mois ; Jakarta EE 11 (Persistence 3.2, Servlet 6.1, REST 4.0, EJB 4.0) |
+| Payara 7 sur JDK 11 / 17 | **refuse de démarrer** : ses classes sont en bytecode 65 |
+| Payara 7 sur JDK 21 | démarre |
+| Payara 5.2022.5 sur JDK 21 | démarre, 0 option refusée, mais **refuse de déployer** l'application (« Unsupported class file major version 65 ») |
+
+Conséquence : **Payara 5 s'arrête au JDK 17, Payara 7 commence au JDK 21.** Le JDK 17 (lots 0 à 4)
+reste l'étape à franchir d'abord ; le passage à Payara 7 emporte ensuite, ensemble et par
+construction, le JDK 21, l'espace de noms `jakarta.*` et Hibernate 6. C'est un projet à part, avec
+son propre banc et son propre plan.
+
+Ce que le passage à `jakarta.*` toucherait, mesuré sur `dev` :
+
+| Point | Volume |
+|---|---|
+| Classes Java avec des imports `javax.*` de Java EE | **824 sur 1365**, 6444 imports (persistence 3651, ws.rs 1153, ejb 700, servlet 491, xml.bind 325…) |
+| JSP | 0 sur 546 |
+| Descripteurs | `web.xml`, `beans.xml`, `persistence.xml` |
+| Bibliothèques du WAR qui référencent `javax.*` | 31 sur 113 ; à remplacer : Hibernate 5.4 → 6, `hibernate-types-52`, JAXB 2.3, `javax.mail`, `commons-fileupload` 1.5 (14 classes), **TOOLKITS** (`javax.mail`, à recompiler) ; les autres n'y touchent que par des parties inutilisées, à vérifier au banc |
+| Requêtes JPQL/HQL | environ 4000, relues par l'analyseur plus strict d'Hibernate 6 |
+| `hibernate.hbm2ddl.auto` | `update` : Hibernate 6 modifierait le schéma de production à son premier démarrage ; à mesurer sur une copie de la base, **chez vous**, avant tout |
+| JDK 21 | encodage par défaut UTF-8 (`danane` est aujourd'hui en Cp1252) ; correctif des séparateurs : valable (même espace fine) |
+
 ---
 
 ## 10. Hors périmètre — projets séparés
