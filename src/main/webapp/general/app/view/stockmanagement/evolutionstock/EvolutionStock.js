@@ -86,6 +86,17 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
                         }, {
                             xtype: 'tbseparator'
                         }, {
+                            /* Jour / Mois (demande du 05/10) : par mois, un point par mois, la valeur du dernier jour
+                               connu du mois. */
+                            xtype: 'container',
+                            itemId: 'granularite',
+                            layout: {type: 'hbox', align: 'middle'},
+                            defaults: {xtype: 'button', cls: 'ordo-puce', enableToggle: true, toggleGroup: 'evolutionGranularite',
+                                allowDepress: false, margin: '0 4 0 0', scope: me, handler: me.doSearch},
+                            items: [{text: 'Par jour', itemId: 'parJour', pressed: true}, {text: 'Par mois', itemId: 'parMois'}]
+                        }, {
+                            xtype: 'tbseparator'
+                        }, {
                             text: 'Rechercher',
                             tooltip: 'Rechercher',
                             iconCls: 'searchicon',
@@ -214,6 +225,11 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
         // Chargement initial sur la periode par defaut
         me.on('afterrender', me.doSearch, me, {single: true, delay: 100});
     },
+    /** « mois » si « Par mois » est choisi, sinon « jour ». */
+    getGranularite: function () {
+        var b = this.down('#parMois');
+        return b && b.pressed ? 'mois' : 'jour';
+    },
     getPeriode: function () {
         var me = this;
         return {
@@ -242,9 +258,18 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
         me.evolutionStore.load({
             params: {
                 dtStart: dtStartField.getSubmitValue(),
-                dtEnd: dtEndField.getSubmitValue()
+                dtEnd: dtEndField.getSubmitValue(),
+                granularite: me.getGranularite()
             },
             callback: function (records, operation, success) {
+                var axe = me.down('chart') && me.down('chart').axes.get(1);
+                if (axe) {
+                    axe.setTitle ? axe.setTitle(me.getGranularite() === 'mois' ? 'Mois' : 'Date') : (axe.title = me.getGranularite() === 'mois' ? 'Mois' : 'Date');
+                }
+                var colonne = me.down('#evolutionGrid') && me.down('#evolutionGrid').columns[0];
+                if (colonne) {
+                    colonne.setText(me.getGranularite() === 'mois' ? 'Mois (dernier jour connu)' : 'Date');
+                }
                 progress.hide();
                 if (!success) {
                     Ext.MessageBox.alert('Erreur', 'Impossible de recuperer les donnees de valorisation.');
@@ -279,7 +304,8 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
             method: 'GET',
             params: {
                 dtStart: dtStartField.getSubmitValue(),
-                dtEnd: dtEndField.getSubmitValue()
+                dtEnd: dtEndField.getSubmitValue(),
+                granularite: me.getGranularite()
             },
             timeout: 2400000,
             success: function (resp) {

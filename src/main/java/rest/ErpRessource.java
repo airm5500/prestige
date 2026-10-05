@@ -64,20 +64,27 @@ public class ErpRessource {
     @GET
     @Path("valorisation/all")
     public Response valorisationAll(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) {
-        return Response.ok().entity(erpService.valorisationAll(dtStart, dtEnd)).build();
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "granularite") String granularite) {
+        return Response.ok().entity(evolution(dtStart, dtEnd, granularite)).build();
+    }
+
+    /** Evolution du stock par jour (defaut) ou par mois (« mois » : valeur du dernier jour connu de chaque mois). */
+    private List<StockDailyValueDTO> evolution(String dtStart, String dtEnd, String granularite) {
+        List<StockDailyValueDTO> jours = erpService.valorisationAll(dtStart, dtEnd);
+        return "mois".equalsIgnoreCase(granularite) ? rest.service.impl.EvolutionStockMois.parMois(jours) : jours;
     }
 
     // Edition PDF (JasperReports) de l'evolution du stock : rp_evolution_stock.jrxml
     @GET
     @Path("valorisation/all/pdf")
     public Response valorisationAllPdf(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "granularite") String granularite)
+            throws JSONException {
         TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
         Map<String, Object> params = reportUtil.officineData(tu);
-        params.put("P_H_CLT_INFOS",
-                "EVOLUTION DU STOCK - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
-        List<StockDailyValueDTO> data = erpService.valorisationAll(dtStart, dtEnd);
+        params.put("P_H_CLT_INFOS", "EVOLUTION DU STOCK" + ("mois".equalsIgnoreCase(granularite) ? " PAR MOIS" : "")
+                + " - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
+        List<StockDailyValueDTO> data = evolution(dtStart, dtEnd, granularite);
         // Page(s) 1 : tableau (portrait) puis page suivante : courbe (paysage), dans un seul PDF
         String url = servletRequest.getContextPath() + reportUtil.buildReportMulti(params,
                 java.util.Arrays.asList("rp_evolution_stock", "rp_evolution_stock_chart"), data);
