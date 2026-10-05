@@ -25,7 +25,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
     requires: [
         'Ext.selection.CellModel', 'Ext.grid.*', 'Ext.form.*', 'Ext.layout.container.Column',
         'testextjs.model.Famille', 'testextjs.model.Grossiste', 'testextjs.model.BonLivraisonDetail',
-        'testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager'
+        'testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
+        'testextjs.view.commandemanagement.AvoirsBonFenetre'
     ],
     config: {
         odatasource: '', parentview: '', mode: '', titre: '', plain: true,
@@ -695,6 +696,9 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                 cls: 'custom-messagebox'
                             });
                         } else {
+                            /* Produits en avoir de ce bon (demande du 05/10) : la fenetre s'ouvre d'abord s'il y en a, et la suite
+                               habituelle (impressions) reprend a sa fermeture ; sans avoir, rien ne change. */
+                            testextjs.view.commandemanagement.AvoirsBonFenetre.afficherPuis(lg_BON_LIVRAISON_ID, function () {
                             Ext.Msg.show({
                                 title: 'Message',
                                 msg: "Confirmation de l'impression des entrées réapprovisionnements",
@@ -725,6 +729,7 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                         testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
                                     }
                                 }
+                            });
                             });
                         }
                     },

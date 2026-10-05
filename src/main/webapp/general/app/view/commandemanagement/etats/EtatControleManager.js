@@ -52,7 +52,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     xtype: 'etatscontrolemanager',
     id: 'etatscontrolemanagerID',
     frame: true,
-    requires: ['testextjs.view.commandemanagement.cmde_passees.action.edit'],
+    requires: ['testextjs.view.commandemanagement.cmde_passees.action.edit', 'testextjs.view.commandemanagement.AvoirsBonFenetre'],
 
     title: 'Etat de controle des achats',
 //    btnUpdate: false,
@@ -326,6 +326,24 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             tooltip: 'Créer un inventaire des produits de ce bon de livraison',
                             scope: this,
                             handler: this.onInventaireDuBon
+                        }]
+                },
+                {
+                    /* Produits en avoir de ce bon (demande du 05/10) : clients a prevenir, liste imprimable. */
+                    xtype: 'actioncolumn',
+                    header: 'AVOIRS',
+                    itemId: 'avoirsDuBon',
+                    width: 55,
+                    align: 'center',
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/user_comment.png',
+                            tooltip: 'Produits en avoir de ce bon : clients à prévenir',
+                            handler: function (grid, rowIndex) {
+                                var rec = grid.getStore().getAt(rowIndex);
+                                testextjs.view.commandemanagement.AvoirsBonFenetre.ouvrir(rec.get('lgBONLIVRAISONID'));
+                            }
                         }]
                 },
                 {
