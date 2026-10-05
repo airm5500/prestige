@@ -1,0 +1,97 @@
+From bc59696dc9156c4ad34148e7378802ef70862284 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 14:10:16 +0000
+Subject: [PATCH] Flyway : aucun chemin vers l'effacement de la base
+
+cleanOnValidationError(true) effacait toute la base si la validation etait
+un jour reactivee et qu'un checksum differait. Il est retire, et
+cleanDisabled(true) interdit en plus tout appel a clean().
+
+Les autres reglages sont inchanges (verifies par FlywayStartupBeanTest) :
+le comportement des migrations ne change pas.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ src/main/java/job/FlywayStartupBean.java     | 17 +++++++++---
+ src/test/java/job/FlywayStartupBeanTest.java | 28 ++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)
+ create mode 100644 src/test/java/job/FlywayStartupBeanTest.java
+
+diff --git a/src/main/java/job/FlywayStartupBean.java b/src/main/java/job/FlywayStartupBean.java
+index 98509ea..a3871a4 100644
+--- a/src/main/java/job/FlywayStartupBean.java
++++ b/src/main/java/job/FlywayStartupBean.java
+@@ -10,6 +10,7 @@ import javax.ejb.Startup;
+ import javax.sql.DataSource;
+ import org.flywaydb.core.Flyway;
+ import org.flywaydb.core.api.FlywayException;
++import org.flywaydb.core.api.configuration.FluentConfiguration;
+ 
+ /**
+  *
+@@ -31,9 +32,7 @@ public class FlywayStartupBean {
+             throw new IllegalStateException("Datasource not found");
+         }
+         try {
+-            Flyway flyway = Flyway.configure().dataSource(dataSource).baselineOnMigrate(true)
+-                    .ignoreMissingMigrations(true).outOfOrder(true).cleanOnValidationError(true)
+-                    .validateOnMigrate(false).ignoreFutureMigrations(true).load();
++            Flyway flyway = configuration(dataSource).load();
+             // Une migration qui a echoue laisse une trace d'echec dans flyway_schema_history, et
+             // cette trace bloque toutes les migrations suivantes tant qu'elle n'est pas retiree.
+             // repair() la retire au demarrage : le script corrige est alors rejoue normalement,
+@@ -47,4 +46,16 @@ public class FlywayStartupBean {
+         }
+     }
+ 
++    /**
++     * Reglages de Flyway au demarrage.
++     *
++     * Aucun chemin ne doit mener a l'effacement de la base de production : cleanOnValidationError n'est pas active
++     * (elle effacait TOUTE la base des qu'un checksum differait, si la validation etait un jour reactivee), et
++     * cleanDisabled interdit en plus tout appel a clean().
++     */
++    static FluentConfiguration configuration(DataSource dataSource) {
++        return Flyway.configure().dataSource(dataSource).baselineOnMigrate(true).ignoreMissingMigrations(true)
++                .outOfOrder(true).validateOnMigrate(false).ignoreFutureMigrations(true).cleanDisabled(true);
++    }
++
+ }
+diff --git a/src/test/java/job/FlywayStartupBeanTest.java b/src/test/java/job/FlywayStartupBeanTest.java
+new file mode 100644
+index 0000000..7d90c86
+--- /dev/null
++++ b/src/test/java/job/FlywayStartupBeanTest.java
+@@ -0,0 +1,28 @@
++package job;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++import org.flywaydb.core.api.configuration.FluentConfiguration;
++import org.junit.jupiter.api.Test;
++
++public class FlywayStartupBeanTest {
++
++    @Test
++    public void aucunCheminVersLEffacementDeLaBase() {
++        FluentConfiguration c = FlywayStartupBean.configuration(null);
++        assertFalse(c.isCleanOnValidationError());
++        assertTrue(c.isCleanDisabled());
++    }
++
++    /** Les autres reglages sont ceux d'avant le correctif : le comportement des migrations ne change pas. */
++    @Test
++    public void reglagesDeMigrationInchanges() {
++        FluentConfiguration c = FlywayStartupBean.configuration(null);
++        assertTrue(c.isBaselineOnMigrate());
++        assertTrue(c.isIgnoreMissingMigrations());
++        assertTrue(c.isOutOfOrder());
++        assertFalse(c.isValidateOnMigrate());
++        assertTrue(c.isIgnoreFutureMigrations());
++    }
++}
+-- 
+2.43.0
+

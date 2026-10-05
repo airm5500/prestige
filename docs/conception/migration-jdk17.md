@@ -507,6 +507,21 @@ Retirer `cleanOnValidationError(true)` de `FlywayStartupBean`. Aucun changement 
 aujourd'hui (la validation est désactivée), mais une ligne de moins entre la base de production et
 son effacement. Vérification : journal Flyway au démarrage identique.
 
+**Réalisé le 5 octobre, sur `dev`** (`scripts/migration-jdk17/lot1-flyway.patch`, indépendant du patch
+des séparateurs, applicable avant ou après lui). `cleanOnValidationError(true)` est retiré et
+`cleanDisabled(true)` ajouté : tout appel à `clean()` est refusé. Les réglages sont isolés dans
+`FlywayStartupBean.configuration()`, et un test vérifie que les cinq autres réglages sont inchangés.
+`repair()` reste en commentaire, comme aujourd'hui.
+
+Rejoué contre MariaDB, avec un script déjà passé puis modifié après coup (checksum différent) :
+
+| Réglage | Validation au démarrage | Résultat |
+|---|---|---|
+| actuel | désactivée (production) | migration terminée, 3 ventes sur 3 conservées |
+| actuel | réactivée | migration « terminée », **0 vente sur 3 : base effacée** |
+| corrigé | désactivée (production) | migration terminée, 3 ventes sur 3 conservées |
+| corrigé | réactivée | migration **refusée**, 3 ventes sur 3 conservées |
+
 ### 5.3 Les 12 JSP mortes
 
 Pas un prérequis du JDK 17, mais une décision à prendre et à écrire : réparer, retirer les écrans
