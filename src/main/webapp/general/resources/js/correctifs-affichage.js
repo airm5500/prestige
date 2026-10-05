@@ -747,6 +747,8 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
 window.PrestigeAffichage.ECRANS_COLLES = [
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
+    // lot B
+    'promotionhistorymanager', 'promotionmanager', 'balanceagee_detail', 'balanceagee', 'remisemanager', 'groupetierspayant',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
     'recapOrganisme',
@@ -827,7 +829,10 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente',
     // retours du 05/10, lot A : facturation et caisse
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
-    'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition'
+    'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
+    // lot B : clients, tiers payants, promotions, remises
+    'promotionhistorymanager', 'promotionmanager', 'logfile', 'ventesmodifieesmanager', 'tierspayantmanager', 'clientmanager',
+    'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise'
 ];
 
 /**
@@ -841,6 +846,10 @@ window.PrestigeAffichage.ECRANS_FOND_VENTE = ['ordonnanceclient'];
  * cette table garde son image.
  */
 window.PrestigeAffichage.ICONES_TRAIT = [
+    // ajoutees le 05/10 ; « disable » avant « enable » (qu'il contient)
+    [/chart/i, 'act-stat'],
+    [/disable/i, 'act-desactiver'],
+    [/enable/i, 'act-activer'],
     [/page_white_edit|pencil|edit|modif/i, 'act-modifier'],
     // ticket modifie (imprimante verte) : garde sa couleur pour rester distinct du ticket ordinaire
     [/printergreen/i, 'act-imprimer-vert'],
@@ -855,7 +864,10 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/book\.png|valid|accept|tick|check/i, 'act-valider'],
     [/download|telecharg/i, 'act-telecharger'],
     [/table_refresh|calendar/i, 'act-date'],
-    [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir']
+    [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir'],
+    [/cart|panier/i, 'act-ventes'],
+    // en dernier : user_edit reste un « modifier » (regle plus haut)
+    [/user|client/i, 'act-client']
 ];
 
 /**
@@ -914,6 +926,17 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
         Ext.each(grille.query('actioncolumn'), function (col) {
             Ext.each(col.items || [], function (item) {
                 var image = String(item.icon || '');
+                // Icone donnee par une classe CSS seule (ex. « detailclients », « edit ») : reconnue par les memes regles,
+                // la classe d'origine (qui ne porte que l'image) est remplacee par le dessin au trait.
+                if (!image && item.iconCls && !/act-ico/.test(item.iconCls) && !Ext.isFunction(item.getClass)) {
+                    Ext.each(window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
+                        if (regle[0].test(item.iconCls)) {
+                            item.iconCls = 'act-ico ' + regle[1];
+                            return false;
+                        }
+                    });
+                    return;
+                }
                 if (!image) {
                     return;
                 }
