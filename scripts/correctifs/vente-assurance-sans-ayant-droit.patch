@@ -1,0 +1,129 @@
+From c1be85cf22d69823ea492d71d13cd56dd1b10318 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 23:43:50 +0000
+Subject: [PATCH] Vente assurance sans ayant droit : la vente n'est plus
+ annulee en silence
+
+Quand l'ecran n'envoie pas d'ayant droit (client a plusieurs ayants droits
+sans correspondance, ou sans ayant droit), la recherche partait avec un
+identifiant nul. L'erreur etait attrapee, mais Hibernate avait deja marque
+la transaction pour annulation : la vente etait annoncee creee (ou
+cloturee) puis annulee a la fin de l'appel, sans message.
+
+La recherche de l'ayant droit ne part plus sans identifiant, comme celle
+du client ; la modification de l'ayant droit passe par la meme recherche.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ .../rest/service/impl/SalesServiceImpl.java   | 15 ++++-
+ .../service/impl/AyantDroitAbsentTest.java    | 64 +++++++++++++++++++
+ 2 files changed, 77 insertions(+), 2 deletions(-)
+ create mode 100644 src/test/java/rest/service/impl/AyantDroitAbsentTest.java
+
+diff --git a/src/main/java/rest/service/impl/SalesServiceImpl.java b/src/main/java/rest/service/impl/SalesServiceImpl.java
+index a942529..4688ba1 100644
+--- a/src/main/java/rest/service/impl/SalesServiceImpl.java
++++ b/src/main/java/rest/service/impl/SalesServiceImpl.java
+@@ -997,7 +997,18 @@ public class SalesServiceImpl implements SalesService {
+ 
+     }
+ 
+-    private Optional<TAyantDroit> findAyantDroit(String id) {
++    /**
++     * Ayant droit retenu a l'ecran, vide quand aucun n'est retenu.
++     *
++     * Constate au banc sur une base reelle : l'ecran n'envoie pas d'ayant droit quand le client en a plusieurs et
++     * qu'aucun ne lui correspond, ou qu'il n'en a aucun. La recherche se faisait alors avec un identifiant nul ;
++     * l'erreur etait bien attrapee ici, mais Hibernate avait deja marque la transaction pour annulation : la vente
++     * assurance etait annoncee creee - ou cloturee - puis annulee a la fin de l'appel, sans aucun message.
++     */
++    Optional<TAyantDroit> findAyantDroit(String id) {
++        if (StringUtils.isEmpty(id)) {
++            return Optional.empty();
++        }
+         try {
+             TAyantDroit ayantDroit = this.getEm().find(TAyantDroit.class, id);
+ 
+@@ -2049,7 +2060,7 @@ public class SalesServiceImpl implements SalesService {
+         EntityManager emg = this.getEm();
+         try {
+             TPreenregistrement tp = emg.find(TPreenregistrement.class, params.getVenteId());
+-            TAyantDroit oTAyantDroit = emg.find(TAyantDroit.class, params.getAyantDroitId());
++            TAyantDroit oTAyantDroit = findAyantDroit(params.getAyantDroitId()).orElse(null);
+ 
+             if (oTAyantDroit != null && tp != null) {
+                 tp.setStrFIRSTNAMECUSTOMER(oTAyantDroit.getStrFIRSTNAME());
+diff --git a/src/test/java/rest/service/impl/AyantDroitAbsentTest.java b/src/test/java/rest/service/impl/AyantDroitAbsentTest.java
+new file mode 100644
+index 0000000..f4be885
+--- /dev/null
++++ b/src/test/java/rest/service/impl/AyantDroitAbsentTest.java
+@@ -0,0 +1,64 @@
++package rest.service.impl;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++import dal.TAyantDroit;
++import java.lang.reflect.Field;
++import java.lang.reflect.Proxy;
++import java.util.ArrayList;
++import java.util.List;
++import javax.persistence.EntityManager;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Vente assurance sans ayant droit : la recherche avec un identifiant nul faisait annuler toute la transaction par
++ * Hibernate, alors que l'ecran annoncait la vente creee (ou cloturee).
++ */
++class AyantDroitAbsentTest {
++
++    /** Recherches recues, et transaction condamnee comme le fait Hibernate sur une recherche a identifiant nul. */
++    private final List<Object> recherches = new ArrayList<>();
++    private boolean transactionCondamnee;
++    private final TAyantDroit connu = new TAyantDroit("AD-1");
++
++    private SalesServiceImpl service() throws Exception {
++        EntityManager em = (EntityManager) Proxy.newProxyInstance(getClass().getClassLoader(),
++                new Class<?>[] { EntityManager.class }, (proxy, methode, args) -> {
++                    if (!"find".equals(methode.getName())) {
++                        throw new UnsupportedOperationException(methode.getName());
++                    }
++                    recherches.add(args[1]);
++                    if (args[1] == null) {
++                        transactionCondamnee = true;
++                        throw new IllegalArgumentException("id to load is required for loading");
++                    }
++                    return "AD-1".equals(args[1]) ? connu : null;
++                });
++        SalesServiceImpl service = new SalesServiceImpl();
++        Field champ = SalesServiceImpl.class.getDeclaredField("em");
++        champ.setAccessible(true);
++        champ.set(service, em);
++        return service;
++    }
++
++    @Test
++    void sansAyantDroitAucuneRechercheNiAnnulation() throws Exception {
++        SalesServiceImpl service = service();
++        assertFalse(service.findAyantDroit(null).isPresent());
++        assertFalse(service.findAyantDroit("").isPresent());
++        assertTrue(recherches.isEmpty(), "aucune recherche ne doit partir sans identifiant");
++        assertFalse(transactionCondamnee);
++    }
++
++    @Test
++    void ayantDroitRetenuToujoursTrouve() throws Exception {
++        SalesServiceImpl service = service();
++        assertSame(connu, service.findAyantDroit("AD-1").get());
++        assertFalse(service.findAyantDroit("AD-INCONNU").isPresent());
++        assertEquals(2, recherches.size());
++        assertFalse(transactionCondamnee);
++    }
++}
+-- 
+2.43.0
+
