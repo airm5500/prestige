@@ -2437,3 +2437,52 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .x-window.ouv-caisse .x-form-field.x-form-text { border: 1px solid #9fb3c8 !important; border-radius: 6px; font-size: 18px !important;
     font-weight: bold; color: #1e3a5f; background-image: none !important; }
 .x-window.ouv-caisse .x-form-focus { border-color: #2E75B6 !important; box-shadow: 0 0 0 3px rgba(46, 117, 182, .18); }
+
+/* ===== Calendrier et listes deroulantes au dessin du theme, partout (demande du 05/10 : « pourquoi encore du bleu
+   dans les selecteurs de date ? », « les listes deroulantes n'ont pas evolue ») — dessin seulement. ===== */
+.x-datepicker { border: 1px solid #c3cfdb !important; border-radius: 10px; background: #fff !important;
+    box-shadow: 0 12px 32px rgba(15, 30, 50, .18); overflow: hidden; }
+.x-datepicker-header { background: #1e3a5f !important; background-image: none !important; }
+.x-datepicker-month .x-btn, .x-datepicker-month .x-btn-default-small { background: transparent !important; background-image: none !important;
+    border: 0 !important; box-shadow: none !important; }
+.x-datepicker-month .x-btn-inner, .x-datepicker-month .x-btn-split { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
+.x-datepicker-month .x-btn-split { background-image: none !important; position: relative; padding-right: 14px !important; }
+.x-datepicker-month .x-btn-split::after { content: ''; position: absolute; right: 3px; top: 50%; margin-top: -2px;
+    border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #fff; }
+.x-datepicker-arrow { background: transparent !important; text-decoration: none !important; opacity: 1 !important; text-align: center; }
+.x-datepicker-arrow::after { content: ''; display: block; width: 7px; height: 7px; margin: 2px 0 0 3px;
+    border-left: 2px solid #fff; border-bottom: 2px solid #fff; }
+.x-datepicker-prev.x-datepicker-arrow::after { transform: rotate(45deg); margin-left: 4px; }
+.x-datepicker-next.x-datepicker-arrow::after { transform: rotate(-135deg); margin-left: 1px; }
+.x-datepicker-column-header { background: #fff !important; color: #6b7b8c !important; font-size: 11px !important; font-weight: bold;
+    border: 0 !important; }
+.x-datepicker-cell, .x-datepicker-disabled { background: #fff !important; background-image: none !important; border: 0 !important; }
+.x-datepicker-date { border: 1px solid transparent !important; border-radius: 6px; color: #1e2a36 !important; background: transparent !important; }
+.x-datepicker-cell .x-datepicker-date:hover, .x-datepicker-active .x-datepicker-date:hover { background: #e3edf7 !important; color: #1e3a5f !important; }
+.x-datepicker-prevday .x-datepicker-date, .x-datepicker-nextday .x-datepicker-date { color: #b0bccb !important; }
+.x-datepicker-today .x-datepicker-date { border-color: #f0a23a !important; font-weight: bold; }
+.x-datepicker-selected .x-datepicker-date, .x-datepicker-selected .x-datepicker-date:hover { background: #1e3a5f !important;
+    border-color: #1e3a5f !important; color: #fff !important; font-weight: bold; }
+.x-datepicker-disabled .x-datepicker-date, .x-datepicker-disabled .x-datepicker-date:hover { background: transparent !important;
+    color: #c8d1db !important; cursor: default; }
+.x-datepicker-footer, .x-monthpicker-buttons { background: #f6f8fb !important; border-top: 1px solid #e0e7ef !important; }
+.x-datepicker-footer .x-btn, .x-monthpicker-buttons .x-btn { background: #1e3a5f !important; background-image: none !important;
+    border: 1px solid #1e3a5f !important; border-radius: 6px !important; box-shadow: none !important; }
+.x-datepicker-footer .x-btn .x-btn-inner, .x-monthpicker-buttons .x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
+.x-datepicker-footer .x-btn.x-btn-over, .x-monthpicker-buttons .x-btn.x-btn-over { background: #2E75B6 !important; }
+.x-monthpicker { background: #fff !important; border: 0 !important; }
+.x-monthpicker-months, .x-monthpicker-years { background: #fff !important; border-color: #e0e7ef !important; }
+.x-monthpicker-item-inner { color: #1e2a36 !important; border: 1px solid transparent !important; border-radius: 6px; }
+.x-monthpicker-item-inner:hover { background: #e3edf7 !important; color: #1e3a5f !important; }
+.x-monthpicker-selected, .x-monthpicker-item .x-monthpicker-selected { background: #1e3a5f !important; color: #fff !important; border-color: #1e3a5f !important; }
+.x-monthpicker-yearnav button { filter: grayscale(1); }
+/* Listes deroulantes */
+.x-boundlist { border: 1px solid #c3cfdb !important; border-radius: 8px; background: #fff !important;
+    box-shadow: 0 12px 32px rgba(15, 30, 50, .16); overflow: hidden; }
+.x-boundlist-item { padding: 3px 10px !important; border: 0 !important; color: #1e2a36; }
+.x-boundlist-item-over { background: #e3edf7 !important; color: #1e3a5f !important; }
+.x-boundlist-selected, .x-boundlist-selected.x-boundlist-item-over { background: #1e3a5f !important; color: #fff !important; }
+.x-boundlist .x-toolbar { background: #f6f8fb !important; background-image: none !important; border: 0 !important; border-top: 1px solid #e0e7ef !important; }
+.x-boundlist .x-mask { background: rgba(255, 255, 255, .7) !important; }
+/* Champ ouvert (liste ou calendrier deplie) : bordure du theme. */
+.x-pickerfield-open .x-form-text, .x-form-focus { border-color: #2E75B6 !important; }
