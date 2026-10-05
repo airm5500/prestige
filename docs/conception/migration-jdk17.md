@@ -472,6 +472,31 @@ ne change sur le JDK 11**.
 - sur JDK 11 : comparaison avec la référence = **0 différence** (preuve que rien ne change aujourd'hui) ;
 - sur JDK 17, au banc : **13/13 états du WAR et tous les états du site identiques** à la référence.
 
+**Réalisé le 5 octobre, sur `dev`** (`scripts/migration-jdk17/lot1-separateurs.patch`, à appliquer
+par `git am`). La surface a grandi depuis le relevé ci-dessus :
+
+| Point | Sur `dev` |
+|---|---|
+| Remplissages d'états | **37 appels dans 13 fichiers**, dont `fillReportToFile` et `runReportToHtmlFile` ; chacun reçoit `SeparateurMilliers.parametres(...)`, une copie des paramètres avec la fabrique |
+| Montants formatés en Java | 8 endroits : PDF OpenPDF (`RecapCaisseRecettePdf`, `FactureCarnetDepotPdf`, `EditionMouvementsCaisse`), `ListDesBonServiceImpl`, `AnalyseArticleRessource`, `CaZoneGeoRessource`, `PilotageService`, `AnalyseInvExportServiceImpl` |
+| Expressions des états embarqués | 6 `new java.text.DecimalFormat(...)` dans 4 jrxml, corrigées dans l'expression elle-même (valable aussi pour une copie déposée sur un site) |
+| Déjà indépendants du JDK | `EditionBalance`, `RecapModesCa`, `AnalyseInventaireSynthese`, `NumberUtils`, `DateConverter`, `AmountFormat` |
+
+Mesures :
+
+| Contrôle | JDK 11 | JDK 17 |
+|---|---|---|
+| 40 états de `dev`, sans le correctif | référence | **34 / 40 différents** |
+| 40 états de `dev`, avec le correctif | **40 / 40 identiques** | **40 / 40 identiques** à la référence JDK 11 |
+| Montants des PDF OpenPDF | U+00A0 avant et après | U+202F avant, U+00A0 après |
+| Tests unitaires (dont 7 nouveaux) | 1069 / 1069 | 1069 / 1069 |
+
+À vérifier sur chaque site avant la mise en production, dans le dossier des états :
+`findstr /s /m /i "formatFactoryClass DecimalFormat NumberFormat" D:\CONF\LABOREX\REPORTS\*.jrxml`.
+- Un état qui déclare `formatFactoryClass` : la fabrique de l'application le remplacerait, à examiner.
+- Un état qui formate en Java dans une expression : à corriger comme les quatre états embarqués.
+- Un des quatre états embarqués présent dans ce dossier : y copier la version corrigée et supprimer son `.jasper`.
+
 **Passerelle de secours**, à n'utiliser que si le correctif devait attendre : l'option
 `-Djava.locale.providers=COMPAT,CLDR` sur le serveur JDK 17 (13/13 mesurés). À retirer dès le
 correctif en place.

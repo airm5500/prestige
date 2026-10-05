@@ -1,0 +1,1016 @@
+From 88bdde22f0bca1ea4159de71af32604056e5bb36 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 12:54:59 +0000
+Subject: [PATCH] Separateurs de milliers identiques sur JDK 11 et JDK 17
+
+A partir du JDK 13, la locale francaise separe les milliers par une espace
+fine (U+202F) au lieu de l'espace insecable (U+00A0). La police des etats
+(Helvetica, Cp1252) ne la connait pas : 1 234 567 s'imprimait 1234567.
+
+- util.SeparateurMilliers : fabrique de formats JasperReports qui remet
+  l'espace insecable, et corrections pour les textes et formats Java ;
+- les 37 remplissages d'etats lui passent la fabrique (REPORT_FORMAT_FACTORY),
+  sur une copie des parametres ;
+- les montants formates en Java (PDF OpenPDF, analyses) sont corriges ;
+- 4 etats embarques : 6 expressions DecimalFormat corrigees dans le jrxml.
+
+Sur JDK 11, rien ne change : le JDK y produit deja l'espace insecable.
+Mesure : 40 etats identiques a la reference JDK 11, sur JDK 11 comme sur
+JDK 17 (34 differaient sur JDK 17 sans le correctif) ; 1069 tests verts
+sur les deux JDK.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ .../java/bll/report/JsonDataSourceApp.java    |  14 +-
+ src/main/java/job/InvoiceServlet.java         |   8 +-
+ src/main/java/report/reportManager.java       |  35 ++---
+ .../java/rest/AnalyseArticleRessource.java    |  11 +-
+ src/main/java/rest/CaZoneGeoRessource.java    |  11 +-
+ src/main/java/rest/report/ReportUtil.java     |  28 ++--
+ .../rest/report/ReserveReportBuilder.java     |   5 +-
+ .../report/pdf/EditionMouvementsCaisse.java   |   3 +-
+ .../report/pdf/FactureCarnetDepotPdf.java     |   3 +-
+ .../report/pdf/RecapCaisseRecettePdf.java     |   3 +-
+ .../service/impl/AbcAnalysisServiceImpl.java  |   4 +-
+ .../impl/AnalyseInvExportServiceImpl.java     |   7 +-
+ .../rest/service/impl/BalanceServiceImpl.java |   5 +-
+ .../service/impl/DepotExtensionService.java   |   4 +-
+ .../service/impl/ListDesBonServiceImpl.java   |   3 +-
+ .../service/impl/OrdonnanceClientService.java |   4 +-
+ .../rest/service/impl/PilotageService.java    |  10 +-
+ .../service/impl/PointDepotServiceImpl.java   |   3 +-
+ .../impl/StockReserveEditionService.java      |   4 +-
+ src/main/java/util/SeparateurMilliers.java    | 100 +++++++++++++++
+ .../resources/reports/analyse_article.jrxml   |   2 +-
+ .../reports/balance_analyse_comparative.jrxml |   4 +-
+ .../resources/reports/garde_activite.jrxml    |   2 +-
+ .../resources/reports/ventes_modifiees.jrxml  |   2 +-
+ .../java/util/SeparateurMilliersTest.java     | 120 ++++++++++++++++++
+ 25 files changed, 329 insertions(+), 66 deletions(-)
+ create mode 100644 src/main/java/util/SeparateurMilliers.java
+ create mode 100644 src/test/java/util/SeparateurMilliersTest.java
+
+diff --git a/src/main/java/bll/report/JsonDataSourceApp.java b/src/main/java/bll/report/JsonDataSourceApp.java
+index ec44efc..868677c 100644
+--- a/src/main/java/bll/report/JsonDataSourceApp.java
++++ b/src/main/java/bll/report/JsonDataSourceApp.java
+@@ -49,6 +49,7 @@ import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
+ import org.json.JSONException;
+ import org.json.JSONObject;
+ import toolkits.utils.jdom;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -104,7 +105,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
+             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
+             params.put("TPSHORTNAME", TPSHORTNAME);
+             params.put("seconLabel", seconLabel);
+-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper", params);
++            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper",
++                    SeparateurMilliers.parametres(params));
+             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
+         } catch (JSONException ex) {
+             Logger.getLogger(JsonDataSourceApp.class.getName()).log(Level.SEVERE, null, ex);
+@@ -141,7 +143,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
+             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
+             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, new FileInputStream(new File("D:\\invoice.json")));
+             // params.put(JSon, Locale.FRANCE);
+-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper", params);
++            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper",
++                    SeparateurMilliers.parametres(params));
+             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
+         } catch (FileNotFoundException ex) {
+             Logger.getLogger(JsonDataSourceApp.class.getName()).log(Level.SEVERE, null, ex);
+@@ -422,7 +425,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
+             JasperReport jasperReport = JasperCompileManager
+                     .compileReport(jdom.scr_report_file + "rp_complementaire.jrxml");
+             // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(params));
+             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
+ 
+         } catch (JSONException ex) {
+@@ -450,7 +453,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
+             params.put("TPSHORTNAME", TPSHORTNAME);
+             params.put("seconLabel", seconLabel);
+ 
+-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
++            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper",
++                    SeparateurMilliers.parametres(params));
+             // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
+ 
+             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
+@@ -472,7 +476,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
+             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
+             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
+             pathName = jdom.scr_report_pdf + fileName;
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(params));
+             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
+             // JasperFillManager.fillReportToFile(scr_report_file, params);
+ 
+diff --git a/src/main/java/job/InvoiceServlet.java b/src/main/java/job/InvoiceServlet.java
+index 523ee01..ccb2c27 100644
+--- a/src/main/java/job/InvoiceServlet.java
++++ b/src/main/java/job/InvoiceServlet.java
+@@ -60,6 +60,7 @@ import toolkits.utils.conversion;
+ import toolkits.utils.date;
+ import toolkits.utils.jdom;
+ import util.Constant;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -543,7 +544,7 @@ public class InvoiceServlet extends HttpServlet {
+             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
+             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
+             // pathName = jdom.scr_report_pdf + fileName;
+-            jasperPrint = JasperFillManager.fillReport(jasperReport, params);
++            jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(params));
+             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
+             // JasperFillManager.fillReportToFile(scr_report_file, params);
+ 
+@@ -835,7 +836,8 @@ public class InvoiceServlet extends HttpServlet {
+             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
+             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
+             // pathName = jdom.scr_report_pdf + fileName;
+-            jasperPrint = JasperFillManager.fillReport(jasperReport, params, Ojconnexion);
++            jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(params),
++                    Ojconnexion);
+             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
+             // JasperFillManager.fillReportToFile(scr_report_file, params);
+ 
+@@ -866,7 +868,7 @@ public class InvoiceServlet extends HttpServlet {
+ 
+             // jdom.scr_report_file + "rp_complementaire.jrxml"
+             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
+-            jasperPrint = JasperFillManager.fillReport(jasperReport, params);
++            jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(params));
+         } catch (JSONException ex) {
+             Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
+         }
+diff --git a/src/main/java/report/reportManager.java b/src/main/java/report/reportManager.java
+index c802e06..0b1b636 100644
+--- a/src/main/java/report/reportManager.java
++++ b/src/main/java/report/reportManager.java
+@@ -22,6 +22,7 @@ import net.sf.jasperreports.engine.export.JRXlsExporter;
+ import net.sf.jasperreports.engine.export.JRXlsExporterParameter;
+ import net.sf.jasperreports.engine.xml.JRXmlLoader;
+ import toolkits.utils.logger;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -56,8 +57,8 @@ public class reportManager {
+             //
+ 
+             // - Execution du rapport
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    getOjconnexion().get_StringConnexion());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), getOjconnexion().get_StringConnexion());
+             //
+             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+ 
+@@ -77,8 +78,8 @@ public class reportManager {
+             // - Paramètres à envoyer au rapport
+ 
+             // - Execution du rapport
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    Ojconnexion.get_StringConnexion());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), Ojconnexion.get_StringConnexion());
+             // - Création du rapport au format PDF
+             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+ 
+@@ -98,8 +99,8 @@ public class reportManager {
+             // - Paramètres à envoyer au rapport
+ 
+             // - Execution du rapport
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    Ojconnexion.get_StringConnexion());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), Ojconnexion.get_StringConnexion());
+             // - Création du rapport au format PDF
+             // JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+ 
+@@ -122,8 +123,8 @@ public class reportManager {
+             // - Paramètres à envoyer au rapport
+ 
+             // - Execution du rapport
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    getOjconnexion().get_StringConnexion());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), getOjconnexion().get_StringConnexion());
+             // - Création du rapport au format PDF
+             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+ 
+@@ -143,8 +144,8 @@ public class reportManager {
+             // - Paramètres à envoyer au rapport
+ 
+             // - Execution du rapport
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    Ojconnexion.get_StringConnexion());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), Ojconnexion.get_StringConnexion());
+             // - Création du rapport au format PDF
+             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+ 
+@@ -165,10 +166,10 @@ public class reportManager {
+             File reportFile = new File(this.getPath_report_src());
+             String path = reportFile.getAbsolutePath();
+ 
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters,
+-                    getOjconnexion().get_StringConnexion());
+-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
++            JasperPrint jasperPrint = JasperFillManager.fillReport(path, SeparateurMilliers.parametres(parameters),
+                     getOjconnexion().get_StringConnexion());
++            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(),
++                    SeparateurMilliers.parametres(parameters), getOjconnexion().get_StringConnexion());
+             File destFile = new File(this.getPath_report_XLS());
+             JRXlsExporter exporter = new JRXlsExporter();
+             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
+@@ -198,9 +199,10 @@ public class reportManager {
+             File reportFile = new File(this.getPath_report_src());
+             String path = reportFile.getAbsolutePath();
+ 
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters, Ojconnexion.get_StringConnexion());
+-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
++            JasperPrint jasperPrint = JasperFillManager.fillReport(path, SeparateurMilliers.parametres(parameters),
+                     Ojconnexion.get_StringConnexion());
++            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(),
++                    SeparateurMilliers.parametres(parameters), Ojconnexion.get_StringConnexion());
+             File destFile = new File(this.getPath_report_XLS());
+             JRXlsExporter exporter = new JRXlsExporter();
+             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
+@@ -291,7 +293,8 @@ public class reportManager {
+             JasperReport jasperReport = JasperCompileManager.compileReport(this.getPath_report_src());
+             // - Paramètres à envoyer au rapport
+             // JasperReport jasperReport = (JasperReport) JRLoader.loadObject(sourceFile);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), new JREmptyDataSource());
+             // - Execution du rapport
+             // JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new
+             // JREmptyDataSource());
+diff --git a/src/main/java/rest/AnalyseArticleRessource.java b/src/main/java/rest/AnalyseArticleRessource.java
+index efec60d..0da45ae 100644
+--- a/src/main/java/rest/AnalyseArticleRessource.java
++++ b/src/main/java/rest/AnalyseArticleRessource.java
+@@ -34,6 +34,7 @@ import rest.service.InventaireService;
+ import rest.service.impl.AnalyseArticle;
+ import util.Constant;
+ import util.PeriodesCa;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Analyse article : matrice marge x rotation (avec ses decisions pratiques), produits achetes ensemble, exports Excel,
+@@ -321,10 +322,12 @@ public class AnalyseArticleRessource {
+                 sb.append('\n');
+             }
+             sb.append(q.optString("libelle")).append(" : ").append(q.optLong("produits")).append(" produit(s), CA ")
+-                    .append(String.format("%,d", q.optLong("montant")).replace(',', ' ')).append(", marge ")
+-                    .append(String.format("%,d", q.optLong("marge")).replace(',', ' ')).append(", stock ")
+-                    .append(String.format("%,d", q.optLong("valeurStock")).replace(',', ' ')).append(" - ")
+-                    .append(q.optString("decision"));
++                    .append(SeparateurMilliers.corriger(String.format("%,d", q.optLong("montant"))).replace(',', ' '))
++                    .append(", marge ")
++                    .append(SeparateurMilliers.corriger(String.format("%,d", q.optLong("marge"))).replace(',', ' '))
++                    .append(", stock ").append(SeparateurMilliers
++                            .corriger(String.format("%,d", q.optLong("valeurStock"))).replace(',', ' '))
++                    .append(" - ").append(q.optString("decision"));
+         }
+         return sb.toString();
+     }
+diff --git a/src/main/java/rest/CaZoneGeoRessource.java b/src/main/java/rest/CaZoneGeoRessource.java
+index be21e3e..fcc6ab2 100644
+--- a/src/main/java/rest/CaZoneGeoRessource.java
++++ b/src/main/java/rest/CaZoneGeoRessource.java
+@@ -25,6 +25,7 @@ import rest.service.CaZoneGeoService.Regroupement;
+ import rest.service.utils.ReportExcelExportService;
+ import util.Constant;
+ import util.PeriodesCa;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Chiffre d'affaires par zone geographique et famille d'articles, avec comparaison de periodes (point 3).
+@@ -261,11 +262,11 @@ public class CaZoneGeoRessource {
+                         + tranches.length() + " tranche" + (tranches.length() > 1 ? "s" : "") + " ("
+                         + libelleGranularite(json.optString("granularite")) + ")" + filtresTexte(json, filtres));
+         Object evolution = json.opt("evolutionGenerale");
+-        parametres.put("P_INDICATEURS",
+-                "CA total : " + String.format("%,d", json.optLong("totalGeneral")).replace(',', ' ')
+-                        + "   |   Évolution entre la première et la dernière tranche : " + (evolution instanceof Number
+-                                ? String.format("%+.1f %%", ((Number) evolution).doubleValue()) : "-")
+-                        + "   |   " + data.length() + " ligne" + (data.length() > 1 ? "s" : ""));
++        parametres.put("P_INDICATEURS", "CA total : "
++                + SeparateurMilliers.corriger(String.format("%,d", json.optLong("totalGeneral"))).replace(',', ' ')
++                + "   |   Évolution entre la première et la dernière tranche : "
++                + (evolution instanceof Number ? String.format("%+.1f %%", ((Number) evolution).doubleValue()) : "-")
++                + "   |   " + data.length() + " ligne" + (data.length() > 1 ? "s" : ""));
+         parametres.put("P_LIBELLES", libelles);
+         parametres.put("P_EVOLUTIONS", evolutions);
+         parametres.put("P_COURBE", courbe);
+diff --git a/src/main/java/rest/report/ReportUtil.java b/src/main/java/rest/report/ReportUtil.java
+index eb1bf25..3039662 100644
+--- a/src/main/java/rest/report/ReportUtil.java
++++ b/src/main/java/rest/report/ReportUtil.java
+@@ -51,6 +51,7 @@ import org.apache.commons.lang3.StringUtils;
+ import toolkits.parameters.commonparameter;
+ import toolkits.utils.jdom;
+ import util.DateConverter;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -233,7 +234,8 @@ public class ReportUtil {
+     public void buildReportEmptyDs(Map<String, Object> parameters, String reportName, String path, String pdfPath) {
+         try {
+             JasperReport jasperReport = getReport(reportName, path);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), new JREmptyDataSource());
+             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
+ 
+         } catch (JRException e) {
+@@ -247,7 +249,8 @@ public class ReportUtil {
+     public void buildReportEmptyDs(Map<String, Object> parameters, String path, String pdfPath) {
+         try {
+             JasperReport jasperReport = JasperCompileManager.compileReport(path);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), new JREmptyDataSource());
+             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
+ 
+         } catch (JRException e) {
+@@ -317,7 +320,8 @@ public class ReportUtil {
+         try {
+             JasperReport jasperReport = getReport(reportName, path);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
+         } catch (JRException e) {
+             LOG.log(Level.SEVERE, null, e);
+@@ -405,7 +409,8 @@ public class ReportUtil {
+             printRequestAttributeSet.add(MediaSizeName.ISO_A4);
+             JasperReport jasperReport = getReport(reportName, path);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+             JRPrintServiceExporter exporter = new JRPrintServiceExporter();
+ 
+             exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+@@ -430,7 +435,8 @@ public class ReportUtil {
+         try {
+             JasperReport jasperReport = getReport(reportName, path);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+             JRDocxExporter exporter = new JRDocxExporter();
+             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
+             exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfPath));
+@@ -448,7 +454,8 @@ public class ReportUtil {
+         try {
+             JasperReport jasperReport = getReport(reportName, path);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+ 
+             JRXlsxExporter exporter = new JRXlsxExporter();
+             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
+@@ -470,7 +477,8 @@ public class ReportUtil {
+         try {
+             JasperReport jasperReport = getReport(reportName, path);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+ 
+             JRXlsxExporter exporter = new JRXlsxExporter();
+             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
+@@ -523,7 +531,8 @@ public class ReportUtil {
+         try {
+             JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
+             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), dataSource);
+             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getReportDirectory(fileName));
+         } catch (JRException | RuntimeException e) {
+             // Le message etait litteralement "null" : le journal ne disait meme pas QUEL etat avait
+@@ -575,7 +584,8 @@ public class ReportUtil {
+             for (String reportName : reportNames) {
+                 JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
+                 JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+-                prints.add(JasperFillManager.fillReport(jasperReport, parameters, dataSource));
++                prints.add(JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(parameters),
++                        dataSource));
+             }
+             net.sf.jasperreports.engine.export.JRPdfExporter exporter = new net.sf.jasperreports.engine.export.JRPdfExporter();
+             exporter.setExporterInput(SimpleExporterInput.getInstance(prints));
+diff --git a/src/main/java/rest/report/ReserveReportBuilder.java b/src/main/java/rest/report/ReserveReportBuilder.java
+index a361578..50d577c 100644
+--- a/src/main/java/rest/report/ReserveReportBuilder.java
++++ b/src/main/java/rest/report/ReserveReportBuilder.java
+@@ -14,6 +14,7 @@ import net.sf.jasperreports.engine.JasperPrint;
+ import net.sf.jasperreports.engine.JasperReport;
+ import net.sf.jasperreports.engine.design.JasperDesign;
+ import net.sf.jasperreports.engine.xml.JRXmlLoader;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Generation des PDF de la gestion des reserves.
+@@ -54,7 +55,7 @@ public final class ReserveReportBuilder {
+         JasperDesign design = JRXmlLoader.load(jrxmlPath);
+         JasperReport report = JasperCompileManager.compileReport(design);
+         try (Connection cx = ds.getConnection()) {
+-            JasperPrint print = JasperFillManager.fillReport(report, parameters, cx);
++            JasperPrint print = JasperFillManager.fillReport(report, SeparateurMilliers.parametres(parameters), cx);
+             JasperExportManager.exportReportToPdfFile(print, pdfPath);
+         }
+         LOG.log(Level.INFO, "PDF reserve genere : {0}", pdfPath);
+@@ -77,7 +78,7 @@ public final class ReserveReportBuilder {
+             net.sf.jasperreports.engine.JRDataSource dataSource) throws Exception {
+         JasperDesign design = JRXmlLoader.load(modele);
+         JasperReport report = JasperCompileManager.compileReport(design);
+-        JasperPrint print = JasperFillManager.fillReport(report, parameters, dataSource);
++        JasperPrint print = JasperFillManager.fillReport(report, SeparateurMilliers.parametres(parameters), dataSource);
+         byte[] pdf = JasperExportManager.exportReportToPdf(print);
+         LOG.log(Level.INFO, "PDF memoire genere : {0} octets", pdf.length);
+         return pdf;
+diff --git a/src/main/java/rest/report/pdf/EditionMouvementsCaisse.java b/src/main/java/rest/report/pdf/EditionMouvementsCaisse.java
+index a46330a..089fba4 100644
+--- a/src/main/java/rest/report/pdf/EditionMouvementsCaisse.java
++++ b/src/main/java/rest/report/pdf/EditionMouvementsCaisse.java
+@@ -30,7 +30,8 @@ public final class EditionMouvementsCaisse {
+         if (resume == null || resume.getModes() == null || resume.getModes().isEmpty()) {
+             return "";
+         }
+-        java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE);
++        java.text.NumberFormat nf = util.SeparateurMilliers
++                .corriger(java.text.NumberFormat.getIntegerInstance(java.util.Locale.FRANCE));
+         StringBuilder sb = new StringBuilder("Par mode de règlement : ");
+         boolean premier = true;
+         for (MvtCaisseModeDTO m : resume.getModes()) {
+diff --git a/src/main/java/rest/report/pdf/FactureCarnetDepotPdf.java b/src/main/java/rest/report/pdf/FactureCarnetDepotPdf.java
+index f56134c..6647d67 100644
+--- a/src/main/java/rest/report/pdf/FactureCarnetDepotPdf.java
++++ b/src/main/java/rest/report/pdf/FactureCarnetDepotPdf.java
+@@ -20,6 +20,7 @@ import com.lowagie.text.pdf.PdfPTable;
+ import com.lowagie.text.pdf.PdfWriter;
+ 
+ import commonTasks.dto.FactureDetailDTO;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Edition d'une facture de carnet depot, SANS le detail des medicaments (point 17).
+@@ -150,7 +151,7 @@ public final class FactureCarnetDepotPdf {
+     }
+ 
+     public static String montant(long valeur) {
+-        return String.format("%,d", valeur).replace(',', ' ');
++        return SeparateurMilliers.corriger(String.format("%,d", valeur)).replace(',', ' ');
+     }
+ 
+     private static String nz(String valeur) {
+diff --git a/src/main/java/rest/report/pdf/RecapCaisseRecettePdf.java b/src/main/java/rest/report/pdf/RecapCaisseRecettePdf.java
+index 2d41d90..2e4c643 100644
+--- a/src/main/java/rest/report/pdf/RecapCaisseRecettePdf.java
++++ b/src/main/java/rest/report/pdf/RecapCaisseRecettePdf.java
+@@ -20,6 +20,7 @@ import com.lowagie.text.pdf.PdfPTable;
+ import com.lowagie.text.pdf.PdfWriter;
+ 
+ import rest.service.dto.StatCaisseRecetteDTO;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Edition PDF du recapitulatif caisse / recette (point 16).
+@@ -194,7 +195,7 @@ public final class RecapCaisseRecettePdf {
+     }
+ 
+     public static String montant(long valeur) {
+-        return String.format("%,d", valeur).replace(',', ' ');
++        return SeparateurMilliers.corriger(String.format("%,d", valeur)).replace(',', ' ');
+     }
+ 
+     private static PdfPCell cellule(String texte, Font police, boolean aDroite) {
+diff --git a/src/main/java/rest/service/impl/AbcAnalysisServiceImpl.java b/src/main/java/rest/service/impl/AbcAnalysisServiceImpl.java
+index 894193d..ebb2500 100644
+--- a/src/main/java/rest/service/impl/AbcAnalysisServiceImpl.java
++++ b/src/main/java/rest/service/impl/AbcAnalysisServiceImpl.java
+@@ -48,6 +48,7 @@ import rest.service.SuggestionService;
+ import rest.service.utils.CsvExportService;
+ import rest.service.utils.ReportExcelExportService;
+ import commonTasks.dto.VenteDetailsDTO;
++import util.SeparateurMilliers;
+ 
+ @Stateless
+ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
+@@ -1532,7 +1533,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
+             net.sf.jasperreports.engine.JasperReport report = reportUtil.getReport("rp_feuille_de_match",
+                     toolkits.utils.jdom.scr_report_file);
+             net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(
+-                    report, parameters, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
++                    report, SeparateurMilliers.parametres(parameters),
++                    new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+             byte[] pdf = net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(print);
+             // Copie dans le repertoire commun des PDF generes (data/reports/pdf),
+             // comme les autres impressions de l'application.
+diff --git a/src/main/java/rest/service/impl/AnalyseInvExportServiceImpl.java b/src/main/java/rest/service/impl/AnalyseInvExportServiceImpl.java
+index a8c823e..ef25621 100644
+--- a/src/main/java/rest/service/impl/AnalyseInvExportServiceImpl.java
++++ b/src/main/java/rest/service/impl/AnalyseInvExportServiceImpl.java
+@@ -39,6 +39,7 @@ import rest.service.AnalyseInvService;
+ import rest.service.SessionHelperService;
+ import rest.service.dto.AnalyseInvDTO;
+ import rest.service.dto.BalanceEditionLigneDTO;
++import util.SeparateurMilliers;
+ 
+ @Stateless
+ public class AnalyseInvExportServiceImpl implements AnalyseInvExportService {
+@@ -107,8 +108,8 @@ public class AnalyseInvExportServiceImpl implements AnalyseInvExportService {
+         parametres.put("P_ENTETES", AnalyseInventaireSynthese.entetes());
+         try {
+             JasperReport jasperReport = reportUtil.getReport(modele, toolkits.utils.jdom.scr_report_file);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parametres,
+-                    new JRBeanCollectionDataSource(lignes));
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parametres), new JRBeanCollectionDataSource(lignes));
+             try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                 JRPdfExporter exporter = new JRPdfExporter();
+                 exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+@@ -247,7 +248,7 @@ public class AnalyseInvExportServiceImpl implements AnalyseInvExportService {
+         summaryData.sort(Comparator.comparing(m -> (String) m.get("emplacement")));
+ 
+         Map<String, Object> globalSummary = new HashMap<>();
+-        DecimalFormat moneyFormat = new DecimalFormat("#,##0 'FCFA'");
++        DecimalFormat moneyFormat = SeparateurMilliers.corriger(new DecimalFormat("#,##0 'FCFA'"));
+         double totalValeurAchatMachine = summaryData.stream().mapToDouble(m -> (double) m.get("valeurAchatMachine"))
+                 .sum();
+         double totalEcartNet = summaryData.stream().mapToDouble(m -> (double) m.get("ecartValeurAchat")).sum();
+diff --git a/src/main/java/rest/service/impl/BalanceServiceImpl.java b/src/main/java/rest/service/impl/BalanceServiceImpl.java
+index df68db7..0313f51 100644
+--- a/src/main/java/rest/service/impl/BalanceServiceImpl.java
++++ b/src/main/java/rest/service/impl/BalanceServiceImpl.java
+@@ -60,6 +60,7 @@ import org.json.JSONException;
+ import org.json.JSONObject;
+ import rest.service.MagasinService;
+ import util.FunctionUtils;
++import util.SeparateurMilliers;
+ 
+ /**
+  * @author koben
+@@ -1855,8 +1856,8 @@ public class BalanceServiceImpl implements BalanceService {
+             String reportPath = reportDirectory + reportFileName;
+             InputStream reportStream = new FileInputStream(reportPath);
+             JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+-                    new JRBeanCollectionDataSource(reportData));
++            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
++                    SeparateurMilliers.parametres(parameters), new JRBeanCollectionDataSource(reportData));
+             return JasperExportManager.exportReportToPdf(jasperPrint);
+ 
+         } catch (Exception e) {
+diff --git a/src/main/java/rest/service/impl/DepotExtensionService.java b/src/main/java/rest/service/impl/DepotExtensionService.java
+index 3b9d30e..4ed7442 100644
+--- a/src/main/java/rest/service/impl/DepotExtensionService.java
++++ b/src/main/java/rest/service/impl/DepotExtensionService.java
+@@ -35,6 +35,7 @@ import rest.service.BalanceService;
+ import rest.service.dto.DepotCaLigneDTO;
+ import rest.service.dto.DepotEmplacementLigneDTO;
+ import rest.service.dto.DepotStockLigneDTO;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Depots d'extension (evolution 5, point 1) : ce que le depot detient, et ce que cela vaut.
+@@ -471,7 +472,8 @@ public class DepotExtensionService {
+         if (modele == null) {
+             throw new JRException("Modele embarque " + modeleNom + ".jrxml introuvable dans l'application");
+         }
+-        JasperPrint print = JasperFillManager.fillReport(modele, parametres, new JRBeanCollectionDataSource(lignes));
++        JasperPrint print = JasperFillManager.fillReport(modele, SeparateurMilliers.parametres(parametres),
++                new JRBeanCollectionDataSource(lignes));
+         try (ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
+             JRPdfExporter exporteur = new JRPdfExporter();
+             exporteur.setExporterInput(new SimpleExporterInput(print));
+diff --git a/src/main/java/rest/service/impl/ListDesBonServiceImpl.java b/src/main/java/rest/service/impl/ListDesBonServiceImpl.java
+index 37ec5e6..bdee1ce 100644
+--- a/src/main/java/rest/service/impl/ListDesBonServiceImpl.java
++++ b/src/main/java/rest/service/impl/ListDesBonServiceImpl.java
+@@ -30,6 +30,7 @@ import rest.service.dto.BonsTotauxDTO;
+ import util.DateCommonUtils;
+ import util.DateConverter;
+ import util.FunctionUtils;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -389,7 +390,7 @@ public class ListDesBonServiceImpl implements ListDesBonService {
+     }
+ 
+     private static String formatMontant(long montant) {
+-        return String.format("%,d", montant).replace(',', ' ') + " F";
++        return SeparateurMilliers.corriger(String.format("%,d", montant)).replace(',', ' ') + " F";
+     }
+ 
+     /** Produits (cip, libelle, quantite, montant) de chaque vente, en une seule requete par lot d'identifiants. */
+diff --git a/src/main/java/rest/service/impl/OrdonnanceClientService.java b/src/main/java/rest/service/impl/OrdonnanceClientService.java
+index 94ae25c..f443b58 100644
+--- a/src/main/java/rest/service/impl/OrdonnanceClientService.java
++++ b/src/main/java/rest/service/impl/OrdonnanceClientService.java
+@@ -28,6 +28,7 @@ import org.json.JSONArray;
+ import org.json.JSONObject;
+ import util.Constant;
+ import rest.service.impl.OrdonnanceClientSql.Criteres;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Ordonnances des clients (evolution 6, point 2, vague 1) : enregistrement, historique, consultation, annulation.
+@@ -772,7 +773,8 @@ public class OrdonnanceClientService {
+                     "Modele embarque " + modeleNom + ".jrxml introuvable dans l'application");
+         }
+         net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(modele,
+-                parametres, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
++                SeparateurMilliers.parametres(parametres),
++                new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+         try (java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream()) {
+             net.sf.jasperreports.engine.export.JRPdfExporter exporteur = new net.sf.jasperreports.engine.export.JRPdfExporter();
+             exporteur.setExporterInput(new net.sf.jasperreports.export.SimpleExporterInput(print));
+diff --git a/src/main/java/rest/service/impl/PilotageService.java b/src/main/java/rest/service/impl/PilotageService.java
+index 2088cd0..fa887f0 100644
+--- a/src/main/java/rest/service/impl/PilotageService.java
++++ b/src/main/java/rest/service/impl/PilotageService.java
+@@ -20,6 +20,7 @@ import org.json.JSONArray;
+ import org.json.JSONObject;
+ import rest.service.impl.PilotagePeriodes.Axe;
+ import rest.service.impl.PilotagePeriodes.Periode;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Menu de pilotage (evolution 6, point 1) : les chiffres de l'officine, mois par mois, et comparables.
+@@ -1018,8 +1019,10 @@ public class PilotageService {
+         }
+         long part = Math.round(meilleur * 100D / Math.max(1L, total));
+         return tuile("frequentation", "Heure de pointe", meilleureHeure, null, "h",
+-                String.format("%,d clients servis entre %02dh et %02dh, soit %d %% de la période", meilleur,
+-                        meilleureHeure, (meilleureHeure + 1) % 24, part).replace(',', ' '));
++                SeparateurMilliers
++                        .corriger(String.format("%,d clients servis entre %02dh et %02dh, soit %d %% de la période",
++                                meilleur, meilleureHeure, (meilleureHeure + 1) % 24, part))
++                        .replace(',', ' '));
+     }
+ 
+     private JSONArray frequentation(Periode periode) {
+@@ -1593,7 +1596,8 @@ public class PilotageService {
+             throw new net.sf.jasperreports.engine.JRException("Modele embarque " + MODELE + ".jrxml introuvable");
+         }
+         net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(modele,
+-                parametres, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
++                SeparateurMilliers.parametres(parametres),
++                new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+         try (java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream()) {
+             net.sf.jasperreports.engine.export.JRPdfExporter exporteur = new net.sf.jasperreports.engine.export.JRPdfExporter();
+             exporteur.setExporterInput(new net.sf.jasperreports.export.SimpleExporterInput(print));
+diff --git a/src/main/java/rest/service/impl/PointDepotServiceImpl.java b/src/main/java/rest/service/impl/PointDepotServiceImpl.java
+index 879cf2b..50a8282 100644
+--- a/src/main/java/rest/service/impl/PointDepotServiceImpl.java
++++ b/src/main/java/rest/service/impl/PointDepotServiceImpl.java
+@@ -26,6 +26,7 @@ import org.json.JSONObject;
+ import rest.service.PointDepotService;
+ import rest.service.dto.PointDepotDTO;
+ import util.Constant;
++import util.SeparateurMilliers;
+ 
+ /**
+  *
+@@ -130,7 +131,7 @@ public class PointDepotServiceImpl implements PointDepotService {
+         String reportPath = reportDirectory + reportName;
+         InputStream reportStream = new FileInputStream(reportPath);
+         JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+-        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
++        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, SeparateurMilliers.parametres(parameters),
+                 new JRBeanCollectionDataSource(data));
+ 
+         return JasperExportManager.exportReportToPdf(jasperPrint);
+diff --git a/src/main/java/rest/service/impl/StockReserveEditionService.java b/src/main/java/rest/service/impl/StockReserveEditionService.java
+index 1560da1..4af3090 100644
+--- a/src/main/java/rest/service/impl/StockReserveEditionService.java
++++ b/src/main/java/rest/service/impl/StockReserveEditionService.java
+@@ -24,6 +24,7 @@ import org.json.JSONArray;
+ import org.json.JSONObject;
+ import rest.report.ReportUtil;
+ import rest.service.dto.StockReserveLigneDTO;
++import util.SeparateurMilliers;
+ 
+ /**
+  * Edition « stock avec reserve » (evolution 5, point 4), partagee par « comparaison stock article » et « etat de stock
+@@ -136,7 +137,8 @@ public class StockReserveEditionService {
+         if (modele == null) {
+             throw new JRException("Modele embarque " + MODELE + ".jrxml introuvable dans l'application");
+         }
+-        JasperPrint print = JasperFillManager.fillReport(modele, parametres, new JRBeanCollectionDataSource(lignes));
++        JasperPrint print = JasperFillManager.fillReport(modele, SeparateurMilliers.parametres(parametres),
++                new JRBeanCollectionDataSource(lignes));
+         try (ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
+             JRPdfExporter exporteur = new JRPdfExporter();
+             exporteur.setExporterInput(new SimpleExporterInput(print));
+diff --git a/src/main/java/util/SeparateurMilliers.java b/src/main/java/util/SeparateurMilliers.java
+new file mode 100644
+index 0000000..495fc25
+--- /dev/null
++++ b/src/main/java/util/SeparateurMilliers.java
+@@ -0,0 +1,100 @@
++package util;
++
++import java.lang.reflect.Method;
++import java.text.DecimalFormat;
++import java.text.DecimalFormatSymbols;
++import java.text.NumberFormat;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++
++import net.sf.jasperreports.engine.JRParameter;
++import net.sf.jasperreports.engine.util.DefaultFormatFactory;
++
++/**
++ * Separateur de milliers identique quel que soit le JDK.
++ *
++ * Jusqu'au JDK 12, la locale francaise separe les milliers par une espace insecable (U+00A0). A partir du JDK 13, elle
++ * utilise une espace fine insecable (U+202F), que la police des etats (Helvetica, encodage Cp1252) ne connait pas : le
++ * caractere est supprime sans erreur et 1 234 567 devient 1234567.
++ *
++ * Cette classe remet l'espace insecable partout ou le JDK produirait l'espace fine. Sur JDK 11 elle ne change rien,
++ * puisque le JDK y produit deja l'espace insecable.
++ */
++public final class SeparateurMilliers {
++
++    public static final char ESPACE_INSECABLE = ' ';
++    public static final char ESPACE_FINE = ' ';
++
++    /** Fabrique de formats a passer aux etats ; sans etat interne, une seule instance suffit. */
++    public static final FabriqueFormats FABRIQUE = new FabriqueFormats();
++
++    /* Separateur de milliers monetaire, distinct depuis le JDK 15 : ces methodes n'existent pas sur JDK 11. */
++    private static final Method LIRE_MONETAIRE = methode("getMonetaryGroupingSeparator");
++    private static final Method ECRIRE_MONETAIRE = methode("setMonetaryGroupingSeparator", char.class);
++
++    private SeparateurMilliers() {
++    }
++
++    /** Remplace l'espace fine par l'espace insecable dans un texte deja formate. */
++    public static String corriger(String texte) {
++        return texte == null ? null : texte.replace(ESPACE_FINE, ESPACE_INSECABLE);
++    }
++
++    /** Corrige les symboles d'un format de nombre ; le meme objet est rendu, pour s'utiliser en ligne. */
++    public static <T extends NumberFormat> T corriger(T format) {
++        if (format instanceof DecimalFormat) {
++            DecimalFormat df = (DecimalFormat) format;
++            DecimalFormatSymbols symboles = df.getDecimalFormatSymbols();
++            boolean modifie = false;
++            if (symboles.getGroupingSeparator() == ESPACE_FINE) {
++                symboles.setGroupingSeparator(ESPACE_INSECABLE);
++                modifie = true;
++            }
++            if (LIRE_MONETAIRE != null && ECRIRE_MONETAIRE != null) {
++                try {
++                    if (Character.valueOf(ESPACE_FINE).equals(LIRE_MONETAIRE.invoke(symboles))) {
++                        ECRIRE_MONETAIRE.invoke(symboles, ESPACE_INSECABLE);
++                        modifie = true;
++                    }
++                } catch (ReflectiveOperationException e) {
++                    throw new IllegalStateException(e);
++                }
++            }
++            if (modifie) {
++                df.setDecimalFormatSymbols(symboles);
++            }
++        }
++        return format;
++    }
++
++    /**
++     * Parametres d'un etat avec la fabrique de formats. Copie la table recue sans la modifier ; une fabrique deja
++     * fournie par l'appelant est conservee.
++     */
++    public static Map<String, Object> parametres(Map<String, ?> parametres) {
++        Map<String, Object> copie = parametres == null ? new HashMap<>() : new HashMap<>(parametres);
++        copie.putIfAbsent(JRParameter.REPORT_FORMAT_FACTORY, FABRIQUE);
++        return copie;
++    }
++
++    private static Method methode(String nom, Class<?>... types) {
++        try {
++            return DecimalFormatSymbols.class.getMethod(nom, types);
++        } catch (NoSuchMethodException e) {
++            return null;
++        }
++    }
++
++    /**
++     * Formats des etats JasperReports : ceux de JasperReports, separateur de milliers corrige. Les sous-rapports en
++     * heritent, sauf s'ils declarent leur propre formatFactoryClass.
++     */
++    public static final class FabriqueFormats extends DefaultFormatFactory {
++
++        @Override
++        public NumberFormat createNumberFormat(String pattern, Locale locale) {
++            return corriger(super.createNumberFormat(pattern, locale));
++        }
++    }
++}
+diff --git a/src/main/resources/reports/analyse_article.jrxml b/src/main/resources/reports/analyse_article.jrxml
+index c9481cb..ce52085 100644
+--- a/src/main/resources/reports/analyse_article.jrxml
++++ b/src/main/resources/reports/analyse_article.jrxml
+@@ -117,7 +117,7 @@
+             <textField pattern="#,##0.0" isBlankWhenNull="true"><reportElement x="581" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{tauxMarge}]]></textFieldExpression></textField>
+             <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="628" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression></textField>
+             <textField pattern="#,##0.00" isBlankWhenNull="true"><reportElement x="675" y="0" width="50" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{rotation}]]></textFieldExpression></textField>
+-            <textField isBlankWhenNull="true"><reportElement x="727" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{couverture} < 0 ? "∞" : new java.text.DecimalFormat("#,##0.0").format($F{couverture})]]></textFieldExpression></textField>
++            <textField isBlankWhenNull="true"><reportElement x="727" y="0" width="45" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{couverture} < 0 ? "∞" : new java.text.DecimalFormat("#,##0.0").format($F{couverture}).replace('\u202F', '\u00A0')]]></textFieldExpression></textField>
+             <textField isBlankWhenNull="true"><reportElement x="774" y="0" width="28" height="12"/><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{classe}]]></textFieldExpression></textField>
+         </band>
+     </detail>
+diff --git a/src/main/resources/reports/balance_analyse_comparative.jrxml b/src/main/resources/reports/balance_analyse_comparative.jrxml
+index 733c2ea..71ae88c 100644
+--- a/src/main/resources/reports/balance_analyse_comparative.jrxml
++++ b/src/main/resources/reports/balance_analyse_comparative.jrxml
+@@ -227,12 +227,12 @@
+             <textField isBlankWhenNull="true">
+                 <reportElement x="695" y="0" width="58" height="14" style="ecart"/>
+                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+-                <textFieldExpression><![CDATA[$F{ecart} == null ? null : ($F{ecart} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0").format($F{ecart})]]></textFieldExpression>
++                <textFieldExpression><![CDATA[$F{ecart} == null ? null : ($F{ecart} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0").format($F{ecart}).replace('\u202F', '\u00A0')]]></textFieldExpression>
+             </textField>
+             <textField isBlankWhenNull="true">
+                 <reportElement x="753" y="0" width="45" height="14" style="ecart"/>
+                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="6.5"/></textElement>
+-                <textFieldExpression><![CDATA[$F{ecartPourcentage} == null ? null : ($F{ecartPourcentage} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0.00").format($F{ecartPourcentage}) + " %"]]></textFieldExpression>
++                <textFieldExpression><![CDATA[$F{ecartPourcentage} == null ? null : ($F{ecartPourcentage} > 0 ? "+" : "") + new java.text.DecimalFormat("#,##0.00").format($F{ecartPourcentage}).replace('\u202F', '\u00A0') + " %"]]></textFieldExpression>
+             </textField>
+         </band>
+     </detail>
+diff --git a/src/main/resources/reports/garde_activite.jrxml b/src/main/resources/reports/garde_activite.jrxml
+index 14ae014..ac380c3 100644
+--- a/src/main/resources/reports/garde_activite.jrxml
++++ b/src/main/resources/reports/garde_activite.jrxml
+@@ -150,7 +150,7 @@
+             <textField>
+                 <reportElement x="0" y="4" width="555" height="14"/>
+                 <textElement><font size="8" isBold="true"/></textElement>
+-                <textFieldExpression><![CDATA["Total : " + $V{V_CLIENTS} + " client(s), " + new java.text.DecimalFormat("#,##0").format($V{V_MONTANT}) + " de chiffre d'affaires"]]></textFieldExpression>
++                <textFieldExpression><![CDATA["Total : " + $V{V_CLIENTS} + " client(s), " + new java.text.DecimalFormat("#,##0").format($V{V_MONTANT}).replace('\u202F', '\u00A0') + " de chiffre d'affaires"]]></textFieldExpression>
+             </textField>
+         </band>
+     </summary>
+diff --git a/src/main/resources/reports/ventes_modifiees.jrxml b/src/main/resources/reports/ventes_modifiees.jrxml
+index 24648f8..4b155e9 100644
+--- a/src/main/resources/reports/ventes_modifiees.jrxml
++++ b/src/main/resources/reports/ventes_modifiees.jrxml
+@@ -77,7 +77,7 @@
+                     <textField pattern="#,##0" isBlankWhenNull="true">
+                         <reportElement x="630" y="0" width="170" height="16"/>
+                         <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+-                        <textFieldExpression><![CDATA["Montant : " + new java.text.DecimalFormat("#,##0").format($F{montantAvant}) + "  ->  " + new java.text.DecimalFormat("#,##0").format($F{montantApres})]]></textFieldExpression>
++                        <textFieldExpression><![CDATA["Montant : " + new java.text.DecimalFormat("#,##0").format($F{montantAvant}).replace('\u202F', '\u00A0') + "  ->  " + new java.text.DecimalFormat("#,##0").format($F{montantApres}).replace('\u202F', '\u00A0')]]></textFieldExpression>
+                     </textField>
+                 </frame>
+                 <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+diff --git a/src/test/java/util/SeparateurMilliersTest.java b/src/test/java/util/SeparateurMilliersTest.java
+new file mode 100644
+index 0000000..dabbf8b
+--- /dev/null
++++ b/src/test/java/util/SeparateurMilliersTest.java
+@@ -0,0 +1,120 @@
++package util;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertSame;
++
++import java.io.ByteArrayInputStream;
++import java.nio.charset.StandardCharsets;
++import java.text.DecimalFormat;
++import java.text.NumberFormat;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++
++import org.junit.jupiter.api.Test;
++
++import net.sf.jasperreports.engine.JREmptyDataSource;
++import net.sf.jasperreports.engine.JRParameter;
++import net.sf.jasperreports.engine.JRPrintText;
++import net.sf.jasperreports.engine.JasperCompileManager;
++import net.sf.jasperreports.engine.JasperFillManager;
++import net.sf.jasperreports.engine.JasperPrint;
++import net.sf.jasperreports.engine.JasperReport;
++import net.sf.jasperreports.engine.util.DefaultFormatFactory;
++
++/**
++ * Les attendus sont ceux que produit le JDK 11 en francais : ces tests passent a l'identique sur JDK 11 et sur JDK 17,
++ * ce qui est precisement la garantie recherchee.
++ */
++public class SeparateurMilliersTest {
++
++    private static final String UN_MILLION = "1 234 567";
++
++    @Test
++    public void fabriqueDesEtatsMetLEspaceInsecable() {
++        SeparateurMilliers.FabriqueFormats f = SeparateurMilliers.FABRIQUE;
++        assertEquals(UN_MILLION, f.createNumberFormat("#,##0", Locale.FRANCE).format(1234567));
++        assertEquals("-" + UN_MILLION, f.createNumberFormat("#,##0", Locale.FRANCE).format(-1234567));
++        assertEquals(UN_MILLION + ",50", f.createNumberFormat("#,##0.00", Locale.FRANCE).format(1234567.5));
++        // sans motif, JasperReports ne fournit pas de format : la fabrique n'en invente pas
++        assertNull(f.createNumberFormat(null, Locale.FRANCE));
++        assertEquals("999", f.createNumberFormat("#,##0", Locale.FRANCE).format(999));
++    }
++
++    @Test
++    public void fabriqueNeTouchePasLesAutresLocales() {
++        SeparateurMilliers.FabriqueFormats f = SeparateurMilliers.FABRIQUE;
++        DefaultFormatFactory jasper = new DefaultFormatFactory();
++        for (Locale l : new Locale[] { Locale.GERMANY, Locale.US, Locale.UK, Locale.ITALY }) {
++            assertEquals(jasper.createNumberFormat("#,##0.00", l).format(1234567.5),
++                    f.createNumberFormat("#,##0.00", l).format(1234567.5), l.toString());
++        }
++        assertEquals("1.234.567", f.createNumberFormat("#,##0", Locale.GERMANY).format(1234567));
++    }
++
++    @Test
++    public void motifMonetaire() {
++        String texte = SeparateurMilliers.FABRIQUE.createNumberFormat("#,##0 ¤", Locale.FRANCE).format(1234567);
++        assertFalse(texte.indexOf(SeparateurMilliers.ESPACE_FINE) >= 0, texte);
++        assertEquals(UN_MILLION, texte.substring(0, UN_MILLION.length()));
++    }
++
++    @Test
++    public void corrigerUnTexte() {
++        assertEquals(UN_MILLION, SeparateurMilliers.corriger(String.format(Locale.FRANCE, "%,d", 1234567)));
++        assertEquals(UN_MILLION, SeparateurMilliers.corriger("1 234 567"));
++        assertEquals("1 234", SeparateurMilliers.corriger("1 234"));
++        assertNull(SeparateurMilliers.corriger((String) null));
++    }
++
++    @Test
++    public void corrigerUnFormatRendLeMemeObjet() {
++        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.FRANCE);
++        assertSame(nf, SeparateurMilliers.corriger(nf));
++        assertEquals(UN_MILLION, nf.format(1234567));
++        DecimalFormat fcfa = SeparateurMilliers
++                .corriger(new DecimalFormat("#,##0 'FCFA'", java.text.DecimalFormatSymbols.getInstance(Locale.FRANCE)));
++        assertEquals(UN_MILLION + " FCFA", fcfa.format(1234567));
++        assertNull(SeparateurMilliers.corriger((NumberFormat) null));
++    }
++
++    @Test
++    public void parametresCopieSansModifierLOriginal() {
++        Map<String, Object> origine = new HashMap<>();
++        origine.put("A", 1);
++        Map<String, Object> p = SeparateurMilliers.parametres(origine);
++        assertSame(SeparateurMilliers.FABRIQUE, p.get(JRParameter.REPORT_FORMAT_FACTORY));
++        assertEquals(1, p.get("A"));
++        assertFalse(origine.containsKey(JRParameter.REPORT_FORMAT_FACTORY));
++
++        DefaultFormatFactory fournie = new DefaultFormatFactory();
++        origine.put(JRParameter.REPORT_FORMAT_FACTORY, fournie);
++        assertSame(fournie, SeparateurMilliers.parametres(origine).get(JRParameter.REPORT_FORMAT_FACTORY));
++        assertSame(SeparateurMilliers.FABRIQUE,
++                SeparateurMilliers.parametres(null).get(JRParameter.REPORT_FORMAT_FACTORY));
++    }
++
++    /** Bout en bout : un etat compile et rempli comme en production, motif #,##0, locale France. */
++    @Test
++    public void etatJasperRempli() throws Exception {
++        String jrxml = "<jasperReport xmlns=\"http://jasperreports.sourceforge.net/jasperreports\""
++                + " name=\"t\" pageWidth=\"200\" pageHeight=\"50\" columnWidth=\"200\" leftMargin=\"0\""
++                + " rightMargin=\"0\" topMargin=\"0\" bottomMargin=\"0\">"
++                + "<parameter name=\"MONTANT\" class=\"java.lang.Long\"/>"
++                + "<title><band height=\"20\"><textField pattern=\"#,##0\">"
++                + "<reportElement x=\"0\" y=\"0\" width=\"200\" height=\"20\"/>"
++                + "<textFieldExpression><![CDATA[$P{MONTANT}]]></textFieldExpression></textField></band></title>"
++                + "</jasperReport>";
++        JasperReport etat = JasperCompileManager
++                .compileReport(new ByteArrayInputStream(jrxml.getBytes(StandardCharsets.UTF_8)));
++        Map<String, Object> p = new HashMap<>();
++        p.put("MONTANT", 1234567L);
++        p.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
++        JasperPrint imprime = JasperFillManager.fillReport(etat, SeparateurMilliers.parametres(p),
++                new JREmptyDataSource());
++        JRPrintText texte = (JRPrintText) imprime.getPages().get(0).getElements().get(0);
++        assertEquals(UN_MILLION, texte.getFullText());
++    }
++}
+-- 
+2.43.0
+
