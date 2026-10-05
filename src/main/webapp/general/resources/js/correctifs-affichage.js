@@ -858,7 +858,17 @@ window.PrestigeAffichage.ECRANS_FOND_VENTE = ['ordonnanceclient'];
  * Icones d'action au trait du theme commun, reconnues par le nom de l'image d'origine. Une icone absente de
  * cette table garde son image.
  */
+/**
+ * Regles lues sur l'INFO-BULLE de l'icone, avant celles de l'image : une meme image sert a des actions differentes
+ * (cog_edit = « Reinitialiser le mot de passe » chez les utilisateurs, retour du 05/10 : deux crayons identiques).
+ */
+window.PrestigeAffichage.ICONES_TRAIT_INFOBULLE = [
+    [/mot de passe|password/i, 'act-motdepasse']
+];
+
 window.PrestigeAffichage.ICONES_TRAIT = [
+    // engrenage + crayon : reglage, distinct du crayon « Modifier » (regle suivante)
+    [/cog_edit/i, 'act-reglage'],
     // ajoutees le 05/10 ; « disable » avant « enable » (qu'il contient)
     [/chart/i, 'act-stat'],
     [/disable/i, 'act-desactiver'],
@@ -966,10 +976,17 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
         Ext.each(grille.query('actioncolumn'), function (col) {
             Ext.each(col.items || [], function (item) {
                 var image = String(item.icon || '');
+                var parInfoBulle = null;
+                Ext.each(window.PrestigeAffichage.ICONES_TRAIT_INFOBULLE, function (regle) {
+                    if ((image || (item.iconCls && !/act-ico/.test(item.iconCls))) && regle[0].test(String(item.tooltip || ''))) {
+                        parInfoBulle = regle[1];
+                        return false;
+                    }
+                });
                 // Icone donnee par une classe CSS seule (ex. « detailclients », « edit ») : reconnue par les memes regles,
                 // la classe d'origine (qui ne porte que l'image) est remplacee par le dessin au trait.
                 if (!image && item.iconCls && !/act-ico/.test(item.iconCls) && !Ext.isFunction(item.getClass)) {
-                    Ext.each(window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
+                    Ext.each(parInfoBulle ? [[/./, parInfoBulle]] : window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
                         if (regle[0].test(item.iconCls)) {
                             item.iconCls = 'act-ico ' + regle[1];
                             return false;
@@ -980,7 +997,7 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
                 if (!image) {
                     return;
                 }
-                Ext.each(window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
+                Ext.each(parInfoBulle ? [[/./, parInfoBulle]] : window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
                     if (regle[0].test(image)) {
                         var trait = 'act-ico ' + regle[1];
                         if (Ext.isFunction(item.getClass)) {

@@ -6,8 +6,10 @@
  * bouton FUSIONNER qui existait deja.
  *
  * Ce que le test etablit, a l'ecran :
- *  - le bouton est la, a cote de FUSIONNER ;
- *  - il refuse de travailler sans selection, et refuse plusieurs suggestions cochees a la fois ;
+ *  - depuis le 05/10, le bouton est sur chaque ligne (la barre du haut n'en a plus), masque pour une suggestion
+ *    sans lignes ; « Tout cocher (toutes les pages) » est devenu « Tout cocher » ;
+ *  - la question rappelle le nombre de lignes, refuse 1 et un nombre superieur aux lignes, et l'eclatement
+ *    se fait par l'ecran (bouton de la ligne, saisie, OK) ;
  *  - un eclatement en 3 d'une suggestion de 10 lignes donne 4 + 3 + 3, et pas 3 + 3 + 3 ;
  *  - AUCUNE ligne n'est perdue ni dupliquee : c'est la seule chose qui compte vraiment, une ligne perdue
  *    etant un article qui ne sera pas commande ;
@@ -92,52 +94,66 @@ function poser() {
     await p.waitForFunction(() => Ext.ComponentQuery.query('i_sugg_manager').length > 0, null, { timeout: 30000 });
     await p.waitForTimeout(4000);
 
-    /* 1. le bouton existe, a cote de FUSIONNER */
-    const boutons = await p.evaluate(() => Ext.ComponentQuery.query('i_sugg_manager')[0].query('button')
-      .map((x) => x.itemId || x.text).filter(Boolean));
-    ok('Le bouton « ÉCLATER » est là, à côté de FUSIONNER',
-      boutons.indexOf('eclaterSuggestion') >= 0 && boutons.some((t) => /FUSIONNER/.test(t)),
-      JSON.stringify(boutons.filter((t) => /clater|FUSION/i.test(t))));
+    /* 1. plus de bouton en haut, une action par ligne, « Tout cocher » raccourci */
+    const haut = await p.evaluate(() => { const c = Ext.ComponentQuery.query('i_sugg_manager')[0];
+      return { boutons: c.query('toolbar[dock=top] button').map((x) => x.itemId || x.text), colonne: !!c.down('#eclaterLigne'),
+        tout: c.down('#btnToutCocher').text, infobulle: c.down('#btnToutCocher').tooltip }; });
+    ok('Barre du haut : plus de « ÉCLATER », « Tout cocher » raccourci (détail dans l\'info-bulle)',
+      !haut.boutons.some((t) => /clater/i.test(String(t))) && haut.colonne && haut.tout === 'Tout cocher' && /toutes les pages/.test(haut.infobulle), JSON.stringify(haut));
 
-    const cliquerEclater = async () => {
-      await p.evaluate(() => {
-        const btn = Ext.ComponentQuery.query('i_sugg_manager #eclaterSuggestion')[0];
-        btn.handler.call(btn.scope || btn, btn);
-      });
-      await p.waitForTimeout(700);
-    };
-    /* Le texte de la boite est lu dans son DOM : en ExtJS 4.2 le composant du message n'a pas d'itemId
-     * accessible par down('#msg'), et une premiere version de ce test s'y cassait les dents. */
+    /* 2. la ligne de test, cherchee comme l'utilisateur */
+    await p.evaluate(() => { Ext.getCmp('rechecher').setValue('E2E-ECL-REF'); Ext.ComponentQuery.query('i_sugg_manager')[0].onRechClick(); });
+    await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('i_sugg_manager')[0].getStore(); return !st.isLoading() && st.findExact('str_REF', 'E2E-ECL-REF') >= 0; }, null, { timeout: 30000 });
+    await p.waitForTimeout(600);
+    const icones = await p.evaluate((a) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; const st = g.getStore();
+      const vis = (id) => { const i = st.findExact('lg_SUGGESTION_ORDER_ID', id); if (i < 0) { return null; } const n = g.getView().getNode(i);
+        const el = n.querySelector('.x-grid-cell-eclaterLigne .x-action-col-icon'); if (el && id === a.s) { el.setAttribute('data-e2e', 'eclater'); }
+        return !!el && el.offsetParent !== null && !el.classList.contains('x-hide-display'); };
+      return { pleine: vis(a.s), vide: vis(a.v) }; }, { s: SUGG, v: SUGG2 });
+    ok('Bouton « éclater » sur la ligne de 10 lignes, masqué sur une suggestion sans lignes', icones.pleine === true && icones.vide !== true, JSON.stringify(icones));
+
     const messageBoite = () => p.evaluate(() => {
       const box = Ext.MessageBox;
       return box && box.isVisible() ? String(box.el.dom.textContent || '').replace(/\s+/g, ' ').trim() : null;
     });
-    const fermerBoite = async () => {
-      await p.evaluate(() => {
-        const box = Ext.MessageBox;
-        if (box && box.isVisible()) { box.hide(); }
-      });
+    const repondre = async (valeur) => {
+      await p.click('[data-e2e=eclater]');
       await p.waitForTimeout(500);
+      const question = await messageBoite();
+      await p.evaluate((v) => { const box = Ext.MessageBox; box.textField.setValue(v); box.btnCallback(box.msgButtons.ok); }, valeur);
+      await p.waitForTimeout(700);
+      return question;
+    };
+    const fermerBoite = async () => {
+      await p.evaluate(() => { const box = Ext.MessageBox; if (box && box.isVisible()) { box.hide(); } });
+      await p.waitForTimeout(400);
     };
 
-    /* 2. sans selection : il le dit, il ne fait rien */
-    await cliquerEclater();
+    /* 3. la question rappelle les lignes ; 1 et 11 sont refuses sans rien envoyer */
+    let question = await repondre('1');
+    ok('La question nomme la suggestion et rappelle ses 10 lignes', /E2E-ECL-REF/.test(question || '') && /les 10 lignes/.test(question || ''), question);
     let message = await messageBoite();
-    ok('Sans suggestion cochée, il demande d en cocher une', /Cochez la suggestion/.test(message || ''),
-      String(message));
+    ok('« 1 » est refusé : au moins 2', /au moins 2/.test(message || ''), String(message));
     await fermerBoite();
-
-    /* 3. deux suggestions cochees : refuse, l eclatement porte sur une seule */
-    await p.evaluate((ids) => { window.suggCheckedIds = ids; }, [SUGG, SUGG2]);
-    await cliquerEclater();
+    await repondre('11');
     message = await messageBoite();
-    ok('Avec deux suggestions cochées, il refuse : l éclatement porte sur une seule',
-      /UNE SEULE suggestion/.test(message || ''), String(message));
+    ok('« 11 » est refusé : la suggestion porte 10 lignes', /porte 10 ligne/.test(message || ''), String(message));
     await fermerBoite();
 
-    /* 4. l eclatement : 10 lignes en 3 donnent 4 + 3 + 3 */
+    /* 4. l eclatement par l ecran : 10 lignes en 3 donnent 4 + 3 + 3 */
     const avant = q("SELECT COUNT(*) FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_ID='" + SUGG + "'");
     ok('Précondition : la suggestion porte bien ' + LIGNES + ' lignes', avant === String(LIGNES), avant);
+    const [reponse] = await Promise.all([p.waitForResponse((r) => /suggestion\/eclater/.test(r.url()), { timeout: 60000 }), repondre('3')]);
+    const resultat = JSON.parse(await reponse.text());
+    await p.waitForTimeout(800);
+    message = await messageBoite();
+    await fermerBoite();
+    ok('L éclatement en 3 réussit et annonce ses morceaux à l écran',
+      resultat.success === true && resultat.nombre === 3 && resultat.total === LIGNES && /éclatée/.test(message || ''),
+      JSON.stringify(resultat) + ' / ' + message);
+    ok('Les trois morceaux font 4 + 3 + 3, le reste allant au premier',
+      JSON.stringify((resultat.morceaux || []).map((m) => m.lignes)) === '[4,3,3]',
+      JSON.stringify((resultat.morceaux || []).map((m) => m.lignes)));
 
     /* Parametres dans l URL : la ressource les lit en @QueryParam, comme le service « clean » voisin. */
     const eclater = (id, nombre) => p.evaluate(async (a) => {
@@ -147,13 +163,6 @@ function poser() {
       const texte = await r.text();
       try { return JSON.parse(texte); } catch (e) { return { success: false, brut: texte.slice(0, 200) }; }
     }, { id: id, nombre: nombre });
-    const resultat = await eclater(SUGG, 3);
-    ok('L éclatement en 3 réussit et annonce ses morceaux',
-      resultat.success === true && resultat.nombre === 3 && resultat.total === LIGNES,
-      JSON.stringify(resultat));
-    ok('Les trois morceaux font 4 + 3 + 3, le reste allant au premier',
-      JSON.stringify((resultat.morceaux || []).map((m) => m.lignes)) === '[4,3,3]',
-      JSON.stringify((resultat.morceaux || []).map((m) => m.lignes)));
 
     /* 5. la garantie qui compte : aucune ligne perdue ni dupliquee */
     const reparties = q("SELECT COUNT(*) FROM t_suggestion_order_details"

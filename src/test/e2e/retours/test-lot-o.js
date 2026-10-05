@@ -130,7 +130,7 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
       const g = Ext.ComponentQuery.query('i_sugg_manager')[0];
       return { compteur: g.down('#compteurCoches').text.replace(/<[^>]+>/g, ''), coches: g.getStore().getRange().filter(r => r.get('isChecked')).length, page: g.getStore().getCount() };
     });
-    ok('suggestions : « Tout cocher (toutes les pages) » coche tout et le compteur donne le total (' + total + ')',
+    ok('suggestions : « Tout cocher » (toutes les pages) coche tout et le compteur donne le total (' + total + ')',
       apresCocher.compteur.indexOf(String(total)) === 0 && apresCocher.coches === apresCocher.page, JSON.stringify(apresCocher) + ' total=' + total);
     const idToutDecocher = await p.evaluate(() => Ext.ComponentQuery.query('i_sugg_manager #btnToutDecocher')[0].getId());
     await p.click('#' + idToutDecocher);

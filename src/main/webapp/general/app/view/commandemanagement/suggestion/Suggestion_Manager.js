@@ -308,6 +308,24 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         }]
                 },
                 {
+                    /* Eclater : sur la ligne (retour du 05/10, pour liberer la barre du haut). Plus besoin de cocher
+                       la suggestion ; masque pour une suggestion de moins de 2 lignes (rien a eclater). */
+                    xtype: 'actioncolumn',
+                    itemId: 'eclaterLigne',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            iconCls: 'act-ico act-eclater',
+                            tooltip: 'Éclater cette suggestion en plusieurs suggestions de même nombre de lignes',
+                            getClass: function (v, meta, rec) {
+                                return Number(rec.get('int_NOMBRE_ARTICLES') || 0) >= 2 ? 'act-ico act-eclater' : 'x-hide-display';
+                            },
+                            scope: this,
+                            handler: this.onEclaterLigneClick
+                        }]
+                },
+                {
                     xtype: 'checkcolumn',
                     text: '&#10003;',
                     tooltip: "Cliquer l'entête pour tout cocher / décocher (page courante)",
@@ -361,20 +379,6 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     handler: this.onFusionnerSuggestions
                 }, '-',
                 {
-                    /*
-                     * Retour du 17/09, point 8 : « je ne vois pas le bouton d'eclatement de suggestion ».
-                     * Il n'existait effectivement pas. C'est l'inverse de FUSIONNER, et le besoin est
-                     * concret : un grossiste qui ne sait pas traiter un bon de 1 500 lignes d'un seul coup.
-                     * On decoupe par NOMBRE DE LIGNES, en autant de morceaux que demande.
-                     */
-                    text: 'ÉCLATER',
-                    itemId: 'eclaterSuggestion',
-                    iconCls: 'eclatericon',
-                    tooltip: 'Éclater la suggestion cochée en plusieurs suggestions de même nombre de lignes',
-                    scope: this,
-                    handler: this.onEclaterSuggestion
-                }, '-',
-                {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'suggestion',
@@ -423,7 +427,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 /* Retour des tests du 09/09 (point 5) : cocher ou decocher TOUTES les pages de la
                    recherche en cours, et un compteur des suggestions cochees. */
                 {
-                    text: 'Tout cocher (toutes les pages)',
+                    text: 'Tout cocher',
                     itemId: 'btnToutCocher',
                     tooltip: 'Cocher toutes les suggestions de la recherche en cours, sur toutes les pages',
                     scope: this,
@@ -710,26 +714,19 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
      * Quand la selection mele plusieurs grossistes, le serveur renvoie la liste et
      * on fait CHOISIR celui qui porte la fusion, au lieu de refuser (retour point 6). */
     /**
-     * Eclate la suggestion cochee en N suggestions de meme nombre de lignes.
-     *
-     * Une SEULE suggestion cochee : eclater plusieurs suggestions a la fois en autant de morceaux chacune
-     * donnerait un resultat que personne ne peut verifier. On demande ensuite le nombre de morceaux, avec le
-     * nombre de lignes rappele dans la question - « eclater en combien ? » ne veut rien dire si l'on ne sait
-     * pas combien de lignes on a.
+     * Eclate la suggestion de la ligne en N suggestions de meme nombre de lignes (bouton de la ligne depuis le 05/10 :
+     * il etait en haut et portait sur la suggestion cochee). On demande le nombre de morceaux, avec le nombre de lignes
+     * rappele dans la question - « eclater en combien ? » ne veut rien dire si l'on ne sait pas combien de lignes on a.
      */
-    onEclaterSuggestion: function () {
+    onEclaterLigneClick: function (grid, rowIndex) {
         const me = this;
-        if (suggCheckedIds.length !== 1) {
-            Ext.MessageBox.alert('Avertissement',
-                    suggCheckedIds.length === 0
-                    ? 'Cochez la suggestion à éclater.'
-                    : 'Cochez UNE SEULE suggestion : l\'éclatement porte sur une suggestion à la fois.');
+        const enregistrement = grid.getStore().getAt(rowIndex);
+        if (!enregistrement) {
             return;
         }
-        const id = suggCheckedIds[0];
-        const enregistrement = me.getStore().findRecord('lg_SUGGESTION_ORDER_ID', id);
-        const lignes = enregistrement ? Number(enregistrement.get('int_NOMBRE_ARTICLES') || 0) : 0;
-        const reference = enregistrement ? (enregistrement.get('str_REF') || '') : '';
+        const id = enregistrement.get('lg_SUGGESTION_ORDER_ID');
+        const lignes = Number(enregistrement.get('int_NOMBRE_ARTICLES') || 0);
+        const reference = enregistrement.get('str_REF') || '';
 
         Ext.MessageBox.prompt('Éclater la suggestion ' + reference,
                 'En combien de suggestions éclater'
