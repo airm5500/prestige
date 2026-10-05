@@ -2384,6 +2384,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .act-activer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317987e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M8 12l3 3 5-6'/%3E%3C/svg%3E"); }
 .act-client { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4 4-6 8-6s8 2 8 6'/%3E%3C/svg%3E"); }
 .act-ventes { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='20' r='1.5'/%3E%3Ccircle cx='18' cy='20' r='1.5'/%3E%3Cpath d='M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6'/%3E%3C/svg%3E"); }
+.act-envoyer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2L11 13'/%3E%3Cpath d='M22 2l-7 20-4-9-9-4 20-7z'/%3E%3C/svg%3E"); }
+.act-importer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15V3'/%3E%3Cpath d='M7 8l5-5 5 5'/%3E%3Cpath d='M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/%3E%3C/svg%3E"); }
+.act-inventaire { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='4' width='12' height='18' rx='2'/%3E%3Cpath d='M9 2h6v4H9z'/%3E%3Cpath d='M9 12h6M9 16h4'/%3E%3C/svg%3E"); }
+.act-ajouter { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317987e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v8M8 12h8'/%3E%3C/svg%3E"); }
 
 /* Fiche client : bouton « Courbe » de chaque tuile (retour du 05/10), la courbe s'ouvre dans une fenetre. */
 .fc-tuile { position: relative; }
@@ -2522,3 +2526,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mv-panneau .ordo-onglets > .x-panel-body, .mv-panneau .x-panel-body-default { background-color: #eef2f7 !important; }
 .mv-panneau .ordo-carte .x-panel-body-default, .mv-panneau .ordo-carte > .x-panel-body { background-color: #fff !important; }
 .x-panel.mv-panneau { background-color: #eef2f7 !important; }
+/* Barre habillee trop chargee : boutons compacts (pose par correctifs-affichage.js quand la barre deborde). */
+.mv-barre.mv-barre-serree .x-btn-inner { padding-right: 3px !important; font-size: 11px !important; }
+.mv-barre.mv-barre-serree .x-btn-noicon .x-btn-inner, .mv-barre.mv-barre-serree .x-btn-inner:only-child { padding-left: 3px !important; }
+.mv-barre.mv-barre-serree .x-toolbar-separator { display: none !important; }

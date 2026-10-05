@@ -749,6 +749,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
     'promotionhistorymanager', 'promotionmanager', 'balanceagee_detail', 'balanceagee', 'remisemanager', 'groupetierspayant',
+    // lot C
+    'reservemanager',
     // facturation
     'facturemanager', 'facturesubrogatoireother', 'groupeInvoices', 'factureprovisoire',
     'recapOrganisme',
@@ -832,7 +834,11 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B : clients, tiers payants, promotions, remises
     'promotionhistorymanager', 'promotionmanager', 'logfile', 'ventesmodifieesmanager', 'tierspayantmanager', 'clientmanager',
-    'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise'
+    'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise',
+    // lot C : achats et stock
+    'etatscontrolemanager', 'bonlivraisonmanager', 'i_order_manager', 'retourfrsmanager', 'detailsmanager', 'ajustementmanager',
+    'inventaire', 'peremptionquery', 'monitoringarticlecomplet', 'etatstock', 'evaluationventemoyenne', 'reservemanager',
+    'saisieperime', 'gestionsurstock', 'i_sugg_manager'
 ];
 
 /**
@@ -850,6 +856,10 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/chart/i, 'act-stat'],
     [/disable/i, 'act-desactiver'],
     [/enable/i, 'act-activer'],
+    [/order_tracking|envoi|send/i, 'act-envoyer'],
+    [/upload|import/i, 'act-importer'],
+    [/inventaire/i, 'act-inventaire'],
+    [/\/add\.(png|gif)|ajout/i, 'act-ajouter'],
     [/page_white_edit|pencil|edit|modif/i, 'act-modifier'],
     // ticket modifie (imprimante verte) : garde sa couleur pour rester distinct du ticket ordinaire
     [/printergreen/i, 'act-imprimer-vert'],
@@ -861,7 +871,7 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/duplicate|copy|copie/i, 'act-dupliquer'],
     [/application_go|arrow|go\.png|transform/i, 'act-transformer'],
     [/folder_wrench|wrench|cog|config/i, 'act-reglage'],
-    [/book\.png|valid|accept|tick|check/i, 'act-valider'],
+    [/book\.png|valid|accept|tick|check|coches/i, 'act-valider'],
     [/download|telecharg/i, 'act-telecharger'],
     [/table_refresh|calendar/i, 'act-date'],
     [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir'],
@@ -911,6 +921,24 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
         Ext.each(barre.query('button'), function (b) {
             var texte = String(b.text || '');
             b.addCls(/^(nouveau|nouvelle|ajouter|cr[ée]er)/i.test(texte) ? 'ordo-btn-primaire' : 'ordo-btn');
+        });
+        // Barre trop chargee (le dernier bouton sortait deja de l'ecran sur certains postes, ex. suggestions) : elle passe
+        // en mode serre (boutons plus compacts), une seule fois, puis la mise en page est refaite. Dessin seulement.
+        barre.on('afterlayout', function () {
+            if (barre.hasCls('mv-barre-serree') || !barre.rendered || !barre.isVisible(true)) {
+                return;
+            }
+            var droite = barre.getEl().getRight(), deborde = barre.items.getRange().some(function (i) {
+                return i.rendered && i.isVisible() && i.getEl().getRight() > droite + 1;
+            });
+            if (deborde) {
+                barre.addCls('mv-barre-serree');
+                Ext.defer(function () {
+                    if (!barre.isDestroyed) {
+                        barre.updateLayout();
+                    }
+                }, 1);
+            }
         });
     });
     // Onglets en boutons segmentes, l'actif en bleu fonce (meme dessin que l'historique des ordonnances).
