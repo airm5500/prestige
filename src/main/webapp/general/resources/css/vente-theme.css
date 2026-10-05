@@ -2479,10 +2479,33 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Listes deroulantes */
 .x-boundlist { border: 1px solid #c3cfdb !important; border-radius: 8px; background: #fff !important;
     box-shadow: 0 12px 32px rgba(15, 30, 50, .16); overflow: hidden; }
-.x-boundlist-item { padding: 3px 10px !important; border: 0 !important; color: #1e2a36; }
+.x-boundlist-item { padding-left: 10px !important; padding-right: 10px !important; border-color: transparent !important; color: #1e2a36; }
 .x-boundlist-item-over { background: #e3edf7 !important; color: #1e3a5f !important; }
 .x-boundlist-selected, .x-boundlist-selected.x-boundlist-item-over { background: #1e3a5f !important; color: #fff !important; }
 .x-boundlist .x-toolbar { background: #f6f8fb !important; background-image: none !important; border: 0 !important; border-top: 1px solid #e0e7ef !important; }
 .x-boundlist .x-mask { background: rgba(255, 255, 255, .7) !important; }
 /* Champ ouvert (liste ou calendrier deplie) : bordure du theme. */
 .x-pickerfield-open .x-form-text, .x-form-focus { border-color: #2E75B6 !important; }
+
+/* ===== En-tetes de section en couleurs douces (demande du 05/10 : « sinon on ne sent pas la difference, l'ecran est
+   plat ») : chaque carte a un bandeau teinte et un filet de couleur a gauche. Les cartes sans teinte choisie alternent
+   d'elles-memes entre voisines ; sec-* fixe une teinte qui a un sens (terrains = ambre, mesures = bleu, conso = vert). */
+.ordo-carte > .x-panel-header, .ordo-carte .x-panel-header-default { background: #eef4fb !important;
+    border-bottom: 1px solid #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.ordo-carte:nth-child(4n+2) > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; box-shadow: inset 4px 0 0 #17987e; }
+.ordo-carte:nth-child(4n+3) > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #f3e2c6 !important; box-shadow: inset 4px 0 0 #e08a1e; }
+.ordo-carte:nth-child(4n+4) > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; box-shadow: inset 4px 0 0 #7b68c8; }
+.ordo-carte.sec-bleu > .x-panel-header { background: #eef4fb !important; border-bottom-color: #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.ordo-carte.sec-vert > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; box-shadow: inset 4px 0 0 #17987e; }
+.ordo-carte.sec-ambre > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #f3e2c6 !important; box-shadow: inset 4px 0 0 #e08a1e; }
+.ordo-carte.sec-violet > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; box-shadow: inset 4px 0 0 #7b68c8; }
+
+/* Tuiles des parametres : une couleur douce par tuile (fond et filet du haut), la tuile choisie garde son cadre navy. */
+.fc-tuiles .fc-tuile { border-top-width: 3px !important; }
+.fc-tuiles .fc-tuile:nth-child(6n+1) { background: #f1f6fd; border-top-color: #2E75B6; }
+.fc-tuiles .fc-tuile:nth-child(6n+2) { background: #eef8f4; border-top-color: #17987e; }
+.fc-tuiles .fc-tuile:nth-child(6n+3) { background: #fdf6ec; border-top-color: #e08a1e; }
+.fc-tuiles .fc-tuile:nth-child(6n+4) { background: #f5f2fc; border-top-color: #7b68c8; }
+.fc-tuiles .fc-tuile:nth-child(6n+5) { background: #fdf1f2; border-top-color: #d0576b; }
+.fc-tuiles .fc-tuile:nth-child(6n+6) { background: #eff8fa; border-top-color: #2a9bb3; }
+.fc-tuiles .fc-tuile.fc-tuile-active { border-color: #1e3a5f; border-top-color: #1e3a5f; box-shadow: inset 0 0 0 1px #1e3a5f, 0 4px 12px rgba(30, 58, 95, .12); }

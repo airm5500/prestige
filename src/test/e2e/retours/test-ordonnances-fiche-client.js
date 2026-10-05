@@ -102,6 +102,7 @@ const NOM = 'ZZFICHE';
     const courbe0 = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0];
       const b = [...v.getEl().dom.querySelectorAll('.fc-tuile-courbe')]; const t = b.find((x) => /Tension/i.test(x.closest('.fc-tuile').textContent));
       if (t) { t.id = 'courbe-tension'; } return { boutons: b.length, cachee: !v.down('#fcCourbe').isVisible(), tension: !!t }; });
+    if (process.env.CAPTURES) { await p.screenshot({ path: process.env.CAPTURES + '/fiche-client.png' }); }
     ok('Courbe : plus dans la page, un bouton « Courbe » sur les tuiles qui ont des mesures', courbe0.cachee && courbe0.boutons >= 1 && courbe0.tension, JSON.stringify(courbe0));
     await p.click('#courbe-tension');
     await p.waitForFunction(() => { const w = Ext.ComponentQuery.query('window[cls~=fc-fenetre-courbe]')[0]; return w && w.isVisible() && w.getEl().dom.querySelector('.fc-svg'); }, null, { timeout: 15000 });
