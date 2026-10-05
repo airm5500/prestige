@@ -642,6 +642,18 @@ Bénéfice : un WAR plus léger, des bibliothèques de 2010 retirées, et une am
 refuse, et le ramasse-miettes reste G1 (§ 2.7, mesuré). Le `domain.xml` ne change pas pour la
 bascule. Chaque autre site est vérifié de la même façon au lot 0.
 
+Le `domain.xml` reçu de `danane` n'est pas celui de l'installation en marche (`D:\Payara_Server`,
+§ 4 bis). Avant la bascule, on vérifie donc les options **réellement chargées**, sans afficher les
+autres (certaines options `-D` portent des secrets) :
+
+```
+D:\Payara_Server\bin\asadmin list-jvm-options | findstr /i "PermSize ConcMarkSweep CMS AggressiveOpts ParallelOldGC ParNewGC illegal-access noverify Xverify BiasedLocking"
+```
+
+Aucune ligne : rien à changer. Une ligne commençant par `[17|]` ou `[9|]` : option prévue par Payara
+pour ce JDK, à laisser. Toute autre ligne : à retirer **sur JDK 11, avant la bascule**, dans une
+fenêtre à part (`asadmin delete-jvm-options`), puis à vérifier par la référence.
+
 Reste la locale, aujourd'hui héritée de la région Windows. **Recommandation** : la fixer
 explicitement (`-Duser.language=fr`, `-Duser.country=FR`) **au lot 1, sur JDK 11** — si la région
 Windows est déjà en français, l'ajout ne change rien (vérifiable : 0 différence avec la référence), et
