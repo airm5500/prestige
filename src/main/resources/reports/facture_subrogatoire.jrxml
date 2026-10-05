@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Releve des ventes a credit / factures subrogatoires (API v1/facture-subrogatoire, demande du 05/10) : memes ventes
+     que la liste de l'ecran, avec les tiers payants de chaque vente et les totaux. Alimente par les lignes de l'API. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="facture_subrogatoire" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <field name="reference" class="java.lang.String"/>
+    <field name="date" class="java.lang.String"/>
+    <field name="heure" class="java.lang.String"/>
+    <field name="caissier" class="java.lang.String"/>
+    <field name="client" class="java.lang.String"/>
+    <field name="refBon" class="java.lang.String"/>
+    <field name="tiersPayants" class="java.lang.String"/>
+    <field name="brut" class="java.lang.Integer"/>
+    <field name="remise" class="java.lang.Integer"/>
+    <field name="net" class="java.lang.Integer"/>
+    <variable name="totalBrut" class="java.lang.Integer" calculation="Sum"><variableExpression><![CDATA[$F{brut}]]></variableExpression></variable>
+    <variable name="totalRemise" class="java.lang.Integer" calculation="Sum"><variableExpression><![CDATA[$F{remise}]]></variableExpression></variable>
+    <variable name="totalNet" class="java.lang.Integer" calculation="Sum"><variableExpression><![CDATA[$F{net}]]></variableExpression></variable>
+    <title>
+        <band height="60">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="32" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="4" y="0" width="76" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Référence]]></text></staticText>
+                <staticText><reportElement x="82" y="0" width="74" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Date · heure]]></text></staticText>
+                <staticText><reportElement x="158" y="0" width="120" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Client]]></text></staticText>
+                <staticText><reportElement x="280" y="0" width="64" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Réf. bon]]></text></staticText>
+                <staticText><reportElement x="346" y="0" width="200" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Tiers payants]]></text></staticText>
+                <staticText><reportElement x="548" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Opérateur]]></text></staticText>
+                <staticText><reportElement x="630" y="0" width="56" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Brut]]></text></staticText>
+                <staticText><reportElement x="688" y="0" width="52" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Remise]]></text></staticText>
+                <staticText><reportElement x="742" y="0" width="58" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Net]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="15">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true"><reportElement x="4" y="0" width="76" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{reference}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="82" y="0" width="74" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{date} + " " + $F{heure}.substring(0, 5)]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="158" y="0" width="120" height="13"/><textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{client}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="280" y="0" width="64" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{refBon}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement x="346" y="0" width="200" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{tiersPayants}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="548" y="0" width="80" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{caissier}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="630" y="0" width="56" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{brut}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="688" y="0" width="52" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{remise}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="742" y="0" width="58" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{net}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <summary>
+        <band height="22">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="4" width="802" height="16" backcolor="#EEF2F6"/>
+                <textField><reportElement x="4" y="0" width="540" height="16"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA["TOTAL : " + $V{REPORT_COUNT} + " vente(s)"]]></textFieldExpression></textField>
+                <textField pattern="#,##0"><reportElement x="618" y="0" width="68" height="16"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{totalBrut}]]></textFieldExpression></textField>
+                <textField pattern="#,##0"><reportElement x="688" y="0" width="52" height="16"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{totalRemise}]]></textFieldExpression></textField>
+                <textField pattern="#,##0"><reportElement x="742" y="0" width="58" height="16"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{totalNet}]]></textFieldExpression></textField>
+            </frame>
+        </band>
+    </summary>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucune vente à crédit sur cette période.]]></text></staticText></band>
+    </noData>
+</jasperReport>

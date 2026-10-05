@@ -1,5 +1,7 @@
-var url_services_data_facturesubrogatoire = '../webservices/sm_user/journalvente/ws_facture_subrogatoire.jsp';
-var url_services_data_facturesubrogatoire_generate_pdf = '../webservices/sm_user/journalvente/ws_generate_facture_subrogatoire_pdf.jsp';
+/* Passees en API le 05/10 (demande de l'officine) : memes parametres et memes valeurs que les pages JSP
+   ws_facture_subrogatoire.jsp et ws_generate_facture_subrogatoire_pdf.jsp, conservees ; le PDF s'ouvre dans l'onglet. */
+var url_services_data_facturesubrogatoire = '../api/v1/facture-subrogatoire/liste';
+var url_services_data_facturesubrogatoire_generate_pdf = '../api/v1/facture-subrogatoire/pdf';
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
 
 
@@ -501,7 +503,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
         }
         //
 
-        var linkUrl = url_services_data_facturesubrogatoire_generate_pdf + '?dt_Date_Debut=' + Ext.getCmp('dt_debut_journal').getSubmitValue() + "&dt_Date_Fin=" + Ext.getCmp('dt_fin_journal').getSubmitValue() + "&search_value=" + search_value + "&lg_TIERS_PAYANT_ID="+ lg_TIERS_PAYANT_ID+ "&h_debut=" + h_debut + "&h_fin=" + h_fin + "&title=RELEVE DES VENTES A CREDIT";
+        var linkUrl = url_services_data_facturesubrogatoire_generate_pdf + '?dt_Date_Debut=' + Ext.getCmp('dt_debut_journal').getSubmitValue() + "&dt_Date_Fin=" + Ext.getCmp('dt_fin_journal').getSubmitValue() + "&search_value=" + encodeURIComponent(search_value || "") + "&lg_TIERS_PAYANT_ID=" + encodeURIComponent(lg_TIERS_PAYANT_ID) + "&h_debut=" + h_debut + "&h_fin=" + h_fin + "&title=RELEVE DES VENTES A CREDIT";
 
 //         alert("linkUrl " + linkUrl);
         /*Me.lunchPrinter(linkUrl);*/
