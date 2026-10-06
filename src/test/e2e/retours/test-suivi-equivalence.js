@@ -26,7 +26,7 @@ const CLE = "SELECT GROUP_CONCAT(DISTINCT fd.lg_DCI_ID ORDER BY fd.lg_DCI_ID SEP
   let connecte = false; const http = [], jsp = [];
   p.on('response', (r) => { if (connecte && r.status() >= 400 && /\/prestige\//.test(r.url())) http.push(r.status() + ' ' + r.url().replace(/\?.*$/, '')); });
   p.on('request', (r) => { if (connecte && /\.jsp/.test(r.url()) && !/index\.jsp|panelInfos|ws_tree_menu/.test(r.url())) jsp.push(r.url().replace(/\?.*$/, '')); });
-  const appel = (url) => p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type') || '', d: r.headers.get('content-disposition') || '', b: (await r.text()).slice(0, 400000) }; }, url);
+  const appel = (url) => p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type') || '', d: r.headers.get('content-disposition') || '', b: /json/.test(r.headers.get('content-type') || '') ? await r.text() : (await r.text()).slice(0, 4000) }; }, url);
   const charger = async () => {
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; return e && !e.equivalenceStore.isLoading(); }, null, { timeout: 600000 });
     return p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; const st = e.equivalenceStore; const brut = st.getProxy().getReader().rawData || {};

@@ -37,7 +37,12 @@ public class SuiviEquivalenceServiceImpl implements SuiviEquivalenceService {
             + "   GROUP_CONCAT(DISTINCT fd.lg_DCI_ID ORDER BY fd.lg_DCI_ID SEPARATOR ',') AS cle,"
             + "   GROUP_CONCAT(DISTINCT dc.str_NAME ORDER BY dc.str_NAME SEPARATOR ' + ') AS dci"
             + "   FROM t_famille_dci fd JOIN t_dci dc ON dc.lg_DCI_ID = fd.lg_DCI_ID WHERE" + LIEN_ACTIF
-            + "   GROUP BY fd.lg_FAMILLE_ID) k ON k.famille = f.lg_FAMILLE_ID" + " WHERE f.str_STATUT = 'enable'";
+            + "   GROUP BY fd.lg_FAMILLE_ID) k ON k.famille = f.lg_FAMILLE_ID"
+            /*
+             * Les articles vendus au detail (deconditionnes) comptent des unites, pas des boites : ils fausseraient le
+             * meneur et le classement ; ils restent representes par leur boite.
+             */
+            + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;

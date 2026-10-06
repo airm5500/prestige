@@ -517,16 +517,16 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                             xtype: 'textfield', itemId: 'eqDci', fieldLabel: 'DCI', labelWidth: 30, width: 220,
                             emptyText: 'nom de DCI (contient)', enableKeyEvents: true
                         }, {
-                            xtype: 'numberfield', itemId: 'eqMinProduits', fieldLabel: 'Groupes d\'au moins', labelWidth: 115,
-                            width: 175, minValue: 2, maxValue: 50, allowDecimals: false, value: 2,
+                            xtype: 'numberfield', itemId: 'eqMinProduits', fieldLabel: 'Groupes d\'au moins', labelWidth: 122,
+                            width: 182, minValue: 2, maxValue: 50, allowDecimals: false, value: 2,
                             tooltip: 'Nombre minimum de produits équivalents dans un groupe'
                         }, {
                             xtype: 'displayfield', value: 'produits', margin: '0 10 0 4'
                         }, {
                             xtype: 'checkbox', itemId: 'eqStock', boxLabel: 'En stock seulement', margin: '0 10 0 0'
                         }, '-', {
-                            xtype: 'numberfield', itemId: 'eqSeuil', fieldLabel: 'Doublon si vendu &lt;', labelWidth: 115,
-                            width: 170, minValue: 1, maxValue: 100, allowDecimals: false, value: 20
+                            xtype: 'numberfield', itemId: 'eqSeuil', fieldLabel: 'Doublon si vendu &lt;', labelWidth: 128,
+                            width: 183, minValue: 1, maxValue: 100, allowDecimals: false, value: 20
                         }, {
                             xtype: 'displayfield', value: '% du meneur', margin: '0 8 0 4'
                         }, {

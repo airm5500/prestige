@@ -491,6 +491,7 @@ mémorisés par utilisateur (préférences, §0.3).
 
 **Fait (lot L7).** Onglet « Suivi équivalence » de l'écran Analyse article (`v1/suivi-equivalence`, `/excel`, `/pdf`) :
 - groupes = produits actifs ayant exactement les mêmes DCI actives (même clé que §1.1), au moins deux par groupe ;
+  les articles vendus au détail (déconditionnés) n'y figurent pas : ils comptent des unités, leur boîte les représente ;
 - dans un groupe : rang, **meneur** (le plus vendu en quantité, puis CA), part des ventes du groupe, CA, marge, stock,
   couverture en jours, dernière vente ; chaque produit situé par rapport au meneur : **Direct** (même dosage, même
   forme) ou **À adapter** ;
