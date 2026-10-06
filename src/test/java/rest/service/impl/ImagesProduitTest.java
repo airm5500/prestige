@@ -63,4 +63,18 @@ public class ImagesProduitTest {
                 "une petite image n'est pas agrandie");
         assertNull(ImagesProduit.vignette("pas une image".getBytes()));
     }
+
+    @org.junit.jupiter.api.Test
+    public void dossierDeConfiguration() throws Exception {
+        java.nio.file.Path racine = java.nio.file.Files.createTempDirectory("conf");
+        java.nio.file.Path xml = racine.resolve("LABOREX").resolve("CONF").resolve("config_laborex_v1.xml");
+        java.nio.file.Files.createDirectories(xml.getParent());
+        java.nio.file.Files.write(xml, new byte[0]);
+        org.junit.jupiter.api.Assertions.assertEquals(racine.resolve("LABOREX"),
+                ImagesProduit.dossierConfiguration(xml.toString()),
+                "D:\\CONF\\LABOREX\\CONF\\config.xml -> D:\\CONF\\LABOREX");
+        org.junit.jupiter.api.Assertions
+                .assertNull(ImagesProduit.dossierConfiguration(racine.resolve("absent.xml").toString()));
+        org.junit.jupiter.api.Assertions.assertNull(ImagesProduit.dossierConfiguration(""));
+    }
 }

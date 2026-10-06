@@ -188,6 +188,20 @@ const n = (v) => Number(v || 0);
     const tpCarte = await p.evaluate(() => Array.from(document.querySelectorAll('[data-corps="tiers"] .tb-nom1')).map((e) => e.textContent));
     ok('Carte tiers payants : 10 lignes au plus, nombre de clients entre parenthèses', tpCarte.length === Math.min(10, tps.data.length) && tpCarte[0] === '1. ' + tps.data[0].libelle + ' (' + tps.data[0].nombre + ')', JSON.stringify(tpCarte.slice(0, 2)));
 
+    // Retours du 06/10 (4) : articles entres non vendus, ratio vente/achat, part du CA au survol
+    const al = await api('../api/v1/tableau-bord/alertes?nv=30&frais=1');
+    const nvSql = q("SELECT COUNT(*) FROM (SELECT x.famille FROM (SELECT f.lg_FAMILLE_ID famille, MIN(b.dt_UPDATED) entree FROM t_bon_livraison_detail bd JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = bd.lg_BON_LIVRAISON_ID"
+      + " JOIN t_famille f ON f.lg_FAMILLE_ID = bd.lg_FAMILLE_ID WHERE b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= CURDATE() - INTERVAL 30 DAY AND f.str_STATUT = 'enable' GROUP BY f.lg_FAMILLE_ID) x"
+      + " WHERE NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement o ON o.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID = x.famille"
+      + " AND o.str_STATUT = 'is_Closed' AND o.b_IS_CANCEL = 0 AND o.int_PRICE > 0 AND o.dt_UPDATED >= x.entree)) n");
+    ok('Alertes : articles entrés depuis 30 j et non vendus = base (' + nvSql + ')', al.nonVendus && al.nonVendus.produits === Number(nvSql) && al.nonVendus.jours === 30, JSON.stringify(al.nonVendus));
+    const nv90 = await api('../api/v1/tableau-bord/alertes/liste?type=nonvendus&nv=90&limite=5');
+    ok('Liste des entrés non vendus (période réglable) : produit, entrée, quantité, grossiste', nv90.success && nv90.data.length <= 5 && (nv90.data.length === 0 || (nv90.data[0].libelle && nv90.data[0].entree)), JSON.stringify(nv90.data[0] || {}));
+    const ratioT = await texte('[data-tuile="achats"]');
+    ok('Tuile Achats : ratio vente/achat', /Ratio vente\/achat : /.test(ratioT), ratioT);
+    const bulle = await p.evaluate(() => { const t = document.querySelector('[data-corps="frequentation"] svg rect title'); return t ? t.textContent : ''; });
+    ok('Fréquentation : au survol, part de la tranche dans le CA de la semaine', /% du CA de la semaine/.test(bulle), bulle);
+
     const neg = (await api('../api/v1/tableau-bord/alertes')).negatifs;
     const negSql = q("SELECT COUNT(*) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '1' AND s.int_NUMBER_AVAILABLE < 0 AND f.str_STATUT = 'enable'");
     ok('Alertes : nombre d\'articles en stock négatif = base (' + negSql + ')', neg === Number(negSql), neg + ' / ' + negSql);
@@ -201,7 +215,7 @@ const n = (v) => Number(v || 0);
 
     // Tuiles affichees
     const tuileCa = await texte('[data-tuile="ca"] .tb-v');
-    ok('Tuile affichée : CA net', nombre(tuileCa) === t.ca, tuileCa + ' DEBUG ' + await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord'); return t.length + ' ' + t[0].jour() + ' ' + t[0].id; }) + ' ' + JSON.stringify(tuilesUrls));
+    ok('Tuile affichée : CA net', nombre(tuileCa) === t.ca, tuileCa);
 
     // Mobile money depliable
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord')[0]; t.body.dom.querySelector('[data-carte="encaissements"]').scrollIntoView(); });
@@ -278,6 +292,7 @@ const n = (v) => Number(v || 0);
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord')[0]; t.body.dom.scrollTop = 99999; });
     await p.waitForTimeout(4000);
     const apres = await p.evaluate(() => ({ cartes: Array.from(document.querySelectorAll('[data-dd="cartes"] > [data-id]')).map((e) => e.getAttribute('data-id')), panier: !!document.querySelector('[data-id="tuile-panier"]') }));
+    ok('Hors personnalisation : rappel « N élément(s) retiré(s) — remettre » dans l\'entête', /2 éléments retirés — remettre/.test(await texte('[data-tb="perso-rappel"]') || ''), await texte('[data-tb="perso-rappel"]'));
     ok('Après rechargement : disposition reprise (ordre, éléments retirés)', apres.cartes[0] === 'alertes' && apres.cartes.indexOf('tiers') < 0 && !apres.panier, apres.cartes.join(','));
     ok('Un élément retiré n\'est jamais lu', routes.indexOf('tiers-payants') < 0 && routes.indexOf('emplacements') >= 0, routes.join(','));
     // remettre puis disposition par defaut

@@ -22,6 +22,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
     resizable: false,
     draggable: false,
     closeAction: 'destroy',
+    /* Retours du 06/10 (4) : aussi large que l'ecran le permet (une ligne par substitut), bouton « agrandir ». */
     width: 1180,
     height: 660,
     bodyPadding: 0,
@@ -37,7 +38,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
     recherche: '',
 
     initComponent: function () {
-        var me = this;
+        var me = this, v = Ext.getBody().getViewSize();
+        me.width = Math.max(me.width, Math.min(1560, v.width - 40));
+        me.height = Math.max(Math.min(me.height, v.height - 40), Math.min(760, v.height - 40));
         me.html = '<div class="vc"><div class="vc-chargement">Recherche des équivalents DCI en stock…</div></div>';
         me.callParent(arguments);
         me.on('afterrender', function () {
@@ -100,6 +103,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
         }
         if (action === 'fermer') {
             me.close();
+        } else if (action === 'agrandir') {
+            me.basculerTaille();
         } else if (action === 'imprimer') {
             window.open('../api/v1/suggestion-equivalents/' + encodeURIComponent(me.suggestionId) + '/pdf');
         } else if (action === 'filtre') {
@@ -112,6 +117,23 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
             });
         } else if (action === 'retirer') {
             me.preparerRetrait();
+        }
+    },
+
+    basculerTaille: function () {
+        var me = this, v = Ext.getBody().getViewSize();
+        if (!me.tailleNormale) {
+            me.tailleNormale = [me.getWidth(), me.getHeight()];
+            me.setSize(v.width - 16, v.height - 16);
+        } else {
+            me.setSize(me.tailleNormale[0], me.tailleNormale[1]);
+            me.tailleNormale = null;
+        }
+        me.center();
+        var b = me.getEl().dom.querySelector('[data-action="agrandir"]');
+        if (b) {
+            b.innerHTML = me.tailleNormale ? '&#x2752;' : '&#x26F6;';
+            b.title = me.tailleNormale ? 'Taille normale' : 'Agrandir';
         }
     },
 
@@ -156,7 +178,10 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
                     + tuile(fmt(t.valeurCouverteAchat) + '<small style="font-size:12px;color:#6b7b8c"> / ' + fmt(t.valeurCouverteVente) + '</small>', 'valeur couverte achat / vente')
                     + tuile(fmt(t.valeurAvantAchat) + ' → ' + fmt(t.valeurApresAchat), 'suggestion (achat) avant → après') + '</div>')
                     + '<div class="eq-alerte">Aide à la décision : vérifiez la prescription, le dosage, la forme et les contre-indications. '
-                    + 'Seuls les équivalents <b>directs</b> en boîte comptent dans la quantité couverte.</div>'
+                    + 'Seuls les équivalents <b>directs</b> en boîte comptent dans la quantité couverte.<br>'
+                    + '<span class="eq-niv eq-direct">Direct</span> même DCI, même dosage, même forme · '
+                    + '<span class="eq-niv eq-adapter">À adapter</span> même DCI mais dosage ou forme différents (ou non lisibles dans le libellé) : '
+                    + 'pour information, il faut adapter la posologie ; ne compte jamais.</div>'
                     + (me.itemId ? '' : '<div class="eq-filtres">' + puce('tous', 'Tous') + puce('couverts', 'Couverts') + puce('adapter', 'Avec « à adapter »')
                             + '<input type="text" data-filtre="1" placeholder="Produit, CIP ou DCI" value="' + enc(me.recherche) + '"></div>')
                     + '<div class="vc-tableau eq-tableau"><table><thead><tr><th style="width:24px"><input type="checkbox" data-action="tout" title="Tout cocher"></th>'
@@ -165,7 +190,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
                     + Ext.Array.map(lignes, function (l) {
                         var p = l.produit, couv = l.couverte >= l.qteSuggeree && l.couverte > 0 ? 'eq-couv' : (l.couverte > 0 ? 'eq-partiel' : 'eq-nul');
                         var subs = '<table class="eq-subs">' + Ext.Array.map(l.substituts, function (s) {
-                            var niv = s.niveau === 'direct' ? '<span class="eq-niv eq-direct">Direct</span>' : '<span class="eq-niv eq-adapter">À adapter</span>';
+                            var niv = s.niveau === 'direct' ? '<span class="eq-niv eq-direct" title="Même DCI, même dosage, même forme">Direct</span>'
+                                    : '<span class="eq-niv eq-adapter" title="Même DCI, dosage ou forme différents : posologie à adapter, ne compte pas">À adapter</span>';
                             if (s.dansSuggestion) {
                                 niv += ' <span class="eq-niv eq-hors" title="Aussi dans la suggestion : ne compte pas">dans la suggestion</span>';
                             } else if (s.detail) {
@@ -191,7 +217,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
         me.update('<div class="vc">'
                 + '<div class="vc-tete"><div><div class="vc-sur">Équivalents DCI en stock · suggestion ' + enc(r.reference || '') + ' · ' + enc(r.grossiste || '') + '</div>'
                 + '<div class="vc-nom">Produits déjà couverts par un équivalent en stock</div></div>'
-                + '<button type="button" class="vc-croix" data-action="fermer" aria-label="Fermer">&times;</button></div>'
+                + '<span><button type="button" class="vc-croix eq-agrandir" data-action="agrandir" title="' + (me.tailleNormale ? 'Taille normale' : 'Agrandir') + '">'
+                + (me.tailleNormale ? '&#x2752;' : '&#x26F6;') + '</button> '
+                + '<button type="button" class="vc-croix" data-action="fermer" aria-label="Fermer">&times;</button></span></div>'
                 + '<div class="vc-corps">' + corps + '</div>'
                 + '<div class="vc-pied"><span>Cochez les lignes couvertes à retirer de la suggestion. Elles resteront récupérables.</span>'
                 + '<span class="va-boutons">' + (r.success && (r.data || []).length ? '<button type="button" class="vc-bouton vc-bouton-second" data-action="imprimer">Imprimer</button> ' : '')

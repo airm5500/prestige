@@ -604,12 +604,87 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
             return o;
         });
         grille.reconfigure(Ext.create('Ext.data.Store', {fields: champs, data: donnees}), colonnes);
+        me.construireGraphiqueModes(ecran.down('#graphiqueModes'), modes, donnees);
         const resume = grille.down('#modesResume');
         if (resume) {
             resume.setText(modes.length
                     ? modes.length + ' mode(s) de r&egrave;glement rencontr&eacute;(s) ; sous chaque montant, son &eacute;volution par rapport &agrave; la p&eacute;riode pr&eacute;c&eacute;dente.'
                     : 'Aucun encaissement sur les p&eacute;riodes compar&eacute;es.');
         }
+    },
+
+    /**
+     * Retours du 06/10 (4) : sous la grille, une barre empilee par periode (un segment par mode de reglement et le
+     * tiers payant) ; l'infobulle donne le montant et sa part dans la periode.
+     */
+    construireGraphiqueModes: function (panneau, modes, donnees) {
+        if (!panneau || panneau.isDestroyed) {
+            return;
+        }
+        panneau.removeAll(true);
+        panneau.update('');
+        const series = Ext.Array.map(modes, function (m, i) {
+            return {champ: 'mode' + i, libelle: m.libelle};
+        }).concat([{champ: 'montantTp', libelle: 'Tiers payant'}]).filter(function (s) {
+            return Ext.Array.some(donnees, function (d) {
+                return (d[s.champ] || 0) > 0;
+            });
+        });
+        if (!donnees.length || !series.length) {
+            panneau.update('<div style="margin:20px;color:#666;">Aucun encaissement sur les p&eacute;riodes compar&eacute;es.</div>');
+            return;
+        }
+        const total = function (d) {
+            return Ext.Array.sum(series.map(function (s) {
+                return d.get(s.champ) || 0;
+            })) || 1;
+        };
+        const champs = ['libelle'].concat(series.map(function (s) {
+            return {name: s.champ, type: 'number'};
+        }));
+        panneau.add(Ext.create('Ext.chart.Chart', {
+            store: Ext.create('Ext.data.Store', {fields: champs, data: Ext.Array.map(donnees, function (d) {
+                    const o = {libelle: d.libelle + (d.enCours ? ' (en cours)' : '')};
+                    series.forEach(function (s) {
+                        o[s.champ] = d[s.champ] || 0;
+                    });
+                    return o;
+                })}),
+            animate: true,
+            shadow: false,
+            legend: {position: 'bottom'},
+            insetPadding: 12,
+            axes: [{
+                    type: 'Numeric', position: 'left', fields: series.map(function (s) {
+                        return s.champ;
+                    }), grid: true, minimum: 0, decimals: 0,
+                    label: {renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000');
+                        }}
+                }, {type: 'Category', position: 'bottom', fields: ['libelle']}],
+            series: [{
+                    type: 'column', axis: 'left', stacked: true, xField: 'libelle',
+                    yField: series.map(function (s) {
+                        return s.champ;
+                    }),
+                    title: series.map(function (s) {
+                        return s.libelle;
+                    }),
+                    gutter: 60,
+                    tips: {
+                        trackMouse: true, width: 280,
+                        renderer: function (enregistrement, item) {
+                            const s = Ext.Array.findBy(series, function (x) {
+                                return x.champ === item.yField;
+                            });
+                            const v = enregistrement.get(item.yField) || 0;
+                            this.setTitle((s ? s.libelle : '') + ' - ' + enregistrement.get('libelle') + ' : '
+                                    + Ext.util.Format.number(v, '0,000') + ' (' + Ext.util.Format.number(v * 100 / total(enregistrement), '0.0') + ' %)');
+                        }
+                    }
+                }]
+        }));
+        panneau.doLayout();
     },
 
     exporterModes: function () {

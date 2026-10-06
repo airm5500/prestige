@@ -38,6 +38,13 @@ public interface TableauBordService {
     /** Liste des produits d'une alerte (ruptures, peremptions, rayon) pour la fenetre de consultation. */
     JSONObject alerteListe(String type, int moisPeremption, int joursRupture, String emplacementId, int limite);
 
+    /** Retours du 06/10 (4) : avec la periode des articles entres (commandes) non vendus, en jours. */
+    JSONObject alertes(int moisPeremption, int joursRupture, int joursRenouvellement, int joursSuggestion,
+            int joursNonVendus, String emplacementId);
+
+    JSONObject alerteListe(String type, int moisPeremption, int joursRupture, int joursNonVendus, String emplacementId,
+            int limite);
+
     /** Ventes du mois par produit : quantite, CA, marge, taux ; tries par CA (le client retrie par quantite). */
     JSONObject topMois(LocalDate jour, int limite);
 

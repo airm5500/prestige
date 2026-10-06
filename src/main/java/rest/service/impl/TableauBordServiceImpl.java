@@ -364,9 +364,44 @@ public class TableauBordServiceImpl implements TableauBordService {
             + " WHERE l.str_STATUT = 'enable' AND l.dt_PEREMPTION IS NOT NULL AND IFNULL(l.current_stock, l.int_NUMBER) > 0"
             + " AND DATE(l.dt_PEREMPTION) >= CURDATE() AND DATE(l.dt_PEREMPTION) < DATE_ADD(CURDATE(), INTERVAL ?1 MONTH)";
 
+    /**
+     * Retours du 06/10 (4) : articles ENTRES en stock (bons de livraison clotures) depuis N jours et jamais vendus
+     * depuis leur premiere entree de la periode.
+     */
+    private static final String NON_VENDUS = "SELECT x.famille, x.nom, x.cip, x.entree, x.quantite, x.grossiste FROM ("
+            + "SELECT f.lg_FAMILLE_ID famille, f.str_NAME nom, f.int_CIP cip, MIN(b.dt_UPDATED) entree,"
+            + " SUM(COALESCE(bd.int_QTE_RECUE, 0) + COALESCE(bd.int_QTE_UG, 0)) quantite, MAX(g.str_LIBELLE) grossiste"
+            + " FROM t_bon_livraison_detail bd JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = bd.lg_BON_LIVRAISON_ID"
+            + " JOIN t_famille f ON f.lg_FAMILLE_ID = bd.lg_FAMILLE_ID LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bd.lg_GROSSISTE_ID"
+            + " WHERE b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= ?1 AND f.str_STATUT = 'enable'"
+            + " GROUP BY f.lg_FAMILLE_ID, f.str_NAME, f.int_CIP) x WHERE NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID = x.famille"
+            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.dt_UPDATED >= x.entree)";
+
     @Override
     public JSONObject alertes(int moisPeremption, int joursRupture, int joursRenouvellement, int joursSuggestion,
             String emplacementId) {
+        return alertes(moisPeremption, joursRupture, joursRenouvellement, joursSuggestion, 30, emplacementId);
+    }
+
+    @Override
+    public JSONObject alertes(int moisPeremption, int joursRupture, int joursRenouvellement, int joursSuggestion,
+            int joursNonVendus, String emplacementId) {
+        JSONObject o = alertesSansNonVendus(moisPeremption, joursRupture, joursRenouvellement, joursSuggestion,
+                emplacementId);
+        try {
+            Object[] nv = ligne("SELECT COUNT(*) FROM (" + NON_VENDUS + ") n",
+                    ts(LocalDate.now().minusDays(Math.max(1, joursNonVendus))));
+            o.put("nonVendus", new JSONObject().put("produits", n(at(nv, 0))).put("jours", joursNonVendus));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "tableau de bord : articles entres non vendus", e);
+            o.put("nonVendus", new JSONObject().put("produits", 0).put("jours", joursNonVendus));
+        }
+        return o;
+    }
+
+    private JSONObject alertesSansNonVendus(int moisPeremption, int joursRupture, int joursRenouvellement,
+            int joursSuggestion, String emplacementId) {
         JSONObject o = new JSONObject();
         try {
             o.put("ruptures", ruptures(joursRupture, emplacementId));
@@ -413,11 +448,25 @@ public class TableauBordServiceImpl implements TableauBordService {
 
     @Override
     public JSONObject alerteListe(String type, int moisPeremption, int joursRupture, String emplacementId, int limite) {
+        return alerteListe(type, moisPeremption, joursRupture, 30, emplacementId, limite);
+    }
+
+    @Override
+    public JSONObject alerteListe(String type, int moisPeremption, int joursRupture, int joursNonVendus,
+            String emplacementId, int limite) {
         JSONObject o = new JSONObject().put("type", type);
         JSONArray a = new JSONArray();
         int max = limite <= 0 ? 500 : limite;
         try {
-            if ("ruptures".equals(type)) {
+            if ("nonvendus".equals(type)) {
+                for (Object[] r : lignes(NON_VENDUS + " ORDER BY x.entree ASC LIMIT " + max,
+                        ts(LocalDate.now().minusDays(Math.max(1, joursNonVendus))))) {
+                    Timestamp e = (Timestamp) r[3];
+                    a.put(new JSONObject().put("libelle", t(r[1])).put("cip", t(r[2]))
+                            .put("entree", e == null ? "" : e.toLocalDateTime().toLocalDate().toString())
+                            .put("quantite", n(r[4])).put("grossiste", t(r[5])));
+                }
+            } else if ("ruptures".equals(type)) {
                 for (Object[] r : lignes("SELECT * FROM (" + RUPTURES + ") r ORDER BY r.derniere DESC LIMIT " + max,
                         emplacementId, ts(LocalDate.now().minusDays(JOURS_RUPTURE_UTILE)))) {
                     Timestamp dv = (Timestamp) r[2];

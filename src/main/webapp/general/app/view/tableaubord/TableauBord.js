@@ -56,6 +56,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         me.prefs = {};
         me.html = '<div class="tb"><div class="tb-entete"><div><div class="tb-titre" data-tb="titre">TABLEAU DE BORD</div>'
                 + '<div class="tb-sous" data-tb="date"></div></div><div class="tb-esp"></div>'
+                + '<span class="tb-lien tb-retires-rappel" data-tb="perso-rappel" style="display:none"></span>'
                 + '<button class="tb-btn tb-sombre" data-tb="perso">Personnaliser</button>'
                 + '<button class="tb-btn tb-sombre" data-tb="actualiser"><i class="fa-solid fa-rotate"></i> Actualiser</button></div>'
                 + '<div class="tb-bandeau"><b>Mode personnalisation.</b> Glissez une carte ou une tuile par sa poignée ⠿ pour la déplacer, ✕ pour la retirer. '
@@ -160,7 +161,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     },
 
     alertesPrefs: function () {
-        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2}, this.prefs.alertes || {});
+        return Ext.apply({per: 6, rup: 7, ren: 7, sug: 2, nv: 30}, this.prefs.alertes || {});
     },
 
     /* ------------------------------------------------------------------ construction */
@@ -285,8 +286,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         if (!me.q('[data-tuile]')) {
             return;
         }
+        /* meme regle que les cartes : seule la derniere lecture des tuiles s'affiche */
+        var version = me.versionTuiles = (me.versionTuiles || 0) + 1;
         me.lire('../api/v1/tableau-bord/tuiles', {date: me.jour(), achats: me.prefs.achats || 'saisie', rup: a.rup, frais: frais ? 1 : 0}, function (o) {
-            me.dessinerTuiles(o);
+            if (version === me.versionTuiles) {
+                me.dessinerTuiles(o);
+            }
         });
     },
 
@@ -314,10 +319,41 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         poser('achats', '<span class="tb-seg tb-seg-tuile" data-seg="achats"><button class="' + (bl ? '' : 'on') + '" data-v="saisie">saisie</button>'
                 + '<button class="' + (bl ? 'on' : '') + '" data-v="bl">date BL</button></span>'
                 + '<div class="tb-v">' + f(o.achats.ttc) + '</div><div class="tb-d">HT <b>' + f(o.achats.ht) + '</b> + TVA <b>' + f(o.achats.tva)
-                + '</b> · <b>' + f(o.achats.bl) + '</b> BL</div><div class="tb-d tb-petit">' + (bl ? 'selon la date figurant sur le BL du grossiste'
+                + '</b> · <b>' + f(o.achats.bl) + '</b> BL</div>'
+                /* retours du 06/10 (4) : ratio vente / achat du jour (CA net TTC / achats TTC) */
+                + '<div class="tb-d" title="Chiffre d\'affaires net TTC du jour divisé par les achats TTC du jour">Ratio vente/achat : <b>'
+                + (o.achats.ttc > 0 ? (Math.round(o.ca * 100 / o.achats.ttc) / 100).toLocaleString('fr-FR', {minimumFractionDigits: 2}) : '—') + '</b></div>'
+                + '<div class="tb-d tb-petit">' + (bl ? 'selon la date figurant sur le BL du grossiste'
                 : 'selon la date de saisie (entrée en stock)') + '</div>');
         poser('ruptures', '<div class="tb-v tb-clic" data-liste="ruptures">' + f(o.ruptures.produits) + '</div><div class="tb-d"><span class="tb-baisse"><b>'
                 + f(o.ruptures.vendusRecemment) + '</b> vendus sous <b>' + o.ruptures.jours + '</b> j</span></div>');
+        me.animerNombres(me.q('[data-tb="tuiles"]'));
+    },
+
+    /**
+     * Retours du 06/10 (4) : les grands nombres des tuiles defilent jusqu'a leur valeur (0,8 s). Sans effet si
+     * l'utilisateur a demande moins d'animations au systeme.
+     */
+    animerNombres: function (zone) {
+        if (!zone || !window.requestAnimationFrame || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+            return;
+        }
+        Ext.each(Ext.Array.slice(zone.querySelectorAll('.tb-v')), function (el) {
+            var texte = el.textContent, cible = Number(texte.replace(/[^0-9-]/g, ''));
+            if (!texte || isNaN(cible) || !/^[-\d\s\u202f\u00a0.]+$/.test(texte.trim()) || Math.abs(cible) < 2) {
+                return;
+            }
+            var debut = null, duree = 800;
+            var pas = function (t) {
+                debut = debut || t;
+                var k = Math.min(1, (t - debut) / duree), e = 1 - Math.pow(1 - k, 3);
+                el.textContent = k < 1 ? Math.round(cible * e).toLocaleString('fr-FR') : texte;
+                if (k < 1) {
+                    window.requestAnimationFrame(pas);
+                }
+            };
+            window.requestAnimationFrame(pas);
+        });
     },
 
     /* ------------------------------------------------------------------ cartes */
@@ -342,50 +378,61 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         if (!me.corps(id)) {
             return;
         }
+        /* Une seule lecture fait foi par carte : la reponse d'une lecture plus ancienne (date changee, actualiser,
+           interrupteur) arrivee en retard est ignoree au lieu d'ecraser la bonne. */
+        me.versions = me.versions || {};
+        var version = me.versions[id] = (me.versions[id] || 0) + 1;
+        var lire = function (url, params, suite) {
+            me.lire(url, params, function (o) {
+                if (me.versions[id] === version) {
+                    suite(o);
+                }
+            });
+        };
         var routes = {
             evolution: function () {
                 me.dessinerEvolution(fr);
             },
             valorisation: function () {
-                me.lire('../api/v1/tableau-bord/valorisation', {frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/valorisation', {frais: fr}, function (o) {
                     me.dessinerValorisation(o);
                 });
             },
             encaissements: function () {
-                me.lire('../api/v1/tableau-bord/encaissements', {date: j, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/encaissements', {date: j, frais: fr}, function (o) {
                     me.dessinerEncaissements(o);
                 });
             },
             mouvements: function () {
-                me.lire('../api/v1/tableau-bord/mouvements', {date: j, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/mouvements', {date: j, frais: fr}, function (o) {
                     me.dessinerMouvements(o);
                 });
             },
             alertes: function () {
                 var a = me.alertesPrefs();
-                me.lire('../api/v1/tableau-bord/alertes', Ext.apply({frais: fr}, a), function (o) {
+                lire('../api/v1/tableau-bord/alertes', Ext.apply({frais: fr}, a), function (o) {
                     me.dessinerAlertes(o);
                 });
             },
             frequentation: function () {
-                me.lire('../api/v1/tableau-bord/frequentation', {date: j, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/frequentation', {date: j, frais: fr}, function (o) {
                     me.donneesFreq = o;
                     me.dessinerFrequentation();
                 });
             },
             topmois: function () {
-                me.lire('../api/v1/tableau-bord/top-mois', {date: j, limite: 5, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/top-mois', {date: j, limite: 5, frais: fr}, function (o) {
                     me.donneesTopMois = o;
                     me.dessinerTopMois();
                 });
             },
             grossistes: function () {
-                me.lire('../api/v1/tableau-bord/grossistes', {date: j, limite: 5, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/grossistes', {date: j, limite: 5, frais: fr}, function (o) {
                     me.dessinerBarres('grossistes', o, '#7c3aed', 'grossistes');
                 });
             },
             topca: function () {
-                me.lire('../api/v1/tableau-bord/top-jour', {date: j, limite: 5, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/top-jour', {date: j, limite: 5, frais: fr}, function (o) {
                     me.dessinerBarres('topca', o && o.success ? {success: true, data: o.ca} : null, '#16a34a', 'topca');
                     me.dessinerBarres('topqte', o && o.success ? {success: true, data: o.quantites} : null, '#0891b2', 'topqte');
                 });
@@ -399,14 +446,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             },
             emplacements: function () {
                 var axe = me.prefs.empl === 'famille' ? 'famille' : 'emplacement';
-                me.lire('../api/v1/tableau-bord/emplacements', {date: j, limite: 10, axe: axe, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/emplacements', {date: j, limite: 10, axe: axe, frais: fr}, function (o) {
                     me.dessinerBarres('emplacements', o, '#f59e0b', 'emplacements', '<span class="tb-seg" data-seg="empl">'
                             + '<button data-v="emplacement" class="' + (axe === 'emplacement' ? 'on' : '') + '">Emplacement</button>'
                             + '<button data-v="famille" class="' + (axe === 'famille' ? 'on' : '') + '">Famille</button></span> ');
                 });
             },
             tiers: function () {
-                me.lire('../api/v1/tableau-bord/tiers-payants', {date: j, limite: 10, frais: fr}, function (o) {
+                lire('../api/v1/tableau-bord/tiers-payants', {date: j, limite: 10, frais: fr}, function (o) {
                     me.dessinerBarres('tiers', o, '#e11d48', 'tiers');
                 });
             }
@@ -699,6 +746,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<label>Ruptures vendues depuis <input type="number" min="1" max="90" value="' + a.rup + '" data-p="rup"> jours</label>'
                 + '<label>Renouvellements sous <input type="number" min="0" max="60" value="' + a.ren + '" data-p="ren"> jours</label>'
                 + '<label>Suggestions de commande clôturées depuis <input type="number" min="0" max="60" value="' + a.sug + '" data-p="sug"> jours</label>'
+                + '<label>Articles entrés non vendus depuis <input type="number" min="1" max="365" value="' + a.nv + '" data-p="nv"> jours</label>'
                 + '<div class="tb-note">Enregistré pour votre compte. La période des ruptures vaut aussi pour la tuile « Ruptures ».</div></div>'
                 + '<table>' + ligne('data-liste="ruptures"', 'Rupture', 'p-r', '<b>' + me.fmt(o.ruptures.produits) + '</b> produits à zéro, dont <b>' + me.fmt(o.ruptures.vendusRecemment)
                         + '</b> vendus sous <b>' + a.rup + '</b> j')
@@ -710,8 +758,11 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                         + a.sug + '</b> j, non commandées')
                 + ligne(menuOu('ordonnanceclient'), 'Renouvellement', 'p-g', '<b>' + me.fmt(o.renouvellements.patients) + '</b> ordonnances à renouveler sous <b>' + a.ren + '</b> j')
                 + ligne(menuOu('venteavoirmanager'), 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
-                + ligne('data-liste="negatifs"', 'Stock négatif', 'p-r', '<b>' + me.fmt(o.negatifs) + '</b> articles en stock négatif') + '</table>'
-                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+                + ligne('data-liste="negatifs"', 'Stock négatif', 'p-r', '<b>' + me.fmt(o.negatifs) + '</b> articles en stock négatif')
+                /* retours du 06/10 (4) : articles commandes (entres en stock) et jamais vendus depuis */
+                + ligne('data-liste="nonvendus"', 'Entrés non vendus', 'p-a', '<b>' + me.fmt((o.nonVendus || {}).produits || 0) + '</b> articles entrés depuis <b>'
+                        + a.nv + '</b> j et pas vendus depuis') + '</table>'
+                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
     },
 
     /* --- frequentation (retours du 06/10) : ventes par tranche de 2 h, semaine precedente / semaine en cours */
@@ -736,25 +787,32 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         }
         /* Ventes par heure (24 cases) regroupees par tranche de « pas » heures ; repli sur les tranches de 2 h. */
         var regrouper = function (sem) {
-            var h = sem.ventesH, n = Math.ceil(24 / pas), r = [];
+            var h = sem.ventesH, n = Math.ceil(24 / pas), r = [], ca = [];
             for (var k = 0; k < n; k++) {
                 r[k] = 0;
+                ca[k] = 0;
             }
             if (!h) {
                 (sem.ventes || []).forEach(function (v, i) {
                     r[Math.floor(i * 2 / pas)] += v || 0;
+                    ca[Math.floor(i * 2 / pas)] += (sem.ca || [])[i] || 0;
                 });
             } else {
                 h.forEach(function (v, i) {
                     r[Math.floor(i / pas)] += v || 0;
+                    ca[Math.floor(i / pas)] += (sem.caH || [])[i] || 0;
                 });
             }
-            return {ventes: r, jours: sem.jours, debut: sem.debut, fin: sem.fin};
+            return {ventes: r, ca: ca, caTotal: Ext.Array.sum(ca), jours: sem.jours, debut: sem.debut, fin: sem.fin};
         };
         var p = regrouper(o.precedente), s = regrouper(o.semaine);
         var val = function (sem, i) {
             var v = sem.ventes[i] || 0;
             return moy ? (sem.jours ? v / sem.jours : 0) : v;
+        };
+        /* retours du 06/10 (4) : part de la tranche dans le chiffre d'affaires de la semaine */
+        var partCa = function (sem, i) {
+            return sem.caTotal > 0 ? ' — ' + (Math.round(sem.ca[i] * 1000 / sem.caTotal) / 10).toLocaleString('fr-FR') + ' % du CA de la semaine' : '';
         };
         var etiquette = function (i) {
             return (i * pas) + 'h-' + Math.min(24, i * pas + pas) + 'h';
@@ -794,9 +852,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             var x0 = pg + k * bande + bande / 2, v0 = val(p, i), v1 = val(s, i);
             var ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
             svg += '<rect x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#9fb3c8"><title>Semaine précédente, '
-                    + etiquette(i) + ' : ' + nb(v0) + '</title></rect>';
+                    + etiquette(i) + ' : ' + nb(v0) + partCa(p, i) + '</title></rect>';
             svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Semaine en cours, '
-                    + etiquette(i) + ' : ' + nb(v1) + '</title></rect>';
+                    + etiquette(i) + ' : ' + nb(v1) + partCa(s, i) + '</title></rect>';
             svg += '<text x="' + (x0 - lb / 2 - 1) + '" y="' + (Y(v0) - 4) + '" font-size="10" fill="#5b6b7c" text-anchor="middle">' + nb(v0) + '</text>';
             svg += '<text x="' + (x0 + lb / 2 + 1) + '" y="' + (Y(v1) - 4) + '" font-size="10" font-weight="700" fill="#0e5f73" text-anchor="middle">' + nb(v1) + '</text>';
             svg += '<text x="' + x0 + '" y="' + (h - 18) + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">' + etiquette(i) + '</text>';
@@ -934,7 +992,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
 
     listeAlerte: function (type) {
         var me = this, a = me.alertesPrefs();
-        me.lire('../api/v1/tableau-bord/alertes/liste', {type: type, per: a.per, rup: a.rup, limite: 500}, function (o) {
+        me.lire('../api/v1/tableau-bord/alertes/liste', {type: type, per: a.per, rup: a.rup, nv: a.nv, limite: 500}, function (o) {
             var l = o && o.success ? o.data : [], t;
             var date = function (d) {
                 return d ? d.split('-').reverse().join('/') : '';
@@ -948,6 +1006,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                         }).join('');
                 me.fenetre('Produits en rupture (' + l.length + ')', '<table class="tb-fixe">' + t + '</table><div class="tb-note" style="margin-top:8px">Stock à zéro, vendus sur les 90 derniers jours.</div>',
                         {xtype: 'i_sugg_manager', texte: 'Ouvrir les suggestions de commande'});
+            } else if (type === 'nonvendus') {
+                t = '<tr><th style="width:44%">Produit</th><th>CIP</th><th>Entré le</th><th class="tb-n">Qté entrée</th><th>Grossiste</th></tr>' + l.map(function (x) {
+                    return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>' + date(x.entree)
+                            + '</td><td class="tb-n">' + me.fmt(x.quantite) + '</td><td class="tb-nom1">' + me.esc(x.grossiste) + '</td></tr>';
+                }).join('');
+                me.fenetre('Articles entrés depuis ' + a.nv + ' j et non vendus (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>'
+                        + '<div class="tb-note" style="margin-top:8px">Entrés en stock (bons de livraison clôturés) sur la période, sans aucune vente depuis leur entrée.</div>',
+                        {xtype: 'i_order_manager', texte: 'Ouvrir les commandes'});
             } else if (type === 'negatifs') {
                 t = '<tr><th style="width:52%">Produit</th><th>CIP</th><th class="tb-n">Stock</th><th>Emplacement</th></tr>' + l.map(function (x) {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n tb-baisse">'
@@ -988,6 +1054,13 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             noms[x.id] = x.titre;
         });
         var r = me.prefs.retires || [];
+        /* retours du 06/10 (4) : hors personnalisation, un rappel montre qu'il y a des elements retires */
+        var rappel = me.q('[data-tb="perso-rappel"]');
+        if (rappel) {
+            rappel.style.display = r.length && !me.edition ? '' : 'none';
+            rappel.innerHTML = '<i class="fa-solid fa-eye-slash"></i> ' + r.length + ' élément' + (r.length > 1 ? 's' : '') + ' retiré' + (r.length > 1 ? 's' : '') + ' — remettre';
+            rappel.title = 'Ouvre la personnalisation : chaque élément retiré a son bouton « + » pour le remettre';
+        }
         z.innerHTML = r.length ? r.map(function (id) {
             return '<button class="tb-btn tb-mini" data-remettre="' + id + '">+ ' + me.esc(noms[id] || id) + '</button>';
         }).join('') : '<span class="tb-note">Aucun élément retiré.</span>';
@@ -1089,6 +1162,14 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 return e.target.closest ? e.target.closest(sel) : null;
             };
             var x;
+            if (cible('[data-tb="perso-rappel"]') && !me.edition) {
+                x = me.q('[data-tb="perso"]');
+                me.edition = true;
+                racine.querySelector('.tb').classList.add('tb-edition');
+                x.textContent = 'Terminer';
+                me.majRetires();
+                return;
+            }
             if ((x = cible('[data-tb="perso"]'))) {
                 me.edition = !me.edition;
                 racine.querySelector('.tb').classList.toggle('tb-edition', me.edition);

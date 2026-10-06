@@ -69,14 +69,14 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
             }
             String id = UUID.randomUUID().toString();
             String relatif = ImagesProduit.cheminRelatif(LocalDate.now(), id, type);
-            ecrit = StockageDisque.racine().resolve(relatif);
+            ecrit = emplacement(relatif);
             Files.createDirectories(ecrit.getParent());
             Files.write(ecrit, octets);
             ImagesProduit.Vignette v = ImagesProduit.vignette(octets);
             String relatifVignette = null;
             if (v != null) {
                 relatifVignette = ImagesProduit.cheminRelatif(LocalDate.now(), id + "_v", "jpg");
-                vignetteEcrite = StockageDisque.racine().resolve(relatifVignette);
+                vignetteEcrite = emplacement(relatifVignette);
                 Files.write(vignetteEcrite, v.octets);
             }
             boolean premiere = ((Number) em
@@ -157,7 +157,7 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
             String c = (String) r.get(0)[k];
             if (ImagesProduit.cheminSur(c)) {
                 try {
-                    Files.deleteIfExists(StockageDisque.racine().resolve(c));
+                    Files.deleteIfExists(lire(c));
                 } catch (Exception e) {
                     LOG.log(Level.WARNING, "fichier d''image non retire : {0}", c);
                 }
@@ -189,8 +189,61 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
         if (!ImagesProduit.cheminSur(c)) {
             return null;
         }
-        Path p = StockageDisque.racine().resolve(c);
+        Path p = lire(c);
         return Files.isRegularFile(p)
                 ? new Object[] { p, v ? "image/jpeg" : ImagesProduit.typeMime((String) r.get(0)[2]) } : null;
+    }
+
+    /* ------------------------------------------------------------------ dossier des images (retours du 06/10) */
+
+    /** Parametre facultatif : dossier des images choisi par l'officine (chemin absolu). */
+    static final String PARAM_DOSSIER = "KEY_DOSSIER_IMAGES_PRODUITS";
+
+    /**
+     * Dossier des images : le parametre s'il est renseigne, sinon {@code images_produits} dans le dossier de
+     * configuration de l'officine (celui du fichier config_laborex : {@code D:\CONF\LABOREX\images_produits}),
+     * sauvegarde avec la configuration ; a defaut (configuration introuvable), l'ancien emplacement du disque de
+     * donnees.
+     */
+    Path dossierImages() {
+        try {
+            List<?> r = em.createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = :k")
+                    .setParameter("k", PARAM_DOSSIER).getResultList();
+            String v = r.isEmpty() || r.get(0) == null ? "" : String.valueOf(r.get(0)).trim();
+            if (!v.isEmpty()) {
+                return java.nio.file.Paths.get(v);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "parametre du dossier des images", e);
+        }
+        Path conf = ImagesProduit.dossierConfiguration(toolkits.utils.jdom.path_of_config);
+        return conf != null ? conf.resolve(ImagesProduit.DOSSIER_CONF)
+                : StockageDisque.racine().resolve(ImagesProduit.DOSSIER);
+    }
+
+    /** Ou ecrire un fichier dont le chemin relatif (en base) commence par images-produits/. */
+    private Path emplacement(String relatif) {
+        return dossierImages().resolve(relatif.substring(ImagesProduit.DOSSIER.length() + 1));
+    }
+
+    /**
+     * Ou lire un fichier : le nouveau dossier ; une image enregistree avant le changement (ancien emplacement) y est
+     * deplacee a sa premiere lecture, sans rien perdre.
+     */
+    private Path lire(String relatif) {
+        Path neuf = emplacement(relatif);
+        if (!Files.exists(neuf)) {
+            Path ancien = StockageDisque.racine().resolve(relatif);
+            if (!ancien.equals(neuf) && Files.isRegularFile(ancien)) {
+                try {
+                    Files.createDirectories(neuf.getParent());
+                    Files.move(ancien, neuf);
+                } catch (Exception e) {
+                    LOG.log(Level.WARNING, "image laissee a l''ancien emplacement : {0}", relatif);
+                    return ancien;
+                }
+            }
+        }
+        return neuf;
     }
 }

@@ -826,6 +826,14 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                                 }]
                         }],
                     columns: [{header: 'P&eacute;riode', dataIndex: 'libelle', flex: 1}]
+                }, {
+                    /* retours du 06/10 (4) : graphique en bas, comme l'analyse comparative */
+                    xtype: 'panel',
+                    itemId: 'graphiqueModes',
+                    height: 260,
+                    border: false,
+                    layout: 'fit',
+                    html: '<div style="margin:20px;color:#666;">Lancez une recherche pour afficher le graphique.</div>'
                 }]
         };
     }

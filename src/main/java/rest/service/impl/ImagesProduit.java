@@ -27,6 +27,24 @@ import javax.imageio.ImageIO;
 public final class ImagesProduit {
 
     public static final String DOSSIER = "images-produits";
+    /** Nom du dossier des images dans le dossier de configuration de l'officine (retours du 06/10). */
+    public static final String DOSSIER_CONF = "images_produits";
+
+    /**
+     * Dossier de configuration de l'officine deduit du fichier de configuration lu au demarrage
+     * ({@code D:\\CONF\\LABOREX\\CONF\\config_laborex_v1.xml} -> {@code D:\\CONF\\LABOREX}) ; null si inconnu.
+     */
+    public static java.nio.file.Path dossierConfiguration(String fichierConfig) {
+        if (fichierConfig == null || fichierConfig.trim().isEmpty()) {
+            return null;
+        }
+        java.nio.file.Path f = java.nio.file.Paths.get(fichierConfig.trim());
+        if (!java.nio.file.Files.isRegularFile(f) || f.getParent() == null || f.getParent().getParent() == null) {
+            return null;
+        }
+        return f.getParent().getParent();
+    }
+
     public static final long TAILLE_MAX = 5L * 1024L * 1024L;
     public static final int COTE_VIGNETTE = 240;
 

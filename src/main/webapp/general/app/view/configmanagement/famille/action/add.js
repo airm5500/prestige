@@ -468,7 +468,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             itemId: 'gridpanelDciID',
                             margin: '0 0 5 0',
                             store: store_dci_famille,
-                            height: 150,
+                            /* retours du 06/10 (4) : hauteur ajustee a la fenetre (voir ajusterDci), jamais moins de 230 */
+                            height: 230,
                             columns: [
                                 { header: 'lg_FAMILLE_DCI_ID', dataIndex: 'lg_FAMILLE_DCI_ID', hidden: true, flex: 1, editor: { allowBlank: false } },
                                 { header: 'Code DCI', dataIndex: 'str_CODE', flex: 1, editor: { allowBlank: false } },
@@ -672,11 +673,22 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
         if (winModifArticleOuverte && !winModifArticleOuverte.isDestroyed) {
             winModifArticleOuverte.destroy();
         }
+        var ajusterDci = function () {
+            var grille = g('gridpanelDciID'), fs = g('dcifieldset');
+            if (!grille || !fs || !fs.rendered || fs.collapsed || !form.body) {
+                return;
+            }
+            var corps = form.body, haut = grille.getEl().getY() - corps.getY() + corps.dom.scrollTop;
+            var voulu = Math.max(230, corps.getHeight() - haut - 40);
+            if (Math.abs(voulu - grille.getHeight()) > 8) {
+                grille.setHeight(voulu);
+            }
+        };
         var win = winModifArticleOuverte = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
             width: '94%',
-            height: 660,
+            height: Math.max(660, Math.min(Ext.getBody().getViewSize().height - 30, 860)),
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
@@ -691,7 +703,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             ],
             listeners: {
                 beforeclose: function () { var rech = Ext.getCmp('rechecher'); if (rech) rech.focus(); },
+                /* retours du 06/10 (4) : la grille des DCI occupe la place restante (agrandir la fenetre l'agrandit) */
+                resize: function () {
+                    Ext.defer(ajusterDci, 50);
+                },
                 show: function() {
+                    Ext.defer(ajusterDci, 300);
                     Ext.defer(function() {
                         var fieldToFocus = g('int_NUMBERDETAIL');
                         if (fieldToFocus && fieldToFocus.isVisible()) {

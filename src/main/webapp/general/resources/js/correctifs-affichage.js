@@ -847,7 +847,9 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
     'menunotification', 'evolutionstock', 'stockmort', 'articlemvtgrid',
     // retours du 06/10 : contenu d'une suggestion
-    'suggerercdemanager'
+    'suggerercdemanager',
+    // retours du 06/10 (4) : balance vente / caisse
+    'balancesalecahs'
 ];
 /**
  * FENETRES au nouveau style (retours du 06/10) : toute fenetre ouverte depuis l'un de ces ecrans (detail, modification,

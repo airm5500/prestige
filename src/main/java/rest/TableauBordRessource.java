@@ -150,24 +150,26 @@ public class TableauBordRessource {
     @Path("alertes")
     public Response alertes(@DefaultValue("6") @QueryParam("per") int per,
             @DefaultValue("7") @QueryParam("rup") int rup, @DefaultValue("7") @QueryParam("ren") int ren,
-            @DefaultValue("2") @QueryParam("sug") int sug, @DefaultValue("0") @QueryParam("frais") int frais) {
+            @DefaultValue("2") @QueryParam("sug") int sug, @DefaultValue("30") @QueryParam("nv") int nv,
+            @DefaultValue("0") @QueryParam("frais") int frais) {
         TUser u = utilisateur();
         if (u == null) {
             return deconnecte();
         }
-        return cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + emplacement(u), COURT, frais == 1,
-                () -> service.alertes(per, rup, ren, sug, emplacement(u)));
+        return cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + nv + "|" + emplacement(u), COURT,
+                frais == 1, () -> service.alertes(per, rup, ren, sug, nv, emplacement(u)));
     }
 
     @GET
     @Path("alertes/liste")
     public Response alerteListe(@QueryParam("type") String type, @DefaultValue("6") @QueryParam("per") int per,
-            @DefaultValue("7") @QueryParam("rup") int rup, @DefaultValue("500") @QueryParam("limite") int limite) {
+            @DefaultValue("7") @QueryParam("rup") int rup, @DefaultValue("30") @QueryParam("nv") int nv,
+            @DefaultValue("500") @QueryParam("limite") int limite) {
         TUser u = utilisateur();
         if (u == null) {
             return deconnecte();
         }
-        JSONObject o = service.alerteListe(StringUtils.defaultString(type), per, rup, emplacement(u), limite);
+        JSONObject o = service.alerteListe(StringUtils.defaultString(type), per, rup, nv, emplacement(u), limite);
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();
     }
 

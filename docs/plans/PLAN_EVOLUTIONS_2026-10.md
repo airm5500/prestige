@@ -617,6 +617,28 @@ Test : `test-retours-0610-presentation.js`.
 
 ---
 
+## 9 ter. Retours du 06/10 (4)
+
+- **Onglets** : chaque onglet se voit (fond clair, bordure, ombre), l'actif en bleu foncé ; barre d'onglets bordée.
+- **Équivalents DCI de la suggestion** : fenêtre aussi large que l'écran le permet (une ligne par substitut), bouton
+  ⛶ pour agrandir / revenir, légende **Direct** (même DCI, même dosage, même forme : compte) / **À adapter** (même
+  DCI mais dosage ou forme différents ou illisibles dans le libellé : posologie à adapter, information seulement,
+  ne compte jamais).
+- **Fiche article** : en modification, la grille des DCI occupe la place restante (agrandir la fenêtre l'agrandit) ;
+  en détail, colonne Stock / Image élargie et image toujours entière.
+- **Images produit** : enregistrées dans `<dossier de configuration>\images_produits`, c'est-à-dire
+  `D:\CONF\LABOREX\images_produits` (le dossier du fichier `config_laborex_v1.xml`), sauvegardé avec la
+  configuration ; paramètre facultatif `KEY_DOSSIER_IMAGES_PRODUITS` pour un autre dossier. Les images déjà
+  enregistrées (ancien emplacement `D:\prestige\images-produits`) y sont déplacées à leur première lecture.
+- **Balance vente / caisse** : graphique en bas de l'onglet « Évolution par mode de paiement » (une barre empilée
+  par période, un segment par mode et le tiers payant, part dans la période au survol) ; écran au nouveau style.
+- **Tableau de bord** : entêtes et tuiles teintés doucement selon leur couleur ; rappel « N éléments retirés —
+  remettre » dans l'entête ; alerte **articles entrés non vendus** (entrés en stock depuis N jours, 30 par défaut,
+  réglable, et pas vendus depuis ; clic → liste) ; **ratio vente/achat** sur la tuile Achats ; fréquentation : au
+  survol, part de la tranche dans le CA de la semaine ; **animations** (apparition en cascade, barres qui poussent,
+  chiffres qui défilent ; désactivées si le système demande moins d'animations). Correctif : une lecture plus ancienne
+  (tuiles ou carte) arrivée en retard n'écrase plus la bonne.
+
 ## 10. Découpage proposé et ordre de livraison (mis à jour le 06/10)
 
 | Lot | Contenu | Dépendances |

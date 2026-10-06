@@ -694,14 +694,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 {
                                     // 4e colonne dediee aux stocks
                                     id: 'colonne_stocks_detail',
-                                    width: 200,
+                                    /* retours du 06/10 (4) : plus large pour l'image (elle etait tronquee a 200 px) */
+                                    width: 250,
                                     padding: 6,
                                     style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
                                     defaults: {
                                         labelAlign: 'left',
                                         labelWidth: 100,
                                         labelStyle: 'color: brown;font-size: 13px;font-weight:bold',
-                                        width: 185,
+                                        width: 235,
                                         value: 0
                                     },
                                     listeners: {
@@ -733,7 +734,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                         },
                                         {
                                             /* Plan d'octobre (6) : image du produit sous le bloc stock (lecture). */
-                                            xtype: 'imagesproduitpanel', itemId: 'imagesProduitDetail', edition: false,
+                                            xtype: 'imagesproduitpanel', itemId: 'imagesProduitDetail', edition: false, cls: 'img-produit img-compact',
                                             border: false, minHeight: 120, margin: '8 0 0 0',
                                             familleId: this.getProduitId() || (this.getOdatasource() || {}).lg_FAMILLE_ID
                                         }
