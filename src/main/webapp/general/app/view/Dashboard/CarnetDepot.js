@@ -378,7 +378,8 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     title: 'VENTES',
                     border: false,
                     itemId: 'ventePanel',
-                    scrollable: true,
+                    /* la grille prend la hauteur de l'onglet et defile (sans mise en page, elle debordait sans barre de defilement) */
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',
@@ -486,6 +487,8 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     title: 'REGLEMENTS',
                     border: false,
                     itemId: 'reglementPanel',
+                    /* la grille prend la hauteur de l'onglet et defile (sans mise en page, elle debordait sans barre de defilement) */
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',
@@ -655,6 +658,8 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     title: 'DEPENSES',
                     border: false,
                     itemId: 'depensePanel',
+                    /* la grille prend la hauteur de l'onglet et defile (sans mise en page, elle debordait sans barre de defilement) */
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',
@@ -825,6 +830,8 @@ Ext.define('testextjs.view.Dashboard.CarnetDepot', {
                     title: 'PRODUITS',
                     border: false,
                     itemId: 'produitsPanel',
+                    /* la grille prend la hauteur de l'onglet et defile (sans mise en page, elle debordait sans barre de defilement) */
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',

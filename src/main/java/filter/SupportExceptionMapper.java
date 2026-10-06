@@ -47,6 +47,10 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
         if (exception instanceof WebApplicationException) {
             return ((WebApplicationException) exception).getResponse();
         }
+        Response refus = saisieInvalide(exception);
+        if (refus != null) {
+            return refus;
+        }
         LOG.log(Level.SEVERE, "Erreur non gérée dans l'API REST", exception);
         try {
             supportEventService.record(buildEvent(exception), currentUser());
@@ -56,6 +60,26 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(ResultFactory.getFailResult("Une erreur interne est survenue. Le support a été notifié."))
                 .type(MediaType.APPLICATION_JSON).build();
+    }
+
+    /**
+     * Valeur tapee par l'utilisateur et illisible (date, nombre) : refus propre (HTTP 400) avec la valeur en cause,
+     * sans evenement au Centre de support. Voir {@link util.SaisieInvalide}.
+     */
+    private Response saisieInvalide(Throwable exception) {
+        try {
+            String texte = util.SaisieInvalide.valeurIllisible(util.ErreurExplication.causeRacine(exception));
+            if (texte == null || request == null
+                    || !util.SaisieInvalide.estSaisie(texte, request.getParameterMap(), request.getRequestURI())) {
+                return null;
+            }
+            LOG.log(Level.FINE, "saisie invalide refusee : {0}", request.getRequestURI());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ResultFactory.getFailResult(util.SaisieInvalide.message(texte)))
+                    .type(MediaType.APPLICATION_JSON).build();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private SupportEventDTO buildEvent(Throwable exception) {

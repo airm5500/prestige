@@ -9,7 +9,6 @@ import commonTasks.dto.GenererFactureDTO;
 import commonTasks.dto.ReglementCarnetDTO;
 import dal.TUser;
 import dal.enumeration.TypeReglementCarnet;
-import java.time.LocalDate;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -157,8 +156,9 @@ public class CarnetDepotRessource {
     public Response produitVenduParDepot(@QueryParam(value = "tiersPayantId") String tiersPayantId,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit) {
-        JSONObject json = carnetAsDepotService.produitVenduParDepot(tiersPayantId, LocalDate.parse(dtStart),
-                LocalDate.parse(dtEnd), null, start, limit);
+        JSONObject json = carnetAsDepotService.produitVenduParDepot(tiersPayantId,
+                rest.service.impl.CarnetDepotServiceImpl.debutPeriode(dtStart),
+                rest.service.impl.CarnetDepotServiceImpl.finPeriode(dtEnd), null, start, limit);
         return Response.ok().entity(json.toString()).build();
 
     }

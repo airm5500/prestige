@@ -75,7 +75,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     /* ------------------------------------------------------------------ outils */
 
     q: function (sel) {
-        return this.body.dom.querySelector(sel);
+        /* ecran ferme pendant un chargement ou un redimensionnement : plus rien a dessiner */
+        return this.isDestroyed || !this.body || !this.body.dom ? null : this.body.dom.querySelector(sel);
     },
 
     jour: function () {
@@ -1259,9 +1260,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 me.ouvrirMenu(x.getAttribute('data-menu'));
             }
         });
+        me.on('destroy', function () {
+            clearTimeout(me.minuteurCourbe);
+        });
         me.on('resize', function () {
             clearTimeout(me.minuteurCourbe);
             me.minuteurCourbe = setTimeout(function () {
+                if (me.isDestroyed) {
+                    return;
+                }
                 me.tracerCourbe();
                 me.dessinerFrequentation();
             }, 200);

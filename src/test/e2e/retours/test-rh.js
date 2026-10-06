@@ -171,9 +171,11 @@ function nettoyer() {
     await p.waitForTimeout(2000);
     const lignesSes = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ongletConnexions')[0].getStore().getRange().map((r) => r.get('login') + '|' + r.get('ouverte')));
     ok('Onglet Connexions : la connexion de l\'essai « en cours »', lignesSes.indexOf('admin|true') >= 0, JSON.stringify(lignesSes.slice(0, 3)));
+    /* la session de CET essai (d'autres essais peuvent se connecter en meme temps avec le meme compte) */
+    const sesHttp = (await p.context().cookies()).find((c) => c.name === 'JSESSIONID').value.split('.')[0];
     await p.evaluate(async () => { await fetch('../api/v1/user/logout', { method: 'POST' }); });
     await p.waitForTimeout(1000);
-    ok('Déconnexion : la session est close (fin par « déconnexion »)', q("SELECT CONCAT(fin IS NOT NULL, '|', fin_par) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.debut >= '" + debutEssai + "' ORDER BY s.debut DESC LIMIT 1") === '1|DECONNEXION');
+    ok('Déconnexion : la session est close (fin par « déconnexion »)', q("SELECT CONCAT(fin IS NOT NULL, '|', fin_par) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.session_http = '" + sesHttp + "' ORDER BY s.debut DESC LIMIT 1") === '1|DECONNEXION');
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
     ok('Exécution sans exception', false, e.stack);

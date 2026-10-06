@@ -2753,3 +2753,29 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .rh-anomalie-forte { background: #fadbd8; color: #a93226; }
 .rh-apercu { border-collapse: collapse; font-size: 11px; } .rh-apercu th, .rh-apercu td { border: 1px solid #dfe6ee; padding: 2px 6px; }
 .rh-apercu th { background: #1e3a5f; color: #fff; }
+
+/* ---------------------------------------------------------------- Analyse Suggestion / Commande (L12) */
+.ac-tuiles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.ac-tuile { flex: 1 1 200px; border-radius: 10px; padding: 12px 14px; cursor: pointer; border: 1px solid #e3e8ee;
+    background: linear-gradient(135deg, var(--doux, #f4f7fa), #fff); transition: transform .15s, box-shadow .15s;
+    animation: tbApparition .35s ease-out backwards; }
+.ac-tuile:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, .08); }
+.ac-tuile.t-rouge { --doux: #fdecea; } .ac-tuile.t-violet { --doux: #f4ecf7; } .ac-tuile.t-bleu { --doux: #eaf2fb; }
+.ac-tuile.t-vert { --doux: #e9f7ef; } .ac-tuile.t-orange { --doux: #fef5e7; }
+.ac-tuile .ac-t { font-size: 12px; color: #5d6d7e; text-transform: uppercase; letter-spacing: .3px; }
+.ac-tuile .ac-v { font-size: 24px; font-weight: 700; color: #1f2d3d; margin: 4px 0; }
+.ac-tuile .ac-d { font-size: 12px; color: #7f8c8d; }
+.ac-bloc { border: 1px solid #e3e8ee; border-radius: 10px; padding: 12px 14px; background: #fff; }
+.ac-bloc-t { font-weight: 700; color: #2c3e50; margin: 4px 0 8px; }
+.ac-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.ac-table th, .ac-table td { padding: 5px 8px; border-bottom: 1px solid #eef1f4; text-align: left; }
+.ac-table .n { text-align: right; white-space: nowrap; }
+.ac-note { color: #7f8c8d; font-size: 12px; margin-top: 8px; line-height: 1.5; }
+.ac-vide { padding: 30px; text-align: center; color: #7f8c8d; }
+.ac-fiab { display: inline-block; width: 46px; height: 7px; background: #eef1f4; border-radius: 4px; vertical-align: middle; overflow: hidden; }
+.ac-fiab span { display: block; height: 100%; border-radius: 4px; }
+.ac-puce { display: inline-block; border: 1px solid; border-radius: 10px; padding: 0 7px; font-size: 11px; line-height: 17px; margin: 1px 0; background: #fff; }
+.ac-ligne-grave .x-grid-cell { background: #fff6f5; }
+.ac-detail svg { display: block; margin-bottom: 10px; }
+.ac-colonnes { display: flex; gap: 16px; flex-wrap: wrap; }
+.ac-colonnes > div { flex: 1 1 340px; }

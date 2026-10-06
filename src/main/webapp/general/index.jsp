@@ -79,6 +79,8 @@
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger
              apres ext-all.js. -->
         <script src="resources/js/correctifs-affichage.js"></script>
+        <!-- Controle de saisie commun (dates impossibles refusees au lieu d'etre decalees) -->
+        <script src="resources/js/controle-saisie.js"></script>
         <script src="resources/js/selecteur-periodes.js"></script>
         <script src="resources/js/veille-geometrie.js"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->

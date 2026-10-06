@@ -22,15 +22,17 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CAPT = process.env.CAPTURES || '/tmp';
-const RACINE = path.join(process.env.HOME || '/root', 'prestige');
+/* dossier des images : images_produits a cote du dossier de configuration (D:\\CONF\\LABOREX\\images_produits en officine) */
+const DOSSIER = process.env.DOSSIER_IMAGES || '/opt/CONF/LABOREX/images_produits';
+const disque = (c) => path.join(DOSSIER, c.replace(/^images-produits\//, ''));
 const TMP = fs.mkdtempSync('/tmp/e2e-img-');
 let P, cip;
 
-const fichiers = () => { const d = path.join(RACINE, 'images-produits'); const r = []; const parcourir = (x) => { if (!fs.existsSync(x)) { return; } for (const f of fs.readdirSync(x)) { const c = path.join(x, f); fs.statSync(c).isDirectory() ? parcourir(c) : r.push(c); } }; parcourir(d); return r; };
+const fichiers = () => { const d = DOSSIER; const r = []; const parcourir = (x) => { if (!fs.existsSync(x)) { return; } for (const f of fs.readdirSync(x)) { const c = path.join(x, f); fs.statSync(c).isDirectory() ? parcourir(c) : r.push(c); } }; parcourir(d); return r; };
 function nettoyer() {
   if (!P) { return; }
   q("SELECT CONCAT_WS('|', str_CHEMIN, IFNULL(str_CHEMIN_VIGNETTE, '')) FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'").split('\n').filter(Boolean)
-    .forEach((l) => l.split('|').filter(Boolean).forEach((c) => { try { fs.unlinkSync(path.join(RACINE, c)); } catch (e) { /* deja absent */ } }));
+    .forEach((l) => l.split('|').filter(Boolean).forEach((c) => { try { fs.unlinkSync(disque(c)); } catch (e) { /* deja absent */ } }));
   exec("DELETE FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'");
 }
 
@@ -89,7 +91,7 @@ function nettoyer() {
     const lignes1 = q("SELECT CONCAT_WS('|', str_CHEMIN, IFNULL(str_CHEMIN_VIGNETTE, ''), str_TYPE, bool_PRINCIPALE, int_LARGEUR) FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'");
     ok('Ajout par l\'écran : image affichée (vignette ≤ 240 px), bouton « Modifier »', v1.img && v1.l > 0 && v1.l <= 240 && v1.bouton === 'Modifier', JSON.stringify(v1));
     ok('En base : chemin relatif images-produits/AAAA/MM, vignette, PNG, principale, largeur 900', /^images-produits\/\d{4}\/\d{2}\/[0-9a-f-]+\.png\|images-produits\/\d{4}\/\d{2}\/[0-9a-f-]+_v\.jpg\|png\|1\|900$/.test(lignes1), lignes1);
-    ok('Fichier et vignette écrits sur le disque', fichiers().length === n0 + 2 && lignes1.split('|').slice(0, 2).every((c) => fs.existsSync(path.join(RACINE, c))));
+    ok('Fichier et vignette écrits sur le disque', fichiers().length === n0 + 2 && lignes1.split('|').slice(0, 2).every((c) => fs.existsSync(disque(c))));
     await p.screenshot({ path: CAPT + '/image-produit-modification.png' });
 
     /* Refus */
@@ -116,7 +118,7 @@ function nettoyer() {
     const ancienne = q("SELECT CONCAT_WS('|', lg_ID, str_CHEMIN) FROM t_famille_image WHERE lg_FAMILLE_ID='" + P + "' AND bool_PRINCIPALE=1").split('|');
     await envoyerEcran(img3);
     ok('« Modifier » : la nouvelle image est principale, l\'ancienne et son fichier sont retirés',
-      q("SELECT COUNT(*) FROM t_famille_image WHERE lg_ID='" + ancienne[0] + "'") === '0' && !fs.existsSync(path.join(RACINE, ancienne[1]))
+      q("SELECT COUNT(*) FROM t_famille_image WHERE lg_ID='" + ancienne[0] + "'") === '0' && !fs.existsSync(disque(ancienne[1]))
       && q("SELECT COUNT(*) FROM t_famille_image WHERE lg_FAMILLE_ID='" + P + "'") === '2' && q("SELECT str_TYPE FROM t_famille_image WHERE lg_FAMILLE_ID='" + P + "' AND bool_PRINCIPALE=1") === 'png');
     await p.evaluate(() => window.winModifArticleOuverte.close());
     await p.waitForTimeout(500);

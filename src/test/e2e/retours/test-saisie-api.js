@@ -1,0 +1,126 @@
+/* CONTROLE DE SAISIE COTE SERVEUR : n'importe quoi dans les champs de recherche et de filtre (demande du 07/10).
+ *
+ * Pourquoi : un utilisateur peut taper des lettres dans une date, un nombre negatif, une apostrophe, un texte de 3 000
+ * caracteres... Les tests fonctionnels n'essaient que des valeurs correctes. Ici on essaie les mauvaises.
+ *
+ * Methode (LECTURE SEULE, rien n'est ecrit en base) : toutes les lectures (GET) de l'API sont relevees dans le code
+ * Java (classe @Path + methode @Path + @QueryParam / @PathParam). Chacune est appelee avec plusieurs jeux de valeurs
+ * absurdes, le meme jeu dans tous ses parametres :
+ *   vide, lettres, negatif, enorme, dates impossibles, apostrophe / injection SQL, balise script, texte tres long,
+ *   caracteres speciaux.
+ * Attendu : JAMAIS d'erreur interne (HTTP 500) ni de reponse au-dela de 30 s. Un refus propre (4xx, ou success:false,
+ * ou une liste vide) est le bon comportement. Toute erreur interne est aussi notee dans le Centre de support : on
+ * verifie que leur nombre n'augmente pas.
+ * Les lectures qui ont un effet (envoi, synchronisation, deconnexion, appel exterieur...) sont ecartees.
+ *
+ * Variables : FILTRE=morceau d'url pour limiter ; JEUX=vide,lettres pour limiter les jeux.
+ */
+const { chromium } = require('playwright-core');
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+
+const res = [];
+function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 600) + ']' : '')); }
+
+/* ------------------------------------------------------------------ relevé des lectures dans le code */
+const RACINE = path.resolve(__dirname, '../../../main/java/rest');
+function fichiers(d) { return fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? fichiers(path.join(d, e.name)) : (e.name.endsWith('.java') ? [path.join(d, e.name)] : [])); }
+function lectures() {
+  const l = [];
+  for (const f of fichiers(RACINE)) {
+    const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const iClasse = src.search(/public\s+(final\s+)?class\s/);
+    if (iClasse < 0) { continue; }
+    const tete = src.slice(0, iClasse).match(/@Path\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\)/g);
+    if (!tete) { continue; }
+    const base = tete[tete.length - 1].match(/"([^"]*)"/)[1].replace(/^\/|\/$/g, '');
+    const re = /@GET\b([\s\S]*?)\{/g; let m;
+    while ((m = re.exec(src.slice(iClasse)))) {
+      const sig = m[1];
+      const pm = sig.match(/@Path\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\)/);
+      const sous = pm ? pm[1].replace(/^\/|\/$/g, '') : '';
+      const qp = []; const pp = [];
+      const rp = /@(Query|Path)Param\(\s*(?:value\s*=\s*)?"([^"]+)"\s*\)\s*(?:@DefaultValue\([^)]*\)\s*)?(?:final\s+)?([\w.<>]+)/g; let x;
+      while ((x = rp.exec(sig))) { (x[1] === 'Query' ? qp : pp).push({ nom: x[2], type: x[3] }); }
+      l.push({ fichier: path.basename(f), chemin: (base + (sous ? '/' + sous : '')).replace(/\/+/g, '/'), qp, pp });
+    }
+  }
+  return l;
+}
+
+/* lectures qui font quelque chose (ou appellent l'exterieur) : jamais appelees ici */
+/* ErpRessource : exports complets pour le logiciel comptable externe (sans champ de saisie, tres longs) */
+const ECARTEES = /(^Erp|^v1\/erp|logout|deconnexion|deconnect|envoy|send|sms|mail|whatsapp|sync|pharmaml|posos|cloturer|cloture|valider|supprim|delete|remove|reset|purge|imprimer-ticket|ticket-caisse|print|backup|sauvegard|webhook|test-connexion|ping-|appeler|transmettre|lancer|executer|run|update|maj|mise-a-jour|miseajour|generer|regenerer|creer|create|init|calcul|import|actualiser|migr|fusion|merge|close|ferme|ouvrir|annul|cancel|rembours|regler|reglement-|transfert|appliquer|modifier|activer|desactiv|enable|disable|archiv|notifier|marquer|lire-tout|vider|clean|nettoy|corrig|fix|repar|recalc|rattrap|bascul|demarrer|arreter|stop|start-)/i;
+
+const LONG = 'x'.repeat(3000);
+/* valeur absurde selon le jeu et le type ou le nom du parametre */
+const JEUX = {
+  vide: () => '',
+  lettres: () => 'abc',
+  negatif: (p) => /int|long|double|float|Integer|Long|Double|BigDecimal|short/i.test(p.type) ? '-999999' : '-1',
+  enorme: () => '99999999999999999999',
+  dates: (p) => /dt|date|jour|debut|fin|start|end|mois|annee|periode/i.test(p.nom) ? '2026-13-45' : '31/02/2026',
+  apostrophe: () => "l'apostrophe' OR '1'='1' --",
+  script: () => '<script>alert(1)</script>',
+  long: () => LONG,
+  speciaux: () => '%_\\;"é€😀\u0000'
+};
+
+(async () => {
+  let toutes = lectures();
+  const total = toutes.length;
+  toutes = toutes.filter((e) => !ECARTEES.test(e.chemin) && !ECARTEES.test(e.fichier));
+  const ecartees = total - toutes.length;
+  if (process.env.FILTRE) { toutes = toutes.filter((e) => e.chemin.includes(process.env.FILTRE)); }
+  const jeux = process.env.JEUX ? process.env.JEUX.split(',') : Object.keys(JEUX);
+  console.log(total + ' lectures relevées, ' + toutes.length + ' appelées (' + ecartees + ' écartées car elles agissent), ' + jeux.length + ' jeux de valeurs');
+  ok('le relevé trouve les lectures de l\'API', total > 500, total);
+
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const ctx = await b.newContext();
+  const p = await ctx.newPage();
+  try {
+    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.waitForURL('**/general/**', { timeout: 60000 });
+    const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
+    const erreurs = []; const lents = []; let appels = 0;
+    const appeler = async (e, jeu) => {
+      let chemin = e.chemin.replace(/\{(\w+)(?::[^}]*)?\}/g, (_, n) => encodeURIComponent(JEUX[jeu]({ nom: n, type: 'String' }) || 'zz'));
+      const qs = new URLSearchParams(); e.qp.forEach((x) => qs.append(x.nom, JEUX[jeu](x)));
+      const url = 'http://localhost:8080/prestige/api/' + chemin + (e.qp.length ? '?' + qs.toString() : '');
+      const t0 = Date.now(); appels++;
+      try {
+        /* une connexion gardee ouverte que le serveur vient de fermer (« socket hang up » immediat) : on reessaie une fois */
+        const lire = () => ctx.request.get(url, { timeout: 30000, failOnStatusCode: false, maxRedirects: 0 });
+        const r = await lire().catch((x) => { if (/hang up|ECONNRESET/.test(x.message) && Date.now() - t0 < 1000) { return lire(); } throw x; });
+        if (r.status() >= 500) { erreurs.push(e.fichier + ' GET ' + e.chemin + ' [' + jeu + '] -> ' + r.status()); }
+      } catch (x) {
+        lents.push(e.fichier + ' GET ' + e.chemin + ' [' + jeu + '] ' + (Date.now() - t0) + ' ms : ' + String(x.message).split('\n')[0].slice(0, 80));
+      }
+    };
+        /* une lecture sans parametre n'est appelee qu'une fois (rien a saisir) */
+    const file = []; toutes.forEach((e) => (e.qp.length || e.pp.length ? jeux : jeux.slice(0, 1)).forEach((j) => file.push([e, j])));
+    /* 2 appels a la fois : assez pour aller vite, sans occuper tous les fils du serveur */
+    const travailleur = async () => { while (file.length) { const [e, j] = file.shift(); await appeler(e, j); } };
+    await Promise.all([travailleur(), travailleur()]);
+    console.log(appels + ' appels');
+    /* la session est toujours ouverte : aucune lecture n'a deconnecte l'utilisateur */
+    const session = await ctx.request.get('http://localhost:8080/prestige/api/v1/preferences/essai-saisie', { failOnStatusCode: false });
+    ok('la session est toujours ouverte après tous les appels', session.status() < 400, session.status());
+    ok('aucune erreur interne (HTTP 500) quelle que soit la saisie', erreurs.length === 0, erreurs.length + ' : ' + erreurs.slice(0, 15).join(' | '));
+    ok('aucune lecture ne dépasse 30 s', lents.length === 0, lents.slice(0, 10).join(' | '));
+    const supportApres = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
+    ok('aucune nouvelle erreur au Centre de support', supportApres === supportAvant, (supportApres - supportAvant) + ' nouvelles');
+    if (erreurs.length) { fs.writeFileSync(path.join(process.env.SORTIE || '/tmp', 'saisie-api-erreurs.txt'), erreurs.join('\n') + '\n\n' + lents.join('\n')); }
+  } catch (e) {
+    ok('déroulé sans exception', false, e.stack);
+  } finally {
+    await b.close();
+    const ko = res.filter((r) => !r.c).length;
+    console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
+    process.exit(ko ? 1 : 0);
+  }
+})();

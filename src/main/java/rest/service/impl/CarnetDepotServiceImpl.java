@@ -70,6 +70,35 @@ import util.DateConverter;
 @Stateless
 public class CarnetDepotServiceImpl implements CarnetAsDepotService {
 
+    /** Debut de periode par defaut de l'ecran « Gestion carnet depot » (champ « Du »). */
+    static final LocalDate DEBUT_PAR_DEFAUT = LocalDate.of(2015, 1, 1);
+
+    /**
+     * Date « Du » saisie a l'ecran (AAAA-MM-JJ). Vide ou illisible (champ efface, date impossible) : la periode par
+     * defaut de l'ecran, au lieu d'une erreur interne (controle de saisie du 07/10).
+     */
+    public static LocalDate debutPeriode(String valeur) {
+        LocalDate d = jourOuNull(valeur);
+        return d == null ? DEBUT_PAR_DEFAUT : d;
+    }
+
+    /** Date « Au » saisie a l'ecran ; vide ou illisible : aujourd'hui. */
+    public static LocalDate finPeriode(String valeur) {
+        LocalDate d = jourOuNull(valeur);
+        return d == null ? LocalDate.now() : d;
+    }
+
+    static LocalDate jourOuNull(String valeur) {
+        if (valeur == null || valeur.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(valeur.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
+    }
+
     private static final Logger LOG = Logger.getLogger(CarnetDepotServiceImpl.class.getName());
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -302,7 +331,7 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
             Root<TPreenregistrementCompteClientTiersPayent> root = cq
                     .from(TPreenregistrementCompteClientTiersPayent.class);
             cq.select(cb.count(root));
-            List<Predicate> predicates = fetchVentePredicat(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+            List<Predicate> predicates = fetchVentePredicat(cb, root, debutPeriode(dtStart), finPeriode(dtEnd),
                     tiersPayantId);
             cq.where(cb.and(predicates.toArray(new Predicate[0])));
             TypedQuery<Long> q = getEntityManager().createQuery(cq);
@@ -314,10 +343,9 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
 
     @Override
     public JSONObject fetchVenteByTiersPayant(String tiersPayantId, String dtStart, String dtEnd, int start, int size) {
-        TiersPayantExclusDTO metaData = fetchVenteSummary(tiersPayantId, LocalDate.parse(dtStart),
-                LocalDate.parse(dtEnd));
-        List<VenteTiersPayantsDTO> data = fetchVente(tiersPayantId, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                start, size, false);
+        TiersPayantExclusDTO metaData = fetchVenteSummary(tiersPayantId, debutPeriode(dtStart), finPeriode(dtEnd));
+        List<VenteTiersPayantsDTO> data = fetchVente(tiersPayantId, debutPeriode(dtStart), finPeriode(dtEnd), start,
+                size, false);
         JSONObject json = new JSONObject();
         json.put("metaData", new JSONObject(metaData));
         json.put("total", countFetchVenteByTiersPayant(tiersPayantId, dtStart, dtEnd));
@@ -401,14 +429,14 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
     @Override
     public JSONObject reglementsCarnet(String tiersPayantId, TypeReglementCarnet typeReglementCarnet, String dtStart,
             String dtEnd, int start, int size) {
-        ReglementCarnetDTO metaData = reglementsCarnetSummary(tiersPayantId, typeReglementCarnet,
-                LocalDate.parse(dtStart), LocalDate.parse(dtEnd));
+        ReglementCarnetDTO metaData = reglementsCarnetSummary(tiersPayantId, typeReglementCarnet, debutPeriode(dtStart),
+                finPeriode(dtEnd));
         List<ReglementCarnetDTO> data = reglementsCarnet(tiersPayantId, typeReglementCarnet, dtStart, dtEnd, start,
                 size, false);
         JSONObject json = new JSONObject();
         json.put("metaData", new JSONObject(metaData));
-        json.put("total", reglementsCarnetCount(tiersPayantId, typeReglementCarnet, LocalDate.parse(dtStart),
-                LocalDate.parse(dtEnd)));
+        json.put("total",
+                reglementsCarnetCount(tiersPayantId, typeReglementCarnet, debutPeriode(dtStart), finPeriode(dtEnd)));
         json.put("data", new JSONArray(data));
 
         return json;
@@ -422,8 +450,8 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
             CriteriaQuery<ReglementCarnet> cq = cb.createQuery(ReglementCarnet.class);
             Root<ReglementCarnet> root = cq.from(ReglementCarnet.class);
             cq.select(root).orderBy(cb.desc(root.get(ReglementCarnet_.createdAt)));
-            List<Predicate> predicates = reglementsCarnetPredicat(cb, root, LocalDate.parse(dtStart),
-                    LocalDate.parse(dtEnd), tiersPayantId, typeReglementCarnet);
+            List<Predicate> predicates = reglementsCarnetPredicat(cb, root, debutPeriode(dtStart), finPeriode(dtEnd),
+                    tiersPayantId, typeReglementCarnet);
             cq.where(cb.and(predicates.toArray(new Predicate[0])));
             TypedQuery<ReglementCarnet> q = getEntityManager().createQuery(cq);
             if (!all) {
