@@ -178,6 +178,14 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     private CsrpEnveloppeResponse processommandeXml(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
             throws JAXBException, IOException, InterruptedException {
+        /*
+         * Plan d'octobre 1.2, decision Q-B : la version de l'envoi de commande se regle par grossiste (3.0.0.0 par
+         * defaut). En 3.0.0.0, les MEMES lignes, quantites, references et date sont envoyees dans l'enveloppe SRP ; la
+         * reponse est ramenee au format 1.0.0.0 et suit exactement le traitement existant.
+         */
+        if (PharmaMlMessages.V3.equals(versionCommande(grossiste))) {
+            return envoyerCommandeV3(payLoad, reference, grossiste);
+        }
 
         JAXBContext requestContext = JAXBContext.newInstance(CsrpEnveloppe.class);
         Marshaller marshaller = requestContext.createMarshaller();
@@ -900,6 +908,67 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             LOG.log(Level.SEVERE, null, e);
         }
 
+    }
+
+    private String versionCommande(TGrossiste grossiste) {
+        try {
+            List<?> r = em
+                    .createNativeQuery("SELECT str_PHARMAML_VERSION_CMDE FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1")
+                    .setParameter(1, grossiste.getLgGROSSISTEID()).getResultList();
+            return PharmaMlMessages.version(r.isEmpty() ? null : (String) r.get(0));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "version PharmaML du grossiste : 3.0.0.0 par defaut", e);
+            return PharmaMlMessages.V3;
+        }
+    }
+
+    private CsrpEnveloppeResponse envoyerCommandeV3(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
+            throws IOException, InterruptedException {
+        Entete en = payLoad.getEntete();
+        PharmaMlMessages.Partenaires p = new PharmaMlMessages.Partenaires();
+        p.codeOfficine = StringUtils.defaultString(en.getEmetteur().getCode());
+        p.idOfficine = StringUtils.defaultString(en.getEmetteur().getId());
+        p.nomOfficine = StringUtils.defaultString(en.getEmetteur().getAdresse());
+        p.codeRepartiteur = StringUtils.defaultString(en.getRecepteur().getCode());
+        p.idRepartiteur = StringUtils.defaultString(en.getRecepteur().getId());
+        p.nomRepartiteur = StringUtils.defaultString(en.getRecepteur().getAdresse());
+        p.date = en.getDate();
+        Commande c = payLoad.getCorps().getMessageOfficine().getCorps().getCommande();
+        List<PharmaMlMessages.Ligne> lignes = new ArrayList<>();
+        for (LigneN l : c.getNormale().getLignes()) {
+            lignes.add(new PharmaMlMessages.Ligne(l.getCodeProduit(), "", Integer.parseInt(l.getQuantite())));
+        }
+        String xml = PharmaMlMessages.commandeV3(p, en.getRefMessage(), c.getRefCdeClient(), c.getCommentaireGeneral(),
+                c.getDateLivraison(), lignes);
+        String fileName = reference + "_"
+                + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        ecrireArchive("C_" + fileName, xml);
+        HttpResponse<String> httpResponse = getHttpClient().send(
+                HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
+                        .header("Content-Type", "text/xml; charset=UTF-8")
+                        .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (httpResponse.statusCode() != 200) {
+            saveResponse(httpResponse.body(), "LOG_" + fileName);
+            return null;
+        }
+        ecrireArchive("R_" + fileName, httpResponse.body());
+        try {
+            return (CsrpEnveloppeResponse) JAXBContext.newInstance(CsrpEnveloppeResponse.class).createUnmarshaller()
+                    .unmarshal(new StringReader(PharmaMlMessages.reponseV3VersV1(httpResponse.body())));
+        } catch (JAXBException ex) {
+            LOG.log(Level.SEVERE, "reponse de commande PharmaML 3.0.0.0 illisible", ex);
+            return null;
+        }
+    }
+
+    private void ecrireArchive(String nom, String contenu) {
+        try {
+            Files.write(Paths.get(ap.pharmaMlDir + File.separator + nom + ".xml"),
+                    (contenu == null ? "" : contenu).getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "archive PharmaML {0} : {1}", new Object[] { nom, e.getMessage() });
+        }
     }
 
     private void saveResponse(String response, String fileName) {

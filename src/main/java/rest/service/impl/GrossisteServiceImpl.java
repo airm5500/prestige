@@ -3,6 +3,7 @@ package rest.service.impl;
 import dal.TGrossiste;
 import dal.TUser;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Stateless;
@@ -47,8 +48,25 @@ public class GrossisteServiceImpl implements GrossisteService {
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
             }
-            for (TGrossiste g : q.getResultList()) {
+            List<TGrossiste> page = q.getResultList();
+            /* Versions PharmaML (plan d'octobre 1.2) : colonnes hors entite, lues en une requete pour la page. */
+            java.util.Map<String, Object[]> versions = new java.util.HashMap<>();
+            if (!page.isEmpty()) {
+                List<String> ids = new java.util.ArrayList<>();
+                page.forEach(g -> ids.add(g.getLgGROSSISTEID()));
+                for (Object o : em
+                        .createNativeQuery("SELECT lg_GROSSISTE_ID, str_PHARMAML_VERSION_INFO,"
+                                + " str_PHARMAML_VERSION_CMDE FROM t_grossiste WHERE lg_GROSSISTE_ID IN (:ids)")
+                        .setParameter("ids", ids).getResultList()) {
+                    Object[] r = (Object[]) o;
+                    versions.put((String) r[0], r);
+                }
+            }
+            for (TGrossiste g : page) {
                 JSONObject row = new JSONObject();
+                Object[] v = versions.get(g.getLgGROSSISTEID());
+                row.put("str_PHARMAML_VERSION_INFO", v == null || v[1] == null ? "3.0.0.0" : v[1]);
+                row.put("str_PHARMAML_VERSION_CMDE", v == null || v[2] == null ? "3.0.0.0" : v[2]);
                 row.put("lg_GROSSISTE_ID", g.getLgGROSSISTEID());
                 row.put("str_LIBELLE", g.getStrLIBELLE());
                 row.put("str_DESCRIPTION", g.getStrDESCRIPTION());
@@ -93,6 +111,17 @@ public class GrossisteServiceImpl implements GrossisteService {
             LOG.log(Level.SEVERE, "list grossistes", e);
             return json.put("total", 0).put("results", results);
         }
+    }
+
+    @Override
+    public JSONObject versionsPharmaMl(String grossisteId, String versionInfo, String versionCommande) {
+        String vi = rest.service.impl.PharmaMlMessages.version(versionInfo);
+        String vc = rest.service.impl.PharmaMlMessages.version(versionCommande);
+        int n = em
+                .createNativeQuery("UPDATE t_grossiste SET str_PHARMAML_VERSION_INFO = :vi,"
+                        + " str_PHARMAML_VERSION_CMDE = :vc WHERE lg_GROSSISTE_ID = :g")
+                .setParameter("vi", vi).setParameter("vc", vc).setParameter("g", grossisteId).executeUpdate();
+        return new JSONObject().put("success", n == 1).put("versionInfo", vi).put("versionCommande", vc);
     }
 
     @Override

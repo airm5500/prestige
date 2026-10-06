@@ -167,4 +167,19 @@ public class GrossisteRessource {
         }
         return Response.ok().entity(grossisteService.toggleStatus(user, grossisteId, actif).toString()).build();
     }
+
+    /** Plan d'octobre 1.2 : versions PharmaML du grossiste (3.0.0.0 par defaut, 1.0.0.0 possible). */
+    @POST
+    @Path("pharmaml-version")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response versionsPharmaMl(@FormParam("lg_GROSSISTE_ID") String grossisteId,
+            @FormParam("versionInfo") String versionInfo, @FormParam("versionCommande") String versionCommande) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok()
+                .entity(grossisteService.versionsPharmaMl(grossisteId, versionInfo, versionCommande).toString())
+                .build();
+    }
 }

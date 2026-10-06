@@ -44,6 +44,7 @@ function amountformat(val) {
 Ext.define('testextjs.view.commandemanagement.order.action.add', {
     extend: 'Ext.form.Panel',
     requires: [
+        'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl',
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.form.*',
@@ -511,6 +512,13 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     sortable: true,
                                     dataIndex: 'lg_FAMILLE_CIP'
                                 },
+                                /* Disponibilite PharmaML (plan d'octobre 1.2) */
+                                {
+                                    text: 'DISPO', itemId: 'colDispo', width: 56, sortable: false, menuDisabled: true, align: 'center',
+                                    renderer: function (v, meta, record) {
+                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.rendu((ecranCommande().etatDispo || {})[record.get('lg_FAMILLE_ID')], meta);
+                                    }
+                                },
                                 {
                                     text: 'CODE ARTICLE',
                                     flex: 1,
@@ -769,7 +777,10 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             ecranCommande().onRechClick();
                                         }
                                     }
-                                }
+                                },
+                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.comboFiltre('filtreDispo', function (v) {
+                                    testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.filtrer(Ext.getCmp('gridpanelID').getStore(), ecranCommande().etatDispo || {}, v);
+                                })
 
 
                             ],
@@ -838,6 +849,21 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                             scope: this,
                             handler: this.onImporterReponseGrossiste
                         },
+                        {text: 'Vérifier la disponibilité', id: 'btn_cmd_dispo_verifier', cls: 'btn-primary',
+                            tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
+                            handler: function () {
+                                ecranCommande().verifierDispo(false);
+                            }},
+                        {text: 'Revérifier les indisponibles', id: 'btn_cmd_dispo_reverifier', cls: 'btn-primary',
+                            tooltip: 'Interroger un grossiste au choix pour les produits non disponibles',
+                            handler: function () {
+                                ecranCommande().verifierDispo(true);
+                            }},
+                        {text: 'Imprimer la disponibilité', id: 'btn_cmd_dispo_imprimer', cls: 'btn-primary',
+                            handler: function () {
+                                var e = ecranCommande();
+                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('COMMANDE', e.getNameintern(), e.getOdatasource() && e.getOdatasource().str_REF_ORDER);
+                            }},
                         '->',
                         {
                             text: 'CREER BON DE LIVRAISON',
@@ -862,6 +888,10 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             ]
         });
         this.callParent();
+        this.etatDispo = {};
+        if (this.estModification()) {
+            this.chargerDispo();
+        }
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -942,6 +972,33 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
      * onLoadNewComponentWithDataSource ne transmet que nameintern, titre et odatasource - « mode »
      * resterait vide et l'ecran croirait etre en creation.
      */
+    /* Plan d'octobre 1.2 : disponibilite PharmaML (information seulement). */
+    verifierDispo: function (indisponibles) {
+        var me = this;
+        if (!me.estModification()) {
+            Ext.MessageBox.alert('Disponibilité', 'Enregistrez d\'abord la commande.');
+            return;
+        }
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.verifier({
+            source: 'COMMANDE', id: me.getNameintern(), indisponibles: indisponibles,
+            apres: function (etat) {
+                me.etatDispo = etat;
+                Ext.getCmp('gridpanelID').getView().refresh();
+            }
+        });
+    },
+
+    chargerDispo: function () {
+        var me = this;
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('COMMANDE', me.getNameintern(), function (etat) {
+            me.etatDispo = etat;
+            var g = Ext.getCmp('gridpanelID');
+            if (g && g.rendered) {
+                g.getView().refresh();
+            }
+        });
+    },
+
     estModification: function () {
         return this.getNameintern() !== "0";
     },

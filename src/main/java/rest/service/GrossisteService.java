@@ -14,6 +14,9 @@ public interface GrossisteService {
     /** Liste paginee des grossistes. actifs=true : statut enable (comportement historique) ; false : desactives. */
     JSONObject list(TUser user, String search, boolean actifs, int start, int limit);
 
+    /** Versions PharmaML du grossiste (information produit, envoi de commande) : 1.0.0.0 ou 3.0.0.0. */
+    JSONObject versionsPharmaMl(String grossisteId, String versionInfo, String versionCommande);
+
     /** Desactivation (actif=false) ou reactivation (actif=true) d'un grossiste. */
     JSONObject toggleStatus(TUser user, String grossisteId, boolean actif);
 }

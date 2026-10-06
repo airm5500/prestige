@@ -385,6 +385,29 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     flex: 1
                                 }
                             ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            margin: '0 0 5 0',
+                            items: [
+                                {
+                                    /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
+                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_INFO', fieldLabel: 'PharmaML : info produit', flex: 1, editable: false,
+                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '3.0.0.0',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '3.0.0.0'}, {v: '1.0.0.0'}]}),
+                                    disabled: Omode !== 'update',
+                                    tooltip: 'Réglable après la création du grossiste'
+                                },
+                                {
+                                    /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
+                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_CMDE', fieldLabel: 'PharmaML : commande', flex: 1, editable: false,
+                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '3.0.0.0',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '3.0.0.0'}, {v: '1.0.0.0'}]}),
+                                    disabled: Omode !== 'update',
+                                    tooltip: 'Réglable après la création du grossiste'
+                                }
+                            ]
                         }
 
                     ]
@@ -452,6 +475,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             Ext.getCmp('str_CODE_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_CODE_RECEPTEUR_PHARMA);
             Ext.getCmp('str_ID_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_ID_RECEPTEUR_PHARMA);
             Ext.getCmp('str_OFFICINE_ID').setValue(this.getOdatasource().str_OFFICINE_ID);
+            Ext.getCmp('str_PHARMAML_VERSION_INFO').setValue(this.getOdatasource().str_PHARMAML_VERSION_INFO || '3.0.0.0');
+            Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '3.0.0.0');
 
         }
 
@@ -533,6 +558,14 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                         return;
                     } else {
 
+                        if (Omode === "update") {
+                            /* Versions PharmaML : enregistrees a part (la methode historique de modification reste intacte). */
+                            Ext.Ajax.request({
+                                url: url_services_rest_grossiste + 'pharmaml-version', method: 'POST',
+                                params: {lg_GROSSISTE_ID: ref, versionInfo: Ext.getCmp('str_PHARMAML_VERSION_INFO').getValue(),
+                                    versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue()}
+                            });
+                        }
                         Ext.MessageBox.alert('Confirmation', object.errors);
                         fenetre.close();
                         Me_Workflow = Oview;

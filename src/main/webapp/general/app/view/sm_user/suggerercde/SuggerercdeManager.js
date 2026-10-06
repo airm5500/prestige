@@ -34,7 +34,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         'testextjs.model.TSuggestionOrderDetails',
         'Ext.window.Window',
         'testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre',
-        'testextjs.view.sm_user.suggerercde.ProduitsRetiresFenetre'
+        'testextjs.view.sm_user.suggerercde.ProduitsRetiresFenetre',
+        'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl'
     ],
     config: {
         odatasource: '',
@@ -295,6 +296,12 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             columns: [
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
                                 {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
+                                /* Disponibilite PharmaML (plan d'octobre 1.2) : dernier resultat connu, info-bulle detaillee. */
+                                {text: 'DISPO', itemId: 'colDispo', width: 56, sortable: false, menuDisabled: true, align: 'center',
+                                    renderer: function (v, meta, record) {
+                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.rendu(
+                                                (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta);
+                                    }},
                                 /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
                                 {text: 'DCI', itemId: 'colEquivalentDci', width: 64, sortable: false, menuDisabled: true, hidden: true, align: 'center',
                                     renderer: function (v, meta, record) {
@@ -406,6 +413,10 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                         tbar: [
                             {xtype: 'textfield', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', width: 190, listeners: {'render': function (cmp) {cmp.getEl().on('keypress', function (e) {if (e.getKey() === e.ENTER) {Me_Window.onRechClick();}});}}},
                             {xtype: 'tbseparator'},
+                            testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.comboFiltre('filtreDispo', function (v) {
+                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.filtrer(
+                                        Ext.getCmp('gridpanelSuggestionID').getStore(), Me_Window.etatDispo || {}, v);
+                            }),
                             {xtype: 'tbtext', id: 'suggInfoBar', flex: 1, text: "Sélectionnez un produit (colonne QTE) pour voir ses informations d'aide à la décision."}
                         ],
                         
@@ -441,6 +452,21 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             tooltip: 'Exporter les lignes de cette suggestion au format CSV',
                             handler: this.onbtnexportcsv},
                         
+                        {text: 'Vérifier la disponibilité', id: 'btn_dispo_verifier', cls: 'btn-primary', scope: this,
+                            tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
+                            handler: function () {
+                                Me_Window.verifierDispo(false);
+                            }},
+                        {text: 'Revérifier les indisponibles', id: 'btn_dispo_reverifier', cls: 'btn-primary', scope: this,
+                            tooltip: 'Interroger un grossiste au choix pour les produits non disponibles',
+                            handler: function () {
+                                Me_Window.verifierDispo(true);
+                            }},
+                        {text: 'Imprimer la disponibilité', id: 'btn_dispo_imprimer', cls: 'btn-primary', scope: this,
+                            handler: function () {
+                                testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('SUGGESTION', orderIdRef,
+                                        Me_Window.getOdatasource() && Me_Window.getOdatasource().str_REF);
+                            }},
                         {text: 'Équivalents DCI', id: 'btn_equivalents_dci', cls: 'btn-primary', scope: this,
                             tooltip: 'Produits de la suggestion déjà couverts par un équivalent (même DCI) en stock',
                             handler: this.onEquivalentsDci},
@@ -465,6 +491,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             }]
         });
         this.callParent();
+        Me_Window.etatDispo = {};
+        this.chargerDispo();
 
         if (titre === "Suggestion de commande") {
             const OgridpanelSuggestionID = Ext.getCmp('gridpanelSuggestionID');
@@ -592,6 +620,31 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     },
 
     loadStore: function () {},
+
+    /* Plan d'octobre 1.2 : disponibilite PharmaML (information seulement). */
+    verifierDispo: function (indisponibles) {
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.verifier({
+            source: 'SUGGESTION', id: orderIdRef, indisponibles: indisponibles,
+            apres: function (etat) {
+                Me_Window.etatDispo = etat;
+                Ext.getCmp('gridpanelSuggestionID').getView().refresh();
+            }
+        });
+    },
+
+    /* Dernier etat connu, lu une fois a l'ouverture (une requete legere). */
+    chargerDispo: function () {
+        if (!orderIdRef || orderIdRef === '0') {
+            return;
+        }
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('SUGGESTION', orderIdRef, function (etat) {
+            Me_Window.etatDispo = etat;
+            var g = Ext.getCmp('gridpanelSuggestionID');
+            if (g && g.rendered) {
+                g.getView().refresh();
+            }
+        });
+    },
 
     /*
      * Plan d'octobre 1.3 : dernier produit traite -> statut « Clôturée », puis la question du fichier CSV. Oui : le
