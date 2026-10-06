@@ -267,6 +267,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     xtype: 'addfamille',
     maximizable: true,
     requires: [
+        'testextjs.view.configmanagement.famille.ImagesProduitPanel',
         'Ext.form.*',
         'Ext.window.Window',
         'testextjs.store.Statut',
@@ -729,6 +730,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             name: 'int_STOCK_TOTAL_DETAIL',
                                             id: 'int_STOCK_TOTAL_DETAIL',
                                             fieldStyle: 'color:blue;font-weight:bold;font-size: 16px'
+                                        },
+                                        {
+                                            /* Plan d'octobre (6) : image du produit sous le bloc stock (lecture). */
+                                            xtype: 'imagesproduitpanel', itemId: 'imagesProduitDetail', edition: false,
+                                            border: false, minHeight: 120, margin: '8 0 0 0',
+                                            familleId: this.getProduitId() || (this.getOdatasource() || {}).lg_FAMILLE_ID
                                         }
                                     ]
                                 }

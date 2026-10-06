@@ -76,6 +76,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
     modal: true,
     maximizable: true,
     requires: [
+        'testextjs.view.configmanagement.famille.ImagesProduitPanel',
         'Ext.form.*',
         'Ext.window.Window',
         'testextjs.store.Statut',
@@ -431,6 +432,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                 int_RESERVE
                             ]
                         } ]
+                        },
+                        {
+                            /* Plan d'octobre (6) : 4e colonne, image du produit (Ajouter / Modifier / Retirer). */
+                            title: '<span style="color:#b45309;font-weight:bold;letter-spacing:.5px;">IMAGE</span>',
+                            style: { background: '#fdf6ec', borderColor: '#f0dcbc' },
+                            flex: 0.7, layout: 'fit', margin: 0,
+                            items: [{ xtype: 'imagesproduitpanel', itemId: 'imagesProduit', edition: true, border: false,
+                                familleId: (Omode === 'update' && this.getOdatasource()) ? this.getOdatasource().lg_FAMILLE_ID : null }]
                         }
                     ]
                 },
