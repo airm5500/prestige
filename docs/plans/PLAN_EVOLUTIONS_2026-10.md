@@ -409,6 +409,19 @@ Test : `test-fiche-article-sans-jsp.js`.
   utilisateur (§0.3).
 - **Compteur agrégé** `GET v1/notifications-centre/compteurs` (une seule requête au lieu d'une par catégorie).
 
+**Fait (lot L9).**
+- `v1/notifications-centre/catalogue`, `/compteurs?cles=…` (une requête pour tout le badge), `/liste?cle=…` ;
+- le badge ne charge plus la liste des avoirs à chaque rafraîchissement : compteur léger aux **mêmes critères** que la
+  liste affichée (avoirs ouverts, mois glissant, mêmes règles de visibilité) ;
+- nouvelles catégories (non cochées par défaut, proposées seulement si leur menu est dans celui de l'utilisateur) :
+  ordonnances à renouveler sous 7 jours, suggestions commandées non reçues (> 2 jours), commandes passées non reçues
+  (> 2 jours sans BL entré en stock), produits indisponibles chez le grossiste (dernière réponse PharmaML « non »,
+  < 7 jours). Congés à valider et anomalies de pointage viendront avec le lot RH (L11) ;
+- « Choisir les notifications » (⚙ du panneau) : cases à cocher et ordre par glisser-déposer, préférence `cloche` ;
+  par défaut les trois catégories historiques, dans leur ordre ;
+- repli : si le compteur agrégé échoue, la cloche compte comme avant, catégorie par catégorie.
+Test : `test-cloche.js` (18/18).
+
 ---
 
 ## 8. Tableau de bord
