@@ -291,6 +291,10 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             store: store_details_sugg,
                             listeners: {
                                 cellclick: function (view, td, cellIndex, record, tr, rowIndex, e) {
+                                    if (e && e.getTarget && e.getTarget('[data-verif-dispo]')) {
+                                        Me_Window.verifierDispoProduit(record.get('lg_FAMILLE_ID'));
+                                        return;
+                                    }
                                     Me_Window.showProduitInfos(record);
                                     /* Clic sur le repere « ≡ DCI » : la meme analyse, limitee a cette ligne. */
                                     if (e && e.getTarget && e.getTarget('[data-eq]')) {
@@ -305,9 +309,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
                                 {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
                                 /* Disponibilite PharmaML (plan d'octobre 1.2) : dernier resultat connu, info-bulle detaillee. */
-                                {text: 'DISPO', itemId: 'colDispo', width: 56, sortable: false, menuDisabled: true, align: 'center',
+                                /* Retours du 06/10 : indicateur seul, sans entete, et verification de ce produit sur la ligne (⟳). */
+                                {text: '', itemId: 'colDispo', width: 40, sortable: false, menuDisabled: true, align: 'center', resizable: false,
+                                    tooltip: 'Disponibilité PharmaML',
                                     renderer: function (v, meta, record) {
-                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.rendu(
+                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.renduAvecVerif(
                                                 (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta);
                                     }},
                                 /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
@@ -638,6 +644,17 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 Ext.getCmp('gridpanelSuggestionID').getView().refresh();
             }
         });
+    },
+
+    /* Retours du 06/10 : verification d'un seul produit, depuis sa ligne. */
+    verifierDispoProduit: function (familleId) {
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.verifierProduit({
+            source: 'SUGGESTION', id: orderIdRef,
+            apres: function (etat) {
+                Me_Window.etatDispo = etat;
+                Ext.getCmp('gridpanelSuggestionID').getView().refresh();
+            }
+        }, familleId);
     },
 
     /* Dernier etat connu, lu une fois a l'ouverture (une requete legere). */
@@ -971,7 +988,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             produitId: rec.get('lg_FAMILLE_ID'),
             parentview: this,
             mode: "detail",
-            titre: "Detail sur l'article [" + rec.get('str_DESCRIPTION') + "]",
+            titre: "Detail sur l'article [" + (rec.get('str_FAMILLE_NAME') || rec.get('str_DESCRIPTION') || '') + "]",
             listeners: {
                 close: function() {
                     Me_Window.restoreLastFocus();
@@ -1060,7 +1077,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             odatasource: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
             parentview: this,
             mode: "detail",
-            titre: "Detail sur l'article [" + Ext.getCmp('str_NAME').getValue() + "]"
+            titre: "Detail sur l'article [" + (Ext.getCmp('str_NAME').getRawValue() || '') + "]"
         });
     },
     

@@ -57,6 +57,24 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
     },
 
     /**
+     * Rendu compact pour une colonne sans entete (retours du 06/10) : la pastille et, a cote, le bouton de verification
+     * de ce seul produit (clic capte par la grille via [data-verif-dispo]).
+     */
+    renduAvecVerif: function (etat, meta) {
+        var pastille = this.rendu(etat, meta);
+        if (meta && !etat) {
+            meta.tdAttr = 'data-qtip="Disponibilité non vérifiée"';
+        }
+        return '<span style="display:inline-flex;align-items:center;gap:5px">' + (pastille || '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px dashed #b6c2cf"></span>')
+                + '<span class="dispo-verif" data-verif-dispo="1" data-qtip="Vérifier la disponibilité de ce produit" style="cursor:pointer;color:#2E75B6;font-size:13px;line-height:1">&#x27F3;</span></span>';
+    },
+
+    /** Verification d'un seul produit, chez le grossiste de la suggestion / commande. */
+    verifierProduit: function (cfg, familleId) {
+        this.lancer(cfg, [familleId], null);
+    },
+
+    /**
      * Lance la verification. cfg : source ('SUGGESTION' | 'COMMANDE'), id, indisponibles (bool), apres(etat).
      */
     verifier: function (cfg) {

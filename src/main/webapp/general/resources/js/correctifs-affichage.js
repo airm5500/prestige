@@ -845,8 +845,62 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
-    'menunotification', 'evolutionstock', 'stockmort', 'articlemvtgrid'
+    'menunotification', 'evolutionstock', 'stockmort', 'articlemvtgrid',
+    // retours du 06/10 : contenu d'une suggestion
+    'suggerercdemanager'
 ];
+/**
+ * FENETRES au nouveau style (retours du 06/10) : toute fenetre ouverte depuis l'un de ces ecrans (detail, modification,
+ * creation, quantites, disponibilite...) prend l'habillage du theme a son premier affichage. Dessin seulement : memes
+ * champs, memes identifiants, memes gestionnaires.
+ */
+window.PrestigeAffichage.ECRANS_FENETRES_THEME = [
+    'famillemanager', 'articlevendurecapitulatif', 'i_sugg_manager', 'suggerercdemanager'
+];
+/** Ecrans dont les cadres (fieldsets) prennent le dessin des sections du theme (retours du 06/10). */
+window.PrestigeAffichage.ECRANS_SECTIONS = ['suggerercdemanager'];
+/** Libelles des boutons de pied qui valident (bouton principal). */
+window.PrestigeAffichage.BOUTON_PRINCIPAL = /^(enregistrer|valider|modifier|cr[ée]er|ajouter|ok|oui|commander|v[ée]rifier|appliquer|confirmer)/i;
+
+/**
+ * Habille une fenetre ExtJS ordinaire, AVANT son rendu : en-tete en degrade, corps clair, sections en cartes, et le
+ * meme traitement que les ecrans pour ses tableaux, barres, onglets et icones d'action.
+ */
+window.PrestigeAffichage.habillerFenetre = function (fenetre) {
+    'use strict';
+    if (fenetre.fenThemeFait) {
+        return;
+    }
+    fenetre.fenThemeFait = true;
+    fenetre.addCls('fen-theme');
+    window.PrestigeAffichage.habillerStyleVente(fenetre);
+    // Pas de fond d'ecran ni de liste « theme-liste » sur la fenetre elle-meme : seulement sur son contenu.
+    fenetre.removeCls('mv-panneau');
+    Ext.each(fenetre.query('fieldset'), function (section) {
+        section.addCls('fen-section');
+    });
+    Ext.each(fenetre.getDockedItems('toolbar[dock="bottom"]'), function (pied) {
+        Ext.each(pied.query('button'), function (b) {
+            b.addCls(window.PrestigeAffichage.BOUTON_PRINCIPAL.test(String(b.text || '')) ? 'fen-btn-principal' : 'fen-btn');
+        });
+    });
+};
+
+/** Ecran concerne actuellement affiche, s'il y en a un. */
+window.PrestigeAffichage.ecranFenetresTheme = function () {
+    'use strict';
+    var trouve = null;
+    Ext.each(window.PrestigeAffichage.ECRANS_FENETRES_THEME, function (xtype) {
+        Ext.each(Ext.ComponentQuery.query(xtype), function (c) {
+            if (!c.isDestroyed && c.rendered && c.isVisible(true)) {
+                trouve = c;
+                return false;
+            }
+        });
+        return !trouve;
+    });
+    return trouve;
+};
 
 /**
  * Ecrans qui prennent seulement les COULEURS du menu Vente (fond clair, cadre gris-bleu), sans autre habillage :
@@ -1046,6 +1100,13 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     if (styleVente) {
         window.PrestigeAffichage.habillerStyleVente(ecran);
     }
+    if (Ext.Array.some(window.PrestigeAffichage.ECRANS_SECTIONS, function (xtype) {
+        return ecran.isXType(xtype);
+    })) {
+        Ext.each(ecran.query('fieldset'), function (section) {
+            section.addCls('fen-section');
+        });
+    }
     if (Ext.Array.some(window.PrestigeAffichage.ECRANS_FOND_VENTE, function (xtype) {
         return ecran.isXType(xtype);
     })) {
@@ -1072,6 +1133,25 @@ Ext.onReady(function () {
     //    propres abonnements ci-dessous, pour qu'ils soient deja isoles.
     // ---------------------------------------------------------------------------------
     window.PrestigeAffichage.isolerEcouteursRedimensionnement();
+
+    // Retours du 06/10 : fenetres ouvertes depuis les ecrans de ECRANS_FENETRES_THEME au nouveau style. Les boites de
+    // message et les fenetres deja dessinees (vc-, ouv-caisse, ordo-fenetre) gardent leur dessin. Une erreur ici ne
+    // doit jamais empecher la fenetre de s'ouvrir.
+    var beforeRenderOrigine = Ext.window.Window.prototype.beforeRender;
+    Ext.window.Window.prototype.beforeRender = function () {
+            try {
+                var cls = String(this.cls || '') + ' ' + String(this.baseCls || '') + ' ' + String(this.ui || '');
+                if (!this.isXType('messagebox') && !/vc-fenetre|ouv-caisse|ordo-fenetre|mb-theme|fen-theme|dispo-choix/.test(cls)
+                        && window.PrestigeAffichage.ecranFenetresTheme()) {
+                    window.PrestigeAffichage.habillerFenetre(this);
+                }
+            } catch (e) {
+                if (window.console && console.error) {
+                    console.error('habillerFenetre', e);
+                }
+            }
+            return beforeRenderOrigine.apply(this, arguments);
+    };
 
     // ---------------------------------------------------------------------------------
     // 5) rabat apres redimensionnement (cf. l'explication detaillee plus haut)

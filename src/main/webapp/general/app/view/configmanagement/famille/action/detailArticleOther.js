@@ -1124,6 +1124,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
 
         Ext.Ajax.request({
             url: '../api/v1/produit-search/fiche',
+            /* L'API est en GET : sans methode, ExtJS envoyait un POST (405) et la fiche restait vide. */
+            method: 'GET',
             params: {
                 produitId: ref
             },

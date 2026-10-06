@@ -2577,3 +2577,45 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .img-miniatures img { width: 48px; height: 48px; object-fit: contain; border: 1px solid #e0e7ef; border-radius: 6px; cursor: pointer; background: #fff; }
 .img-miniatures img:hover { border-color: #2E75B6; }
 .img-vide { color: #8a99a8; padding: 30px 10px; text-align: center; font-size: 12px; border: 1px dashed #c3cfdb; border-radius: 8px; width: 100%; }
+
+/* ===== Fenetres au nouveau style (retours du 06/10) : fenetres ouvertes depuis la fiche article, les articles vendus
+   (recapitulatif) et les suggestions. Couleurs, bordures et coins seulement (aucune marge interne changee : les tailles
+   calculees par ExtJS restent les memes). ===== */
+.x-window.fen-theme { border: 0 !important; border-radius: 10px !important; background: #f6f8fb !important;
+    box-shadow: 0 24px 60px rgba(15, 30, 50, .35) !important; }
+.x-window.fen-theme > .x-window-header { background: linear-gradient(135deg, #1e3a5f, #2E75B6) !important; border: 0 !important;
+    border-radius: 10px 10px 0 0 !important; box-shadow: none !important; }
+.x-window.fen-theme > .x-window-header .x-window-header-text { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
+.x-window.fen-theme > .x-window-header .x-tool { border-radius: 50%; background-color: rgba(255, 255, 255, .15); }
+.x-window.fen-theme > .x-window-header .x-tool:hover { background-color: rgba(255, 255, 255, .3); }
+.x-window.fen-theme > .x-window-header .x-tool-close { background-image: none !important; position: relative; }
+.x-window.fen-theme > .x-window-header .x-tool-close::after { content: '\00D7'; position: absolute; left: 0; top: 0; width: 100%;
+    height: 100%; color: #fff; font-size: 15px; font-weight: bold; line-height: 15px; text-align: center; }
+.x-window.fen-theme > .x-window-body, .x-window.fen-theme .x-window-body-default { background: #f6f8fb !important; border-color: #e0e7ef !important; }
+.x-window.fen-theme .x-panel-body-default, .x-window.fen-theme .x-form-body { background-color: transparent; }
+.x-window.fen-theme .x-panel-body-default-framed, .x-window.fen-theme .x-panel-default-framed { background: #f6f8fb !important; border-color: #e0e7ef !important; }
+/* Sections : cartes blanches, titre en petites capitales, filet de couleur a gauche */
+.x-window.fen-theme > .x-window-body { border: 0 !important; }
+.mv-panneau fieldset.fen-section, .x-window.fen-theme fieldset.fen-section { background: #fff !important; border: 1px solid #d5dee8 !important; border-radius: 8px;
+    box-shadow: inset 3px 0 0 #2E75B6; }
+.mv-panneau fieldset.fen-section .x-fieldset-header-text, .mv-panneau fieldset.fen-section legend,
+.x-window.fen-theme fieldset.fen-section .x-fieldset-header-text, .x-window.fen-theme fieldset.fen-section legend {
+    color: #1e3a5f !important; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; background: transparent !important; }
+.mv-panneau fieldset.fen-section .x-fieldset-header, .x-window.fen-theme fieldset.fen-section .x-fieldset-header { background: #fff !important; border-radius: 6px; }
+.x-window.fen-theme .x-form-item-label { color: #5b6b7c; }
+.x-window.fen-theme .x-form-text { border-color: #c3cfdb; border-radius: 4px; background-image: none !important; }
+.x-window.fen-theme .x-form-display-field { color: #1e2a36; }
+/* Panneaux internes titres : bandeau teinte comme les sections des ecrans */
+.x-window.fen-theme .x-panel-header-default:not(.x-window-header) { background: #eef4fb !important; background-image: none !important;
+    border-color: #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.x-window.fen-theme .x-panel-header-default .x-panel-header-text-default { color: #1e3a5f !important; font-weight: bold; }
+/* Pied : bouton principal navy, les autres en secondaire */
+.x-window.fen-theme .x-toolbar-footer { background: #fff !important; border-top: 1px solid #e0e7ef !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn, .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal {
+    background-image: none !important; border-radius: 6px !important; box-shadow: none !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn { background: #fff !important; border: 1px solid #c3cfdb !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn .x-btn-inner { color: #1e3a5f !important; font-weight: bold !important; text-shadow: none !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn.x-btn-over { background: #e3edf7 !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal { background: #1e3a5f !important; border: 1px solid #1e3a5f !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal .x-btn-inner { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
+.x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal.x-btn-over { background: #2E75B6 !important; }
