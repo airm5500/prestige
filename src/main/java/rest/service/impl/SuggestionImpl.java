@@ -64,8 +64,8 @@ import util.FunctionUtils;
 public class SuggestionImpl implements SuggestionService {
 
     private static final Logger LOG = Logger.getLogger(SuggestionImpl.class.getName());
-    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste, IFNULL(o.`str_COMMENTAIRE`, '') AS commentaire FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending') AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
-    private static final String SUGGESTION_QUERY_COUNT = "SELECT COUNT( distinct o.`lg_SUGGESTION_ORDER_ID`) AS COUNT_SUGGESTION  FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending') AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1)";
+    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste, IFNULL(o.`str_COMMENTAIRE`, '') AS commentaire, DATE_FORMAT(o.`dt_COMMANDEE`, '%d/%m/%Y %H:%i') AS dateCommande, o.`str_MODE_COMMANDE` AS modeCommande, DATE_FORMAT(o.`dt_CLOTURE`, '%d/%m/%Y %H:%i') AS dateCloture FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending','cloturee','commandee') AND (?2 = '' OR o.`str_STATUT` = ?2) AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
+    private static final String SUGGESTION_QUERY_COUNT = "SELECT COUNT( distinct o.`lg_SUGGESTION_ORDER_ID`) AS COUNT_SUGGESTION  FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending','cloturee','commandee') AND (?2 = '' OR o.`str_STATUT` = ?2) AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1)";
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -946,7 +946,7 @@ public class SuggestionImpl implements SuggestionService {
         if (order == null) {
             return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
         }
-        if (Constant.STATUT_ENABLE.equals(order.getStrSTATUT())) {
+        if (estCommandee(order)) {
             return new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée");
         }
         if (reliquats == null || reliquats.isEmpty()) {
@@ -1023,6 +1023,78 @@ public class SuggestionImpl implements SuggestionService {
         return new JSONObject().put("success", true).put("data", data).put("total", data.length());
     }
 
+    /**
+     * Colisage des produits de la page (plan d'octobre 1.6, informatif) : une seule requete pour la page, plutot qu'une
+     * par ligne. Sans valeur, le champ est vide.
+     */
+    @SuppressWarnings("unchecked")
+    private void ajouterColisage(JSONArray lignes) {
+        if (lignes.length() == 0) {
+            return;
+        }
+        try {
+            List<String> ids = new ArrayList<>();
+            for (int i = 0; i < lignes.length(); i++) {
+                ids.add(lignes.getJSONObject(i).getString("lg_FAMILLE_ID"));
+            }
+            Map<String, Object> colis = new java.util.HashMap<>();
+            for (Object[] r : (List<Object[]>) getEmg()
+                    .createNativeQuery(
+                            "SELECT lg_FAMILLE_ID, int_COLISAGE FROM t_famille WHERE lg_FAMILLE_ID IN (:ids)")
+                    .setParameter("ids", ids).getResultList()) {
+                colis.put((String) r[0], r[1]);
+            }
+            for (int i = 0; i < lignes.length(); i++) {
+                JSONObject l = lignes.getJSONObject(i);
+                Object c = colis.get(l.getString("lg_FAMILLE_ID"));
+                l.put("int_COLISAGE",
+                        c instanceof Number && ((Number) c).intValue() > 0 ? ((Number) c).intValue() : "");
+            }
+        } catch (Exception e) {
+            /* Information seulement : son absence ne doit jamais empecher l'affichage de la suggestion. */
+            LOG.log(Level.WARNING, "colisage des lignes de suggestion", e);
+        }
+    }
+
+    /** Commandee : par l'ancien chemin (enable) ou par le nouveau statut (plan d'octobre 1.3). */
+    private static boolean estCommandee(TSuggestionOrder s) {
+        return Constant.STATUT_ENABLE.equals(s.getStrSTATUT()) || STATUT_COMMANDEE.equals(s.getStrSTATUT());
+    }
+
+    @Override
+    public JSONObject cloturer(String suggestionId) {
+        TSuggestionOrder order = getEmg().find(TSuggestionOrder.class, suggestionId);
+        if (order == null) {
+            return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+        }
+        if (estCommandee(order)) {
+            return new JSONObject().put("success", true).put("statut", order.getStrSTATUT());
+        }
+        getEmg().createNativeQuery(
+                "UPDATE t_suggestion_order SET str_STATUT = :s, dt_CLOTURE = NOW(), dt_UPDATED = NOW()"
+                        + " WHERE lg_SUGGESTION_ORDER_ID = :id")
+                .setParameter("s", STATUT_CLOTUREE).setParameter("id", suggestionId).executeUpdate();
+        return new JSONObject().put("success", true).put("statut", STATUT_CLOTUREE);
+    }
+
+    @Override
+    public JSONObject marquerCommandee(String suggestionId, String mode, String orderId, TUser user) {
+        TSuggestionOrder order = getEmg().find(TSuggestionOrder.class, suggestionId);
+        if (order == null) {
+            return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+        }
+        if (estCommandee(order)) {
+            return new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée");
+        }
+        String m = MODES_COMMANDE.contains(mode) ? mode : MODE_COMMANDE_MANUEL;
+        getEmg().createNativeQuery("UPDATE t_suggestion_order SET str_STATUT = :s, dt_COMMANDEE = NOW(),"
+                + " dt_CLOTURE = COALESCE(dt_CLOTURE, NOW()), lg_USER_COMMANDE_ID = :u, str_MODE_COMMANDE = :m,"
+                + " lg_ORDER_ID = :o, dt_UPDATED = NOW() WHERE lg_SUGGESTION_ORDER_ID = :id")
+                .setParameter("s", STATUT_COMMANDEE).setParameter("u", user == null ? null : user.getLgUSERID())
+                .setParameter("m", m).setParameter("o", orderId).setParameter("id", suggestionId).executeUpdate();
+        return new JSONObject().put("success", true).put("statut", STATUT_COMMANDEE).put("mode", m);
+    }
+
     private static int nombre(Object v) {
         return v instanceof Number ? ((Number) v).intValue() : 0;
     }
@@ -1034,7 +1106,7 @@ public class SuggestionImpl implements SuggestionService {
         if (order == null) {
             return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
         }
-        if (Constant.STATUT_ENABLE.equals(order.getStrSTATUT())) {
+        if (estCommandee(order)) {
             return new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée");
         }
         if (quantites == null || quantites.isEmpty()) {
@@ -1201,10 +1273,16 @@ public class SuggestionImpl implements SuggestionService {
 
     @Override
     public JSONObject fetch(String search, int start, int limit) {
-        search = StringUtils.isNotEmpty(search) ? search + "%" : "%%";
-        int count = getSuggestionCount(search);
+        return fetch(search, null, start, limit);
+    }
 
-        return FunctionUtils.returnData(getListSuggestion(search, start, limit).stream()
+    @Override
+    public JSONObject fetch(String search, String statut, int start, int limit) {
+        search = StringUtils.isNotEmpty(search) ? search + "%" : "%%";
+        statut = StringUtils.trimToEmpty(statut);
+        int count = getSuggestionCount(search, statut);
+
+        return FunctionUtils.returnData(getListSuggestion(search, statut, start, limit).stream()
                 .map(this::buildSuggestionsFromTuple).collect(Collectors.toList()), count);
 
     }
@@ -1216,6 +1294,10 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public void setToPending(String id) {
         TSuggestionOrder order = this.getEmg().find(TSuggestionOrder.class, id);
+        /* Une suggestion commandee le reste : la rouvrir ne doit pas effacer la preuve de la commande. */
+        if (STATUT_COMMANDEE.equals(order.getStrSTATUT())) {
+            return;
+        }
         order.setStrSTATUT(STATUT_PENDING);
         this.getEmg().merge(order);
     }
@@ -1371,9 +1453,10 @@ public class SuggestionImpl implements SuggestionService {
         return json;
     }
 
-    private List<Tuple> getListSuggestion(String query, int start, int limit) {
+    private List<Tuple> getListSuggestion(String query, String statut, int start, int limit) {
         try {
-            Query q = em.createNativeQuery(SUGGESTION_QUERY, Tuple.class).setParameter(1, query);
+            Query q = em.createNativeQuery(SUGGESTION_QUERY, Tuple.class).setParameter(1, query).setParameter(2,
+                    statut);
             q.setFirstResult(start);
             q.setMaxResults(limit);
             return q.getResultList();
@@ -1384,9 +1467,9 @@ public class SuggestionImpl implements SuggestionService {
         }
     }
 
-    private int getSuggestionCount(String query) {
+    private int getSuggestionCount(String query, String statut) {
         try {
-            Query q = em.createNativeQuery(SUGGESTION_QUERY_COUNT).setParameter(1, query);
+            Query q = em.createNativeQuery(SUGGESTION_QUERY_COUNT).setParameter(1, query).setParameter(2, statut);
 
             return ((Number) q.getSingleResult()).intValue();
 
@@ -1412,6 +1495,9 @@ public class SuggestionImpl implements SuggestionService {
         suggestions.setStrSTATUT(t.get("statut", String.class));
         suggestions.setLgSUGGESTIONORDERID(t.get("id", String.class));
         suggestions.setCommentaire(t.get("commentaire", String.class));
+        suggestions.setDateCommande(t.get("dateCommande", String.class));
+        suggestions.setModeCommande(t.get("modeCommande", String.class));
+        suggestions.setDateCloture(t.get("dateCloture", String.class));
         return suggestions;
     }
 
@@ -1733,6 +1819,7 @@ public class SuggestionImpl implements SuggestionService {
             }
 
             LOG.info("SUGGESTION PERF - boucle totale = " + (System.currentTimeMillis() - boucleStart) + " ms");
+            ajouterColisage(arrayObj);
 
             data.put("data", arrayObj);
 
@@ -1857,7 +1944,7 @@ public class SuggestionImpl implements SuggestionService {
                 if (s == null) {
                     return new JSONObject().put("success", false).put("msg", "Suggestion introuvable : " + id);
                 }
-                if (Constant.STATUT_ENABLE.equals(s.getStrSTATUT())) {
+                if (estCommandee(s)) {
                     return new JSONObject().put("success", false).put("msg",
                             "La suggestion " + s.getStrREF() + " est déjà commandée : fusion impossible");
                 }
@@ -1976,7 +2063,7 @@ public class SuggestionImpl implements SuggestionService {
             if (source == null) {
                 return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
             }
-            if (Constant.STATUT_ENABLE.equals(source.getStrSTATUT())) {
+            if (estCommandee(source)) {
                 return new JSONObject().put("success", false).put("msg",
                         "La suggestion " + source.getStrREF() + " est déjà commandée : éclatement impossible");
             }

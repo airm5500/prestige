@@ -57,6 +57,29 @@ public interface SuggestionService {
 
     String MOTIF_SUPPRESSION_EQUIVALENCE_DCI = "SUPPRESSION_EQUIVALENCE_DCI";
 
+    /** Statuts du plan d'octobre (1.3) : dernier produit traite, puis commande passee. */
+    String STATUT_CLOTUREE = "cloturee";
+
+    String STATUT_COMMANDEE = "commandee";
+
+    String MODE_COMMANDE_CSV = "CSV";
+
+    String MODE_COMMANDE_PHARMAML = "PHARMAML";
+
+    String MODE_COMMANDE_MANUEL = "MANUEL";
+
+    java.util.Set<String> MODES_COMMANDE = java.util.Set.of(MODE_COMMANDE_CSV, MODE_COMMANDE_PHARMAML,
+            MODE_COMMANDE_MANUEL);
+
+    /** Dernier produit traite : statut « Clôturée » (sans effet sur une suggestion deja commandee). */
+    JSONObject cloturer(String suggestionId);
+
+    /** Statut « Commandée », avec la date, le mode (CSV, PHARMAML, MANUEL), l'utilisateur et la commande creee. */
+    JSONObject marquerCommandee(String suggestionId, String mode, String orderId, TUser user);
+
+    /** Liste filtree par statut (vide = tous). */
+    JSONObject fetch(String query, String statut, int start, int limit);
+
     void removeItem(String itemId);
 
     /** Suppression d'une ligne, copiee d'abord dans les produits retires au nom de l'utilisateur. */

@@ -25,6 +25,8 @@ public class SuggestionsDTO {
     private String lgGROSSISTEID;
     private String details = " ";
     private String commentaire = "";
+    /** Plan d'octobre 1.3 : preuve de la commande (date, mode) et date de cloture. */
+    private String dateCommande, modeCommande, dateCloture;
 
     public String getLgGROSSISTEID() {
         return lgGROSSISTEID;
@@ -185,5 +187,32 @@ public class SuggestionsDTO {
 
     public void setCommentaire(String commentaire) {
         this.commentaire = commentaire == null ? "" : commentaire;
+    }
+
+    @JSONPropertyName("dt_COMMANDEE")
+    public String getDateCommande() {
+        return dateCommande == null ? "" : dateCommande;
+    }
+
+    public void setDateCommande(String dateCommande) {
+        this.dateCommande = dateCommande;
+    }
+
+    @JSONPropertyName("str_MODE_COMMANDE")
+    public String getModeCommande() {
+        return modeCommande == null ? "" : modeCommande;
+    }
+
+    public void setModeCommande(String modeCommande) {
+        this.modeCommande = modeCommande;
+    }
+
+    @JSONPropertyName("dt_CLOTURE")
+    public String getDateCloture() {
+        return dateCloture == null ? "" : dateCloture;
+    }
+
+    public void setDateCloture(String dateCloture) {
+        this.dateCloture = dateCloture;
     }
 }

@@ -69,6 +69,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     name: 'str_STATUT',
                     type: 'String'
                 },
+                /* Plan d'octobre 1.3 : preuve de la commande */
+                {name: 'dt_COMMANDEE', type: 'string'},
+                {name: 'str_MODE_COMMANDE', type: 'string'},
+                {name: 'dt_CLOTURE', type: 'string'},
 
                 {
                     name: 'lg_FAMILLE_PRIX_VENTE',
@@ -197,9 +201,18 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         } else if (val === 'auto') {
                             val = 'AUTO';
                         } else if (val === 'pending') {
-                            val = 'CLOTURE';
-                            m.style = 'background-color:#73C774;color:#FFF;font-weight:800;';
-
+                            /* Plan d'octobre 1.3 : ouverte = « En cours » (meme valeur en base qu'avant) */
+                            val = 'EN COURS';
+                            m.style = 'background-color:#2E75B6;color:#FFF;font-weight:800;';
+                        } else if (val === 'cloturee') {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Clôturée le ' + r.get('dt_CLOTURE')) + '"';
+                            val = 'CLÔTURÉE';
+                            m.style = 'background-color:#e08a1e;color:#FFF;font-weight:800;';
+                        } else if (val === 'commandee') {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Commandée le ' + r.get('dt_COMMANDEE')
+                                    + (r.get('str_MODE_COMMANDE') ? ' (' + r.get('str_MODE_COMMANDE') + ')' : '')) + '"';
+                            val = 'COMMANDÉE' + (r.get('str_MODE_COMMANDE') ? ' · ' + r.get('str_MODE_COMMANDE') : '');
+                            m.style = 'background-color:#17987e;color:#FFF;font-weight:800;';
                         }
                         return val;
                     }
@@ -308,6 +321,23 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         }]
                 },
                 {
+                    /* Plan d'octobre 1.3 : « Marquer comme commandée » (commande passee hors du logiciel). */
+                    xtype: 'actioncolumn',
+                    itemId: 'marquerCommandee',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            iconCls: 'act-ico act-valider',
+                            tooltip: 'Marquer comme commandée',
+                            getClass: function (v, meta, rec) {
+                                return rec.get('str_STATUT') === 'commandee' || rec.get('str_STATUT') === 'enable' ? 'x-hide-display' : 'act-ico act-valider';
+                            },
+                            scope: this,
+                            handler: this.onMarquerCommandeeClick
+                        }]
+                },
+                {
                     /* Eclater : sur la ligne (retour du 05/10, pour liberer la barre du haut). Plus besoin de cocher
                        la suggestion ; masque pour une suggestion de moins de 2 lignes (rien a eclater). */
                     xtype: 'actioncolumn',
@@ -400,6 +430,27 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechClick
+                },
+                {
+                    /* Plan d'octobre 1.3 : filtre par statut */
+                    xtype: 'combobox',
+                    itemId: 'filtreStatut',
+                    width: 150,
+                    editable: false,
+                    queryMode: 'local',
+                    displayField: 'libelle',
+                    valueField: 'statut',
+                    value: '',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['statut', 'libelle'],
+                        data: [{statut: '', libelle: 'Tous les statuts'}, {statut: 'auto', libelle: 'Auto'}, {statut: 'is_Process', libelle: 'Manuelle'},
+                            {statut: 'pending', libelle: 'En cours'}, {statut: 'cloturee', libelle: 'Clôturée'}, {statut: 'commandee', libelle: 'Commandée'}]
+                    }),
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        }
+                    }
                 },
                 '->',
                 {
@@ -940,11 +991,39 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     },
     onRechClick: function () {
         const val = Ext.getCmp('rechecher');
-        this.getStore().load({
+        const filtre = Me.down('#filtreStatut');
+        /* Le statut choisi reste applique aux pages suivantes (parametre du proxy). */
+        Me.getStore().getProxy().setExtraParam('statut', filtre ? (filtre.getValue() || '') : '');
+        Me.getStore().load({
             params: {
                 query: val.value
             }
         });
+    },
+
+    onMarquerCommandeeClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        Ext.MessageBox.confirm('Suggestion', 'Marquer la suggestion <b>' + Ext.String.htmlEncode(rec.get('str_REF'))
+                + '</b> comme commandée ?<br>Elle restera dans la liste avec la date de la commande.', function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/suggestion/' + encodeURIComponent(rec.get('lg_SUGGESTION_ORDER_ID')) + '/commandee?mode=MANUEL',
+                        success: function (response) {
+                            const r = Ext.decode(response.responseText, true) || {};
+                            if (!r.success) {
+                                Ext.MessageBox.alert('Suggestion', r.msg || 'Le statut n\'a pas pu être changé.');
+                                return;
+                            }
+                            grid.getStore().reload();
+                        },
+                        failure: function () {
+                            Ext.MessageBox.alert('Suggestion', 'Le statut n\'a pas pu être changé.');
+                        }
+                    });
+                });
     },
 
     // Consultation d'une suggestion en LECTURE SEULE : n'appelle pas set-pending, la suggestion

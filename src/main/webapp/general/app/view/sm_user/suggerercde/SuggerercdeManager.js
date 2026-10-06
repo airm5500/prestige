@@ -322,6 +322,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                     }
                                 },
                                 {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
+                                /* Colisage (plan d'octobre 1.6) : rappel, informatif ; rien n'est arrondi. */
+                                {text: 'COLIS.', width: 58, sortable: false, menuDisabled: true, dataIndex: 'int_COLISAGE', align: 'right',
+                                    renderer: function (v) {
+                                        return v ? v : '<span style="color:#9aa8b6">—</span>';
+                                    }},
 
                                 {
     header: 'QTE',
@@ -571,9 +576,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     const isLastPage = (pageData.currentPage >= pageData.pageCount);
 
                     if (isLastOnPage && isLastPage) {
-                        Ext.MessageBox.alert('Fin de la Saisie', 'Dernier produit de la suggestion traité. Retour à la liste.', function() {
-                            Me_Window.onbtncancel();
-                        });
+                        Me_Window.cloturerPuisProposerCsv();
                     } else if (isLastOnPage) {
                         pagingToolbar.moveNext();
                     } else {
@@ -589,6 +592,39 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     },
 
     loadStore: function () {},
+
+    /*
+     * Plan d'octobre 1.3 : dernier produit traite -> statut « Clôturée », puis la question du fichier CSV. Oui : le
+     * fichier est genere et la suggestion passe « Commandée » (mode CSV). Non : elle reste clôturée. Retour a la liste
+     * dans les deux cas, comme avant.
+     */
+    cloturerPuisProposerCsv: function () {
+        var id = orderIdRef;
+        var retour = function () {
+            Me_Window.onbtncancel();
+        };
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/suggestion/' + encodeURIComponent(id) + '/cloturer',
+            callback: function () {
+                Ext.MessageBox.confirm('Fin de la saisie', 'Dernier produit de la suggestion traité : la suggestion est <b>clôturée</b>.'
+                        + '<br><br>Voulez-vous générer le fichier CSV ?', function (btn) {
+                            if (btn !== 'yes') {
+                                retour();
+                                return;
+                            }
+                            Ext.Ajax.request({
+                                method: 'POST',
+                                url: '../api/v1/suggestion/' + encodeURIComponent(id) + '/commandee?mode=CSV',
+                                callback: function () {
+                                    window.location = '../api/v1/suggestion/csv?id=' + encodeURIComponent(id);
+                                    retour();
+                                }
+                            });
+                        });
+            }
+        });
+    },
 
     /* Plan d'octobre 1.1 : analyse par bouton seulement, dans une fenetre modale. */
     onEquivalentsDci: function (bouton, e, itemId) {

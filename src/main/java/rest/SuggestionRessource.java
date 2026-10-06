@@ -173,9 +173,38 @@ public class SuggestionRessource {
     @GET
     @Path("list")
     public Response findAll(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "query") String query) {
+            @QueryParam(value = "query") String query, @QueryParam(value = "statut") String statut) {
 
-        return Response.ok().entity(this.suggestionService.fetch(query, start, limit).toString()).build();
+        return Response.ok().entity(this.suggestionService.fetch(query, statut, start, limit).toString()).build();
+    }
+
+    /** Dernier produit traite (plan d'octobre 1.3) : statut « Clôturée ». */
+    @POST
+    @Path("{id}/cloturer")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response cloturer(@PathParam("id") String id) {
+        if (servletRequest.getSession().getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        return Response.ok(suggestionService.cloturer(id).toString()).build();
+    }
+
+    /** Statut « Commandée » : apres le fichier CSV, ou marque a la main (mode CSV ou MANUEL). */
+    @POST
+    @Path("{id}/commandee")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response commandee(@PathParam("id") String id, @QueryParam("mode") String mode) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        String m = SuggestionService.MODE_COMMANDE_PHARMAML.equals(mode) ? SuggestionService.MODE_COMMANDE_MANUEL
+                : mode;
+        return Response.ok(suggestionService.marquerCommandee(id, m, null, tu).toString()).build();
     }
 
     @GET

@@ -26,6 +26,11 @@ Ext.define('testextjs.model.TSuggestionOrderDetails', {
             type: 'string'
         },
         {
+            /* Colisage du produit (plan d'octobre 1.6, informatif) */
+            name: 'int_COLISAGE',
+            type: 'string'
+        },
+        {
             name: 'int_STOCK',
             type: 'string'
         },
