@@ -76,6 +76,17 @@ public class RhServiceImpl implements RhService {
         if (matricule == null || nom == null) {
             return refus("Matricule et nom sont obligatoires.");
         }
+        /* Controle de saisie (07/10) : texte plus long que la colonne (erreur interne) ou date illisible (ignoree). */
+        String saisie = util.ControleSaisie.premier(util.ControleSaisie.longueur("Le matricule", matricule, 30),
+                util.ControleSaisie.longueur("Le badge", badge, 40), util.ControleSaisie.longueur("Le nom", nom, 80),
+                util.ControleSaisie.longueur("Les prénoms", s.optString("prenoms", null), 120),
+                util.ControleSaisie.longueur("Le poste", s.optString("poste", null), 80),
+                util.ControleSaisie.longueur("Le téléphone", s.optString("telephone", null), 30),
+                util.ControleSaisie.date("La date d'entrée", s.optString("dtEntree", null)),
+                util.ControleSaisie.date("La date de sortie", s.optString("dtSortie", null)));
+        if (saisie != null) {
+            return refus(saisie);
+        }
         LocalDate entree = date(s.optString("dtEntree", null)), sortie = date(s.optString("dtSortie", null));
         if (entree != null && sortie != null && sortie.isBefore(entree)) {
             return refus("La date de sortie est avant la date d'entrée.");
@@ -317,6 +328,10 @@ public class RhServiceImpl implements RhService {
         String type = StringUtils.upperCase(StringUtils.trimToEmpty(s.optString("type")));
         LocalDate d = date(s.optString("debut", null)), f = date(s.optString("fin", null));
         String demi = StringUtils.trimToNull(s.optString("demiJournee", null));
+        String motifTropLong = util.ControleSaisie.longueur("Le motif", s.optString("motif", null), 250);
+        if (motifTropLong != null) {
+            return refus(motifTropLong);
+        }
         if (employe == null || premier("SELECT id FROM t_employe WHERE id = ?1", employe) == null) {
             return refus("Employé introuvable.");
         }

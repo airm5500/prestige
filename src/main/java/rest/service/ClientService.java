@@ -27,6 +27,12 @@ import org.json.JSONObject;
 @Local
 public interface ClientService {
 
+    /**
+     * Controle de saisie du client rapide (07/10) : message a afficher si la fiche est refusee (nom et prenom vides,
+     * texte trop long pour la base, type de client inconnu), sinon null.
+     */
+    String controleClientRapide(ClientLambdaDTO clientLambda);
+
     TClient createClient(ClientLambdaDTO clientLambda);
 
     List<ClientLambdaDTO> findClientLambda(String query);

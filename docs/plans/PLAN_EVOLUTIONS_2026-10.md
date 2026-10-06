@@ -401,6 +401,23 @@ modèles de message, consentement `bool_CONSENT_SMS`. **Le rappel de renouvellem
 « Aide à la décision clinique » : je propose de limiter ce lot à la **décision de stock**. Les alertes cliniques
 (interactions, contre-indications) relèvent de l'analyse d'ordonnance déjà branchée sur Posos. **[Q14]**
 
+**Livré (L12, 07/10).** Menu « Analyse Suggestion / Commande » (droit `P_SM_ANALYSE_COMMANDE`, V6.9.86) :
+- Prévision par produit sur les ventes MENSUELLES (36 mois lus, 24 affichés) : moyenne 3 mois, saisonnière
+  (même mois N-1 corrigé de la tendance), Holt (tendance), Holt-Winters (tendance + saison, à partir de 24 mois).
+  Chaque méthode est jugée sur les 6 derniers mois connus (WAPE, robuste aux mois à zéro) ; la plus juste est
+  retenue, à erreur égale la plus simple. Fiabilité = 100 − erreur. La semaine n'est pas retenue : trop de bruit
+  pour une officine, le mois suffit à la décision de commande.
+- Quantité recommandée = ventes prévues/jour × (délai du grossiste, sinon `KEY_PREVISION_DELAI_JOURS`, +
+  `KEY_PREVISION_COUVERTURE_JOURS`) + stock de sécurité (z = 1,65 × écart type) − stock rayon et réserve −
+  commandes en cours (moins de 45 jours) − stock des équivalents DCI DIRECTS ; arrondie au-dessus, jamais négative.
+- Calcul la nuit (02:37, `KEY_PREVISION_ACTIF`) et à la demande (bouton) ; ~6 s pour 6 400 produits sur la base
+  d'essai ; les écrans ne lisent que `t_prevision_produit`.
+- Alertes par ligne : quantité aberrante (> `KEY_PREVISION_ECART_ABERRANT` × la recommandation), insuffisante,
+  surstock (> `KEY_PREVISION_SURSTOCK_JOURS`), équivalent DCI en stock, indisponible (dernier résultat PharmaML),
+  prix anormal (> `KEY_PREVISION_PRIX_ECART` % du dernier achat), rotation lente
+  (`KEY_PREVISION_ROTATION_LENTE_JOURS`). Un produit de moins de 3 mois d'historique n'est pas jugé sur sa rotation.
+- Tableau : taux de rupture, valeur des invendus, couverture moyenne, fiabilité pondérée, à commander.
+
 ---
 
 ## 6. FICHE ARTICLE
@@ -654,7 +671,7 @@ Test : `test-retours-0610-presentation.js`.
 | L9 | §7 Cloche configurable | L1 |
 | L10 | §4 Rappels chroniques (habitudes d'achat) + WhatsApp (API par défaut, paramètre) | — |
 | L11 | §3 RH (planning semaine, congés, connexions, import pointeuse, écran) | L1 |
-| L12 | §5 Analyse prédictive Suggestion / Commande | L2, L4 |
+| L12 | §5 Analyse prédictive Suggestion / Commande — **livré le 07/10** | L2, L4 |
 | L13 | Mobile : jeton signé, pointage mobile, photos depuis le téléphone | décision ultérieure |
 
 Chaque lot est livré avec ses migrations, ses tests (unitaires + e2e avec jeu d'essai retiré) et des captures.

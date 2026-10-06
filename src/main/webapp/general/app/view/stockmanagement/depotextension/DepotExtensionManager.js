@@ -127,18 +127,21 @@ Ext.define('testextjs.view.stockmanagement.depotextension.DepotExtensionManager'
                             xtype: 'panel',
                             itemId: 'ongletVente',
                             title: 'Saisir vente dépôt',
-                            layout: 'fit',
+                            // Comme la vente de l'officine : l'ecran de vente garde sa hauteur naturelle et c'est
+                            // l'onglet qui defile ; avec « fit », une longue vente etait coupee en bas (07/10).
+                            layout: 'anchor',
+                            autoScroll: true,
                             tabConfig: { cls: 'depot-onglet-vente' },
                             // « data » est indispensable : l'ecran de vente lit me.getData().isEdit sans garde,
                             // et planterait si on l'embarquait sans. Le menu lui passe {} de la meme facon.
                             // La largeur et la hauteur mini heritees de l'ecran de vente (99% et 570 px)
-                            // sont neutralisees : dans un onglet, c'est la disposition « fit » qui donne la
+                            // sont neutralisees : dans un onglet, c'est la disposition de l'onglet qui donne la
                             // taille, et une largeur en pourcentage la contredirait au moindre ascenseur.
                             // (Les 5 px de debordement mesures a l'interieur de la vente ne viennent PAS de
                             // la : c'est le cadre du panneau « frame: true », que l'ecran de vente de
                             // l'officine presente aussi, a l'identique, hors de tout onglet.)
                             items: [{ xtype: 'doventeendepot', data: {}, width: undefined, minHeight: undefined,
-                                    autoScroll: true }]
+                                    anchor: '100%' }]
                         }, {
                             // Onglet 1 : valorisation. Deux vues de la meme chose, en disposition « card » :
                             // setActiveItem gere l'affichage sans toucher a des composants non rendus, ce qui

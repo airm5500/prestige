@@ -36,23 +36,30 @@ function lectures() {
     const tete = src.slice(0, iClasse).match(/@Path\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\)/g);
     if (!tete) { continue; }
     const base = tete[tete.length - 1].match(/"([^"]*)"/)[1].replace(/^\/|\/$/g, '');
+    const corpsClasse = src.slice(iClasse);
     const re = /@GET\b([\s\S]*?)\{/g; let m;
-    while ((m = re.exec(src.slice(iClasse)))) {
+    while ((m = re.exec(corpsClasse))) {
       const sig = m[1];
+      /* corps de la methode : jusqu'a l'annotation de la methode suivante */
+      const suite = corpsClasse.slice(re.lastIndex);
+      const fin = suite.search(/@(GET|POST|PUT|DELETE|Path)\b/);
+      const corps = fin < 0 ? suite : suite.slice(0, fin);
       const pm = sig.match(/@Path\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\)/);
       const sous = pm ? pm[1].replace(/^\/|\/$/g, '') : '';
       const qp = []; const pp = [];
       const rp = /@(Query|Path)Param\(\s*(?:value\s*=\s*)?"([^"]+)"\s*\)\s*(?:@DefaultValue\([^)]*\)\s*)?(?:final\s+)?([\w.<>]+)/g; let x;
       while ((x = rp.exec(sig))) { (x[1] === 'Query' ? qp : pp).push({ nom: x[2], type: x[3] }); }
-      l.push({ fichier: path.basename(f), chemin: (base + (sous ? '/' + sous : '')).replace(/\/+/g, '/'), qp, pp });
+      l.push({ fichier: path.basename(f), chemin: (base + (sous ? '/' + sous : '')).replace(/\/+/g, '/'), qp, pp, agit: AGIT.test(corps) });
     }
   }
   return l;
 }
 
+/* une lecture dont le code appelle une methode d'ecriture (meme si son nom ne le dit pas, ex. « ponctionner ») */
+const AGIT = /\.(save|update|create|delete|remove|persist|merge|ponction|appliquer|apply|valider|cloturer|envoy|send|import|generer|recalcul|actualiser|marquer|faire|execute|traiter|reset|init|annuler|regler|transferer|fusionner|purger|archiver|desactiver|activer|enregistrer|ajouter|supprimer|modifier|creer)\w*\s*\(|executeUpdate|em\.(persist|merge|remove)/;
 /* lectures qui font quelque chose (ou appellent l'exterieur) : jamais appelees ici */
 /* ErpRessource : exports complets pour le logiciel comptable externe (sans champ de saisie, tres longs) */
-const ECARTEES = /(^Erp|^v1\/erp|logout|deconnexion|deconnect|envoy|send|sms|mail|whatsapp|sync|pharmaml|posos|cloturer|cloture|valider|supprim|delete|remove|reset|purge|imprimer-ticket|ticket-caisse|print|backup|sauvegard|webhook|test-connexion|ping-|appeler|transmettre|lancer|executer|run|update|maj|mise-a-jour|miseajour|generer|regenerer|creer|create|init|calcul|import|actualiser|migr|fusion|merge|close|ferme|ouvrir|annul|cancel|rembours|regler|reglement-|transfert|appliquer|modifier|activer|desactiv|enable|disable|archiv|notifier|marquer|lire-tout|vider|clean|nettoy|corrig|fix|repar|recalc|rattrap|bascul|demarrer|arreter|stop|start-)/i;
+const ECARTEES = /(^Erp|^v1\/erp|^Custom|ponction|logout|deconnexion|deconnect|envoy|send|sms|mail|whatsapp|sync|pharmaml|posos|cloturer|cloture|valider|supprim|delete|remove|reset|purge|imprimer-ticket|ticket-caisse|print|backup|sauvegard|webhook|test-connexion|ping-|appeler|transmettre|lancer|executer|run|update|maj|mise-a-jour|miseajour|generer|regenerer|creer|create|init|calcul|import|actualiser|migr|fusion|merge|close|ferme|ouvrir|annul|cancel|rembours|regler|reglement-|transfert|appliquer|modifier|activer|desactiv|enable|disable|archiv|notifier|marquer|lire-tout|vider|clean|nettoy|corrig|fix|repar|recalc|rattrap|bascul|demarrer|arreter|stop|start-)/i;
 
 const LONG = 'x'.repeat(3000);
 /* valeur absurde selon le jeu et le type ou le nom du parametre */
@@ -71,7 +78,7 @@ const JEUX = {
 (async () => {
   let toutes = lectures();
   const total = toutes.length;
-  toutes = toutes.filter((e) => !ECARTEES.test(e.chemin) && !ECARTEES.test(e.fichier));
+  toutes = toutes.filter((e) => !e.agit && !ECARTEES.test(e.chemin) && !ECARTEES.test(e.fichier));
   const ecartees = total - toutes.length;
   if (process.env.FILTRE) { toutes = toutes.filter((e) => e.chemin.includes(process.env.FILTRE)); }
   const jeux = process.env.JEUX ? process.env.JEUX.split(',') : Object.keys(JEUX);

@@ -412,6 +412,8 @@ Ext.define('testextjs.view.actions.action', {
                     title: 'Montants',
                     id: 'actionGrid',
                     border: false,
+                    /* hauteur bornee : au-dela, la grille defile au lieu de deborder de l'ecran (07/10) */
+                    maxHeight: 560,
                     autoScroll: true,
                     store: datasFlag,
                     viewConfig: {

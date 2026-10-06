@@ -2226,6 +2226,8 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
             title: 'Analyse des ordonnances',
             border: false,
             layout: {type: 'vbox', align: 'stretch'},
+            /* petit ecran (768 px) : le contenu depasse un peu, l'onglet defile au lieu de couper le bas (07/10) */
+            autoScroll: true,
             dockedItems: [{
                     xtype: 'toolbar',
                     dock: 'top',

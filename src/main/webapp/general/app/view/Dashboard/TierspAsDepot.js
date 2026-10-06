@@ -5,8 +5,9 @@ Ext.define('testextjs.view.Dashboard.TierspAsDepot', {
     xtype: 'tierpayantasdepot',
     frame: false,
     width: '97%',
-  height: 'auto',
-    minHeight: 570,
+    /* hauteur fixe et grille en « fit » : la liste defile au lieu de deborder de l'ecran (07/10) */
+    height: 620,
+    layout: 'fit',
     fullscreen: true,
   
     initComponent: function () {

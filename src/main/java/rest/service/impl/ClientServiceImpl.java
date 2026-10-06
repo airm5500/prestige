@@ -132,6 +132,29 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
+    public String controleClientRapide(ClientLambdaDTO c) {
+        if (c == null) {
+            return "Fiche client vide.";
+        }
+        if (org.apache.commons.lang3.StringUtils.isAllBlank(c.getStrFIRSTNAME(), c.getStrLASTNAME())) {
+            return "Le nom ou le prénom du client est obligatoire.";
+        }
+        String refus = util.ControleSaisie.premier(util.ControleSaisie.longueur("Le nom", c.getStrFIRSTNAME(), 50),
+                util.ControleSaisie.longueur("Le prénom", c.getStrLASTNAME(), 50),
+                util.ControleSaisie.longueur("L'adresse ou le téléphone", c.getStrADRESSE(), 50),
+                util.ControleSaisie.longueur("L'e-mail", c.getEmail(), 100),
+                util.ControleSaisie.longueur("Le sexe", c.getStrSEXE(), 10));
+        if (refus != null) {
+            return refus;
+        }
+        String type = c.getLgTYPECLIENTID();
+        if (type != null && !type.trim().isEmpty() && this.getEmg().find(TTypeClient.class, type.trim()) == null) {
+            return "Type de client inconnu.";
+        }
+        return null;
+    }
+
+    @Override
     public TClient createClient(ClientLambdaDTO clientLambda) {
 
         try {

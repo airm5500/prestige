@@ -223,7 +223,8 @@ Ext.define('testextjs.view.Dashboard.TiersPayantExclus', {
                     title: 'VENTES',
                     border: false,
                     itemId: 'ventePanel',
-                    scrollable: true,
+                    /* la grille remplit l'onglet et defile (scrollable est ignore par ExtJS 4.2) */
+                    layout: 'fit',
                     items: [
                         {
                             xtype: 'gridpanel',
@@ -331,6 +332,7 @@ Ext.define('testextjs.view.Dashboard.TiersPayantExclus', {
                     title: 'REGLEMENTS',
                     border: false,
                     itemId: 'reglementPanel',
+                    layout: 'fit',
                     items: [
 
                         {

@@ -316,8 +316,15 @@ public class ClientRessource {
     @POST
     @Path("add/lambda")
     public Response add(ClientLambdaDTO clientLambda) {
-
+        /* Controle de saisie (07/10) : nom vide, texte trop long ou type inconnu refuses avec un message. */
+        String refus = clientService.controleClientRapide(clientLambda);
+        if (refus != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(refus)).build();
+        }
         TClient tc = clientService.createClient(clientLambda);
+        if (tc == null) {
+            return Response.ok().entity(ResultFactory.getFailResult("Le client n'a pas pu être créé.")).build();
+        }
         return Response.ok().entity(ResultFactory.getSuccessResult(new ClientLambdaDTO(tc), 1)).build();
     }
 

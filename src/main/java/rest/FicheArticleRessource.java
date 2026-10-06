@@ -557,6 +557,22 @@ public class FicheArticleRessource {
         // MEMES valeurs par defaut que la JSP historique
         String familleId = texte(familleIdQuery, texte(familleIdForm, ""));
         String description = texte(strDescription, "");
+        /*
+         * Controle de saisie (07/10) : un prix en lettres devenait 0, un prix negatif ou demesure etait enregistre, un
+         * libelle trop long faisait echouer l'ecriture sans message clair. Refus explicite, rien n'est ecrit.
+         */
+        String refus = util.ControleSaisie.premier(util.ControleSaisie.longueur("Le libellé", description, 60),
+                util.ControleSaisie.longueur("Le code CIP", intCip, 20),
+                util.ControleSaisie.longueur("Le code EAN", intEan13, 50),
+                util.ControleSaisie.montant("Le prix de vente", intPrice),
+                util.ControleSaisie.montant("Le prix d'achat", intPaf),
+                util.ControleSaisie.montant("Le prix d'achat tarif", intPat),
+                util.ControleSaisie.montant("Le prix conseillé", intPriceTips),
+                util.ControleSaisie.montant("Le prix CMU", cmuPrice),
+                util.ControleSaisie.montant("Le prix au détail", priceDetail));
+        if (refus != null && ("create".equals(mode) || "update".equals(mode))) {
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, refus);
+        }
         dal.dataManager odm = new dal.dataManager();
         odm.initEntityManager();
         try {
