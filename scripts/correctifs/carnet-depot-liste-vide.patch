@@ -1,0 +1,165 @@
+From afeabb313e5e0d360bf15feb9e5bd08a4385a5b8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 6 Oct 2026 16:10:02 +0000
+Subject: [PATCH] Carnet depot : liste des ventes vide sur les bases mises a
+ jour
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Sur une base mise a jour depuis une version anterieure a la V6.1.6,
+Hibernate cree b_HAS_AVOIR vide avant Flyway, et la V6.1.6 ne l'initialise
+jamais : toutes les ventes historiques a NULL. Le champ etait un boolean
+primitif : toute vente historique chargee par Hibernate devenait illisible.
+La liste du carnet depot restait vide sans message (erreur avalee), et les
+exports ERP, le suivi des remises, les ventes UG et l'impression des
+mouvements de caisse tombaient en erreur.
+
+- TPreenregistrement : champ objet, le vide se lit « pas d'avoir » ;
+- V6.9.73 : ventes vides remises a la valeur de la V6.1.6, colonne
+  remise NOT NULL DEFAULT 0 si elle accepte encore le vide ;
+- liste du carnet depot : l'erreur est journalisee.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ src/main/java/dal/TPreenregistrement.java     | 11 ++++-
+ .../service/impl/CarnetDepotServiceImpl.java  |  2 +
+ .../V6.9.73__indicateur_avoir_vide.sql        | 30 +++++++++++++
+ .../java/dal/IndicateurAvoirVideTest.java     | 44 +++++++++++++++++++
+ 4 files changed, 85 insertions(+), 2 deletions(-)
+ create mode 100644 src/main/resources/db/migration/V6.9.73__indicateur_avoir_vide.sql
+ create mode 100644 src/test/java/dal/IndicateurAvoirVideTest.java
+
+diff --git a/src/main/java/dal/TPreenregistrement.java b/src/main/java/dal/TPreenregistrement.java
+index 0e0e6e3..c5fbc4c 100644
+--- a/src/main/java/dal/TPreenregistrement.java
++++ b/src/main/java/dal/TPreenregistrement.java
+@@ -239,8 +239,15 @@ public class TPreenregistrement implements Serializable {
+     private Caution caution;
+     @Column(name = "has_price_option")
+     private Boolean hasPriceOption = false;
++    /*
++     * Objet et non type primitif : sur une base mise a jour depuis une version anterieure a la V6.1.6, Hibernate a cree
++     * la colonne VIDE avant que Flyway ne la cree a 0 (constate sur une base reelle : toutes les ventes historiques a
++     * NULL). Un boolean primitif rendait alors ILLISIBLE toute vente historique chargee par Hibernate : liste du carnet
++     * depot vide sans message, exports ERP, suivi des remises, ventes UG, mouvements de caisse en erreur. Le vide se
++     * lit « pas d'avoir » ; la V6.9.73 remet la colonne d'aplomb.
++     */
+     @Column(name = "b_HAS_AVOIR")
+-    private boolean bHASAVOIR = false;
++    private Boolean bHASAVOIR = Boolean.FALSE;
+     @Column(name = "dt_CLOTURE_AVOIR")
+     @Temporal(TemporalType.TIMESTAMP)
+     private Date dtCLOTUREAVOIR;
+@@ -599,7 +606,7 @@ public class TPreenregistrement implements Serializable {
+     }
+ 
+     public boolean getBHASAVOIR() {
+-        return bHASAVOIR;
++        return Boolean.TRUE.equals(bHASAVOIR);
+     }
+ 
+     public void setBHASAVOIR(boolean bHASAVOIR) {
+diff --git a/src/main/java/rest/service/impl/CarnetDepotServiceImpl.java b/src/main/java/rest/service/impl/CarnetDepotServiceImpl.java
+index 17c7de0..8851c63 100644
+--- a/src/main/java/rest/service/impl/CarnetDepotServiceImpl.java
++++ b/src/main/java/rest/service/impl/CarnetDepotServiceImpl.java
+@@ -374,6 +374,8 @@ public class CarnetDepotServiceImpl implements CarnetAsDepotService {
+             }
+             return q.getResultList().stream().map(VenteTiersPayantsDTO::new).collect(Collectors.toList());
+         } catch (Exception e) {
++            // L'erreur etait avalee sans trace : l'ecran affichait une liste vide sous un compteur de ventes juste.
++            LOG.log(Level.SEVERE, "ventes du carnet depot " + tiersPayantId, e);
+             return Collections.emptyList();
+         }
+ 
+diff --git a/src/main/resources/db/migration/V6.9.73__indicateur_avoir_vide.sql b/src/main/resources/db/migration/V6.9.73__indicateur_avoir_vide.sql
+new file mode 100644
+index 0000000..db51312
+--- /dev/null
++++ b/src/main/resources/db/migration/V6.9.73__indicateur_avoir_vide.sql
+@@ -0,0 +1,30 @@
++-- Indicateur « la vente a eu un avoir » (b_HAS_AVOIR) laisse VIDE sur les bases mises a jour depuis une version
++-- anterieure a la V6.1.6.
++--
++-- La V6.1.6 cree la colonne NOT NULL DEFAULT 0 puis la passe a 1 pour les avoirs. Mais sur une base plus ancienne,
++-- Hibernate cree la colonne au demarrage AVANT Flyway, NULLABLE et vide : la V6.1.6 echoue alors sur « colonne deja
++-- existante » et son initialisation n'est jamais faite. Constate sur une base reelle passee de 5.9.7 a 6.9.72 :
++-- toutes les ventes historiques a NULL. Effet : toute vente historique chargee par Hibernate etait illisible (liste
++-- du carnet depot vide, exports ERP, suivi des remises, ventes UG, mouvements de caisse en erreur).
++--
++-- 1. Les ventes vides recoivent la valeur que la V6.1.6 leur aurait donnee : 1 pour un avoir, 0 sinon.
++-- 2. La colonne est remise dans l'etat prevu par la V6.1.6 (NOT NULL DEFAULT 0), seulement si elle accepte encore
++--    le vide : une base correctement migree n'est pas touchee.
++-- Sans effet si on la rejoue.
++
++UPDATE t_preenregistrement
++SET b_HAS_AVOIR = CASE WHEN b_IS_AVOIR = 1 THEN 1 ELSE 0 END
++WHERE b_HAS_AVOIR IS NULL;
++
++SET @vide_admis := (SELECT COUNT(*) FROM information_schema.COLUMNS
++                    WHERE TABLE_SCHEMA = DATABASE()
++                      AND TABLE_NAME = 't_preenregistrement'
++                      AND COLUMN_NAME = 'b_HAS_AVOIR'
++                      AND IS_NULLABLE = 'YES');
++
++SET @sql := IF(@vide_admis > 0,
++    'ALTER TABLE t_preenregistrement MODIFY COLUMN b_HAS_AVOIR BIT(1) NOT NULL DEFAULT 0',
++    'SELECT ''b_HAS_AVOIR deja NOT NULL''');
++PREPARE stmt FROM @sql;
++EXECUTE stmt;
++DEALLOCATE PREPARE stmt;
+diff --git a/src/test/java/dal/IndicateurAvoirVideTest.java b/src/test/java/dal/IndicateurAvoirVideTest.java
+new file mode 100644
+index 0000000..a683f57
+--- /dev/null
++++ b/src/test/java/dal/IndicateurAvoirVideTest.java
+@@ -0,0 +1,44 @@
++package dal;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++import java.lang.reflect.Field;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Paths;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Indicateur « la vente a eu un avoir » vide en base (bases mises a jour depuis une version anterieure a la V6.1.6) :
++ * la vente doit rester lisible, le vide valant « pas d'avoir ».
++ */
++class IndicateurAvoirVideTest {
++
++    @Test
++    void videSeLitPasDAvoir() throws Exception {
++        TPreenregistrement vente = new TPreenregistrement();
++        Field champ = TPreenregistrement.class.getDeclaredField("bHASAVOIR");
++        champ.setAccessible(true);
++        // Ce que fait Hibernate en lisant une colonne vide : il affecte null au champ.
++        champ.set(vente, null);
++        assertFalse(vente.getBHASAVOIR());
++        vente.setBHASAVOIR(true);
++        assertTrue(vente.getBHASAVOIR());
++    }
++
++    @Test
++    void parDefautPasDAvoir() {
++        assertFalse(new TPreenregistrement().getBHASAVOIR());
++    }
++
++    @Test
++    void laMigrationRemetLaColonneDAplomb() throws Exception {
++        String sql = new String(
++                Files.readAllBytes(Paths.get("src/main/resources/db/migration/V6.9.73__indicateur_avoir_vide.sql")),
++                StandardCharsets.UTF_8);
++        assertTrue(sql.contains("WHERE b_HAS_AVOIR IS NULL"), "seules les ventes vides sont touchees");
++        assertTrue(sql.contains("CASE WHEN b_IS_AVOIR = 1 THEN 1 ELSE 0 END"), "meme regle que la V6.1.6");
++        assertTrue(sql.contains("IS_NULLABLE = 'YES'"), "une base correctement migree n'est pas modifiee");
++    }
++}
+-- 
+2.43.0
+
