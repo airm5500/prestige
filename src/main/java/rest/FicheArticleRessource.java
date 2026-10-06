@@ -623,6 +623,42 @@ public class FicheArticleRessource {
         }
     }
 
+    /**
+     * Changement d'emplacement seul (fenetre « updatezonegeo », produit d'un depot) : remplace le mode
+     * updateonlyzonegeo de ws_transaction.jsp, MEME methode metier (familleManagement.updateFamilleZone), meme
+     * emplacement par defaut quand rien n'est choisi, meme reponse.
+     */
+    @POST
+    @Path("enregistrer-emplacement")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    public Response enregistrerEmplacement(@FormParam("lg_FAMILLE_ID") String familleId,
+            @FormParam("lg_ZONE_GEO_ID") String zoneGeoId) {
+        HttpSession hs = servletRequest.getSession();
+        TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (sessionUser == null) {
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, "", Constant.DECONNECTED_MESSAGE);
+        }
+        dal.dataManager odm = new dal.dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.configManagement.familleManagement ofm = new bll.configManagement.familleManagement(odm, user);
+            @SuppressWarnings("unchecked")
+            List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+            ofm.setUsersPrivileges(privileges);
+            ofm.updateFamilleZone(texte(familleId, ""),
+                    texte(zoneGeoId, bll.common.Parameter.DEFAUL_ZONE_GEOGRAPHIQUE));
+            return reponseEnregistrement(ofm.getMessage(), texte(familleId, ""), ofm.getDetailmessage());
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(FicheArticleRessource.class.getName())
+                    .log(java.util.logging.Level.SEVERE, "enregistrerEmplacement", e);
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId,
+                    "Echec de la mise à jour de l'emplacement");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     private static Response reponseEnregistrement(String success, String ref, String errors) {
         return Response.ok()
                 .entity(new JSONObject().put("success", success).put("errors_code", success)

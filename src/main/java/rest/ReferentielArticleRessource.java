@@ -4,6 +4,9 @@ import bll.configManagement.dciManagement;
 import bll.configManagement.familleManagement;
 import bll.entity.EntityData;
 import dal.TCodeActe;
+import dal.TCodeGestion;
+import dal.TCoefficientPonderation;
+import dal.TFabriquant;
 import dal.TDci;
 import dal.TTypeetiquette;
 import dal.TUser;
@@ -155,6 +158,182 @@ public class ReferentielArticleRessource {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "typeetiquettes", e);
             return erreurServeur();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Fabricants (plan d'octobre, sortie des JSP de la fiche article) : MEME methode metier et MEMES champs que
+     * fabriquant/ws_data.jsp. La recherche saisie dans la liste (query) est aussi prise en compte.
+     */
+    @GET
+    @Path("fabriquants")
+    public Response fabriquants(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
+            @QueryParam("lg_FABRIQUANT_ID") String id, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            List<TFabriquant> liste = new bll.configManagement.FabricantManagement(odm).getListeTFabriquant(
+                    StringUtils.defaultString(StringUtils.defaultIfEmpty(searchValue, query)),
+                    StringUtils.isBlank(id) ? "%%" : id);
+            int[] b = bornes(start, limit, liste.size());
+            JSONArray results = new JSONArray();
+            for (int i = b[0]; i < b[1]; i++) {
+                TFabriquant t = liste.get(i);
+                JSONObject j = new JSONObject().put("lg_FABRIQUANT_ID", t.getLgFABRIQUANTID())
+                        .put("str_CODE", t.getStrCODE()).put("str_NAME", t.getStrNAME())
+                        .put("str_DESCRIPTION", t.getStrDESCRIPTION()).put("str_ADRESSE", t.getStrADRESSE())
+                        .put("str_TELEPHONE", t.getStrTELEPHONE()).put("str_STATUT", t.getStrSTATUT());
+                if (t.getDtCREATED() != null) {
+                    j.put("dt_CREATED", date.DateToString(t.getDtCREATED(), date.formatterShort));
+                }
+                if (t.getDtUPDATED() != null) {
+                    j.put("dt_UPDATED", date.DateToString(t.getDtUPDATED(), date.formatterOrange));
+                }
+                results.put(j);
+            }
+            return reponseListe(results, liste.size());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "fabriquants", e);
+            return erreurServeur();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Recherche d'articles des ecrans de suggestion (plan d'octobre, sortie des JSP) : MEMES methodes metier
+     * (GroupeTierspayantController.getFamille), MEMES parametres et MEME format {"data": [...], "total": n} que
+     * sm_user/famille/ws_search_data.jsp.
+     */
+    @GET
+    @Path("recherche-produits")
+    public Response rechercheProduits(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
+            @QueryParam("exclude_detail") String excludeDetail, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        String recherche = StringUtils.isNotEmpty(query) ? query : StringUtils.defaultString(searchValue);
+        boolean sansDetail = "1".equals(excludeDetail) || "true".equalsIgnoreCase(excludeDetail);
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            bll.configManagement.GroupeTierspayantController ctl = new bll.configManagement.GroupeTierspayantController(
+                    odm.getEmf());
+            JSONArray data = ctl.getFamille(false, recherche, empl, start, limit, sansDetail);
+            int total = ctl.getFamille(recherche, empl, sansDetail);
+            return Response.ok().entity(new JSONObject().put("data", data).put("total", total).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rechercheProduits", e);
+            return Response.serverError()
+                    .entity(new JSONObject().put("data", new JSONArray()).put("total", 0).toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Codes de gestion : MEME methode metier et MEMES champs que codegestion/ws_data.jsp. */
+    @GET
+    @Path("codes-gestion")
+    public Response codesGestion(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
+            @QueryParam("lg_CODE_GESTION_ID") String id, @QueryParam("lg_OPTIMISATION_QUANTITE_ID") String optimisation,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            bll.configManagement.CodeGestionManager m = new bll.configManagement.CodeGestionManager(odm);
+            List<TCodeGestion> liste = m.getlistTCodeGestion(
+                    StringUtils.defaultString(StringUtils.isNotEmpty(query) ? query : searchValue),
+                    StringUtils.isBlank(id) ? "%%" : id, StringUtils.isBlank(optimisation) ? "%%" : optimisation);
+            int[] b = bornes(start, limit, liste.size());
+            JSONArray results = new JSONArray();
+            for (int i = b[0]; i < b[1]; i++) {
+                TCodeGestion t = liste.get(i);
+                JSONObject j = new JSONObject().put("lg_CODE_GESTION_ID", t.getLgCODEGESTIONID())
+                        .put("str_CODE_BAREME", t.getStrCODEBAREME())
+                        .put("int_JOURS_COUVERTURE_STOCK", t.getIntJOURSCOUVERTURESTOCK())
+                        .put("int_MOIS_HISTORIQUE_VENTE", t.getIntMOISHISTORIQUEVENTE())
+                        .put("int_DATE_BUTOIR_ARTICLE", t.getIntDATEBUTOIRARTICLE())
+                        .put("int_DATE_LIMITE_EXTRAPOLATION", t.getIntDATELIMITEEXTRAPOLATION())
+                        .put("bool_OPTIMISATION_SEUIL_CMDE", t.getBoolOPTIMISATIONSEUILCMDE())
+                        .put("int_COEFFICIENT_PONDERATION", t.getIntCOEFFICIENTPONDERATION())
+                        .put("lg_OPTIMISATION_QUANTITE_ID",
+                                t.getLgOPTIMISATIONQUANTITEID() == null ? null
+                                        : t.getLgOPTIMISATIONQUANTITEID().getStrLIBELLEOPTIMISATION())
+                        .put("str_STATUT", t.getStrSTATUT());
+                if (t.getDtCREATED() != null) {
+                    j.put("dt_CREATED", date.DateToString(t.getDtCREATED(), date.formatterShort));
+                }
+                if (t.getDtUPDATED() != null) {
+                    j.put("dt_UPDATED", date.DateToString(t.getDtUPDATED(), date.formatterShort));
+                }
+                for (TCoefficientPonderation c : m.getListTCoefficientPonderation(t.getLgCODEGESTIONID())) {
+                    j.put("int_COEFFICIENT_PONDERATION" + c.getIntINDICEMONTH(), c.getIntCOEFFICIENTPONDERATION());
+                }
+                results.put(j);
+            }
+            return reponseListe(results, liste.size());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "codes-gestion", e);
+            return erreurServeur();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Valeur maximale d'une vente (parametre KEY_MAX_VALUE_VENTE) : MEME lecture et MEME ecriture que
+     * famillearticle/ws_data_maxVente.jsp et ws_transaction_maxVente.jsp?mode=update, MEME format de reponse.
+     */
+    @GET
+    @Path("valeur-max-vente")
+    public Response valeurMaxVente() {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            dal.TParameters p = odm.getEm().find(dal.TParameters.class, "KEY_MAX_VALUE_VENTE");
+            return Response.ok().entity(new JSONObject().put("total", p == null ? "" : p.getStrVALUE()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    @POST
+    @Path("valeur-max-vente")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response modifierValeurMaxVente(@FormParam("int_value_max") String valeur) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            bll.utils.TparameterManager m = new bll.utils.TparameterManager(odm);
+            boolean ok = m.updateParameter("KEY_MAX_VALUE_VENTE", StringUtils.defaultString(valeur), "");
+            return Response.ok()
+                    .entity(new JSONObject()
+                            .put("success", ok ? commonparameter.PROCESS_SUCCESS : commonparameter.PROCESS_FAILED)
+                            .put("errors", StringUtils.defaultString(m.getDetailmessage())).toString())
+                    .build();
         } finally {
             odm.closeEntityManager();
         }

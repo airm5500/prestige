@@ -34,7 +34,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.updatezonegeo', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_zonegeo_famille,
+                /* Sortie des JSP (plan d'octobre 6) */
+                url: '../api/v1/referentiel-article/zones-geographiques',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -127,7 +128,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.updatezonegeo', {
         if (formulaire.isValid()) {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
-                url: url_services_transaction_famille + "updateonlyzonegeo",
+                url: '../api/v1/fichearticle/enregistrer-emplacement',
+                method: 'POST',
                 params: {
                     lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
                     lg_FAMILLE_ID: ref,

@@ -370,6 +370,21 @@ toucher la signature existante. **Décision du 06/10 : plus de JSP** — les éc
 `detailArticleOther.js`) passent sur les API REST, avec test de comparaison des données enregistrées ; les JSP
 restent sur le serveur, sans appelant.
 
+**Fait (lot L6c).** Relevé fait en conditions réelles, en capturant les requêtes `.jsp` pendant chaque parcours :
+- fiche (modification et création) : fabricants et codes de gestion → `v1/referentiel-article/fabriquants` et
+  `/codes-gestion` ;
+- « Valeur max » → `v1/referentiel-article/valeur-max-vente` (lecture et enregistrement) ;
+- création rapide `add2` (depuis la suggestion et la commande) → `v1/fichearticle/enregistrer`, DCI par
+  `referentiel-article` ; la ligne créée est identique, colonne par colonne, à celle de la JSP ;
+- changement d'emplacement `updatezonegeo` → `v1/fichearticle/enregistrer-emplacement` ;
+- détail depuis la suggestion `detailArticleOther` : entrées par `v1/commande/produit/commande/famille/{id}`, comme
+  le détail principal (la JSP ne montrait par défaut que les entrées du jour) ;
+- recherche d'articles de l'écran de suggestion → `v1/referentiel-article/recherche-produits` (réponse identique à
+  `ws_search_data.jsp`, le store partagé garde son adresse pour les autres écrans).
+
+`infogenerale.js`, `comptabilite.js` et `autreinfos.js` ne sont ouverts par aucun écran : laissés tels quels.
+Test : `test-fiche-article-sans-jsp.js`.
+
 ---
 
 ## 7. Centre de notifications (cloche)

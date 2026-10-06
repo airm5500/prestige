@@ -71,7 +71,15 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
         const AppController = testextjs.app.getController('App');
         orderIdRef = this.getNameintern();
-        const store = Ext.create('testextjs.store.SearchStore');
+        /* Sortie des JSP (plan d'octobre) : meme recherche que ws_search_data.jsp, par l'API. Le store partage
+           SearchStore garde son adresse pour les autres ecrans. */
+        const store = Ext.create('testextjs.store.SearchStore', {
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/referentiel-article/recherche-produits',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
         // un detail n'est jamais suggere : la recherche d'ajout ne propose que les boites
         store.getProxy().setExtraParam('exclude_detail', '1');
         const storerepartiteur = new Ext.data.Store({

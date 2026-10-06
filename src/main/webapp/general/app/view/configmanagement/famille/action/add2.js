@@ -72,7 +72,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_dci_famille + "?lg_FAMILLE_ID=" + ref,
+                /* Sortie des JSP (plan d'octobre 6) : memes donnees que la fenetre principale de la fiche. */
+                url: '../api/v1/referentiel-article/dci-famille?lg_FAMILLE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -87,7 +88,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_dci,
+                url: '../api/v1/referentiel-article/dcis-initial',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -467,10 +468,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
         var int_PAT = 0;
 
         if (Omode === "create") {
-            internal_url = url_services_transaction_famille + 'create';
+            /* Meme service que la fenetre principale (memes methodes metier et valeurs par defaut que la JSP). */
+            internal_url = '../api/v1/fichearticle/enregistrer?mode=create';
             int_PAT = pafValue; // En mode création, le PAT est égal au PAF
         } else if (Omode === "update") {
-            internal_url = url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref;
+            internal_url = '../api/v1/fichearticle/enregistrer?mode=update&lg_FAMILLE_ID=' + ref;
             int_PAT = Ext.getCmp('int_PAT').getValue();
         }
         

@@ -132,7 +132,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.Fabriquant',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: { type: 'ajax', url: url_services_data_fabriquant, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/fabriquants', /* sortie des JSP (plan d'octobre 6) */ reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         laboratoireStore = Ext.create('Ext.data.Store', {
@@ -223,7 +223,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.CodeGestion',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: { type: 'ajax', url: url_services_data_codegestion_famille, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/codes-gestion', /* sortie des JSP (plan d'octobre 6) */ reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_codeacte_famille = new Ext.data.Store({

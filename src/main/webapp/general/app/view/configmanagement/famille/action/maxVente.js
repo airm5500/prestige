@@ -3,7 +3,8 @@ var winMaxVenteOuverte = null;
 //var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 //var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
 //var url_services_data_famaillearticle_famille = '../webservices/configmanagement/famillearticle/ws_data.jsp';
-var url_services_data_max_vente = '../webservices/configmanagement/famillearticle/ws_data_maxVente.jsp';
+/* Sortie des JSP (plan d'octobre, section 6) : memes donnees, par l'API REST. */
+var url_services_data_max_vente = '../api/v1/referentiel-article/valeur-max-vente';
 var url_services_transaction_max_vente = '../webservices/configmanagement/famillearticle/ws_transaction_maxVente.jsp?mode=';
 //var url_services_data_codegestion_famille = '../webservices/configmanagement/codegestion/ws_data.jsp';
 //var url_services_data_famille = '../webservices/sm_user/famille/ws_data.jsp';
@@ -154,7 +155,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.maxVente', {
         });
         
         Ext.Ajax.request({
-            url: url_services_data_max_vente,
+            url: '../api/v1/referentiel-article/valeur-max-vente',
             success: function (response)
             {
                 var object = Ext.JSON.decode(response.responseText, false);
@@ -202,7 +203,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.maxVente', {
         } else if (Omode === "update") 
         {           
             int_value_max = Ext.getCmp('int_MaxVente').getValue();            
-            internal_url = url_services_transaction_max_vente + 'update&int_value_max=' + int_value_max;
+            internal_url = '../api/v1/referentiel-article/valeur-max-vente';
             
         } else if (Omode === "decondition") {
             //internal_url = url_services_transaction_famille + 'decondition&lg_FAMILLE_ID=' + ref;
@@ -221,7 +222,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.maxVente', {
 
         Ext.Ajax.request({
             url: internal_url,
+            method: 'POST',
             params: {
+                int_value_max: int_value_max,
                 //int_NUMBER_AVAILABLE: Ext.getCmp('int_NUMBER_AVAILABLE').getValue()          
                
             },
