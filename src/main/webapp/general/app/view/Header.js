@@ -444,8 +444,123 @@ var PrestigeNotif = (function () {
     // full=false (badge 60s) : si un provider expose countUrl, seul son
     // compteur leger est appele ; full=true (ouverture du panneau) : les
     // listes completes sont chargees pour l'affichage.
+    /*
+     * Plan d'octobre (section 7, lot L9) : la cloche est configurable. Categories actives et ordre viennent des
+     * preferences de l'utilisateur (cle « cloche ») ; par defaut, les trois categories historiques, dans leur ordre.
+     * Une nouvelle categorie n'est proposee que si son menu est dans le menu de l'utilisateur.
+     */
+    var prefs = null;
+
+    function menuAccessible(xtype) {
+        var nav = Ext.ComponentQuery.query('navigation')[0];
+        var store = nav && nav.getStore ? nav.getStore() : null;
+        var ok = false;
+        if (!xtype) {
+            return true;
+        }
+        if (store && store.getRootNode) {
+            store.getRootNode().cascadeBy(function (n) {
+                if (n.get('id') === xtype) {
+                    ok = true;
+                    return false;
+                }
+            });
+        }
+        return ok;
+    }
+
+    /** Categories proposables a l'utilisateur, dans l'ordre choisi. */
+    function disponibles() {
+        var ordre = (prefs && prefs.ordre) || [];
+        var l = Ext.Array.filter(providers, function (p) {
+            return !p.optionnel || menuAccessible(p.menu);
+        });
+        return Ext.Array.sort(l.slice(), function (a, b) {
+            var ia = ordre.indexOf(a.key), ib = ordre.indexOf(b.key);
+            /* Sans ordre choisi : les categories historiques d'abord, dans leur ordre d'origine. */
+            ia = ia < 0 ? 1000 + (a.optionnel ? 500 : 0) + providers.indexOf(a) : ia;
+            ib = ib < 0 ? 1000 + (b.optionnel ? 500 : 0) + providers.indexOf(b) : ib;
+            return ia - ib;
+        });
+    }
+
+    /** Categories affichees : celles cochees (defaut : les categories historiques). */
+    function actives() {
+        var choix = prefs && prefs.actives;
+        return Ext.Array.filter(disponibles(), function (p) {
+            return choix ? choix.indexOf(p.key) >= 0 : !p.optionnel;
+        });
+    }
+
+    function chargerPreferences(suite) {
+        Ext.Ajax.request({
+            url: '../api/v1/preferences/cloche', method: 'GET',
+            callback: function (o, succes, r) {
+                var v = succes ? Ext.JSON.decode(r.responseText, true) : null;
+                prefs = v && v.success && v.valeur && typeof v.valeur === 'object' ? v.valeur : {};
+                if (suite) {
+                    suite();
+                }
+            }
+        });
+    }
+
+    function enregistrerPreferences(p, suite) {
+        prefs = p;
+        Ext.Ajax.request({
+            url: '../api/v1/preferences/cloche', method: 'PUT', headers: {'Content-Type': 'application/json'}, jsonData: p,
+            callback: function () {
+                if (suite) {
+                    suite();
+                }
+            }
+        });
+    }
+
+    /** Badge : UNE requete pour toutes les categories actives (compteurs agreges). */
+    function loadCompteurs(done, liste) {
+        Ext.Ajax.request({
+            url: '../api/v1/notifications-centre/compteurs', method: 'GET',
+            params: {cles: Ext.Array.pluck(liste, 'key').join(',')},
+            callback: function (opts, success, response) {
+                var o = success ? Ext.JSON.decode(response.responseText, true) : null;
+                if (!o || !o.success || !o.compteurs) {
+                    /* Repli : l'ancien chargement, categorie par categorie. */
+                    loadParCategorie(done, false, liste);
+                    return;
+                }
+                var newCache = {}, grand = 0;
+                Ext.each(liste, function (p) {
+                    var n = parseInt(o.compteurs[p.key], 10) || 0;
+                    newCache[p.key] = {total: n, results: []};
+                    grand += n;
+                });
+                cache = newCache;
+                if (done) {
+                    done(grand);
+                }
+            }
+        });
+    }
+
     function loadAll(done, full) {
-        var pending = providers.length;
+        var lancer = function () {
+            var liste = actives();
+            if (!full) {
+                loadCompteurs(done, liste);
+            } else {
+                loadParCategorie(done, true, liste);
+            }
+        };
+        if (prefs === null) {
+            chargerPreferences(lancer);
+        } else {
+            lancer();
+        }
+    }
+
+    function loadParCategorie(done, full, liste) {
+        var pending = liste.length;
         if (pending === 0) {
             cache = {};
             if (done) {
@@ -454,7 +569,7 @@ var PrestigeNotif = (function () {
             return;
         }
         var newCache = {};
-        Ext.each(providers, function (p) {
+        Ext.each(liste, function (p) {
             var limit = p.limit || 50;
             var useCount = !full && p.countUrl;
             Ext.Ajax.request({
@@ -531,6 +646,13 @@ var PrestigeNotif = (function () {
     return {
         register: register,
         loadAll: loadAll,
+        actives: actives,
+        disponibles: disponibles,
+        menuAccessible: menuAccessible,
+        getPrefs: function () {
+            return prefs || {};
+        },
+        enregistrerPreferences: enregistrerPreferences,
         refreshBadge: refreshBadge,
         updateBadge: updateBadge,
         getCache: getCache,
@@ -564,7 +686,7 @@ function buildNotificationWindow() {
     }
 
     var cache = PrestigeNotif.getCache();
-    var providers = PrestigeNotif.getProviders();
+    var providers = PrestigeNotif.actives();
     var sections = '';
     var grandTotal = 0;
 
@@ -626,6 +748,10 @@ function buildNotificationWindow() {
         bodyPadding: 0,
         bodyStyle: 'overflow-y:auto;',
         html: html,
+        /* Plan d'octobre (lot L9) : choisir les categories et leur ordre. */
+        tools: [{type: 'gear', tooltip: 'Choisir les notifications', itemId: 'reglerCloche', handler: function () {
+                    prestigeNotifConfigurer();
+                }}],
         listeners: {
             show: function (win) {
                 var bell = Ext.get('notif-bell');
@@ -683,6 +809,126 @@ function prestigeNotifItemClick(key, idx) {
         provider.onItemClick(data.results[idx]);
     }
 }
+
+// ------------------------------------------- Choix des categories (plan d'octobre, lot L9)
+
+function prestigeNotifConfigurer() {
+    var win = Ext.getCmp('notif-center-win');
+    if (win) {
+        win.close();
+    }
+    var dispo = PrestigeNotif.disponibles();
+    var actives = Ext.Array.pluck(PrestigeNotif.actives(), 'key');
+    var lignes = Ext.Array.map(dispo, function (p) {
+        return '<div class="pn-choix" draggable="true" data-cle="' + p.key + '">'
+                + '<span class="pn-poignee" title="Glisser pour changer l\'ordre">⠿</span>'
+                + '<label><input type="checkbox" ' + (actives.indexOf(p.key) >= 0 ? 'checked' : '') + '> '
+                + '<i class="fa ' + (p.icon || 'fa-bell') + '" style="color:' + (p.color || '#5dade2') + ';margin:0 6px"></i>'
+                + Ext.String.htmlEncode(p.label) + (p.optionnel ? ' <span class="pn-nouveau">nouveau</span>' : '') + '</label></div>';
+    }).join('');
+    var fen = Ext.create('Ext.window.Window', {
+        id: 'notif-config-win', title: 'Choisir les notifications', modal: true, width: 440, cls: 'prestige-notif-win',
+        bodyPadding: 10, autoScroll: true,
+        html: '<div class="pn-config-aide">Cochez les catégories à suivre ; glissez-les pour choisir leur ordre. '
+                + 'Enregistré pour votre compte.</div><div class="pn-choix-liste">' + lignes + '</div>',
+        buttons: [{text: 'Annuler', handler: function () {
+                    fen.close();
+                }}, {text: 'Enregistrer', itemId: 'enregistrer', handler: function () {
+                    var els = Ext.Array.slice(fen.body.dom.querySelectorAll('.pn-choix'));
+                    var p = {
+                        ordre: Ext.Array.map(els, function (e) {
+                            return e.getAttribute('data-cle');
+                        }),
+                        actives: Ext.Array.map(Ext.Array.filter(els, function (e) {
+                            return e.querySelector('input').checked;
+                        }), function (e) {
+                            return e.getAttribute('data-cle');
+                        })
+                    };
+                    fen.close();
+                    PrestigeNotif.enregistrerPreferences(p, function () {
+                        refreshNotificationBadge();
+                    });
+                }}],
+        listeners: {
+            afterrender: function () {
+                var liste = fen.body.dom.querySelector('.pn-choix-liste'), src = null;
+                Ext.each(Ext.Array.slice(liste.children), function (el) {
+                    el.addEventListener('dragstart', function () {
+                        src = el;
+                        el.style.opacity = '.4';
+                    });
+                    el.addEventListener('dragend', function () {
+                        el.style.opacity = '';
+                        src = null;
+                    });
+                    el.addEventListener('dragover', function (e) {
+                        if (src && src !== el) {
+                            e.preventDefault();
+                        }
+                    });
+                    el.addEventListener('drop', function (e) {
+                        e.preventDefault();
+                        if (!src || src === el) {
+                            return;
+                        }
+                        var r = Ext.Array.slice(liste.children);
+                        if (r.indexOf(src) < r.indexOf(el)) {
+                            liste.insertBefore(src, el.nextSibling);
+                        } else {
+                            liste.insertBefore(src, el);
+                        }
+                    });
+                });
+            }
+        }
+    });
+    fen.show();
+}
+
+/** Ouvre un menu s'il est dans le menu de l'utilisateur (memes droits). */
+function prestigeNotifOuvrirMenu(xtype) {
+    var titre = null;
+    var nav = Ext.ComponentQuery.query('navigation')[0];
+    var store = nav && nav.getStore ? nav.getStore() : null;
+    if (store && store.getRootNode) {
+        store.getRootNode().cascadeBy(function (n) {
+            if (n.get('id') === xtype) {
+                titre = n.get('text');
+                return false;
+            }
+        });
+    }
+    if (titre) {
+        testextjs.app.getController('App').onLoadNewComponent(xtype, titre, '');
+    }
+}
+
+/* Nouvelles categories (plan d'octobre, lot L9) : proposees dans « Choisir les notifications », non cochees par
+   defaut ; listes et compteurs fournis par v1/notifications-centre. */
+(function () {
+    var nouvelles = [
+        {key: 'renouvellements', label: 'Ordonnances à renouveler (7 jours)', icon: 'fa-repeat', color: '#5dade2', menu: 'ordonnanceclient'},
+        {key: 'suggestions-commandees', label: 'Suggestions commandées non reçues', icon: 'fa-truck', color: '#f5b041', menu: 'i_sugg_manager'},
+        {key: 'commandes', label: 'Commandes passées non reçues', icon: 'fa-clock-o', color: '#af7ac5', menu: 'i_order_manager'},
+        {key: 'indisponibles', label: 'Produits indisponibles chez le grossiste', icon: 'fa-ban', color: '#ec7063', menu: 'i_sugg_manager'}
+    ];
+    Ext.each(nouvelles, function (c) {
+        PrestigeNotif.register({
+            key: c.key, label: c.label, icon: c.icon, color: c.color, menu: c.menu, optionnel: true,
+            url: '../api/v1/notifications-centre/liste?cle=' + c.key,
+            limit: 50,
+            renderItem: function (n) {
+                return '<div style="font-weight:bold; color:#eaf4fc;"><i class="fa ' + c.icon + '" style="color:' + c.color
+                        + '; margin-right:6px;"></i>' + Ext.String.htmlEncode(n.titre || '') + '</div>'
+                        + '<div style="font-size:12px; color:#85c1e9; margin-top:3px;">' + Ext.String.htmlEncode(n.detail || '') + '</div>';
+            },
+            onItemClick: function () {
+                prestigeNotifOuvrirMenu(c.menu);
+            }
+        });
+    });
+})();
 
 // ------------------------------------------- Enregistrement des categories
 

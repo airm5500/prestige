@@ -2694,3 +2694,13 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .tb-encart { margin-top: 10px; padding: 8px 10px; border: 1px solid #f3c6cd; border-top: 3px solid #e11d48; border-radius: 10px; background: #fef7f8; }
 .tb-attente { padding: 26px 10px; text-align: center; color: #8a99a8; }
 .tb-fenetre .x-window-body { background: #fff !important; } .tb-dans-fenetre { padding: 0; }
+
+/* ===== Cloche : choix des categories (plan d'octobre, lot L9) ===== */
+/* Meme fond sombre que le panneau de la cloche (prestige-notif-win). */
+.pn-config-aide { font-size: 12px; color: #85c1e9; margin-bottom: 8px; }
+.pn-choix { display: flex; align-items: center; gap: 8px; padding: 7px 8px; margin-bottom: 4px; border: 1px solid rgba(255,255,255,.15);
+    border-radius: 8px; background: rgba(255,255,255,.06); cursor: grab; }
+.pn-choix label { cursor: pointer; flex: 1; color: #eaf4fc; }
+.pn-poignee { color: #85c1e9; font-size: 14px; }
+.pn-nouveau { display: inline-block; padding: 0 6px; border-radius: 8px; background: #e0ecff; color: #1d4ed8; font-size: 10px;
+    font-weight: bold; margin-left: 4px; }
