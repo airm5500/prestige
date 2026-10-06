@@ -10,6 +10,10 @@ public class UpdateProduit {
     private String codeEanFabriquant;
     private String rayonId;
     private String codeGeoArticle;
+    /** Plan d'octobre (6) : null = inchange, vide = efface. */
+    private String codeGeoReserve;
+    /** Plan d'octobre (6) : null = inchange, 0 ou moins = efface. */
+    private Integer colisage;
     // Config reappro/suggestion de la fiche (Phase A)
     private Boolean boolCalculSeuil;
     private Boolean boolSuggerable;
@@ -89,4 +93,19 @@ public class UpdateProduit {
         this.q2QteReappro = q2QteReappro;
     }
 
+    public String getCodeGeoReserve() {
+        return codeGeoReserve;
+    }
+
+    public void setCodeGeoReserve(String codeGeoReserve) {
+        this.codeGeoReserve = codeGeoReserve;
+    }
+
+    public Integer getColisage() {
+        return colisage;
+    }
+
+    public void setColisage(Integer colisage) {
+        this.colisage = colisage;
+    }
 }

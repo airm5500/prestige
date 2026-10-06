@@ -766,7 +766,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'gardemanager', 'analysearticle',
     // articles
     'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
-    'ugmanager', 'mouvementprixvente',
+    'ugmanager', 'mouvementprixvente', 'produitscodegeo',
     // commandes et approvisionnement
     'reservesuggestionsgrid', 'i_sugg_manager', 'suggerercdemanager',
     'i_order_manager', 'ordermanagerlist',
@@ -831,7 +831,7 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse
     'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
     // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
-    'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente',
+    'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente', 'produitscodegeo',
     // retours du 05/10, lot A : facturation et caisse
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',

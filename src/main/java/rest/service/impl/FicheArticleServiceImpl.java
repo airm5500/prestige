@@ -1299,6 +1299,14 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (updateProduit.getCodeGeoArticle() != null) {
             famille.setStrCODEGEOARTICLE(updateProduit.getCodeGeoArticle().trim());
         }
+        /* Plan d'octobre (6) : code geo de la reserve et colisage, memes regles (null = inchange). */
+        if (updateProduit.getCodeGeoReserve() != null) {
+            String r = updateProduit.getCodeGeoReserve().trim();
+            famille.setStrCODEGEOARTICLERESERVE(r.isEmpty() ? null : StringUtils.left(r, 50));
+        }
+        if (updateProduit.getColisage() != null) {
+            famille.setIntCOLISAGE(updateProduit.getColisage() > 0 ? updateProduit.getColisage() : null);
+        }
         em.merge(famille);
     }
 

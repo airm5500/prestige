@@ -407,6 +407,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                                             id: 'str_CODE_GEO_ARTICLE'
                                         },
                                         {
+                                            /* Plan d'octobre (6) */
+                                            fieldLabel: 'Code geo réserve',
+                                            name: 'str_CODE_GEO_ARTICLE_RESERVE',
+                                            id: 'str_CODE_GEO_ARTICLE_RESERVE'
+                                        },
+                                        {
+                                            fieldLabel: 'Colisage',
+                                            name: 'int_COLISAGE',
+                                            id: 'int_COLISAGE_DETAIL'
+                                        },
+                                        {
                                             fieldLabel: 'Code Tableau',
                                             name: 'int_T',
                                             id: 'int_T',
@@ -1151,6 +1162,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                 }
                 Ext.getCmp('lg_CODE_GESTION_ID').setValue(OFamille.lg_CODE_GESTION_ID);
                 Ext.getCmp('str_CODE_GEO_ARTICLE').setValue(OFamille.str_CODE_GEO_ARTICLE);
+        Ext.getCmp('str_CODE_GEO_ARTICLE_RESERVE').setValue(OFamille.str_CODE_GEO_ARTICLE_RESERVE || '');
+        Ext.getCmp('int_COLISAGE_DETAIL').setValue(OFamille.int_COLISAGE || '');
                 Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(OFamille.int_STOCK_REAPROVISONEMENT);
                 Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(OFamille.int_QTE_REAPPROVISIONNEMENT);
                 Ext.getCmp('int_Q1_SEUIL_REAPPRO').setValue(OFamille.int_Q1_SEUIL_REAPPRO);

@@ -155,6 +155,12 @@ public class TFamille implements Serializable {
     private String lgCLASSEABCID;
     @Column(name = "str_CODE_GEO_ARTICLE", length = 50)
     private String strCODEGEOARTICLE;
+    /** Plan d'octobre (6) : localisation dans la reserve. */
+    @Column(name = "str_CODE_GEO_ARTICLE_RESERVE", length = 50)
+    private String strCODEGEOARTICLERESERVE;
+    /** Plan d'octobre (1.6 / 6) : colisage, informatif. */
+    @Column(name = "int_COLISAGE")
+    private Integer intCOLISAGE;
     // --- Reappro par produit (SEMOIS_PAR_PRODUIT) + flags de gestion (additif) ---
     @Column(name = "bool_CALCUL_SEUIL")
     private Boolean boolCALCULSEUIL;
@@ -578,6 +584,22 @@ public class TFamille implements Serializable {
 
     public void setStrCODEGEOARTICLE(String strCODEGEOARTICLE) {
         this.strCODEGEOARTICLE = strCODEGEOARTICLE;
+    }
+
+    public String getStrCODEGEOARTICLERESERVE() {
+        return strCODEGEOARTICLERESERVE;
+    }
+
+    public void setStrCODEGEOARTICLERESERVE(String strCODEGEOARTICLERESERVE) {
+        this.strCODEGEOARTICLERESERVE = strCODEGEOARTICLERESERVE;
+    }
+
+    public Integer getIntCOLISAGE() {
+        return intCOLISAGE;
+    }
+
+    public void setIntCOLISAGE(Integer intCOLISAGE) {
+        this.intCOLISAGE = intCOLISAGE;
     }
 
     public Boolean getBoolCALCULSEUIL() {

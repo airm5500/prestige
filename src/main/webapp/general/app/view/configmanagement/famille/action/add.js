@@ -346,6 +346,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             style: { background: '#f3eefa', borderColor: '#dccdee' },
                             margin: 0,
                             items: [ { fieldLabel: 'Code Geo article', xtype: 'textfield', emptyText: 'Ex: A12-B03-C04', name: 'str_CODE_GEO_ARTICLE', itemId: 'str_CODE_GEO_ARTICLE' },
+                        /* Plan d'octobre (6) : localisation dans la reserve et colisage (informatif) */
+                        { fieldLabel: 'Code Geo réserve', xtype: 'textfield', emptyText: 'Ex: R02-E04', maxLength: 50, name: 'str_CODE_GEO_ARTICLE_RESERVE', itemId: 'str_CODE_GEO_ARTICLE_RESERVE' },
+                        { fieldLabel: 'Colisage', xtype: 'numberfield', minValue: 0, allowDecimals: false, emptyText: 'Unités par colis', name: 'int_COLISAGE', itemId: 'int_COLISAGE' },
                         { xtype: 'displayfield', fieldLabel: 'Classe ABC', name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' },
                         {
                             // Calcul seuil, Suggerer, Article remisable, Semois Q1 et Q2 sur la meme ligne
@@ -598,6 +601,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             })();
             // Socle ABC (Lot 0) : prefill code geo + affichage classe ABC (lecture seule)
             if (g('str_CODE_GEO_ARTICLE')) { g('str_CODE_GEO_ARTICLE').setValue(ds.str_CODE_GEO_ARTICLE); }
+            if (g('str_CODE_GEO_ARTICLE_RESERVE')) { g('str_CODE_GEO_ARTICLE_RESERVE').setValue(ds.str_CODE_GEO_ARTICLE_RESERVE); }
+            if (g('int_COLISAGE')) { g('int_COLISAGE').setValue(ds.int_COLISAGE === '' ? null : ds.int_COLISAGE); }
             if (g('classe_abc_display')) { g('classe_abc_display').setValue(abcClasseLetter(ds.lg_CLASSE_ABC_ID)); }
             g('str_DESCRIPTION').setValue(ds.str_DESCRIPTION);
             g('int_CIP').setValue(ds.int_CIP);
@@ -878,7 +883,9 @@ Ext.Ajax.request({
                                     url: '../api/v1/fichearticle/produit/update-lite-info',
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    params: Ext.JSON.encode({ id: produitId, codeGeoArticle: codeGeoFld.getValue() || '' }),
+                                    params: Ext.JSON.encode({ id: produitId, codeGeoArticle: codeGeoFld.getValue() || '',
+                                        codeGeoReserve: g('str_CODE_GEO_ARTICLE_RESERVE') ? (g('str_CODE_GEO_ARTICLE_RESERVE').getValue() || '') : null,
+                                        colisage: g('int_COLISAGE') ? (g('int_COLISAGE').getValue() || 0) : null }),
                                     callback: function () { /* ignore */ }
                                 });
                             }
