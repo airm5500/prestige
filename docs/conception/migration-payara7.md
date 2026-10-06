@@ -141,6 +141,8 @@ Tests unitaires : **1074 / 1074** sur JDK 21.
 | `InventaireServiceImpl` (inventaire depuis les produits annulés) | SQL natif sur une colonne `boolINVENTAIRE` qui n'existe pas (`bool_INVENTAIRE`) |
 | Statistiques des unités vendues | `CASE WHEN type de vente … THEN SUM(…)` par famille : VNO et VO dépendent d'une ligne prise au hasard ; il faudrait `SUM(CASE …)` |
 | Vente assurance sans ayant droit (client à plusieurs ayants droits sans correspondance, ou sans ayant droit) | recherche de l'ayant droit avec un identifiant nul : Hibernate condamne la transaction, la vente est **annoncée créée puis annulée sans message** (la clôture de même). Correctif sur `dev` : `scripts/correctifs/vente-assurance-sans-ayant-droit.patch`, vérifié au banc (vente créée, clôturée, part tiers payant et stock justes) |
+| Indicateur d'avoir `b_HAS_AVOIR` créé vide par Hibernate avant la V6.1.6 (toutes les ventes historiques à NULL) | toute vente historique chargée par Hibernate est illisible : liste du carnet dépôt **vide sans message**, CA crédit et ventes UG vides, suivi des remises et exports ERP en erreur. Correctif sur `dev` : `scripts/correctifs/carnet-depot-liste-vide.patch` (champ objet, V6.9.73 qui remet la colonne d'aplomb, erreur journalisée). Mesuré : 740 appels identiques hors bruit, 2 services en erreur rétablis, CA crédit et ventes UG de nouveau remplis |
+| Export ERP des ventes VNO (`whareouse-vno`) | une requête par vente pour les lignes et le paiement, filtre `DATE()` sans index : 248 s pour 12 jours (1 900 ventes), masqué jusqu'ici par l'erreur précédente |
 | 18 services en erreur 500 dans la référence comme dans l'essai | `fichierSortie` nul (journal), paramètres manquants, données incomplètes |
 
 ## 8. Ce qui reste à mesurer
