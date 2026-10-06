@@ -9,7 +9,9 @@
 -- Ce script rattache chaque vente depot extension au carnet du meme depot, reconnu par son nom :
 --   - une ligne de tiers payant par vente, de la meme forme qu'une vente carnet ordinaire
 --     (taux 100 %, montant = net de la vente, statut is_Closed, unpaid) ;
---   - le solde du carnet augmente du total rattache.
+--   - le solde du carnet est mis a jour : AJOUTER (solde + ventes reprises) ou RECALCULER (ventes du carnet -
+--     reglements - retours), au choix (etape 4) ;
+--   - un carnet sans compte client recoit celui de la fiche du depot (sans lui, aucune vente ne peut y etre portee).
 -- La caisse et le stock ne sont PAS modifies. Des ventes, seul l'indicateur d'avoir est complete
 -- quand il est vide (voir l'etape 4) : sans lui, l'ecran du carnet n'affiche aucune vente.
 --
@@ -28,7 +30,8 @@
 --   Etape 1  correspondance depot -> carnet par le nom (rien n'est modifie dans le logiciel)
 --   Etape 2  controle et corrections a la main de la correspondance
 --   Etape 3  apercu de ce qui sera rattache (relancable a volonte)
---   Etape 4  rattachement (la seule etape qui modifie le logiciel ; sans effet si relancee)
+--   Etape 4  rattachement (la seule etape qui modifie le logiciel ; sans effet si relancee) :
+--            choisir le mode de solde (AJOUTER ou RECALCULER) d'apres l'etape 3a
 --   Etape 5  verification, comme l'ecran la lit
 --   Annulation : en fin de fichier.
 -- Le script ne rattache jamais deux fois la meme vente : une vente qui porte deja une ligne de
@@ -137,8 +140,9 @@ ORDER BY c.nom;
 -- ============================================================================================
 -- Peut etre relancee autant de fois que voulu (apres une correction de l'etape 2 par exemple).
 SET @depuis = '2024-01-07';   -- meme date qu'en tete de fichier
--- Compte client du carnet sur lequel les ventes seront portees : le premier compte actif.
--- Un carnet sans compte client actif ne peut rien recevoir : il est signale ici et ignore.
+-- Compte client du carnet sur lequel les ventes seront portees : le premier compte actif du carnet.
+-- Carnet SANS compte client (cas rencontre en officine) : le compte client de la fiche du depot
+-- (t_emplacement) lui sera rattache a l'etape 4. Sans l'un ni l'autre, le carnet est ignore.
 DROP TABLE IF EXISTS reprise_apercu;
 CREATE TABLE reprise_apercu AS
 SELECT CAST(UUID() AS CHAR(36)) AS cp_id, p.lg_PREENREGISTREMENT_ID AS vente_id, p.str_REF AS reference,
@@ -146,7 +150,10 @@ SELECT CAST(UUID() AS CHAR(36)) AS cp_id, p.lg_PREENREGISTREMENT_ID AS vente_id,
        (SELECT ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant ct
          WHERE ct.lg_TIERS_PAYANT_ID = m.carnet_id AND ct.str_STATUT = 'enable'
          ORDER BY ct.int_PRIORITY, ct.dt_CREATED, ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID LIMIT 1) AS compte_tp_id,
-       p.int_PRICE - IFNULL(p.int_PRICE_REMISE, 0) AS montant
+       p.int_PRICE - IFNULL(p.int_PRICE_REMISE, 0) AS montant,
+       (SELECT e.lg_COMPTE_CLIENT_ID FROM t_emplacement e
+         JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = e.lg_COMPTE_CLIENT_ID
+         WHERE e.lg_EMPLACEMENT_ID = m.depot_id) AS compte_client_depot
 FROM t_preenregistrement p
 JOIN reprise_correspondance m ON m.depot_id = p.PK_BRAND
 WHERE p.lg_TYPE_VENTE_ID = '5' AND p.PK_BRAND <> '1' AND p.str_STATUT = 'is_Closed'
@@ -156,11 +163,34 @@ WHERE p.lg_TYPE_VENTE_ID = '5' AND p.PK_BRAND <> '1' AND p.str_STATUT = 'is_Clos
   AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent cp
                   WHERE cp.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID);
 
--- 3a. Total par carnet : c'est ce qui apparaitra dans Gestion carnet depot.
-SELECT tp.str_NAME AS carnet, a.carnet_id, COUNT(*) AS ventes, SUM(a.montant) AS montant,
+-- 3a. Par carnet : ventes a rattacher, et solde du carnet selon le mode choisi a l'etape 4.
+--   solde_si_AJOUTER    : solde actuel + ventes reprises. A choisir si le solde actuel NE comprend PAS ces ventes.
+--   solde_si_RECALCULER : ventes du carnet (deja portees + reprises) - reglements - retours, comme le logiciel le
+--                         tient. A choisir si le solde a ete saisi a la main et comprend deja tout ou partie de ces
+--                         ventes : AJOUTER les compterait deux fois.
+SELECT tp.str_NAME AS carnet, COUNT(*) AS ventes_reprises, SUM(a.montant) AS montant_repris,
        MIN(a.date_vente) AS premiere, MAX(a.date_vente) AS derniere,
-       IFNULL(tp.account, 0) AS solde_avant, IFNULL(tp.account, 0) + SUM(a.montant) AS solde_apres,
-       CASE WHEN MIN(a.compte_tp_id) IS NULL THEN 'CARNET SANS COMPTE CLIENT : IGNORE' ELSE 'OK' END AS etat
+       IFNULL(tp.account, 0) AS solde_actuel,
+       (SELECT IFNULL(SUM(cp.int_PRICE), 0)
+         FROM t_preenregistrement_compte_client_tiers_payent cp
+         JOIN t_compte_client_tiers_payant ct ON ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID
+         WHERE ct.lg_TIERS_PAYANT_ID = a.carnet_id AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND cp.str_STATUT = 'is_Closed') AS ventes_deja_sur_carnet,
+       (SELECT IFNULL(SUM(r.montant_paye), 0) FROM reglement_carnet r WHERE r.tierspayant_id = a.carnet_id) AS reglements,
+       (SELECT IFNULL(SUM(d.qty_retour * d.prix_uni), 0) FROM retour_carnet rc
+         JOIN retour_carnet_detail d ON d.retour_carnet_id = rc.id
+         WHERE rc.tierspayant_id = a.carnet_id AND rc.status = 'completed') AS retours,
+       IFNULL(tp.account, 0) + SUM(a.montant) AS solde_si_AJOUTER,
+       (SELECT IFNULL(SUM(cp.int_PRICE), 0)
+         FROM t_preenregistrement_compte_client_tiers_payent cp
+         JOIN t_compte_client_tiers_payant ct ON ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID
+         WHERE ct.lg_TIERS_PAYANT_ID = a.carnet_id AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND cp.str_STATUT = 'is_Closed') + SUM(a.montant) - (SELECT IFNULL(SUM(r.montant_paye), 0) FROM reglement_carnet r WHERE r.tierspayant_id = a.carnet_id) - (SELECT IFNULL(SUM(d.qty_retour * d.prix_uni), 0) FROM retour_carnet rc
+         JOIN retour_carnet_detail d ON d.retour_carnet_id = rc.id
+         WHERE rc.tierspayant_id = a.carnet_id AND rc.status = 'completed') AS solde_si_RECALCULER,
+       CASE WHEN MIN(a.compte_tp_id) IS NOT NULL THEN 'OK'
+            WHEN MIN(a.compte_client_depot) IS NOT NULL THEN 'OK : compte client du depot rattache au carnet'
+            ELSE 'CARNET SANS COMPTE CLIENT : IGNORE' END AS etat
 FROM reprise_apercu a JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = a.carnet_id
 GROUP BY a.carnet_id, tp.str_NAME, tp.account
 ORDER BY tp.str_NAME;
@@ -176,20 +206,60 @@ ORDER BY tp.str_NAME, a.date_vente;
 -- ============================================================================================
 -- ETAPE 4 : rattachement (SAUVEGARDE FAITE AVANT)
 -- ============================================================================================
+-- CHOIX DU SOLDE (voir l'etape 3a) : 'AJOUTER' ou 'RECALCULER'. Toute autre valeur : solde inchange.
+SET @mode_solde = 'AJOUTER';
+
 -- Sans effet si on la relance : une vente deja rattachee n'est jamais reprise une seconde fois.
--- Le journal (reprise_journal) garde chaque ligne creee ; il n'est jamais efface par ce script.
+-- Le journal (reprise_journal) garde chaque ligne creee, et reprise_soldes chaque solde modifie ; ils ne sont
+-- jamais effaces par ce script (sauf l'annulation, pour reprise_soldes).
 CREATE TABLE IF NOT EXISTS reprise_journal AS
-SELECT a.*, NOW() AS fait_le FROM reprise_apercu a WHERE 1 = 0;
+SELECT a.cp_id, a.vente_id, a.reference, a.date_vente, a.user_id, a.depot_id, a.carnet_id, a.compte_tp_id,
+       a.montant, NOW() AS fait_le
+FROM reprise_apercu a WHERE 1 = 0;
+CREATE TABLE IF NOT EXISTS reprise_soldes AS
+SELECT tp.lg_TIERS_PAYANT_ID AS carnet_id, tp.account AS solde_avant, tp.account AS solde_apres, NOW() AS fait_le
+FROM t_tiers_payant tp WHERE 1 = 0;
 
 SET @lot = NOW();
 
 START TRANSACTION;
 
-INSERT INTO reprise_journal
-SELECT a.*, @lot FROM reprise_apercu a
+-- Carnets sans compte client : le compte client du depot leur est rattache (ou reactive s'il l'etait deja).
+INSERT INTO t_compte_client_tiers_payant
+    (lg_COMPTE_CLIENT_TIERS_PAYANT_ID, lg_COMPTE_CLIENT_ID, lg_TIERS_PAYANT_ID, dt_CREATED, dt_UPDATED, str_STATUT,
+     int_POURCENTAGE, int_PRIORITY)
+SELECT CONCAT('99', LPAD(CONV(LEFT(MD5(CONCAT(x.compte_client_depot, '|', x.carnet_id)), 14), 16, 10), 18, '0')),
+       x.compte_client_depot, x.carnet_id, NOW(), NOW(), 'enable', 100, 1
+FROM (SELECT DISTINCT carnet_id, compte_client_depot FROM reprise_apercu
+      WHERE compte_tp_id IS NULL AND compte_client_depot IS NOT NULL) x
+WHERE NOT EXISTS (SELECT 1 FROM t_compte_client_tiers_payant ct
+                  WHERE ct.lg_COMPTE_CLIENT_ID = x.compte_client_depot AND ct.lg_TIERS_PAYANT_ID = x.carnet_id);
+UPDATE t_compte_client_tiers_payant ct
+JOIN (SELECT DISTINCT carnet_id, compte_client_depot FROM reprise_apercu
+      WHERE compte_tp_id IS NULL AND compte_client_depot IS NOT NULL) x
+  ON ct.lg_COMPTE_CLIENT_ID = x.compte_client_depot AND ct.lg_TIERS_PAYANT_ID = x.carnet_id
+SET ct.str_STATUT = 'enable', ct.dt_UPDATED = NOW()
+WHERE IFNULL(ct.str_STATUT, '') <> 'enable';
+UPDATE reprise_apercu a
+SET a.compte_tp_id = (SELECT ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant ct
+                      WHERE ct.lg_TIERS_PAYANT_ID = a.carnet_id AND ct.str_STATUT = 'enable'
+                      ORDER BY (ct.lg_COMPTE_CLIENT_ID = a.compte_client_depot) DESC, ct.int_PRIORITY, ct.dt_CREATED,
+                               ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID LIMIT 1)
+WHERE a.compte_tp_id IS NULL;
+
+INSERT INTO reprise_journal (cp_id, vente_id, reference, date_vente, user_id, depot_id, carnet_id, compte_tp_id,
+                             montant, fait_le)
+SELECT a.cp_id, a.vente_id, a.reference, a.date_vente, a.user_id, a.depot_id, a.carnet_id, a.compte_tp_id,
+       a.montant, @lot
+FROM reprise_apercu a
 WHERE a.compte_tp_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent cp
                   WHERE cp.lg_PREENREGISTREMENT_ID = a.vente_id);
+
+INSERT INTO reprise_soldes (carnet_id, solde_avant, solde_apres, fait_le)
+SELECT tp.lg_TIERS_PAYANT_ID, IFNULL(tp.account, 0), IFNULL(tp.account, 0), @lot
+FROM t_tiers_payant tp
+WHERE tp.lg_TIERS_PAYANT_ID IN (SELECT carnet_id FROM reprise_journal WHERE fait_le = @lot);
 
 INSERT INTO t_preenregistrement_compte_client_tiers_payent
     (lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID, lg_PREENREGISTREMENT_ID, lg_COMPTE_CLIENT_TIERS_PAYANT_ID,
@@ -203,7 +273,20 @@ WHERE j.fait_le = @lot;
 UPDATE t_tiers_payant tp
 JOIN (SELECT carnet_id, SUM(montant) AS total FROM reprise_journal WHERE fait_le = @lot GROUP BY carnet_id) j
   ON j.carnet_id = tp.lg_TIERS_PAYANT_ID
-SET tp.account = IFNULL(tp.account, 0) + j.total;
+SET tp.account = CASE @mode_solde
+        WHEN 'AJOUTER' THEN IFNULL(tp.account, 0) + j.total
+        WHEN 'RECALCULER' THEN (SELECT IFNULL(SUM(cp.int_PRICE), 0)
+         FROM t_preenregistrement_compte_client_tiers_payent cp
+         JOIN t_compte_client_tiers_payant ct ON ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID
+         WHERE ct.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND cp.str_STATUT = 'is_Closed') - (SELECT IFNULL(SUM(r.montant_paye), 0) FROM reglement_carnet r WHERE r.tierspayant_id = tp.lg_TIERS_PAYANT_ID) - (SELECT IFNULL(SUM(d.qty_retour * d.prix_uni), 0) FROM retour_carnet rc
+         JOIN retour_carnet_detail d ON d.retour_carnet_id = rc.id
+         WHERE rc.tierspayant_id = tp.lg_TIERS_PAYANT_ID AND rc.status = 'completed')
+        ELSE tp.account END;
+
+UPDATE reprise_soldes s JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = s.carnet_id
+SET s.solde_apres = IFNULL(tp.account, 0)
+WHERE s.fait_le = @lot;
 
 COMMIT;
 
@@ -229,7 +312,9 @@ EXECUTE ordre;
 DEALLOCATE PREPARE ordre;
 
 -- Ce qui vient d'etre fait :
-SELECT tp.str_NAME AS carnet, COUNT(*) AS ventes_rattachees, SUM(j.montant) AS montant, tp.account AS nouveau_solde
+SELECT tp.str_NAME AS carnet, COUNT(*) AS ventes_rattachees, SUM(j.montant) AS montant,
+       (SELECT s.solde_avant FROM reprise_soldes s WHERE s.carnet_id = j.carnet_id AND s.fait_le = @lot) AS solde_avant,
+       tp.account AS nouveau_solde, @mode_solde AS mode_solde
 FROM reprise_journal j JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = j.carnet_id
 WHERE j.fait_le = @lot
 GROUP BY j.carnet_id, tp.str_NAME, tp.account
@@ -250,6 +335,27 @@ WHERE tp.is_depot = 1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p
   AND cp.str_STATUT = 'is_Closed'
 GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME, tp.account
 ORDER BY tp.str_NAME;
+-- 5a. Solde de chaque carnet depot face a ses mouvements (ventes - reglements - retours) : un ecart signale un
+--     solde saisi a la main ou une reprise faite en mode AJOUTER sur un solde qui comprenait deja ces ventes.
+SELECT tp.str_NAME AS carnet, IFNULL(tp.account, 0) AS solde,
+       (SELECT IFNULL(SUM(cp.int_PRICE), 0)
+         FROM t_preenregistrement_compte_client_tiers_payent cp
+         JOIN t_compte_client_tiers_payant ct ON ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID
+         WHERE ct.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND cp.str_STATUT = 'is_Closed') AS ventes,
+       (SELECT IFNULL(SUM(r.montant_paye), 0) FROM reglement_carnet r WHERE r.tierspayant_id = tp.lg_TIERS_PAYANT_ID) AS reglements,
+       (SELECT IFNULL(SUM(d.qty_retour * d.prix_uni), 0) FROM retour_carnet rc
+         JOIN retour_carnet_detail d ON d.retour_carnet_id = rc.id
+         WHERE rc.tierspayant_id = tp.lg_TIERS_PAYANT_ID AND rc.status = 'completed') AS retours,
+       IFNULL(tp.account, 0) - ((SELECT IFNULL(SUM(cp.int_PRICE), 0)
+         FROM t_preenregistrement_compte_client_tiers_payent cp
+         JOIN t_compte_client_tiers_payant ct ON ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = cp.lg_PREENREGISTREMENT_ID
+         WHERE ct.lg_TIERS_PAYANT_ID = tp.lg_TIERS_PAYANT_ID AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND cp.str_STATUT = 'is_Closed') - (SELECT IFNULL(SUM(r.montant_paye), 0) FROM reglement_carnet r WHERE r.tierspayant_id = tp.lg_TIERS_PAYANT_ID) - (SELECT IFNULL(SUM(d.qty_retour * d.prix_uni), 0) FROM retour_carnet rc
+         JOIN retour_carnet_detail d ON d.retour_carnet_id = rc.id
+         WHERE rc.tierspayant_id = tp.lg_TIERS_PAYANT_ID AND rc.status = 'completed')) AS ecart
+FROM t_tiers_payant tp WHERE tp.is_depot = 1 ORDER BY tp.str_NAME;
+
 -- 5b. Ventes des carnets depot que l'ecran ne pourrait pas charger (indicateur d'avoir vide) :
 --     doit valoir 0 (l'etape 4 les corrige ; relancer l'etape 4 si besoin).
 SET @colonne = (SELECT COUNT(*) FROM information_schema.columns
@@ -273,23 +379,26 @@ DEALLOCATE PREPARE ordre;
 -- GARDER la table reprise_journal : elle permet l'annulation ci-dessous. Les autres tables de
 -- travail peuvent etre supprimees une fois la reprise validee a l'ecran :
 --   DROP TABLE reprise_noms, reprise_correspondance, reprise_apercu;
+-- (garder reprise_journal et reprise_soldes)
 
 
 -- ============================================================================================
 -- ANNULATION (uniquement si besoin, et AVANT tout reglement sur ces ventes)
 -- ============================================================================================
--- Retire les lignes creees par la reprise (reconnues par la vente du journal ET la reference de
--- bon « REPRISE DEPOT ») et rend aux carnets leur solde d'avant. Sans effet si on la relance :
--- seules les lignes encore presentes sont comptees.
+-- Retire les lignes creees par la reprise (vente du journal ET reference de bon « REPRISE DEPOT ») et retire de
+-- chaque carnet l'ecart de solde que la reprise lui a apporte (quel que soit le mode). Sans effet si on la relance.
+-- Les comptes clients rattaches aux carnets restent (sans effet sur les soldes).
 -- START TRANSACTION;
 -- UPDATE t_tiers_payant tp
--- JOIN (SELECT j.carnet_id, SUM(cp.int_PRICE) AS total
---       FROM (SELECT DISTINCT vente_id, carnet_id FROM reprise_journal) j
---       JOIN t_preenregistrement_compte_client_tiers_payent cp
---         ON cp.lg_PREENREGISTREMENT_ID = j.vente_id AND cp.str_REF_BON = 'REPRISE DEPOT'
---       GROUP BY j.carnet_id) x
+-- JOIN (SELECT s.carnet_id, SUM(s.solde_apres - s.solde_avant) AS ecart FROM reprise_soldes s
+--       WHERE EXISTS (SELECT 1 FROM reprise_journal j
+--                     JOIN t_preenregistrement_compte_client_tiers_payent cp
+--                       ON cp.lg_PREENREGISTREMENT_ID = j.vente_id AND cp.str_REF_BON = 'REPRISE DEPOT'
+--                     WHERE j.carnet_id = s.carnet_id)
+--       GROUP BY s.carnet_id) x
 --   ON x.carnet_id = tp.lg_TIERS_PAYANT_ID
--- SET tp.account = IFNULL(tp.account, 0) - x.total;
+-- SET tp.account = IFNULL(tp.account, 0) - x.ecart;
+-- DELETE FROM reprise_soldes;
 -- DELETE cp FROM t_preenregistrement_compte_client_tiers_payent cp
 -- JOIN reprise_journal j ON j.vente_id = cp.lg_PREENREGISTREMENT_ID
 -- WHERE cp.str_REF_BON = 'REPRISE DEPOT';
