@@ -2619,3 +2619,78 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal { background: #1e3a5f !important; border: 1px solid #1e3a5f !important; }
 .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal .x-btn-inner { color: #fff !important; font-weight: bold !important; text-shadow: none !important; }
 .x-window.fen-theme .x-toolbar-footer .x-btn.fen-btn-principal.x-btn-over { background: #2E75B6 !important; }
+
+/* ===== Nouveau tableau de bord (plan d'octobre, section 8, lot L8 ; maquette tableau-de-bord-1-v3) =====
+   Tout est prefixe « tb- » : aucun autre ecran n'est touche. Cartes au dessin des cartes de l'ancien tableau de bord
+   (en-tete degrade, trait de couleur, icone), tuiles avec icone en degrade. */
+.tb-panneau > .x-panel-body, .tb-corps { background: #eef2f7 !important; }
+.tb { font-family: "Segoe UI", Roboto, Arial, sans-serif; color: #1e2a36; font-size: 13px; padding: 14px 16px 20px; }
+.tb * { box-sizing: border-box; }
+.tb-entete { background: #1e3a5f; color: #fff; padding: 12px 18px; border-radius: 12px; display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap; margin-bottom: 14px; }
+.tb-titre { font-size: 16px; font-weight: 800; letter-spacing: .06em; }
+.tb-sous { opacity: .75; font-size: 12px; }
+.tb-esp { flex: 1; }
+.tb-btn { border: 1px solid #c3cfdb; background: #fff; color: #1e3a5f; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; font-size: 12px; }
+.tb-btn.tb-sombre { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
+.tb-btn.tb-mini { padding: 2px 8px; font-size: 11px; }
+.tb-tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.tb-grille { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.tb-grille .l8 { grid-column: span 8; } .tb-grille .l6 { grid-column: span 6; } .tb-grille .l4 { grid-column: span 4; }
+@media (max-width: 1200px) { .tb-grille .l8, .tb-grille .l6, .tb-grille .l4 { grid-column: span 12; } }
+.tb-carte { background: #fff; border: 1px solid rgba(226,232,240,.9); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 10px 28px rgba(15,23,42,.07); }
+.tb-tete { padding: 11px 16px; font-weight: 800; font-size: 13.5px; color: #0f172a; display: flex; align-items: center; gap: 10px; min-height: 50px;
+    background: linear-gradient(180deg, #f5f8fc 0%, #e8eef6 100%); border-bottom: 2px solid var(--accent); }
+.tb-tete > .fa-solid { color: var(--accent); font-size: 15px; }
+.tb-outils { margin-left: auto; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12px; }
+/* Hauteur minimale : vides, les cartes tiendraient toutes dans l'ecran et seraient toutes lues d'un coup. */
+.tb-c { padding: 12px 14px; flex: 1; min-height: 300px; }
+.t-bleu { --accent: #1d4ed8; } .t-vert { --accent: #16a34a; } .t-ambre { --accent: #f59e0b; } .t-violet { --accent: #7c3aed; }
+.t-rose { --accent: #e11d48; } .t-cyan { --accent: #0891b2; }
+.tb-poignee { cursor: grab; color: #9fb0c2; font-size: 14px; display: none; }
+.tb-masquer { cursor: pointer; color: #b42318; display: none; font-size: 15px; }
+.tb-edition .tb-poignee, .tb-edition .tb-masquer { display: inline; }
+.tb-kpi { border-radius: 16px; padding: 14px 16px; border: 1px solid #d5dee8; background: #fff; position: relative; overflow: hidden; }
+.tb-tuile { display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 10px 28px rgba(15,23,42,.07); border-top: 3px solid var(--accent); }
+.tb-tuile:after { content: ""; position: absolute; right: -36px; top: -42px; width: 110px; height: 110px; border-radius: 50%; background: rgba(15,118,110,.07); }
+.tb-ico { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 19px; color: #fff; background: linear-gradient(135deg, var(--accent), #0f4f4a); box-shadow: 0 8px 18px rgba(15,118,110,.22); }
+.tb-meta { min-width: 0; flex: 1; position: relative; z-index: 1; }
+.tb-tuile .tb-masquer { position: absolute; right: 8px; top: 6px; z-index: 2; } .tb-tuile .tb-poignee { position: absolute; right: 26px; top: 6px; z-index: 2; }
+.k1 { --accent: #0f766e; } .k2 { --accent: #e11d48; } .k3 { --accent: #0891b2; } .k4 { --accent: #7c3aed; } .k5 { --accent: #e11d48; }
+.tb-l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: #5b6b7c; font-weight: 700; }
+.tb-v { font-size: 22px; font-weight: 800; color: #1e3a5f; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tb-d { font-size: 11.5px; margin-top: 3px; color: #5b6b7c; } .tb-d b { color: #1e2a36; } .tb-petit { font-size: 10.5px; }
+.tb-hausse { color: #17987e !important; } .tb-baisse { color: #b42318 !important; }
+.tb-seg { display: inline-flex; border: 1px solid #c3cfdb; border-radius: 14px; overflow: hidden; }
+.tb-seg button { border: 0; background: #fff; padding: 3px 10px; font-size: 11px; font-weight: 700; color: #1e3a5f; cursor: pointer; }
+.tb-seg button.on { background: #1e3a5f; color: #fff; }
+.tb-seg-tuile { position: absolute; right: 0; top: -2px; } .tb-seg-tuile button { padding: 2px 7px; font-size: 10px; }
+.tb table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; } .tb table.tb-fixe { table-layout: fixed; }
+.tb th { text-align: left; font-size: 10.5px; text-transform: uppercase; color: #5b6b7c; letter-spacing: .05em; padding: 5px 6px; border-bottom: 1px solid #e6edf4; }
+.tb td { padding: 6px; border-bottom: 1px solid #f0f3f7; } .tb td.tb-n, .tb th.tb-n { text-align: right; }
+.tb tr.tb-clic { cursor: pointer; } .tb tr.tb-clic:hover td { background: #f3f7fc; } .tb-clic { cursor: pointer; }
+.tb-nom1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-barre { height: 8px; border-radius: 4px; background: #e6edf4; overflow: hidden; } .tb-barre > i { display: block; height: 100%; border-radius: 4px; }
+.tb-pastille { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.tb .p-r { background: #fdecec; color: #b42318; } .tb .p-a { background: #fdf0d5; color: #92400e; } .tb .p-v { background: #e7f6ec; color: #166534; }
+.tb .p-b { background: #e0ecff; color: #1d4ed8; } .tb .p-g { background: #eef1f5; color: #475467; }
+.tb-note { font-size: 11.5px; color: #5b6b7c; }
+.tb-legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #5b6b7c; margin-top: 6px; }
+.tb-legende i, .tb-puce { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.tb-lien { color: #2E75B6; cursor: pointer; font-weight: 600; font-size: 12px; }
+.tb-glisse { opacity: .4; } .tb-cible { outline: 2px dashed #2E75B6; outline-offset: 3px; }
+.tb-bandeau { display: none; background: #fff8e6; border: 1px solid #f3dfb0; color: #7a4500; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+.tb-edition .tb-bandeau { display: block; }
+.tb-retires { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tb-sous-ligne td { background: #fafcfe; font-size: 12px; } .tb-sous-ligne td:first-child { padding-left: 26px; color: #5b6b7c; }
+.tb-chevron { display: inline-block; width: 14px; color: #2E75B6; font-weight: 800; }
+.tb-donut { display: flex; gap: 14px; align-items: center; }
+.tb-reglage { display: none; background: #f6f9fd; border: 1px solid #dbe6f2; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 12px; }
+.tb-reglage.ouvert { display: block; } .tb-reglage input { width: 50px; padding: 2px 4px; border: 1px solid #c3cfdb; border-radius: 4px; }
+.tb-reglage label { display: inline-flex; gap: 4px; align-items: center; margin: 2px 12px 2px 0; }
+.tb-empile { display: flex; height: 16px; border-radius: 5px; overflow: hidden; margin: 6px 0; } .tb-empile i { display: block; height: 100%; }
+.tb-encart { margin-top: 10px; padding: 8px 10px; border: 1px solid #f3c6cd; border-top: 3px solid #e11d48; border-radius: 10px; background: #fef7f8; }
+.tb-attente { padding: 26px 10px; text-align: center; color: #8a99a8; }
+.tb-fenetre .x-window-body { background: #fff !important; } .tb-dans-fenetre { padding: 0; }

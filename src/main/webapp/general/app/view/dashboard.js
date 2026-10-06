@@ -5,7 +5,8 @@ Ext.define('testextjs.view.dashboard', {
 //    cls: 'custompanel',
     cls: 'panelcontainer',
     requires: [
-        'Ext.ux.IFrame'
+        'Ext.ux.IFrame',
+        'testextjs.view.tableaubord.TableauBord'
     ],
     layout: 'fit',
     autoScroll: false,
@@ -16,9 +17,57 @@ Ext.define('testextjs.view.dashboard', {
 
     //bodyBorder: 'false',
     border: false,
+    /*
+     * Plan d'octobre (section 8, lot L8) : le parametre KEY_TABLEAU_BORD_VERSION choisit le tableau de bord.
+     * NOUVEAU : composant ExtJS sans iframe (testextjs.view.tableaubord.TableauBord) ; ANCIEN : dashboard.html dans son
+     * iframe, exactement comme avant (meme element, meme demarrage differe). Si la version ne peut pas etre lue, c'est
+     * l'ancien qui s'affiche.
+     */
     initComponent: function () {
+        var me = this;
+        me.items = [];
+        me.callParent();
+        me.on('afterrender', function () {
+            Ext.Ajax.request({
+                url: '../api/v1/tableau-bord/version', method: 'GET', timeout: 15000,
+                success: function (r) {
+                    var o = Ext.decode(r.responseText, true);
+                    me.afficher(o && o.success && o.version === 'NOUVEAU' ? 'NOUVEAU' : 'ANCIEN');
+                },
+                failure: function () {
+                    me.afficher('ANCIEN');
+                }
+            });
+        }, me, {single: true});
+    },
+
+    afficher: function (version) {
+        if (this.isDestroyed || this.items.getCount()) {
+            return;
+        }
+        var me = this;
+        me.versionTableauBord = version;
+        me.add(version === 'NOUVEAU' ? {xtype: 'tableaubord'} : me.elementAncien());
+        if (version === 'NOUVEAU') {
+            /* Le panneau prend la hauteur de la fenetre alors qu'il commence sous l'en-tete : le bas sortait de
+               l'ecran. Pour le nouveau tableau de bord seulement, il prend la place reellement disponible. */
+            var ajuster = function () {
+                if (!me.isDestroyed && me.rendered) {
+                    me.setHeight(Math.max(400, Ext.getBody().getViewSize().height - me.getEl().getTop() - 6));
+                }
+            };
+            ajuster();
+            Ext.EventManager.onWindowResize(ajuster);
+            me.on('destroy', function () {
+                Ext.EventManager.removeResizeListener(ajuster);
+            });
+        }
+    },
+
+    /** L'ancien tableau de bord : l'iframe et son demarrage differe, inchanges. */
+    elementAncien: function () {
         const url_order_component = "dashboard.html";
-        this.items = [{
+        return {
                 xtype: "component",
                 autoScroll: false,
                 autoEl: {
@@ -59,9 +108,7 @@ Ext.define('testextjs.view.dashboard', {
                         }
                     }
                 }
-            }],
-                this.callParent();
-
+            };
     }
 
 });

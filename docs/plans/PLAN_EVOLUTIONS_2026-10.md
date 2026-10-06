@@ -472,6 +472,28 @@ mémorisés par utilisateur (préférences, §0.3).
   avant / après sur la base de test, aucune carte au-delà de 1 s visée.
 - Aucun rafraîchissement automatique ; bouton « Actualiser » comme aujourd'hui.
 
+**Fait (lot L8).** Nouveau tableau de bord ExtJS sans iframe (`view/tableaubord/TableauBord.js`), sur la maquette v3 :
+- bascule `KEY_TABLEAU_BORD_VERSION` (NOUVEAU par défaut ; ANCIEN = `dashboard.html` dans son iframe, inchangé ; si la
+  version ne peut être lue, c'est l'ancien qui s'affiche) ; `KEY_TABLEAU_BORD_MOBILE_MONEY` = types de règlement
+  regroupés en mobile money (7, 8, 9, 10, 19, 70, 80) ;
+- API `v1/tableau-bord/*` : une route par carte (tuiles, evolution, valorisation, encaissements, mouvements, alertes,
+  alertes/liste, top-mois, top-jour, grossistes, emplacements, tiers-payants) ; la carte TVA lit la route de l'écran
+  « Statistique par TVA » (`v3/tvas`) ;
+- mêmes formules que l'ancien tableau de bord (CA net, clients, marge nette, panier moyen, achats TTC et nombre de BL,
+  tops du jour, achats par grossiste, mouvements, encours tiers payants), paramétrables par la date. **Seul écart
+  voulu** : la courbe écarte les ventes annulées, que l'ancienne comptait (sur la base de test, 0,3 à 2,5 M FCFA par
+  mois) ; la tuile du CA et le pilotage les écartaient déjà ;
+- chargement à l'affichage de chaque carte, élément retiré jamais lu ; cache 1 min (jour), 15 min (valorisation),
+  6 h (années closes) ; « Actualiser » relit la base. Temps mesurés : tuiles 0,6 s, alertes 0,4 s, cartes < 0,15 s,
+  valorisation 3 s (produits dormants, en cache) ;
+- personnalisation mémorisée (préférence `tableau-bord`) : ordre par glisser-déposer, éléments retirés et remis,
+  disposition par défaut, périodes des alertes (la période des ruptures vaut pour la tuile), interrupteurs ;
+- clics : seulement vers les menus présents dans le menu de l'utilisateur (mêmes droits) ; listes des alertes et
+  « Voir plus » en fenêtre de consultation.
+Définitions : *rupture* = stock ≤ 0, article actif non vendu au détail, vendu au moins une fois sur 90 jours ;
+*dormant* = en stock, dernière entrée il y a plus d'un mois, aucune vente depuis.
+Test : `test-tableau-bord.js` (31/31).
+
 **Menu (`ws_tree_menu.jsp`).** Il n'existe aucun équivalent REST. Proposition : `GET v1/menu/arbre` produisant
 **exactement** le même JSON (mêmes droits, mêmes priorités, mêmes libellés), test de comparaison JSP / API, bascule de
 `Navigation.js`, JSP conservée.

@@ -193,7 +193,11 @@ public class TableauBordServiceImpl implements TableauBordService {
     public JSONObject evolution(int annee) {
         JSONObject o = new JSONObject().put("annee", annee);
         try {
-            /* getCaGrapheData, sur deux annees : la demandee et la precedente (comparaison N-1). */
+            /*
+             * getCaGrapheData, sur deux annees : la demandee et la precedente (comparaison N-1). Les ventes ANNULEES
+             * sont ecartees, comme pour la tuile du CA et le pilotage (l'ancienne courbe les comptait, ce qui gonflait
+             * le mois d'une annulation).
+             */
             List<Object[]> l = lignes(
                     "SELECT YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED), SUM(p.int_PRICE - p.int_PRICE_REMISE)"
                             + " FROM t_preenregistrement p WHERE" + VENTE_OK
