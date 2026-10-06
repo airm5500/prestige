@@ -38,6 +38,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
+            /* Retours du 06/10 : frequentation par tranche de 2 h, semaine precedente et semaine en cours. */
+            {id: 'frequentation', titre: 'Fréquentation par tranche horaire (2 h)', ico: 'fa-clock', t: 't-cyan', l: 'l12'},
             {id: 'topmois', titre: 'Top 5 des ventes du mois', ico: 'fa-trophy', t: 't-bleu', l: 'l6'},
             {id: 'grossistes', titre: 'Achats par grossiste (mois)', ico: 'fa-truck-fast', t: 't-violet', l: 'l6'},
             {id: 'topca', titre: 'Top 5 du chiffre d\'affaires (jour)', ico: 'fa-chart-column', t: 't-vert', l: 'l4'},
@@ -51,7 +53,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     initComponent: function () {
         var me = this;
         me.prefs = {};
-        me.html = '<div class="tb"><div class="tb-entete"><div><div class="tb-titre">TABLEAU DE BORD</div>'
+        me.html = '<div class="tb"><div class="tb-entete"><div><div class="tb-titre" data-tb="titre">TABLEAU DE BORD</div>'
                 + '<div class="tb-sous" data-tb="date"></div></div><div class="tb-esp"></div>'
                 + '<button class="tb-btn tb-sombre" data-tb="perso">Personnaliser</button>'
                 + '<button class="tb-btn tb-sombre" data-tb="actualiser"><i class="fa-solid fa-rotate"></i> Actualiser</button></div>'
@@ -164,7 +166,16 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
 
     demarrer: function () {
         var me = this;
-        me.body.dom.querySelector('[data-tb="date"]').textContent = 'Situation du ' + Ext.Date.format(Ext.Date.parse(me.jour(), 'Y-m-d'), 'd/m/Y');
+        me.body.dom.querySelector('[data-tb="date"]').textContent = 'Tableau de bord · situation du ' + Ext.Date.format(Ext.Date.parse(me.jour(), 'Y-m-d'), 'd/m/Y');
+        /* « Bienvenu(e), Dr ... » comme l'ancien tableau de bord : nom du pharmacien lu sur l'officine. */
+        me.lire('../api/v1/officine', null, function (o) {
+            var off = o && o.length ? o[0] : (o || {});
+            var nom = String(off.fullName || off.nomComplet || '').trim();
+            var t = me.body ? me.body.dom.querySelector('[data-tb="titre"]') : null;
+            if (nom && t) {
+                t.textContent = 'Bienvenu(e), ' + nom;
+            }
+        });
         me.brancherClics();
         /* Priorite au menu de navigation (comme l'ancien tableau de bord) : on attend son chargement, 5 s au plus. */
         var nav = Ext.ComponentQuery.query('navigation')[0];
@@ -353,6 +364,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 var a = me.alertesPrefs();
                 me.lire('../api/v1/tableau-bord/alertes', Ext.apply({frais: fr}, a), function (o) {
                     me.dessinerAlertes(o);
+                });
+            },
+            frequentation: function () {
+                me.lire('../api/v1/tableau-bord/frequentation', {date: j, frais: fr}, function (o) {
+                    me.donneesFreq = o;
+                    me.dessinerFrequentation();
                 });
             },
             topmois: function () {
@@ -686,8 +703,88 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + ligne(menuOu('i_sugg_manager'), 'Sugg. commande', 'p-v', '<b>' + me.fmt(o.suggestionsCommande.cloturees) + '</b> suggestions de commande clôturées depuis <b>'
                         + a.sug + '</b> j, non commandées')
                 + ligne(menuOu('ordonnanceclient'), 'Renouvellement', 'p-g', '<b>' + me.fmt(o.renouvellements.patients) + '</b> ordonnances à renouveler sous <b>' + a.ren + '</b> j')
-                + ligne(menuOu('venteavoirmanager'), 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours') + '</table>'
-                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+                + ligne(menuOu('venteavoirmanager'), 'Avoirs', 'p-a', '<b>' + me.fmt(o.avoirs) + '</b> ventes en avoir en cours')
+                + ligne('data-liste="negatifs"', 'Stock négatif', 'p-r', '<b>' + me.fmt(o.negatifs) + '</b> articles en stock négatif') + '</table>'
+                + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+    },
+
+    /* --- frequentation (retours du 06/10) : ventes par tranche de 2 h, semaine precedente / semaine en cours */
+
+    dessinerFrequentation: function () {
+        var me = this, o = me.donneesFreq, c = me.corps('frequentation');
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success) {
+            me.erreur('frequentation');
+            return;
+        }
+        var moy = me.prefs.freq !== 'total';
+        var out = me.outils('frequentation');
+        if (out) {
+            out.innerHTML = '<span class="tb-seg" data-seg="freq"><button data-v="moyenne" class="' + (moy ? 'on' : '') + '">Moyenne par jour</button>'
+                    + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span>';
+        }
+        var p = o.precedente, s = o.semaine;
+        var val = function (sem, i) {
+            var v = sem.ventes[i] || 0;
+            return moy ? (sem.jours ? v / sem.jours : 0) : v;
+        };
+        /* Tranches affichees : celles qui ont eu au moins une vente sur l'une des deux semaines. */
+        var tranches = [];
+        for (var i = 0; i < 12; i++) {
+            if ((p.ventes[i] || 0) + (s.ventes[i] || 0) > 0) {
+                tranches.push(i);
+            }
+        }
+        if (!tranches.length) {
+            c.innerHTML = '<div class="tb-attente">Aucune vente sur les deux semaines.</div>';
+            return;
+        }
+        var max = 0;
+        tranches.forEach(function (i) {
+            max = Math.max(max, val(p, i), val(s, i));
+        });
+        max = max || 1;
+        var w = Math.max(c.clientWidth - 8, 360), h = 250, pg = 46, pd = 10, ph = 24, pb = 34;
+        var bande = (w - pg - pd) / tranches.length, lb = Math.min(28, bande * 0.32);
+        var Y = function (v) {
+            return ph + (h - ph - pb) * (1 - v / max);
+        };
+        var nb = function (v) {
+            return moy ? (Math.round(v * 10) / 10).toLocaleString('fr-FR') : Math.round(v).toLocaleString('fr-FR');
+        };
+        var svg = '<svg width="' + w + '" height="' + h + '" style="display:block">';
+        [0, 0.5, 1].forEach(function (f) {
+            var y = Y(max * f);
+            svg += '<line x1="' + pg + '" x2="' + (w - pd) + '" y1="' + y + '" y2="' + y + '" stroke="#e3e9f0"/><text x="' + (pg - 6) + '" y="' + (y + 4)
+                    + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="end">' + nb(max * f) + '</text>';
+        });
+        svg += '<line x1="' + pg + '" x2="' + (w - pd) + '" y1="' + (h - pb) + '" y2="' + (h - pb) + '" stroke="#1e3a5f" stroke-width="2"/>';
+        tranches.forEach(function (i, k) {
+            var x0 = pg + k * bande + bande / 2, v0 = val(p, i), v1 = val(s, i);
+            var ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
+            svg += '<rect x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#9fb3c8"><title>Semaine précédente, '
+                    + (i * 2) + 'h-' + (i * 2 + 2) + 'h : ' + nb(v0) + '</title></rect>';
+            svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Semaine en cours, '
+                    + (i * 2) + 'h-' + (i * 2 + 2) + 'h : ' + nb(v1) + '</title></rect>';
+            svg += '<text x="' + (x0 - lb / 2 - 1) + '" y="' + (Y(v0) - 4) + '" font-size="10" fill="#5b6b7c" text-anchor="middle">' + nb(v0) + '</text>';
+            svg += '<text x="' + (x0 + lb / 2 + 1) + '" y="' + (Y(v1) - 4) + '" font-size="10" font-weight="700" fill="#0e5f73" text-anchor="middle">' + nb(v1) + '</text>';
+            svg += '<text x="' + x0 + '" y="' + (h - 18) + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">' + (i * 2) + 'h-' + (i * 2 + 2) + 'h</text>';
+            if (ev !== null && moy) {
+                svg += '<text x="' + x0 + '" y="' + (h - 4) + '" font-size="10" font-weight="800" fill="' + (ev > 0 ? '#16a34a' : ev < 0 ? '#dc2626' : '#64748b')
+                        + '" text-anchor="middle">' + (ev > 0 ? '+' : '') + ev + '%</text>';
+            }
+        });
+        svg += '</svg>';
+        var d = function (x) {
+            return x.split('-').reverse().slice(0, 2).join('/');
+        };
+        var totP = Ext.Array.sum(p.ventes), totS = Ext.Array.sum(s.ventes);
+        c.innerHTML = svg + '<div class="tb-legende"><span><i style="background:#9fb3c8"></i>Semaine précédente (' + d(p.debut) + ' → ' + d(p.fin) + ') : <b>'
+                + me.fmt(totP) + '</b> ventes sur ' + p.jours + ' j</span><span><i style="background:#0891b2"></i>Semaine en cours (' + d(s.debut) + ' → ' + d(s.fin)
+                + ') : <b>' + me.fmt(totS) + '</b> ventes sur ' + s.jours + ' j</span><span>' + (moy ? 'Moyenne par jour de vente ; % : évolution de la semaine en cours'
+                : 'Total de chaque semaine (la semaine en cours n\'est pas terminée)') + '</span></div>';
     },
 
     /* --- top du mois (interrupteur CA / quantite, marge) */
@@ -821,6 +918,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                         }).join('');
                 me.fenetre('Produits en rupture (' + l.length + ')', '<table class="tb-fixe">' + t + '</table><div class="tb-note" style="margin-top:8px">Stock à zéro, vendus sur les 90 derniers jours.</div>',
                         {xtype: 'i_sugg_manager', texte: 'Ouvrir les suggestions de commande'});
+            } else if (type === 'negatifs') {
+                t = '<tr><th style="width:52%">Produit</th><th>CIP</th><th class="tb-n">Stock</th><th>Emplacement</th></tr>' + l.map(function (x) {
+                    return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n tb-baisse">'
+                            + me.fmt(x.quantite) + '</td><td class="tb-nom1">' + me.esc(x.emplacement) + '</td></tr>';
+                }).join('');
+                me.fenetre('Articles en stock négatif (' + l.length + ')', '<table class="tb-fixe">' + t + '</table>', {xtype: 'etatstock', texte: 'Ouvrir l\'état du stock'});
             } else if (type === 'peremptions') {
                 t = '<tr><th style="width:46%">Produit</th><th>CIP</th><th>Lot</th><th>Péremption</th><th class="tb-n">Qté</th></tr>' + l.map(function (x) {
                     return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td>' + me.esc(x.lot) + '</td><td>'
@@ -1001,6 +1104,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 } else if (seg === 'top') {
                     me.prefs.top = v;
                     me.dessinerTopMois();
+                } else if (seg === 'freq') {
+                    me.prefs.freq = v;
+                    me.dessinerFrequentation();
                 }
                 me.enregistrerPreferences();
                 return;
@@ -1038,6 +1144,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             clearTimeout(me.minuteurCourbe);
             me.minuteurCourbe = setTimeout(function () {
                 me.tracerCourbe();
+                me.dessinerFrequentation();
             }, 200);
         });
     }

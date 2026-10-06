@@ -50,6 +50,8 @@ public class AccountInfoDTO {
     private String lgLanguageID;
     private String role;
     private String xtypeload;
+    /** Retours du 06/10 : le bouton de l'en-tete (apres la date) ramene au tableau de bord pour ce profil. */
+    private boolean retourTableauBord;
 
     @JSONPropertyName("lg_ROLE_ID")
     public String getRole() {
@@ -58,6 +60,16 @@ public class AccountInfoDTO {
 
     public AccountInfoDTO setRole(String role) {
         this.role = role;
+        return this;
+    }
+
+    @JSONPropertyName("retourTableauBord")
+    public boolean isRetourTableauBord() {
+        return retourTableauBord;
+    }
+
+    public AccountInfoDTO setRetourTableauBord(boolean retourTableauBord) {
+        this.retourTableauBord = retourTableauBord;
         return this;
     }
 

@@ -70,7 +70,7 @@ const n = (v) => Number(v || 0);
     ok('KEY_TABLEAU_BORD_VERSION = NOUVEAU : nouveau tableau de bord, sans iframe', await tb() && await p.evaluate(() => !Ext.ComponentQuery.query('dashboard')[0].getEl().dom.querySelector('iframe')));
     await reconstruire(D);
     const S = await p.evaluate(() => ({ tuiles: document.querySelectorAll('.tb-tuile .tb-ico i').length, cartes: document.querySelectorAll('.tb-carte').length, iconesCartes: document.querySelectorAll('.tb-carte .tb-tete > .fa-solid').length }));
-    ok('5 tuiles avec icône, 12 cartes avec icône', S.tuiles === 5 && S.cartes === 12 && S.iconesCartes === 12, JSON.stringify(S));
+    ok('5 tuiles avec icône, 13 cartes avec icône (dont la fréquentation)', S.tuiles === 5 && S.cartes === 13 && S.iconesCartes === 13, JSON.stringify(S));
     ok('Chargement progressif : les cartes du bas ne sont pas lues tant qu\'elles ne sont pas visibles', routes.indexOf('tiers-payants') < 0 && routes.indexOf('emplacements') < 0, routes.join(','));
 
     // Memes chiffres que l'ancien tableau de bord (formules de bll.report.Dashboard a la date D)
@@ -114,6 +114,40 @@ const n = (v) => Number(v || 0);
     ok('Encaissements : règlements de la journée + crédit tiers payant', enc.modes.reduce((a, x) => a + x.montant, 0) === n(encSql) + n(tpSql), enc.modes.reduce((a, x) => a + x.montant, 0) + ' / ' + encSql + ' + ' + tpSql);
     const tvaTb = await texte('[data-corps="tva"]');
     ok('Carte TVA lue sur la route de l\'écran « Statistique par TVA »', routes.length >= 0 && tvaTb !== null, (tvaTb || '').slice(0, 80));
+
+    // Retours du 06/10 : bienvenue, frequentation, stock negatif
+    await p.waitForFunction(() => /Bienvenu/.test(document.querySelector('[data-tb="titre"]').textContent), null, { timeout: 20000 }).catch(() => {});
+    const titre = await texte('[data-tb="titre"]');
+    const off = await api('../api/v1/officine');
+    const nomOff = String(((off && off.length ? off[0] : off) || {}).fullName || '').trim();
+    ok('Ligne du tableau de bord : « Bienvenu(e), <pharmacien> »', titre === 'Bienvenu(e), ' + nomOff, titre + ' / ' + nomOff);
+    const fq = await api('../api/v1/tableau-bord/frequentation?date=' + D);
+    const lundi = q("SELECT DATE_SUB('" + D + "', INTERVAL WEEKDAY('" + D + "') DAY)");
+    const fqSql = (deb, fin) => q("SELECT GROUP_CONCAT(CONCAT(t, ':', n) ORDER BY t) FROM (SELECT FLOOR(HOUR(o.dt_UPDATED) / 2) t, COUNT(*) n FROM t_preenregistrement o WHERE o.int_PRICE > 0 AND o.str_STATUT = 'is_Closed'"
+      + " AND o.b_IS_CANCEL = 0 AND o.lg_TYPE_VENTE_ID <> '5' AND o.dt_UPDATED >= '" + deb + "' AND o.dt_UPDATED < " + fin + " GROUP BY t) x");
+    const enTexte = (a) => a.map((v, i) => v ? i + ':' + v : null).filter(Boolean).join(',');
+    ok('Fréquentation : semaine en cours (lundi → date) par tranche de 2 h = base', fq.semaine.debut === lundi && enTexte(fq.semaine.ventes) === fqSql(lundi, "DATE_ADD('" + D + "', INTERVAL 1 DAY)"),
+      enTexte(fq.semaine.ventes));
+    ok('Fréquentation : semaine précédente (lundi → dimanche) = base', enTexte(fq.precedente.ventes) === fqSql(q("SELECT DATE_SUB('" + lundi + "', INTERVAL 7 DAY)"), "'" + lundi + "'"),
+      enTexte(fq.precedente.ventes));
+    await p.evaluate(() => { document.querySelector('[data-carte="frequentation"]').scrollIntoView(); });
+    await p.waitForFunction(() => document.querySelector('[data-corps="frequentation"] svg'), null, { timeout: 30000 });
+    const barres = await p.evaluate(() => document.querySelectorAll('[data-corps="frequentation"] svg rect').length);
+    const tranches = fq.semaine.ventes.map((v, i) => v + fq.precedente.ventes[i]).filter((v) => v > 0).length;
+    ok('Fréquentation : deux barres par tranche (semaine précédente / en cours)', barres === 2 * tranches, barres + ' / ' + 2 * tranches);
+    await cliquer('[data-seg="freq"] [data-v="total"]');
+    await p.waitForTimeout(300);
+    ok('Fréquentation : interrupteur moyenne par jour / total de la semaine', /Total de chaque semaine/.test(await texte('[data-corps="frequentation"] .tb-legende')));
+    const neg = (await api('../api/v1/tableau-bord/alertes')).negatifs;
+    const negSql = q("SELECT COUNT(*) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '1' AND s.int_NUMBER_AVAILABLE < 0 AND f.str_STATUT = 'enable'");
+    ok('Alertes : nombre d\'articles en stock négatif = base (' + negSql + ')', neg === Number(negSql), neg + ' / ' + negSql);
+    await p.evaluate(() => { document.querySelector('[data-carte="alertes"]').scrollIntoView(); });
+    await p.waitForFunction(() => document.querySelector('[data-corps="alertes"] [data-liste="negatifs"]'), null, { timeout: 30000 });
+    await cliquer('[data-corps="alertes"] [data-liste="negatifs"]');
+    await p.waitForFunction(() => { let v = false; Ext.WindowManager.each((w) => { if (w.isVisible() && /négatif/i.test(w.title || '')) v = true; }); return v; }, null, { timeout: 30000 });
+    const fn = await fenetre();
+    ok('Stock négatif : liste des articles en fenêtre', fn.lignes === Math.min(500, Number(negSql)), fn.t + ' ' + fn.lignes);
+    await fermer();
 
     // Tuiles affichees
     const tuileCa = await texte('[data-tuile="ca"] .tb-v');
@@ -204,7 +238,7 @@ const n = (v) => Number(v || 0);
     await cliquer('[data-tb="defaut"]');
     await p.waitForTimeout(1500);
     const def = await p.evaluate(() => ({ cartes: document.querySelectorAll('[data-dd="cartes"] > [data-id]').length, tuiles: document.querySelectorAll('[data-dd="tuiles"] > [data-id]').length, premier: document.querySelector('[data-dd="cartes"] > [data-id]').getAttribute('data-id') }));
-    ok('« Rétablir la disposition par défaut »', def.cartes === 12 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
+    ok('« Rétablir la disposition par défaut »', def.cartes === 13 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
     await cliquer('[data-tb="perso"]');
 
     // Clic -> menu lie (mouvements de caisse)
@@ -213,6 +247,14 @@ const n = (v) => Number(v || 0);
     await cliquer('[data-corps="alertes"] [data-menu="i_sugg_manager"]');
     await p.waitForFunction(() => Ext.ComponentQuery.query('i_sugg_manager').some((c) => c.isVisible(true)), null, { timeout: 30000 });
     ok('Clic sur une alerte : ouvre le menu lié (suggestions de commande)', true);
+
+    // En-tete : le bouton apres la date ramene au tableau de bord (profil administrateur)
+    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('famillemanager', 'Fiche Article', ''));
+    await p.waitForTimeout(2500);
+    await p.evaluate(() => prestigeShowMetro());
+    await p.waitForTimeout(3000);
+    const retour = await p.evaluate(() => ({ drapeau: window.PRESTIGE_RETOUR_TB, tb: Ext.ComponentQuery.query('tableaubord').some((c) => c.isVisible(true)) }));
+    ok('En-tête : profil administrateur → le bouton après la date ramène au tableau de bord', retour.drapeau === true && retour.tb, JSON.stringify(retour));
 
     // Bascule ANCIEN
     exec("UPDATE t_parameters SET str_VALUE = 'ANCIEN' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");

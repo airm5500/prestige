@@ -259,8 +259,10 @@ public class UserServiceImpl implements UserService {
         }
         String roleName;
         String xtypeload = "mainmenumanager";
+        boolean retourTableauBord = false;
         if ("00".equals(tu.getLgUSERID())) {
             xtypeload = "dashboard";
+            retourTableauBord = true;
             roleName = "SYSTEM_USER";
         } else {
             TRoleUser roleUser = this.getTRoleUser(tu.getLgUSERID());
@@ -272,6 +274,13 @@ public class UserServiceImpl implements UserService {
                     || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_PHARMACIEN))) {
                 xtypeload = "dashboard";
             }
+            /*
+             * Retours du 06/10 : administrateur, super administrateur et pharmacien reviennent au tableau de bord par
+             * le bouton de l'en-tete ; les autres profils gardent le Metro. L'ecran d'accueil (xtypeload) est inchange.
+             */
+            retourTableauBord = role != null && (role.getStrNAME().equalsIgnoreCase(Constant.ROLE_SUPERADMIN)
+                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_PHARMACIEN)
+                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_ADMIN));
         }
 
         TLanguage tLanguage = tu.getLgLanguageID();
@@ -281,7 +290,7 @@ public class UserServiceImpl implements UserService {
                         DateUtil.convertDate(tu.getStrLASTCONNECTIONDATE(), new SimpleDateFormat("yyyy/MM/dd")))
                 .setStrSTATUT(tu.getStrSTATUT())
                 .setLgLanguageID(Objects.nonNull(tLanguage) ? tLanguage.getStrDescription() : "").setRole(roleName)
-                .setXtypeload(xtypeload);
+                .setXtypeload(xtypeload).setRetourTableauBord(retourTableauBord);
 
     }
 

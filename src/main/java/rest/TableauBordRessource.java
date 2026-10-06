@@ -225,4 +225,14 @@ public class TableauBordRessource {
         LocalDate j = jour(date);
         return cache("tiers-payants|" + j + "|" + limite, COURT * 2, frais == 1, () -> service.tiersPayants(j, limite));
     }
+
+    @GET
+    @Path("frequentation")
+    public Response frequentation(@QueryParam("date") String date, @DefaultValue("0") @QueryParam("frais") int frais) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        LocalDate j = jour(date);
+        return cache("frequentation|" + j, COURT * 3, frais == 1, () -> service.frequentation(j));
+    }
 }

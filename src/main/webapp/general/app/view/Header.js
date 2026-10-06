@@ -136,7 +136,7 @@ Ext.define('testextjs.view.Header', {
                         id: 'hdr-metro-btn',
                         width: 38,
                         margin: '0 0 0 12',
-                        html: '<span class="hdr-metro" onclick="prestigeShowMetro()" title="Menu principal (Metro)">'
+                        html: '<span class="hdr-metro" onclick="prestigeShowMetro()" title="Accueil">'
                                 + '<i class="fa fa-th-large"></i>'
                                 + '</span>'
                     },
@@ -330,6 +330,14 @@ function prestigeHeaderAnimateTexts() {
 
 // Affiche le menu principal Metro (icone 4 carres du header)
 function prestigeShowMetro() {
+    /* Retours du 06/10 : administrateur, super administrateur, pharmacien -> tableau de bord ; autres profils -> Metro. */
+    if (window.PRESTIGE_RETOUR_TB === true) {
+        try {
+            testextjs.app.getController('App').onLoadNewComponent('dashboard', 'Tableau de bord', '');
+            return;
+        } catch (e) {
+        }
+    }
     try {
         loadMainMenu();
     } catch (e) {

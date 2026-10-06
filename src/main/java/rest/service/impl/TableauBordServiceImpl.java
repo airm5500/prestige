@@ -398,6 +398,12 @@ public class TableauBordServiceImpl implements TableauBordService {
                     "SELECT COUNT(*) FROM t_preenregistrement p WHERE p.b_IS_AVOIR = 1 AND p.str_STATUT = 'is_Closed'"
                             + " AND p.b_IS_CANCEL = 0 AND p.dt_CLOTURE_AVOIR IS NULL");
             o.put("avoirs", n(at(av, 0)));
+            /* Retours du 06/10 : articles en stock negatif a l'emplacement (actifs). */
+            Object[] ng = ligne(
+                    "SELECT COUNT(*) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+                            + " WHERE s.lg_EMPLACEMENT_ID = ?1 AND s.int_NUMBER_AVAILABLE < 0 AND f.str_STATUT = 'enable'",
+                    emplacementId);
+            o.put("negatifs", n(at(ng, 0)));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "tableau de bord : alertes", e);
             o.put("erreur", true);
@@ -429,6 +435,16 @@ public class TableauBordServiceImpl implements TableauBordService {
                         Math.max(1, moisPeremption))) {
                     a.put(new JSONObject().put("libelle", t(r[0])).put("cip", t(r[1])).put("lot", t(r[2]))
                             .put("peremption", t(r[3])).put("quantite", n(r[4])));
+                }
+            } else if ("negatifs".equals(type)) {
+                for (Object[] r : lignes(
+                        "SELECT f.str_NAME, f.int_CIP, s.int_NUMBER_AVAILABLE, z.str_LIBELLEE FROM t_famille_stock s"
+                                + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                                + " WHERE s.lg_EMPLACEMENT_ID = ?1 AND s.int_NUMBER_AVAILABLE < 0 AND f.str_STATUT = 'enable'"
+                                + " ORDER BY s.int_NUMBER_AVAILABLE ASC LIMIT " + max,
+                        emplacementId)) {
+                    a.put(new JSONObject().put("libelle", t(r[0])).put("cip", t(r[1])).put("quantite", n(r[2]))
+                            .put("emplacement", t(r[3])));
                 }
             } else if ("rayon".equals(type)) {
                 for (Object[] r : lignes(
@@ -561,6 +577,51 @@ public class TableauBordServiceImpl implements TableauBordService {
                 + " AND p.dt_CREATED >= ?1 AND p.dt_CREATED <= ?2 GROUP BY tp.str_FULLNAME ORDER BY SUM(c.int_PRICE) DESC"
                 + (limite > 0 ? " LIMIT " + limite : ""), "tiers payants", ts(jour.withDayOfMonth(1)),
                 ts(finMois(jour)));
+    }
+
+    /**
+     * Frequentation (retours du 06/10) : ventes par tranche de deux heures, semaine precedente (lundi a dimanche) et
+     * semaine en cours (lundi au jour demande), avec le nombre de jours ouvres (jours ayant au moins une vente) de
+     * chacune pour comparer des moyennes par jour.
+     */
+    @Override
+    public JSONObject frequentation(LocalDate jour) {
+        JSONObject o = new JSONObject();
+        try {
+            LocalDate lundi = jour.minusDays(jour.getDayOfWeek().getValue() - 1L);
+            LocalDate lundiPrec = lundi.minusDays(7);
+            o.put("semaine",
+                    semaine(lundi, jour.plusDays(1)).put("debut", lundi.toString()).put("fin", jour.toString()));
+            o.put("precedente", semaine(lundiPrec, lundi).put("debut", lundiPrec.toString()).put("fin",
+                    lundi.minusDays(1).toString()));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "tableau de bord : frequentation", e);
+            o.put("erreur", true);
+        }
+        return o;
+    }
+
+    private JSONObject semaine(LocalDate debut, LocalDate finExclue) {
+        long[] ventes = new long[12], ca = new long[12];
+        for (Object[] r : lignes(
+                "SELECT FLOOR(HOUR(p.dt_UPDATED) / 2), COUNT(*), SUM(p.int_PRICE - p.int_PRICE_REMISE)"
+                        + " FROM t_preenregistrement p WHERE" + VENTE_OK
+                        + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2" + " GROUP BY FLOOR(HOUR(p.dt_UPDATED) / 2)",
+                ts(debut), ts(finExclue))) {
+            int i = (int) n(r[0]);
+            if (i >= 0 && i < 12) {
+                ventes[i] = n(r[1]);
+                ca[i] = n(r[2]);
+            }
+        }
+        Object[] j = ligne("SELECT COUNT(DISTINCT DATE(p.dt_UPDATED)) FROM t_preenregistrement p WHERE" + VENTE_OK
+                + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2", ts(debut), ts(finExclue));
+        JSONArray v = new JSONArray(), c = new JSONArray();
+        for (int i = 0; i < 12; i++) {
+            v.put(ventes[i]);
+            c.put(ca[i]);
+        }
+        return new JSONObject().put("ventes", v).put("ca", c).put("jours", n(at(j, 0)));
     }
 
     @Override

@@ -55,4 +55,7 @@ public interface TableauBordService {
 
     /** Valeur d'un parametre (t_parameters), ou la valeur par defaut. */
     String parametre(String cle, String defaut);
+
+    /** Ventes par tranche de 2 heures : semaine precedente et semaine en cours (retours du 06/10). */
+    JSONObject frequentation(LocalDate jour);
 }

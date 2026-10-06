@@ -181,6 +181,8 @@ Ext.define('testextjs.controller.App', {
                 const data = Ext.JSON.decode(response.responseText, true);
                 const accountInfo = data.accountInfo;
                 xtypeload = accountInfo.xtypeload;
+                /* Retours du 06/10 : profil qui revient au tableau de bord par le bouton de l'en-tete. */
+                window.PRESTIGE_RETOUR_TB = accountInfo.retourTableauBord === true;
                 lg_USER_ID.setValue(accountInfo.lg_USER_ID);
                 // Rattache la memorisation des colonnes a cet utilisateur : sur un poste
                 // partage, la mise en page de l'un ne s'impose plus au suivant.
