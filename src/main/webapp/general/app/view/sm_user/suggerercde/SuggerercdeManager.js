@@ -32,7 +32,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         'testextjs.controller.LaborexWorkFlow',
         'testextjs.model.Grossiste',
         'testextjs.model.TSuggestionOrderDetails',
-        'Ext.window.Window'
+        'Ext.window.Window',
+        'testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre',
+        'testextjs.view.sm_user.suggerercde.ProduitsRetiresFenetre'
     ],
     config: {
         odatasource: '',
@@ -279,8 +281,12 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             plugins: [this.cellEditing],
                             store: store_details_sugg,
                             listeners: {
-                                cellclick: function (view, td, cellIndex, record) {
+                                cellclick: function (view, td, cellIndex, record, tr, rowIndex, e) {
                                     Me_Window.showProduitInfos(record);
+                                    /* Clic sur le repere « ≡ DCI » : la meme analyse, limitee a cette ligne. */
+                                    if (e && e.getTarget && e.getTarget('[data-eq]')) {
+                                        Me_Window.onEquivalentsDci(null, null, record.get('lg_SUGGESTION_ORDER_DETAILS_ID'));
+                                    }
                                 },
                                 select: function (sm, record) {
                                     Me_Window.showProduitInfos(record);
@@ -289,6 +295,16 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             columns: [
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
                                 {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
+                                /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
+                                {text: 'DCI', itemId: 'colEquivalentDci', width: 64, sortable: false, menuDisabled: true, hidden: true, align: 'center',
+                                    renderer: function (v, meta, record) {
+                                        var l = Me_Window.marquesDci && Me_Window.marquesDci[record.get('lg_SUGGESTION_ORDER_DETAILS_ID')];
+                                        if (!l) {
+                                            return '';
+                                        }
+                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(l.substituts.length + ' équivalent(s) en stock, ' + l.couverte + ' couvert(s) sur ' + l.qteSuggeree) + '"';
+                                        return '<span class="eq-marque" data-eq="1">≡ ' + l.couverte + '</span>';
+                                    }},
                                 {text: 'PRIX.VENTE', flex: 1, sortable: true, dataIndex: 'lg_FAMILLE_PRIX_VENTE', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
                                 {text: 'PRIX A. TARIF', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'lg_FAMILLE_PRIX_ACHAT', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, selectOnFocus: true, regex: /[0-9.]/}},
                                 {text: 'PRIX A. FACT', flex: 1, sortable: true, dataIndex: 'int_PAF_SUGG', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, regex: /[0-9.]/}},
@@ -420,6 +436,12 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             tooltip: 'Exporter les lignes de cette suggestion au format CSV',
                             handler: this.onbtnexportcsv},
                         
+                        {text: 'Équivalents DCI', id: 'btn_equivalents_dci', cls: 'btn-primary', scope: this,
+                            tooltip: 'Produits de la suggestion déjà couverts par un équivalent (même DCI) en stock',
+                            handler: this.onEquivalentsDci},
+                        {text: 'Produits retirés', id: 'btn_produits_retires', cls: 'btn-primary', scope: this,
+                            tooltip: 'Produits supprimés de cette suggestion : les ramener',
+                            handler: this.onProduitsRetires},
                         {
                             text: 'Nettoyer la suggestion',
                             id: 'btn_clean_sugg',
@@ -567,6 +589,41 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     },
 
     loadStore: function () {},
+
+    /* Plan d'octobre 1.1 : analyse par bouton seulement, dans une fenetre modale. */
+    onEquivalentsDci: function (bouton, e, itemId) {
+        var grid = Ext.getCmp('gridpanelSuggestionID');
+        Ext.create('testextjs.view.sm_user.suggerercde.EquivalentsDciFenetre', {
+            suggestionId: orderIdRef,
+            itemId: typeof itemId === 'string' ? itemId : null,
+            apresAnalyse: function (lignes) {
+                Me_Window.marquesDci = {};
+                Ext.each(lignes, function (l) {
+                    Me_Window.marquesDci[l.itemId] = l;
+                });
+                var col = grid.down('#colEquivalentDci');
+                if (col) {
+                    col.setVisible(true);
+                }
+                grid.getView().refresh();
+            },
+            apresRetrait: function () {
+                Me_Window.marquesDci = null;
+                grid.getStore().reload();
+            }
+        }).show();
+    },
+
+    /* Plan d'octobre 1.4 : produits supprimes de la suggestion, recuperables. */
+    onProduitsRetires: function () {
+        var grid = Ext.getCmp('gridpanelSuggestionID');
+        Ext.create('testextjs.view.sm_user.suggerercde.ProduitsRetiresFenetre', {
+            suggestionId: orderIdRef,
+            apresRetour: function () {
+                grid.getStore().reload();
+            }
+        }).show();
+    },
 
     onbtnprint: function () {
         Ext.MessageBox.confirm('Message', 'Confirmation de l\'impression de cette suggestion',

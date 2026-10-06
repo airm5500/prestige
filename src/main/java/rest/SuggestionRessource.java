@@ -110,7 +110,9 @@ public class SuggestionRessource {
     @Path("item/{id}")
     public Response delete(@PathParam("id") String id) throws JSONException {
 
-        this.suggestionService.removeItem(id);
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        /* Copiee dans les produits retires (recuperables) au nom de l'utilisateur connecte. */
+        this.suggestionService.removeItem(id, tu == null ? null : tu.getLgUSERID());
         return Response.ok().build();
     }
 

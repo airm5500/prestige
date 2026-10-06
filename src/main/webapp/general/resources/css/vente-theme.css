@@ -2545,3 +2545,25 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton) .x-btn-inner,
 .mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) .x-btn-inner { color: #1e3a5f !important; font-weight: bold; text-shadow: none !important; }
 .mv-panneau .x-btn-default-small.x-btn-over:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) { background: #e3edf7 !important; }
+
+/* ===== Equivalents DCI et produits retires d'une suggestion (plan d'octobre 1.1 / 1.4) ===== */
+.eq-fenetre .vc-corps { padding-top: 12px; }
+.eq-filtres { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.eq-filtres input[type=text] { border: 1px solid #c3cfdb; border-radius: 6px; padding: 6px 10px; width: 240px; font-size: 12px; }
+.eq-tableau td { vertical-align: top; }
+.eq-subs { width: 100%; border-collapse: collapse; }
+.eq-subs td { padding: 3px 6px !important; border-bottom: 1px dashed #e6edf4 !important; font-size: 11.5px; }
+.eq-subs tr:last-child td { border-bottom: 0 !important; }
+.eq-niv { display: inline-block; border-radius: 10px; padding: 0 8px; font-size: 10.5px; font-weight: bold; white-space: nowrap; }
+.eq-direct { background: #e7f6ec; color: #166534; }
+.eq-adapter { background: #fdf0d5; color: #92400e; }
+.eq-hors { background: #eef1f5; color: #475467; }
+.eq-utilise { color: #17987e; font-weight: bold; }
+.eq-couv { font-weight: bold; color: #17987e; }
+.eq-partiel { font-weight: bold; color: #b45309; }
+.eq-nul { color: #8a99a8; }
+.eq-choix { font-size: 12px; border: 1px solid #c3cfdb; border-radius: 6px; padding: 3px 6px; background: #fff; }
+.eq-qte { width: 56px; border: 1px solid #c3cfdb; border-radius: 6px; padding: 3px 6px; text-align: right; }
+.eq-alerte { background: #fff8e6; border: 1px solid #f3dfb0; color: #7a4500; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; font-size: 12px; }
+.eq-dci { color: #6b7b8c; font-size: 11px; font-style: italic; }
+.eq-marque { display: inline-block; background: #e0ecff; color: #1d4ed8; border-radius: 10px; padding: 0 7px; font-size: 10.5px; font-weight: bold; cursor: pointer; }

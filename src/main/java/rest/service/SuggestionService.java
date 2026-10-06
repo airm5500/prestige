@@ -52,7 +52,27 @@ public interface SuggestionService {
 
     void proccessSuggetion(TFamille famille, TEmplacement emplacementId);
 
+    /** Motifs des produits retires d'une suggestion (t_suggestion_ligne_retiree). */
+    String MOTIF_SUPPRESSION_USER = "SUPPRESSION_USER";
+
+    String MOTIF_SUPPRESSION_EQUIVALENCE_DCI = "SUPPRESSION_EQUIVALENCE_DCI";
+
     void removeItem(String itemId);
+
+    /** Suppression d'une ligne, copiee d'abord dans les produits retires au nom de l'utilisateur. */
+    void removeItem(String itemId, String userId);
+
+    /**
+     * Retire des lignes couvertes par des equivalents DCI. Cle : ligne ; valeur : quantite de reliquat (0 = retrait
+     * simple). Les reliquats vont dans UNE nouvelle suggestion du meme grossiste, commentee « Reliquat substitution ».
+     */
+    JSONObject retirerLignesCouvertes(String suggestionId, java.util.Map<String, Integer> reliquats, TUser user);
+
+    /** Produits retires de la suggestion et pas encore ramenes. */
+    JSONObject lignesRetirees(String suggestionId);
+
+    /** Ramene des produits retires (cle : retrait ; valeur : quantite, 0 = quantite d'origine). */
+    JSONObject ramenerLignes(String suggestionId, java.util.Map<String, Integer> quantites);
 
     SuggestionDTO getSuggestionAmount(String suggestionId);
 

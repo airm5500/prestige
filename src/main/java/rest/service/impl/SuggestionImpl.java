@@ -908,12 +908,171 @@ public class SuggestionImpl implements SuggestionService {
 
     @Override
     public void removeItem(String itemId) {
+        removeItem(itemId, null);
+    }
+
+    @Override
+    public void removeItem(String itemId, String userId) {
 
         TSuggestionOrderDetails item = getItem(itemId);
         if (Objects.nonNull(item)) {
+            /* Copie dans les produits retires (recuperables), dans la meme transaction que la suppression. */
+            journaliserRetrait(Collections.singletonList(itemId), MOTIF_SUPPRESSION_USER, userId, null);
             getEmg().remove(item);
         }
 
+    }
+
+    /**
+     * PRODUITS RETIRES (plan d'octobre, 1.4) : copie des lignes dans t_suggestion_ligne_retiree avant leur suppression.
+     * Appele dans la transaction de la suppression : si l'une echoue, l'autre est annulee.
+     */
+    private void journaliserRetrait(List<String> itemIds, String motif, String userId, String reliquatId) {
+        if (CollectionUtils.isEmpty(itemIds)) {
+            return;
+        }
+        getEmg().createNativeQuery("INSERT INTO t_suggestion_ligne_retiree (lg_ID, lg_SUGGESTION_ORDER_ID,"
+                + " lg_FAMILLE_ID, int_NUMBER, int_PAF_DETAIL, int_PRICE_DETAIL, str_MOTIF, lg_USER_ID,"
+                + " lg_RELIQUAT_SUGGESTION_ID, dt_RETRAIT) SELECT UUID(), d.lg_SUGGESTION_ORDER_ID, d.lg_FAMILLE_ID,"
+                + " COALESCE(d.int_NUMBER, 0), d.int_PAF_DETAIL, d.int_PRICE_DETAIL, :motif, :user, :reliquat, NOW()"
+                + " FROM t_suggestion_order_details d WHERE d.lg_SUGGESTION_ORDER_DETAILS_ID IN (:ids)")
+                .setParameter("motif", motif).setParameter("user", userId).setParameter("reliquat", reliquatId)
+                .setParameter("ids", itemIds).executeUpdate();
+    }
+
+    @Override
+    public JSONObject retirerLignesCouvertes(String suggestionId, Map<String, Integer> reliquats, TUser user) {
+        TSuggestionOrder order = getEmg().find(TSuggestionOrder.class, suggestionId);
+        if (order == null) {
+            return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+        }
+        if (Constant.STATUT_ENABLE.equals(order.getStrSTATUT())) {
+            return new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée");
+        }
+        if (reliquats == null || reliquats.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Aucune ligne à retirer");
+        }
+        List<String> sansReliquat = new ArrayList<>();
+        List<String> avecReliquat = new ArrayList<>();
+        TSuggestionOrder reliquat = null;
+        for (Map.Entry<String, Integer> e : reliquats.entrySet()) {
+            TSuggestionOrderDetails item = getItem(e.getKey());
+            if (item == null || !suggestionId.equals(item.getLgSUGGESTIONORDERID().getLgSUGGESTIONORDERID())) {
+                return new JSONObject().put("success", false).put("msg", "Ligne introuvable dans cette suggestion");
+            }
+            int reste = e.getValue() == null ? 0 : e.getValue();
+            if (reste <= 0) {
+                sansReliquat.add(e.getKey());
+                continue;
+            }
+            if (reliquat == null) {
+                /* Une seule suggestion de reliquat par operation, chez le grossiste d'origine (decision Q-G). */
+                reliquat = createSuggestionOrder(order.getLgGROSSISTEID(), STATUT_IS_PROGRESS);
+                String c = "Reliquat substitution — " + order.getStrREF();
+                reliquat.setStrCOMMENTAIRE(c.length() > 200 ? c.substring(0, 200) : c);
+            }
+            initTSuggestionOrderDetail(reliquat, item.getLgFAMILLEID(), order.getLgGROSSISTEID(), reste);
+            avecReliquat.add(e.getKey());
+        }
+        String userId = user == null ? null : user.getLgUSERID();
+        journaliserRetrait(sansReliquat, MOTIF_SUPPRESSION_EQUIVALENCE_DCI, userId, null);
+        journaliserRetrait(avecReliquat, MOTIF_SUPPRESSION_EQUIVALENCE_DCI, userId,
+                reliquat == null ? null : reliquat.getLgSUGGESTIONORDERID());
+        List<String> tous = new ArrayList<>(sansReliquat);
+        tous.addAll(avecReliquat);
+        getEmg().createNativeQuery(
+                "DELETE FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_DETAILS_ID IN (:ids)")
+                .setParameter("ids", tous).executeUpdate();
+        order.setDtUPDATED(new Date());
+        getEmg().merge(order);
+        JSONObject r = new JSONObject().put("success", true).put("retirees", tous.size());
+        if (reliquat != null) {
+            r.put("reliquatId", reliquat.getLgSUGGESTIONORDERID()).put("reliquatRef", reliquat.getStrREF())
+                    .put("reliquatLignes", avecReliquat.size());
+        }
+        return r;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject lignesRetirees(String suggestionId) {
+        List<Tuple> lignes = getEmg().createNativeQuery("SELECT r.lg_ID AS id, r.lg_FAMILLE_ID AS famille,"
+                + " f.int_CIP AS cip, f.str_NAME AS nom, r.int_NUMBER AS qte, r.int_PAF_DETAIL AS paf,"
+                + " r.int_PRICE_DETAIL AS prix, r.str_MOTIF AS motif,"
+                + " DATE_FORMAT(r.dt_RETRAIT, '%d/%m/%Y %H:%i') AS date,"
+                + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS utilisateur,"
+                + " s.str_REF AS reliquat,"
+                + " (SELECT COALESCE(SUM(d.int_NUMBER), 0) FROM t_suggestion_order_details d"
+                + "   WHERE d.lg_SUGGESTION_ORDER_ID = r.lg_SUGGESTION_ORDER_ID"
+                + "   AND d.lg_FAMILLE_ID = r.lg_FAMILLE_ID) AS present"
+                + " FROM t_suggestion_ligne_retiree r JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
+                + " LEFT JOIN t_user u ON u.lg_USER_ID = r.lg_USER_ID"
+                + " LEFT JOIN t_suggestion_order s ON s.lg_SUGGESTION_ORDER_ID = r.lg_RELIQUAT_SUGGESTION_ID"
+                + " WHERE r.lg_SUGGESTION_ORDER_ID = :id AND r.dt_RAMENE IS NULL ORDER BY r.dt_RETRAIT DESC, f.str_NAME",
+                Tuple.class).setParameter("id", suggestionId).getResultList();
+        JSONArray data = new JSONArray();
+        for (Tuple t : lignes) {
+            data.put(new JSONObject().put("id", t.get("id")).put("familleId", t.get("famille"))
+                    .put("cip", String.valueOf(t.get("cip"))).put("nom", t.get("nom"))
+                    .put("quantite", nombre(t.get("qte"))).put("paf", nombre(t.get("paf")))
+                    .put("prix", nombre(t.get("prix"))).put("motif", t.get("motif")).put("date", t.get("date"))
+                    .put("utilisateur", StringUtils.defaultString((String) t.get("utilisateur")))
+                    .put("reliquat", t.get("reliquat") == null ? "" : t.get("reliquat"))
+                    .put("present", nombre(t.get("present"))));
+        }
+        return new JSONObject().put("success", true).put("data", data).put("total", data.length());
+    }
+
+    private static int nombre(Object v) {
+        return v instanceof Number ? ((Number) v).intValue() : 0;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject ramenerLignes(String suggestionId, Map<String, Integer> quantites) {
+        TSuggestionOrder order = getEmg().find(TSuggestionOrder.class, suggestionId);
+        if (order == null) {
+            return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+        }
+        if (Constant.STATUT_ENABLE.equals(order.getStrSTATUT())) {
+            return new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée");
+        }
+        if (quantites == null || quantites.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Aucun produit choisi");
+        }
+        int ajoutes = 0, completes = 0;
+        for (Map.Entry<String, Integer> e : quantites.entrySet()) {
+            List<Object[]> r = getEmg()
+                    .createNativeQuery("SELECT lg_FAMILLE_ID, int_NUMBER FROM t_suggestion_ligne_retiree"
+                            + " WHERE lg_ID = :id AND lg_SUGGESTION_ORDER_ID = :s AND dt_RAMENE IS NULL")
+                    .setParameter("id", e.getKey()).setParameter("s", suggestionId).getResultList();
+            if (r.isEmpty()) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Un produit n'est plus dans la liste des produits retirés : rouvrez la liste");
+            }
+            int qte = e.getValue() != null && e.getValue() > 0 ? e.getValue() : nombre(r.get(0)[1]);
+            if (qte <= 0) {
+                return new JSONObject().put("success", false).put("msg", "La quantité doit être positive");
+            }
+            TFamille famille = getEmg().find(TFamille.class, (String) r.get(0)[0]);
+            TSuggestionOrderDetails existant = isProductExist(famille.getLgFAMILLEID(), suggestionId);
+            if (existant == null) {
+                initTSuggestionOrderDetail(order, famille, order.getLgGROSSISTEID(), qte);
+                ajoutes++;
+            } else {
+                /* Deja present : la quantite s'ajoute, pas de doublon. */
+                existant.setIntNUMBER(existant.getIntNUMBER() + qte);
+                existant.setIntPRICE(existant.getIntNUMBER() * existant.getIntPAFDETAIL());
+                existant.setDtUPDATED(new Date());
+                getEmg().merge(existant);
+                completes++;
+            }
+            getEmg().createNativeQuery("UPDATE t_suggestion_ligne_retiree SET dt_RAMENE = NOW() WHERE lg_ID = :id")
+                    .setParameter("id", e.getKey()).executeUpdate();
+        }
+        order.setDtUPDATED(new Date());
+        getEmg().merge(order);
+        return new JSONObject().put("success", true).put("ajoutes", ajoutes).put("completes", completes);
     }
 
     @Override
@@ -1992,6 +2151,7 @@ public class SuggestionImpl implements SuggestionService {
         if (CollectionUtils.isNotEmpty(idsToDelete)) {
             LOG.log(Level.INFO, "{0} lignes a supprimer pour la suggestion {1}",
                     new Object[] { idsToDelete.size(), suggestionId });
+            journaliserRetrait(idsToDelete, MOTIF_SUPPRESSION_USER, tUser.getLgUSERID(), null);
             removeInBulk(idsToDelete);
             LOG.log(Level.INFO, "Nettoyage termine pour la suggestion {0}", suggestionId);
         } else {
