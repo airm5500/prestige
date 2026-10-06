@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tableau RH (API v1/rh/tableau/pdf, plan d'octobre section 3) : un employe par ligne, retards, absences, heures
+     supplementaires et anomalies de pointage sur la periode. Alimente par les lignes de l'API. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rh_tableau" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <field name="matricule" class="java.lang.String"/>
+    <field name="employe" class="java.lang.String"/>
+    <field name="joursPrevus" class="java.lang.Integer"/>
+    <field name="joursPresents" class="java.lang.Integer"/>
+    <field name="joursAbsenceJustifiee" class="java.lang.Double"/>
+    <field name="absencesNonJustifiees" class="java.lang.Integer"/>
+    <field name="retards" class="java.lang.Integer"/>
+    <field name="retardTexte" class="java.lang.String"/>
+    <field name="departsAnticipes" class="java.lang.Integer"/>
+    <field name="prevuTexte" class="java.lang.String"/>
+    <field name="presenceTexte" class="java.lang.String"/>
+    <field name="heuresSupTexte" class="java.lang.String"/>
+    <field name="anomalies" class="java.lang.Integer"/>
+    <title>
+        <band height="56">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="30" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="26">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="26" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="4" y="0" width="60" height="26" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Matricule]]></text></staticText>
+                <staticText><reportElement x="66" y="0" width="190" height="26" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Employé]]></text></staticText>
+                <staticText><reportElement x="258" y="0" width="44" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Jours prévus]]></text></staticText>
+                <staticText><reportElement x="304" y="0" width="46" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Jours présents]]></text></staticText>
+                <staticText><reportElement x="352" y="0" width="50" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Abs. justif. (j)]]></text></staticText>
+                <staticText><reportElement x="404" y="0" width="50" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Abs. non justif.]]></text></staticText>
+                <staticText><reportElement x="456" y="0" width="40" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Retards]]></text></staticText>
+                <staticText><reportElement x="498" y="0" width="52" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Durée retards]]></text></staticText>
+                <staticText><reportElement x="552" y="0" width="44" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Départs anticipés]]></text></staticText>
+                <staticText><reportElement x="598" y="0" width="52" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Prévu]]></text></staticText>
+                <staticText><reportElement x="652" y="0" width="52" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Présence]]></text></staticText>
+                <staticText><reportElement x="706" y="0" width="52" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Heures sup.]]></text></staticText>
+                <staticText><reportElement x="760" y="0" width="40" height="26" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Anomalies]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="15">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true"><reportElement x="4" y="0" width="60" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{matricule}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="66" y="0" width="190" height="13"/><textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{employe}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="258" y="0" width="44" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{joursPrevus}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="304" y="0" width="46" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{joursPresents}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.#" isBlankWhenNull="true"><reportElement x="352" y="0" width="50" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{joursAbsenceJustifiee}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="404" y="0" width="50" height="13" forecolor="#C0392B"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{absencesNonJustifiees}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="456" y="0" width="40" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{retards}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="498" y="0" width="52" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{retardTexte}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="552" y="0" width="44" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{departsAnticipes}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="598" y="0" width="52" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{prevuTexte}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="652" y="0" width="52" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{presenceTexte}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="706" y="0" width="52" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{heuresSupTexte}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="760" y="0" width="40" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{anomalies}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucune donnée de présence sur la période.]]></text></staticText></band>
+    </noData>
+</jasperReport>

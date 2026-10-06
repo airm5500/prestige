@@ -2719,3 +2719,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .rh-act { display: inline-block; width: 18px; height: 16px; margin: 0 2px; cursor: pointer; font: normal normal normal 14px/1 FontAwesome; text-align: center; }
 .rh-act-valider:before { content: "\f00c"; color: #1e8449; } .rh-act-refuser:before { content: "\f00d"; color: #c0392b; }
 .rh-act-modifier:before { content: "\f040"; color: #2e86c1; } .rh-act-supprimer:before { content: "\f1f8"; color: #7f8c8d; }
+.rh-anomalie { display: inline-block; background: #fdebd0; color: #9a5b0b; border-radius: 3px; padding: 0 5px; margin: 1px 2px 1px 0; font-size: 10px; font-weight: 700; }
+.rh-anomalie-forte { background: #fadbd8; color: #a93226; }
+.rh-apercu { border-collapse: collapse; font-size: 11px; } .rh-apercu th, .rh-apercu td { border: 1px solid #dfe6ee; padding: 2px 6px; }
+.rh-apercu th { background: #1e3a5f; color: #fff; }

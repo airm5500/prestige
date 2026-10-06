@@ -7,7 +7,11 @@
  *  - Conges et absences : calendrier du mois (couleur par type, demande en clair, valide en plein) et liste des
  *    demandes a valider / refuser (droit P_RH_VALIDER_CONGE) ;
  *  - Employes : matricule et badge uniques, lien facultatif vers un utilisateur du logiciel ;
- *  - Connexions : connexion / deconnexion de chaque utilisateur (poste, adresse, duree).
+ *  - Connexions : connexion / deconnexion de chaque utilisateur (poste, adresse, duree) ;
+ *  - (L11b) Presence du jour : pointages, entree, sortie, presence, retard, heures sup., anomalies ; pointage manuel ;
+ *  - (L11b) Pointages : import de la pointeuse en trois etapes (lecture, controle, enregistrement) selon le modele de la
+ *    marque, modeles, historique des imports ;
+ *  - (L11b) Tableau : retards, absences, heures supplementaires sur une periode, Excel et PDF (dans l'onglet).
  * Les fenetres sont des fenetres de saisie (aucune edition en pop-up).
  */
 Ext.define('testextjs.view.rh.RhManager', {
@@ -29,7 +33,8 @@ Ext.define('testextjs.view.rh.RhManager', {
         var me = this;
         me.lundi = me.lundiDe(new Date());
         me.mois = Ext.Date.getFirstDateOfMonth(new Date());
-        me.items = [me.ongletPlanning(), me.ongletAbsences(), me.ongletEmployes(), me.ongletConnexions()];
+        me.items = [me.ongletPlanning(), me.ongletPresence(), me.ongletAbsences(), me.ongletPointages(), me.ongletTableau(),
+            me.ongletEmployes(), me.ongletConnexions()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.appel('GET', '../api/v1/rh/droits', null, function (r) {
@@ -46,6 +51,13 @@ Ext.define('testextjs.view.rh.RhManager', {
                 me.down('#ongletConnexions').getStore().load();
             } else if (t.itemId === 'ongletPlanning') {
                 me.chargerPlanning();
+            } else if (t.itemId === 'ongletPresence') {
+                me.chargerPresence();
+            } else if (t.itemId === 'ongletPointages') {
+                me.chargerModeles();
+                me.down('#grilleLots').getStore().load();
+            } else if (t.itemId === 'ongletTableau') {
+                me.chargerTableau();
             }
         });
     },
@@ -121,7 +133,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                     };
                 }(i))});
         }
-        colonnes.push({text: 'Heures prévues', dataIndex: 'minutes', width: 110, align: 'right', renderer: function (v) {
+        colonnes.push({text: 'Heures prévues', dataIndex: 'minutes', width: 130, align: 'right', renderer: function (v) {
                 return '<b>' + me.heures(v) + '</b>';
             }});
         var store = Ext.create('Ext.data.Store', {
@@ -576,5 +588,384 @@ Ext.define('testextjs.view.rh.RhManager', {
                 {text: 'Adresse', dataIndex: 'ip', width: 120}
             ]
         };
+    },
+    /* ------------------------------------------------------------------ presence (L11b) */
+
+    ANOMALIES: {DOUBLON: 'doublon', DEUX_ENTREES: 'deux entrées', SORTIE_SANS_ENTREE: 'sortie sans entrée', ENTREE_SANS_SORTIE: 'entrée sans sortie',
+        JOURNEE_LONGUE: 'journée anormalement longue', POINTAGE_EN_CONGE: 'pointage pendant une absence', ABSENT: 'absent (non justifié)',
+        HORS_PLANNING: 'hors planning'},
+
+    anomaliesTexte: function (v) {
+        var me = this;
+        return (v || '').split(',').filter(function (a) {
+            return a;
+        }).map(function (a) {
+            return '<span class="rh-anomalie' + (a === 'ABSENT' ? ' rh-anomalie-forte' : '') + '">' + (me.ANOMALIES[a] || a) + '</span>';
+        }).join(' ');
+    },
+
+    ongletPresence: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['employeId', 'employe', 'matricule', 'jour', 'prevu', 'entree', 'sortie', 'minutesPrevues', 'minutesPresence', 'retard',
+                'departAnticipe', 'heuresSup', 'absence', 'anomalies', 'pointages'], data: []
+        });
+        var min = function (v) {
+            return v ? me.heures(v) : '';
+        };
+        return {
+            xtype: 'grid', itemId: 'ongletPresence', title: 'Présence du jour', store: store,
+            viewConfig: {emptyText: 'Rien de prévu ni de pointé ce jour-là.', deferEmptyText: false},
+            tbar: [
+                {text: '◀', itemId: 'jourPrec', handler: function () {
+                        var f = me.down('#jourPresence');
+                        f.setValue(Ext.Date.add(f.getValue(), Ext.Date.DAY, -1));
+                        me.chargerPresence();
+                    }},
+                {xtype: 'datefield', itemId: 'jourPresence', width: 130, format: 'd/m/Y', value: new Date(), editable: false, listeners: {select: function () {
+                            me.chargerPresence();
+                        }}},
+                {text: '▶', itemId: 'jourSuiv', handler: function () {
+                        var f = me.down('#jourPresence');
+                        f.setValue(Ext.Date.add(f.getValue(), Ext.Date.DAY, 1));
+                        me.chargerPresence();
+                    }},
+                '->',
+                {text: 'Pointage manuel', itemId: 'btnPointageManuel', handler: function () {
+                        me.pointageManuel();
+                    }}
+            ],
+            columns: [
+                {text: 'Employé', dataIndex: 'employe', flex: 1, renderer: function (v, m, r) {
+                        return '<b>' + me.esc(v) + '</b> <span style="color:#7f8c8d">' + me.esc(r.get('matricule')) + '</span>';
+                    }},
+                {text: 'Prévu', dataIndex: 'prevu', width: 120},
+                {text: 'Pointages', dataIndex: 'pointages', width: 190, renderer: function (v) {
+                        return me.esc(v);
+                    }},
+                {text: 'Entrée', dataIndex: 'entree', width: 60},
+                {text: 'Sortie', dataIndex: 'sortie', width: 60},
+                {text: 'Présence', dataIndex: 'minutesPresence', width: 80, align: 'right', renderer: min},
+                {text: 'Retard', dataIndex: 'retard', width: 70, align: 'right', renderer: function (v) {
+                        return v ? '<b style="color:#c0392b">' + v + ' min</b>' : '';
+                    }},
+                {text: 'Départ anticipé', dataIndex: 'departAnticipe', width: 95, align: 'right', renderer: function (v) {
+                        return v ? '<span style="color:#c0392b">' + v + ' min</span>' : '';
+                    }},
+                {text: 'Heures sup.', dataIndex: 'heuresSup', width: 80, align: 'right', renderer: function (v) {
+                        return v ? '<b style="color:#1e8449">' + me.heures(v) + '</b>' : '';
+                    }},
+                {text: 'Absence', dataIndex: 'absence', width: 110},
+                {text: 'Anomalies', dataIndex: 'anomalies', flex: 1, renderer: function (v) {
+                        return me.anomaliesTexte(v);
+                    }}
+            ]
+        };
+    },
+
+    chargerPresence: function () {
+        var me = this, g = me.down('#ongletPresence');
+        me.appel('GET', '../api/v1/rh/presence?jour=' + me.iso(g.down('#jourPresence').getValue()), null, function (r) {
+            g.getStore().loadData(r.data);
+            me.pointagesJour = r.pointages;
+        });
+    },
+
+    pointageManuel: function () {
+        var me = this, jour = me.down('#jourPresence') ? me.down('#jourPresence').getValue() : new Date();
+        var ouvrir = function () {
+            var win = Ext.create('Ext.window.Window', {
+                title: 'Pointage manuel', modal: true, width: 400, bodyPadding: 12, itemId: 'fenetrePointage',
+                items: [{xtype: 'form', border: false, defaults: {anchor: '100%', labelWidth: 90}, items: [
+                            {xtype: 'combobox', name: 'employeId', fieldLabel: 'Employé', queryMode: 'local', displayField: 'l', valueField: 'id', forceSelection: true,
+                                allowBlank: false, store: Ext.create('Ext.data.Store', {fields: ['id', 'l'], data: Ext.Array.map(me.employes || [], function (e) {
+                                        return {id: e.id, l: e.nom + ' ' + (e.prenoms || '') + ' (' + e.matricule + ')'};
+                                    })})},
+                            {xtype: 'datefield', name: 'jour', fieldLabel: 'Date', format: 'd/m/Y', value: jour, allowBlank: false, maxValue: new Date()},
+                            {xtype: 'textfield', name: 'heure', fieldLabel: 'Heure', emptyText: '08:00', allowBlank: false},
+                            {xtype: 'combobox', name: 'sens', fieldLabel: 'Sens', editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: 'ENTREE',
+                                store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 'ENTREE', l: 'Entrée'}, {v: 'SORTIE', l: 'Sortie'}]})},
+                            {xtype: 'textarea', name: 'motif', fieldLabel: 'Motif', allowBlank: false, height: 60, emptyText: 'obligatoire (oubli de badge, panne…)'}
+                        ]}],
+                buttons: [{text: 'Annuler', cls: 'fen-btn', handler: function () {
+                            win.close();
+                        }}, {text: 'Enregistrer', itemId: 'btnEnregistrerPointage', cls: 'fen-btn fen-btn-principal', handler: function () {
+                            var f = win.down('form');
+                            if (!f.isValid()) {
+                                return;
+                            }
+                            var v = function (n) {
+                                return f.down('[name=' + n + ']').getValue();
+                            };
+                            me.appel('POST', '../api/v1/rh/pointages', {employeId: v('employeId'), jour: me.iso(v('jour')), heure: v('heure'), sens: v('sens'),
+                                motif: v('motif')}, function () {
+                                win.close();
+                                me.chargerPresence();
+                            });
+                        }}]
+            });
+            win.show();
+        };
+        if (me.employes) {
+            ouvrir();
+        } else {
+            me.appel('GET', '../api/v1/rh/employes', null, function (e) {
+                me.employes = e.data;
+                ouvrir();
+            });
+        }
+    },
+
+    /* ------------------------------------------------------------------ pointages (import, L11b) */
+
+    ongletPointages: function () {
+        var me = this;
+        var modeles = Ext.create('Ext.data.Store', {fields: ['id', 'marque', 'colBadge', 'colDate', 'colHeure', 'colSens', 'formatDate', 'formatHeure', 'entete',
+                'valeursEntree', 'valeursSortie'], data: []});
+        var lots = Ext.create('Ext.data.Store', {fields: ['date', 'fichier', 'marque', 'lues', 'retenues', 'rejetees', 'dejaConnues', 'rapport', 'par'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/pointages/lots', reader: {type: 'json', root: 'data'}}});
+        var rapport = Ext.create('Ext.data.Store', {fields: ['ligne', 'badge', 'employe', 'horodatage', 'sens', 'statut', 'motif'], data: []});
+        var couleur = {RETENUE: '#1e8449', REJETEE: '#c0392b', CONNUE: '#7f8c8d', DOUBLON: '#b9770e'};
+        return {
+            xtype: 'panel', itemId: 'ongletPointages', title: 'Pointages', layout: {type: 'vbox', align: 'stretch'}, bodyPadding: 8,
+            items: [
+                {xtype: 'form', itemId: 'formImport', border: false, layout: 'hbox', defaults: {margin: '0 8 0 0'}, items: [
+                        {xtype: 'combobox', itemId: 'modeleImport', fieldLabel: 'Pointeuse', labelWidth: 70, width: 330, store: modeles, queryMode: 'local',
+                            displayField: 'marque', valueField: 'id', editable: false},
+                        {xtype: 'button', text: 'Modèle…', itemId: 'btnModele', handler: function () {
+                                var m = me.down('#modeleImport'), r = m.getValue() ? modeles.getById(m.getValue()) : null;
+                                me.editerModele(r);
+                            }},
+                        {xtype: 'button', text: 'Nouveau modèle', itemId: 'btnNouveauModele', handler: function () {
+                                me.editerModele(null);
+                            }},
+                        {xtype: 'filefield', name: 'fichier', itemId: 'fichierImport', buttonText: 'Choisir le fichier…', width: 320, hideLabel: true},
+                        {xtype: 'button', text: '1. Lire', itemId: 'btnLire', handler: function () {
+                                me.lireFichier();
+                            }},
+                        {xtype: 'button', text: '2. Contrôler', itemId: 'btnControler', disabled: true, handler: function () {
+                                me.etapeImport(false);
+                            }},
+                        {xtype: 'button', text: '3. Enregistrer', itemId: 'btnExecuter', disabled: true, cls: 'fen-btn-principal', handler: function () {
+                                me.etapeImport(true);
+                            }}
+                    ]},
+                {xtype: 'component', itemId: 'apercuImport', margin: '6 0', html: '<div style="color:#7f8c8d">Choisissez la pointeuse et le fichier exporté (CSV, TXT, XLS ou XLSX), puis « Lire ».</div>'},
+                {xtype: 'grid', itemId: 'grilleRapport', store: rapport, flex: 1, title: 'Contrôle ligne à ligne',
+                    viewConfig: {emptyText: 'Le contrôle s\'affiche ici avant tout enregistrement.', deferEmptyText: false},
+                    columns: [
+                        {text: 'Ligne', dataIndex: 'ligne', width: 55},
+                        {text: 'Badge', dataIndex: 'badge', width: 90},
+                        {text: 'Employé', dataIndex: 'employe', flex: 1},
+                        {text: 'Date et heure', dataIndex: 'horodatage', width: 140},
+                        {text: 'Sens', dataIndex: 'sens', width: 80},
+                        {text: 'Statut', dataIndex: 'statut', width: 90, renderer: function (v) {
+                                return '<b style="color:' + (couleur[v] || '#555') + '">' + ({RETENUE: 'retenue', REJETEE: 'rejetée', CONNUE: 'déjà connue', DOUBLON: 'répétée'}[v] || v) + '</b>';
+                            }},
+                        {text: 'Motif', dataIndex: 'motif', flex: 1}
+                    ]},
+                {xtype: 'grid', itemId: 'grilleLots', store: lots, height: 150, title: 'Historique des imports',
+                    viewConfig: {emptyText: 'Aucun import.', deferEmptyText: false},
+                    columns: [
+                        {text: 'Date', dataIndex: 'date', width: 130},
+                        {text: 'Fichier', dataIndex: 'fichier', flex: 1},
+                        {text: 'Pointeuse', dataIndex: 'marque', width: 180},
+                        {text: 'Lues', dataIndex: 'lues', width: 55, align: 'right'},
+                        {text: 'Enregistrées', dataIndex: 'retenues', width: 85, align: 'right'},
+                        {text: 'Rejetées', dataIndex: 'rejetees', width: 70, align: 'right'},
+                        {text: 'Déjà connues', dataIndex: 'dejaConnues', width: 85, align: 'right'},
+                        {text: 'Par', dataIndex: 'par', width: 140}
+                    ]}
+            ]
+        };
+    },
+
+    chargerModeles: function () {
+        var me = this;
+        me.appel('GET', '../api/v1/rh/pointages/modeles', null, function (r) {
+            var c = me.down('#modeleImport'), v = c.getValue();
+            c.getStore().loadData(r.data);
+            c.setValue(v && c.getStore().getById(v) ? v : (r.data[0] ? r.data[0].id : null));
+        });
+    },
+
+    lireFichier: function () {
+        var me = this, f = me.down('#formImport');
+        if (!me.down('#fichierImport').getValue()) {
+            Ext.MessageBox.alert('Pointages', 'Choisissez d\'abord le fichier exporté par la pointeuse.');
+            return;
+        }
+        me.down('#btnControler').disable();
+        me.down('#btnExecuter').disable();
+        f.getForm().submit({
+            url: '../api/v1/rh/pointages/import/analyse', waitMsg: 'Lecture du fichier…',
+            success: function (form, action) {
+                me.apresLecture(action.result);
+            },
+            failure: function (form, action) {
+                var r = action.result || Ext.JSON.decode(action.response && action.response.responseText, true) || {};
+                if (r.success) {
+                    me.apresLecture(r);
+                } else {
+                    Ext.MessageBox.alert('Pointages', me.esc(r.message || r.msg || 'Lecture impossible.'));
+                }
+            }
+        });
+    },
+
+    apresLecture: function (r) {
+        var me = this;
+        me.jetonImport = r.jeton;
+        var h = '<div style="margin-bottom:4px"><b>' + me.esc(r.fichier) + '</b> : ' + r.lignes + ' ligne(s), ' + r.colonnes + ' colonne(s). Premières lignes :</div>'
+                + '<table class="rh-apercu"><tr>';
+        for (var c = 1; c <= r.colonnes; c++) {
+            h += '<th>' + c + '</th>';
+        }
+        h += '</tr>' + (r.apercu || []).map(function (l) {
+            var t = '<tr>';
+            for (var c = 0; c < r.colonnes; c++) {
+                t += '<td>' + me.esc(l[c] || '') + '</td>';
+            }
+            return t + '</tr>';
+        }).join('') + '</table>';
+        me.down('#apercuImport').update(h);
+        me.down('#btnControler').enable();
+    },
+
+    etapeImport: function (ecrire) {
+        var me = this, modele = me.down('#modeleImport').getValue();
+        if (!me.jetonImport) {
+            return;
+        }
+        var faire = function () {
+            me.appel('POST', '../api/v1/rh/pointages/import/' + (ecrire ? 'executer' : 'controle') + '?jeton=' + encodeURIComponent(me.jetonImport)
+                    + '&modeleId=' + encodeURIComponent(modele || ''), null, function (r) {
+                        me.down('#grilleRapport').getStore().loadData(r.detail || []);
+                        me.down('#grilleRapport').setTitle('Contrôle ligne à ligne — ' + me.esc(r.message));
+                        if (ecrire) {
+                            me.jetonImport = null;
+                            me.down('#btnControler').disable();
+                            me.down('#btnExecuter').disable();
+                            me.down('#grilleLots').getStore().load();
+                        } else {
+                            me.down('#btnExecuter').setDisabled(!r.retenues);
+                        }
+                    });
+        };
+        if (ecrire) {
+            Ext.MessageBox.confirm('Pointages', 'Enregistrer les pointages retenus ?', function (b) {
+                if (b === 'yes') {
+                    faire();
+                }
+            });
+        } else {
+            faire();
+        }
+    },
+
+    editerModele: function (rec) {
+        var me = this, d = rec ? rec.data : {colBadge: 1, colDate: 2, colHeure: 3, colSens: 4, formatDate: 'dd/MM/yyyy', formatHeure: 'HH:mm', entete: true,
+            valeursEntree: 'ENTREE,IN,E,0', valeursSortie: 'SORTIE,OUT,S,1'};
+        var win = Ext.create('Ext.window.Window', {
+            title: rec ? 'Modèle de pointeuse : ' + me.esc(d.marque) : 'Nouveau modèle de pointeuse', modal: true, width: 480, bodyPadding: 12, itemId: 'fenetreModele',
+            items: [{xtype: 'form', border: false, defaults: {anchor: '100%', labelWidth: 170}, items: [
+                        {xtype: 'textfield', name: 'marque', fieldLabel: 'Marque / modèle', allowBlank: false, value: d.marque},
+                        {xtype: 'numberfield', name: 'colBadge', fieldLabel: 'Colonne du badge', minValue: 1, value: d.colBadge},
+                        {xtype: 'numberfield', name: 'colDate', fieldLabel: 'Colonne de la date', minValue: 1, value: d.colDate},
+                        {xtype: 'numberfield', name: 'colHeure', fieldLabel: 'Colonne de l\'heure (0 = avec la date)', minValue: 0, value: d.colHeure},
+                        {xtype: 'numberfield', name: 'colSens', fieldLabel: 'Colonne du sens (0 = aucune)', minValue: 0, value: d.colSens},
+                        {xtype: 'textfield', name: 'formatDate', fieldLabel: 'Format de la date', value: d.formatDate, emptyText: 'dd/MM/yyyy ou yyyy-MM-dd HH:mm:ss'},
+                        {xtype: 'textfield', name: 'formatHeure', fieldLabel: 'Format de l\'heure', value: d.formatHeure, emptyText: 'HH:mm ou HH:mm:ss'},
+                        {xtype: 'checkbox', name: 'entete', fieldLabel: 'Première ligne', boxLabel: 'ligne de titres (ignorée)', checked: d.entete !== false},
+                        {xtype: 'textfield', name: 'valeursEntree', fieldLabel: 'Valeurs « entrée »', value: d.valeursEntree},
+                        {xtype: 'textfield', name: 'valeursSortie', fieldLabel: 'Valeurs « sortie »', value: d.valeursSortie}
+                    ]}],
+            buttons: [{text: 'Annuler', cls: 'fen-btn', handler: function () {
+                        win.close();
+                    }}, {text: 'Enregistrer', itemId: 'btnEnregistrerModele', cls: 'fen-btn fen-btn-principal', handler: function () {
+                        var f = win.down('form'), v = function (n) {
+                            return f.down('[name=' + n + ']').getValue();
+                        };
+                        if (!f.isValid()) {
+                            return;
+                        }
+                        me.appel('POST', '../api/v1/rh/pointages/modeles', {id: rec ? d.id : null, marque: v('marque'), colBadge: v('colBadge'), colDate: v('colDate'),
+                            colHeure: v('colHeure') || 0, colSens: v('colSens') || 0, formatDate: v('formatDate'), formatHeure: v('formatHeure'),
+                            entete: !!v('entete'), valeursEntree: v('valeursEntree'), valeursSortie: v('valeursSortie')}, function (r) {
+                            win.close();
+                            me.chargerModeles();
+                            me.down('#modeleImport').setValue(r.id);
+                        });
+                    }}]
+        });
+        win.show();
+    },
+
+    /* ------------------------------------------------------------------ tableau (L11b) */
+
+    ongletTableau: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {fields: ['employeId', 'employe', 'matricule', 'joursPrevus', 'joursPresents', 'joursAbsenceJustifiee',
+                'absencesNonJustifiees', 'retards', 'minutesRetard', 'departsAnticipes', 'minutesPrevues', 'minutesPresence', 'heuresSup', 'anomalies'], data: []});
+        var params = function () {
+            var t = me.down('#ongletTableau');
+            return 'du=' + me.iso(t.down('#tabDu').getValue()) + '&au=' + me.iso(t.down('#tabAu').getValue());
+        };
+        return {
+            xtype: 'grid', itemId: 'ongletTableau', title: 'Tableau', store: store,
+            viewConfig: {emptyText: 'Aucune donnée de présence sur la période.', deferEmptyText: false},
+            tbar: [
+                {xtype: 'datefield', itemId: 'tabDu', fieldLabel: 'Du', labelWidth: 25, width: 145, format: 'd/m/Y', value: Ext.Date.getFirstDateOfMonth(new Date())},
+                {xtype: 'datefield', itemId: 'tabAu', fieldLabel: 'Au', labelWidth: 25, width: 145, format: 'd/m/Y', value: new Date()},
+                {text: 'Rechercher', itemId: 'btnTableau', handler: function () {
+                        me.chargerTableau();
+                    }},
+                '->',
+                {text: 'Excel', itemId: 'btnTableauExcel', iconCls: 'export_excel_icon', handler: function () {
+                        window.location = '../api/v1/rh/tableau/excel?' + params();
+                    }},
+                {text: 'Excel (détail par jour)', itemId: 'btnPresenceExcel', iconCls: 'export_excel_icon', handler: function () {
+                        window.location = '../api/v1/rh/tableau/excel?detail=true&' + params();
+                    }},
+                {text: 'Imprimer', itemId: 'btnTableauPdf', iconCls: 'printable', handler: function () {
+                        window.open('../api/v1/rh/tableau/pdf?' + params(), '_blank');
+                    }}
+            ],
+            columns: [
+                {text: 'Employé', dataIndex: 'employe', flex: 1, renderer: function (v, m, r) {
+                        return '<b>' + me.esc(v) + '</b> <span style="color:#7f8c8d">' + me.esc(r.get('matricule')) + '</span>';
+                    }},
+                {text: 'Jours prévus', dataIndex: 'joursPrevus', width: 85, align: 'right'},
+                {text: 'Jours présents', dataIndex: 'joursPresents', width: 95, align: 'right'},
+                {text: 'Absences justifiées', dataIndex: 'joursAbsenceJustifiee', width: 120, align: 'right', renderer: function (v) {
+                        return v ? String(v).replace('.', ',') + ' j' : '';
+                    }},
+                {text: 'Absences non justifiées', dataIndex: 'absencesNonJustifiees', width: 140, align: 'right', renderer: function (v) {
+                        return v ? '<b style="color:#c0392b">' + v + '</b>' : '';
+                    }},
+                {text: 'Retards', dataIndex: 'retards', width: 65, align: 'right'},
+                {text: 'Durée des retards', dataIndex: 'minutesRetard', width: 110, align: 'right', renderer: function (v) {
+                        return v ? me.heures(v) : '';
+                    }},
+                {text: 'Départs anticipés', dataIndex: 'departsAnticipes', width: 110, align: 'right'},
+                {text: 'Prévu', dataIndex: 'minutesPrevues', width: 80, align: 'right', renderer: function (v) {
+                        return me.heures(v);
+                    }},
+                {text: 'Présence', dataIndex: 'minutesPresence', width: 80, align: 'right', renderer: function (v) {
+                        return me.heures(v);
+                    }},
+                {text: 'Heures sup.', dataIndex: 'heuresSup', width: 85, align: 'right', renderer: function (v) {
+                        return v ? '<b style="color:#1e8449">' + me.heures(v) + '</b>' : '';
+                    }},
+                {text: 'Anomalies', dataIndex: 'anomalies', width: 80, align: 'right'}
+            ]
+        };
+    },
+
+    chargerTableau: function () {
+        var me = this, t = me.down('#ongletTableau');
+        me.appel('GET', '../api/v1/rh/tableau?du=' + me.iso(t.down('#tabDu').getValue()) + '&au=' + me.iso(t.down('#tabAu').getValue()), null, function (r) {
+            t.getStore().loadData(r.data);
+        });
     }
 });

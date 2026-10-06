@@ -291,8 +291,20 @@ quelques minutes d'écart, journée anormalement longue (seuil paramétrable), p
 - **Connexions** : `t_session_utilisateur` écrit à la connexion (poste, adresse), clos à la déconnexion ; une nouvelle
   connexion du même utilisateur depuis la même adresse clôt la précédente (navigateur fermé). Durée de session
   inchangée (Q-E). Le journal ne bloque jamais une connexion (transaction séparée).
-- Reste pour **L11b** : pointage (import pointeuse avec modèles par marque, saisie manuelle), anomalies, feuille de
-  présence, tableau retards / absences / heures supplémentaires.
+
+**Livré (L11b, 06/10) — pointage.** Trois onglets de plus sur le même écran :
+- **Pointages** : import de l'export de la pointeuse en **trois étapes** (lire : aperçu des colonnes ; contrôler :
+  retenues, badge inconnu, date impossible, ligne répétée, déjà connues — sans écriture ; enregistrer : lot
+  historisé). **Modèle par marque** (colonnes du badge, de la date, de l'heure, du sens ; formats ; valeurs
+  entrée / sortie), configuré une fois ; un modèle « Générique » est fourni. Réimporter un fichier ne double rien.
+- **Présence du jour** : pointages, entrée, sortie, présence, retard (tolérance `KEY_RH_TOLERANCE_RETARD`, 5 min),
+  départ anticipé, heures sup., anomalies (doublon, deux entrées, sortie sans entrée, entrée sans sortie, journée
+  anormalement longue — au-delà de `KEY_RH_JOURNEE_MAX` et d'une heure de plus que le prévu —, pointage pendant une
+  absence, absent non justifié, hors planning). Garde de nuit : les pointages du lendemain jusqu'à la fin + 4 h lui
+  sont rattachés. **Pointage manuel** : motif obligatoire, tracé, jamais dans le futur ; seuls les manuels se suppriment.
+- **Tableau** (période) : jours prévus / présents, absences justifiées / non justifiées, retards, départs anticipés,
+  heures prévues, présence, heures sup., anomalies ; **Excel** (tableau ou détail par jour) et **PDF dans l'onglet**.
+- Pointage mobile : en dernier (L13), comme décidé.
 
 ---
 
