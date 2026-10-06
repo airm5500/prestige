@@ -302,6 +302,16 @@ public class AbcArticleRessource {
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
             @QueryParam("stockMax") Integer stockMax) {
+        /* controle de saisie (07/10) : une periode illisible faisait echouer la transaction (erreur interne) */
+        String refus = util.ControleSaisie.premier(util.ControleSaisie.date("La date de début", dtStart),
+                util.ControleSaisie.date("La date de fin", dtEnd),
+                dtStart == null || dtStart.trim().isEmpty() || dtEnd == null || dtEnd.trim().isEmpty()
+                        ? "Choisissez la période (début et fin)." : null);
+        if (refus != null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", refus).put("message", refus).toString())
+                    .build();
+        }
         JSONObject json = abcAnalysisService.evolution(dtStart, dtEnd, type, indicator, classe, search, codeFamille,
                 codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
         return Response.ok().entity(json.toString()).build();

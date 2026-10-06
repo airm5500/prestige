@@ -68,14 +68,20 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
      */
     private Response saisieInvalide(Throwable exception) {
         try {
-            String texte = util.SaisieInvalide.valeurIllisible(util.ErreurExplication.causeRacine(exception));
-            if (texte == null || request == null
-                    || !util.SaisieInvalide.estSaisie(texte, request.getParameterMap(), request.getRequestURI())) {
+            if (request == null) {
+                return null;
+            }
+            Throwable racine = util.ErreurExplication.causeRacine(exception);
+            java.util.Map<String, String[]> parametres = util.SaisieInvalide.parametresUtf8(request.getQueryString(),
+                    request.getParameterMap());
+            String texte = util.SaisieInvalide.valeurIllisible(racine);
+            String message = texte != null && util.SaisieInvalide.estSaisie(texte, parametres, request.getRequestURI())
+                    ? util.SaisieInvalide.message(texte) : util.SaisieInvalide.autreSaisie(racine, parametres);
+            if (message == null) {
                 return null;
             }
             LOG.log(Level.FINE, "saisie invalide refusee : {0}", request.getRequestURI());
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(ResultFactory.getFailResult(util.SaisieInvalide.message(texte)))
+            return Response.status(Response.Status.BAD_REQUEST).entity(ResultFactory.getFailResult(message))
                     .type(MediaType.APPLICATION_JSON).build();
         } catch (Exception e) {
             return null;

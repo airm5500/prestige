@@ -73,7 +73,8 @@ public class CommonRessource {
     @GET
     @Path("groupefournisseurs")
     public Response getGroupefournisseurs() {
-        List<ComboDTO> data = commonService.loadGroupeFournisseur();
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.loadGroupeFournisseur()); /* liste modifiable : « Tous » y est ajoute */
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
         cc.setPrivate(true);
@@ -315,7 +316,8 @@ public class CommonRessource {
     @GET
     @Path("grossiste")
     public Response loadFournisseur(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.loadFournisseur(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.loadFournisseur(query)); /* liste modifiable : « Tous » y est ajoute */
         data.add(new ComboDTO("ALL", "Tous"));
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
@@ -325,7 +327,8 @@ public class CommonRessource {
     @GET
     @Path("rayons")
     public Response loadRayons(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.loadRayons(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.loadRayons(query)); /* liste modifiable : « Tous » y est ajoute */
         data.add(new ComboDTO("ALL", "Tous"));
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
@@ -335,7 +338,8 @@ public class CommonRessource {
     @GET
     @Path("emplacement")
     public Response loadEmplacement(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.loadRayons(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.loadRayons(query)); /* liste modifiable : « Tous » y est ajoute */
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -381,7 +385,8 @@ public class CommonRessource {
     @GET
     @Path("famillearticles")
     public Response familleArticles(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.familleArticles(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.familleArticles(query)); /* liste modifiable : « Tous » y est ajoute */
         data.add(new ComboDTO("ALL", "Tous"));
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
@@ -391,14 +396,16 @@ public class CommonRessource {
     @GET
     @Path("famillearticle")
     public Response familleArticle(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.familleArticles(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.familleArticles(query)); /* liste modifiable : « Tous » y est ajoute */
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
     @GET
     @Path("laboratoireproduits")
     public Response laboratoireproduits(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.laboratoiresProduits(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.laboratoiresProduits(query)); /* liste modifiable : « Tous » y est ajoute */
         data.add(new ComboDTO(" ", "Tous"));
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
@@ -408,7 +415,8 @@ public class CommonRessource {
     @GET
     @Path("gammeproduits")
     public Response gammeProduits(@QueryParam(value = "query") String query) throws JSONException {
-        List<ComboDTO> data = commonService.gammeProduits(query);
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.gammeProduits(query)); /* liste modifiable : « Tous » y est ajoute */
         data.add(new ComboDTO(" ", "Tous"));
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
@@ -488,7 +496,8 @@ public class CommonRessource {
     @GET
     @Path("type-reglements")
     public Response listeTypeReglements() {
-        List<ComboDTO> data = commonService.findAllTypeReglement();
+        List<ComboDTO> data = new java.util.ArrayList<>(
+                commonService.findAllTypeReglement()); /* liste modifiable : « Tous » y est ajoute */
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
         cc.setPrivate(true);

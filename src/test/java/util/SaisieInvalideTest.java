@@ -51,4 +51,38 @@ public class SaisieInvalideTest {
         assertTrue(SaisieInvalide.message("").startsWith("Un champ obligatoire est vide"));
         assertTrue(SaisieInvalide.message("x".repeat(300)).length() < 100);
     }
+
+    @Test
+    public void autresErreursDeSaisie() {
+        Map<String, String[]> p = new HashMap<>();
+        p.put("query", new String[] { "abc\ud83d\ude00" });
+        assertTrue(SaisieInvalide.autreSaisie(new RuntimeException("Illegal mix of collations (utf8mb3)"), p)
+                .contains("émojis"));
+        Map<String, String[]> sansEmoji = new HashMap<>();
+        sansEmoji.put("query", new String[] { "abc" });
+        assertNull(SaisieInvalide.autreSaisie(new RuntimeException("Illegal mix of collations (utf8mb3)"), sansEmoji),
+                "sans emoji saisi : vraie erreur interne");
+        Map<String, String[]> page = new HashMap<>();
+        page.put("start", new String[] { "-50" });
+        assertEquals("Numéro de page ou de ligne invalide.", SaisieInvalide
+                .autreSaisie(new IllegalArgumentException("first-result value cannot be negative : -50"), page));
+        Map<String, String[]> d = new HashMap<>();
+        d.put("dtStart", new String[] { "2026-13-45" });
+        d.put("query", new String[] { "x" });
+        assertTrue(SaisieInvalide.autreSaisie(new java.time.DateTimeException("Invalid value for MonthOfYear: 13"), d)
+                .contains("2026-13-45"));
+        Map<String, String[]> bonne = new HashMap<>();
+        bonne.put("dtStart", new String[] { "2026-02-01" });
+        assertNull(SaisieInvalide.autreSaisie(new java.time.DateTimeException("x"), bonne),
+                "dates saisies correctes : l'erreur vient d'ailleurs");
+        assertNull(SaisieInvalide.autreSaisie(new NullPointerException(), d));
+    }
+
+    @Test
+    public void parametresRelusEnUtf8() {
+        Map<String, String[]> p = SaisieInvalide.parametresUtf8("query=%C3%A9t%C3%A9%F0%9F%98%80&start=0", null);
+        assertEquals("été\ud83d\ude00", p.get("query")[0]);
+        assertEquals("0", p.get("start")[0]);
+        assertTrue(SaisieInvalide.horsJeuDeCaracteres(p.get("query")[0]));
+    }
 }

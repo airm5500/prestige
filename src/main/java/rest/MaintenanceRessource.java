@@ -83,9 +83,8 @@ public class MaintenanceRessource {
     @Path("/version")
     public Response getVersion() {
 
-        return Response.ok()
-                .entity(new JSONObject().put("version", new JSONObject(rest.service.impl.Utils.version)).toString())
-                .build();
+        return Response.ok().entity(new JSONObject().put("version", rest.service.impl.Utils.version == null
+                ? JSONObject.NULL : new JSONObject(rest.service.impl.Utils.version)).toString()).build();
     }
 
     @GET

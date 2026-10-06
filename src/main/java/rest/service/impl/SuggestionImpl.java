@@ -1882,8 +1882,13 @@ public class SuggestionImpl implements SuggestionService {
 
     @Override
     public boolean changeGrossiste(String suggestionId, String grossisteId) {
-        TSuggestionOrder suggestionOrder = this.em.find(TSuggestionOrder.class, suggestionId);
-        TGrossiste grossiste = this.em.find(TGrossiste.class, grossisteId);
+        TSuggestionOrder suggestionOrder = suggestionId == null ? null
+                : this.em.find(TSuggestionOrder.class, suggestionId);
+        TGrossiste grossiste = grossisteId == null ? null : this.em.find(TGrossiste.class, grossisteId);
+        if (suggestionOrder == null || grossiste == null) {
+            /* suggestion ou grossiste inconnu : rien n'est change (controle de saisie du 07/10) */
+            return false;
+        }
         boolean existAnother = existAnotherSuggesstion(grossiste);
         suggestionOrder.setLgGROSSISTEID(grossiste);
         suggestionOrder.setDtUPDATED(new Date());

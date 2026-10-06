@@ -244,8 +244,8 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
                 "SELECT o FROM TPreenregistrement o WHERE o.caution.id=?1 AND FUNCTION('DATE',o.dtUPDATED) BETWEEN ?2 AND ?3 AND o.strSTATUT=?4",
                 TPreenregistrement.class);
         query.setParameter(1, idCaution);
-        query.setParameter(2, java.sql.Date.valueOf(dtStart));
-        query.setParameter(3, java.sql.Date.valueOf(dtEnd));
+        query.setParameter(2, dateOu(dtStart, LocalDate.now().minusYears(1)));
+        query.setParameter(3, dateOu(dtEnd, LocalDate.now()));
         query.setParameter(4, Constant.STATUT_IS_CLOSED);
         return query.getResultStream()
                 .sorted(Comparator.comparing(TPreenregistrement::getDtUPDATED, Comparator.reverseOrder()))
@@ -323,8 +323,8 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
                 "SELECT o FROM CautionHistorique o WHERE o.caution.id=?1 AND FUNCTION('DATE',o.mvtDate) BETWEEN ?2 AND ?3",
                 CautionHistorique.class);
         query.setParameter(1, idCaution);
-        query.setParameter(2, java.sql.Date.valueOf(dtStart));
-        query.setParameter(3, java.sql.Date.valueOf(dtEnd));
+        query.setParameter(2, dateOu(dtStart, LocalDate.now().minusYears(1)));
+        query.setParameter(3, dateOu(dtEnd, LocalDate.now()));
         return query.getResultStream()
                 .sorted(Comparator.comparing(CautionHistorique::getMvtDate, Comparator.reverseOrder()))
                 .map(this::buildHistoriques).collect(Collectors.toList());
@@ -357,5 +357,14 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
         caisse.setIdTypeRegl(Constant.TYPE_REGLEMENT_ESPECE);
         return caisse;
 
+    }
+
+    /** Date saisie (AAAA-MM-JJ) ; vide ou illisible : la valeur par defaut de l'ecran (controle de saisie du 07/10). */
+    private static java.sql.Date dateOu(String valeur, LocalDate defaut) {
+        try {
+            return java.sql.Date.valueOf(LocalDate.parse(valeur.trim()));
+        } catch (Exception e) {
+            return java.sql.Date.valueOf(defaut);
+        }
     }
 }

@@ -1230,7 +1230,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Map<String, List<CommandeCsvDTO>> commandeEncoursCsv(String idCommande) {
-        TOrder order = this.getEmg().find(TOrder.class, idCommande);
+        TOrder order = idCommande == null ? null : this.getEmg().find(TOrder.class, idCommande);
+        if (order == null) {
+            return Map.of("commande-introuvable", List.of());
+        }
         return Map.of(order.getStrREFORDER(), order.getTOrderDetailCollection().stream().map(this::buildFromOrderDetail)
                 .collect(Collectors.toList()));
 
