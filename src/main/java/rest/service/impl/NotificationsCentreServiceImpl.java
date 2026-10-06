@@ -27,7 +27,9 @@ import rest.service.SuggestionReserveService;
  * <li>renouvellements : chaines d'ordonnances dont le renouvellement suivant tombe d'ici 7 jours ;</li>
  * <li>suggestions commandees non recues : statut « Commandee » depuis plus de 2 jours, commande liee non recue ;</li>
  * <li>commandes non recues : commande passee depuis plus de 2 jours sans aucun bon de livraison entre en stock ;</li>
- * <li>produits indisponibles : derniere reponse PharmaML « non disponible » de moins de 7 jours.</li>
+ * <li>produits indisponibles : derniere reponse PharmaML « non disponible » de moins de 7 jours ;</li>
+ * <li>traitements habituels a preparer : lignes « à préparer » des rappels par habitude d'achat (plan d'octobre,
+ * 4.1).</li>
  * </ul>
  */
 @Stateless
@@ -68,10 +70,16 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 .put(cat("commandes", "Commandes passées non reçues", "fa-clock-o", "#af7ac5", "i_order_manager",
                         false))
                 .put(cat("indisponibles", "Produits indisponibles chez le grossiste", "fa-ban", "#ec7063",
-                        "i_sugg_manager", false));
+                        "i_sugg_manager", false))
+                .put(cat("a-preparer", "Traitements habituels à préparer", "fa-medkit", "#58d68d", "rappelshabitude",
+                        false));
     }
 
     /* ------------------------------------------------------------------ requetes */
+
+    private static final String SQL_A_PREPARER = " FROM t_rappel_habitude r"
+            + " JOIN t_client c ON c.lg_CLIENT_ID = r.lg_CLIENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
+            + " WHERE r.str_STATUT = 'A_PREPARER'";
 
     private static final String COMMANDE_NON_RECUE = " NOT EXISTS (SELECT 1 FROM t_bon_livraison b"
             + " WHERE b.lg_ORDER_ID = o.lg_ORDER_ID AND b.str_STATUT = 'is_Closed')";
@@ -161,6 +169,9 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 case "indisponibles":
                     m.put(cle, compter(SQL_INDISPONIBLES, ilYa(JOURS_DISPONIBILITE)));
                     break;
+                case "a-preparer":
+                    m.put(cle, compter(SQL_A_PREPARER));
+                    break;
                 default:
                     break;
                 }
@@ -231,6 +242,18 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 break;
             case "renouvellements":
                 total = renouvellementService.aRenouvelerSous(JOURS_RENOUVELLEMENT);
+                break;
+            case "a-preparer":
+                total = compter(SQL_A_PREPARER);
+                for (Object[] r : lignes(
+                        "SELECT TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')))"
+                                + ", f.str_NAME, r.dt_PREVU, r.int_FREQUENCE, r.id" + SQL_A_PREPARER
+                                + " ORDER BY r.dt_PREVU ASC",
+                        limite)) {
+                    a.put(new JSONObject().put("titre", t(r[0]))
+                            .put("detail", t(r[1]) + " · prévu le " + jour(r[2]) + " · tous les " + t(r[3]) + " jours")
+                            .put("date", jour(r[2])).put("id", t(r[4])));
+                }
                 break;
             default:
                 break;

@@ -292,6 +292,25 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                                     id: 'str_ADRESSE'
                                 },
                                 {
+                                    /* Plan d'octobre (4.1) : medicaments cites dans les rappels au client, coche par defaut ;
+                                     * decoche, le message reste neutre (« votre traitement habituel »). Montre en modification. */
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Messages',
+                                    boxLabel: 'Afficher les médicaments dans les messages',
+                                    id: 'msg_MEDICAMENTS',
+                                    checked: true,
+                                    hidden: true
+                                },
+                                {
+                                    /* Plan d'octobre (4.2) : consentement WhatsApp, separe du SMS. Enregistre seulement s'il a
+                                     * ete change (non renseigne reste non renseigne). Montre en modification. */
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'WhatsApp',
+                                    boxLabel: 'accepte d\'être contacté par WhatsApp',
+                                    id: 'consent_WHATSAPP',
+                                    hidden: true
+                                },
+                                {
                                     fieldLabel: 'Code Postal',
                                     emptyText: 'CODE POSTAL',
                                     name: 'str_CODE_POSTAL',
@@ -624,6 +643,24 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
             str_SEXE = this.getOdatasource().str_SEXE;
             //  Ext.getCmp('str_SEXE').setValue(this.getOdatasource().str_SEXE);
             Ext.getCmp('str_ADRESSE').setValue(this.getOdatasource().str_ADRESSE);
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/client/' + ref + '/consentement',
+                success: function (response) {
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    var cbMed = Ext.getCmp('msg_MEDICAMENTS');
+                    if (cbMed && r.success) {
+                        cbMed.setValue(r.msgMedicaments !== false);
+                        cbMed.show();
+                    }
+                    var cbWa = Ext.getCmp('consent_WHATSAPP');
+                    if (cbWa && r.success) {
+                        cbWa.setValue(r.consentWhatsapp === true);
+                        cbWa.valeurInitiale = cbWa.getValue();
+                        cbWa.show();
+                    }
+                }
+            });
             Ext.getCmp('str_CODE_POSTAL').setValue(this.getOdatasource().str_CODE_POSTAL);
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
             //  Ext.getCmp('lg_MEDECIN_ID').setValue(this.getOdatasource().lg_MEDECIN_ID);
@@ -809,6 +846,16 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                             Ext.MessageBox.alert('Error Message', object.errors);
                             return;
                         } else {
+                            var cbMed = Ext.getCmp('msg_MEDICAMENTS');
+                            if (cbMed && cbMed.isVisible()) {
+                                Ext.Ajax.request({method: 'POST',
+                                    url: '../api/v1/client/' + ref + '/medicaments-messages?valeur=' + (cbMed.getValue() ? 'true' : 'false')});
+                            }
+                            var cbWa = Ext.getCmp('consent_WHATSAPP');
+                            if (cbWa && cbWa.isVisible() && cbWa.getValue() !== cbWa.valeurInitiale) {
+                                Ext.Ajax.request({method: 'POST',
+                                    url: '../api/v1/client/' + ref + '/consentement-whatsapp?valeur=' + (cbWa.getValue() ? 'true' : 'false')});
+                            }
                             Ext.MessageBox.alert('Confirmation', object.errors);
                             if (type === "clientmanager") {
                                 Ext.MessageBox.alert('Confirmation', object.errors);

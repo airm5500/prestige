@@ -303,6 +303,23 @@ modèles de message, consentement `bool_CONSENT_SMS`. **Le rappel de renouvellem
   - **Préparation des piluliers en amont** : liste du jour « à préparer » (cloche + écran) pour l'équipe.
 - Consentement séparé SMS / WhatsApp, journal des envois, désinscription.
 
+**Livré (L10a, 06/10).**
+- Calcul (`HabitudeAchat`, testé) : ventes clôturées non annulées des 12 derniers mois, par client et produit, jours
+  distincts ; habitude régulière si au moins 3 achats (`KEY_RAPPEL_HABITUDE_MIN_ACHATS`), écart moyen de 7 à 120 jours
+  et variation des écarts ≤ 35 % (`KEY_RAPPEL_HABITUDE_ECART_MAX`) ; prochain achat = dernier achat + écart moyen.
+- Inscription quotidienne (07 h 13, poste serveur) dans `t_rappel_habitude` des produits dont le prochain achat tombe
+  à ± N jours (`KEY_RAPPEL_HABITUDE_JOURS`, 3) ; **un cycle n'est inscrit qu'une fois** ; une ligne passe à « Racheté »
+  dès que le client rachète.
+- Écran **SERVICE CLIENT › Rappels et piluliers** (droit `P_SM_RAPPELS_HABITUDE`, donné à ceux qui ont les
+  ordonnances clients) : lignes groupées par client, stock, fréquence, « Marquer préparé », « Écarter », « Remettre
+  à préparer », « Envoyer le rappel SMS » (un SMS par client, consentement et numéro contrôlés, refus motivés),
+  « Actualiser la liste ». Cloche : catégorie « Traitements habituels à préparer ».
+- Fiche client : « Afficher les médicaments dans les messages » (coché par défaut) ; décoché, le rappel d'habitude
+  **et le rappel de renouvellement** disent « votre traitement habituel ».
+- SMS automatiques **désactivés par défaut** (`KEY_RAPPEL_HABITUDE_ACTIF` = 0) : sur la base de test, 23 500
+  habitudes régulières donnent environ 170 produits à préparer par jour ; l'officine active l'envoi quand la liste lui
+  convient. Modèle « Rappel de traitement habituel » modifiable dans Modèles de messages.
+
 ### 4.2 WhatsApp (deux modes paramétrables, sur le modèle d'ubisenderpro)
 
 | Mode | Principe | Usage |
@@ -317,6 +334,25 @@ modèles de message, consentement `bool_CONSENT_SMS`. **Le rappel de renouvellem
 - **Décision du 06/10** : compte Meta Business disponible ; **API officielle par défaut**, avec un **paramètre**
   `KEY_WHATSAPP_MODE_DEFAUT` (`API` / `WEB`) pour changer la valeur par défaut.
 - Ce lot livre : configuration des deux modes, envoi, statuts (webhook), modèles, mode test sans appel réel.
+
+**Livré (L10b, 06/10).**
+- `Canal.WHATSAPP` et `SMS_WHATSAPP` ; tables `whatsapp_compte` (API / WEB, **mode test coché à la création**) et
+  `whatsapp_message` (journal : statut, identifiant, erreur, repli SMS — **sans le texte du message**) ;
+  consentement séparé `t_client.bool_CONSENT_WHATSAPP` (non renseigné = non exclu) ; `KEY_WHATSAPP_MODE_DEFAUT` = API.
+- Écran **Comptes WhatsApp** (à côté de « Fournisseurs SMS », droit `P_SM_WHATSAPP`) : les deux comptes, secrets en
+  **écriture seule** (l'écran sait seulement s'ils sont définis ; champ vide = inchangé), mode par défaut, essai
+  d'envoi, journal des derniers envois, adresse du webhook à déclarer chez Meta.
+- Envoi : Cloud API (`graph.facebook.com/{version}/{phone_number_id}/messages`, texte libre dans la fenêtre de 24 h,
+  sinon **modèle approuvé** dont le message est la variable {{1}}) ou service compagnon (`POST <url>/messages`,
+  `Authorization: Bearer <jeton>`, `{"to","text"}` → `{"id"}`). Le service compagnon Node n'est pas dans ce dépôt.
+- Rappels (écran « Rappels et piluliers ») : « Envoyer le rappel » par SMS, par WhatsApp, ou **WhatsApp puis SMS**
+  (les destinataires non servis par WhatsApp sont repris dans une notification SMS).
+- Webhooks **sans session** : `GET v1/whatsapp/webhook` (hub.challenge si le jeton de vérification correspond),
+  `POST v1/whatsapp/webhook` (signature `X-Hub-Signature-256` contrôlée avec le secret de l'application ; statuts
+  envoyé / délivré / lu / échec ; message entrant « STOP », « Arrêt »… → consentement WhatsApp retiré),
+  `POST v1/whatsapp/webhook-web` (jeton partagé du service compagnon).
+- Fiche client : case « accepte d'être contacté par WhatsApp » (enregistrée seulement si on la change).
+- Journaux du serveur : identifiants et statuts seulement — ni jeton, ni texte de message.
 
 ---
 

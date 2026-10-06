@@ -919,7 +919,9 @@ function prestigeNotifOuvrirMenu(xtype) {
         {key: 'renouvellements', label: 'Ordonnances à renouveler (7 jours)', icon: 'fa-repeat', color: '#5dade2', menu: 'ordonnanceclient'},
         {key: 'suggestions-commandees', label: 'Suggestions commandées non reçues', icon: 'fa-truck', color: '#f5b041', menu: 'i_sugg_manager'},
         {key: 'commandes', label: 'Commandes passées non reçues', icon: 'fa-clock-o', color: '#af7ac5', menu: 'i_order_manager'},
-        {key: 'indisponibles', label: 'Produits indisponibles chez le grossiste', icon: 'fa-ban', color: '#ec7063', menu: 'i_sugg_manager'}
+        {key: 'indisponibles', label: 'Produits indisponibles chez le grossiste', icon: 'fa-ban', color: '#ec7063', menu: 'i_sugg_manager'},
+        /* plan d'octobre, 4.1 (L10) : traitements habituels dont le prochain achat arrive (piluliers) */
+        {key: 'a-preparer', label: 'Traitements habituels à préparer', icon: 'fa-medkit', color: '#58d68d', menu: 'rappelshabitude'}
     ];
     Ext.each(nouvelles, function (c) {
         PrestigeNotif.register({

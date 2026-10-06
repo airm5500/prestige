@@ -304,6 +304,17 @@ console.log('---------------------------------- add client ');
                                     inputValue: 'true',
                                     uncheckedValue: 'false',
                                     flex: 1
+                                },
+                                {
+                                    /* Plan d'octobre (4.1) : medicaments cites dans les rappels, coche par defaut ; decoche,
+                                     * le message reste neutre (« votre traitement habituel »). Enregistre avec le consentement. */
+                                    xtype: 'checkbox',
+                                    hideLabel: true,
+                                    boxLabel: 'Afficher les médicaments dans les messages',
+                                    id: 'msg_MEDICAMENTS',
+                                    checked: true,
+                                    hidden: true,
+                                    flex: 1.3
                                 }
 
                             ]
@@ -672,6 +683,11 @@ console.log('---------------------------------- add client ');
                     if (cb && r.success) {
                         cb.setValue(r.consentSms === true);
                     }
+                    var cbMed = Ext.getCmp('msg_MEDICAMENTS');
+                    if (cbMed && r.success) {
+                        cbMed.setValue(r.msgMedicaments !== false);
+                        cbMed.show();
+                    }
                 }
             });
             Ext.getCmp('str_CODE_POSTAL').setValue(this.getOdatasource().str_CODE_POSTAL);
@@ -867,6 +883,11 @@ console.log('---------------------------------- add client ');
                             return;
                         } else {
                             // Point 2 : consentement SMS / WhatsApp enregistre par l'API
+                            var cbMed = Ext.getCmp('msg_MEDICAMENTS');
+                            if (cbMed && cbMed.isVisible()) {
+                                Ext.Ajax.request({method: 'POST',
+                                    url: '../api/v1/client/' + ref + '/medicaments-messages?valeur=' + (cbMed.getValue() ? 'true' : 'false')});
+                            }
                             var cbConsent = Ext.getCmp('consent_SMS');
                             if (cbConsent) {
                                 Ext.Ajax.request({

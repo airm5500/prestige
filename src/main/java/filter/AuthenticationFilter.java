@@ -29,15 +29,18 @@ import util.Constant;
 @Provider
 public class AuthenticationFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
-    private static final Set<String> SKIP_PATHS = Set.of("v1/sms/dr-callback", "v1/user/auth", "v1/user/logout",
-            "v1/ws/", "v1/valorisation", "v1/valorisation/all", "v1/ca-comptant", "v1/ca-credit", "v1/reglements",
-            "v1/factures", "v1/fournisseurs", "v1/achats-fournisseurs", "v1/stock", "v1/tierspayants",
-            "v1/avoirs-fournisseurs", "v1/whareouse-vno", "v1/whareouse-maxmin", "v1/ca-all", "v1/checkproduit",
-            "v1/ws/ca-achats-ventes", "v1/ws/inventaires", "v1/ws/inventaires/rayons", "v1/ws/inventaires/details",
-            "v1/balance/etat-annuel", "v1/etat-control-bon/etat-annuel", "v1/balance/balanceventecaisse",
-            "v1/recap/dashboardmob", "v1/recap/creditsmob", "v1/recap/credits/totauxmob", "v3/tvamobile",
-            "v1/produit/stats/vente-annuellep", "v1/evaluation-vente/produit", "v1/info", "v1/officine",
-            "v1/modereglement", "v1/licence/find", "v1/licence/save/", "v1/motifreglement", "v1/modereglement/all",
+    private static final Set<String> SKIP_PATHS = Set.of("v1/sms/dr-callback",
+            // Webhooks WhatsApp (plan d'octobre, 4.2) : appeles par Meta / le service compagnon, sans session ; chaque
+            // appel est authentifie par signature HMAC ou jeton partage - voir rest.WhatsAppRessource.
+            "v1/whatsapp/webhook", "v1/whatsapp/webhook-web", "v1/user/auth", "v1/user/logout", "v1/ws/",
+            "v1/valorisation", "v1/valorisation/all", "v1/ca-comptant", "v1/ca-credit", "v1/reglements", "v1/factures",
+            "v1/fournisseurs", "v1/achats-fournisseurs", "v1/stock", "v1/tierspayants", "v1/avoirs-fournisseurs",
+            "v1/whareouse-vno", "v1/whareouse-maxmin", "v1/ca-all", "v1/checkproduit", "v1/ws/ca-achats-ventes",
+            "v1/ws/inventaires", "v1/ws/inventaires/rayons", "v1/ws/inventaires/details", "v1/balance/etat-annuel",
+            "v1/etat-control-bon/etat-annuel", "v1/balance/balanceventecaisse", "v1/recap/dashboardmob",
+            "v1/recap/creditsmob", "v1/recap/credits/totauxmob", "v3/tvamobile", "v1/produit/stats/vente-annuellep",
+            "v1/evaluation-vente/produit", "v1/info", "v1/officine", "v1/modereglement", "v1/licence/find",
+            "v1/licence/save/", "v1/motifreglement", "v1/modereglement/all",
             // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
             // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
             // 50 lignes au plus - voir rest.EspaceProduitRessource.

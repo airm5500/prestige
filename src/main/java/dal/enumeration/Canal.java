@@ -10,5 +10,7 @@ package dal.enumeration;
  * @author koben
  */
 public enum Canal {
-    SMS, EMAIL, SMS_EMAIL, SMS_MASSE, EMAIL_MASSE
+    SMS, EMAIL, SMS_EMAIL, SMS_MASSE, EMAIL_MASSE,
+    /* Plan d'octobre (4.2) : WhatsApp, et WhatsApp avec repli SMS si l'envoi echoue. */
+    WHATSAPP, SMS_WHATSAPP
 }

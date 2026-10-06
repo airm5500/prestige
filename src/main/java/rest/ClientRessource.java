@@ -57,6 +57,8 @@ public class ClientRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
+    private rest.service.RappelHabitudeService rappelHabitudeService;
+    @EJB
     private ClientService clientService;
     @EJB
     private ExportExcelUtilService exportExcelUtilService;
@@ -171,14 +173,22 @@ public class ClientRessource {
         if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return Response.ok().entity(clientService.lireConsentement(clientId).toString()).build();
+        JSONObject r = clientService.lireConsentement(clientId);
+        if (r.optBoolean("success", false)) {
+            /* Plan d'octobre (4.1) : citer les medicaments dans les messages (coche par defaut). */
+            r.put("msgMedicaments", rappelHabitudeService.citerMedicaments(clientId));
+            /* Plan d'octobre (4.2) : consentement WhatsApp, separe du SMS (null = jamais renseigne). */
+            Boolean wa = rappelHabitudeService.consentementWhatsApp(clientId);
+            r.put("consentWhatsapp", wa == null ? JSONObject.NULL : wa);
+        }
+        return Response.ok().entity(r.toString()).build();
     }
 
     /** Consentement SMS / WhatsApp de la fiche client (point 2) : enregistrement (valeur = true / false). */
     @POST
     @Path("{clientId}/consentement")
-    public Response enregistrerConsentement(@PathParam("clientId") String clientId,
-            @QueryParam("valeur") String valeur) {
+    public Response enregistrerConsentement(@PathParam("clientId") String clientId, @QueryParam("valeur") String valeur,
+            @QueryParam("medicaments") String medicaments) {
         HttpSession hs = servletRequest.getSession();
         if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -186,6 +196,46 @@ public class ClientRessource {
         Boolean consent = valeur == null || valeur.isBlank() ? null
                 : ("true".equalsIgnoreCase(valeur.trim()) || "1".equals(valeur.trim()));
         return Response.ok().entity(clientService.enregistrerConsentement(clientId, consent).toString()).build();
+    }
+
+    /**
+     * Plan d'octobre (4.1) : « Afficher les médicaments dans les messages » de la fiche client (coche par defaut ;
+     * decoche, les rappels restent neutres). Enregistrement (valeur = true / false).
+     */
+    /**
+     * Plan d'octobre (4.2) : consentement WhatsApp de la fiche client (valeur = true / false, vide = non renseigne).
+     */
+    @POST
+    @Path("{clientId}/consentement-whatsapp")
+    public Response enregistrerConsentementWhatsApp(@PathParam("clientId") String clientId,
+            @QueryParam("valeur") String valeur) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Boolean consent = valeur == null || valeur.isBlank() ? null
+                : ("true".equalsIgnoreCase(valeur.trim()) || "1".equals(valeur.trim()));
+        rappelHabitudeService.enregistrerConsentementWhatsApp(clientId, consent);
+        return Response.ok().entity(new JSONObject().put("success", true)
+                .put("consentWhatsapp", consent == null ? JSONObject.NULL : consent).toString()).build();
+    }
+
+    @POST
+    @Path("{clientId}/medicaments-messages")
+    public Response enregistrerMedicamentsMessages(@PathParam("clientId") String clientId,
+            @QueryParam("valeur") String valeur) {
+        HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (valeur == null || valeur.isBlank()) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("msg", "Valeur absente").toString())
+                    .build();
+        }
+        boolean citer = "true".equalsIgnoreCase(valeur.trim()) || "1".equals(valeur.trim());
+        rappelHabitudeService.enregistrerCiterMedicaments(clientId, citer);
+        return Response.ok().entity(new JSONObject().put("success", true).put("msgMedicaments", citer).toString())
+                .build();
     }
 
     /** Export Excel de la consommation par medicament d'un client (memes filtres que la grille). */

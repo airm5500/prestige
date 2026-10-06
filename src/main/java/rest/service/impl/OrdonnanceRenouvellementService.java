@@ -313,8 +313,15 @@ public class OrdonnanceRenouvellementService {
                         + " WHERE d.lg_ORDONNANCE_ID = ?1 ORDER BY d.int_ORDRE")
                 .setParameter(1, e.origineId).getResultList();
         String[] officine = officine();
-        String texte = message(modele(), client.getStrFIRSTNAME(), client.getStrLASTNAME(), libelles, officine[0],
-                officine[1], e.date);
+        /*
+         * Plan d'octobre (4.1) : fiche client « Afficher les médicaments dans les messages » decochee -> message
+         * neutre.
+         */
+        String texte = citerMedicaments(client.getLgCLIENTID())
+                ? message(modele(), client.getStrFIRSTNAME(), client.getStrLASTNAME(), libelles, officine[0],
+                        officine[1], e.date)
+                : messageNeutre(modele(), client.getStrFIRSTNAME(), client.getStrLASTNAME(), officine[0], officine[1],
+                        e.date);
         CategorieNotification categorie = notificationService.getOneByName(TypeNotification.RAPPEL_RENOUVELLEMENT);
         Notification n = new Notification();
         n.setCategorieNotification(categorie);
@@ -340,6 +347,29 @@ public class OrdonnanceRenouvellementService {
         Map<String, String> valeurs = MessageModele.valeurs(nom, prenom, medicament, officine, telephoneOfficine, "");
         valeurs.put("date_renouvellement", echeance == null ? "" : echeance.format(FR));
         return MessageModele.personnaliser(StringUtils.isBlank(modele) ? TEXTE_DEFAUT : modele, valeurs);
+    }
+
+    /** Le meme rappel sans nommer les medicaments (« votre traitement habituel »). */
+    static String messageNeutre(String modele, String nom, String prenom, String officine, String telephoneOfficine,
+            LocalDate echeance) {
+        Map<String, String> valeurs = MessageModele.valeurs(nom, prenom, MessageTraitement.NEUTRE, officine,
+                telephoneOfficine, "");
+        valeurs.put("date_renouvellement", echeance == null ? "" : echeance.format(FR));
+        return MessageModele.personnaliser(
+                MessageTraitement.modeleNeutre(StringUtils.isBlank(modele) ? TEXTE_DEFAUT : modele), valeurs);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean citerMedicaments(String clientId) {
+        try {
+            List<Object> r = em.createNativeQuery("SELECT bool_MSG_MEDICAMENTS FROM t_client WHERE lg_CLIENT_ID = ?1")
+                    .setParameter(1, clientId).getResultList();
+            return r.isEmpty() || r.get(0) == null || vrai(r.get(0));
+        } catch (Exception ex) {
+            /* Colonne absente (migration non passee) : comportement d'avant, les medicaments sont cites. */
+            LOG.log(Level.FINE, "bool_MSG_MEDICAMENTS", ex);
+            return true;
+        }
     }
 
     private String modele() {
