@@ -66,6 +66,8 @@ public class UserServiceImpl implements UserService {
     private EntityManager em;
     @EJB
     private LogService logService;
+    @EJB
+    private rest.service.RhService rhService;
 
     @Override
     public TUser connexion(ManagedUserVM managedUser, HttpServletRequest request) {
@@ -107,6 +109,12 @@ public class UserServiceImpl implements UserService {
             logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user, nomPoste,
                     request.getRemoteAddr());
             afficheur("Caisse: " + user.getStrLASTNAME());
+            /* Plan d'octobre (3) : journal des connexions RH ; sa propre transaction, jamais bloquant. */
+            try {
+                rhService.ouvrirSession(user, request, nomPoste);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "journal des connexions", e);
+            }
             return user;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -190,6 +198,11 @@ public class UserServiceImpl implements UserService {
             user.setBIsConnected(false);
             getEm().merge(user);
             HttpSession hs = request.getSession();
+            try {
+                rhService.fermerSession(hs.getId(), "DECONNEXION");
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "journal des connexions", e);
+            }
             hs.invalidate();
             // Une seule lecture du nom de poste, comme dans connexion().
             String nomPoste = getHostName(request);

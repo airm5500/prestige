@@ -280,6 +280,20 @@ quelques minutes d'écart, journée anormalement longue (seuil paramétrable), p
 3. **Tableau** retards, absences, heures supplémentaires (période, employé), export Excel / PDF.
 4. Fiches employés, modèles d'import, historique des lots.
 
+**Livré (L11a, 06/10) — socle.** Menu **RESSOURCES HUMAINES › Ressources humaines** (droits `P_M_RH`, `P_SM_RH` ;
+`P_RH_VALIDER_CONGE` pour décider ; donnés à SYSTEM_USER, Super Administrateur, Administrateur, Pharmacien) :
+- **Planning de la semaine** : une case par employé et par jour (travail / garde / repos, début, fin, pause ; fin avant
+  le début = le lendemain), « lundi au vendredi » en une saisie, total des heures prévues, congés validés rappelés,
+  copie de la semaine précédente (garder ou remplacer les cases saisies).
+- **Congés et absences** : demande (journées ou demi-journée), chevauchement refusé, calendrier du mois (hachuré =
+  demandé, plein = validé), valider / refuser / supprimer ; cloche « Congés et absences à valider ».
+- **Employés** : matricule et badge uniques, lien facultatif et unique vers un utilisateur du logiciel.
+- **Connexions** : `t_session_utilisateur` écrit à la connexion (poste, adresse), clos à la déconnexion ; une nouvelle
+  connexion du même utilisateur depuis la même adresse clôt la précédente (navigateur fermé). Durée de session
+  inchangée (Q-E). Le journal ne bloque jamais une connexion (transaction séparée).
+- Reste pour **L11b** : pointage (import pointeuse avec modèles par marque, saisie manuelle), anomalies, feuille de
+  présence, tableau retards / absences / heures supplémentaires.
+
 ---
 
 ## 4. SMS ET WHATSAPP

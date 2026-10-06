@@ -72,10 +72,15 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 .put(cat("indisponibles", "Produits indisponibles chez le grossiste", "fa-ban", "#ec7063",
                         "i_sugg_manager", false))
                 .put(cat("a-preparer", "Traitements habituels à préparer", "fa-medkit", "#58d68d", "rappelshabitude",
+                        false))
+                .put(cat("conges", "Congés et absences à valider", "fa-calendar-check-o", "#a569bd", "rhmanager",
                         false));
     }
 
     /* ------------------------------------------------------------------ requetes */
+
+    private static final String SQL_CONGES = " FROM t_absence a JOIN t_employe e ON e.id = a.employe_id"
+            + " WHERE a.statut = 'DEMANDE'";
 
     private static final String SQL_A_PREPARER = " FROM t_rappel_habitude r"
             + " JOIN t_client c ON c.lg_CLIENT_ID = r.lg_CLIENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
@@ -172,6 +177,9 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 case "a-preparer":
                     m.put(cle, compter(SQL_A_PREPARER));
                     break;
+                case "conges":
+                    m.put(cle, compter(SQL_CONGES));
+                    break;
                 default:
                     break;
                 }
@@ -242,6 +250,17 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 break;
             case "renouvellements":
                 total = renouvellementService.aRenouvelerSous(JOURS_RENOUVELLEMENT);
+                break;
+            case "conges":
+                total = compter(SQL_CONGES);
+                for (Object[] r : lignes(
+                        "SELECT CONCAT(e.nom, ' ', COALESCE(e.prenoms,'')), a.type, a.debut, a.fin, a.id" + SQL_CONGES
+                                + " ORDER BY a.debut ASC",
+                        limite)) {
+                    a.put(new JSONObject().put("titre", t(r[0]))
+                            .put("detail", t(r[1]).toLowerCase() + " du " + jour(r[2]) + " au " + jour(r[3]))
+                            .put("date", jour(r[2])).put("id", t(r[4])));
+                }
                 break;
             case "a-preparer":
                 total = compter(SQL_A_PREPARER);
