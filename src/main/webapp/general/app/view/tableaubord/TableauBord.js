@@ -39,14 +39,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
             /* Retours du 06/10 : frequentation par tranche de 2 h, semaine precedente et semaine en cours. */
-            {id: 'frequentation', titre: 'Fréquentation par tranche horaire (2 h)', ico: 'fa-clock', t: 't-cyan', l: 'l12'},
+            {id: 'frequentation', titre: 'Fréquentation par tranche horaire', ico: 'fa-clock', t: 't-cyan', l: 'l12'},
             {id: 'topmois', titre: 'Top 5 des ventes du mois', ico: 'fa-trophy', t: 't-bleu', l: 'l6'},
             {id: 'grossistes', titre: 'Achats par grossiste (mois)', ico: 'fa-truck-fast', t: 't-violet', l: 'l6'},
             {id: 'topca', titre: 'Top 5 du chiffre d\'affaires (jour)', ico: 'fa-chart-column', t: 't-vert', l: 'l4'},
             {id: 'topqte', titre: 'Top 5 des quantités vendues (jour)', ico: 'fa-arrow-down-wide-short', t: 't-cyan', l: 'l4'},
             {id: 'tva', titre: 'Ventes par taux de TVA (mois)', ico: 'fa-chart-pie', t: 't-rose', l: 'l4'},
-            {id: 'emplacements', titre: 'Top 5 du CA par emplacement (mois)', ico: 'fa-location-dot', t: 't-ambre', l: 'l6'},
-            {id: 'tiers', titre: 'Encours tiers payants (mois)', ico: 'fa-users', t: 't-rose', l: 'l6'}
+            /* Retours du 06/10 (2) : emplacement ou famille d'articles (interrupteur), top 10 */
+            {id: 'emplacements', titre: 'CA par emplacement / famille : top 10 (mois)', ico: 'fa-location-dot', t: 't-ambre', l: 'l6'},
+            {id: 'tiers', titre: 'Encours tiers payants : top 10 (mois)', ico: 'fa-users', t: 't-rose', l: 'l6'}
         ]
     },
 
@@ -397,12 +398,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 me.dessinerTva();
             },
             emplacements: function () {
-                me.lire('../api/v1/tableau-bord/emplacements', {date: j, limite: 5, frais: fr}, function (o) {
-                    me.dessinerBarres('emplacements', o, '#f59e0b', 'emplacements');
+                var axe = me.prefs.empl === 'famille' ? 'famille' : 'emplacement';
+                me.lire('../api/v1/tableau-bord/emplacements', {date: j, limite: 10, axe: axe, frais: fr}, function (o) {
+                    me.dessinerBarres('emplacements', o, '#f59e0b', 'emplacements', '<span class="tb-seg" data-seg="empl">'
+                            + '<button data-v="emplacement" class="' + (axe === 'emplacement' ? 'on' : '') + '">Emplacement</button>'
+                            + '<button data-v="famille" class="' + (axe === 'famille' ? 'on' : '') + '">Famille</button></span> ');
                 });
             },
             tiers: function () {
-                me.lire('../api/v1/tableau-bord/tiers-payants', {date: j, limite: 5, frais: fr}, function (o) {
+                me.lire('../api/v1/tableau-bord/tiers-payants', {date: j, limite: 10, frais: fr}, function (o) {
                     me.dessinerBarres('tiers', o, '#e11d48', 'tiers');
                 });
             }
@@ -413,7 +417,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     },
 
     /** Barres horizontales (top 5) avec « Voir plus ». */
-    dessinerBarres: function (id, o, couleur, plus) {
+    dessinerBarres: function (id, o, couleur, plus, avant) {
         var me = this, c = me.corps(id);
         if (!c) {
             return;
@@ -425,7 +429,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var l = o.data || [];
         var out = me.outils(id);
         if (out) {
-            out.innerHTML = '<span class="tb-lien" data-plus="' + plus + '">Voir plus →</span>';
+            out.innerHTML = (avant || '') + '<span class="tb-lien" data-plus="' + plus + '">Voir plus →</span>';
         }
         if (!l.length) {
             c.innerHTML = '<div class="tb-attente">Aucune donnée sur la période.</div>';
@@ -437,8 +441,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var tot = Ext.Array.sum(Ext.Array.map(l, function (x) {
             return Number(x.valeur) || 0;
         })) || 1;
-        c.innerHTML = '<table class="tb-fixe">' + Ext.Array.map(l.slice(0, 5), function (x, i) {
-            return '<tr><td class="tb-nom1" style="width:46%" title="' + me.esc(x.libelle) + '">' + (i + 1) + '. ' + me.esc(x.libelle) + '</td>'
+        /* la liste est deja limitee par le serveur (5 ou 10 selon la carte) ; le nombre de clients suit le libelle */
+        c.innerHTML = '<table class="tb-fixe">' + Ext.Array.map(l.slice(0, 10), function (x, i) {
+            var nb = x.nombre !== undefined ? ' (' + me.fmt(x.nombre) + ')' : '';
+            return '<tr><td class="tb-nom1" style="width:46%" title="' + me.esc(x.libelle) + nb + '">' + (i + 1) + '. ' + me.esc(x.libelle) + nb + '</td>'
                     + '<td><div class="tb-barre"><i style="width:' + (x.valeur * 100 / max) + '%;background:' + couleur + '"></i></div></td>'
                     + '<td class="tb-n" style="width:22%"><b>' + me.fmt(x.valeur) + '</b></td><td class="tb-n tb-note" style="width:11%">'
                     + Math.round(x.valeur * 100 / tot) + ' %</td></tr>';
@@ -720,19 +726,42 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             return;
         }
         var moy = me.prefs.freq !== 'total';
+        var pas = Math.min(6, Math.max(1, parseInt(me.prefs.tranche, 10) || 2));
         var out = me.outils('frequentation');
         if (out) {
-            out.innerHTML = '<span class="tb-seg" data-seg="freq"><button data-v="moyenne" class="' + (moy ? 'on' : '') + '">Moyenne par jour</button>'
+            out.innerHTML = '<select class="tb-select" data-tranche="1" title="Tranche horaire">' + [1, 2, 3, 4, 5, 6].map(function (n) {
+                return '<option value="' + n + '"' + (n === pas ? ' selected' : '') + '>Tranche de ' + n + ' h</option>';
+            }).join('') + '</select> <span class="tb-seg" data-seg="freq"><button data-v="moyenne" class="' + (moy ? 'on' : '') + '">Moyenne par jour</button>'
                     + '<button data-v="total" class="' + (moy ? '' : 'on') + '">Total de la semaine</button></span>';
         }
-        var p = o.precedente, s = o.semaine;
+        /* Ventes par heure (24 cases) regroupees par tranche de « pas » heures ; repli sur les tranches de 2 h. */
+        var regrouper = function (sem) {
+            var h = sem.ventesH, n = Math.ceil(24 / pas), r = [];
+            for (var k = 0; k < n; k++) {
+                r[k] = 0;
+            }
+            if (!h) {
+                (sem.ventes || []).forEach(function (v, i) {
+                    r[Math.floor(i * 2 / pas)] += v || 0;
+                });
+            } else {
+                h.forEach(function (v, i) {
+                    r[Math.floor(i / pas)] += v || 0;
+                });
+            }
+            return {ventes: r, jours: sem.jours, debut: sem.debut, fin: sem.fin};
+        };
+        var p = regrouper(o.precedente), s = regrouper(o.semaine);
         var val = function (sem, i) {
             var v = sem.ventes[i] || 0;
             return moy ? (sem.jours ? v / sem.jours : 0) : v;
         };
+        var etiquette = function (i) {
+            return (i * pas) + 'h-' + Math.min(24, i * pas + pas) + 'h';
+        };
         /* Tranches affichees : celles qui ont eu au moins une vente sur l'une des deux semaines. */
         var tranches = [];
-        for (var i = 0; i < 12; i++) {
+        for (var i = 0; i < p.ventes.length; i++) {
             if ((p.ventes[i] || 0) + (s.ventes[i] || 0) > 0) {
                 tranches.push(i);
             }
@@ -765,12 +794,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             var x0 = pg + k * bande + bande / 2, v0 = val(p, i), v1 = val(s, i);
             var ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
             svg += '<rect x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#9fb3c8"><title>Semaine précédente, '
-                    + (i * 2) + 'h-' + (i * 2 + 2) + 'h : ' + nb(v0) + '</title></rect>';
+                    + etiquette(i) + ' : ' + nb(v0) + '</title></rect>';
             svg += '<rect x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Semaine en cours, '
-                    + (i * 2) + 'h-' + (i * 2 + 2) + 'h : ' + nb(v1) + '</title></rect>';
+                    + etiquette(i) + ' : ' + nb(v1) + '</title></rect>';
             svg += '<text x="' + (x0 - lb / 2 - 1) + '" y="' + (Y(v0) - 4) + '" font-size="10" fill="#5b6b7c" text-anchor="middle">' + nb(v0) + '</text>';
             svg += '<text x="' + (x0 + lb / 2 + 1) + '" y="' + (Y(v1) - 4) + '" font-size="10" font-weight="700" fill="#0e5f73" text-anchor="middle">' + nb(v1) + '</text>';
-            svg += '<text x="' + x0 + '" y="' + (h - 18) + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">' + (i * 2) + 'h-' + (i * 2 + 2) + 'h</text>';
+            svg += '<text x="' + x0 + '" y="' + (h - 18) + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">' + etiquette(i) + '</text>';
             if (ev !== null && moy) {
                 svg += '<text x="' + x0 + '" y="' + (h - 4) + '" font-size="10" font-weight="800" fill="' + (ev > 0 ? '#16a34a' : ev < 0 ? '#dc2626' : '#64748b')
                         + '" text-anchor="middle">' + (ev > 0 ? '+' : '') + ev + '%</text>';
@@ -881,7 +910,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this, j = me.jour();
         var def = {
             grossistes: ['Achats par grossiste (mois)', '../api/v1/tableau-bord/grossistes'],
-            emplacements: ['CA par emplacement (mois)', '../api/v1/tableau-bord/emplacements'],
+            emplacements: [me.prefs.empl === 'famille' ? 'CA par famille (mois)' : 'CA par emplacement (mois)', '../api/v1/tableau-bord/emplacements'],
             tiers: ['Encours tiers payants (mois)', '../api/v1/tableau-bord/tiers-payants'],
             topca: ['Meilleures ventes du jour : chiffre d\'affaires', '../api/v1/tableau-bord/top-jour'],
             topqte: ['Meilleures ventes du jour : quantités', '../api/v1/tableau-bord/top-jour']
@@ -889,14 +918,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         if (!def) {
             return;
         }
-        me.lire(def[1], {date: j, limite: 0}, function (o) {
+        me.lire(def[1], {date: j, limite: 0, axe: me.prefs.empl === 'famille' ? 'famille' : 'emplacement'}, function (o) {
             var l = !o || !o.success ? [] : (cle === 'topca' ? o.ca : cle === 'topqte' ? o.quantites : o.data) || [];
             var tot = Ext.Array.sum(Ext.Array.map(l, function (x) {
                 return Number(x.valeur) || 0;
             })) || 1;
             me.fenetre(def[0], l.length ? '<table class="tb-fixe"><tr><th style="width:7%">#</th><th style="width:60%">Libellé</th><th class="tb-n">Valeur</th><th class="tb-n">Part</th></tr>'
                     + l.map(function (x, i) {
-                        return '<tr><td>' + (i + 1) + '</td><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td class="tb-n">' + me.fmt(x.valeur)
+                        var nb = x.nombre !== undefined ? ' (' + me.fmt(x.nombre) + ' client' + (x.nombre > 1 ? 's' : '') + ')' : '';
+                        return '<tr><td>' + (i + 1) + '</td><td class="tb-nom1" title="' + me.esc(x.libelle) + nb + '">' + me.esc(x.libelle) + nb + '</td><td class="tb-n">' + me.fmt(x.valeur)
                                 + '</td><td class="tb-n">' + (x.valeur * 100 / tot).toFixed(1).replace('.', ',') + ' %</td></tr>';
                     }).join('') + '</table>' : '<div class="tb-attente">Aucune donnée.</div>');
         });
@@ -1030,7 +1060,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var me = this, racine = me.body.dom;
         racine.addEventListener('change', function (e) {
             var t = e.target;
-            if (t.hasAttribute('data-cmp')) {
+            if (t.hasAttribute('data-tranche')) {
+                /* Retours du 06/10 (2) : tranche de 1 a 6 h, la vue est regroupee sans relire la base */
+                me.prefs.tranche = parseInt(t.value, 10) || 2;
+                me.enregistrerPreferences();
+                me.dessinerFrequentation();
+            } else if (t.hasAttribute('data-cmp')) {
                 me.prefs.cmp = t.checked;
                 me.enregistrerPreferences();
                 me.tracerCourbe();
@@ -1107,6 +1142,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 } else if (seg === 'freq') {
                     me.prefs.freq = v;
                     me.dessinerFrequentation();
+                } else if (seg === 'empl') {
+                    me.prefs.empl = v;
+                    me.chargerCarte('emplacements');
                 }
                 me.enregistrerPreferences();
                 return;

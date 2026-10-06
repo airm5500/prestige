@@ -34,12 +34,12 @@ const n = (v) => Number(v || 0);
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
   let p = await ctx.newPage();
-  const err = [], http = [], routes = [];
+  const err = [], http = [], routes = [], tuilesUrls = [];
   let connecte = false;
   const suivre = (pg) => {
     pg.on('pageerror', (e) => err.push(String(e.message)));
     pg.on('response', (r) => { if (connecte && r.status() >= 400 && /\/prestige\//.test(r.url())) http.push(r.status() + ' ' + r.url().replace(/\?.*$/, '')); });
-    pg.on('request', (r) => { const m = r.url().match(/tableau-bord\/([a-z-]+(?:\/[a-z]+)?)/); if (m) routes.push(m[1]); });
+    pg.on('request', (r) => { const m = r.url().match(/tableau-bord\/([a-z-]+(?:\/[a-z]+)?)/); if (m) routes.push(m[1]); if (/tuiles/.test(r.url())) tuilesUrls.push(r.url().replace(/^.*tuiles/, '')); });
   };
   suivre(p);
   const api = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
@@ -138,6 +138,56 @@ const n = (v) => Number(v || 0);
     await cliquer('[data-seg="freq"] [data-v="total"]');
     await p.waitForTimeout(300);
     ok('Fréquentation : interrupteur moyenne par jour / total de la semaine', /Total de chaque semaine/.test(await texte('[data-corps="frequentation"] .tb-legende')));
+    // Retours du 06/10 (2) : tranche horaire au choix (1 a 6 h), sans relire la base
+    ok('Fréquentation : 24 cases horaires dont la somme par 2 h redonne les tranches de 2 h', fq.semaine.ventesH.length === 24
+      && fq.semaine.ventes.every((v, i) => v === fq.semaine.ventesH[2 * i] + fq.semaine.ventesH[2 * i + 1]));
+    const choisirTranche = (n) => p.evaluate((n) => { const s = Ext.ComponentQuery.query('tableaubord')[0].body.dom.querySelector('[data-tranche]'); s.value = String(n); s.dispatchEvent(new Event('change', { bubbles: true })); }, n);
+    const reqAvant = routes.length;
+    for (const n of [1, 3, 6]) {
+      await choisirTranche(n);
+      await p.waitForTimeout(300);
+      const nbT = [];
+      for (let k = 0; k < Math.ceil(24 / n); k++) { let t = 0; for (let h = k * n; h < Math.min(24, k * n + n); h++) { t += fq.semaine.ventesH[h] + fq.precedente.ventesH[h]; } if (t > 0) { nbT.push(k); } }
+      const vue = await p.evaluate(() => ({ r: document.querySelectorAll('[data-corps="frequentation"] svg rect').length, l: Array.from(document.querySelectorAll('[data-corps="frequentation"] svg text')).map((t) => t.textContent).filter((t) => /h-/.test(t)) }));
+      ok('Fréquentation : tranche de ' + n + ' h -> la vue change (barres et libellés)', vue.r === 2 * nbT.length && vue.l.length === nbT.length && vue.l[0] === (nbT[0] * n) + 'h-' + Math.min(24, nbT[0] * n + n) + 'h', JSON.stringify(vue.l));
+    }
+    ok('Fréquentation : changer de tranche ne relit pas la base', routes.length === reqAvant, routes.slice(reqAvant).join(','));
+    await choisirTranche(2);
+    await p.waitForTimeout(300);
+
+    // Retours du 06/10 (2) : CA par emplacement / famille (top 10), encours tiers payants (top 10, nombre de clients)
+    const debM = D.slice(0, 8) + '01';
+    const finM = q("SELECT DATE_ADD('" + D + "', INTERVAL 1 DAY)");
+    const famSql = q("SELECT GROUP_CONCAT(v ORDER BY v DESC) FROM (SELECT SUM(d.int_PRICE) v FROM t_preenregistrement_detail d JOIN t_preenregistrement o ON o.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+      + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE o.int_PRICE > 0 AND o.str_STATUT = 'is_Closed' AND o.b_IS_CANCEL = 0 AND o.lg_TYPE_VENTE_ID <> '5'"
+      + " AND o.dt_UPDATED >= '" + debM + "' AND o.dt_UPDATED < '" + finM + "' GROUP BY f.lg_FAMILLEARTICLE_ID ORDER BY v DESC LIMIT 10) x");
+    const fam = await api('../api/v1/tableau-bord/emplacements?date=' + D + '&limite=10&axe=famille');
+    ok('CA par famille (mois) : top 10 = base', fam.data.length <= 10 && fam.data.map((x) => x.valeur).join(',') === famSql, fam.data.map((x) => x.valeur).join(',') + ' / ' + famSql);
+    await p.evaluate(() => { document.querySelector('[data-carte="emplacements"]').scrollIntoView(); });
+    await p.waitForFunction(() => document.querySelector('[data-corps="emplacements"] table'), null, { timeout: 30000 });
+    const empl = await api('../api/v1/tableau-bord/emplacements?date=' + D + '&limite=10');
+    const lignesEmpl = await p.evaluate(() => document.querySelectorAll('[data-corps="emplacements"] tr').length);
+    ok('Carte emplacement / famille : « Emplacement » par défaut, jusqu\'à 10 lignes', /on/.test(await p.evaluate(() => document.querySelector('[data-seg="empl"] [data-v="emplacement"]').className))
+      && lignesEmpl === Math.min(10, empl.data.length), lignesEmpl + ' / ' + empl.data.length);
+    await cliquer('[data-seg="empl"] [data-v="famille"]');
+    await p.waitForFunction(() => /on/.test(document.querySelector('[data-seg="empl"] [data-v="famille"]').className), null, { timeout: 15000 });
+    await p.waitForTimeout(800);
+    const premiere = await texte('[data-corps="emplacements"] tr .tb-nom1');
+    ok('Interrupteur « Famille » : données par famille', premiere === '1. ' + fam.data[0].libelle, premiere + ' / ' + fam.data[0].libelle);
+    ok('Choix « Famille » enregistré pour l\'utilisateur', await p.evaluate(() => Ext.ComponentQuery.query('tableaubord')[0].prefs.empl) === 'famille');
+    await cliquer('[data-seg="empl"] [data-v="emplacement"]');
+    await p.waitForTimeout(800);
+    const tps = await api('../api/v1/tableau-bord/tiers-payants?date=' + D + '&limite=10');
+    const tpSql2 = q("SELECT GROUP_CONCAT(CONCAT(v, '/', n) ORDER BY v DESC) FROM (SELECT SUM(c.int_PRICE) v, COUNT(DISTINCT cc.lg_COMPTE_CLIENT_ID) n FROM t_tiers_payant tp"
+      + " JOIN t_compte_client_tiers_payant cc ON tp.lg_TIERS_PAYANT_ID = cc.lg_TIERS_PAYANT_ID JOIN t_preenregistrement_compte_client_tiers_payent c ON cc.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+      + " JOIN t_preenregistrement p ON c.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID WHERE p.str_STATUT = 'is_Closed' AND c.str_STATUT_FACTURE = 'unpaid' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+      + " AND p.dt_CREATED >= '" + debM + "' AND p.dt_CREATED <= '" + finM + "' GROUP BY tp.str_FULLNAME ORDER BY v DESC LIMIT 10) x");
+    ok('Encours tiers payants : top 10 et nombre de clients = base', tps.data.map((x) => x.valeur + '/' + x.nombre).join(',') === tpSql2, tps.data.map((x) => x.valeur + '/' + x.nombre).join(',') + ' / ' + tpSql2);
+    await p.evaluate(() => { document.querySelector('[data-carte="tiers"]').scrollIntoView(); });
+    await p.waitForFunction(() => document.querySelector('[data-corps="tiers"] table'), null, { timeout: 30000 });
+    const tpCarte = await p.evaluate(() => Array.from(document.querySelectorAll('[data-corps="tiers"] .tb-nom1')).map((e) => e.textContent));
+    ok('Carte tiers payants : 10 lignes au plus, nombre de clients entre parenthèses', tpCarte.length === Math.min(10, tps.data.length) && tpCarte[0] === '1. ' + tps.data[0].libelle + ' (' + tps.data[0].nombre + ')', JSON.stringify(tpCarte.slice(0, 2)));
+
     const neg = (await api('../api/v1/tableau-bord/alertes')).negatifs;
     const negSql = q("SELECT COUNT(*) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '1' AND s.int_NUMBER_AVAILABLE < 0 AND f.str_STATUT = 'enable'");
     ok('Alertes : nombre d\'articles en stock négatif = base (' + negSql + ')', neg === Number(negSql), neg + ' / ' + negSql);
@@ -151,7 +201,7 @@ const n = (v) => Number(v || 0);
 
     // Tuiles affichees
     const tuileCa = await texte('[data-tuile="ca"] .tb-v');
-    ok('Tuile affichée : CA net', nombre(tuileCa) === t.ca, tuileCa);
+    ok('Tuile affichée : CA net', nombre(tuileCa) === t.ca, tuileCa + ' DEBUG ' + await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord'); return t.length + ' ' + t[0].jour() + ' ' + t[0].id; }) + ' ' + JSON.stringify(tuilesUrls));
 
     // Mobile money depliable
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord')[0]; t.body.dom.querySelector('[data-carte="encaissements"]').scrollIntoView(); });

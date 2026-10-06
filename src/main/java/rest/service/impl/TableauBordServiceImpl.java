@@ -534,7 +534,11 @@ public class TableauBordServiceImpl implements TableauBordService {
         try {
             JSONArray a = new JSONArray();
             for (Object[] r : lignes(sql, params)) {
-                a.put(new JSONObject().put("libelle", t(r[0])).put("valeur", n(r[1])));
+                JSONObject x = new JSONObject().put("libelle", t(r[0])).put("valeur", n(r[1]));
+                if (r.length > 2) {
+                    x.put("nombre", n(r[2]));
+                }
+                a.put(x);
             }
             o.put("data", a);
         } catch (Exception e) {
@@ -556,6 +560,23 @@ public class TableauBordServiceImpl implements TableauBordService {
 
     @Override
     public JSONObject emplacements(LocalDate jour, int limite) {
+        return emplacements(jour, limite, "emplacement");
+    }
+
+    @Override
+    public JSONObject emplacements(LocalDate jour, int limite, String axe) {
+        if ("famille".equalsIgnoreCase(axe)) {
+            /* Retours du 06/10 (2) : meme CA, regroupe par famille d'articles. */
+            return liste(
+                    "SELECT COALESCE(fa.str_LIBELLE, 'Sans famille'), SUM(d.int_PRICE) FROM t_preenregistrement_detail d"
+                            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                            + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                            + " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID WHERE"
+                            + VENTE_OK + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2"
+                            + " GROUP BY fa.lg_FAMILLEARTICLE_ID, fa.str_LIBELLE ORDER BY SUM(d.int_PRICE) DESC"
+                            + (limite > 0 ? " LIMIT " + limite : ""),
+                    "familles", ts(jour.withDayOfMonth(1)), ts(finMois(jour)));
+        }
         return liste(
                 "SELECT COALESCE(z.str_LIBELLEE, 'Sans emplacement'), SUM(d.int_PRICE) FROM t_preenregistrement_detail d"
                         + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
@@ -569,14 +590,16 @@ public class TableauBordServiceImpl implements TableauBordService {
     @Override
     public JSONObject tiersPayants(LocalDate jour, int limite) {
         /* getBestClients : parts tiers payant non facturees des ventes du mois, par organisme. */
-        return liste("SELECT tp.str_FULLNAME, SUM(c.int_PRICE) FROM t_tiers_payant tp"
-                + " JOIN t_compte_client_tiers_payant cc ON tp.lg_TIERS_PAYANT_ID = cc.lg_TIERS_PAYANT_ID"
-                + " JOIN t_preenregistrement_compte_client_tiers_payent c ON cc.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
-                + " JOIN t_preenregistrement p ON c.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
-                + " WHERE p.str_STATUT = 'is_Closed' AND c.str_STATUT_FACTURE = 'unpaid' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
-                + " AND p.dt_CREATED >= ?1 AND p.dt_CREATED <= ?2 GROUP BY tp.str_FULLNAME ORDER BY SUM(c.int_PRICE) DESC"
-                + (limite > 0 ? " LIMIT " + limite : ""), "tiers payants", ts(jour.withDayOfMonth(1)),
-                ts(finMois(jour)));
+        /* Retours du 06/10 (2) : nombre de clients concernes (comptes clients distincts), en troisieme colonne. */
+        return liste(
+                "SELECT tp.str_FULLNAME, SUM(c.int_PRICE), COUNT(DISTINCT cc.lg_COMPTE_CLIENT_ID) FROM t_tiers_payant tp"
+                        + " JOIN t_compte_client_tiers_payant cc ON tp.lg_TIERS_PAYANT_ID = cc.lg_TIERS_PAYANT_ID"
+                        + " JOIN t_preenregistrement_compte_client_tiers_payent c ON cc.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
+                        + " JOIN t_preenregistrement p ON c.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                        + " WHERE p.str_STATUT = 'is_Closed' AND c.str_STATUT_FACTURE = 'unpaid' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+                        + " AND p.dt_CREATED >= ?1 AND p.dt_CREATED <= ?2 GROUP BY tp.str_FULLNAME ORDER BY SUM(c.int_PRICE) DESC"
+                        + (limite > 0 ? " LIMIT " + limite : ""),
+                "tiers payants", ts(jour.withDayOfMonth(1)), ts(finMois(jour)));
     }
 
     /**
@@ -602,16 +625,19 @@ public class TableauBordServiceImpl implements TableauBordService {
     }
 
     private JSONObject semaine(LocalDate debut, LocalDate finExclue) {
-        long[] ventes = new long[12], ca = new long[12];
+        /* Par heure (24 cases) : l'ecran regroupe en tranches de 1 a 6 h ; les tranches de 2 h restent fournies. */
+        long[] ventes = new long[12], ca = new long[12], ventesH = new long[24], caH = new long[24];
         for (Object[] r : lignes(
-                "SELECT FLOOR(HOUR(p.dt_UPDATED) / 2), COUNT(*), SUM(p.int_PRICE - p.int_PRICE_REMISE)"
+                "SELECT HOUR(p.dt_UPDATED), COUNT(*), SUM(p.int_PRICE - p.int_PRICE_REMISE)"
                         + " FROM t_preenregistrement p WHERE" + VENTE_OK
-                        + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2" + " GROUP BY FLOOR(HOUR(p.dt_UPDATED) / 2)",
+                        + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2" + " GROUP BY HOUR(p.dt_UPDATED)",
                 ts(debut), ts(finExclue))) {
-            int i = (int) n(r[0]);
-            if (i >= 0 && i < 12) {
-                ventes[i] = n(r[1]);
-                ca[i] = n(r[2]);
+            int h = (int) n(r[0]);
+            if (h >= 0 && h < 24) {
+                ventesH[h] = n(r[1]);
+                caH[h] = n(r[2]);
+                ventes[h / 2] += ventesH[h];
+                ca[h / 2] += caH[h];
             }
         }
         Object[] j = ligne("SELECT COUNT(DISTINCT DATE(p.dt_UPDATED)) FROM t_preenregistrement p WHERE" + VENTE_OK
@@ -621,7 +647,13 @@ public class TableauBordServiceImpl implements TableauBordService {
             v.put(ventes[i]);
             c.put(ca[i]);
         }
-        return new JSONObject().put("ventes", v).put("ca", c).put("jours", n(at(j, 0)));
+        JSONArray vh = new JSONArray(), ch = new JSONArray();
+        for (int i = 0; i < 24; i++) {
+            vh.put(ventesH[i]);
+            ch.put(caH[i]);
+        }
+        return new JSONObject().put("ventes", v).put("ca", c).put("ventesH", vh).put("caH", ch).put("jours",
+                n(at(j, 0)));
     }
 
     @Override

@@ -50,6 +50,9 @@ public interface TableauBordService {
     /** CA du mois par emplacement (rayon). */
     JSONObject emplacements(LocalDate jour, int limite);
 
+    /** CA du mois par emplacement ({@code axe} = emplacement) ou par famille d'articles ({@code axe} = famille). */
+    JSONObject emplacements(LocalDate jour, int limite, String axe);
+
     /** Encours tiers payants du mois (factures non reglees), comme la carte actuelle. */
     JSONObject tiersPayants(LocalDate jour, int limite);
 

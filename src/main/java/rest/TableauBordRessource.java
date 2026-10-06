@@ -207,12 +207,15 @@ public class TableauBordRessource {
     @GET
     @Path("emplacements")
     public Response emplacements(@QueryParam("date") String date, @DefaultValue("5") @QueryParam("limite") int limite,
+            @DefaultValue("emplacement") @QueryParam("axe") String axe,
             @DefaultValue("0") @QueryParam("frais") int frais) {
         if (utilisateur() == null) {
             return deconnecte();
         }
         LocalDate j = jour(date);
-        return cache("emplacements|" + j + "|" + limite, COURT * 3, frais == 1, () -> service.emplacements(j, limite));
+        String a = "famille".equalsIgnoreCase(axe) ? "famille" : "emplacement";
+        return cache("emplacements|" + a + "|" + j + "|" + limite, COURT * 3, frais == 1,
+                () -> service.emplacements(j, limite, a));
     }
 
     @GET
