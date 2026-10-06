@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Suivi equivalence (API v1/suivi-equivalence/pdf, plan d'octobre section 9) : produits regroupes par ensemble exact de
+     DCI, du plus vendu au moins vendu, repere des doublons peu vendus. Alimente par les lignes de l'API. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="suivi_equivalence" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_CRITERES" class="java.lang.String"/>
+    <field name="rang" class="java.lang.Integer"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="libelle" class="java.lang.String"/>
+    <field name="equivalence" class="java.lang.String"/>
+    <field name="quantite" class="java.lang.Long"/>
+    <field name="part" class="java.lang.Double"/>
+    <field name="montant" class="java.lang.Long"/>
+    <field name="marge" class="java.lang.Long"/>
+    <field name="stock" class="java.lang.Long"/>
+    <field name="couverture" class="java.lang.String"/>
+    <field name="derniereVente" class="java.lang.String"/>
+    <field name="repere" class="java.lang.String"/>
+    <field name="groupe" class="java.lang.String"/>
+    <group name="groupe">
+        <groupExpression><![CDATA[$F{groupe}]]></groupExpression>
+        <groupHeader>
+            <band height="18">
+                <frame>
+                    <reportElement mode="Opaque" x="0" y="3" width="802" height="14" backcolor="#EEF4FB"/>
+                    <textField isBlankWhenNull="true"><reportElement x="6" y="0" width="790" height="14" forecolor="#1E3A5F"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{groupe}]]></textFieldExpression></textField>
+                </frame>
+            </band>
+        </groupHeader>
+    </group>
+    <title>
+        <band height="70">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="30" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="48" width="802" height="14"/><textElement textAlignment="Center"><font size="8"/></textElement><textFieldExpression><![CDATA[$P{P_CRITERES}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="4" y="0" width="26" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Rang]]></text></staticText>
+                <staticText><reportElement x="32" y="0" width="52" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="86" y="0" width="216" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Produit]]></text></staticText>
+                <staticText><reportElement x="304" y="0" width="58" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Équivalence]]></text></staticText>
+                <staticText><reportElement x="364" y="0" width="42" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Qté]]></text></staticText>
+                <staticText><reportElement x="408" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Part %]]></text></staticText>
+                <staticText><reportElement x="450" y="0" width="62" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[CA]]></text></staticText>
+                <staticText><reportElement x="514" y="0" width="58" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Marge]]></text></staticText>
+                <staticText><reportElement x="574" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Stock]]></text></staticText>
+                <staticText><reportElement x="616" y="0" width="44" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Couv. (j)]]></text></staticText>
+                <staticText><reportElement x="662" y="0" width="56" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Dern. vente]]></text></staticText>
+                <staticText><reportElement x="720" y="0" width="82" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Repère]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="15">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="4" y="0" width="26" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{rang}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="32" y="0" width="52" height="13"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="86" y="0" width="216" height="13"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="304" y="0" width="58" height="13"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{equivalence}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="364" y="0" width="42" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.0" isBlankWhenNull="true"><reportElement x="408" y="0" width="40" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{part}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="450" y="0" width="62" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{montant}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="514" y="0" width="58" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{marge}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="574" y="0" width="40" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="616" y="0" width="44" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{couverture}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="662" y="0" width="56" height="13"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{derniereVente}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="720" y="0" width="82" height="13" forecolor="#C0392B"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{repere}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucun groupe d'équivalents ne correspond aux critères.]]></text></staticText></band>
+    </noData>
+</jasperReport>

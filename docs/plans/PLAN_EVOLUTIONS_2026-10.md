@@ -489,6 +489,34 @@ mémorisés par utilisateur (préférences, §0.3).
 - repérage : produits « doublons » peu vendus alors qu'un équivalent se vend bien → candidats à ne plus commander ;
 - filtres (DCI, groupe avec au moins N produits, stock > 0), export Excel / PDF.
 
+**Fait (lot L7).** Onglet « Suivi équivalence » de l'écran Analyse article (`v1/suivi-equivalence`, `/excel`, `/pdf`) :
+- groupes = produits actifs ayant exactement les mêmes DCI actives (même clé que §1.1), au moins deux par groupe ;
+- dans un groupe : rang, **meneur** (le plus vendu en quantité, puis CA), part des ventes du groupe, CA, marge, stock,
+  couverture en jours, dernière vente ; chaque produit situé par rapport au meneur : **Direct** (même dosage, même
+  forme) ou **À adapter** ;
+- repère **« À ne plus commander »** : équivalent *direct* du meneur vendu moins de N % des ventes du meneur (20 % par
+  défaut, réglable) ; un produit « à adapter » n'est jamais repéré ;
+- filtres : DCI, groupes d'au moins N produits, en stock seulement, groupes avec doublons seulement ; la période est
+  celle de l'écran ; pagination par groupes (un groupe n'est jamais coupé) ; groupes avec doublons en tête.
+Tests : `SuiviEquivalenceTest` (calcul), `test-suivi-equivalence.js` (écran, base, exports).
+
+---
+
+## 9 bis. Retours du 06/10 (rattrapés avant L7)
+
+- Tableau de bord, maquette **v3** (`maquettes/tableau-de-bord-1-v3.html`) : icônes sur les tuiles, cartes aux couleurs
+  des cartes actuelles (en-tête dégradé, trait de couleur, icône), période des ruptures réglée dans la carte « Alertes »
+  reprise par la tuile, produits des alertes consultables en fenêtre, libellés produits sur une seule ligne.
+- Nouvelle présentation des fenêtres ouvertes depuis la fiche article (détail, modifier, créer), les articles vendus
+  (récapitulatif, « voir détail ») et les suggestions (détail d'article, création rapide, quantités…) ; écran du
+  contenu d'une suggestion au style du thème (sections en cartes). Une seule règle (`ECRANS_FENETRES_THEME` dans
+  `correctifs-affichage.js`) : dessin seulement, mêmes champs et mêmes gestionnaires.
+- Suggestion de réappro : colonne DISPO sans en-tête (indicateur seul), vérification de la disponibilité **du produit
+  de la ligne** par l'icône ⟳ de la cellule.
+- Corrigé au passage : le détail d'un article ouvert depuis la suggestion restait vide (API appelée en POST, 405) ;
+  titre « [] » du détail ouvert depuis une ligne.
+Test : `test-retours-0610-presentation.js`.
+
 ---
 
 ## 10. Découpage proposé et ordre de livraison (mis à jour le 06/10)

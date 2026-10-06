@@ -37,7 +37,17 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
             'analysearticle #produitAutour': {select: this.doChargerPaires},
             'analysearticle #nbCompagnons': {change: {fn: this.doChargerPaires, buffer: 600}},
             'analysearticle #effacerProduitAutour': {click: this.doEffacerProduitAutour},
-            'analysearticle #exporterPaires': {click: this.doExporterPaires}
+            'analysearticle #exporterPaires': {click: this.doExporterPaires},
+            // Suivi equivalence (plan d'octobre, section 9)
+            'analysearticle #ongletEquivalence': {activate: this.doChargerEquivalence},
+            'analysearticle #eqActualiser': {click: this.doChargerEquivalence},
+            'analysearticle #eqDci': {change: {fn: this.doChargerEquivalence, buffer: 700}},
+            'analysearticle #eqMinProduits': {change: {fn: this.doChargerEquivalence, buffer: 700}},
+            'analysearticle #eqSeuil': {change: {fn: this.doChargerEquivalence, buffer: 700}},
+            'analysearticle #eqStock': {change: this.doChargerEquivalence},
+            'analysearticle #eqCandidats': {change: this.doChargerEquivalence},
+            'analysearticle #eqExcel': {click: this.doExporterEquivalence},
+            'analysearticle #eqImprimer': {click: this.doImprimerEquivalence}
         });
     },
 
@@ -108,6 +118,11 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
         var ecran = this.getEcran();
         if (!ecran || ecran.isDestroyed) {
             return;
+        }
+        /* La periode est commune : l'onglet « Suivi équivalence », s'il est affiche, suit. */
+        var actif = ecran.down('#ongletsAnalyse') ? ecran.down('#ongletsAnalyse').getActiveTab() : null;
+        if (actif && actif.itemId === 'ongletEquivalence') {
+            this.doChargerEquivalence();
         }
         var onglet = ecran.down('#ongletMatrice');
         var store = ecran.articleStore;
@@ -262,11 +277,20 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
             this.doExporterPaires();
             return;
         }
+        if (onglets.getActiveTab().itemId === 'ongletEquivalence') {
+            this.doExporterEquivalence();
+            return;
+        }
         // Un telechargement ne passe pas par Ext.Ajax : le navigateur doit recevoir le fichier.
         window.open('../api/v1/analyse-article/matrice/excel?' + Ext.Object.toQueryString(this.criteres()));
     },
 
     doImprimer: function () {
+        var onglets = this.getEcran().down('#ongletsAnalyse');
+        if (onglets.getActiveTab().itemId === 'ongletEquivalence') {
+            this.doImprimerEquivalence();
+            return;
+        }
         // Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire.
         window.open('../api/v1/analyse-article/matrice/pdf?' + Ext.Object.toQueryString(this.criteres()));
     },
@@ -321,5 +345,57 @@ Ext.define('testextjs.controller.AnalyseArticleCtr', {
 
     doExporterPaires: function () {
         window.open('../api/v1/analyse-article/paires/excel?' + Ext.Object.toQueryString(this.criteresPaires()));
+    },
+
+    /* ------------------------------------------------------------------ suivi equivalence */
+
+    criteresEquivalence: function () {
+        var ecran = this.getEcran();
+        var c = this.criteres();
+        return {
+            typePeriode: c.typePeriode, dtStart: c.dtStart, dtEnd: c.dtEnd,
+            dci: ecran.down('#eqDci').getValue() || '',
+            minProduits: ecran.down('#eqMinProduits').getValue() || 2,
+            stockPositif: !!ecran.down('#eqStock').getValue(),
+            seulementCandidats: !!ecran.down('#eqCandidats').getValue(),
+            seuil: ecran.down('#eqSeuil').getValue() || 20
+        };
+    },
+
+    doChargerEquivalence: function () {
+        var ecran = this.getEcran();
+        if (!ecran || ecran.isDestroyed) {
+            return;
+        }
+        var onglet = ecran.down('#ongletEquivalence');
+        var store = ecran.equivalenceStore;
+        Ext.apply(store.getProxy().extraParams, this.criteresEquivalence());
+        if (onglet.rendered) {
+            onglet.setLoading('Regroupement des équivalents...');
+        }
+        store.loadPage(1, {
+            callback: function () {
+                if (onglet.isDestroyed) {
+                    return;
+                }
+                onglet.setLoading(false);
+                var brut = store.getProxy().getReader().rawData || {};
+                var resume = onglet.down('#eqResume');
+                if (resume) {
+                    resume.setText(brut.success === false ? '<span style="color:#a00">' + Ext.String.htmlEncode(brut.msg || '') + '</span>'
+                            : '<b>' + (brut.total || 0) + '</b> groupe(s) · <b style="color:#b42318">' + (brut.candidats || 0)
+                            + '</b> produit(s) à ne plus commander');
+                }
+            }
+        });
+    },
+
+    doExporterEquivalence: function () {
+        window.open('../api/v1/suivi-equivalence/excel?' + Ext.Object.toQueryString(this.criteresEquivalence()));
+    },
+
+    doImprimerEquivalence: function () {
+        // Rendu en flux dans l'onglet ouvert par le clic : aucune fenetre intermediaire.
+        window.open('../api/v1/suivi-equivalence/pdf?' + Ext.Object.toQueryString(this.criteresEquivalence()));
     }
 });
