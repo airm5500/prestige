@@ -430,7 +430,7 @@ briques ExtJS réutilisables (barre de période, tuiles, graphiques, tables) et 
 | Carte | Contenu | Clic |
 |---|---|---|
 | Évolution du CA (2/3 de largeur) | sélecteur 2026 / 2025 / 2024, comparaison N-1 (même période), **pastilles d'évolution mensuelle conservées**, valeurs écrites sur chaque point, **axes et libellés en gras** | — |
-| Valorisation du stock (1/3, à droite de la courbe) | achat / vente **rayon**, **réserve**, total ; barre de répartition ; **produits entrés il y a plus d'un mois et jamais vendus depuis** (nombre + valeur) | liste |
+| Valorisation du stock (1/3, à droite de la courbe) | achat / vente **rayon**, **réserve**, total, **part de chacun dans le stock** (décision Q-H) ; barre de répartition ; **produits entrés il y a plus d'un mois et jamais vendus depuis** (nombre + valeur) | liste |
 | Encaissements du jour | **camembert** + tableau ; **Mobile money dépliable** : chaque opérateur avec sa part dans le mobile money (opérateurs lus dans les modes de règlement actifs, paramètre de la liste des types « mobile money » ; aujourd'hui Orange, Wave, MTN, Moov, Djamo) | — |
 | Mouvements de caisse du jour | reprise de la carte existante (entrées vert, sorties rouge) + solde | écran mouvements de caisse |
 | Alertes | rupture, péremption, **suggestion de réserve**, **suggestion de rayon**, **suggestion de commande** (renommée), renouvellements, avoirs. **Périodes réglables** (⚙), valeurs actuelles par défaut (péremption 6 mois…), mémorisées par utilisateur | **ouvre le menu lié** |
@@ -526,10 +526,9 @@ Chaque lot est livré avec ses migrations, ses tests (unitaires + e2e avec jeu d
 | Q-G Reliquat | **chez le grossiste d'origine** |
 | Tableau de bord | **proposition 1**, améliorée (§8.1) |
 
-## 13. Question restante
-- **[Q-H]** Valorisation : « le % de chacun dans le CA ». Proposé : valeur de vente du rayon (ou de la réserve)
-  rapportée au CA des 30 derniers jours (ex. 87 % = le rayon représente 26 jours de ventes). Ou bien souhaitez-vous la
-  simple part du stock (rayon 60 % / réserve 40 %) ?
+## 13. Réponse du 06/10 (3e série)
+- **Q-H** Valorisation : **simple part rayon / réserve** dans le stock (ex. rayon 60 %, réserve 40 %), en valeur
+  d'achat et en valeur de vente.
 
 ---
 
