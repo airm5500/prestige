@@ -1,7 +1,7 @@
 From 628c34115b35c5b1aff5677fec8e2d9892d33c66 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 5 Oct 2026 17:50:08 +0000
-Subject: [PATCH 1/3] Essai Payara 7 : Jakarta EE 11, Hibernate 7.1, JDK 21
+Subject: [PATCH 1/5] Essai Payara 7 : Jakarta EE 11, Hibernate 7.1, JDK 21
 
 Conversion OpenRewrite (JakartaEE11, MigrateToHibernate71) puis corrections :
 pom (API fournies par le serveur, processeurs d'annotations, Lombok 1.18.48,
@@ -25193,7 +25193,7 @@ index ff55d6e..a5e8a56 100644
 From 55b3b8b15eab1b60042be100aaf92123b6533905 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 5 Oct 2026 20:47:57 +0000
-Subject: [PATCH 2/3] Essai Payara 7 : demarrage sur la base reelle
+Subject: [PATCH 2/5] Essai Payara 7 : demarrage sur la base reelle
 
 - persistence.xml : MariaDBDialect, GlassFishJtaPlatform, pas d'amelioration
   du bytecode par le serveur, dates natives en java.sql ; EclipseLink ne
@@ -26091,7 +26091,7 @@ index b884fc2..69fead2 100644
 From 950f8dd3eaa44273a5f503a1cacf68d82c5ef57f Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Mon, 5 Oct 2026 21:18:40 +0000
-Subject: [PATCH 3/3] Essai Payara 7 : ecarts mesures sur la base reelle
+Subject: [PATCH 3/5] Essai Payara 7 : ecarts mesures sur la base reelle
 
 - DALPU liste ses entites (EclipseLink ne remplit plus le metamodele
   d'Hibernate) ; PersistenceDalpuTest garde la liste a jour.
@@ -26677,6 +26677,558 @@ index 0000000..6d19bfa
 +        assertEquals(code, listees);
 +    }
 +}
+-- 
+2.43.0
+
+
+From 3c0603d35e8fbbd4818fba24822a203f8e284983 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 6 Oct 2026 00:18:03 +0000
+Subject: [PATCH 4/5] Essai Payara 7 : identifiants AUTO sur le compteur commun
+ d'Hibernate 5
+
+Hibernate 7 attend une sequence par entite (ligne_resume_caisse_SEQ...) qui
+n'existe pas en base : au banc, la cloture de caisse tombait en erreur 500.
+Les 7 entites concernees lisent de nouveau la table hibernate_sequence,
+increment 1, comme sous Hibernate 5 : aucun changement de base, retour a
+Payara 5 toujours possible. Un test refuse toute nouvelle entite en AUTO.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ src/main/java/dal/CompteurCommun.java         | 23 ++++++++
+ .../java/dal/CompteurCommunGenerateur.java    | 29 ++++++++++
+ src/main/java/dal/Groupefournisseur.java      |  4 +-
+ src/main/java/dal/LigneResumeCaisse.java      |  4 +-
+ src/main/java/dal/MotifReglement.java         |  4 +-
+ src/main/java/dal/MotifRetourCarnet.java      |  4 +-
+ src/main/java/dal/ReglementCarnet.java        |  4 +-
+ src/main/java/dal/RetourCarnet.java           |  4 +-
+ src/main/java/dal/RetourCarnetDetail.java     |  4 +-
+ src/test/java/dal/CompteurCommunTest.java     | 55 +++++++++++++++++++
+ 10 files changed, 114 insertions(+), 21 deletions(-)
+ create mode 100644 src/main/java/dal/CompteurCommun.java
+ create mode 100644 src/main/java/dal/CompteurCommunGenerateur.java
+ create mode 100644 src/test/java/dal/CompteurCommunTest.java
+
+diff --git a/src/main/java/dal/CompteurCommun.java b/src/main/java/dal/CompteurCommun.java
+new file mode 100644
+index 0000000..a2608d7
+--- /dev/null
++++ b/src/main/java/dal/CompteurCommun.java
+@@ -0,0 +1,23 @@
++package dal;
++
++import static java.lang.annotation.ElementType.FIELD;
++import static java.lang.annotation.ElementType.METHOD;
++import static java.lang.annotation.RetentionPolicy.RUNTIME;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.Target;
++import org.hibernate.annotations.IdGeneratorType;
++
++/**
++ * Identifiant tire du compteur commun {@code hibernate_sequence}, comme sous Hibernate 5.
++ *
++ * Sous Hibernate 5, les entites en {@code GenerationType.AUTO} partageaient la table {@code hibernate_sequence}.
++ * Hibernate 7 attend a la place une sequence par entite ({@code ligne_resume_caisse_SEQ}...) qui n'existe pas en base :
++ * constate au banc, la cloture de caisse tombait en erreur. Ce generateur relit la meme table, de la meme facon
++ * (incrément 1), sans rien changer a la base : un retour a Payara 5 reste possible.
++ */
++@IdGeneratorType(CompteurCommunGenerateur.class)
++@Retention(RUNTIME)
++@Target({ FIELD, METHOD })
++public @interface CompteurCommun {
++}
+diff --git a/src/main/java/dal/CompteurCommunGenerateur.java b/src/main/java/dal/CompteurCommunGenerateur.java
+new file mode 100644
+index 0000000..5ab2276
+--- /dev/null
++++ b/src/main/java/dal/CompteurCommunGenerateur.java
+@@ -0,0 +1,29 @@
++package dal;
++
++import java.util.Properties;
++import org.hibernate.MappingException;
++import org.hibernate.generator.GeneratorCreationContext;
++import org.hibernate.id.enhanced.SequenceStyleGenerator;
++
++/**
++ * Generateur de {@link CompteurCommun} : la table {@code hibernate_sequence} (colonne {@code next_val}), lue et avancee
++ * de 1 dans sa propre transaction, exactement comme le faisait Hibernate 5.
++ */
++public class CompteurCommunGenerateur extends SequenceStyleGenerator {
++
++    public static final String TABLE = "hibernate_sequence";
++
++    @Override
++    public void configure(GeneratorCreationContext contexte, Properties parametres) throws MappingException {
++        super.configure(contexte, reglage(parametres));
++    }
++
++    static Properties reglage(Properties parametres) {
++        parametres.setProperty(SEQUENCE_PARAM, TABLE);
++        parametres.setProperty(FORCE_TBL_PARAM, "true");
++        parametres.setProperty(VALUE_COLUMN_PARAM, DEF_VALUE_COLUMN);
++        parametres.setProperty(INCREMENT_PARAM, "1");
++        parametres.setProperty(OPT_PARAM, "none");
++        return parametres;
++    }
++}
+diff --git a/src/main/java/dal/Groupefournisseur.java b/src/main/java/dal/Groupefournisseur.java
+index 6a19599..ced4f55 100644
+--- a/src/main/java/dal/Groupefournisseur.java
++++ b/src/main/java/dal/Groupefournisseur.java
+@@ -9,8 +9,6 @@ import java.io.Serializable;
+ import jakarta.persistence.Basic;
+ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.NamedQueries;
+ import jakarta.persistence.NamedQuery;
+@@ -29,7 +27,7 @@ public class Groupefournisseur implements Serializable {
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id")
+     private Integer id;
+diff --git a/src/main/java/dal/LigneResumeCaisse.java b/src/main/java/dal/LigneResumeCaisse.java
+index 91f0cac..63dbb94 100644
+--- a/src/main/java/dal/LigneResumeCaisse.java
++++ b/src/main/java/dal/LigneResumeCaisse.java
+@@ -13,8 +13,6 @@ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+ import jakarta.persistence.EnumType;
+ import jakarta.persistence.Enumerated;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.JoinColumn;
+ import jakarta.persistence.ManyToOne;
+@@ -33,7 +31,7 @@ public class LigneResumeCaisse implements Serializable {
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id")
+     private Long id;
+diff --git a/src/main/java/dal/MotifReglement.java b/src/main/java/dal/MotifReglement.java
+index 477e422..f2e72fa 100644
+--- a/src/main/java/dal/MotifReglement.java
++++ b/src/main/java/dal/MotifReglement.java
+@@ -10,8 +10,6 @@ import java.util.Objects;
+ import jakarta.persistence.Basic;
+ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.NamedQueries;
+ import jakarta.persistence.NamedQuery;
+@@ -30,7 +28,7 @@ public class MotifReglement implements Serializable {
+     private static final long serialVersionUID = 1L;
+     @Id
+     @Basic(optional = false)
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Column(name = "id", nullable = false)
+     private Integer id;
+     @NotNull
+diff --git a/src/main/java/dal/MotifRetourCarnet.java b/src/main/java/dal/MotifRetourCarnet.java
+index b8e4109..4e54748 100644
+--- a/src/main/java/dal/MotifRetourCarnet.java
++++ b/src/main/java/dal/MotifRetourCarnet.java
+@@ -10,8 +10,6 @@ import java.util.Objects;
+ import jakarta.persistence.Basic;
+ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.NamedQueries;
+ import jakarta.persistence.NamedQuery;
+@@ -29,7 +27,7 @@ import jakarta.validation.constraints.NotNull;
+ public class MotifRetourCarnet implements Serializable {
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id", nullable = false, length = 11)
+     private Integer id;
+diff --git a/src/main/java/dal/ReglementCarnet.java b/src/main/java/dal/ReglementCarnet.java
+index 03bed44..8850b3b 100644
+--- a/src/main/java/dal/ReglementCarnet.java
++++ b/src/main/java/dal/ReglementCarnet.java
+@@ -15,8 +15,6 @@ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+ import jakarta.persistence.EnumType;
+ import jakarta.persistence.Enumerated;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.Index;
+ import jakarta.persistence.JoinColumn;
+@@ -37,7 +35,7 @@ public class ReglementCarnet implements Serializable {
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id", nullable = false, length = 11)
+     private Integer id;
+diff --git a/src/main/java/dal/RetourCarnet.java b/src/main/java/dal/RetourCarnet.java
+index 791096e..5b5865f 100644
+--- a/src/main/java/dal/RetourCarnet.java
++++ b/src/main/java/dal/RetourCarnet.java
+@@ -10,8 +10,6 @@ import java.time.LocalDateTime;
+ import jakarta.persistence.Basic;
+ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.JoinColumn;
+ import jakarta.persistence.ManyToOne;
+@@ -28,7 +26,7 @@ public class RetourCarnet implements Serializable {
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id", nullable = false, length = 11)
+     private Integer id;
+diff --git a/src/main/java/dal/RetourCarnetDetail.java b/src/main/java/dal/RetourCarnetDetail.java
+index 407bdca..667b4dd 100644
+--- a/src/main/java/dal/RetourCarnetDetail.java
++++ b/src/main/java/dal/RetourCarnetDetail.java
+@@ -10,8 +10,6 @@ import java.time.LocalDateTime;
+ import jakarta.persistence.Basic;
+ import jakarta.persistence.Column;
+ import jakarta.persistence.Entity;
+-import jakarta.persistence.GeneratedValue;
+-import jakarta.persistence.GenerationType;
+ import jakarta.persistence.Id;
+ import jakarta.persistence.JoinColumn;
+ import jakarta.persistence.ManyToOne;
+@@ -28,7 +26,7 @@ public class RetourCarnetDetail implements Serializable {
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @CompteurCommun
+     @Basic(optional = false)
+     @Column(name = "id", nullable = false, length = 11)
+     private Integer id;
+diff --git a/src/test/java/dal/CompteurCommunTest.java b/src/test/java/dal/CompteurCommunTest.java
+new file mode 100644
+index 0000000..df7345d
+--- /dev/null
++++ b/src/test/java/dal/CompteurCommunTest.java
+@@ -0,0 +1,55 @@
++package dal;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.util.Properties;
++import java.util.TreeSet;
++import java.util.stream.Stream;
++
++import org.hibernate.id.OptimizableGenerator;
++import org.hibernate.id.enhanced.SequenceStyleGenerator;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Sous Hibernate 7, une entite en GenerationType.AUTO chercherait une sequence propre qui n'existe pas en base : les
++ * identifiants generes doivent passer par le compteur commun d'Hibernate 5 (ou etre en IDENTITY).
++ */
++public class CompteurCommunTest {
++
++    @Test
++    public void aucuneEntiteEnAuto() throws IOException {
++        TreeSet<String> enAuto = new TreeSet<>();
++        TreeSet<String> compteur = new TreeSet<>();
++        try (Stream<Path> fichiers = Files.walk(Paths.get("src/main/java"))) {
++            for (Path f : (Iterable<Path>) fichiers.filter(p -> p.toString().endsWith(".java")
++                    && !p.getFileName().toString().startsWith("CompteurCommun"))::iterator) {
++                String t = new String(Files.readAllBytes(f), StandardCharsets.UTF_8);
++                if (t.contains("GenerationType.AUTO") || t.contains("GenerationType.SEQUENCE")
++                        || t.matches("(?s).*@GeneratedValue\\s*(\\(\\s*\\))?\\s*\\n.*")) {
++                    enAuto.add(f.getFileName().toString());
++                }
++                if (t.contains("@CompteurCommun\n") || t.contains("@CompteurCommun\r\n")) {
++                    compteur.add(f.getFileName().toString());
++                }
++            }
++        }
++        assertTrue(enAuto.isEmpty(), "identifiants AUTO : " + enAuto);
++        assertEquals(7, compteur.size(), compteur.toString());
++    }
++
++    @Test
++    public void memeReglageQuHibernate5() {
++        Properties p = CompteurCommunGenerateur.reglage(new Properties());
++        assertEquals("hibernate_sequence", p.getProperty(SequenceStyleGenerator.SEQUENCE_PARAM));
++        assertEquals("true", p.getProperty(SequenceStyleGenerator.FORCE_TBL_PARAM));
++        assertEquals("next_val", p.getProperty(SequenceStyleGenerator.VALUE_COLUMN_PARAM));
++        assertEquals("1", p.getProperty(OptimizableGenerator.INCREMENT_PARAM));
++        assertEquals("none", p.getProperty(OptimizableGenerator.OPT_PARAM));
++    }
++}
+-- 
+2.43.0
+
+
+From c69a63424ad2342e9eac70e682774b27bc9cd824 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 6 Oct 2026 00:19:03 +0000
+Subject: [PATCH 5/5] Essai Payara 7 : mise en forme produite par le build
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Uw3KGmBMwys9G4HGN9rsq5
+---
+ .../bll/stockManagement/InventaireManager.java     | 12 ++++++++----
+ src/main/java/rest/BalanceAgeeRessource.java       |  3 ++-
+ src/main/java/rest/ClientRessource.java            |  3 ++-
+ src/main/java/rest/service/CaisseService.java      |  8 ++++----
+ .../java/rest/service/impl/ClientServiceImpl.java  |  4 ++--
+ .../rest/service/impl/DashBoardServiceImpl.java    |  3 +--
+ .../service/impl/EtatControlBonServiceImpl.java    |  6 +++---
+ .../impl/OrdonnanceRenouvellementService.java      | 11 ++++++-----
+ .../service/impl/SearchProduitServcieImpl.java     | 14 ++++++--------
+ src/main/java/rest/service/posos/PososClient.java  |  6 ++++--
+ 10 files changed, 38 insertions(+), 32 deletions(-)
+
+diff --git a/src/main/java/bll/stockManagement/InventaireManager.java b/src/main/java/bll/stockManagement/InventaireManager.java
+index 27b2a0f..4017545 100644
+--- a/src/main/java/bll/stockManagement/InventaireManager.java
++++ b/src/main/java/bll/stockManagement/InventaireManager.java
+@@ -1721,7 +1721,8 @@ public class InventaireManager extends bllBase {
+                             .setParameter(3, lg_ZONE_GEO_ID).setParameter(4, lg_FAMILLEARTICLE_ID)
+                             .setParameter(6, "%" + search_value + "%").setParameter(8, boolINVENTAIRE)
+                             .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+-                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)).getResultList();
++                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS))
++                                    .getResultList();
+                 } else if (OInventaire.getStrTYPE().equalsIgnoreCase("emplacement")) {
+                     lstTInventaireFamille = lecturesEnLot(this.getOdataManager().getEm().createQuery(
+                             "SELECT DISTINCT t FROM TInventaireFamille t WHERE EXISTS (SELECT 1 FROM TFamilleGrossiste gx WHERE gx.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID) AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR EXISTS (SELECT 1 FROM TFamilleGrossiste gs WHERE gs.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND gs.strCODEARTICLE LIKE ?6) OR t.lgFAMILLEID.intEAN13 LIKE ?6  OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 GROUP BY t.lgFAMILLEID.lgFAMILLEID ORDER BY t.lgFAMILLEID.lgZONEGEOID.strCODE ASC, t.lgFAMILLEID.strNAME ASC ")
+@@ -1729,7 +1730,8 @@ public class InventaireManager extends bllBase {
+                             .setParameter(3, lg_ZONE_GEO_ID).setParameter(4, lg_FAMILLEARTICLE_ID)
+                             .setParameter(6, "%" + search_value + "%").setParameter(8, boolINVENTAIRE)
+                             .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+-                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)).getResultList();
++                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS))
++                                    .getResultList();
+ 
+                 } else if (OInventaire.getStrTYPE().equalsIgnoreCase("grossiste")) {
+                     lstTInventaireFamille = lecturesEnLot(this.getOdataManager().getEm().createQuery(
+@@ -1738,7 +1740,8 @@ public class InventaireManager extends bllBase {
+                             .setParameter(3, lg_ZONE_GEO_ID).setParameter(4, lg_FAMILLEARTICLE_ID)
+                             .setParameter(6, "%" + search_value + "%").setParameter(8, boolINVENTAIRE)
+                             .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+-                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)).getResultList();
++                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS))
++                                    .getResultList();
+                 } else {
+                     lstTInventaireFamille = lecturesEnLot(this.getOdataManager().getEm().createQuery(
+                             "SELECT DISTINCT t FROM TInventaireFamille t WHERE EXISTS (SELECT 1 FROM TFamilleGrossiste gx WHERE gx.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID) AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR EXISTS (SELECT 1 FROM TFamilleGrossiste gs WHERE gs.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND gs.strCODEARTICLE LIKE ?6) OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 GROUP BY t.lgFAMILLEID.lgFAMILLEID ORDER BY t.lgFAMILLEID.lgZONEGEOID.strCODE , t.lgFAMILLEID.strDESCRIPTION")
+@@ -1746,7 +1749,8 @@ public class InventaireManager extends bllBase {
+                             .setParameter(3, lg_ZONE_GEO_ID).setParameter(4, lg_FAMILLEARTICLE_ID)
+                             .setParameter(6, "%" + search_value + "%").setParameter(8, boolINVENTAIRE)
+                             .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+-                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)).getResultList();
++                            .setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS))
++                                    .getResultList();
+ 
+                 }
+             } else {
+diff --git a/src/main/java/rest/BalanceAgeeRessource.java b/src/main/java/rest/BalanceAgeeRessource.java
+index 885d60f..5dac5e9 100644
+--- a/src/main/java/rest/BalanceAgeeRessource.java
++++ b/src/main/java/rest/BalanceAgeeRessource.java
+@@ -483,7 +483,8 @@ public class BalanceAgeeRessource {
+             @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+             @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+             @QueryParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+-            @QueryParam("lg_GROUPE_ID") String groupeId, @jakarta.ws.rs.DefaultValue("0") @QueryParam("start") int start,
++            @QueryParam("lg_GROUPE_ID") String groupeId,
++            @jakarta.ws.rs.DefaultValue("0") @QueryParam("start") int start,
+             @jakarta.ws.rs.DefaultValue("0") @QueryParam("limit") int limit) {
+         TUser tu = getUser();
+         if (tu == null) {
+diff --git a/src/main/java/rest/ClientRessource.java b/src/main/java/rest/ClientRessource.java
+index 8ea2b79..13e3792 100644
+--- a/src/main/java/rest/ClientRessource.java
++++ b/src/main/java/rest/ClientRessource.java
+@@ -539,7 +539,8 @@ public class ClientRessource {
+         try {
+             org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload<org.apache.commons.fileupload2.core.DiskFileItem, org.apache.commons.fileupload2.core.DiskFileItemFactory> upload = new org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload<>(
+                     org.apache.commons.fileupload2.core.DiskFileItemFactory.builder().get());
+-            java.util.List<org.apache.commons.fileupload2.core.DiskFileItem> items = upload.parseRequest(servletRequest);
++            java.util.List<org.apache.commons.fileupload2.core.DiskFileItem> items = upload
++                    .parseRequest(servletRequest);
+             String nomFichier = null;
+             byte[] contenu = null;
+             java.util.Map<String, String> champs = new java.util.HashMap<>();
+diff --git a/src/main/java/rest/service/CaisseService.java b/src/main/java/rest/service/CaisseService.java
+index 8994b4d..f875337 100644
+--- a/src/main/java/rest/service/CaisseService.java
++++ b/src/main/java/rest/service/CaisseService.java
+@@ -49,10 +49,10 @@ public interface CaisseService {
+      *
+      * // Create expressions that extract time parts: Expression<Integer> hour = cb.function("hour", Integer.class,
+      * time); Expression<Integer> minute = cb.function("minute", Integer.class, time); Expression<Integer> second =
+-     * cb.function("second", Integer.class, ts); qry.setHint("jakarta.persistence.cache.retrieveMode", CacheRetrieveMode.
+-     * BYPASS); EntityGraph entityGraph = entityManager .getEntityGraph("author-books-graph"); Map<String, Object>
+-     * properties = new HashMap<>(); properties.put("jakarta.persistence.fetchgraph", entityGraph); Author author =
+-     * entityManager.find(Author.class, id, properties);
++     * cb.function("second", Integer.class, ts); qry.setHint("jakarta.persistence.cache.retrieveMode",
++     * CacheRetrieveMode. BYPASS); EntityGraph entityGraph = entityManager .getEntityGraph("author-books-graph");
++     * Map<String, Object> properties = new HashMap<>(); properties.put("jakarta.persistence.fetchgraph", entityGraph);
++     * Author author = entityManager.find(Author.class, id, properties);
+      */
+     List<SumCaisseDTO> getCaisse(CaisseParamsDTO caisseParams);
+ 
+diff --git a/src/main/java/rest/service/impl/ClientServiceImpl.java b/src/main/java/rest/service/impl/ClientServiceImpl.java
+index b4b32b9..7d2859e 100644
+--- a/src/main/java/rest/service/impl/ClientServiceImpl.java
++++ b/src/main/java/rest/service/impl/ClientServiceImpl.java
+@@ -1844,8 +1844,8 @@ public class ClientServiceImpl implements ClientService {
+     // ------------------- Ecran Gestion des Clients (remplace client/ws_data.jsp) -------------------
+ 
+     /*
+-     * Parametres nommes : selon les filtres, certains sont absents de la requete, et Hibernate 7 refuse des
+-     * parametres positionnels qui ne commencent pas au premier ou qui laissent un trou.
++     * Parametres nommes : selon les filtres, certains sont absents de la requete, et Hibernate 7 refuse des parametres
++     * positionnels qui ne commencent pas au premier ou qui laissent un trou.
+      */
+     private String clauseListeClients(String search, String typeClientId) {
+         StringBuilder where = new StringBuilder(" FROM TClient t WHERE t.strSTATUT = :statut");
+diff --git a/src/main/java/rest/service/impl/DashBoardServiceImpl.java b/src/main/java/rest/service/impl/DashBoardServiceImpl.java
+index f6338c4..2be69fe 100644
+--- a/src/main/java/rest/service/impl/DashBoardServiceImpl.java
++++ b/src/main/java/rest/service/impl/DashBoardServiceImpl.java
+@@ -559,8 +559,7 @@ public class DashBoardServiceImpl implements DashBoardService {
+     private RecapActiviteCreditDTO buildFromTuple(Tuple tuple) {
+         return new RecapActiviteCreditDTO(tuple.get("libelleTiersPayant", String.class),
+                 tuple.get("typeTiersPayant", String.class), tuple.get("amount", BigDecimal.class).longValue(),
+-                tuple.get("nbreClient", Number.class).longValue(),
+-                tuple.get("nbreBon", Number.class).longValue());
++                tuple.get("nbreClient", Number.class).longValue(), tuple.get("nbreBon", Number.class).longValue());
+     }
+ 
+     @Override
+diff --git a/src/main/java/rest/service/impl/EtatControlBonServiceImpl.java b/src/main/java/rest/service/impl/EtatControlBonServiceImpl.java
+index ac98572..ebe1b2e 100644
+--- a/src/main/java/rest/service/impl/EtatControlBonServiceImpl.java
++++ b/src/main/java/rest/service/impl/EtatControlBonServiceImpl.java
+@@ -255,9 +255,9 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
+         long montantTaxe = toLong(tuple, "montantTaxe");
+         long marge = montantVenteTtc - montantTtc;
+         return EtatControlAnnuelDTO.builder().montantMarge(marge).montantHtaxe(toLong(tuple, "montantHtaxe"))
+-                .nbreBon(tuple.get("nbreBon", Number.class).intValue()).montantTtc(montantTtc)
+-                .montantTaxe(montantTaxe).groupByLibelle(tuple.get("groupByLibelle", String.class))
+-                .montantAvoir(toLong(tuple, "montantAvoir")).montantVenteTtc(montantVenteTtc).build();
++                .nbreBon(tuple.get("nbreBon", Number.class).intValue()).montantTtc(montantTtc).montantTaxe(montantTaxe)
++                .groupByLibelle(tuple.get("groupByLibelle", String.class)).montantAvoir(toLong(tuple, "montantAvoir"))
++                .montantVenteTtc(montantVenteTtc).build();
+     }
+ 
+     private List<EtatControlAnnuelDTO> listBonsAnnuel(String groupBy, String dtStart, String dtEnd, String grossisteId,
+diff --git a/src/main/java/rest/service/impl/OrdonnanceRenouvellementService.java b/src/main/java/rest/service/impl/OrdonnanceRenouvellementService.java
+index 8d55f51..3b34562 100644
+--- a/src/main/java/rest/service/impl/OrdonnanceRenouvellementService.java
++++ b/src/main/java/rest/service/impl/OrdonnanceRenouvellementService.java
+@@ -242,11 +242,12 @@ public class OrdonnanceRenouvellementService {
+                 + " AND rf.str_STATUT <> 'annulee')";
+         String derniere = "(SELECT MAX(rd.dt_ORDONNANCE) FROM t_ordonnance_client rd WHERE (rd.lg_ORDONNANCE_ID ="
+                 + " o.lg_ORDONNANCE_ID OR rd.lg_ORDONNANCE_ORIGINE_ID = o.lg_ORDONNANCE_ID) AND rd.str_STATUT <> 'annulee')";
+-        jakarta.persistence.Query q = em.createNativeQuery("SELECT o.lg_ORDONNANCE_ID AS id, o.lg_CLIENT_ID AS clientId,"
+-                + " o.lg_USER_CREATED AS createur, o.int_RENOUVELLEMENTS AS autorises, o.int_PERIODICITE_JOURS AS periodicite,"
+-                + " o.int_RANG_RAPPELE AS rangRappele, " + faits + " AS faits, " + derniere + " AS derniere"
+-                + " FROM t_ordonnance_client o WHERE o.lg_ORDONNANCE_ORIGINE_ID IS NULL AND o.str_STATUT <> 'annulee'"
+-                + " AND o.int_RENOUVELLEMENTS > 0" + (origineId == null ? "" : " AND o.lg_ORDONNANCE_ID = ?1"),
++        jakarta.persistence.Query q = em.createNativeQuery(
++                "SELECT o.lg_ORDONNANCE_ID AS id, o.lg_CLIENT_ID AS clientId,"
++                        + " o.lg_USER_CREATED AS createur, o.int_RENOUVELLEMENTS AS autorises, o.int_PERIODICITE_JOURS AS periodicite,"
++                        + " o.int_RANG_RAPPELE AS rangRappele, " + faits + " AS faits, " + derniere + " AS derniere"
++                        + " FROM t_ordonnance_client o WHERE o.lg_ORDONNANCE_ORIGINE_ID IS NULL AND o.str_STATUT <> 'annulee'"
++                        + " AND o.int_RENOUVELLEMENTS > 0" + (origineId == null ? "" : " AND o.lg_ORDONNANCE_ID = ?1"),
+                 Tuple.class);
+         if (origineId != null) {
+             q.setParameter(1, origineId);
+diff --git a/src/main/java/rest/service/impl/SearchProduitServcieImpl.java b/src/main/java/rest/service/impl/SearchProduitServcieImpl.java
+index 8aa169b..d1fdfc8 100644
+--- a/src/main/java/rest/service/impl/SearchProduitServcieImpl.java
++++ b/src/main/java/rest/service/impl/SearchProduitServcieImpl.java
+@@ -444,12 +444,11 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
+ 
+             org.hibernate.query.NativeQuery q = (org.hibernate.query.NativeQuery) em.createNativeQuery(sql.toString())
+                     .unwrap(org.hibernate.query.NativeQuery.class).addEntity("t", TFamille.class)
+-                    .addScalar("stock", StandardBasicTypes.INTEGER)
+-                    .addEntity("gamme", dal.GammeProduit.class).addEntity("labo", dal.Laboratoire.class)
+-                    .addEntity("farticle", dal.TFamillearticle.class).addEntity("grossiste", dal.TGrossiste.class)
+-                    .addEntity("zone", dal.TZoneGeographique.class).addEntity("etiquette", dal.TTypeetiquette.class)
+-                    .addEntity("acte", dal.TCodeActe.class).addEntity("gestion", dal.TCodeGestion.class)
+-                    .addEntity("fabriquant", dal.TFabriquant.class)
++                    .addScalar("stock", StandardBasicTypes.INTEGER).addEntity("gamme", dal.GammeProduit.class)
++                    .addEntity("labo", dal.Laboratoire.class).addEntity("farticle", dal.TFamillearticle.class)
++                    .addEntity("grossiste", dal.TGrossiste.class).addEntity("zone", dal.TZoneGeographique.class)
++                    .addEntity("etiquette", dal.TTypeetiquette.class).addEntity("acte", dal.TCodeActe.class)
++                    .addEntity("gestion", dal.TCodeGestion.class).addEntity("fabriquant", dal.TFabriquant.class)
+                     .addEntity("indicateur", dal.TIndicateurReapprovisionnement.class)
+                     .addEntity("remise", dal.TRemise.class).addEntity("tva", dal.TCodeTva.class);
+ 
+@@ -495,8 +494,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
+ 
+             org.hibernate.query.NativeQuery q = (org.hibernate.query.NativeQuery) em.createNativeQuery(sql.toString())
+                     .unwrap(org.hibernate.query.NativeQuery.class).addEntity("t", TFamille.class)
+-                    .addScalar("stock", StandardBasicTypes.INTEGER)
+-                    .addEntity("zone", dal.TZoneGeographique.class);
++                    .addScalar("stock", StandardBasicTypes.INTEGER).addEntity("zone", dal.TZoneGeographique.class);
+ 
+             // Set centralized filter parameters
+             setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
+diff --git a/src/main/java/rest/service/posos/PososClient.java b/src/main/java/rest/service/posos/PososClient.java
+index 9731b9f..d219dee 100644
+--- a/src/main/java/rest/service/posos/PososClient.java
++++ b/src/main/java/rest/service/posos/PososClient.java
+@@ -345,7 +345,8 @@ public class PososClient {
+             Client client = null;
+             try {
+                 client = client(delaiMs);
+-                jakarta.ws.rs.client.Invocation.Builder requete = client.target(url).request(MediaType.APPLICATION_JSON);
++                jakarta.ws.rs.client.Invocation.Builder requete = client.target(url)
++                        .request(MediaType.APPLICATION_JSON);
+                 entetes.forEach(requete::header);
+                 try (Response r = requete.post(Entity.entity(formulaire, MediaType.APPLICATION_FORM_URLENCODED_TYPE))) {
+                     return new Reponse(r.getStatus(), r.readEntity(String.class));
+@@ -363,7 +364,8 @@ public class PososClient {
+             Client client = null;
+             try {
+                 client = client(delaiMs);
+-                jakarta.ws.rs.client.Invocation.Builder requete = client.target(url).request(MediaType.APPLICATION_JSON);
++                jakarta.ws.rs.client.Invocation.Builder requete = client.target(url)
++                        .request(MediaType.APPLICATION_JSON);
+                 entetes.forEach(requete::header);
+                 try (Response r = requete.post(Entity.entity(corps, MediaType.APPLICATION_JSON_TYPE))) {
+                     return new Reponse(r.getStatus(), r.readEntity(String.class));
 -- 
 2.43.0
 
