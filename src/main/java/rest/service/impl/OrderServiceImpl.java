@@ -1295,6 +1295,28 @@ public class OrderServiceImpl implements OrderService {
 
     private void createOrderDetail(TOrder order, TSuggestionOrderDetails details, TGrossiste grossiste,
             KeyUtilGen keyUtilGen) {
+        createOrderDetail(order, details, grossiste, keyUtilGen, true);
+    }
+
+    /**
+     * Plan d'octobre 1.5 : « Commander par PharmaML » depuis la liste des suggestions. Meme creation de commande que
+     * transformSuggestionToOrder (memes lignes, memes prix), mais la suggestion et ses lignes sont CONSERVEES : elle
+     * passera « Commandée » une fois l'envoi reussi. Rend l'identifiant de la commande creee.
+     */
+    @Override
+    public String creerCommandeDepuisSuggestion(String suggestionId, TUser user) {
+        KeyUtilGen keyUtilGen = new KeyUtilGen();
+        TSuggestionOrder suggestionOrder = em.find(TSuggestionOrder.class, suggestionId);
+        TGrossiste grossiste = suggestionOrder.getLgGROSSISTEID();
+        TOrder order = createOrderFromSuggession(grossiste, user, keyUtilGen);
+        for (TSuggestionOrderDetails details : suggestionOrder.getTSuggestionOrderDetailsCollection()) {
+            createOrderDetail(order, details, grossiste, keyUtilGen, false);
+        }
+        return order.getLgORDERID();
+    }
+
+    private void createOrderDetail(TOrder order, TSuggestionOrderDetails details, TGrossiste grossiste,
+            KeyUtilGen keyUtilGen, boolean retirerDeLaSuggestion) {
         TFamille famille = details.getLgFAMILLEID();
 
         TOrderDetail orderDetail = new TOrderDetail();
@@ -1312,7 +1334,9 @@ public class OrderServiceImpl implements OrderService {
         orderDetail.setDtCREATED(order.getDtCREATED());
         orderDetail.setDtUPDATED(order.getDtCREATED());
         em.persist(orderDetail);
-        em.remove(details);
+        if (retirerDeLaSuggestion) {
+            em.remove(details);
+        }
     }
 
     @Override

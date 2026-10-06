@@ -108,6 +108,9 @@ public interface OrderService {
 
     void transformSuggestionToOrder(String suggestionId, TUser user);
 
+    /** Commande creee a partir de la suggestion, qui est conservee (plan d'octobre 1.5). Rend l'id de la commande. */
+    String creerCommandeDepuisSuggestion(String suggestionId, TUser user);
+
     void removeOrder(String orderId);
 
     void mergeOrder(CommandeIdsDTO commandeIds);

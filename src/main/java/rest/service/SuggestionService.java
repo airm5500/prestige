@@ -77,6 +77,12 @@ public interface SuggestionService {
     /** Statut « Commandée », avec la date, le mode (CSV, PHARMAML, MANUEL), l'utilisateur et la commande creee. */
     JSONObject marquerCommandee(String suggestionId, String mode, String orderId, TUser user);
 
+    /** Plan d'octobre 1.5 : ce que la confirmation de « Commander par PharmaML » affiche. */
+    JSONObject apercuCommandePharmaMl(String suggestionId);
+
+    /** Commande creee depuis la suggestion (reprise si l'envoi doit etre relance). */
+    void lierCommande(String suggestionId, String orderId);
+
     /** Liste filtree par statut (vide = tous). */
     JSONObject fetch(String query, String statut, int start, int limit);
 

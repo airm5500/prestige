@@ -1095,6 +1095,44 @@ public class SuggestionImpl implements SuggestionService {
         return new JSONObject().put("success", true).put("statut", STATUT_COMMANDEE).put("mode", m);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject apercuCommandePharmaMl(String suggestionId) {
+        List<Tuple> r = getEmg().createNativeQuery("SELECT s.str_REF AS ref, s.str_STATUT AS statut,"
+                + " g.str_LIBELLE AS grossiste, COALESCE(g.str_URL_PHARMAML, '') AS url,"
+                + " g.str_PHARMAML_VERSION_CMDE AS version, s.lg_ORDER_ID AS commande,"
+                + " (SELECT o.str_REF_ORDER FROM t_order o WHERE o.lg_ORDER_ID = s.lg_ORDER_ID"
+                + "   AND o.str_STATUT = 'is_Process') AS commandeEnCours,"
+                + " (SELECT COUNT(*) FROM t_suggestion_order_details d WHERE d.lg_SUGGESTION_ORDER_ID = s.lg_SUGGESTION_ORDER_ID) AS lignes,"
+                + " (SELECT COALESCE(SUM(d.int_NUMBER * d.int_PAF_DETAIL), 0) FROM t_suggestion_order_details d"
+                + "   WHERE d.lg_SUGGESTION_ORDER_ID = s.lg_SUGGESTION_ORDER_ID) AS valeur"
+                + " FROM t_suggestion_order s JOIN t_grossiste g ON g.lg_GROSSISTE_ID = s.lg_GROSSISTE_ID"
+                + " WHERE s.lg_SUGGESTION_ORDER_ID = :id", Tuple.class).setParameter("id", suggestionId)
+                .getResultList();
+        if (r.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Suggestion introuvable");
+        }
+        Tuple t = r.get(0);
+        String statut = (String) t.get("statut");
+        return new JSONObject().put("success", true).put("reference", t.get("ref")).put("statut", statut)
+                .put("commandee", STATUT_COMMANDEE.equals(statut) || Constant.STATUT_ENABLE.equals(statut))
+                .put("grossiste", StringUtils.defaultString((String) t.get("grossiste")))
+                .put("pharmaml", StringUtils.isNotBlank((String) t.get("url")))
+                .put("version", rest.service.impl.PharmaMlMessages.version((String) t.get("version")))
+                .put("lignes", ((Number) t.get("lignes")).intValue())
+                .put("valeur", ((Number) t.get("valeur")).longValue())
+                .put("commandeId",
+                        t.get("commandeEnCours") == null ? "" : StringUtils.defaultString((String) t.get("commande")))
+                .put("commandeRef", StringUtils.defaultString((String) t.get("commandeEnCours")));
+    }
+
+    @Override
+    public void lierCommande(String suggestionId, String orderId) {
+        getEmg().createNativeQuery("UPDATE t_suggestion_order SET lg_ORDER_ID = :o, dt_UPDATED = NOW()"
+                + " WHERE lg_SUGGESTION_ORDER_ID = :id").setParameter("o", orderId).setParameter("id", suggestionId)
+                .executeUpdate();
+    }
+
     private static int nombre(Object v) {
         return v instanceof Number ? ((Number) v).intValue() : 0;
     }
