@@ -100,10 +100,8 @@ tous ses substituts en stock**, un par sous-ligne, dans cet ordre :
 - Filtres : direct seulement / à adapter, produit. **Imprimer** : PDF dans un onglet.
 
 **Colonne marqueur dans la grille de la suggestion** : pastille « ≡ DCI » sur les lignes qui ont au moins un
-substitut valide ; au clic, la même présentation limitée à **cette** ligne. Le marqueur est calculé au chargement de
-la page de la grille (une requête groupée pour les lignes affichées, pas pour toute la suggestion), pour ne pas
-ralentir l'ouverture. **[Q-A]** si vous préférez que le marqueur n'apparaisse qu'après avoir cliqué sur
-« Équivalents DCI ».
+substitut valide ; au clic, la même présentation limitée à **cette** ligne. **Décision Q-A : le marqueur n'apparaît
+qu'après un clic sur « Équivalents DCI »** (rien n'est calculé à l'ouverture).
 
 **Endpoint** `GET v1/suggestion/{id}/equivalents-dci` (lecture seule, emplacement lu dans la session, une seule
 requête SQL pour toutes les lignes, puis classement Java).
@@ -142,9 +140,8 @@ forme, contre-indications ».
   `Id_Officine` / `Id_Repartiteur`, `Usage`, `Id_Moteur = Prestige`) **et** en V1 (existant).
 - ⚠️ **Point de vigilance** : aujourd'hui l'**envoi des commandes** fonctionne en 1.0.0.0. Passer tous les
   grossistes en 3.0.0.0 changerait aussi l'envoi des commandes, ce qui pourrait casser un envoi qui marche. Je
-  propose **deux réglages** : version pour l'**information produit** (3.0.0.0 par défaut) et version pour
-  l'**envoi de commande** (1.0.0.0 conservée par défaut, passable en 3.0.0.0 grossiste par grossiste après vos
-  tests). **[Q-B]**
+  propose **deux réglages** par grossiste (information produit / envoi de commande). **Décision Q-B : les deux en
+  3.0.0.0 par défaut** ; le réglage permet de revenir en 1.0.0.0 grossiste par grossiste si un test échoue.
 - Vous testez après livraison : chaque échange est archivé (fichiers XML envoyés / reçus) pour l'analyse.
 
 **Boutons (suggestion ouverte et commande ouverte).**
@@ -209,7 +206,7 @@ affiché « CLOTURE », `enable` (« COMMANDEE ») jamais visible ; transformer 
 
 ⚠️ Aujourd'hui, transformer une suggestion en commande la **supprime**. Garder une trace (statut « Commandée »)
 implique de ne plus la supprimer. Je propose de la garder **uniquement** pour cette nouvelle action et pour le
-statut Commandée, et de laisser le bouton « Commander » actuel inchangé. **[Q-C]**
+statut Commandée, et de laisser le bouton « Commander » actuel inchangé. **Décision Q-C : oui, conservée « Commandée ».**
 
 ### 1.6 Écran de traitement de la suggestion
 
@@ -234,7 +231,8 @@ statut Commandée, et de laisser le bouton « Commander » actuel inchangé. **[
 - **Colonne Colisage** dans le détail.
 - Même service, même cache : une commande et une suggestion du même grossiste partagent les résultats récents.
 - Le statut `pharma` (prévu dans la liste des commandes) n'est jamais posé aujourd'hui ; à corriger après l'envoi
-  PharmaML réussi (et corriger l'affichage du succès avec l'icône d'erreur). **[Q-D]**
+  PharmaML réussi. **Décision Q-D : on le garde tel quel** (aucun changement de statut ; seul l'affichage du succès
+  avec l'icône d'erreur est corrigé).
 - Sortie des JSP : l'import de la réponse grossiste (`importOrder.js` → `ws_transaction.jsp?mode=importfile`) passe
   en REST.
 
@@ -262,8 +260,8 @@ colonnes) est réutilisable ; aucun modèle d'import n'est mémorisé.
 
 **Connexions / déconnexions.** Écriture d'une ligne à la connexion, clôture à la déconnexion ; pour les fermetures de
 navigateur : battement léger (`dt_LAST_ACTIVITY`) et clôture automatique après N minutes d'inactivité par une tâche
-planifiée. **Sans changer** la durée de session actuelle (pas de déconnexion forcée des caisses). **[Q-E]** délai
-d'inactivité (30 min proposé).
+planifiée. **Sans changer** la durée de session actuelle (pas de déconnexion forcée des caisses). **Décision Q-E :
+pas de clôture par inactivité** ; une session se termine à la déconnexion ou à l'expiration actuelle de la session.
 
 **Pointage.**
 - **Mobile** (décision du 06/10 : **en dernier**, une application mobile existe déjà, on y reviendra) : endpoint
@@ -349,7 +347,7 @@ modèles de message, consentement `bool_CONSENT_SMS`. **Le rappel de renouvellem
 |---|---|---|
 | 2e code géo `str_CODE_GEO_ARTICLE_RESERVE` | `str_CODE_GEO_ARTICLE` (V6.1.7) ; la réserve n'a **aucune localisation** | nouvelle colonne VARCHAR(50) sur `t_famille`, saisie en modification (bloc Gestion / réserve), affichée en détail |
 | Liste des produits par code géo, Excel + impression | rien de dédié | écran « Produits par code géo » : filtres code géo rayon / réserve / zone, export Excel, PDF dans un onglet |
-| Colisage | **aucun champ** (`int_T` = code tableau, pas un colisage) | nouvelle colonne `int_COLISAGE` (nullable), saisie et affichée, **rappelée en colonne dans la grille de traitement de la suggestion et dans le détail de la commande** (décision du 06/10) ; arrondi automatique au colis : non pour l'instant **[Q-F]** |
+| Colisage | **aucun champ** (`int_T` = code tableau, pas un colisage) | nouvelle colonne `int_COLISAGE` (nullable), saisie et affichée, **rappelée en colonne dans la grille de traitement de la suggestion et dans le détail de la commande** (décision du 06/10) ; **décision Q-F : informatif**, arrondi au colis plus tard avec les données grossiste |
 | Images | **aucune** | voir ci-dessous |
 
 **Images produit.**
@@ -415,7 +413,49 @@ briques ExtJS réutilisables (barre de période, tuiles, graphiques, tables) et 
      créances tiers payants, avoirs en cours, ventes ratées, renouvellements à venir.
    - **Décision du 06/10** : paramètre `KEY_TABLEAU_BORD_VERSION` (`NOUVEAU` / `ANCIEN`) pour basculer à tout
      moment ; l'ancien reste intact.
-3. **Présentations** : trois maquettes HTML livrées avec ce document (`maquettes/tableau-de-bord-*.html`).
+3. **Présentations** : trois maquettes HTML livrées le 06/10 (`maquettes/tableau-de-bord-*.html`).
+   **Choix du 06/10 : proposition 1 (grille)**, avec les améliorations ci-dessous →
+   `maquettes/tableau-de-bord-1-v2.html`.
+
+### 8.1 Contenu retenu (proposition 1, version 2)
+
+**Tuiles du haut**
+- CA net du jour (+ nombre de clients, évolution vs J-7), marge nette, panier moyen, ruptures.
+- **Achats du jour** (remplace « valeur du stock ») : **HT + TVA = TTC** et **nombre de BL**, comme l'existant.
+  Interrupteur **« saisie / date BL »** affiché sur la tuile :
+  - *saisie* (défaut, = existant) : `t_bon_livraison.dt_UPDATED`, date d'entrée en stock ;
+  - *date BL* : `dt_DATE_LIVRAISON`, date portée sur le BL du grossiste.
+
+**Cartes**
+| Carte | Contenu | Clic |
+|---|---|---|
+| Évolution du CA (2/3 de largeur) | sélecteur 2026 / 2025 / 2024, comparaison N-1 (même période), **pastilles d'évolution mensuelle conservées**, valeurs écrites sur chaque point, **axes et libellés en gras** | — |
+| Valorisation du stock (1/3, à droite de la courbe) | achat / vente **rayon**, **réserve**, total ; barre de répartition ; **produits entrés il y a plus d'un mois et jamais vendus depuis** (nombre + valeur) | liste |
+| Encaissements du jour | **camembert** + tableau ; **Mobile money dépliable** : chaque opérateur avec sa part dans le mobile money (opérateurs lus dans les modes de règlement actifs, paramètre de la liste des types « mobile money » ; aujourd'hui Orange, Wave, MTN, Moov, Djamo) | — |
+| Mouvements de caisse du jour | reprise de la carte existante (entrées vert, sorties rouge) + solde | écran mouvements de caisse |
+| Alertes | rupture, péremption, **suggestion de réserve**, **suggestion de rayon**, **suggestion de commande** (renommée), renouvellements, avoirs. **Périodes réglables** (⚙), valeurs actuelles par défaut (péremption 6 mois…), mémorisées par utilisateur | **ouvre le menu lié** |
+| Top 5 des ventes du mois | interrupteur **CA / quantité**, **marge et taux de marge par produit** | — |
+| Achats par grossiste | grossistes lus en base (plus de noms en dur) + **« Voir plus »** | fenêtre liste |
+| Top 5 du CA / Top 5 des quantités | reprises de l'existant + « Voir plus » | fenêtre liste |
+| TVA | 0 %, 9 %, 18 % : HT, TVA, TTC, mêmes chiffres que « Statistique par TVA » | menu Statistique par TVA |
+| Top 5 du CA par emplacement (rayon) | 5 emplacements les plus importants + « Voir plus » | fenêtre liste |
+| Encours tiers payants | reprise de l'existant + « Voir plus » | fenêtre liste |
+
+« Voir plus » ouvre une **fenêtre d'affichage** (pas d'impression en pop-up).
+
+### 8.2 Remettre un élément retiré
+Bouton **Personnaliser** → bandeau listant les **éléments retirés** : un clic remet l'élément à sa place. Bouton
+**« Rétablir la disposition par défaut »**. Disposition, éléments retirés, périodes des alertes et interrupteurs
+mémorisés par utilisateur (préférences, §0.3).
+
+### 8.3 Performance (éviter les lenteurs)
+- **Un élément retiré n'est jamais chargé** ; chaque carte charge **ses** données quand elle devient visible à
+  l'écran (chargement progressif), tuiles d'abord.
+- **Une requête par carte** (plus de requêtes par sous-élément) ; données du jour en cache serveur court (1 à 2 min),
+  année et historique mensuel en cache long (les mois clos ne changent plus) ou lus dans les agrégats du Pilotage.
+- Requêtes sur plages de dates et index existants (même règle que le correctif des articles vendus) ; mesures
+  avant / après sur la base de test, aucune carte au-delà de 1 s visée.
+- Aucun rafraîchissement automatique ; bouton « Actualiser » comme aujourd'hui.
 
 **Menu (`ws_tree_menu.jsp`).** Il n'existe aucun équivalent REST. Proposition : `GET v1/menu/arbre` produisant
 **exactement** le même JSON (mêmes droits, mêmes priorités, mêmes libellés), test de comparaison JSP / API, bascule de
@@ -473,19 +513,23 @@ Chaque lot est livré avec ses migrations, ses tests (unitaires + e2e avec jeu d
 | Statuts | « En cours » à l'ouverture, « Clôturée » au dernier produit traité, question CSV, « Commandée » |
 | JSP | plus aucun écran ne les appelle ; elles restent sur le serveur |
 
-## 12. Questions restantes
+## 12. Réponses du 06/10 (2e série)
 
-- **[Q-A]** Marqueur « ≡ DCI » dans la grille : calculé pour la page affichée (léger), ou seulement après un clic sur
-  « Équivalents DCI » ?
-- **[Q-B]** Version PharmaML : 3.0.0.0 par défaut pour l'**information produit** ; pour l'**envoi de commande**,
-  garder 1.0.0.0 (qui fonctionne aujourd'hui) jusqu'à vos tests, puis basculer grossiste par grossiste ? Ou tout en
-  3.0.0.0 dès la livraison ?
-- **[Q-C]** « Commander par PharmaML » depuis la liste des suggestions : conserver la suggestion au statut
-  « Commandée » (au lieu de la supprimer comme aujourd'hui) ; le bouton « Commander » actuel reste inchangé ?
-- **[Q-D]** Commande envoyée par PharmaML : poser le statut `pharma` (prévu, jamais posé) ?
-- **[Q-E]** Délai d'inactivité pour clôturer une session dans le suivi des connexions : 30 min ?
-- **[Q-F]** Colisage : information seulement pour l'instant (proposé), arrondi au colis plus tard ?
-- **[Q-G]** Reliquat : la nouvelle suggestion de reliquat garde-t-elle le grossiste d'origine (proposé) ?
+| Question | Décision |
+|---|---|
+| Q-A Marqueur DCI | **au clic** sur « Équivalents DCI » uniquement |
+| Q-B Version PharmaML | **3.0.0.0 partout**, y compris l'envoi des commandes (paramètre par grossiste pour revenir en 1.0.0.0) |
+| Q-C Commander par PharmaML | la suggestion est **conservée au statut « Commandée »** |
+| Q-D Statut `pharma` | **gardé tel quel** (pas modifié) |
+| Q-E Inactivité des sessions | **pas de délai** : comportement actuel conservé |
+| Q-F Colisage | **informatif** pour le moment (couplage aux données grossiste plus tard) |
+| Q-G Reliquat | **chez le grossiste d'origine** |
+| Tableau de bord | **proposition 1**, améliorée (§8.1) |
+
+## 13. Question restante
+- **[Q-H]** Valorisation : « le % de chacun dans le CA ». Proposé : valeur de vente du rayon (ou de la réserve)
+  rapportée au CA des 30 derniers jours (ex. 87 % = le rayon représente 26 jours de ventes). Ou bien souhaitez-vous la
+  simple part du stock (rayon 60 % / réserve 40 %) ?
 
 ---
 
