@@ -222,6 +222,21 @@ public class OrdonnanceRenouvellementService {
         return ids;
     }
 
+    /**
+     * Tableau de bord (plan d'octobre, section 8) : nombre de chaines dont le renouvellement suivant tombe d'ici N
+     * jours (ou est deja passe sans avoir ete fait). Lecture seule : aucun rappel n'est prepare.
+     */
+    public int aRenouvelerSous(int jours) {
+        LocalDate limite = LocalDate.now().plusDays(Math.max(0, jours));
+        int n = 0;
+        for (Echeance e : echeances(null, Integer.MAX_VALUE, true)) {
+            if (e.date != null && !e.date.isAfter(limite)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** Une chaine a rappeler : son origine, son client, ses produits et l'echeance. */
     static final class Echeance {
         String origineId;
