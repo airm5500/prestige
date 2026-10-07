@@ -91,7 +91,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     nettoyer();
     for (const [n, G] of Object.entries(GROSSISTES)) { url(G, sauves[n].url); }
     ok('Commandes d\'essai retirées, adresses remises', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'") === '0'
-      && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === 'http://dpciml.resocerp.net/PharmaML/');
+      && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === (sauves.DPCI.url || 'NULL'));
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
     process.exit(ko ? 1 : 0);
