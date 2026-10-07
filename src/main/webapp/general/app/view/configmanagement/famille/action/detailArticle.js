@@ -268,6 +268,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     maximizable: true,
     requires: [
         'testextjs.view.configmanagement.famille.ImagesProduitPanel',
+        'testextjs.view.configmanagement.famille.MonographiePanel',
         'Ext.form.*',
         'Ext.window.Window',
         'testextjs.store.Statut',
@@ -1254,6 +1255,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             }
                         }]
 
+                },
+                {
+                    /* Retours du 07/10 : monographie DS Pharmagora (VIDAL), dans la fiche (aucune fenetre) */
+                    xtype: 'fieldset', itemId: 'monographieSection',
+                    title: '<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">MONOGRAPHIE (VIDAL)</span>',
+                    style: 'border-top:4px solid #0d6a74;',
+                    collapsible: true,
+                    items: [{
+                            xtype: 'monographiepanel', itemId: 'monographieDetail',
+                            familleId: this.getProduitId() || (this.getOdatasource() || {}).lg_FAMILLE_ID
+                        }]
                 }
 
             ]

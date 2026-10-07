@@ -2870,3 +2870,27 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .tb-typevente { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #d5dee8; }
 .tb-typevente-t { font-size: 11px; font-weight: 700; color: #5b6b7c; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
 .tb-typevente-l { flex: 1; } .tb-typevente-l td { padding: 2px 4px; }
+
+/* Monographie (DS Pharmagora / VIDAL) : fiche article */
+.mono { font: 13px/1.45 Arial, sans-serif; color: #24323f; }
+.mono-rubriques { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+.mono-rub { border: 1px solid #c9d6e2; background: #fff; color: #24323f; border-radius: 14px; padding: 4px 12px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.mono-rub:hover { border-color: #0d6a74; color: #0d6a74; }
+.mono-rub.actif { background: #0d6a74; border-color: #0d6a74; color: #fff; font-weight: bold; }
+.mono-etat { color: #6b7a88; font-size: 11px; padding: 0 0 6px; }
+.mono-etat a { color: #0d6a74; }
+.mono-ancienne { color: #b25a00; }
+.mono-corps { background: #fff; border: 1px solid #dbe4ec; border-radius: 6px; padding: 10px 14px; max-height: 460px; overflow: auto; }
+.mono-corps p { margin: 0 0 6px; }
+.mono-titre { font-weight: bold; font-size: 14px; margin-bottom: 8px; }
+.mono-titre span { font-weight: normal; color: #6b7a88; font-size: 12px; margin-left: 10px; }
+.mono-vide { color: #6b7a88; padding: 8px 0; }
+.mono-erreur { color: #b0263a; }
+.mono-note { color: #8a6d00; font-size: 11px; margin-top: 8px; }
+.mono-classe { margin: 6px 0; color: #4a5866; }
+.mono-inter { border-left: 4px solid #9aa7b3; background: #f7f9fb; border-radius: 4px; padding: 6px 10px; margin: 0 0 8px; }
+.mono-inter-tete { margin-bottom: 4px; }
+.mono-niveau { display: inline-block; border-radius: 10px; padding: 1px 8px; margin-right: 8px; font-size: 11px; background: #e3e8ed; }
+.mono-inter.g4 { border-left-color: #b0263a; } .mono-inter.g4 .mono-niveau { background: #b0263a; color: #fff; }
+.mono-inter.g3 { border-left-color: #d9661f; } .mono-inter.g3 .mono-niveau { background: #d9661f; color: #fff; }
+.mono-inter.g2 { border-left-color: #d4a514; } .mono-inter.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }

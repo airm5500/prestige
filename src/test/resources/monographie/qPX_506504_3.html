@@ -1,0 +1,211 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+  
+<html>
+
+<head>
+  <title>DS Pharmagora FichePX</title>
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+   
+<style type="text/css">
+      <!--
+      BODY     {font-family:Arial;font-size:10pt}
+      .entete  {font-weight:bold;font-size:130%;font-style:italic;
+                margin:0px;color:#66CC66}
+      P        {font-size:10pt;margin:0px;margin-right:4pt}
+      P.label  {color:blue}
+      P.parent {color:#808080}
+      P.menu   {font-size:75%;font-style:italic;
+			   margin-top:0px;margin-bottom:15px;            
+			   color:#000000;}
+      A.menu   {font-weight:bold;font-style:normal;
+			   margin-top:15px;margin-bottom:0px;            
+			   color : #9F0000;}
+      A.disp   {font-size:10pt;
+	           margin:0px; color : #000080;}
+      A.indisp {font-size:10pt;font-style:italic;
+	           margin:0px; color : #707070;}
+      Acronym  {color:#B01742; font-weight:bold}
+      .tooltiptitle{COLOR: #9F0000; TEXT-DECORATION: none; CURSOR: Default; font-family: arial; font-weight: bold; font-size: 8pt}
+      .tooltipcontent{COLOR: #000000; TEXT-DECORATION: none; CURSOR: Default; font-family: arial; font-size: 8pt}
+      #ToolTip{position:absolute; width: 100px; top: 0px; left: 0px; z-index:4; visibility:hidden;}
+      -->
+  </style>
+  <script language="JavaScript">
+    <!--
+	  var ie = document.all ? 1 : 0
+      var ns = document.layers ? 1 : 0
+      if(ns){doc = "document."; sty = ""}
+      if(ie){doc = "document.all."; sty = ".style"}
+      var initialize = 0
+      var Ex, Ey, topColor, subColor, ContentInfo
+      if(ie){
+        Ex = "event.x"
+        Ey = "event.y"
+        subColor = "#E0E0E0"
+        topColor = "#C0C0C0"
+      }
+      if(ns){
+        Ex = "e.pageX"
+        Ey = "e.pageY"
+        window.captureEvents(Event.MOUSEMOVE)
+        window.onmousemove=overhere
+        subColor = "#E0E0E0"
+        topColor = "#C0C0C0"
+      }
+
+      function popupWin(url) {
+		pw=window.open(url, '' , 'scrollbars,width=800,height=600,');
+	  }
+
+      function MoveToolTip(layerName, FromTop, FromLeft, e){
+        if(ie){eval(doc + layerName + sty + ".top = "  + (eval(FromTop) + document.body.scrollTop))}
+        if(ns){eval(doc + layerName + sty + ".top = "  +  eval(FromTop))}
+        eval(doc + layerName + sty + ".left = " + (eval(FromLeft) + 15))
+      }
+
+      function ReplaceContent(layerName){
+        if(ie){document.all[layerName].innerHTML = ContentInfo}
+        if(ns){
+          with(document.layers[layerName].document) { 
+            open(); 
+            write(ContentInfo); 
+            close(); 
+          }
+        }
+      }
+
+      function Activate(){initialize=1}
+      
+	  function deActivate(){initialize=0}
+
+      function overhere(e){
+        if(initialize){
+          MoveToolTip("ToolTip", Ey, Ex, e)
+          eval(doc + "ToolTip" + sty + ".visibility = 'visible'")
+        }else{
+          MoveToolTip("ToolTip", 0, 0)
+          eval(doc + "ToolTip" + sty + ".visibility = 'hidden'")
+        }
+      }
+
+      function EnterContent(layerName, TTitle, TContent){
+        ContentInfo = '<table border="0" width="250" cellspacing="0" cellpadding="0">'+
+                      '<tr><td width="100%" bgcolor="#000000">'+
+                      '<table border="0" width="100%" cellspacing="1" cellpadding="0">'+
+                      '<tr><td width="100%" bgcolor='+topColor+'>'+
+                      '<table border="0" width="90%" cellspacing="0" cellpadding="0" align="center">'+
+                      '<tr><td width="100%">'+
+                      '<font class="tooltiptitle">&nbsp;'+TTitle+'</font>'+
+                      '</td></tr>'+
+                      '</table>'+
+                      '</td></tr>'+
+                      '<tr><td width="100%" bgcolor='+subColor+'>'+
+                      '<table border="0" width="90%" cellpadding="0" cellspacing="1" align="center">'+
+                      '<tr><td width="100%">'+
+                      '<font class="tooltipcontent">'+TContent+'</font>'+
+                      '</td></tr>'+
+                      '</table>'+
+                      '</td></tr>'+
+                      '</table>'+
+                      '</td></tr>'+
+                      '</table>';
+        ReplaceContent(layerName)
+      }
+      //-->
+    </script>
+</head>
+
+<body onmousemove="overhere()">
+<div id="ToolTip"></div>
+  <table width="800">
+
+                 <!--                   Entête                 -->
+				 
+    <tr><td colspan=2>   
+      <table bgcolor="#FFFFFF" width="100%">
+        <tr>
+          <td align="left" valign="bottom">    <!-- logos -->
+            <img src="ImagesAppli/VIDAL-33.jpg" width="33" height="33" alt="" border="0">
+            <img src="ImagesAppli/DsLogo2.jpg" height="33" alt="" border="0">
+          </td>   <!-- fin logos -->
+          <td align="center" valign="bottom">  <!-- Titre de la page -->
+
+<p class="entete"><b>DOLIPRANE 500 mg cp</b></p>
+
+	  </td>                <!-- fin Titre de la page -->
+          <td align="right" valign="bottom" width="140">
+             	  </td>
+        </tr>
+      </table>  
+    </td></tr>                <!-- fin Entête -->
+    <tr> 
+      <td colspan="2" height="15" bgcolor="#B01742">
+
+        <table cellspacing="5">
+          <tr>
+
+<td/><td><a href="qPX.php3?cbCprod=506504&curRub=6"><font color="#FFFFFF" size="-1">Indications, compo.</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=0"><font color="#FFFFFF" size="-1">Propriétés thér.</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=1"><font color="#FFFFFF" size="-1">Poso.</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=2"><font color="#FFFFFF" size="-1">C-Indic., précautions</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=4"><font color="#FFFFFF" size="-1">M. en garde</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=5"><font color="#FFFFFF" size="-1">Effets indés., surdosage</font></a></td><td/><td><a href="qPX.php3?cbCprod=506504&curRub=3"><font color="#FFFFFF" size="-1">Interactions</font></a></td>          </tr>
+        </table>
+
+      </td>
+    </tr>
+
+    <tr>
+      <td width="230" valign="top"> 
+        <table width="100%" bgcolor="#C0C0C0"><tr><td>
+          <table bgcolor="white" width="100%" cellspacing="10">
+<tr><td>Pr&#xE9;sentations</td></tr><tr><td><a class="disp" href="qUV.php3?cbCuvSemp=506504001I">DOLIPRANE 500mg Cpr 2Plq/8</a></td></tr><tr><td><a class="disp" href="qUV.php3?cbCuvSemp=506504011J">DOLIPRANE 500mg Cpr 10Plq/10</a></td></tr>            <tr><td height="3" bgcolor="blue"/></tr>
+	    <tr><td align="left"><a href="index.php3" title="Retour à l'accueil"><img 
+	     src="ImagesAppli/GoHome.gif" width="35" height="35" alt="" border="0"></a>
+	      </td></tr>
+	  </table>
+	</td></tr></table>
+      </td>
+                  <!--            Espace fiche                -->
+      <td>   
+
+<table bgcolor="#C0C0C0" width="100%"><tr>
+              <td><font face="arial" color="#000000" size=-1>
+              Classe(s) de<BR/>DOLIPRANE 500mg Cpr</font></td><td width="60%">
+              <font face="arial" color="#B01742" size=-1>Classe(s) présentant<br/>
+              des interactions</font></td></tr><tr><td bgcolor="white" valign="top">
+                  <p><a class="disp" href="">Parac?tamol</a></p>
+                  <p><i>Parac?tamol.</i></p></td><td bgcolor="white" valign="top"><table width="100%%"><tr><td><p>
+                      <acronym 
+                       onMouseover="javascript:EnterContent('ToolTip','Association déconseillée','<?xml version="1.0"?><p><b/><br/><small/></p><p><b> au prescripteur</b><br/><small/></p><p><b> au dispensateur</b><br/><small/></p>');Activate();" 
+                       onMouseout="javascript:deActivate()">
+                      <img src="ImagesAppli/BilleOrange.GIF"></acronym>&nbsp;
+                      <a class="disp" href="">Flucloxacilline</a></p>
+                      </td></tr><tr><td><p>
+                      <acronym 
+                       onMouseover="javascript:EnterContent('ToolTip','Précaution d\'emploi','<?xml version="1.0"?><p><b>Analyse</b><br/><small>Risque d\'augmentation de l\'effet de l\'antivitamine K et du risque h?morragique en cas de prise de parac?tamol aux doses maximales (4 g/j) pendant au moins 4 jours.</small></p><p><b>Conseils au prescripteur</b><br/><small>Contr?le plus fr?quent de l\'INR. Adaptation ?ventuelle de la posologie de l\'antivitamine K pendant le traitement par le parac?tamol et apr?s son arr?t.</small></p><p><b>Conseils au dispensateur</b><br/><small>Contr?le plus fr?quent de l\'INR. Adaptation ?ventuelle de la posologie de l\'antivitamine K pendant le traitement par le parac?tamol et apr?s son arr?t.</small></p>');Activate();" 
+                       onMouseout="javascript:deActivate()">
+                      <img src="ImagesAppli/BilleJaune.GIF"></acronym>&nbsp;
+                      <a class="disp" href="">Antivitamines K</a></p>
+                      </td></tr></table></td></tr><tr><td bgcolor="white" valign="top">
+                  <p><a class="disp" href="">M?dicaments administr?s par voie orale</a></p>
+                  <p><i>M?dicaments administr?s par voie orale.</i></p></td><td bgcolor="white" valign="top"><table width="100%%"><tr><td><p>
+                      <acronym 
+                       onMouseover="javascript:EnterContent('ToolTip','Précaution d\'emploi','<?xml version="1.0"?><p><b>Analyse</b><br/><small>La prise de r?sine ch?latrice peut diminuer l\'absorption intestinale et, potentiellement, l\'efficacit? d\'autres m?dicaments pris simultan?ment.</small></p><p><b>Conseils au prescripteur</b><br/><small>D\'une fa?on g?n?rale, la prise de la r?sine doit se faire ? distance de celle des autres m?dicaments, en respectant un intervalle de plus de 2 heures, si possible.</small></p><p><b>Conseils au dispensateur</b><br/><small>D\'une fa?on g?n?rale, la prise de la r?sine doit se faire ? distance de celle des autres m?dicaments, en respectant un intervalle de plus de 2 heures, si possible.</small></p>');Activate();" 
+                       onMouseout="javascript:deActivate()">
+                      <img src="ImagesAppli/BilleJaune.GIF"></acronym>&nbsp;
+                      <a class="disp" href="">R?sines ch?latrices</a></p>
+                      </td></tr><tr><td><p>
+                      <acronym 
+                       onMouseover="javascript:EnterContent('ToolTip','Précaution d\'emploi','<?xml version="1.0"?><p><b>Analyse</b><br/><small>Diminution de l\'absorption de ces substances.</small></p><p><b>Conseils au prescripteur</b><br/><small>Par mesure de prÃ©caution, il convient de prendre ces topiques ou antiacides Ã  distance de tout autre mÃ©dicament (plus de 2 heures, si possible).</small></p><p><b>Conseils au dispensateur</b><br/><small>Par mesure de prÃ©caution, il convient de prendre ces topiques ou antiacides Ã  distance de tout autre mÃ©dicament (plus de 2 heures, si possible).</small></p>');Activate();" 
+                       onMouseout="javascript:deActivate()">
+                      <img src="ImagesAppli/BilleJaune.GIF"></acronym>&nbsp;
+                      <a class="disp" href="">Topiques gastro-intestinaux, antiacides et adsorbants</a></p>
+                      </td></tr><tr><td><p>
+                      <acronym 
+                       onMouseover="javascript:EnterContent('ToolTip','A prendre en compte','<?xml version="1.0"?><p><b>Analyse</b><br/><small>Avec les laxatifs, notamment en vue d\'explorations endoscopiques : risque de diminution de l\'efficacit? du m?dicament administr? avec le laxatif.</small></p><p><b>Conseils au prescripteur</b><br/><small>Eviter la prise d\'autres m?dicaments pendant et apr?s l\'ingestion dans un d?lai d\'au moins 2 h apr?s la prise du laxatif, voire jusqu\'? la r?alisation de l\'examen.</small></p><p><b>Conseils au dispensateur</b><br/><small>Eviter la prise d\'autres m?dicaments pendant et apr?s l\'ingestion dans un d?lai d\'au moins 2 h apr?s la prise du laxatif, voire jusqu\'? la r?alisation de l\'examen.</small></p>');Activate();" 
+                       onMouseout="javascript:deActivate()">
+                      <img src="ImagesAppli/BilleJaune.GIF"></acronym>&nbsp;
+                      <a class="disp" href="">Laxatifs (type macrogol)</a></p>
+                      </td></tr></table></td></tr></table>
+    </td></tr>
+
+  </table>
+</body>
+</html>
