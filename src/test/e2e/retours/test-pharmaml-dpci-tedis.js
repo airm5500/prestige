@@ -80,8 +80,9 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
         /<SRP_ENVELOPPE[^>]*Version_Protocole="3\.0\.0\.0"/.test(x) && att('EMETTEUR', 'Id_Officine') === s.id && att('RECEPTEUR', 'Code') === s.code && att('RECEPTEUR', 'Id_Repartiteur') === s.rep
         && att('DESTINATAIRE', 'Id_Repartiteur') === s.rep, x.slice(0, 600));
       const cle = q("SELECT IFNULL(str_CLE_RECEPTEUR, '') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'");
-      const attendu = require('crypto').createHmac('md5', cle).update(Buffer.from(x, 'utf8')).digest('base64');
-      ok(n + ' : en-tête Content-PharmaML = HMAC-MD5 du message avec la clé du grossiste', cle !== '' && entetes[0] === attendu, entetes[0] + ' / ' + attendu);
+      /* specification Pharma-ML v4.8 § 4.4.3 : MD5(corps + identifiant officine sur 16 car. completes de « 0 » + cle) */
+      const attendu = require('crypto').createHash('md5').update(Buffer.from(x, 'utf8')).update(s.id.padEnd(16, '0') + cle).digest('base64');
+      ok(n + ' : en-tête Content-PharmaML = calcul de la spécification (MD5 corps + identifiant + clé)', cle !== '' && entetes[0] === attendu, entetes[0] + ' / ' + attendu);
       ok(n + ' : 2 lignes envoyées, réponse traitée', (x.match(/<LIGNE_N /g) || []).length === 2 && /"success":true/.test(e.r), e.r);
       /* serveur injoignable : port ferme */
       url(G, 'http://127.0.0.1:1/PharmaML/');

@@ -118,8 +118,8 @@ class EnvoiPharmaMlTest {
             hex[i] = (byte) Integer.parseInt(h.substring(2 * i, 2 * i + 2), 16);
         }
         String attendu = java.util.Base64.getEncoder().encodeToString(hex);
-        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", "Jefe", null));
-        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", "Jefe", "hmac_md5"));
+        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", null, "Jefe", "HMAC_MD5"));
+        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", null, "Jefe", "hmac_md5"));
     }
 
     @Test
@@ -129,11 +129,11 @@ class EnvoiPharmaMlTest {
                 .encodeToString(md.digest("<X/>4083".getBytes(StandardCharsets.UTF_8)));
         String debut = java.util.Base64.getEncoder()
                 .encodeToString(md.digest("4083<X/>".getBytes(StandardCharsets.UTF_8)));
-        assertEquals(fin, EnvoiPharmaMl.controle("<X/>", "4083", "MD5_CLE_FIN"));
-        assertEquals(debut, EnvoiPharmaMl.controle("<X/>", "4083", "MD5_CLE_DEBUT"));
-        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "", "HMAC_MD5"));
-        assertEquals(null, EnvoiPharmaMl.controle("<X/>", null, null));
-        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "4083", "AUCUN"));
+        assertEquals(fin, EnvoiPharmaMl.controle("<X/>", "0999908", "4083", "MD5_CLE_FIN"));
+        assertEquals(debut, EnvoiPharmaMl.controle("<X/>", "0999908", "4083", "MD5_CLE_DEBUT"));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "0999908", "", "HMAC_MD5"));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "0999908", null, null));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "0999908", "4083", "AUCUN"));
     }
 
     @Test
@@ -143,9 +143,27 @@ class EnvoiPharmaMlTest {
             recu.set(e.getRequestHeaders().getFirst("Content-PharmaML"));
             repondre(e, 200, "<R/>", new AtomicInteger());
         });
-        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X>é</X>", "ShFD", null, C, R);
-        assertEquals(EnvoiPharmaMl.controle("<X>é</X>", "ShFD", "HMAC_MD5"), recu.get());
-        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X/>", null, null, C, R);
+        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X>é</X>", "9999", "ShFD", null, C, R);
+        assertEquals(EnvoiPharmaMl.controle("<X>é</X>", "9999", "ShFD", "CSRP"), recu.get());
+        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X/>", "9999", null, null, C, R);
         assertEquals(null, recu.get(), "sans cle : pas d'en-tete (comportement d'avant)");
+    }
+
+    /**
+     * Specification Pharma-ML v4.8 § 4.4.3, prouvee par DPCI (07/10) : pour ce message exact, DPCI a recalcule «
+     * jbRS0FUm//7Dq2m4sJg0rQ== » (officine 0999908, cle 4083).
+     */
+    @Test
+    void controleCsrpEgalAuCalculDeDpci() throws Exception {
+        String xml;
+        try (java.io.InputStream in = getClass().getResourceAsStream("/pharmaml/C_DPCI_commande_v1.xml")) {
+            xml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertEquals("09999080000000004083", EnvoiPharmaMl.donneeSecrete("0999908", "4083"));
+        assertEquals("jbRS0FUm//7Dq2m4sJg0rQ==", EnvoiPharmaMl.controle(xml, "0999908", "4083", null));
+        assertEquals("jbRS0FUm//7Dq2m4sJg0rQ==", EnvoiPharmaMl.controle(xml, "0999908", "4083", "CSRP"));
+        assertEquals("U05MjN4nHUBsJUoDhDX6Rw==", EnvoiPharmaMl.controle(xml, "0999908", "4083", "HMAC_MD5"),
+                "valeur refusee par DPCI (ancien reglage)");
+        assertEquals("ABCDEFGHIJKLMNOPCLE1", EnvoiPharmaMl.donneeSecrete("ABCDEFGHIJKLMNOPQRS", "CLE1"));
     }
 }

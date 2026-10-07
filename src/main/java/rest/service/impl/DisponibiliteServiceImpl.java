@@ -180,8 +180,8 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         try {
             /* adresse de secours essayee seulement si la principale est injoignable */
             HttpResponse<String> http = EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(url, (String) gr.get("secours")),
-                    xml, (String) gr.get("cle"), (String) gr.get("controle"), Duration.ofSeconds(20),
-                    Duration.ofSeconds(90)).reponse;
+                    xml, (String) gr.get("idOf"), (String) gr.get("cle"), (String) gr.get("controle"),
+                    Duration.ofSeconds(20), Duration.ofSeconds(90)).reponse;
             reponse = http.body();
             archiver("RI_" + fichier, reponse == null ? "" : reponse);
             if (http.statusCode() != 200) {
