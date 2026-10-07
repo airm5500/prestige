@@ -231,6 +231,26 @@ public class TableauBordServiceImpl implements TableauBordService {
         return o;
     }
 
+    /**
+     * Retours du 07/10 : graphique « Type de vente » de l'ancien tableau de bord (getPanierMoyen, a l'identique) :
+     * Comptant = VNO + part client des VO, Credit = part tiers payant des VO, Depot = ventes de nature 3.
+     */
+    private JSONObject typeVente(LocalDate jour) {
+        Object[] r = ligne("SELECT"
+                + " SUM(CASE WHEN (o.str_TYPE_VENTE = 'VNO' AND o.lg_NATURE_VENTE_ID <> '3') THEN (o.int_PRICE - o.int_PRICE_REMISE) ELSE 0 END),"
+                + " SUM(CASE WHEN (o.str_TYPE_VENTE = 'VO' AND o.lg_NATURE_VENTE_ID <> '3') THEN (o.int_PRICE - (o.int_CUST_PART - o.int_PRICE_REMISE)) ELSE 0 END),"
+                + " SUM(CASE WHEN o.lg_NATURE_VENTE_ID = '3' THEN (o.int_PRICE - o.int_PRICE_REMISE) ELSE 0 END),"
+                + " SUM(CASE WHEN o.str_TYPE_VENTE = 'VO' THEN (o.int_CUST_PART - o.int_PRICE_REMISE) ELSE 0 END),"
+                + " COUNT(IF((o.str_TYPE_VENTE IN ('VNO', 'VO') AND o.lg_NATURE_VENTE_ID <> '3'), 1, NULL))"
+                + " FROM t_preenregistrement o WHERE o.int_PRICE > 0 AND o.str_STATUT = 'is_Closed'"
+                + " AND o.dt_UPDATED >= ?1 AND o.dt_UPDATED < ?2 AND o.b_IS_CANCEL = 0", ts(jour),
+                ts(jour.plusDays(1)));
+        boolean ventes = n(at(r, 4)) > 0;
+        /* l'ancien ne remplit les montants que s'il y a au moins une vente VO ou VNO (hors depot) */
+        return new JSONObject().put("comptant", ventes ? n(at(r, 0)) + n(at(r, 3)) : 0)
+                .put("credit", ventes ? n(at(r, 1)) : 0).put("depot", ventes ? n(at(r, 2)) : 0);
+    }
+
     /* ------------------------------------------------------------------ valorisation */
 
     @Override
@@ -329,6 +349,7 @@ public class TableauBordServiceImpl implements TableauBordService {
                         n(at(tp, 0))));
             }
             o.put("modes", modes);
+            o.put("typeVente", typeVente(jour));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "tableau de bord : encaissements", e);
             o.put("erreur", true);

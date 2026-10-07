@@ -123,6 +123,16 @@ const n = (v) => Number(v || 0);
       + " AND b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= '2026-07-01' AND b.dt_UPDATED < '2026-08-01'");
     ok('Carte grossistes, juillet 2026 : mêmes 5 groupes et montants que la requête de l\'ancien', juillet.data.map((x) => x.valeur).join(',') === juilSql && juilSql !== '0,0,0,0,0',
       juillet.data.map((x) => x.libelle + ' ' + x.valeur).join(', ') + ' / ancien ' + juilSql);
+    /* « Type de vente » (Comptant / Crédit / Dépôt) : la requete getPanierMoyen de l'ancien, sur un jour qui a des ventes */
+    const jtv = q("SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND int_PRICE > 0");
+    const tv = (await api('../api/v1/tableau-bord/encaissements?frais=1&date=' + jtv)).typeVente || {};
+    const tvSql = q("SELECT CONCAT_WS(',', ROUND(SUM(CASE WHEN (o.str_TYPE_VENTE = 'VNO' AND o.lg_NATURE_VENTE_ID <> '3') THEN (o.int_PRICE - o.int_PRICE_REMISE) ELSE 0 END)"
+      + " + SUM(CASE WHEN o.str_TYPE_VENTE = 'VO' THEN (o.int_CUST_PART - o.int_PRICE_REMISE) ELSE 0 END)),"
+      + " ROUND(SUM(CASE WHEN (o.str_TYPE_VENTE = 'VO' AND o.lg_NATURE_VENTE_ID <> '3') THEN (o.int_PRICE - (o.int_CUST_PART - o.int_PRICE_REMISE)) ELSE 0 END)),"
+      + " ROUND(SUM(CASE WHEN o.lg_NATURE_VENTE_ID = '3' THEN (o.int_PRICE - o.int_PRICE_REMISE) ELSE 0 END)))"
+      + " FROM t_preenregistrement o WHERE o.int_PRICE > 0 AND o.str_STATUT = 'is_Closed' AND o.dt_UPDATED >= '" + jtv + "' AND o.dt_UPDATED < DATE_ADD('" + jtv + "', INTERVAL 1 DAY) AND o.b_IS_CANCEL = 0");
+    ok('Type de vente (Comptant / Crédit / Dépôt) = requête de l\'ancien tableau de bord (' + jtv + ')',
+      [tv.comptant, tv.credit, tv.depot].join(',') === tvSql && tv.comptant > 0, [tv.comptant, tv.credit, tv.depot].join(',') + ' / ' + tvSql);
     const mvVieux = await api('../api/v1/recap/dashboard/mouvements');
     const mvNeuf = await api('../api/v1/tableau-bord/mouvements?frais=1&date=' + auj);
     const mvA = (mvVieux.data || []).map((x) => Math.round(Number(x.AMOUNT))).sort().join(',');
@@ -250,6 +260,8 @@ const n = (v) => Number(v || 0);
     // Mobile money depliable
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('tableaubord')[0]; t.body.dom.querySelector('[data-carte="encaissements"]').scrollIntoView(); });
     await p.waitForTimeout(2500);
+    const blocTv = await p.evaluate(() => { const z = document.querySelector('[data-corps="encaissements"] .tb-typevente'); return z ? z.textContent : null; });
+    ok('Carte Encaissements : encaissements par mode ET graphique « Type de vente » (Comptant / Crédit / Dépôt)', blocTv !== null && /Type de vente/.test(blocTv), blocTv);
     if (enc.modes.some((m) => m.operateurs)) {
       await cliquer('[data-mm]'); await p.waitForTimeout(300);
       const sous = await p.evaluate(() => document.querySelectorAll('.tb-sous-ligne').length);

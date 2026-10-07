@@ -723,8 +723,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             return;
         }
         var modes = o.modes || [];
+        var typeVente = me.blocTypeVente(o.typeVente);
         if (!modes.length) {
-            c.innerHTML = '<div class="tb-attente">Aucun encaissement ce jour.</div>';
+            c.innerHTML = '<div class="tb-attente">Aucun encaissement ce jour.</div>' + typeVente;
             return;
         }
         var tot = Ext.Array.sum(Ext.Array.pluck(modes, 'montant')) || 1, r = 46, C = 2 * Math.PI * r, off = 0, seg = '';
@@ -754,7 +755,39 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<text x="60" y="71" text-anchor="middle" font-size="12" font-weight="800" fill="#1e3a5f">' + (tot / 1e6).toFixed(2).replace('.', ',') + ' M</text></svg>'
                 + '<div class="tb-note" style="flex:1">' + (Ext.Array.findBy(modes, function (m) {
                     return !!m.operateurs;
-                }) ? 'Clic sur <b>Mobile money</b> pour le détail par opérateur.' : '') + '</div></div><table style="margin-top:8px">' + t + '</table>';
+                }) ? 'Clic sur <b>Mobile money</b> pour le détail par opérateur.' : '') + '</div></div><table style="margin-top:8px">' + t + '</table>'
+                + typeVente;
+    },
+
+    /**
+     * Retours du 07/10 : le graphique « Type de vente » de l'ancien tableau de bord (Comptant / Crédit / Dépôt, memes
+     * chiffres), sous les encaissements : les deux informations ensemble.
+     */
+    blocTypeVente: function (tv) {
+        var me = this;
+        if (!tv) {
+            return '';
+        }
+        var parts = [{l: 'Comptant', v: tv.comptant || 0, c: '#17987e', aide: 'Ventes au comptant (VNO) et part payée par les clients des ventes assurées'},
+            {l: 'Crédit', v: tv.credit || 0, c: '#1e3a5f', aide: 'Part des ventes assurées prise en charge par les tiers payants'},
+            {l: 'Dépôt', v: tv.depot || 0, c: '#e08a1e', aide: 'Ventes de nature dépôt'}];
+        var tot = parts[0].v + parts[1].v + parts[2].v;
+        var html = '<div class="tb-typevente"><div class="tb-typevente-t">Type de vente</div>';
+        if (!tot) {
+            return html + '<div class="tb-attente">Aucune vente ce jour.</div></div>';
+        }
+        var r = 34, C = 2 * Math.PI * r, off = 0, seg = '';
+        parts.forEach(function (p) {
+            var l = p.v / tot * C;
+            seg += '<circle cx="45" cy="45" r="' + r + '" fill="none" stroke="' + p.c + '" stroke-width="16" stroke-dasharray="' + l + ' ' + (C - l)
+                    + '" stroke-dashoffset="' + (-off) + '" transform="rotate(-90 45 45)"><title>' + p.l + ' : ' + me.fmt(p.v) + '</title></circle>';
+            off += l;
+        });
+        return html + '<div class="tb-donut"><svg width="90" height="90">' + seg + '</svg><table class="tb-typevente-l">'
+                + parts.map(function (p) {
+                    return '<tr title="' + me.esc(p.aide) + '"><td><i class="tb-puce" style="background:' + p.c + '"></i> ' + p.l + '</td><td class="tb-n">'
+                            + me.fmt(p.v) + '</td><td class="tb-n">' + (p.v * 100 / tot).toFixed(1).replace('.', ',') + ' %</td></tr>';
+                }).join('') + '</table></div></div>';
     },
 
     /* --- mouvements */
