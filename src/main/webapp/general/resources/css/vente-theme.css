@@ -2894,3 +2894,12 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mono-inter.g4 { border-left-color: #b0263a; } .mono-inter.g4 .mono-niveau { background: #b0263a; color: #fff; }
 .mono-inter.g3 { border-left-color: #d9661f; } .mono-inter.g3 .mono-niveau { background: #d9661f; color: #fff; }
 .mono-inter.g2 { border-left-color: #d4a514; } .mono-inter.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
+/* Ecran de vente : interactions entre les lignes (KEY_INTERACTIONS_VENTE) */
+.inter-bandeau { background: #fff8ec; border: 1px solid #f0c98a; border-radius: 6px; padding: 6px 10px; font: 12px/1.5 Arial, sans-serif; color: #24323f; }
+.inter-tete { font-weight: bold; color: #9a4a00; margin-bottom: 2px; }
+.inter-ligne { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 4px solid #9aa7b3; padding-left: 6px; margin: 2px 0; }
+.inter-ligne .mono-niveau { display: inline-block; border-radius: 10px; padding: 0 8px; margin-right: 8px; font-size: 11px; background: #e3e8ed; }
+.inter-ligne.g4 { border-left-color: #b0263a; } .inter-ligne.g4 .mono-niveau { background: #b0263a; color: #fff; }
+.inter-ligne.g3 { border-left-color: #d9661f; } .inter-ligne.g3 .mono-niveau { background: #d9661f; color: #fff; }
+.inter-ligne.g2 { border-left-color: #d4a514; } .inter-ligne.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
+.inter-conseil { color: #4a5866; }

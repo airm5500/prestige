@@ -1968,9 +1968,62 @@ Ext.define('testextjs.controller.VenteCtr', {
                             callback: function (records, operation, successful) {
                                 me.getVnoproduitCombo()
                                         .focus(true, 100);
+                                me.verifierInteractions(venteId);
                             }
                         }
                 );
+    },
+    /* Retours du 07/10 : alerte d'interactions entre les articles de la vente (monographies DS Pharmagora). Le
+     * serveur ne repond rien tant que KEY_INTERACTIONS_VENTE vaut 0. Bandeau au-dessus des lignes, jamais bloquant. */
+    verifierInteractions: function (venteId) {
+        const me = this, view = me.getDoventemanager && me.getDoventemanager();
+        const bandeau = view ? view.down('#bandeauInteractions') : null;
+        if (!bandeau) {
+            return;
+        }
+        me.interactionsDemandees = venteId;
+        if (!venteId || me.interactionsActives === false) {
+            me.afficherInteractions(bandeau, []);
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET', timeout: 70000,
+            url: '../api/v1/monographie/interactions/vente/' + encodeURIComponent(venteId),
+            success: function (reponse) {
+                const r = Ext.JSON.decode(reponse.responseText, true) || {};
+                if (me.interactionsDemandees !== venteId || bandeau.isDestroyed) {
+                    return; // une autre vente a ete chargee entre-temps
+                }
+                if (r.success && r.active === false) {
+                    me.interactionsActives = false; // coupe : plus d'appel jusqu'a la prochaine ouverture de l'ecran
+                }
+                me.afficherInteractions(bandeau, r.success ? (r.alertes || []) : []);
+            }
+        });
+    },
+    afficherInteractions: function (bandeau, alertes) {
+        const me = this, enc = Ext.String.htmlEncode;
+        const etaitVisible = bandeau.isVisible();
+        if (!alertes.length) {
+            bandeau.update('');
+            bandeau.hide();
+        } else {
+            let h = '<div class="inter-tete">Interactions entre les produits de la vente (' + alertes.length + ')</div>';
+            Ext.each(alertes, function (a) {
+                const conseil = a.conseilDispensateur || a.analyse || '';
+                h += '<div class="inter-ligne g' + (a.gravite || 0) + '" data-qtip="' + enc(enc(conseil)) + '">'
+                        + '<span class="mono-niveau">' + enc(a.niveau || '') + '</span>'
+                        + '<b>' + enc(Ext.String.trim(a.nomA || '')) + '</b> + <b>' + enc(Ext.String.trim(a.nomB || '')) + '</b>'
+                        + (conseil ? '<span class="inter-conseil"> — ' + enc(conseil) + '</span>' : '') + '</div>';
+            });
+            bandeau.update(h);
+            bandeau.show();
+        }
+        if (etaitVisible !== bandeau.isVisible() && me._gridFillMode) {
+            Ext.defer(function () {
+                me.fitGridToPanel(me.getVnogrid());
+            }, 50);
+        }
     },
     addVenteVno: function (data, url, field, comboxProduit) {
         const me = this;
@@ -4303,6 +4356,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 statut: null
             }
         });
+        me.verifierInteractions(null);
         me.netAmountToPay = null;
 
         me.client = null;

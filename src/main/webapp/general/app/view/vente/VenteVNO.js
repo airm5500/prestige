@@ -488,6 +488,12 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     },
                                     items: [
                                         {
+                                            /* Retours du 07/10 : interactions entre les lignes (DS Pharmagora), si
+                                             * KEY_INTERACTIONS_VENTE = 1. Bandeau non bloquant, jamais de fenetre. */
+                                            xtype: 'component', itemId: 'bandeauInteractions', hidden: true,
+                                            cls: 'inter-bandeau', margin: '0 0 6 0'
+                                        },
+                                        {
 
                                             xtype: 'gridpanel',
                                             itemId: 'venteGrid',

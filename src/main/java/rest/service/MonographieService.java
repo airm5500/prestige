@@ -26,4 +26,10 @@ public interface MonographieService {
 
     /** Interactions entre les articles donnes (rubrique 3 de chacun) : {alertes[], sansFiche[]}. */
     JSONObject interactions(List<String> familleIds);
+
+    /**
+     * Interactions entre les articles d'une vente en cours, seulement si l'alerte a la vente est activee
+     * ({@value #INTERACTIONS_VENTE}) : sinon {success, active: false}.
+     */
+    JSONObject interactionsVente(String venteId);
 }

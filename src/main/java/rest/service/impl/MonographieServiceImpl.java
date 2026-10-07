@@ -116,6 +116,23 @@ public class MonographieServiceImpl implements MonographieService {
                 .put("sansFiche", sansFiche).put("indisponible", indisponible);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject interactionsVente(String venteId) {
+        if (!actif() || !"1".equals(StringUtils.trim(parametre(INTERACTIONS_VENTE, "0")))) {
+            return new JSONObject().put("success", true).put("active", false);
+        }
+        List<String> ids = StringUtils.isBlank(venteId) ? List.of()
+                : em.createNativeQuery("SELECT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d"
+                        + " WHERE d.lg_PREENREGISTREMENT_ID = ?1 GROUP BY d.lg_FAMILLE_ID ORDER BY MIN(d.dt_CREATED)")
+                        .setParameter(1, venteId).getResultList();
+        if (ids.size() < 2) {
+            return new JSONObject().put("success", true).put("active", true).put("alertes", new JSONArray())
+                    .put("sansFiche", new JSONArray()).put("indisponible", false);
+        }
+        return interactions(ids).put("active", true);
+    }
+
     /* ------------------------------------------------------------------ produit du site */
 
     @SuppressWarnings("unchecked")

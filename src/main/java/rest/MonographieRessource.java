@@ -63,6 +63,16 @@ public class MonographieRessource {
         return Response.ok(service.fiche(famille, Integer.parseInt(rubrique.trim()), relire).toString()).build();
     }
 
+    /** Ecran de vente : interactions entre les lignes de la vente (rien si l'alerte a la vente est coupee). */
+    @GET
+    @Path("interactions/vente/{vente}")
+    public Response interactionsVente(@PathParam("vente") String vente) {
+        if (!connecte()) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        return Response.ok(service.interactionsVente(vente).toString()).build();
+    }
+
     /** Corps : {"articles": ["lg_FAMILLE_ID", ...]}. */
     @POST
     @Path("interactions")
