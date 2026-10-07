@@ -20,13 +20,20 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
 const PORT = 18767, CMD = 'E2E-PM2-CMD';
 const GROSSISTES = { DPCI: '51217123242587374880', TEDIS: '51217123531215794892' };
 const recus = [];
+const REFUS_DPCI = require('fs').readFileSync(require('path').join(__dirname, '../../resources/pharmaml/R_DPCI_refus_v3.xml'), 'utf8');
 const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
   recus.push(b);
   if (/refus/.test(req.url)) { rep.writeHead(403, { 'Content-Type': 'text/html' }); rep.end('<html>Forbidden</html>'); return; }
-  const lignes = [...b.matchAll(/<LIGNE_N [^>]*Code_Produit="([^"]*)"[^>]*Quantite="(\d+)"/g)];
+  const v3 = /<SRP_ENVELOPPE/.test(b);
+  /* comme le vrai serveur DPCI (reponse du 07/10) : enveloppe 3.0.0.0 refusee, 1.0.0.0 acceptee */
+  /* reponse sans aucune ligne (comme le fichier R_ du 07/10 en 1.0.0.0) */
+  if (/vide/.test(req.url)) { rep.writeHead(200, { 'Content-Type': 'text/xml' }); rep.end('<?xml version="1.0" encoding="UTF-8"?><ns2:CSRP_ENVELOPPE xmlns="urn:x-csrp:fr.csrp.protocole:message" xmlns:ns2="urn:x-csrp:fr.csrp.protocole:enveloppe"><ns2:CORPS><MESSAGE_REPARTITEUR><CORPS/></MESSAGE_REPARTITEUR></ns2:CORPS></ns2:CSRP_ENVELOPPE>'); return; }
+  if (/dpci-v1-seulement/.test(req.url) && v3) { rep.writeHead(200, { 'Content-Type': 'text/xml' }); rep.end(REFUS_DPCI); return; }
+  const lignes = [...b.matchAll(/<(?:\w+:)?LIGNE_N [^>]*Code_Produit="([^"]*)"[^>]*Quantite="(\d+)"/g)];
   const corps = lignes.map((m) => '<LIGNE_N Code_Produit="' + m[1] + '" Quantite_livree="' + Number(m[2]) + '"><PRIX_N Nature="PHAHT" Valeur="1500"/><PRIX_N Nature="PUBTC" Valeur="2500"/></LIGNE_N>').join('');
+  const ns = v3 ? 'urn:x-srp:fr.srp.protocole' : 'urn:x-csrp:fr.csrp.protocole', env = v3 ? 'SRP_ENVELOPPE' : 'CSRP_ENVELOPPE';
   rep.writeHead(200, { 'Content-Type': 'text/xml' });
-  rep.end('<?xml version="1.0" encoding="UTF-8"?><SRP_ENVELOPPE xmlns="urn:x-srp:fr.srp.protocole:enveloppe" Version_Protocole="3.0.0.0"><CORPS><MESSAGE_REPARTITEUR xmlns="urn:x-srp:fr.srp.protocole:message"><CORPS><REP_COMMANDE><NORMALE>' + corps + '</NORMALE></REP_COMMANDE></CORPS></MESSAGE_REPARTITEUR></CORPS></SRP_ENVELOPPE>');
+  rep.end('<?xml version="1.0" encoding="UTF-8"?><' + env + ' xmlns="' + ns + ':enveloppe" Version_Protocole="' + (v3 ? '3.0.0.0' : '1.0.0.0') + '"><CORPS><MESSAGE_REPARTITEUR xmlns="' + ns + ':message"><CORPS><REP_COMMANDE><NORMALE>' + corps + '</NORMALE></REP_COMMANDE></CORPS></MESSAGE_REPARTITEUR></CORPS></' + env + '>');
 }); });
 let P = [];
 const sauves = {};
@@ -79,6 +86,26 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       const k = await envoyer();
       const j = JSON.parse(k.r);
       ok(n + ' : serveur injoignable → message clair en moins de 25 s', j.success === false && /ne répond pas/.test(j.msg) && /n'a pas été envoyée/.test(j.msg) && k.ms < 25000, k.ms + ' ms ' + k.r);
+    }
+    /* ---- vraie reponse de DPCI a une commande 3.0.0.0 (07/10) : refus, puis acceptee en 1.0.0.0 */
+    {
+      const D = GROSSISTES.DPCI;
+      url(D, 'http://127.0.0.1:' + PORT + '/dpci-v1-seulement/'); secours(D, null);
+      const avant = () => q("SELECT CONCAT(int_PRICE, '|', str_STATUT, '|', (SELECT COUNT(*) FROM t_order_detail WHERE lg_ORDER_ID = '" + CMD + "'), '|', (SELECT COUNT(*) FROM rupture WHERE reference = '" + CMD + "')) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'");
+      poser(D); const etat0 = avant();
+      const r3 = JSON.parse((await envoyer()).r);
+      ok('DPCI en 3.0.0.0 : refus du grossiste affiché (plus de faux « succès »), conseil de passer en 1.0.0.0', r3.success === false && /DPCI a refusé la commande/.test(r3.msg)
+        && /CSRP enveloppe invalide/.test(r3.msg) && /réglez « PharmaML : commande » sur 1\.0\.0\.0/.test(r3.msg), JSON.stringify(r3));
+      ok('DPCI en 3.0.0.0 : commande intacte (montant, statut, lignes, aucune rupture)', avant() === etat0, etat0 + ' / ' + avant());
+      exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '1.0.0.0' WHERE lg_GROSSISTE_ID = '" + D + "'");
+      poser(D); recus.length = 0;
+      const r1 = JSON.parse((await envoyer()).r);
+      url(D, 'http://127.0.0.1:' + PORT + '/vide/');
+      poser(D); const etatV = avant();
+      const rv = JSON.parse((await envoyer()).r);
+      exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '" + sauves.DPCI.version + "' WHERE lg_GROSSISTE_ID = '" + D + "'");
+      ok('Réponse sans aucune ligne : signalée (plus de faux « succès »), commande intacte', rv.success === false && /sans aucune ligne/.test(rv.msg) && avant() === etatV, JSON.stringify(rv));
+      ok('DPCI en 1.0.0.0 : enveloppe CSRP acceptée, commande traitée', r1.success === true && /<(?:\w+:)?CSRP_ENVELOPPE[^>]*Version_Protocole="1\.0\.0\.0"/.test(recus[0] || '') && r1.nbreproduit === 2, JSON.stringify(r1));
     }
     /* ---- adresse de secours (DPCI) */
     const D = GROSSISTES.DPCI;

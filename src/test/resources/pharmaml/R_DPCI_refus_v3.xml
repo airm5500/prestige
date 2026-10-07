@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CSRP_ENVELOPPE xmlns="urn:x-csrp:fr.csrp.protocole:enveloppe" Nature_Action="REP_EMISSION" Version_Protocole="1.0.0.0" Id_Logiciel="DPCI2" Version_Logiciel="1.0.0.1" Usage="P">
+  <ENTETE>
+    <EMETTEUR Nature="RE" Code="" Id="" Adresse="" />
+    <RECEPTEUR Nature="OF" Code="00" Id="" Adresse="" />
+    <REF_MESSAGE>Err:0:muyn85vx:0</REF_MESSAGE>
+    <EN_REPONSE_A></EN_REPONSE_A>
+    <DATE>2026-10-07T21:52:22</DATE>
+  </ENTETE>
+  <CORPS><ERREUR Description_libre="[CSRPMessage] CSRP enveloppe invalide : le document XML fourni n'est pas un element &lt;CSRP_ENVELOPPE&gt; valide : [&lt;?xml version=&quot;1." /></CORPS>
+</CSRP_ENVELOPPE>

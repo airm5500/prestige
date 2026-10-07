@@ -158,4 +158,24 @@ public class PharmaMlMessagesTest {
                 .getQuantiteLivree());
         assertTrue(PharmaMlMessages.reponseV3VersV1("<CSRP_ENVELOPPE/>").startsWith("<CSRP_ENVELOPPE"));
     }
+
+    /** Vraie reponse de DPCI (07/10) a une commande en 3.0.0.0 : erreur dans une enveloppe CSRP 1.0.0.0. */
+    @org.junit.jupiter.api.Test
+    void erreurDuGrossisteLue() throws Exception {
+        String xml;
+        try (java.io.InputStream in = getClass().getResourceAsStream("/pharmaml/R_DPCI_refus_v3.xml")) {
+            xml = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        String e = PharmaMlMessages.erreurReponse(xml);
+        org.junit.jupiter.api.Assertions.assertNotNull(e);
+        org.junit.jupiter.api.Assertions.assertTrue(e.contains("CSRP enveloppe invalide"), e);
+        org.junit.jupiter.api.Assertions.assertTrue(PharmaMlMessages.enveloppeV1Attendue(e));
+        org.junit.jupiter.api.Assertions.assertNull(PharmaMlMessages.erreurReponse(
+                "<SRP_ENVELOPPE><CORPS><REP_COMMANDE><NORMALE><LIGNE_N Code_Produit=\"1\" Quantite_livree=\"1\"/>"
+                        + "</NORMALE></REP_COMMANDE></CORPS></SRP_ENVELOPPE>"));
+        org.junit.jupiter.api.Assertions.assertNull(PharmaMlMessages.erreurReponse(null));
+        org.junit.jupiter.api.Assertions.assertEquals("stock epuise",
+                PharmaMlMessages.erreurReponse("<X><ERREUR>  stock\n epuise </ERREUR></X>"));
+        org.junit.jupiter.api.Assertions.assertFalse(PharmaMlMessages.enveloppeV1Attendue("stock epuise"));
+    }
 }

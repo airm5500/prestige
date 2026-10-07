@@ -142,7 +142,16 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             if (Objects.isNull(enveloppeResponse)) {
                 return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
             }
+            if (getLigneNReponses(enveloppeResponse).isEmpty() && !order.getTOrderDetailCollection().isEmpty()) {
+                /* une rupture totale renvoie quand meme les lignes (quantite 0) : aucune ligne = reponse anormale */
+                return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
+            }
             return traiterCommandeRepondue(order, enveloppeResponse);
+        } catch (RefusGrossiste ex) {
+            TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
+            LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
+                    new Object[] { g.getStrLIBELLE(), ex.version });
+            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
         } catch (RefusHttp ex) {
             TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
             LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
@@ -177,7 +186,15 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             if (Objects.isNull(enveloppeResponse)) {
                 return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
             }
+            if (getLigneNReponses(enveloppeResponse).isEmpty() && !ruptureDetails.isEmpty()) {
+                return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
+            }
             return traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
+        } catch (RefusGrossiste ex) {
+            TGrossiste g = em.find(TGrossiste.class, grossisteId);
+            LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
+                    new Object[] { g.getStrLIBELLE(), ex.version });
+            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
         } catch (RefusHttp ex) {
             TGrossiste g = em.find(TGrossiste.class, grossisteId);
             LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
@@ -210,6 +227,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             return null; /* colonne absente (migration non passee) : pas de secours */
         }
     }
+
+    static final String SANS_LIGNE = "Le grossiste a répondu sans aucune ligne de commande : rien n'a été pris en"
+            + " compte. Le message envoyé et la réponse sont archivés dans le dossier PharmaML.";
 
     static final String REPONSE_ILLISIBLE = "Le grossiste n'a pas renvoyé de réponse exploitable. Le message envoyé et la"
             + " réponse sont archivés dans le dossier PharmaML.";
@@ -293,16 +313,21 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         int httpCode = httpResponse.statusCode();
 
         if (httpCode == 200) {
-
+            String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
+            if (erreur != null) {
+                saveResponse(httpResponse.body(), fileName);
+                throw new RefusGrossiste(erreur, "R_" + fileName, PharmaMlMessages.V1);
+            }
             try {
 
                 JAXBContext jaxbContext = JAXBContext.newInstance(CsrpEnveloppeResponse.class);
                 Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-                CsrpEnveloppeResponse response = (CsrpEnveloppeResponse) unmarshaller
-                        .unmarshal(new StringReader(httpResponse.body()));
-                // a supprimer a l'avenir
-                createSaveXmlFile(jaxbContext.createMarshaller(), response, "R", fileName);
-                return response;
+                /*
+                 * archive : la reponse BRUTE du grossiste (l'objet relu perdait tout ce qu'il ne connait pas, erreurs
+                 * comprises, et donnait un fichier R_ vide)
+                 */
+                saveResponse(httpResponse.body(), fileName);
+                return (CsrpEnveloppeResponse) unmarshaller.unmarshal(new StringReader(httpResponse.body()));
 
             } catch (JAXBException ex) {
                 LOG.log(Level.SEVERE, null, ex);
@@ -326,6 +351,28 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             this.code = code;
             this.archive = archive;
         }
+    }
+
+    /** Le grossiste a repondu par un message ERREUR : la commande n'est pas acceptee. */
+    static final class RefusGrossiste extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        final String archive, version;
+
+        RefusGrossiste(String erreur, String archive, String version) {
+            super(erreur);
+            this.archive = archive;
+            this.version = version;
+        }
+    }
+
+    static String messageRefus(TGrossiste grossiste, RefusGrossiste r) {
+        String nom = StringUtils.trimToEmpty(grossiste.getStrLIBELLE());
+        String conseil = PharmaMlMessages.V3.equals(r.version) && PharmaMlMessages.enveloppeV1Attendue(r.getMessage())
+                ? " Ce grossiste n'accepte pas PharmaML 3.0.0.0 : dans sa fiche, réglez « PharmaML : commande » sur"
+                        + " 1.0.0.0 puis renvoyez la commande."
+                : "";
+        return nom + " a refusé la commande : « " + r.getMessage() + " ». La commande n'a pas été prise en compte."
+                + conseil + " Réponse archivée : " + r.archive + ".xml";
     }
 
     static String messageRefus(TGrossiste grossiste, RefusHttp r) {
@@ -1060,6 +1107,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
         }
         ecrireArchive("R_" + fileName, httpResponse.body());
+        String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
+        if (erreur != null) {
+            throw new RefusGrossiste(erreur, "R_" + fileName, PharmaMlMessages.V3);
+        }
         try {
             return (CsrpEnveloppeResponse) JAXBContext.newInstance(CsrpEnveloppeResponse.class).createUnmarshaller()
                     .unmarshal(new StringReader(PharmaMlMessages.reponseV3VersV1(httpResponse.body())));

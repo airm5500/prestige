@@ -284,6 +284,40 @@ public final class PharmaMlMessages {
         return "AUTRE";
     }
 
+    /**
+     * Erreur renvoyee par le grossiste (element ERREUR, quelle que soit la version de l'enveloppe) : son texte
+     * (Description_libre, sinon contenu), ou null s'il n'y en a pas. Ex. DPCI en 3.0.0.0 : « CSRP enveloppe invalide ».
+     */
+    public static String erreurReponse(String xml) {
+        if (xml == null || !xml.toUpperCase(Locale.ROOT).contains("ERREUR")) {
+            return null;
+        }
+        try {
+            Document d = lireXml(xml);
+            List<Element> tous = descendants(d.getDocumentElement());
+            tous.add(0, d.getDocumentElement());
+            for (Element e : tous) {
+                if ("ERREUR".equals(nom(e))) {
+                    String t = e.getAttribute("Description_libre");
+                    if (t == null || t.trim().isEmpty()) {
+                        t = e.getTextContent();
+                    }
+                    t = t == null ? "" : t.replaceAll("\\s+", " ").trim();
+                    return t.isEmpty() ? "erreur sans description" : (t.length() > 300 ? t.substring(0, 300) + "…" : t);
+                }
+            }
+        } catch (Exception e) {
+            return null; /* illisible : traite plus loin comme reponse non exploitable */
+        }
+        return null;
+    }
+
+    /** Le grossiste rejette l'enveloppe 3.0.0.0 (il attend une enveloppe CSRP 1.0.0.0). */
+    public static boolean enveloppeV1Attendue(String erreur) {
+        String e = erreur == null ? "" : erreur.toUpperCase(Locale.ROOT);
+        return e.contains("CSRP_ENVELOPPE") || (e.contains("CSRP") && e.contains("ENVELOPPE"));
+    }
+
     /** Lecture tolerante de la reponse d'information produit : une entree par ligne lue. */
     public static List<Disponibilite> lireReponseInfoProduit(String xml) throws Exception {
         List<Disponibilite> sortie = new ArrayList<>();

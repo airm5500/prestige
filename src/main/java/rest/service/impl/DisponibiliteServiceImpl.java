@@ -192,6 +192,15 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
             LOG.log(Level.WARNING, "PharmaML information produit : grossiste injoignable ({0})", e.getMessage());
             return new JSONObject().put("success", false).put("msg", "Le grossiste " + libelle + " est injoignable");
         }
+        String erreur = PharmaMlMessages.erreurReponse(reponse);
+        if (erreur != null) {
+            return new JSONObject().put("success", false).put("msg", "Le grossiste " + libelle
+                    + " a refusé la demande : « " + erreur + " »."
+                    + (PharmaMlMessages.V3.equals(version) && PharmaMlMessages.enveloppeV1Attendue(erreur)
+                            ? " Ce grossiste n'accepte pas PharmaML 3.0.0.0 : dans sa fiche, réglez « PharmaML : info"
+                                    + " produit » sur 1.0.0.0."
+                            : ""));
+        }
         List<Disponibilite> lus;
         try {
             lus = PharmaMlMessages.lireReponseInfoProduit(reponse);
