@@ -66,6 +66,37 @@ public class RhServiceImpl implements RhService {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject synchroniserUtilisateurs() {
+        List<Object[]> libres = em
+                .createNativeQuery("SELECT u.lg_USER_ID, u.str_LOGIN, u.str_FIRST_NAME, u.str_LAST_NAME,"
+                        + " u.str_FUNCTION, u.str_PHONE, DATE(u.dt_CREATED) FROM t_user u WHERE u.str_STATUT = 'enable'"
+                        + " AND u.str_LOGIN <> 'admin' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)")
+                .getResultList();
+        int crees = 0;
+        for (Object[] u : libres) {
+            String login = StringUtils.left(StringUtils.trimToEmpty((String) u[1]), 26);
+            String matricule = login;
+            for (int i = 2; premier("SELECT id FROM t_employe WHERE matricule = ?1 AND id <> ?2", matricule,
+                    "") != null; i++) {
+                matricule = login + "-" + i;
+            }
+            String nom = StringUtils.defaultIfBlank(StringUtils.trimToNull((String) u[2]), login);
+            em.createNativeQuery(
+                    "INSERT INTO t_employe (id, matricule, nom, prenoms, poste, telephone, dt_entree, statut,"
+                            + " lg_USER_ID, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'ACTIF', ?8, NOW(), NOW())")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, matricule)
+                    .setParameter(3, StringUtils.left(nom, 80))
+                    .setParameter(4, StringUtils.left(StringUtils.trimToNull((String) u[3]), 120))
+                    .setParameter(5, StringUtils.left(StringUtils.trimToNull((String) u[4]), 80))
+                    .setParameter(6, StringUtils.left(StringUtils.trimToNull((String) u[5]), 30)).setParameter(7, u[6])
+                    .setParameter(8, u[0]).executeUpdate();
+            crees++;
+        }
+        return new JSONObject().put("success", true).put("crees", crees);
+    }
+
+    @Override
     public JSONObject enregistrerEmploye(JSONObject s, TUser operateur) {
         String id = StringUtils.trimToNull(s.optString("id", null));
         String matricule = StringUtils.trimToNull(s.optString("matricule", null));

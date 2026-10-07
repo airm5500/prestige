@@ -24,7 +24,7 @@
 | Interrupteurs | Les fonctions sensibles sont désactivables par paramètre (`t_parameters`) : analyse DCI à l'ouverture, interrogation PharmaML, WhatsApp, pointage mobile. |
 | Migrations rejouables | Flyway `V6.9.73__…` et suivantes : `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, privilèges créés par nom (`LEFT(UUID(),40)` + `NOT EXISTS`), attribution systématique au rôle de `admin` (modèle `V6.9.51`). |
 | Droits | Chaque nouvel écran = un sous-menu + un privilège. Chaque endpoint revérifie le privilège côté serveur (`CommonUtils.hasAuthorityByName`). |
-| Tests | Tests unitaires JUnit 5 sur le calcul pur, test e2e Playwright sur le vrai parcours écran avec jeu d'essai retiré à la fin, jamais sur la base de production. |
+| Tests | Tests unitaires JUnit 5 sur le calcul pur, test e2e Playwright sur le vrai parcours écran avec jeu d'essai retiré à la fin, jamais sur la base de production. **Depuis le 07/10 : contrôle de saisie, mise en page, ergonomie et cohérence des données obligatoires pour tout nouveau développement — voir `docs/QUALITE_TESTS.md` et `src/test/e2e/retours/lancer-controles.sh`.** |
 | Design | Nouveaux écrans au thème commun (style Vente, couleurs douces, icônes au trait). Impressions en PDF dans un onglet (inline), jamais de fenêtre surgissante d'édition. |
 
 ### 0.2 Organisation du code (convention demandée)
@@ -305,6 +305,25 @@ quelques minutes d'écart, journée anormalement longue (seuil paramétrable), p
 - **Tableau** (période) : jours prévus / présents, absences justifiées / non justifiées, retards, départs anticipés,
   heures prévues, présence, heures sup., anomalies ; **Excel** (tableau ou détail par jour) et **PDF dans l'onglet**.
 - Pointage mobile : en dernier (L13), comme décidé.
+
+**Livré (L13, 07/10) — téléphones.** Chemins nouveaux `v1/mobile/*` seulement (les chemins mobiles existants et
+l'en-tête `X-User-Info` ne changent pas) :
+- **Jeton signé** (HMAC-SHA256, 12 h par défaut `KEY_MOBILE_JETON_HEURES`) délivré par `POST v1/mobile/connexion`
+  (identifiants du logiciel + identifiant de l'appareil) ; clé dans sa propre table `t_mobile_cle` (jamais dans
+  `t_parameters`, jamais renvoyée). Chaque téléphone est enregistré (`t_mobile_terminal`) ; onglet RH **Pointage
+  mobile** : liste des téléphones, **retirer / réactiver**, « déconnecter tous les téléphones » (nouvelle clé).
+  Interrupteur général `KEY_MOBILE_ACTIF`.
+- **Pointage** `POST v1/mobile/pointages` : utilisateur rattaché à un employé actif ; anti-fraude (Q10)
+  paramétrable : **QR code affiché à l'officine** qui change chaque minute (`KEY_RH_MOBILE_QR`, actif par défaut ; code
+  de 6 caractères saisissable si la caméra manque) et/ou **position** dans un rayon autour de l'officine
+  (`KEY_RH_MOBILE_GPS`, inactif par défaut ; `KEY_RH_MOBILE_LATITUDE`, `…_LONGITUDE`, `…_RAYON_M` = 150 m) ; double
+  appui (< 2 min) refusé ; sens déduit s'il n'est pas choisi. Ligne `t_pointage` source `MOBILE`, téléphone, position.
+- **Photos** `GET v1/mobile/produits?q=`, `POST v1/mobile/produits/{id}/images` : mêmes règles que l'écran (droit
+  `P_PRODUIT_IMAGES_MAJ`, 5 Mo, JPG / PNG / WEBP ; la page réduit la photo à 1 600 px avant l'envoi).
+- **Page mobile** `/prestige/mobile/index.html` (sans application à installer, Q1) : connexion, pointage (scan du QR par la
+  caméra ou code saisi), pointages du jour, photo d'un produit. Caméra et position exigent HTTPS (sauf localhost).
+  L'application mobile existante peut appeler la même API.
+- Essais : `MobileCalculTest` (jeton, code, distance), `test-mobile.js` (API, écran RH, page au format téléphone).
 
 ---
 
@@ -672,7 +691,7 @@ Test : `test-retours-0610-presentation.js`.
 | L10 | §4 Rappels chroniques (habitudes d'achat) + WhatsApp (API par défaut, paramètre) | — |
 | L11 | §3 RH (planning semaine, congés, connexions, import pointeuse, écran) | L1 |
 | L12 | §5 Analyse prédictive Suggestion / Commande — **livré le 07/10** | L2, L4 |
-| L13 | Mobile : jeton signé, pointage mobile, photos depuis le téléphone | décision ultérieure |
+| L13 | Mobile : jeton signé, pointage mobile, photos depuis le téléphone — **livré le 07/10** | — |
 
 Chaque lot est livré avec ses migrations, ses tests (unitaires + e2e avec jeu d'essai retiré) et des captures.
 

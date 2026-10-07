@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a5f">
+<title>Prestige mobile</title>
+<link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+<header class="barre"><span class="logo">Prestige</span><span id="qui"></span><button id="btnQuitter" class="lien" hidden>Se déconnecter</button></header>
+<main>
+  <!-- connexion -->
+  <section id="vConnexion" class="carte" hidden>
+    <h1>Connexion</h1>
+    <p class="aide">Vos identifiants du logiciel. Ce téléphone sera enregistré ; le responsable peut le retirer à tout moment.</p>
+    <form id="fConnexion" autocomplete="on">
+      <label>Identifiant<input name="login" autocomplete="username" required maxlength="50" placeholder="Votre identifiant"></label>
+      <label>Mot de passe<input name="motDePasse" type="password" autocomplete="current-password" required maxlength="100" placeholder="Votre mot de passe"></label>
+      <button class="principal" type="submit">Se connecter</button>
+    </form>
+  </section>
+
+  <!-- accueil -->
+  <section id="vAccueil" hidden>
+    <div id="cPointage" class="carte" hidden>
+      <h2>Pointage</h2>
+      <div class="deux">
+        <button class="principal vert" data-sens="ENTREE">Entrée</button>
+        <button class="principal rouge" data-sens="SORTIE">Sortie</button>
+      </div>
+      <p id="aidePointage" class="aide"></p>
+      <h3>Derniers pointages (16 h)</h3>
+      <ul id="lPointages" class="liste"><li class="vide">Aucun pointage.</li></ul>
+    </div>
+    <div id="cPhotos" class="carte" hidden>
+      <h2>Photo d'un produit</h2>
+      <input id="rProduit" type="search" placeholder="CIP, code-barres ou nom" maxlength="60" autocomplete="off">
+      <ul id="lProduits" class="liste"></ul>
+    </div>
+    <div id="cRien" class="carte" hidden>
+      <p>Votre compte n'est rattaché à aucun employé et n'a pas le droit de photographier les produits. Voyez le responsable.</p>
+    </div>
+  </section>
+
+  <!-- scan du QR de pointage -->
+  <section id="vScan" class="carte" hidden>
+    <h2>Scannez le QR code de l'officine</h2>
+    <video id="video" playsinline muted></video>
+    <p class="aide">Ou saisissez le code de 6 caractères affiché sous le QR code :</p>
+    <form id="fCode"><input name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="EX. K7M2QX" required pattern="[A-Za-z0-9]{6}"><button class="principal" type="submit">Valider</button></form>
+    <button class="lien" id="btnAnnulerScan">Annuler</button>
+  </section>
+
+  <!-- photo -->
+  <section id="vPhoto" class="carte" hidden>
+    <h2 id="tPhoto"></h2>
+    <label class="principal fichier">Prendre la photo<input id="iPhoto" type="file" accept="image/*" capture="environment"></label>
+    <img id="apercu" alt="" hidden>
+    <label class="case"><input id="cPrincipale" type="checkbox"> Image principale du produit</label>
+    <button class="principal" id="btnEnvoyer" disabled>Enregistrer la photo</button>
+    <button class="lien" id="btnAnnulerPhoto">Retour</button>
+  </section>
+</main>
+<div id="message" role="status" hidden></div>
+<script src="mobile.js"></script>
+</body>
+</html>

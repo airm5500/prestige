@@ -103,6 +103,10 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
             {
                
                 const object = Ext.JSON.decode(response.responseText, false);
+                if (object && object.success === false) {
+                    Ext.MessageBox.alert('Clôture de caisse', object.msg || 'Aucune caisse ouverte.');
+                    return;
+                }
 
                 const caisse = object.data;
                 Ext.getCmp('str_NAME_USER').setValue(caisse?.userFullName);

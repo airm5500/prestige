@@ -1,6 +1,11 @@
-/* global Ext */
+/* global Ext, valheight, amountformat */
 
-
+/*
+ * GESTION DES ARTICLES (menu « produitsxx ») : cocher les articles retenus.
+ * Retours du 07/10 : nouvelle presentation, filtre par grossiste, et « Cocher / Décocher tout le résultat » qui
+ * s'applique a TOUS les articles de la recherche courante, sur toutes les pages (apres confirmation avec le nombre).
+ * Coche a l'ecran = bool_ACCOUNT a 0 en base (regle historique, inchangee).
+ */
 var products;
 
 Ext.define('testextjs.view.configmanagement.famille.Products', {
@@ -20,330 +25,184 @@ Ext.define('testextjs.view.configmanagement.famille.Products', {
     plain: true,
     frame: true,
     initComponent: function () {
-        products = this;
+        var me = this;
+        products = me;
         var itemsPerPage = 20;
         var filtre = Ext.create('Ext.data.Store', {
-            data: [
-                {
-                    "libelle": "Produits cochés", "valeur": "Y"
-                },
-                {
-                    "libelle": "Produits non cochés", "valeur": "N"
-                },
-                {
-                    "libelle": "Tous", "valeur": "A"
-                }
-            ],
-            fields: [{name: 'libelle', type: 'string'}, {name: 'valeur', type: 'string'}]
+            fields: ['libelle', 'valeur'],
+            data: [{libelle: 'Produits cochés', valeur: 'Y'}, {libelle: 'Produits non cochés', valeur: 'N'}, {libelle: 'Tous', valeur: 'A'}]
         });
-        var rayons = Ext.create('Ext.data.Store', {
-            idProperty: 'id',
-            fields:
-                    [
-                        {name: 'id',
-                            type: 'string'
-
-                        },
-
-                        {name: 'libelle',
-                            type: 'string'
-
-                        }
-
-                    ],
-            autoLoad: false,
-            pageSize: 9999,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/common/rayons',
-                reader: {
-                    type: 'json',
-                    root: 'data',
-                    totalProperty: 'total'
-                }
-
-            }
-
-        });
+        var liste = function (url) {
+            return Ext.create('Ext.data.Store', {
+                idProperty: 'id', fields: ['id', 'libelle'], autoLoad: false, pageSize: 9999,
+                proxy: {type: 'ajax', url: url, reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+            });
+        };
         var store = new Ext.data.Store({
             idProperty: 'lgFAMILLEID',
-            fields: [
-                {
-                    name: 'lgFAMILLEID',
-                    type: 'string'
-                },
-
-                {
-                    name: 'intCIP',
-                    type: 'string'
-                }, {
-                    name: 'strNAME',
-                    type: 'string'
-                },
-                {
-                    name: 'intPAF',
-                    type: 'number'
-                }, {
-                    name: 'intPRICE',
-                    type: 'number'
-                },
-                {
-                    name: 'stock',
-                    type: 'number'
-                },
-                {
-                    name: 'boolACCOUNT',
-                    type: 'boolean'
-                }
-
-            ],
+            fields: [{name: 'lgFAMILLEID', type: 'string'}, {name: 'intCIP', type: 'string'}, {name: 'strNAME', type: 'string'},
+                {name: 'intPAF', type: 'number'}, {name: 'intPRICE', type: 'number'}, {name: 'stock', type: 'number'},
+                {name: 'boolACCOUNT', type: 'boolean'}],
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/fichearticle/account',
-                reader: {
-                    type: 'json',
-                    root: 'data',
-                    totalProperty: 'total'
-                },
-                timeout: 240000
-            }
-
+            proxy: {type: 'ajax', url: '../api/v1/fichearticle/account', timeout: 240000,
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        /* les filtres suivent toutes les pages (avant : seule la recherche etait reprise au changement de page) */
+        store.on('beforeload', function (st) {
+            st.getProxy().extraParams = me.criteres();
+        });
+        store.on('load', function () {
+            me.majTotal();
         });
 
-        Ext.apply(this, {
+        Ext.apply(me, {
             width: '98%',
-            height: valheight,
+            height: typeof valheight !== 'undefined' ? valheight : 620,
             store: store,
             id: 'produitsxxID',
+            viewConfig: {emptyText: 'Aucun article pour ces critères.', deferEmptyText: false, stripeRows: true},
             columns: [
+                {header: 'CIP', dataIndex: 'intCIP', flex: 0.7},
+                {header: 'Désignation', dataIndex: 'strNAME', flex: 2.5},
+                {header: 'Prix vente', dataIndex: 'intPRICE', renderer: amountformat, align: 'right', flex: 0.7},
+                {header: 'Prix achat', dataIndex: 'intPAF', renderer: amountformat, align: 'right', flex: 0.7},
+                {header: 'Stock', dataIndex: 'stock', align: 'right', flex: 0.5},
                 {
-                    header: 'lgFAMILLEID',
-                    dataIndex: 'lgFAMILLEID',
-                    hidden: true,
-                    flex: 1
-                },
-                /*      {
-                 
-                 header: 'Etat.cmde',
-                 dataIndex: 'STATUS',
-                 renderer: function (v, m, r) {
-                 var STATUS = r.data.STATUS;
-                 switch (STATUS) {
-                 case 1:
-                 m.style = 'background-color:#73C774;';
-                 break;
-                 case 2:
-                 m.style = 'background-color:#5fa2dd;';
-                 break;
-                 case 3:
-                 m.style = 'background-color:#f98012;';
-                 break;
-                 case 4:
-                 m.style = 'background-color:#a62a3e;';
-                 break;
-                 default:
-                 m.style = 'background-color:#d4d4d4;';
-                 break;
-                 }
-                 
-                 
-                 return v;
-                 },
-                 width: 35
-                 },
-                 */
-                {
-                    header: 'CIP',
-                    dataIndex: 'intCIP',
-                    flex: 0.7
-
-                },
-                {
-                    header: 'Designation',
-                    dataIndex: 'strNAME',
-                    flex: 2.5
-
-                },
-                {
-                    header: 'Prix Vente',
-                    dataIndex: 'intPRICE',
-                    renderer: amountformat,
-                    align: 'right',
-                    flex: 0.7
-
-                },
-                {
-                    header: 'Prix Achat F',
-                    dataIndex: 'intPAF',
-                    renderer: amountformat,
-                    align: 'right',
-                    flex: 0.7
-
-                },
-                {
-                    header: 'Stock',
-                    dataIndex: 'stock',
-                    align: 'center',
-                    flex: 0.7
-
-                },
-                {
-                    xtype: 'checkcolumn',
-                    header: ' ',
-                    dataIndex: 'boolACCOUNT',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    listeners: {checkchange: function (scr, rowIndex, checked, eOpts) {
-                            let rec = Ext.getCmp('produitsxxID').getStore().getAt(rowIndex);
+                    xtype: 'checkcolumn', header: 'Coché', dataIndex: 'boolACCOUNT', width: 70, sortable: false, menuDisabled: true,
+                    listeners: {checkchange: function (scr, rowIndex, checked) {
+                            var rec = store.getAt(rowIndex);
                             Ext.Ajax.request({
                                 method: 'PUT',
                                 headers: {'Content-Type': 'application/json'},
                                 params: Ext.JSON.encode({checkug: checked}),
-                                url: '../api/v1/fichearticle/account/' + rec.get("lgFAMILLEID"),
-                                success: function (response, options) {
+                                url: '../api/v1/fichearticle/account/' + rec.get('lgFAMILLEID'),
+                                success: function (response) {
                                     var result = Ext.JSON.decode(response.responseText, true);
-                                    if (result.success) {
-                                        Ext.getCmp('produitsxxID').getStore().reload();
+                                    if (result && result.success) {
+                                        store.reload();
                                     }
                                 },
-                                failure: function (response, options) {
-                                    Ext.Msg.alert("Message", "L'opération a échoué " + response.status);
+                                failure: function (response) {
+                                    Ext.Msg.alert('Gestion des articles', 'L\'opération a échoué (' + response.status + ').');
                                 }
-
                             });
-
                         }}
                 }
             ],
-            selModel: {
-                selType: 'cellmodel'
-            },
-            tbar: [
-                {
-                    xtype: 'textfield',
-                    id: 'rechecherProductxx',
-                    emptyText: 'Recherche',
-                    width: 350,
-                    listeners: {
-                        specialKey: function (field, e, c) {
-                            if (e.getKey() === e.ENTER) {
-                                products.onRechClick();
-                            }
-                        }
-                    }
-
-                }, '-',
-
-                {
-                    xtype: 'combobox',
-                    flex: 1,
-                    margin: '0 5 0 0',
-                    labelWidth: 5,
-                    id: 'rayons',
-                    store: rayons,
-                    pageSize: 99999,
-                    valueField: 'id',
-                    displayField: 'libelle',
-                    typeAhead: false,
-                    queryMode: 'remote',
-                    minChars: 2,
-                    emptyText: 'Sélectionnez un emplacement',
-                    listeners: {
-                        select: function (cmp) {
-                            products.onRechClick();
-                        }
-                    }
-                },
-                {
-                    xtype: 'tbseparator'
-                },
-
-                {
-                    xtype: 'combobox',
-
-                    labelWidth: 65,
-                    id: 'filtres',
-                    store: filtre,
-                    flex: 1,
-                    valueField: 'valeur',
-                    displayField: 'libelle',
-                    typeAhead: false,
-                    mode: 'local',
-                    value: 'A',
-                    minChars: 1,
-                    listeners: {
-                        select: function (cmp) {
-                            products.onRechClick();
-                        }
-                    }
-
-
+            selModel: {selType: 'cellmodel'},
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'textfield', itemId: 'recherche', id: 'rechecherProductxx', emptyText: 'Nom ou CIP…', width: 260,
+                            maxLength: 100, enforceMaxLength: true,
+                            listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        me.onRechClick();
+                                    }
+                                }}},
+                        {xtype: 'combobox', itemId: 'rayons', flex: 1, minWidth: 170, store: liste('../api/v1/common/rayons'), pageSize: 99999,
+                            valueField: 'id', displayField: 'libelle', queryMode: 'remote', minChars: 2, emptyText: 'Tous les emplacements',
+                            listeners: {select: function () {
+                                    me.onRechClick();
+                                }}},
+                        {xtype: 'combobox', itemId: 'grossiste', flex: 1, minWidth: 170, store: liste('../api/v1/common/grossiste'), pageSize: 99999,
+                            valueField: 'id', displayField: 'libelle', queryMode: 'remote', minChars: 2, emptyText: 'Tous les grossistes',
+                            listeners: {select: function () {
+                                    me.onRechClick();
+                                }}},
+                        {xtype: 'combobox', itemId: 'filtres', id: 'filtres', width: 170, store: filtre, valueField: 'valeur', displayField: 'libelle',
+                            editable: false, queryMode: 'local', value: 'A',
+                            listeners: {select: function () {
+                                    me.onRechClick();
+                                }}},
+                        {text: 'Rechercher', iconCls: 'searchicon', handler: function () {
+                                me.onRechClick();
+                            }},
+                        {text: 'Effacer', tooltip: 'Effacer les filtres', handler: function () {
+                                me.down('#recherche').setValue('');
+                                me.down('#rayons').clearValue();
+                                me.down('#grossiste').clearValue();
+                                me.down('#filtres').setValue('A');
+                                me.onRechClick();
+                            }}
+                    ]
                 }, {
-                    xtype: 'tbseparator'
-                },
-                {
-                    text: 'rechercher',
-                    tooltip: 'rechercher',
-                    scope: this,
-                    iconCls: 'searchicon',
-                    handler: this.onRechClick
-                }
-            ],
-            bbar: {
-                xtype: 'pagingtoolbar',
-                pageSize: itemsPerPage,
-                store: store,
-                displayInfo: true,
-                listeners: {
-                    beforechange: function (page, currentPage) {
-                        var myProxy = this.store.getProxy();
-                        myProxy.params = {
-                            query: ''
-                        };
-                        var search_value = Ext.getCmp('rechecherProductxx').getValue();
-                        myProxy.setExtraParam('query', search_value);
-                    }
-
-                }
-            }
-
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'component', itemId: 'totalResultat', html: ''}, '->',
+                        {text: 'Cocher tout le résultat', itemId: 'btnCocherTout', iconCls: 'checkicon',
+                            tooltip: 'Coche TOUS les articles de la recherche courante, sur toutes les pages', handler: function () {
+                                me.cocherTout(true);
+                            }},
+                        {text: 'Décocher tout le résultat', itemId: 'btnDecocherTout',
+                            tooltip: 'Décoche TOUS les articles de la recherche courante, sur toutes les pages', handler: function () {
+                                me.cocherTout(false);
+                            }}
+                    ]
+                }],
+            bbar: {xtype: 'pagingtoolbar', pageSize: itemsPerPage, store: store, displayInfo: true}
         });
 
-        this.callParent();
-
-        this.on('afterlayout', this.loadStore, this, {
-            delay: 1,
-            single: true
-        });
-
+        me.callParent();
+        me.on('afterlayout', me.loadStore, me, {delay: 1, single: true});
     },
+
+    /** Criteres de la recherche courante, communs a la liste et a « tout le résultat ». */
+    criteres: function () {
+        var me = this, v = function (id) {
+            var c = me.down('#' + id);
+            return c ? (c.getValue() || '') : '';
+        };
+        return {query: v('recherche'), rayon: v('rayons'), grossiste: v('grossiste'), filtre: v('filtres')};
+    },
+
+    majTotal: function () {
+        var me = this, t = me.down('#totalResultat');
+        if (t) {
+            t.update('<b>' + Ext.util.Format.number(me.getStore().getTotalCount(), '0,000').replace(/,/g, ' ')
+                    + '</b> article(s) dans le résultat');
+        }
+    },
+
     loadStore: function () {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
+        this.getStore().loadPage(1);
     },
-    onStoreLoad: function () {
 
-    },
     onRechClick: function () {
-        let val = Ext.getCmp('rechecherProductxx');
-        let rayon = Ext.getCmp('rayons').getValue();
-        let filtres = Ext.getCmp('filtres').getValue();
-        if (rayon == null) {
-            rayon = '';
-        }
-        if (filtres == null) {
-            filtres = '';
-        }
-        Ext.getCmp('produitsxxID').getStore().load({
-            params: {
-                query: val.getValue(),
-                rayon: rayon,
-                filtre: filtres
+        this.getStore().loadPage(1);
+    },
+
+    cocherTout: function (coche) {
+        var me = this, c = Ext.apply(me.criteres(), {coche: coche});
+        var envoyer = function (simuler, ok) {
+            Ext.Ajax.request({
+                method: 'PUT', url: '../api/v1/fichearticle/account-lot', timeout: 240000,
+                headers: {'Content-Type': 'application/json'}, params: Ext.JSON.encode(Ext.apply({simuler: simuler}, c)),
+                success: function (r) {
+                    var o = Ext.JSON.decode(r.responseText, true) || {};
+                    if (o.success === false) {
+                        Ext.Msg.alert('Gestion des articles', o.msg || o.message || 'Opération refusée.');
+                        return;
+                    }
+                    ok(o);
+                },
+                failure: function (r) {
+                    Ext.Msg.alert('Gestion des articles', 'L\'opération a échoué (' + r.status + ').');
+                }
+            });
+        };
+        envoyer(true, function (o) {
+            if (!o.nombre) {
+                Ext.Msg.alert('Gestion des articles', 'Aucun article dans le résultat.');
+                return;
             }
+            Ext.Msg.confirm('Gestion des articles', (coche ? 'Cocher' : 'Décocher') + ' les <b>' + o.nombre
+                    + '</b> article(s) du résultat (toutes les pages) ?', function (b) {
+                if (b === 'yes') {
+                    envoyer(false, function () {
+                        me.getStore().reload();
+                    });
+                }
+            });
         });
     }
 });

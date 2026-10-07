@@ -34,12 +34,16 @@ Ext.define('testextjs.view.rh.RhManager', {
         me.lundi = me.lundiDe(new Date());
         me.mois = Ext.Date.getFirstDateOfMonth(new Date());
         me.items = [me.ongletPlanning(), me.ongletPresence(), me.ongletAbsences(), me.ongletPointages(), me.ongletTableau(),
-            me.ongletEmployes(), me.ongletConnexions()];
+            me.ongletEmployes(), me.ongletConnexions(), me.ongletMobile()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.appel('GET', '../api/v1/rh/droits', null, function (r) {
                 me.peutValider = !!r.valider;
-                me.chargerPlanning();
+                /* retours du 07/10 : les utilisateurs actifs du logiciel deviennent des employes rattaches, sans
+                   ressaisie (rien n'est fait quand tout est deja rattache) */
+                me.appel('POST', '../api/v1/rh/employes/synchroniser', null, function () {
+                    me.chargerPlanning();
+                });
             });
         });
         me.on('tabchange', function (p, t) {
@@ -58,6 +62,13 @@ Ext.define('testextjs.view.rh.RhManager', {
                 me.down('#grilleLots').getStore().load();
             } else if (t.itemId === 'ongletTableau') {
                 me.chargerTableau();
+            }
+            /* QR du pointage mobile : rafraichi seulement quand l'onglet est visible */
+            if (t.itemId === 'ongletMobile') {
+                me.demarrerQr();
+                me.down('#grilleTerminaux').getStore().load();
+            } else {
+                me.arreterQr();
             }
         });
     },
@@ -389,7 +400,7 @@ Ext.define('testextjs.view.rh.RhManager', {
             title: rec ? 'Modifier la demande' : 'Nouvelle demande de congé ou d\'absence', modal: true, width: 420, bodyPadding: 12, itemId: 'fenetreAbsence',
             items: [{xtype: 'form', border: false, defaults: {anchor: '100%', labelWidth: 110}, items: [
                         {xtype: 'combobox', name: 'employeId', fieldLabel: 'Employé', queryMode: 'local', displayField: 'l', valueField: 'id', forceSelection: true,
-                            allowBlank: false, value: rec ? rec.get('employeId') : null,
+                            allowBlank: false, value: rec ? rec.get('employeId') : null, emptyText: 'Choisir l\'employé…', anyMatch: true,
                             store: Ext.create('Ext.data.Store', {fields: ['id', 'l'], data: Ext.Array.map(me.employes || [], function (e) {
                                     return {id: e.id, l: e.nom + ' ' + (e.prenoms || '') + ' (' + e.matricule + ')'};
                                 })})},
@@ -402,7 +413,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                         {xtype: 'combobox', name: 'demiJournee', fieldLabel: 'Demi-journée', editable: false, queryMode: 'local', displayField: 'l', valueField: 'v',
                             value: rec ? rec.get('demiJournee') : '', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
                                     {v: '', l: 'Journée(s) entière(s)'}, {v: 'MATIN', l: 'Matin'}, {v: 'APRES_MIDI', l: 'Après-midi'}]})},
-                        {xtype: 'textarea', name: 'motif', fieldLabel: 'Motif', height: 60, value: rec ? rec.get('motif') : ''}
+                        {xtype: 'textarea', name: 'motif', fieldLabel: 'Motif', height: 60, value: rec ? rec.get('motif') : '', emptyText: 'Facultatif : raison, remplaçant prévu…', maxLength: 250, enforceMaxLength: true}
                     ]}],
             buttons: [{text: 'Annuler', cls: 'fen-btn', handler: function () {
                         win.close();
@@ -511,14 +522,14 @@ Ext.define('testextjs.view.rh.RhManager', {
         var win = Ext.create('Ext.window.Window', {
             title: rec ? 'Employé ' + me.esc(d.nom) : 'Nouvel employé', modal: true, width: 460, bodyPadding: 12, itemId: 'fenetreEmploye',
             items: [{xtype: 'form', border: false, defaults: {anchor: '100%', labelWidth: 120, xtype: 'textfield'}, items: [
-                        {name: 'matricule', fieldLabel: 'Matricule', allowBlank: false, value: d.matricule},
-                        {name: 'nom', fieldLabel: 'Nom', allowBlank: false, value: d.nom},
-                        {name: 'prenoms', fieldLabel: 'Prénoms', value: d.prenoms},
-                        {name: 'poste', fieldLabel: 'Poste', value: d.poste},
-                        {name: 'badge', fieldLabel: 'Badge (pointeuse)', value: d.badge},
-                        {name: 'telephone', fieldLabel: 'Téléphone', value: d.telephone},
-                        {xtype: 'datefield', name: 'dtEntree', fieldLabel: 'Entrée', format: 'd/m/Y', value: date(d.dtEntree)},
-                        {xtype: 'datefield', name: 'dtSortie', fieldLabel: 'Sortie', format: 'd/m/Y', value: date(d.dtSortie)},
+                        {name: 'matricule', fieldLabel: 'Matricule', allowBlank: false, value: d.matricule, emptyText: 'Ex. : EMP-012', maxLength: 30, enforceMaxLength: true},
+                        {name: 'nom', fieldLabel: 'Nom', allowBlank: false, value: d.nom, emptyText: 'Nom de famille', maxLength: 80, enforceMaxLength: true},
+                        {name: 'prenoms', fieldLabel: 'Prénoms', value: d.prenoms, emptyText: 'Prénoms', maxLength: 120, enforceMaxLength: true},
+                        {name: 'poste', fieldLabel: 'Poste', value: d.poste, emptyText: 'Ex. : caissière, préparateur', maxLength: 80, enforceMaxLength: true},
+                        {name: 'badge', fieldLabel: 'Badge (pointeuse)', value: d.badge, emptyText: 'Numéro du badge à la pointeuse', maxLength: 40, enforceMaxLength: true},
+                        {name: 'telephone', fieldLabel: 'Téléphone', value: d.telephone, emptyText: 'Ex. : 07 08 09 10 11', maxLength: 30, enforceMaxLength: true},
+                        {xtype: 'datefield', name: 'dtEntree', fieldLabel: 'Entrée', format: 'd/m/Y', value: date(d.dtEntree), emptyText: 'jj/mm/aaaa'},
+                        {xtype: 'datefield', name: 'dtSortie', fieldLabel: 'Sortie', format: 'd/m/Y', value: date(d.dtSortie), emptyText: 'jj/mm/aaaa (si parti)'},
                         {xtype: 'combobox', name: 'userId', fieldLabel: 'Utilisateur lié', store: utilisateurs, queryMode: 'local', displayField: 'libelle',
                             valueField: 'id', value: d.userId || null, emptyText: 'aucun (n\'utilise pas le logiciel)', forceSelection: true, anyMatch: true},
                         {xtype: 'combobox', name: 'statut', fieldLabel: 'Statut', editable: false, queryMode: 'local', displayField: 'l', valueField: 'v',
@@ -589,6 +600,127 @@ Ext.define('testextjs.view.rh.RhManager', {
             ]
         };
     },
+    /* ------------------------------------------------------------------ pointage mobile et telephones (L13) */
+
+    ongletMobile: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['id', 'login', 'utilisateur', 'appareil', 'statut', 'creeLe', 'derniereActivite', 'adresse'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/mobile/terminaux', reader: {type: 'json', root: 'data'}}
+        });
+        var adresse = window.location.origin + window.location.pathname.replace(/\/general\/.*$/, '/mobile/index.html');
+        return {
+            xtype: 'panel', itemId: 'ongletMobile', title: 'Pointage mobile', layout: {type: 'hbox', align: 'stretch'}, bodyPadding: 8,
+            items: [{
+                    xtype: 'panel', width: 330, margin: '0 12 0 0', title: 'QR code de pointage', bodyPadding: 12, autoScroll: true,
+                    items: [{xtype: 'component', itemId: 'zoneQr', cls: 'rh-qr', html: '<div class="rh-qr-attente">Chargement…</div>'}]
+                }, {
+                    xtype: 'grid', itemId: 'grilleTerminaux', flex: 1, title: 'Téléphones enregistrés', store: store,
+                    viewConfig: {emptyText: 'Aucun téléphone ne s\'est encore connecté.', deferEmptyText: false},
+                    tbar: [{xtype: 'component', flex: 1, html: '<span class="rh-aide">Page à ouvrir sur le téléphone : <b>' + me.esc(adresse)
+                                    + '</b> (HTTPS conseillé pour la caméra et la position)</span>'},
+                        {text: 'Actualiser', handler: function () {
+                                store.load();
+                            }},
+                        {text: 'Déconnecter tous les téléphones', handler: function () {
+                                Ext.MessageBox.confirm('Pointage mobile', 'Tous les téléphones devront se reconnecter. Continuer ?', function (b) {
+                                    if (b === 'yes') {
+                                        me.appel('POST', '../api/v1/rh/mobile/deconnecter-tous', null, function (r) {
+                                            Ext.MessageBox.alert('Pointage mobile', me.esc(r.message));
+                                        });
+                                    }
+                                });
+                            }}],
+                    columns: [
+                        {text: 'Utilisateur', dataIndex: 'utilisateur', flex: 1, renderer: function (v, m, r) {
+                                return '<b>' + me.esc(v) + '</b> <span style="color:#7f8c8d">' + me.esc(r.get('login')) + '</span>';
+                            }},
+                        {text: 'Appareil', dataIndex: 'appareil', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Enregistré le', dataIndex: 'creeLe', width: 125},
+                        {text: 'Dernière activité', dataIndex: 'derniereActivite', width: 145},
+                        {text: 'Statut', dataIndex: 'statut', width: 90, renderer: function (v) {
+                                return v === 'ACTIF' ? '<b style="color:#1e8449">actif</b>' : '<b style="color:#c0392b">retiré</b>';
+                            }},
+                        {text: 'Action', width: 110, sortable: false, menuDisabled: true, renderer: function (v, m, r) {
+                                return r.get('statut') === 'ACTIF'
+                                        ? '<span class="rh-bouton-ligne rh-bouton-retirer" data-qtip="Le téléphone est déconnecté">Retirer</span>'
+                                        : '<span class="rh-bouton-ligne rh-bouton-reactiver">Réactiver</span>';
+                            }}
+                    ],
+                    listeners: {itemclick: function (v, r, item, i, e) {
+                            if (!e.getTarget('.rh-bouton-ligne')) {
+                                return;
+                            }
+                            var action = r.get('statut') === 'ACTIF' ? 'retirer' : 'reactiver';
+                            me.appel('POST', '../api/v1/rh/mobile/terminaux/' + encodeURIComponent(r.get('id')) + '/' + action, null, function () {
+                                store.load();
+                            });
+                        }}
+                }]
+        };
+    },
+
+    demarrerQr: function () {
+        var me = this;
+        me.arreterQr();
+        var suite = function () {
+            me.majQr();
+            me.minuteurQr = setInterval(function () {
+                if (me.isDestroyed || !me.down('#zoneQr')) {
+                    me.arreterQr();
+                    return;
+                }
+                me.majQr();
+            }, 5000);
+        };
+        if (window.qrcode) {
+            suite();
+        } else {
+            Ext.Loader.loadScript({url: 'resources/js/qrcode-generator-1.4.4.js', onLoad: suite});
+        }
+    },
+
+    arreterQr: function () {
+        if (this.minuteurQr) {
+            clearInterval(this.minuteurQr);
+            this.minuteurQr = null;
+        }
+    },
+
+    majQr: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/rh/mobile/code', method: 'GET', success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {}, z = me.down('#zoneQr');
+                if (!z || !r.success) {
+                    return;
+                }
+                var html;
+                if (!r.actif) {
+                    html = '<div class="rh-qr-attente">Le pointage par téléphone est désactivé (paramètre KEY_RH_MOBILE_POINTAGE).</div>';
+                } else if (!r.qr) {
+                    html = '<div class="rh-qr-attente">QR code non exigé (paramètre KEY_RH_MOBILE_QR à 0) : les employés pointent directement.</div>';
+                } else {
+                    var q = window.qrcode(0, 'M');
+                    q.addData(r.contenu);
+                    q.make();
+                    html = '<div class="rh-qr-image">' + q.createSvgTag({cellSize: 6, margin: 2, scalable: true}) + '</div>'
+                            + '<div class="rh-qr-code">' + me.esc(r.code) + '</div>'
+                            + '<div class="rh-qr-reste">change dans ' + r.resteSec + ' s</div>';
+                }
+                html += '<ul class="rh-qr-regles"><li>Position vérifiée : <b>' + (r.gps ? 'oui, ' + r.rayon + ' m autour de l\'officine' : 'non') + '</b></li>'
+                        + (r.gps && !(r.latitude && r.longitude) ? '<li style="color:#c0392b">Position de l\'officine à renseigner (KEY_RH_MOBILE_LATITUDE / LONGITUDE)</li>' : '')
+                        + '<li>Seuls les utilisateurs rattachés à un employé actif peuvent pointer.</li></ul>';
+                z.update(html);
+            }});
+    },
+
+    onDestroy: function () {
+        this.arreterQr();
+        this.callParent(arguments);
+    },
+
     /* ------------------------------------------------------------------ presence (L11b) */
 
     ANOMALIES: {DOUBLON: 'doublon', DEUX_ENTREES: 'deux entrées', SORTIE_SANS_ENTREE: 'sortie sans entrée', ENTREE_SANS_SORTIE: 'entrée sans sortie',

@@ -87,14 +87,42 @@ public class AnalyseArticleServiceImpl implements AnalyseArticleService {
         if (debut == null || fin == null || fin.isBefore(debut)) {
             return new ArrayList<>();
         }
-        List<GardeVenteLigneDTO> lignes = gardeService.lignesDeVente(debut.atStartOfDay(),
-                fin.plusDays(1).atStartOfDay());
+        List<GardeVenteLigneDTO> lignes = lignesEnCache(debut, fin);
         long jours = ChronoUnit.DAYS.between(debut, fin) + 1;
         List<ArticleAnalyseDTO> articles = AnalyseArticle.agreger(lignes, jours);
         AnalyseArticle.classerAbc(articles, lignes, seuil("A", AnalyseGarde.SEUIL_A_DEFAUT),
                 seuil("B", AnalyseGarde.SEUIL_B_DEFAUT));
         renseignerStock(articles);
         return articles;
+    }
+
+    /**
+     * Ouverture lente (retours du 07/10) : chaque page, tri ou filtre de l'ecran relisait toutes les lignes de vente de
+     * la periode (1,9 s pour 6 mois sur la base d'essai, bien plus en officine). Les lignes LUES sont gardees 5 minutes
+     * par periode et emplacement ; le calcul (agregation, seuils, quadrants) reste refait a chaque appel, il est
+     * rapide. Les lignes ne sont jamais modifiees par le calcul.
+     */
+    static final long DUREE_CACHE_MS = 5 * 60 * 1000L;
+    private static final java.util.concurrent.ConcurrentHashMap<String, Object[]> CACHE_LIGNES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @SuppressWarnings("unchecked")
+    private List<GardeVenteLigneDTO> lignesEnCache(LocalDate debut, LocalDate fin) {
+        String cle = debut + "|" + fin + "|" + emplacementCourant();
+        long maintenant = System.currentTimeMillis();
+        Object[] e = CACHE_LIGNES.get(cle);
+        if (e != null && maintenant - (Long) e[0] < DUREE_CACHE_MS) {
+            return (List<GardeVenteLigneDTO>) e[1];
+        }
+        List<GardeVenteLigneDTO> lignes = java.util.Collections
+                .unmodifiableList(gardeService.lignesDeVente(debut.atStartOfDay(), fin.plusDays(1).atStartOfDay()));
+        if (CACHE_LIGNES.size() > 20) {
+            CACHE_LIGNES.entrySet().removeIf(x -> maintenant - (Long) x.getValue()[0] >= DUREE_CACHE_MS);
+            if (CACHE_LIGNES.size() > 20) {
+                CACHE_LIGNES.clear();
+            }
+        }
+        CACHE_LIGNES.put(cle, new Object[] { maintenant, lignes });
+        return lignes;
     }
 
     @Override

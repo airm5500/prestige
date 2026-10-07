@@ -80,12 +80,13 @@ const ECRANS = [
     exec("INSERT INTO t_vente_ratee (lg_VENTE_RATEE_ID, str_DESIGNATION, str_DESIGNATION_NORM, int_QUANTITE, str_MOTIF, dt_CREATED, str_STATUT)"
       + " VALUES ('e2e-style-vr', 'ZZ PRODUIT STYLE E2E', 'zz produit style e2e', 1, 'Rupture', NOW(), 'enable')");
     const releve = (x, habille) => p.evaluate(async (a) => {
-      const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice();
-      if (!a.habille) { liste.length = 0; }
+      /* « avant » : ni la liste historique ni le theme partout (retours du 07/10) */
+      const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice(), partout = window.PrestigeAffichage.THEME_PARTOUT;
+      if (!a.habille) { liste.length = 0; window.PrestigeAffichage.THEME_PARTOUT = false; }
       try {
         Ext.ComponentQuery.query(a.x).forEach((c) => c.destroy());
         testextjs.app.getController('App').onLoadNewComponent(a.x, a.x, '');
-      } finally { liste.length = 0; garde.forEach((y) => liste.push(y)); }
+      } finally { liste.length = 0; garde.forEach((y) => liste.push(y)); window.PrestigeAffichage.THEME_PARTOUT = partout; }
       const attendre = async (f, ms) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) { return true; } await new Promise((r) => setTimeout(r, 200)); } return false; };
       await attendre(() => { const c = Ext.ComponentQuery.query(a.x)[0]; const gg = c && (c.isXType('gridpanel') ? c : c.down('gridpanel')); return gg && gg.rendered; }, 30000);
       const c = Ext.ComponentQuery.query(a.x)[0];

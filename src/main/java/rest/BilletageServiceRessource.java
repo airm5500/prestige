@@ -43,8 +43,14 @@ public class BilletageServiceRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = new JSONObject();
-
-        json.put("data", new JSONObject(billetageService.getUserCaisseData(dtStart, dtEnd, hStart, hEnd, tu)));
+        try {
+            json.put("data", new JSONObject(billetageService.getUserCaisseData(dtStart, dtEnd, hStart, hEnd, tu)));
+        } catch (rest.service.exception.CaisseNotFoundExeception e) {
+            /* cas normal (07/10) : l'utilisateur n'a pas de caisse ouverte ; ce n'est pas une panne */
+            return Response.ok()
+                    .entity(ResultFactory.getFailResult("Aucune caisse ouverte à votre nom : rien à clôturer."))
+                    .build();
+        }
         return Response.ok().entity(json.toString()).build();
     }
 

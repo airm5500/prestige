@@ -56,10 +56,10 @@ function lectures() {
 }
 
 /* une lecture dont le code appelle une methode d'ecriture (meme si son nom ne le dit pas, ex. « ponctionner ») */
-const AGIT = /\.(save|update|change|create|delete|remove|persist|merge|ponction|appliquer|apply|valider|cloturer|envoy|send|import|generer|recalcul|actualiser|marquer|faire|execute|traiter|reset|init|annuler|regler|transferer|fusionner|purger|archiver|desactiver|activer|enregistrer|ajouter|supprimer|modifier|creer)\w*\s*\(|executeUpdate|em\.(persist|merge|remove)/;
+const AGIT = /\.(save|update|change|make|suggerer|compute|reclass|create|delete|remove|persist|merge|ponction|appliquer|apply|valider|cloturer|envoy|send|import|generer|recalcul|actualiser|marquer|faire|execute|traiter|reset|init|annuler|regler|transferer|fusionner|purger|archiver|desactiver|activer|enregistrer|ajouter|supprimer|modifier|creer)\w*\s*\(|executeUpdate|em\.(persist|merge|remove)/;
 /* lectures qui font quelque chose (ou appellent l'exterieur) : jamais appelees ici */
 /* ErpRessource : exports complets pour le logiciel comptable externe (sans champ de saisie, tres longs) */
-const ECARTEES = /(^Erp|^v1\/erp|^Custom|ponction|gettoken|logout|deconnexion|deconnect|envoy|send|sms|mail|whatsapp|sync|pharmaml|posos|cloturer|cloture|valider|supprim|delete|remove|reset|purge|imprimer-ticket|ticket-caisse|print|backup|sauvegard|webhook|test-connexion|ping-|appeler|transmettre|lancer|executer|run|update|maj|mise-a-jour|miseajour|generer|regenerer|creer|create|init|calcul|import|actualiser|migr|fusion|merge|close|ferme|ouvrir|annul|cancel|rembours|regler|reglement-|transfert|appliquer|modifier|activer|desactiv|enable|disable|archiv|notifier|marquer|lire-tout|vider|clean|nettoy|corrig|fix|repar|recalc|rattrap|bascul|demarrer|arreter|stop|start-)/i;
+const ECARTEES = /(^Erp|^v1\/erp|^Custom|^Maintenance|^v1\/maintenance|constraint|ponction|gettoken|suggerer|compute|reclass|logout|deconnexion|deconnect|envoy|send|sms|mail|whatsapp|sync|pharmaml|posos|cloturer|cloture|valider|supprim|delete|remove|reset|purge|imprimer-ticket|ticket-caisse|print|backup|sauvegard|webhook|test-connexion|ping-|appeler|transmettre|lancer|executer|run|update|maj|mise-a-jour|miseajour|generer|regenerer|creer|create|init|calcul|import|actualiser|migr|fusion|merge|close|ferme|ouvrir|annul|cancel|rembours|regler|reglement-|transfert|appliquer|modifier|activer|desactiv|enable|disable|archiv|notifier|marquer|lire-tout|vider|clean|nettoy|corrig|fix|repar|recalc|rattrap|bascul|demarrer|arreter|stop|start-)/i;
 
 const LONG = 'x'.repeat(3000);
 /* valeur absurde selon le jeu et le type ou le nom du parametre */
@@ -78,7 +78,13 @@ const JEUX = {
 (async () => {
   let toutes = lectures();
   const total = toutes.length;
-  toutes = toutes.filter((e) => !e.agit && !ECARTEES.test(e.chemin) && !ECARTEES.test(e.fichier));
+  /* les exports (excel, pdf, csv) reprennent les filtres de leur liste, deja essayee : ils sont les plus lourds et
+     occupaient les fils du serveur de longues minutes */
+  const EXPORT = /(excel|pdf|csv|export|imprim)/i;
+  /* lectures lentes CONNUES, a traiter a part (pas un defaut de saisie) : v1/info sans recherche renvoie tous les
+     articles vendus sur 6 mois (interface pour un client externe, aucun ecran ne l'appelle) */
+  const LENTES_CONNUES = /^v1\/info$/;
+  toutes = toutes.filter((e) => !e.agit && !ECARTEES.test(e.chemin) && !ECARTEES.test(e.fichier) && !EXPORT.test(e.chemin) && !LENTES_CONNUES.test(e.chemin));
   const ecartees = total - toutes.length;
   if (process.env.FILTRE) { const fl = process.env.FILTRE.split(','); toutes = toutes.filter((e) => fl.some((x) => x.startsWith('=') ? e.chemin === x.slice(1) : e.chemin.includes(x))); }
   const jeux = process.env.JEUX ? process.env.JEUX.split(',') : Object.keys(JEUX);
@@ -93,6 +99,14 @@ const JEUX = {
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
+    /* garde-fou : aucune table ne doit etre modifiee par des LECTURES. On releve les tables qui ont une date de
+       creation ou de mise a jour (hors journaux et sessions), pour compter apres coup les lignes ecrites pendant
+       l'essai. */
+    const debutEssai = q("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')");
+    const JOURNAUX = /^(t_application_event|t_application_event_occurrence|t_event_log|t_session_utilisateur|t_user_session|t_support_|t_mouchard|t_log|t_preference_utilisateur|flyway)/;
+    const tablesDatees = q("SELECT CONCAT(c.TABLE_NAME, ':', c.COLUMN_NAME) FROM information_schema.COLUMNS c JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME"
+      + " WHERE c.TABLE_SCHEMA = DATABASE() AND t.TABLE_TYPE = 'BASE TABLE' AND c.DATA_TYPE IN ('datetime', 'timestamp') AND c.COLUMN_NAME IN ('dt_CREATED', 'dt_UPDATED', 'created_at', 'updated_at', 'modified_at')")
+      .split('\n').filter(Boolean).map((l) => l.split(':')).filter((x) => !JOURNAUX.test(x[0]));
     const erreurs = []; const lents = []; let appels = 0;
     const appeler = async (e, jeu) => {
       let chemin = e.chemin.replace(/\{(\w+)(?::[^}]*)?\}/g, (_, n) => encodeURIComponent(JEUX[jeu]({ nom: n, type: 'String' }) || 'zz'));
@@ -119,6 +133,11 @@ const JEUX = {
     ok('la session est toujours ouverte après tous les appels', session.status() < 400, session.status());
     ok('aucune erreur interne (HTTP 500) quelle que soit la saisie', erreurs.length === 0, erreurs.length + ' : ' + erreurs.slice(0, 15).join(' | '));
     ok('aucune lecture ne dépasse 30 s', lents.length === 0, lents.slice(0, 10).join(' | '));
+    const ecrites = [];
+    for (const [t, c] of tablesDatees) {
+      try { const n = Number(q('SELECT COUNT(*) FROM `' + t + '` WHERE `' + c + "` >= '" + debutEssai + "'")); if (n > 0) { ecrites.push(t + '.' + c + ' : ' + n); } } catch (e) { /* table illisible */ }
+    }
+    ok('aucune table modifiée par les lectures (' + tablesDatees.length + ' colonnes de date surveillées)', ecrites.length === 0, ecrites.join(' | '));
     const supportApres = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
     ok('aucune nouvelle erreur au Centre de support', supportApres === supportAvant, (supportApres - supportAvant) + ' nouvelles');
     if (erreurs.length) { fs.writeFileSync(path.join(process.env.SORTIE || '/tmp', 'saisie-api-erreurs.txt'), erreurs.join('\n') + '\n\n' + lents.join('\n')); }

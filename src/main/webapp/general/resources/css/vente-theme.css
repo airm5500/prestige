@@ -2779,3 +2779,37 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .ac-detail svg { display: block; margin-bottom: 10px; }
 .ac-colonnes { display: flex; gap: 16px; flex-wrap: wrap; }
 .ac-colonnes > div { flex: 1 1 340px; }
+
+/* Tableau de bord, retours du 07/10 : au survol, le texte d'une tuile et la ligne d'une carte grossissent un peu
+   (la police de base est petite), avec une transition douce. */
+.tb-d, .tb-l, .tb .tb-fixe td { transition: font-size .18s ease, color .18s ease; }
+.tb-tuile:hover .tb-d { font-size: 13px; color: #334155; }
+.tb-tuile:hover .tb-l { font-size: 11.5px; }
+.tb .tb-fixe tr:hover td { font-size: 1.12em; color: #0f172a; }
+.tb .tb-fixe tr:hover td.tb-nom1 { font-weight: 600; }
+.tb-nb { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .tb-d, .tb-l, .tb .tb-fixe td { transition: none; } }
+
+/* WhatsApp (retours du 07/10) : connexion par QR code et modeles */
+.wa-etat { font-size: 14px; margin-bottom: 8px; } .wa-pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.wa-note { color: #5d6d7e; font-size: 12px; line-height: 1.5; margin: 4px 0; }
+.wa-qr { width: 280px; height: 280px; border: 8px solid #fff; box-shadow: 0 4px 16px rgba(0,0,0,.12); border-radius: 8px; }
+.wa-connecte { padding: 18px; border-radius: 10px; background: #e9f7ef; color: #1e8449; font-weight: 600; }
+.wa-unite { margin-left: 4px; color: #7f8c8d; font-size: 11px; }
+.wa-apercu-titre { font-weight: 700; color: #2c3e50; margin-bottom: 6px; }
+.wa-fond { background: #e5ddd5; border-radius: 10px; padding: 14px; min-height: 160px; }
+.wa-bulle { background: #fff; border-radius: 0 10px 10px 10px; padding: 8px 10px; box-shadow: 0 1px 1px rgba(0,0,0,.13); font-size: 13px; line-height: 1.45; }
+.wa-entete { font-weight: 700; margin-bottom: 4px; } .wa-pied { color: #8696a0; font-size: 11px; margin-top: 6px; }
+.wa-var { background: #fff3cd; border-radius: 3px; padding: 0 2px; }
+.wa-bouton { background: #fff; color: #00a5f4; text-align: center; border-radius: 8px; padding: 6px; margin-top: 4px; font-size: 13px; box-shadow: 0 1px 1px rgba(0,0,0,.1); }
+
+/* L13 : pointage mobile (onglet RH) */
+.rh-bouton-ligne { cursor: pointer; font-weight: 600; padding: 2px 10px; border-radius: 10px; border: 1px solid; font-size: 11px; }
+.rh-bouton-retirer { color: #c0392b; border-color: #f1b8b0; background: #fdecea; } .rh-bouton-reactiver { color: #1e8449; border-color: #a9dfbf; background: #e9f7ef; }
+.rh-qr { text-align: center; }
+.rh-qr-image svg { width: 240px; height: 240px; display: block; margin: 0 auto; }
+.rh-qr-code { font: 700 28px/1.2 Consolas, monospace; letter-spacing: 6px; color: #1e3a5f; margin-top: 8px; }
+.rh-qr-reste { color: #6b7b8c; font-size: 12px; margin-bottom: 8px; }
+.rh-qr-attente { color: #6b7b8c; padding: 24px 8px; }
+.rh-qr-regles { text-align: left; color: #34495e; font-size: 12px; padding-left: 16px; margin: 8px 0 0; }
+.rh-aide { color: #6b7b8c; font-size: 12px; }

@@ -105,6 +105,14 @@ public class RhRessource {
         return r != null ? r : ok(service.employes(query, inactifs));
     }
 
+    /** Cree et rattache les employes des utilisateurs actifs (retours du 07/10), appele a l'ouverture de l'ecran. */
+    @POST
+    @Path("employes/synchroniser")
+    public Response synchroniser() {
+        Response r = controle();
+        return r != null ? r : ok(service.synchroniserUtilisateurs());
+    }
+
     @POST
     @Path("employes")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -424,5 +432,45 @@ public class RhRessource {
         }
         return Response.ok(fichier, "application/pdf").header("Content-Disposition", "inline; filename=tableau_rh.pdf")
                 .build();
+    }
+
+    /* ---------------------------------------------------------------- L13 : telephones */
+
+    @EJB
+    private rest.service.MobileService mobile;
+
+    /** Code de pointage du moment (QR affiche a l'officine, change chaque minute) et reglages. */
+    @GET
+    @Path("mobile/code")
+    public Response codePointage() {
+        Response r = controle();
+        return r != null ? r : ok(mobile.codePointage());
+    }
+
+    @GET
+    @Path("mobile/terminaux")
+    public Response terminaux() {
+        Response r = controle();
+        return r != null ? r : ok(mobile.terminaux());
+    }
+
+    @POST
+    @Path("mobile/terminaux/{id}/{action}")
+    public Response changerTerminal(@PathParam("id") String id, @PathParam("action") String action) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        if (!"retirer".equals(action) && !"reactiver".equals(action)) {
+            return refus("Action inconnue.");
+        }
+        return ok(mobile.changerTerminal(id, "reactiver".equals(action), utilisateur()));
+    }
+
+    @POST
+    @Path("mobile/deconnecter-tous")
+    public Response deconnecterTous() {
+        Response r = controle();
+        return r != null ? r : ok(mobile.revoquerTousLesJetons());
     }
 }

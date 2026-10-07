@@ -667,7 +667,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 filtreSeuil, codeFamile, codeRayon, codeGrossiste, stock, seuil, start, limit, false)));
     }
 
-    private Long produitAccounts(String query, TUser u, String rayon, String filtre) {
+    private Long produitAccounts(String query, TUser u, String rayon, String filtre, String grossiste) {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -675,7 +675,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             Root<TFamilleStock> root = cq.from(TFamilleStock.class);
             Join<TFamilleStock, TFamille> stock = root.join(TFamilleStock_.lgFAMILLEID, JoinType.INNER);
             cq.select(cb.count(root));
-            List<Predicate> predicates = produitAccounts(cb, root, stock, query, rayon, filtre, u);
+            List<Predicate> predicates = produitAccounts(cb, root, stock, query, rayon, filtre, grossiste, u);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return q.getSingleResult() != null ? (Long) q.getSingleResult() : 0;
@@ -687,8 +687,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     private List<Predicate> produitAccounts(CriteriaBuilder cb, Root<TFamilleStock> root,
-            Join<TFamilleStock, TFamille> stock, String query, String rayon, String filtre, TUser u) {
+            Join<TFamilleStock, TFamille> stock, String query, String rayon, String filtre, String grossiste, TUser u) {
         List<Predicate> predicates = new ArrayList<>();
+        /* filtre par grossiste (retours du 07/10) ; « ALL » = tous, comme les autres listes */
+        if (!StringUtils.isEmpty(grossiste) && !"ALL".equals(grossiste)) {
+            predicates.add(cb.equal(stock.get(TFamille_.lgGROSSISTEID).get(dal.TGrossiste_.lgGROSSISTEID), grossiste));
+        }
         predicates.add(cb.equal(root.get(TFamilleStock_.lgEMPLACEMENTID), u.getLgEMPLACEMENTID()));
         predicates.add(cb.equal(stock.get(TFamille_.strSTATUT), DateConverter.STATUT_ENABLE));
         predicates.add(cb.equal(root.get(TFamilleStock_.strSTATUT), DateConverter.STATUT_ENABLE));
@@ -712,6 +716,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     public JSONObject produitAccounts(String query, String rayon, String filtre, TUser u, int start, int limit)
             throws JSONException {
+        return produitAccounts(query, rayon, filtre, null, u, start, limit);
+    }
+
+    @Override
+    public JSONObject produitAccounts(String query, String rayon, String filtre, String grossiste, TUser u, int start,
+            int limit) throws JSONException {
         try {
 
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -723,14 +733,14 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     stock.get(TFamille_.strNAME), stock.get(TFamille_.intPAF), stock.get(TFamille_.intPRICE),
                     root.get(TFamilleStock_.intNUMBERAVAILABLE), stock.get(TFamille_.boolACCOUNT)))
                     .orderBy(cb.asc(stock.get(TFamille_.strNAME)));
-            List<Predicate> predicates = produitAccounts(cb, root, stock, query, rayon, filtre, u);
+            List<Predicate> predicates = produitAccounts(cb, root, stock, query, rayon, filtre, grossiste, u);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<FamilleDTO> typedQuery = getEntityManager().createQuery(cq);
             typedQuery.setFirstResult(start);
             typedQuery.setMaxResults(limit);
 
             List<FamilleDTO> resultList = typedQuery.getResultList();
-            Long total = produitAccounts(query, u, rayon, filtre);
+            Long total = produitAccounts(query, u, rayon, filtre, grossiste);
             return new JSONObject().put("total", total).put("data", new JSONArray(resultList));
         } catch (Exception e) {
 
@@ -1157,6 +1167,35 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             e.printStackTrace(System.err);
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public JSONObject cocherProduitAccounts(String query, String rayon, String filtre, String grossiste, TUser u,
+            boolean coche, boolean simuler) {
+        /*
+         * « Cocher tout le resultat » (retours du 07/10) : TOUS les articles de la recherche courante, sur toutes les
+         * pages, avec les memes criteres que la liste. Coche a l'ecran = bool_ACCOUNT a 0 (meme regle que la case d'une
+         * ligne, voir updateProduitAccount). simuler : rend seulement le nombre concerne, pour la confirmation.
+         */
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<String> cq = cb.createQuery(String.class);
+        Root<TFamilleStock> root = cq.from(TFamilleStock.class);
+        Join<TFamilleStock, TFamille> stock = root.join(TFamilleStock_.lgFAMILLEID, JoinType.INNER);
+        cq.select(stock.get(TFamille_.lgFAMILLEID)).distinct(true);
+        cq.where(
+                cb.and(produitAccounts(cb, root, stock, query, rayon, filtre, grossiste, u).toArray(Predicate[]::new)));
+        List<String> ids = getEntityManager().createQuery(cq).getResultList();
+        if (simuler || ids.isEmpty()) {
+            return new JSONObject().put("success", true).put("nombre", ids.size());
+        }
+        int n = 0;
+        for (int i = 0; i < ids.size(); i += 500) {
+            n += getEntityManager()
+                    .createNativeQuery("UPDATE t_famille SET bool_ACCOUNT = ?1 WHERE lg_FAMILLE_ID IN ?2")
+                    .setParameter(1, coche ? 0 : 1).setParameter(2, ids.subList(i, Math.min(ids.size(), i + 500)))
+                    .executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("nombre", n);
     }
 
     @Override

@@ -38,7 +38,14 @@ const DATE_IMPOSSIBLE = '31/02/2026';
 const LONG = 'Z'.repeat(3000);
 /* une ecriture : tout ce qui n'est pas GET, et les anciennes lectures qui ecrivent (ws_transaction.jsp, create-inventaire,
    ponctionner, merge-suggestion, recalculer...) */
-const ecriture = (req) => req.method() !== 'GET' || /transaction|[?&]mode=(create|update|delete)|create|update|delete|merge|ponction|recalcul|valider|clotur|import|envoy|annul|supprim|gener|maintenance|correction/i.test(req.url().replace(/[?].*$/, '') + (req.url().includes('mode=') ? req.url().replace(/^[^?]*/, '') : ''));
+const ecriture = (req) => {
+  if (req.method() !== 'GET') { return true; }
+  const u = req.url().replace(/^.*\/prestige\//, '');
+  /* seules les adresses de service sont examinees (pas les fichiers de l'application : general/app/...js) */
+  if (!/^(api\/|webservices\/|.*\.jsp)/.test(u)) { return false; }
+  return /transaction|[?&]mode=(create|update|delete)|create|update|delete|merge|ponction|recalcul|valider|clotur|import|envoy|annul|supprim|generer|maintenance|correction|suggerer/i
+    .test(u.replace(/[?].*$/, '') + (u.includes('mode=') ? u.replace(/^[^?]*/, '') : ''));
+};
 
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
@@ -59,7 +66,7 @@ const ecriture = (req) => req.method() !== 'GET' || /transaction|[?&]mode=(creat
     await p.route('**/*', (route) => {
       const req = route.request();
       if (!ecriture(req)) { return route.continue(); }
-      envois.push({ ecran: ecranCourant, url: req.url().replace(/^.*\/prestige\//, ''), corps: req.postData() || '' });
+      envois.push({ ecran: ecranCourant, url: req.url().replace(/^.*\/prestige\//, ''), corps: req.postData() || '' }); if (process.env.TRACE) { console.log('  intercepte : ' + req.method() + ' ' + req.url()); }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: false, msg: 'essai de saisie : rien n\'est enregistre', message: 'essai de saisie : rien n\'est enregistre' }) });
     });
     const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));

@@ -123,6 +123,14 @@ public interface FicheArticleService {
 
     boolean updateProduitAccount(String id, boolean account);
 
+    /** Liste de la gestion des articles (cases cochees), avec filtre par grossiste (retours du 07/10). */
+    JSONObject produitAccounts(String query, String rayon, String filtre, String grossiste, TUser u, int start,
+            int limit) throws JSONException;
+
+    /** Coche ou decoche tout le resultat de la recherche (toutes pages) ; simuler : compte seulement. */
+    JSONObject cocherProduitAccounts(String query, String rayon, String filtre, String grossiste, TUser u,
+            boolean coche, boolean simuler);
+
     JSONObject produitAccounts(String query, String rayon, String filtre, TUser u, int start, int limit)
             throws JSONException;
 

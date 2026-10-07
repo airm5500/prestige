@@ -51,8 +51,13 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // le selecteur de l'espace produit, demande du 21/09
             "v1/espace-produit/dci");
 
+    private static final String CHEMIN_MOBILE = "v1/mobile/";
+    private static final String CONNEXION_MOBILE = "v1/mobile/connexion";
+
     @Inject
     private HttpServletRequest servletRequest;
+    @EJB
+    private rest.service.MobileService mobileService;
 
     @EJB
     private SessionHelperService sessionHelperService;
@@ -68,6 +73,27 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         sessionHelperService.setCurrentUser(null);
         sessionHelperService.setData(null);
         String path = requestContext.getUriInfo().getPath();
+        /*
+         * L13 : les nouveaux chemins des telephones exigent le jeton signe, et rien d'autre (ni session, ni
+         * X-User-Info). Les chemins mobiles existants ne passent pas ici : leur fonctionnement est inchange.
+         */
+        if (path.startsWith(CHEMIN_MOBILE)) {
+            if (!CONNEXION_MOBILE.equals(path)) {
+                String a = requestContext.getHeaderString("Authorization");
+                TUser u = a != null && a.startsWith("Bearer ")
+                        ? mobileService.authentifier(a.substring(7).trim(), servletRequest.getRemoteAddr()) : null;
+                if (u == null) {
+                    requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                            .type(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+                            .entity(new JSONObject().put("success", false).put("expire", true)
+                                    .put("message", "Session du téléphone expirée : reconnectez-vous.").toString())
+                            .build());
+                    return;
+                }
+                sessionHelperService.setCurrentUser(u);
+            }
+            return;
+        }
         TUser currentUser;
         String userS = requestContext.getHeaderString("X-User-Info");
         String token = requestContext.getHeaderString("X-Token-Exp");

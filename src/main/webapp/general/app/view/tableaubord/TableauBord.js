@@ -326,8 +326,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + (o.achats.ttc > 0 ? (Math.round(o.ca * 100 / o.achats.ttc) / 100).toLocaleString('fr-FR', {minimumFractionDigits: 2}) : '—') + '</b></div>'
                 + '<div class="tb-d tb-petit">' + (bl ? 'selon la date figurant sur le BL du grossiste'
                 : 'selon la date de saisie (entrée en stock)') + '</div>');
-        poser('ruptures', '<div class="tb-v tb-clic" data-liste="ruptures">' + f(o.ruptures.produits) + '</div><div class="tb-d"><span class="tb-baisse"><b>'
-                + f(o.ruptures.vendusRecemment) + '</b> vendus sous <b>' + o.ruptures.jours + '</b> j</span></div>');
+        /* meme libelle que la ligne « Rupture » de la carte Alertes (retours du 07/10) */
+        poser('ruptures', '<div class="tb-v tb-clic" data-liste="ruptures" title="Produits à stock zéro, vendus ces 90 derniers jours">' + f(o.ruptures.produits)
+                + '</div><div class="tb-d"><span class="tb-baisse">produits à zéro, dont <b>' + f(o.ruptures.vendusRecemment)
+                + '</b> vendus ces <b>' + o.ruptures.jours + '</b> derniers jours</span></div>');
         me.animerNombres(me.q('[data-tb="tuiles"]'));
     },
 
@@ -489,12 +491,16 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var tot = Ext.Array.sum(Ext.Array.map(l, function (x) {
             return Number(x.valeur) || 0;
         })) || 1;
-        /* la liste est deja limitee par le serveur (5 ou 10 selon la carte) ; le nombre de clients suit le libelle */
+        /* la liste est deja limitee par le serveur (5 ou 10 selon la carte). Le nombre (clients) est place APRES le
+           montant, a droite : un nom long le cachait quand il suivait le libelle (retours du 07/10). */
+        var avecNombre = Ext.Array.some(l, function (x) {
+            return x.nombre !== undefined;
+        });
         c.innerHTML = '<table class="tb-fixe">' + Ext.Array.map(l.slice(0, 10), function (x, i) {
-            var nb = x.nombre !== undefined ? ' (' + me.fmt(x.nombre) + ')' : '';
-            return '<tr><td class="tb-nom1" style="width:46%" title="' + me.esc(x.libelle) + nb + '">' + (i + 1) + '. ' + me.esc(x.libelle) + nb + '</td>'
+            var nb = x.nombre !== undefined ? ' <span class="tb-note tb-nb" title="' + me.fmt(x.nombre) + ' client(s)">(' + me.fmt(x.nombre) + ')</span>' : '';
+            return '<tr><td class="tb-nom1" style="width:' + (avecNombre ? 40 : 46) + '%" title="' + me.esc(x.libelle) + '">' + (i + 1) + '. ' + me.esc(x.libelle) + '</td>'
                     + '<td><div class="tb-barre"><i style="width:' + (x.valeur * 100 / max) + '%;background:' + couleur + '"></i></div></td>'
-                    + '<td class="tb-n" style="width:22%"><b>' + me.fmt(x.valeur) + '</b></td><td class="tb-n tb-note" style="width:11%">'
+                    + '<td class="tb-n" style="width:' + (avecNombre ? 28 : 22) + '%;white-space:nowrap"><b>' + me.fmt(x.valeur) + '</b>' + nb + '</td><td class="tb-n tb-note" style="width:11%">'
                     + Math.round(x.valeur * 100 / tot) + ' %</td></tr>';
         }).join('') + '</table>';
     },
@@ -750,7 +756,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<label>Articles entrés non vendus depuis <input type="number" min="1" max="365" value="' + a.nv + '" data-p="nv"> jours</label>'
                 + '<div class="tb-note">Enregistré pour votre compte. La période des ruptures vaut aussi pour la tuile « Ruptures ».</div></div>'
                 + '<table>' + ligne('data-liste="ruptures"', 'Rupture', 'p-r', '<b>' + me.fmt(o.ruptures.produits) + '</b> produits à zéro, dont <b>' + me.fmt(o.ruptures.vendusRecemment)
-                        + '</b> vendus sous <b>' + a.rup + '</b> j')
+                        + '</b> vendus ces <b>' + a.rup + '</b> derniers jours')
                 + ligne('data-liste="peremptions"', 'Péremption', 'p-a', '<b>' + me.fmt(o.peremptions.lots) + '</b> lots périment sous <b>' + a.per + '</b> mois ('
                         + (Math.round(o.peremptions.valeurAchat / 1e5) / 10).toLocaleString('fr-FR') + ' M)')
                 + ligne(menuOu('reservemanager'), 'Sugg. réserve', 'p-b', '<b>' + me.fmt(o.suggestionsReserve) + '</b> suggestions de réserve à traiter')

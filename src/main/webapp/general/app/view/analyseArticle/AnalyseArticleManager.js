@@ -83,7 +83,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
             }
         });
         Ext.applyIf(me, {
-            dockedItems: [me.barreOutils()],
+            dockedItems: me.barreOutils(),
             items: [{
                     xtype: 'tabpanel',
                     itemId: 'ongletsAnalyse',
@@ -101,12 +101,26 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
             {id: 'LIBRE', libelle: 'Période libre'}];
     },
 
+    /* Retours du 07/10 : la barre unique debordait a 1366 px (« Créer un inventaire » coupe) : deux lignes, la
+       periode et l'analyse en haut, les seuils et les actions en dessous. */
     barreOutils: function () {
         var me = this;
-        return {
-            xtype: 'toolbar',
-            dock: 'top',
-            items: [{
+        var items = me.elementsBarre(), ligne1 = [], ligne2 = [], seuils = false;
+        Ext.each(items, function (it) {
+            if (it === '-') {
+                seuils = true; // tout ce qui suit le separateur (seuils, actions) passe en 2e ligne...
+            } else if (it.itemId === 'analyser') {
+                ligne1.push(it); // ...sauf « Analyser », qui suit la periode
+            } else {
+                (seuils ? ligne2 : ligne1).push(it);
+            }
+        });
+        return [{xtype: 'toolbar', dock: 'top', items: ligne1}, {xtype: 'toolbar', dock: 'top', items: ligne2}];
+    },
+
+    elementsBarre: function () {
+        var me = this;
+        return [{
                     xtype: 'combobox',
                     // « typePeriode » : le selecteur de periodes commun reconnait cet identifiant et ne pose
                     // pas un second selecteur.
@@ -129,8 +143,8 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                 }, '-', {
                     // Les seuils : vides, ce sont les medianes de l'assortiment qui s'appliquent (rappelees
                     // dans l'en-tete de la matrice) ; saisis, ils remplacent les medianes.
-                    xtype: 'numberfield', itemId: 'seuilMarge', fieldLabel: 'Marge élevée ≥', labelWidth: 95,
-                    width: 175, minValue: 0, maxValue: 100, allowDecimals: true, decimalPrecision: 1,
+                    xtype: 'numberfield', itemId: 'seuilMarge', fieldLabel: 'Marge élevée ≥', labelWidth: 112,
+                    width: 192, minValue: 0, maxValue: 100, allowDecimals: true, decimalPrecision: 1,
                     emptyText: 'médiane', hideTrigger: true
                 }, {
                     xtype: 'displayfield', value: '%', margin: '0 8 0 2'
@@ -140,15 +154,15 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                      * de stock », ce qu'un pharmacien lit sans calcul. Le ratio vendu / stock reste au choix.
                      * Le seuil suit le mode : une couverture maximale en jours, ou une rotation minimale.
                      */
-                    xtype: 'combobox', itemId: 'modeRotation', fieldLabel: 'Rotation', labelWidth: 55, width: 175,
+                    xtype: 'combobox', itemId: 'modeRotation', fieldLabel: 'Rotation', labelWidth: 62, width: 215,
                     store: Ext.create('Ext.data.ArrayStore', {
                         fields: ['code', 'libelle'],
                         data: [['JOURS', 'en jours de couv.'], ['RATIO', 'en ratio vendu/stock']]
                     }),
                     valueField: 'code', displayField: 'libelle', queryMode: 'local', editable: false, value: 'JOURS'
                 }, {
-                    xtype: 'numberfield', itemId: 'seuilRotation', fieldLabel: 'Élevée si couv. ≤', labelWidth: 105,
-                    width: 185, minValue: 0, allowDecimals: true, decimalPrecision: 2, emptyText: 'médiane',
+                    xtype: 'numberfield', itemId: 'seuilRotation', fieldLabel: 'Élevée si couv. ≤', labelWidth: 128,
+                    width: 208, minValue: 0, allowDecimals: true, decimalPrecision: 2, emptyText: 'médiane',
                     hideTrigger: true
                 }, {
                     xtype: 'displayfield', itemId: 'uniteRotation', value: 'j', margin: '0 8 0 2'
@@ -161,8 +175,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                     text: 'Exporter Excel', itemId: 'exporterExcel', iconCls: 'export_excel_icon'
                 }, {
                     text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable'
-                }]
-        };
+                }];
     },
 
     /* ------------------------------------------------------------------ matrice marge x rotation */
@@ -180,7 +193,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
         };
         var combo = function (itemId, libelle, store) {
             return {
-                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: 70, width: 200,
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: 92, width: 230,
                 store: store, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true,
                 queryMode: 'remote', minChars: 2, emptyText: 'Tous'
             };
@@ -190,8 +203,8 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
         };
         var operateur = function (itemId, libelle) {
             return {
-                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 68 : 36,
-                width: libelle.length > 6 ? 128 : 96,
+                xtype: 'combobox', itemId: itemId, fieldLabel: libelle, labelWidth: libelle.length > 6 ? 92 : 40,
+                width: libelle.length > 6 ? 152 : 100,
                 store: Ext.create('Ext.data.ArrayStore', {
                     fields: ['code', 'libelle'],
                     data: [['', '—'], ['>=', '≥'], ['<=', '≤'], ['=', '='], ['>', '>'], ['<', '<'], ['!=', '≠']]
@@ -239,8 +252,11 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                         },
                         combo('filtreRayon', 'Emplacement', filtreDistant('../api/v1/common/rayons')),
                         combo('filtreFamille', 'Famille', filtreDistant('../api/v1/common/famillearticles')),
-                        combo('filtreGrossiste', 'Grossiste', filtreDistant('../api/v1/common/grossiste')),
-                        {
+                        combo('filtreGrossiste', 'Grossiste', filtreDistant('../api/v1/common/grossiste'))]
+                }, {
+                    /* retours du 07/10 : seconde ligne de filtres (« Qté vendue » etait coupe a 1366 px) */
+                    xtype: 'toolbar',
+                    items: [{
                             xtype: 'textfield', itemId: 'recherche', fieldLabel: 'Produit', labelWidth: 50, width: 200,
                             emptyText: 'CIP ou libellé', enableKeyEvents: true
                         },
@@ -412,7 +428,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                              * AUTOUR D'UN PRODUIT (21/09) : « choisir un produit et voir les N produits les plus
                              * souvent achetes avec lui ». Vide, l'onglet montre toutes les paires comme avant.
                              */
-                            xtype: 'combobox', itemId: 'produitAutour', fieldLabel: 'Autour du produit', labelWidth: 105,
+                            xtype: 'combobox', itemId: 'produitAutour', fieldLabel: 'Autour du produit', labelWidth: 128,
                             width: 640, emptyText: 'CIP ou nom (2 caractères) — vide : toutes les paires',
                             /* Assez large pour qu'un nom de produit tienne sur UNE ligne (21/09). */
                             listConfig: {minWidth: 640, maxHeight: 360},
@@ -430,17 +446,22 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                                     + '<b>{int_CIP}</b> {str_NAME}</div></tpl>')
                         }, {
                             /* « Je ne vois pas où mettre la valeur N compagnons » (21/09) : le champ est la, nomme. */
-                            xtype: 'numberfield', itemId: 'nbCompagnons', fieldLabel: 'Compagnons', labelWidth: 80,
-                            width: 145, minValue: 1, maxValue: 100, allowDecimals: false, value: 5,
+                            xtype: 'numberfield', itemId: 'nbCompagnons', fieldLabel: 'Compagnons', labelWidth: 92,
+                            width: 160, minValue: 1, maxValue: 100, allowDecimals: false, value: 5,
                             tooltip: 'Nombre de produits les plus souvent achetés avec le produit choisi'
                         }, {
                             text: 'Toutes les paires', itemId: 'effacerProduitAutour',
                             tooltip: 'Revenir à toutes les paires de la période'
-                        }, '-', {
+                        }]
+                }, {
+                    /* retours du 07/10 : seconde ligne, la barre unique debordait de 400 px a 1366 px de large */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
                             xtype: 'numberfield', itemId: 'minimumTickets', fieldLabel: 'Minimum de tickets ensemble',
-                            labelWidth: 170, width: 240, minValue: 1, allowDecimals: false, value: 3
+                            labelWidth: 200, width: 270, minValue: 1, allowDecimals: false, value: 3
                         }, {
-                            xtype: 'numberfield', itemId: 'limitePaires', fieldLabel: 'Paires', labelWidth: 45, width: 120,
+                            xtype: 'numberfield', itemId: 'limitePaires', fieldLabel: 'Paires', labelWidth: 50, width: 125,
                             minValue: 1, maxValue: 1000, allowDecimals: false, value: 100
                         }, {
                             xtype: 'tbtext', itemId: 'explicationPaires', margin: '0 0 0 8',
@@ -517,16 +538,21 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                             xtype: 'textfield', itemId: 'eqDci', fieldLabel: 'DCI', labelWidth: 30, width: 220,
                             emptyText: 'nom de DCI (contient)', enableKeyEvents: true
                         }, {
-                            xtype: 'numberfield', itemId: 'eqMinProduits', fieldLabel: 'Groupes d\'au moins', labelWidth: 122,
-                            width: 182, minValue: 2, maxValue: 50, allowDecimals: false, value: 2,
+                            xtype: 'numberfield', itemId: 'eqMinProduits', fieldLabel: 'Groupes d\'au moins', labelWidth: 140,
+                            width: 200, minValue: 2, maxValue: 50, allowDecimals: false, value: 2,
                             tooltip: 'Nombre minimum de produits équivalents dans un groupe'
                         }, {
                             xtype: 'displayfield', value: 'produits', margin: '0 10 0 4'
                         }, {
                             xtype: 'checkbox', itemId: 'eqStock', boxLabel: 'En stock seulement', margin: '0 10 0 0'
-                        }, '-', {
-                            xtype: 'numberfield', itemId: 'eqSeuil', fieldLabel: 'Doublon si vendu &lt;', labelWidth: 128,
-                            width: 183, minValue: 1, maxValue: 100, allowDecimals: false, value: 20
+                        }]
+                }, {
+                    /* retours du 07/10 : seconde ligne, la barre unique debordait de 500 px a 1366 px de large */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
+                            xtype: 'numberfield', itemId: 'eqSeuil', fieldLabel: 'Doublon si vendu &lt;', labelWidth: 140,
+                            width: 195, minValue: 1, maxValue: 100, allowDecimals: false, value: 20
                         }, {
                             xtype: 'displayfield', value: '% du meneur', margin: '0 8 0 4'
                         }, {

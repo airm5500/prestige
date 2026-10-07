@@ -60,8 +60,18 @@ function nettoyer() {
     await p.waitForTimeout(1500);
 
     /* ------------------------------------------------ employes */
+    /* retours du 07/10 : a l'ouverture, chaque utilisateur actif (hors « admin ») est un employe rattache */
+    const sansEmploye = q("SELECT COUNT(*) FROM t_user u WHERE u.str_STATUT = 'enable' AND u.str_LOGIN <> 'admin' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)");
+    ok('Utilisateurs actifs créés et rattachés comme employés à l\'ouverture (hors admin)', sansEmploye === '0'
+      && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = 'admin'") === '0', sansEmploye);
+    const resync = await post('../api/v1/rh/employes/synchroniser', {});
+    ok('Rattachement relancé : aucun doublon', resync.success === true && resync.crees === 0, JSON.stringify(resync));
     await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.setActiveTab(r.down('#ongletEmployes')); });
     await p.waitForTimeout(1200);
+    await clic('rhmanager #btnNouvelEmploye', 1500);
+    const placeholders = await p.evaluate(() => { const w = Ext.ComponentQuery.query('#fenetreEmploye')[0]; const f = w.query('textfield').filter((x) => x.isVisible() && x.editable !== false);
+      const r = { sans: f.filter((x) => !x.emptyText).map((x) => x.name), theme: w.hasCls('fen-theme') }; w.close(); return r; });
+    ok('Fenêtre « Nouvel employé » : nouveau design et texte d\'aide dans chaque champ', placeholders.theme && placeholders.sans.length === 0, JSON.stringify(placeholders));
     const creer = async (v) => {
       await clic('rhmanager #btnNouvelEmploye', 1500);
       await remplir('#fenetreEmploye', v);

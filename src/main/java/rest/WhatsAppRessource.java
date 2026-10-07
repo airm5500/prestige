@@ -10,6 +10,8 @@ import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -37,6 +39,8 @@ public class WhatsAppRessource {
 
     @EJB
     private WhatsAppService service;
+    @EJB
+    private rest.service.WhatsAppWebService web;
     @Context
     private HttpServletRequest servletRequest;
 
@@ -94,6 +98,96 @@ public class WhatsAppRessource {
         JSONObject o = StringUtils.isBlank(corps) ? new JSONObject() : new JSONObject(corps);
         return Response.ok(service.tester(o.optString("numero"), o.optString("texte"), utilisateur()).toString())
                 .build();
+    }
+
+    /* ---------------------------------------------- WhatsApp Web : connexion par QR code et regles (07/10) */
+
+    @GET
+    @Path("web/etat")
+    public Response webEtat() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.etat().toString()).build();
+    }
+
+    @GET
+    @Path("web/qr")
+    public Response webQr() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.qr().toString()).build();
+    }
+
+    @POST
+    @Path("web/deconnecter")
+    public Response webDeconnecter() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.deconnecter().toString()).build();
+    }
+
+    @GET
+    @Path("web/regles")
+    public Response webRegles() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.regles().toString()).build();
+    }
+
+    @PUT
+    @Path("web/regles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response webEnregistrerRegles(String corps) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return Response.ok(web.enregistrerRegles(new JSONObject(corps), utilisateur()).toString()).build();
+        } catch (org.json.JSONException e) {
+            return refus("Demande illisible.");
+        }
+    }
+
+    /* ---------------------------------------------- modeles de l'API officielle (07/10) */
+
+    @GET
+    @Path("modeles")
+    public Response modeles() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.modeles().toString()).build();
+    }
+
+    @POST
+    @Path("modeles")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerModele(String corps) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return Response.ok(web.enregistrerModele(new JSONObject(corps), utilisateur()).toString()).build();
+        } catch (org.json.JSONException e) {
+            return refus("Demande illisible.");
+        }
+    }
+
+    @DELETE
+    @Path("modeles/{id}")
+    public Response supprimerModele(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.supprimerModele(id).toString()).build();
+    }
+
+    @POST
+    @Path("modeles/{id}/soumettre")
+    public Response soumettreModele(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.soumettreModele(id, utilisateur()).toString()).build();
+    }
+
+    @POST
+    @Path("modeles/synchroniser")
+    public Response synchroniserModeles() {
+        Response r = controle();
+        return r != null ? r : Response.ok(web.synchroniserModeles().toString()).build();
     }
 
     @GET

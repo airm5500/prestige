@@ -175,8 +175,8 @@ function semer() {
       return { periode: e.down('#typePeriode').getValue(), entete: e.down('#quadrants').el.dom.innerText, onglets: e.down('#ongletsAnalyse').items.getCount(),
         boutons: ['creerInventaire', 'exporterExcel', 'imprimer', 'analyser', 'seuilMarge', 'seuilRotation', 'filtreQuadrant', 'filtreRayon', 'filtreFamille', 'filtreGrossiste', 'recherche'].every(id => !!e.down('#' + id)) };
     });
-    ok('ecran : ouvert sur « 3 derniers mois », deux onglets, quatre quadrants et les boutons (inventaire, Excel, imprimer, seuils, filtres)',
-      ouverture.periode === 'TROIS_MOIS' && ouverture.onglets === 2 && ouverture.boutons && /Champions/.test(ouverture.entete) && /Produits à risque/.test(ouverture.entete)
+    ok('ecran : ouvert sur « 3 derniers mois », trois onglets (matrice, achetés ensemble, suivi équivalence), quatre quadrants et les boutons (inventaire, Excel, imprimer, seuils, filtres)',
+      ouverture.periode === 'TROIS_MOIS' && ouverture.onglets === 3 && ouverture.boutons && /Champions/.test(ouverture.entete) && /Produits à risque/.test(ouverture.entete)
       && /Période/.test(ouverture.entete), JSON.stringify(ouverture).slice(0, 300));
     // periode libre au clavier
     const ids = await p.evaluate(() => {

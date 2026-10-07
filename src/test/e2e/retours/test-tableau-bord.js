@@ -185,8 +185,10 @@ const n = (v) => Number(v || 0);
     ok('Encours tiers payants : top 10 et nombre de clients = base', tps.data.map((x) => x.valeur + '/' + x.nombre).join(',') === tpSql2, tps.data.map((x) => x.valeur + '/' + x.nombre).join(',') + ' / ' + tpSql2);
     await p.evaluate(() => { document.querySelector('[data-carte="tiers"]').scrollIntoView(); });
     await p.waitForFunction(() => document.querySelector('[data-corps="tiers"] table'), null, { timeout: 30000 });
-    const tpCarte = await p.evaluate(() => Array.from(document.querySelectorAll('[data-corps="tiers"] .tb-nom1')).map((e) => e.textContent));
-    ok('Carte tiers payants : 10 lignes au plus, nombre de clients entre parenthèses', tpCarte.length === Math.min(10, tps.data.length) && tpCarte[0] === '1. ' + tps.data[0].libelle + ' (' + tps.data[0].nombre + ')', JSON.stringify(tpCarte.slice(0, 2)));
+    const tpCarte = await p.evaluate(() => Array.from(document.querySelectorAll('[data-corps="tiers"] tr')).map((tr) => [tr.querySelector('.tb-nom1').textContent, tr.querySelectorAll('.tb-n')[0].textContent]));
+    /* retours du 07/10 : le nombre est apres le montant, a droite (un nom long le cachait) */
+    ok('Carte tiers payants : 10 lignes au plus, nom seul à gauche, nombre de clients après le montant', tpCarte.length === Math.min(10, tps.data.length) && tpCarte[0][0] === '1. ' + tps.data[0].libelle
+      && /\(\s*[0-9\s\u202f\u00a0.]+\)$/.test(tpCarte[0][1]) && tpCarte[0][1].replace(/\D/g, '').endsWith(String(tps.data[0].nombre)), JSON.stringify(tpCarte.slice(0, 2)));
 
     // Retours du 06/10 (4) : articles entres non vendus, ratio vente/achat, part du CA au survol
     const al = await api('../api/v1/tableau-bord/alertes?nv=30&frais=1');
@@ -233,7 +235,11 @@ const n = (v) => Number(v || 0);
     await p.evaluate(() => { const i = document.querySelector('[data-p="rup"]'); i.value = '30'; i.dispatchEvent(new Event('change', { bubbles: true })); });
     await p.waitForTimeout(2500);
     const tuileRup = await texte('[data-tuile="ruptures"] .tb-d');
-    ok('Période des ruptures réglée dans « Alertes » reprise par la tuile', /sous 30 j/.test(tuileRup), tuileRup);
+    ok('Période des ruptures réglée dans « Alertes » reprise par la tuile', /vendus ces 30 derniers jours/.test(tuileRup), tuileRup);
+    /* retours du 07/10 : meme libelle dans la tuile et dans la carte Alertes */
+    const ligneAlerte = await p.evaluate(() => document.querySelector('[data-carte="alertes"] [data-liste="ruptures"]').closest('tr').textContent);
+    ok('Tuile Ruptures : même libellé que la carte Alertes (« produits à zéro, dont … vendus ces … derniers jours »)', /produits à zéro, dont/.test(tuileRup)
+      && ligneAlerte.includes(tuileRup.replace(/^.*?dont/, 'dont').trim()), tuileRup + ' / ' + ligneAlerte);
 
     // Liste des ruptures en fenetre
     const nbRup = (await api('../api/v1/tableau-bord/alertes?rup=30')).ruptures.produits;

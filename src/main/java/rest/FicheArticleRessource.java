@@ -207,16 +207,41 @@ public class FicheArticleRessource {
     @GET
     @Path("account")
     public Response getProducts(@QueryParam(value = "query") String query, @QueryParam(value = "rayon") String rayon,
-            @QueryParam(value = "filtre") String filtre, @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit) throws JSONException {
+            @QueryParam(value = "filtre") String filtre, @QueryParam(value = "grossiste") String grossiste,
+            @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = ficheArticleService.produitAccounts(query, rayon, filtre, tu, start, limit);
+        JSONObject json = ficheArticleService.produitAccounts(query, rayon, filtre, grossiste, tu, Math.max(0, start),
+                limit <= 0 ? 20 : Math.min(limit, 1000));
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Cocher (ou decocher) TOUT le resultat de la recherche courante, toutes pages (retours du 07/10). simuler=1 rend
+     * le nombre d'articles concernes, pour la confirmation.
+     */
+    @PUT
+    @Path("account-lot")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+    public Response cocherTout(String corps) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject c;
+        try {
+            c = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+        } catch (Exception e) {
+            return Response.ok().entity(ResultFactory.getFailResult("Demande illisible.")).build();
+        }
+        return Response.ok().entity(ficheArticleService
+                .cocherProduitAccounts(c.optString("query", ""), c.optString("rayon", ""), c.optString("filtre", ""),
+                        c.optString("grossiste", ""), tu, c.optBoolean("coche", true), c.optBoolean("simuler", false))
+                .toString()).build();
     }
 
     @GET

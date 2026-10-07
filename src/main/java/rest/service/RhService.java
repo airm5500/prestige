@@ -16,6 +16,13 @@ public interface RhService {
 
     JSONObject enregistrerEmploye(JSONObject saisie, TUser operateur);
 
+    /**
+     * Retours du 07/10 : chaque utilisateur ACTIF du logiciel (t_user) qui n'est rattache a aucun employe devient un
+     * employe rattache (matricule = identifiant de connexion). Le compte technique « admin » est ignore. Sans effet
+     * quand tout est deja rattache. Rend {success, crees}.
+     */
+    JSONObject synchroniserUtilisateurs();
+
     /** Utilisateurs du logiciel pas encore lies a un employe (et celui de l'employe donne). */
     JSONObject utilisateursLibres(String employeId);
 

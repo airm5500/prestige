@@ -75,8 +75,8 @@ public final class WhatsAppEnvoi {
                     .post(Entity.entity(corps.toString(), MediaType.APPLICATION_JSON));
             JSONObject rep = json(r.readEntity(String.class));
             String id = StringUtils.trimToNull(rep.optString("id"));
-            return r.getStatus() / 100 == 2 && id != null ? Resultat.accepte(id, false)
-                    : Resultat.refuse("HTTP " + r.getStatus() + " " + StringUtils.left(rep.optString("error"), 200));
+            return r.getStatus() / 100 == 2 && id != null ? Resultat.accepte(id, false) : Resultat.refuse("HTTP "
+                    + r.getStatus() + " " + StringUtils.left(rep.optString("error", rep.optString("erreur")), 200));
         } catch (Exception e) {
             /* le message d'une exception reseau ne contient ni jeton ni texte */
             return Resultat.refuse("Service WhatsApp injoignable : " + e.getClass().getSimpleName());

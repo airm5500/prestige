@@ -17,6 +17,9 @@ if (valwidth >= 1600) {
 
 /* Badge icône unique par module (fond pastel + icône FA colorée) */
 var PRESTIGE_ICON_MAP = [
+    /* retours du 07/10 : RH et Centre de support avaient la meme pastille par defaut */
+    { keys: ['ressources humaines'],                        icon: 'fa-id-badge',                    bg: '#ecfeff', fg: '#0e7490' },
+    { keys: ['centre de support', 'support'],               icon: 'fa-headset',                     bg: '#fef2f2', fg: '#dc2626' },
     { keys: ['facturation client'],                         icon: 'fa-file-invoice-dollar',         bg: '#ede9fe', fg: '#7c3aed' },
     { keys: ['tiers-payant', 'tiers payant', 'tiers-pay'], icon: 'fa-handshake',                   bg: '#cffafe', fg: '#0891b2' },
     { keys: ['menu pharmacien', 'pharmacien'],              icon: 'fa-prescription-bottle-medical', bg: '#f0fdf4', fg: '#16a34a' },

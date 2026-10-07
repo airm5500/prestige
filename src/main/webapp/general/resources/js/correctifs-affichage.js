@@ -823,7 +823,18 @@ window.PrestigeAffichage.ECRANS_COLLES = [
  * (habillerStyleVente). Il ne touche qu'a la presentation : aucun itemId, aucun gestionnaire, aucun store n'est
  * change, les controleurs lisent et ecoutent les memes composants qu'avant.
  */
+/**
+ * Retours du 07/10 : « tous les menus, sous-menus, pop-up, vues de creation, modification, suppression, messages
+ * doivent passer au nouveau design ». Le theme s'applique donc a TOUS les ecrans, fenetres et boites de message, sauf
+ * ceux qui ont deja leur propre dessin (liste ci-dessous). ECRANS_STYLE_VENTE reste la liste historique.
+ */
+window.PrestigeAffichage.THEME_PARTOUT = true;
+window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager_new', 'doventeendepot', 'ventedepot',
+    'tableaubord', 'dashboard', 'mainmenumanager', 'ordonnanceclient', 'menuvente'];
+
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
+    // retours du 07/10
+    'produitsxx',
     // lot 1
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
@@ -1098,7 +1109,10 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     }
     var styleVente = Ext.Array.some(window.PrestigeAffichage.ECRANS_STYLE_VENTE, function (xtype) {
         return ecran.isXType(xtype);
-    });
+    }) || (window.PrestigeAffichage.THEME_PARTOUT && ecran.isXType('panel')
+            && !Ext.Array.some(window.PrestigeAffichage.ECRANS_DESSIN_PROPRE, function (xtype) {
+                return ecran.isXType(xtype);
+            }));
     if (styleVente) {
         window.PrestigeAffichage.habillerStyleVente(ecran);
     }
@@ -1144,7 +1158,7 @@ Ext.onReady(function () {
             try {
                 var cls = String(this.cls || '') + ' ' + String(this.baseCls || '') + ' ' + String(this.ui || '');
                 if (!this.isXType('messagebox') && !/vc-fenetre|ouv-caisse|ordo-fenetre|mb-theme|fen-theme|dispo-choix/.test(cls)
-                        && window.PrestigeAffichage.ecranFenetresTheme()) {
+                        && (window.PrestigeAffichage.THEME_PARTOUT || window.PrestigeAffichage.ecranFenetresTheme())) {
                     window.PrestigeAffichage.habillerFenetre(this);
                 }
             } catch (e) {
@@ -1217,7 +1231,8 @@ Ext.onReady(function () {
            caisse fermee...) prennent le dessin du theme. Seule une classe est posee : memes boutons, meme focus,
            memes touches. */
         boite.on('beforeshow', function () {
-            var vente = Ext.Array.some(Ext.ComponentQuery.query('doventemanager'), function (c) {
+            /* retours du 07/10 : toutes les boites de message au nouveau design (avant : seulement pendant la vente) */
+            var vente = window.PrestigeAffichage.THEME_PARTOUT || Ext.Array.some(Ext.ComponentQuery.query('doventemanager'), function (c) {
                 return c.isVisible(true);
             });
             this[vente ? 'addCls' : 'removeCls']('mb-theme');
