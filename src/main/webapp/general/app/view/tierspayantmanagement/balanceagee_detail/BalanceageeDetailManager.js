@@ -284,7 +284,8 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                     //typeAhead: true,
                     minChars: 2,
                     queryMode: 'remote',
-                    width: 350,
+                    // 300 au lieu de 350 : a 1366 px le bouton Imprimer sortait de la barre
+                    width: 300,
                     pageSize: 10,
                     enableKeyEvents: true,
                     emptyText: 'Sectionner tiers payant...',

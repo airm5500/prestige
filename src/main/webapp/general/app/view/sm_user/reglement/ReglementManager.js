@@ -226,7 +226,13 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [{
+            /* Deux barres : les criteres de recherche sur la premiere ligne, les editions et l'export
+             * sur la seconde. Sur une seule ligne, a 1366 px, « Exporter Excel » sortait de la barre
+             * et la liste des tiers payants (largeur flexible) n'avait plus de place du tout. */
+            dockedItems: [{
+                xtype: 'toolbar',
+                dock: 'top',
+                items: [{
                     text: 'Faire R&eacute;glement',
                     tooltip: 'Faire R&eacute;glement',
                     scope: this,
@@ -416,8 +422,11 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechDifClick
-                }
-                , {
+                }]
+            }, {
+                xtype: 'toolbar',
+                dock: 'top',
+                items: [{
                     text: 'Imprimer',
                     tooltip: 'Imprimer',
                     iconCls: 'importicon',
@@ -442,10 +451,8 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                         window.location = '../api/v1/reglement-facture/export-excel?'
                                 + Ext.Object.toQueryString(criteresReglement());
                     }
-                }
-
-
-            ],
+                }]
+            }],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using

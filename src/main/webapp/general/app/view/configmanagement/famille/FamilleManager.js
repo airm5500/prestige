@@ -802,7 +802,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             // typeAhead retire : il pre-completait le champ avec le premier
                             // resultat ('beta' -> 'BETA ALANINE') et la liste se retrouvait
                             // filtree sur ce seul produit au lieu de tous les 'beta'.
-                            width: 350,
+                            // 210 au lieu de 350 : a 1366 px « Qte.Stock » et « Reinitialiser »
+                            // sortaient de la barre. La liste deroulante garde sa largeur de 350.
+                            width: 210,
+                            matchFieldWidth: false,
+                            listConfig: {width: 350},
                             minChars: 2,
                             queryMode: 'remote',
                             emptyText: 'Selectionner un DCI...',

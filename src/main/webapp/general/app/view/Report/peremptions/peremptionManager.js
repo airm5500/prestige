@@ -137,6 +137,8 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
         });
         const me = this;
         Ext.applyIf(me, {
+            /* Deux barres : les filtres sur la premiere ligne, les boutons sur la seconde. Sur une seule
+             * ligne, a 1366 px, la largeur flexible donnee aux boutons coupait leur texte. */
             dockedItems: [
                 {
                     xtype: 'toolbar',
@@ -243,13 +245,15 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                             queryMode: 'remote',
                             minChars: 2,
                             emptyText: 'Sélectionnez une famille'
-                        },
-                        {
-                            xtype: 'tbseparator'
-                        },
+                        }
+                    ]
+                },
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
                         {
                             text: 'rechercher',
-                            flex: 0.7,
                             tooltip: 'rechercher',
                             itemId: 'rechercher',
                             scope: this,
@@ -258,26 +262,22 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
 
                         , {
                             text: 'imprimer',
-                            flex: 0.7,
                             itemId: 'imprimer',
                             iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
                         }, {
                             text: 'CSV',
-                            flex: 0.5,
                             itemId: 'exportCsv',
                             iconCls: 'export_csv_icon',
                             tooltip: 'Exporter la liste filtr&eacute;e en CSV'
                         }, {
                             text: 'Excel',
-                            flex: 0.5,
                             itemId: 'exportExcel',
                             iconCls: 'export_excel_icon',
                             tooltip: 'Exporter la liste filtr&eacute;e en Excel'
                         }, {
                             text: 'Cr&eacute;er inventaire',
-                            flex: 0.9,
                             itemId: 'creerInventaire',
                             iconCls: 'addicon',
                             tooltip: 'Cr&eacute;er un inventaire avec les produits de la liste filtr&eacute;e'

@@ -109,6 +109,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
         var tauxGlobalProduits = tauxGlobalDe(storeProduits);
 
         Ext.applyIf(me, {
+            /* Deux barres : les filtres sur la premiere ligne, le tri et les actions sur la seconde.
+             * Sur une seule ligne, a 1366 px, le tri et tous les boutons d'action sortaient de l'ecran. */
             dockedItems: [{
                 xtype: 'toolbar',
                 dock: 'top',
@@ -161,6 +163,12 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                             }
                         })
                     },
+                    {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon'}
+                ]
+            }, {
+                xtype: 'toolbar',
+                dock: 'top',
+                items: [
                     /* Tri des DEUX grilles, toujours du plus grand au plus petit. « Marge » est en tete :
                      * c'etait le seul tri jusqu'ici, l'ecran s'ouvre donc comme avant. */
                     {
@@ -176,7 +184,6 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                             ]
                         })
                     },
-                    {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon'},
                     '->',
                     /* Un bouton par action, un menu par niveau : l'edition et l'export portent sur
                      * l'une ou l'autre des deux grilles, jamais sur les deux a la fois. */
