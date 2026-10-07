@@ -35,7 +35,7 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
     public JSONObject lister(String familleId) {
         JSONArray data = new JSONArray();
         for (Tuple t : (List<Tuple>) em.createNativeQuery("SELECT lg_ID AS id, str_TYPE AS type, int_TAILLE AS taille,"
-                + " int_LARGEUR AS l, int_HAUTEUR AS h, bool_PRINCIPALE AS p, str_CHEMIN_VIGNETTE AS v,"
+                + " int_LARGEUR AS l, int_HAUTEUR AS h, bool_PRINCIPALE AS p, str_CHEMIN_VIGNETTE AS v, str_CHEMIN AS c,"
                 + " DATE_FORMAT(dt_CREATED, '%d/%m/%Y %H:%i') AS dt FROM t_famille_image WHERE lg_FAMILLE_ID = :f"
                 + " ORDER BY bool_PRINCIPALE DESC, int_ORDRE, dt_CREATED", Tuple.class).setParameter("f", familleId)
                 .getResultList()) {
@@ -46,9 +46,14 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
                     .put("largeur", t.get("l") == null ? JSONObject.NULL : t.get("l"))
                     .put("hauteur", t.get("h") == null ? JSONObject.NULL : t.get("h"))
                     .put("principale", vrai(t.get("p"))).put("date", t.get("dt")).put("url", base)
-                    .put("vignette", base + (t.get("v") == null ? "" : "?taille=vignette")));
+                    .put("vignette", base + (t.get("v") == null ? "" : "?taille=vignette"))
+                    /*
+                     * retours du 07/10 : ou est le fichier ? chemin en base (relatif) et chemin complet sur le disque
+                     */
+                    .put("chemin", t.get("c")).put("fichier", fichier((String) t.get("c"))));
         }
-        return new JSONObject().put("success", true).put("data", data).put("total", data.length());
+        return new JSONObject().put("success", true).put("data", data).put("total", data.length()).put("dossier",
+                dossierImages().toAbsolutePath().toString());
     }
 
     @Override
@@ -219,6 +224,11 @@ public class ImagesProduitServiceImpl implements ImagesProduitService {
         Path conf = ImagesProduit.dossierConfiguration(toolkits.utils.jdom.path_of_config);
         return conf != null ? conf.resolve(ImagesProduit.DOSSIER_CONF)
                 : StockageDisque.racine().resolve(ImagesProduit.DOSSIER);
+    }
+
+    /** Chemin complet du fichier sur le disque du serveur, pour l'affichage (vide si le chemin est inattendu). */
+    private String fichier(String relatif) {
+        return ImagesProduit.cheminSur(relatif) ? emplacement(relatif).toAbsolutePath().toString() : "";
     }
 
     /** Ou ecrire un fichier dont le chemin relatif (en base) commence par images-produits/. */

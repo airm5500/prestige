@@ -48,6 +48,8 @@ public class MobileServiceImpl implements MobileService {
     private EntityManager em;
     @EJB
     private ImagesProduitService images;
+    @EJB
+    private rest.service.PrivilegeService privileges;
 
     /* ---------------------------------------------------------------- connexion */
 
@@ -324,10 +326,8 @@ public class MobileServiceImpl implements MobileService {
     }
 
     private boolean aLeDroit(TUser u, String droit) {
-        /* requete propre : PrivilegeService.getPrivilegeByNames rend toujours un ensemble vide (conversion en Tuple) */
-        return "00".equals(u.getLgUSERID()) || premier("SELECT 1 FROM t_privilege p JOIN t_role_privelege rp"
-                + " ON rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID"
-                + " WHERE ru.lg_USER_ID = ?1 AND p.str_NAME = ?2", u.getLgUSERID(), droit) != null;
+        return "00".equals(u.getLgUSERID())
+                || privileges.getPrivilegeByNames(java.util.Set.of(droit), u.getLgUSERID()).contains(droit);
     }
 
     private static Double nombre(Object o) {

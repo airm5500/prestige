@@ -118,6 +118,10 @@ public class TableauBordServiceImpl implements TableauBordService {
             long[] ca7 = caJour(jour.minusDays(7));
             o.put("ca", ca[0]).put("clients", ca[1]).put("caJ7", ca7[0]).put("evolutionJ7",
                     ca7[0] == 0 ? JSONObject.NULL : Math.round((ca[0] - ca7[0]) * 1000.0 / ca7[0]) / 10.0);
+            /* retours du 07/10 : comparaison a la veille, sur une ligne de texte sous la tuile */
+            long[] veille = caJour(jour.minusDays(1));
+            o.put("caVeille", veille[0]).put("evolutionVeille",
+                    veille[0] == 0 ? JSONObject.NULL : Math.round((ca[0] - veille[0]) * 1000.0 / veille[0]) / 10.0);
 
             /* Marge nette : getCANetAndMargeNet (remise de ligne non deduite, voir l'en-tete de la classe). */
             Object[] m = ligne(

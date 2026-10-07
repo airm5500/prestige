@@ -86,8 +86,9 @@ function nettoyer() {
     const clic = async (sel, attente) => { await p.click('#' + (await idDe(sel))); await p.waitForTimeout(attente || 1200); };
 
     /* ------------------------------------------------ menu et ecran */
-    const menu = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0].getStore().getNodeById('rappelshabitude'); return n ? n.get('text') : null; });
-    ok('Menu SERVICE CLIENT : « Rappels et piluliers »', /piluliers/.test(menu || ''), menu);
+    const menu = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0].getStore().getNodeById('rappelshabitude'); return n ? n.get('text') + '|' + (n.raw.aide || '') : null; });
+    /* retours du 07/10 : libelle court, l'explication en info-bulle */
+    ok('Menu SERVICE CLIENT : « Rappels traitement », explication en info-bulle', /^Rappels traitement\|.*piluliers/.test(menu || ''), menu);
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('rappelshabitude', {}));
     await p.waitForFunction(() => Ext.ComponentQuery.query('rappelshabitude').length > 0, null, { timeout: 30000 });
     await p.waitForTimeout(1500);

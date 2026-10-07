@@ -212,7 +212,30 @@ public class ReglementServiceImpl implements ReglementService {
             predicates.add(
                     cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrementCompteClient_.dtUPDATED)),
                             java.sql.Date.valueOf(params.getDtStart()), java.sql.Date.valueOf(params.getDtEnd())));
-            predicates.add(cb.greaterThan(root.get(TPreenregistrementCompteClient_.intPRICERESTE), 0));
+            /*
+             * retours du 07/10 : filtre reglé / non reglé / reglé partiellement ; par defaut, comme avant, les differes
+             * non soldes (non regles et partiels)
+             */
+            var reste = root.get(TPreenregistrementCompteClient_.intPRICERESTE);
+            var du = root.get(TPreenregistrementCompteClient_.intPRICE);
+            String etat = params.getEtatDiffere() == null ? "" : params.getEtatDiffere().trim().toUpperCase();
+            switch (etat) {
+            case "NON_REGLES":
+                predicates.add(cb.greaterThan(reste, 0));
+                predicates.add(cb.greaterThanOrEqualTo(reste, du));
+                break;
+            case "PARTIELS":
+                predicates.add(cb.greaterThan(reste, 0));
+                predicates.add(cb.lessThan(reste, du));
+                break;
+            case "REGLES":
+                predicates.add(cb.lessThanOrEqualTo(reste, 0));
+                break;
+            case "TOUS":
+                break;
+            default:
+                predicates.add(cb.greaterThan(reste, 0));
+            }
 
             cq.select(root).where(cb.and(predicates.toArray(Predicate[]::new)))
                     .orderBy(cb.asc(root.get(TPreenregistrementCompteClient_.dtUPDATED)));

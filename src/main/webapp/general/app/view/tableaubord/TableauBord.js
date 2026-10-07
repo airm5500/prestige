@@ -58,7 +58,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + '<div class="tb-sous" data-tb="date"></div></div><div class="tb-esp"></div>'
                 + '<span class="tb-lien tb-retires-rappel" data-tb="perso-rappel" style="display:none"></span>'
                 + '<button class="tb-btn tb-sombre" data-tb="perso">Personnaliser</button>'
-                + '<button class="tb-btn tb-sombre" data-tb="actualiser"><i class="fa-solid fa-rotate"></i> Actualiser</button></div>'
+                + '<button class="tb-btn tb-sombre" data-tb="actualiser"><i class="fa-solid fa-rotate"></i> Actualiser</button>'
+                /* retours du 07/10 : impression en PDF, page A4 paysage */
+                + '<button class="tb-btn tb-sombre" data-tb="imprimer" title="Imprimer ou enregistrer en PDF (A4 paysage)">'
+                + '<i class="fa-solid fa-print"></i> Imprimer (PDF)</button></div>'
                 + '<div class="tb-bandeau"><b>Mode personnalisation.</b> Glissez une carte ou une tuile par sa poignée ⠿ pour la déplacer, ✕ pour la retirer. '
                 + 'Les éléments retirés apparaissent ci-dessous : un clic les remet en place. La disposition est enregistrée pour votre compte.'
                 + '<div class="tb-retires" data-tb="retires"></div><div style="margin-top:8px"><button class="tb-btn tb-mini" data-tb="defaut">Rétablir la disposition par défaut</button></div></div>'
@@ -296,6 +299,50 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         });
     },
 
+    /**
+     * Retours du 07/10 : le tableau de bord imprime ou enregistre en PDF, page A4 PAYSAGE. Une copie des tuiles et
+     * des cartes (graphiques en SVG, donc copiables) est placee dans une zone d'impression ; l'impression du
+     * navigateur ne montre qu'elle (choisir « Enregistrer au format PDF »). La mise en page paysage n'est posee que
+     * le temps de cette impression : les autres editions ne changent pas.
+     */
+    imprimer: function () {
+        var me = this, titre = me.q('[data-tb="date"]');
+        var ancienne = document.getElementById('tb-impression');
+        if (ancienne) {
+            ancienne.parentNode.removeChild(ancienne);
+        }
+        var zone = document.createElement('div');
+        zone.id = 'tb-impression';
+        zone.innerHTML = '<div class="tb tb-print"><div class="tb-print-entete"><b>'
+                + Ext.String.htmlEncode(titre ? titre.textContent : 'Tableau de bord') + '</b><span>Imprimé le '
+                + Ext.Date.format(new Date(), 'd/m/Y à H:i') + '</span></div>'
+                + '<div class="tb-tuiles">' + me.q('[data-tb="tuiles"]').innerHTML + '</div>'
+                + '<div class="tb-grille">' + me.q('[data-tb="cartes"]').innerHTML + '</div></div>';
+        Ext.each(Ext.Array.slice(zone.querySelectorAll('.tb-tuile-outils, .tb-carte-outils, button, .tb-seg, input, label')), function (e) {
+            e.style.display = 'none';
+        });
+        document.body.appendChild(zone);
+        var page = document.createElement('style');
+        page.id = 'tb-page-paysage';
+        page.textContent = '@page { size: A4 landscape; margin: 8mm; }';
+        document.head.appendChild(page);
+        document.documentElement.classList.add('tb-imprime');
+        var fin = function () {
+            document.documentElement.classList.remove('tb-imprime');
+            Ext.each(['tb-impression', 'tb-page-paysage'], function (id) {
+                var e = document.getElementById(id);
+                if (e) {
+                    e.parentNode.removeChild(e);
+                }
+            });
+            window.removeEventListener('afterprint', fin);
+        };
+        window.addEventListener('afterprint', fin);
+        setTimeout(function () {
+            window.print();
+        }, 50);
+    },
+
     dessinerTuiles: function (o) {
         var me = this, f = me.fmt;
         var poser = function (id, html) {
@@ -313,7 +360,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         var ev = o.evolutionJ7;
         poser('ca', '<div class="tb-v">' + f(o.ca) + '</div><div class="tb-d"><b>' + f(o.clients) + '</b> clients'
                 + (ev === null || ev === undefined ? '' : ' · <span class="' + (ev >= 0 ? 'tb-hausse' : 'tb-baisse') + '">'
-                        + (ev >= 0 ? '+' : '') + String(ev).replace('.', ',') + ' % vs J-7</span>') + '</div>');
+                        + (ev >= 0 ? '+' : '') + String(ev).replace('.', ',') + ' % vs J-7</span>') + '</div>'
+                /* retours du 07/10 : comparaison a la veille */
+                + (o.caVeille === undefined ? '' : '<div class="tb-d tb-veille">Veille : <b>' + f(o.caVeille) + '</b>'
+                        + (o.evolutionVeille === null || o.evolutionVeille === undefined ? ''
+                                : ' · <span class="' + (o.evolutionVeille >= 0 ? 'tb-hausse' : 'tb-baisse') + '">'
+                                + (o.evolutionVeille >= 0 ? '+' : '') + String(o.evolutionVeille).replace('.', ',') + ' %</span> vs veille') + '</div>'));
         poser('marge', '<div class="tb-v">' + f(o.marge) + '</div><div class="tb-d"><b>' + String(o.tauxMarge).replace('.', ',') + ' %</b> du CA HT</div>');
         poser('panier', '<div class="tb-v">' + f(o.panier) + '</div><div class="tb-d">par client</div>');
         var bl = (me.prefs.achats || 'saisie') === 'bl';
@@ -1182,6 +1234,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 racine.querySelector('.tb').classList.toggle('tb-edition', me.edition);
                 x.textContent = me.edition ? 'Terminer' : 'Personnaliser';
                 me.majRetires();
+                return;
+            }
+            if (cible('[data-tb="imprimer"]')) {
+                me.imprimer();
                 return;
             }
             if (cible('[data-tb="actualiser"]')) {

@@ -81,6 +81,9 @@ const NOM = 'ZZFICHE';
     await choisir('Tension artérielle');
     const champs = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0]; return { tension: v.down('#fcTension').isVisible(), valeur: v.down('#fcValeur').isVisible(), titre: v.down('#fcSuivi').title }; });
     ok('Tension choisie : champs gauche / droit (systolique, diastolique), pas de valeur unique', champs.tension && !champs.valeur && /Tension/.test(champs.titre), JSON.stringify(champs));
+    /* retours du 07/10 : apres le choix d'un parametre, le curseur est dans le champ de saisie */
+    const focusTension = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0]; return document.activeElement && document.activeElement.id === v.down('#fcGSys').inputEl.dom.id; });
+    ok('Paramètre choisi : curseur dans le champ de saisie (tension : bras gauche systolique)', focusTension);
     await saisir('ordonnanceclient #vueFicheClient #fcGSys', 150);
     await clic('ordonnanceclient #vueFicheClient button[itemId=fcAjouter]', 1000);
     const incomplet = await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient #fcMessage')[0].getEl().dom.textContent);
@@ -114,6 +117,8 @@ const NOM = 'ZZFICHE';
 
     /* Glycemie, poids, taille : IMC. */
     await choisir('Glycémie à jeun');
+    const focusValeur = await p.evaluate(() => { const v = Ext.ComponentQuery.query('ordonnanceclient #vueFicheClient')[0]; return document.activeElement && document.activeElement.id === v.down('#fcValeur').inputEl.dom.id; });
+    ok('Paramètre à une valeur choisi : curseur dans le champ Valeur, saisie directe au clavier', focusValeur);
     await saisir('ordonnanceclient #vueFicheClient #fcValeur', '1,32'); await p.keyboard.press('Enter'); await p.waitForTimeout(1500);
     await choisir('Poids');
     await saisir('ordonnanceclient #vueFicheClient #fcValeur', '80'); await p.keyboard.press('Enter'); await p.waitForTimeout(1500);

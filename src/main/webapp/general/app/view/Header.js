@@ -351,20 +351,18 @@ function prestigeShowMetro() {
 
 // Deconnexion depuis le bouton rond du header (avec confirmation)
 function prestigeHeaderLogout() {
+    /* retours du 07/10 : meme dessin que les autres boites (bandeau bleu, fond clair, bouton principal) au lieu
+       de l'ancienne boite sombre avec deux icones superposees */
     Ext.Msg.show({
         title: 'Déconnexion',
-        msg: '<div class="prestige-confirm-content">'
-                + '<span class="prestige-confirm-icon"><i class="fa fa-power-off"></i></span>'
-                + '<span><strong>Se déconnecter ?</strong><br>'
-                + '</div>',
+        msg: '<div class="deco-msg"><span class="deco-ico"><i class="fa fa-power-off"></i></span>'
+                + '<div><b>Se déconnecter ?</b><br><span>La session sera fermée sur ce poste.</span></div></div>',
         buttons: Ext.Msg.YESNO,
         buttonText: {
-            yes: '<i class="fa fa-sign-out"></i> OUI',
-            no: '<i class="fa fa-times"></i> ANNULER'
+            yes: '<i class="fa fa-sign-out"></i> Se déconnecter',
+            no: 'Annuler'
         },
-
-        icon: Ext.Msg.QUESTION,
-        cls: 'prestige-confirm-win',
+        cls: 'deco-boite',
         fn: function (btn) {
             if (btn === 'yes' && typeof Me_header !== 'undefined' && Me_header) {
                 Me_header.Deconnexion();

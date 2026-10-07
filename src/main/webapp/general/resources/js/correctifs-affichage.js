@@ -1142,6 +1142,62 @@ Ext.onReady(function () {
 
     corrigerInfobulles();
     corrigerBoitesDeMessage();
+    corrigerLibellesSurDeuxLignes();
+
+    /*
+     * Retours du 07/10 (« troncage d'informations ») : un libelle de champ a gauche, plus large que la place prevue
+     * (labelWidth), passait sur deux lignes et decalait la barre (« Filtrer par », « Type Tiers Payant »...). Au rendu,
+     * si le texte du libelle ne tient pas, la place du libelle est agrandie de ce qui manque, et le champ d'autant
+     * s'il a une largeur fixe : la zone de saisie garde sa taille. Une seule fois par champ ; libelles au-dessus,
+     * caches ou vides : rien ne change.
+     */
+    function corrigerLibellesSurDeuxLignes() {
+        if (!Ext.form || !Ext.form.field || !Ext.form.field.Base || Ext.form.field.Base.prototype.libellesCorriges) {
+            return;
+        }
+        Ext.form.field.Base.prototype.libellesCorriges = true;
+        /* enchainement sur la methode existante (heritee de Component) : pas de callParent, qui n'a pas de methode
+           precedente sur cette classe */
+        var proto = Ext.form.field.Base.prototype;
+        proto.afterRender = Ext.Function.createSequence(proto.afterRender, function () {
+            var champ = this;
+            Ext.Function.defer(function () {
+                ajusterLibelle(champ);
+            }, 1);
+        });
+    }
+
+    function ajusterLibelle(champ) {
+        try {
+            if (champ.isDestroyed || champ.libelleAjuste || !champ.labelEl || champ.hideLabel || !champ.fieldLabel
+                    || champ.labelAlign === 'top' || !champ.labelWidth) {
+                return;
+            }
+            var el = champ.labelEl, texte = el.dom.textContent || '';
+            if (!texte.trim() || !el.dom.offsetWidth) {
+                return;
+            }
+            champ.libelleAjuste = true;
+            var largeur = Ext.util.TextMetrics.measure(el, texte).width + 6;
+            var manque = Math.ceil(largeur - el.dom.clientWidth);
+            if (manque <= 0 || manque > 160) {
+                return;
+            }
+            champ.labelWidth += manque;
+            var cellule = champ.labelCell || (el.parent ? el.parent('.x-field-label-cell') : null);
+            if (cellule) {
+                cellule.setStyle('width', (champ.labelWidth + (champ.labelPad || 5)) + 'px');
+            }
+            el.setStyle('width', champ.labelWidth + 'px');
+            if (typeof champ.width === 'number') {
+                champ.setWidth(champ.width + manque);
+            } else {
+                champ.updateLayout();
+            }
+        } catch (e) {
+            /* jamais bloquant */
+        }
+    }
 
     // ---------------------------------------------------------------------------------
     // 6) un ecouteur de redimensionnement fautif ne doit plus empecher le viewport de
@@ -1195,6 +1251,14 @@ Ext.onReady(function () {
             return;
         }
         infobulle.correctifTexteTronque = true;
+        /* retours du 07/10 : bulles au nouveau design (bleu) et assez longtemps visibles pour etre lues (15 s au lieu
+           de 5 ; elles restent aussi tant que la souris est dessus) ; elles apparaissent un peu plus vite */
+        infobulle.dismissDelay = 15000;
+        infobulle.showDelay = 350;
+        infobulle.showAt = Ext.Function.createInterceptor(infobulle.showAt, function () {
+            var propre = this.activeTarget && this.activeTarget.cls;
+            this[propre ? 'removeCls' : 'addCls']('bulle-theme');
+        });
 
         infobulle.showAt = Ext.Function.createSequence(infobulle.showAt, function () {
             var tip = this;
@@ -1250,6 +1314,19 @@ Ext.onReady(function () {
             Ext.Function.defer(function () {
                 agrandirSiTexteMasque(fenetre);
             }, 1);
+            /* retours du 07/10 : texte encore coupe sur certains postes (« Voulez-vous generer le fichier CSV ? »
+               cache) : la police du poste finit de se charger APRES la mesure et le texte passe sur une ligne de
+               plus. On remesure un peu plus tard et quand les polices sont pretes. */
+            Ext.each([150, 500], function (ms) {
+                Ext.Function.defer(function () {
+                    agrandirSiTexteMasque(fenetre);
+                }, ms);
+            });
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function () {
+                    agrandirSiTexteMasque(fenetre);
+                });
+            }
         });
     }
 
@@ -1264,8 +1341,11 @@ Ext.onReady(function () {
         elements.push(corps);
         // .x-box-inner : conteneur de la mise en page en boite, hauteur en dur et
         // overflow:hidden, c'est lui qui coupe reellement le texte
-        Ext.Array.each(corps.querySelectorAll('.x-box-inner'), function (n) {
-            elements.push(n);
+        Ext.Array.each(corps.querySelectorAll('.x-box-inner, .x-container, .x-component, .x-form-display-field, .x-window-text'), function (n) {
+            var o = getComputedStyle(n).overflowY;
+            if (o === 'hidden' || o === 'auto' || o === 'scroll') {
+                elements.push(n);
+            }
         });
         if (fenetre.msg && fenetre.msg.el) {
             elements.push(fenetre.msg.el.dom);

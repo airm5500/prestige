@@ -63,6 +63,7 @@ public class FacturePdfServlet extends HttpServlet {
             break;
         case LISTE_DIFFERES:
             boolean pairclient = Boolean.parseBoolean(request.getParameter("pairclient"));
+            params.setEtatDiffere(request.getParameter("etat"));
             if (!"".equals(query)) {
                 params.setDescription(query);
             }

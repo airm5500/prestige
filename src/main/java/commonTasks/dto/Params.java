@@ -46,6 +46,16 @@ public class Params implements Serializable {
     private String userId;
     /** Zone ciblee par un ajustement : RAYON (defaut) ou RESERVE. */
     private String zone;
+    /** Liste des differes (retours du 07/10) : NON_SOLDES (defaut), NON_REGLES, PARTIELS, REGLES ou TOUS. */
+    private String etatDiffere;
+
+    public String getEtatDiffere() {
+        return etatDiffere;
+    }
+
+    public void setEtatDiffere(String etatDiffere) {
+        this.etatDiffere = etatDiffere;
+    }
 
     public String getHrEnd() {
         return hrEnd;

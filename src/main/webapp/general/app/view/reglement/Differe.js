@@ -18,6 +18,9 @@ Ext.define('testextjs.view.reglement.Differe', {
         var liste = new Ext.data.Store({
             fields: [
                 {
+                    name: 'etat',
+                    type: 'string'
+                }, {
                     name: 'clientId',
                     type: 'string'
                 },
@@ -417,8 +420,22 @@ Ext.define('testextjs.view.reglement.Differe', {
                                     queryMode: 'remote',
                                     emptyText: 'Choisir un client'
 
-                                }
-                                ,
+                                },
+                                /* retours du 07/10 : regle, non regle ou regle partiellement */
+                                {
+                                    xtype: 'combobox',
+                                    itemId: 'etatDiffere',
+                                    width: 175,
+                                    editable: false,
+                                    queryMode: 'local',
+                                    valueField: 'v',
+                                    displayField: 'l',
+                                    value: 'NON_SOLDES',
+                                    tooltip: 'Réglé : plus rien à payer. Partiel : une partie déjà payée. Non réglé : rien payé.',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
+                                            {v: 'NON_SOLDES', l: 'Non soldés (à payer)'}, {v: 'NON_REGLES', l: 'Non réglés'},
+                                            {v: 'PARTIELS', l: 'Réglés partiellement'}, {v: 'REGLES', l: 'Réglés'}, {v: 'TOUS', l: 'Tous'}]})
+                                },
                                 {
                                     text: 'rechercher',
                                     tooltip: 'rechercher',
@@ -472,6 +489,15 @@ Ext.define('testextjs.view.reglement.Differe', {
                             dataIndex: 'clientFullName',
                             flex: 1.5
 
+                        },
+                        {
+                            header: 'État',
+                            dataIndex: 'etat',
+                            width: 105,
+                            renderer: function (v) {
+                                var e = {NON_REGLE: ['Non réglé', '#c0392b'], PARTIEL: ['Partiel', '#b9770e'], REGLE: ['Réglé', '#1e8449']}[v];
+                                return e ? '<b style="color:' + e[1] + '">' + e[0] + '</b>' : '';
+                            }
                         },
                         {
                             xtype: 'numbercolumn',

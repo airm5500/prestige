@@ -10,7 +10,7 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsHabitudeManage
     extend: 'Ext.grid.Panel',
     xtype: 'rappelshabitude',
     id: 'rappelshabitudeID',
-    title: 'Rappels et piluliers à préparer',
+    title: 'Rappels traitement',
     frame: true,
     width: '98%',
     height: 620,

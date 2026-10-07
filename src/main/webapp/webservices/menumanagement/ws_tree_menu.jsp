@@ -84,6 +84,11 @@
                         JSONObject json_sub = new JSONObject();
                         json_sub.put("id", OTSousMenu.getStrCOMPOSANT());
                         json_sub.put("text", OTSousMenu.getStrDESCRIPTION());
+                        // retours du 07/10 : explication du menu en info-bulle, quand str_VALUE la porte (plus long que le libelle)
+                        String aide = OTSousMenu.getStrVALUE(), libelle = OTSousMenu.getStrDESCRIPTION();
+                        if (aide != null && libelle != null && aide.trim().length() > libelle.trim().length() + 5) {
+                            json_sub.put("aide", aide.trim());
+                        }
                         json_sub.put("leaf", "true");
                         if (OTSousMenu.getStrIMAGECSS() != null) {
                             json_sub.put("iconCls", OTSousMenu.getStrIMAGECSS());

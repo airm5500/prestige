@@ -2813,3 +2813,51 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .rh-qr-attente { color: #6b7b8c; padding: 24px 8px; }
 .rh-qr-regles { text-align: left; color: #34495e; font-size: 12px; padding-left: 16px; margin: 8px 0 0; }
 .rh-aide { color: #6b7b8c; font-size: 12px; }
+
+/* Retours du 07/10 : chemin du fichier image, selectionnable pour le copier */
+.img-chemin { margin-top: 6px; font-size: 11px; color: #6b7b8c; word-break: break-all; line-height: 1.35; }
+.img-chemin span { color: #1e3a5f; user-select: all; font-family: Consolas, monospace; }
+
+/* Retours du 07/10 : boite de deconnexion au nouveau design */
+.x-message-box.deco-boite .x-message-box-icon { display: none !important; }
+.deco-msg { display: flex; align-items: center; gap: 14px; padding: 4px 2px; }
+.deco-ico i { font-size: 20px !important; }
+.deco-ico { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: #fdecea; color: #c0392b;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 19px; }
+.deco-msg b { font-size: 15px; color: #1e3a5f; } .deco-msg span { color: #6b7b8c; font-size: 12px; }
+
+/* Retours du 07/10 : info-bulles au nouveau design (bleu, texte blanc, lisible). Les bulles qui ont leur propre
+   classe (data-qclass) gardent leur dessin. */
+.x-tip.bulle-theme { background: #1E5FA8 !important; border: 1px solid #1E5FA8 !important; border-radius: 6px !important;
+  box-shadow: 0 6px 18px rgba(15, 40, 80, .25) !important; }
+.x-tip.bulle-theme .x-tip-body, .x-tip.bulle-theme .x-tip-body * { color: #fff !important; font-size: 12.5px !important; line-height: 1.45 !important; }
+.x-tip.bulle-theme .x-tip-header, .x-tip.bulle-theme .x-tip-header * { color: #fff !important; background: transparent !important; }
+.x-tip.bulle-theme .x-tip-anchor { border-top-color: #1E5FA8 !important; border-bottom-color: #1E5FA8 !important; }
+.x-tip.bulle-theme .x-tip-body a { color: #ffe08a !important; }
+
+/* Retours du 07/10 : previsions — (i) des tuiles, detail, produit sur une ligne */
+.ac-tuile { position: relative; }
+.ac-info { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: rgba(30, 58, 95, .1);
+  color: #1e3a5f; font: italic 700 12px/20px Georgia, serif; text-align: center; cursor: pointer; transition: background .15s, transform .15s; }
+.ac-info:hover { background: #1E5FA8; color: #fff; transform: scale(1.15); }
+.ac-une-ligne .x-grid-cell-inner { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+.ac-detail-v { font-size: 26px; font-weight: 700; color: #1e3a5f; }
+.ac-detail-d { color: #6b7b8c; margin: 2px 0 12px; }
+.ac-detail p { line-height: 1.55; color: #2c3e50; margin: 0; }
+
+/* Retours du 07/10 : impression du tableau de bord (A4 paysage) */
+#tb-impression { display: none; }
+@media print {
+  html.tb-imprime body > *:not(#tb-impression) { display: none !important; }
+  html.tb-imprime, html.tb-imprime body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  html.tb-imprime #tb-impression { display: block !important; position: static !important; width: 100%; }
+  #tb-impression .tb-print { padding: 0 !important; background: #fff !important; }
+  #tb-impression .tb-print-entete { display: flex; justify-content: space-between; color: #1e3a5f; font-size: 13px;
+    border-bottom: 2px solid #1e3a5f; padding-bottom: 4px; margin-bottom: 8px; }
+  #tb-impression .tb-print-entete span { color: #6b7b8c; font-size: 11px; }
+  #tb-impression .tb-tuiles { display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 8px !important; }
+  #tb-impression .tb-tuiles, #tb-impression .tb-grille { break-inside: auto; }
+  #tb-impression .tb-tuile, #tb-impression .tb-carte { break-inside: avoid; box-shadow: none !important; transform: none !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #tb-impression * { animation: none !important; transition: none !important; }
+}

@@ -223,6 +223,7 @@ Ext.define('testextjs.view.Navigation', {
         Ext.Array.each(children, function (child) {
             var childId   = child.data.id;
             var childText = child.data.text;
+            var childAide = child.raw && child.raw.aide;
             /* Flèche standard pour tous les sous-menus */
             var iconHtml  = '<span style="display:inline-flex;align-items:center;justify-content:center;'
                   + 'width:22px;height:22px;flex-shrink:0;margin-right:8px;vertical-align:middle">'
@@ -231,6 +232,8 @@ Ext.define('testextjs.view.Navigation', {
             items.push({
                 text:        iconHtml + '<span style="vertical-align:middle">' + Ext.String.htmlEncode(childText) + '</span>',
                 cls:         'pft-item',
+                /* retours du 07/10 : l'explication du menu au survol */
+                tooltip:     childAide ? Ext.String.htmlEncode(childAide) : undefined,
                 handler: function () {
                     if (me._flyoutMenu) { me._flyoutMenu.hide(); }
                     if (typeof childId !== 'undefined') {

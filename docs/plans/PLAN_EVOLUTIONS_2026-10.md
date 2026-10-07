@@ -759,3 +759,19 @@ Chaque lot est livré avec ses migrations, ses tests (unitaires + e2e avec jeu d
 16. **[Q16]** Tableau de bord : remplacer l'ancien après validation, ou garder les deux au choix de l'utilisateur ?
 
 </details>
+
+## 14. Retours du 07/10 (2e série)
+
+| Point | Livré |
+|---|---|
+| Droits des chemins mobiles existants | `PrivilegeService.getPrivilegeByNames` rendait toujours un ensemble vide (conversion en `Tuple`) : corrigé, accord du 07/10 |
+| Tableau de bord | « Imprimer (PDF) » : page **A4 paysage** (tuiles + cartes), sans fenêtre surgissante ; CA net : ligne « Veille : X · ±N % vs veille » |
+| Fiche client (ordonnances) | après le choix d'un paramètre, le curseur va dans le champ de saisie |
+| Info-bulles | bleues (nouveau design), visibles 15 s, apparition plus rapide ; celles qui ont leur propre dessin le gardent |
+| Prévisions | produit · code · grossiste sur **une ligne** (texte complet en bulle) ; (i) sur chaque tuile : définition, calcul, chiffres ; bulle précise sur chaque colonne |
+| Chemin des images | affiché sous l'image (chemin complet sur le serveur) ; en base : `t_famille_image.str_CHEMIN` (relatif, `images-produits/AAAA/MM/…`) |
+| Différés | filtre « État » : non soldés (défaut, comme avant), non réglés, réglés partiellement, réglés, tous ; colonne État ; repris à l'impression |
+| Boîtes de message | texte jamais coupé (remesure après chargement des polices) ; déconnexion au nouveau design |
+| Tiers payants › clients | fiche de chaque client (identité, assurances, achats) : icône ou double-clic |
+| Troncages | libellés sur deux lignes corrigés partout (correctif général) ; barres d'outils trop longues réparties sur deux lignes |
+| Menus | « Rappels traitement », « Prévisions vente / achat / analyse » ; explication en info-bulle au survol (`str_VALUE`, V6.9.90) |

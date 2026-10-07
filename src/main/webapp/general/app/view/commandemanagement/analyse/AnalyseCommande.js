@@ -14,7 +14,7 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
     extend: 'Ext.tab.Panel',
     xtype: 'analysecommande',
     id: 'analysecommandeID',
-    title: 'Analyse Suggestion / Commande',
+    title: 'Prévisions vente / achat / analyse',
     cls: 'ordo-onglets',
     frame: true,
     width: '98%',
@@ -105,27 +105,48 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
             }
             info.update('Dernier calcul : <b>' + me.h(o.dernierCalcul) + '</b> (' + (o.origine === 'NUIT' ? 'calcul de la nuit' : 'à la demande') + '), '
                     + me.nombre(o.produits) + ' produits');
-            var tuile = function (cls, titre, valeur, detail, filtre, aide) {
+            /* retours du 07/10 : un (i) sur chaque tuile ouvre le detail (definition, calcul, chiffres) ; un clic
+               ailleurs sur la tuile ouvre toujours la liste des produits concernes */
+            me.detailsTuiles = {};
+            var tuile = function (cls, titre, valeur, detail, filtre, aide, explication) {
+                me.detailsTuiles[filtre] = {titre: titre, valeur: valeur, detail: detail, aide: aide, explication: explication};
                 return '<div class="ac-tuile ' + cls + '"' + (filtre ? ' data-filtre="' + filtre + '"' : '')
-                        + ' data-qtip="' + me.h(aide) + '"><div class="ac-t">' + titre + '</div><div class="ac-v">' + valeur
+                        + ' data-qtip="' + me.h(aide + ' — clic : voir les produits') + '">'
+                        + '<span class="ac-info" data-info="' + filtre + '" data-qtip="Détail et calcul">i</span>'
+                        + '<div class="ac-t">' + titre + '</div><div class="ac-v">' + valeur
                         + '</div><div class="ac-d">' + detail + '</div></div>';
             };
             var html = '<div class="ac-tuiles">'
                     + tuile('t-rouge', 'Taux de rupture', (o.tauxRupture || 0).toLocaleString('fr-FR') + ' %',
                             me.nombre(o.ruptures) + ' produits vendus régulièrement sans stock', 'RUPTURE',
-                            'Parmi les produits dont la prévision est d\'au moins 1 par mois, part de ceux dont le stock est nul')
+                            'Parmi les produits dont la prévision est d\'au moins 1 par mois, part de ceux dont le stock est nul',
+                            'Produits suivis dont la prévision est d\'au moins 1 vente par mois (vendus régulièrement) : <b>'
+                            + me.nombre(o.ruptures) + '</b> ont un stock nul (rayon + réserve), soit <b>' + (o.tauxRupture || 0).toLocaleString('fr-FR')
+                            + ' %</b>. Chaque jour en rupture d\'un produit régulier est une vente perdue ou reportée.')
                     + tuile('t-violet', 'Invendus', me.nombre(o.valeurInvendus) + ' F',
                             me.nombre(o.invendus) + ' produits sans vente depuis ' + o.joursLente + ' j (valeur d\'achat)', 'LENTE',
-                            'Valeur au prix d\'achat du stock des produits sans vente depuis ' + o.joursLente + ' jours')
+                            'Valeur au prix d\'achat du stock des produits sans vente depuis ' + o.joursLente + ' jours',
+                            '<b>' + me.nombre(o.invendus) + '</b> produits en stock n\'ont eu aucune vente depuis <b>' + o.joursLente
+                            + ' jours</b> (paramètre KEY_PREVISION_ROTATION_LENTE_JOURS). Leur stock vaut <b>' + me.nombre(o.valeurInvendus)
+                            + ' F</b> au prix d\'achat : argent immobilisé, risque de péremption.')
                     + tuile('t-bleu', 'Couverture moyenne', o.couvertureMoyenne === null ? '—' : o.couvertureMoyenne + ' j',
                             me.nombre(o.surstock) + ' produits au-delà de ' + o.joursSurstock + ' j', 'SURSTOCK',
-                            'Jours de vente couverts par le stock et les commandes en cours (plafonné à 1 an par produit)')
+                            'Jours de vente couverts par le stock et les commandes en cours (plafonné à 1 an par produit)',
+                            'Couverture d\'un produit = (stock + commandes en cours) ÷ ventes prévues par jour. Moyenne sur les produits vendus, '
+                            + 'chaque produit plafonné à 365 j. <b>' + me.nombre(o.surstock) + '</b> produits dépassent <b>' + o.joursSurstock
+                            + ' jours</b> (paramètre KEY_PREVISION_SURSTOCK_JOURS) : surstock.')
                     + tuile('t-vert', 'Fiabilité des prévisions', o.fiabilite === null ? '—' : o.fiabilite + ' %',
                             'pondérée par les ventes des 12 derniers mois', 'PEU_FIABLE',
-                            '100 − erreur moyenne de la méthode retenue, mesurée sur les 6 derniers mois connus')
+                            '100 − erreur moyenne de la méthode retenue, mesurée sur les 6 derniers mois connus',
+                            'Pour chaque produit, chaque méthode (moyenne, saison, tendance…) prévoit les 6 derniers mois comme si on ne les '
+                            + 'connaissait pas ; on compare à ce qui a été vendu. Fiabilité = 100 − erreur moyenne (en %). La moyenne affichée '
+                            + 'est pondérée par les ventes : un produit qui se vend beaucoup compte plus. En dessous de 50 %, la prévision est peu fiable.')
                     + tuile('t-orange', 'À commander', me.nombre(o.aCommander) + ' produits',
                             me.nombre(o.valeurACommander) + ' F au prix d\'achat', 'ACOMMANDER',
-                            'Produits dont la quantité recommandée est positive')
+                            'Produits dont la quantité recommandée est positive',
+                            '<b>' + me.nombre(o.aCommander) + '</b> produits ont une quantité recommandée positive, pour <b>'
+                            + me.nombre(o.valeurACommander) + ' F</b> au prix d\'achat. Quantité recommandée = ventes prévues pendant le délai '
+                            + 'de livraison et la couverture voulue + stock de sécurité − stock − commandes en cours − équivalents DCI en stock.')
                     + '</div>';
             var lignes = (o.methodes || []).map(function (m) {
                 return '<tr><td>' + me.h(me.METHODES[m.methode] || m.methode) + '</td><td class="n">' + me.nombre(m.produits)
@@ -138,11 +159,46 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                     + ' − stock (rayon et réserve) − commandes en cours − équivalents DCI directs en stock.</div></div>';
             t.update(html);
             Ext.each(t.getEl().dom.querySelectorAll('.ac-tuile[data-filtre]'), function (d) {
-                d.onclick = function () {
+                d.onclick = function (e) {
+                    var info = e && e.target && e.target.getAttribute && e.target.getAttribute('data-info');
+                    if (info) {
+                        me.detailTuile(info);
+                        return;
+                    }
                     me.ouvrirPrevisions(d.getAttribute('data-filtre'));
                 };
             });
         });
+    },
+
+    /** Fenetre de detail d'une tuile : definition, calcul, chiffres, et acces a la liste des produits. */
+    detailTuile: function (filtre) {
+        var me = this, d = (me.detailsTuiles || {})[filtre];
+        if (!d) {
+            return;
+        }
+        var w = Ext.create('Ext.window.Window', {
+            title: d.titre, modal: true, width: 520, bodyPadding: 16, cls: 'fen-theme',
+            html: '<div class="ac-detail"><div class="ac-detail-v">' + d.valeur + '</div><div class="ac-detail-d">' + d.detail + '</div>'
+                    + '<p>' + d.explication + '</p></div>',
+            buttons: [{text: 'Voir les produits', cls: 'fen-btn-principal', handler: function () {
+                        w.close();
+                        me.ouvrirPrevisions(filtre);
+                    }}, {text: 'Fermer', handler: function () {
+                        w.close();
+                    }}]
+        });
+        w.show();
+    },
+
+    /** Produit sur une seule ligne : nom en gras, puis code et complement en gris ; texte complet en info-bulle. */
+    produitUneLigne: function (m, nom, cip, suite) {
+        var me = this, texte = [me.h(nom), me.h(cip), me.h(suite)].filter(function (x) {
+            return x;
+        }).join(' · ');
+        m.tdAttr = 'data-qtip="' + me.h(texte) + '"';
+        m.tdCls = (m.tdCls || '') + ' ac-une-ligne';
+        return '<b>' + me.h(nom) + '</b> <span style="color:#7f8c8d">· ' + me.h(cip) + (suite ? ' · ' + me.h(suite) : '') + '</span>';
     },
 
     recalculer: function () {
@@ -199,39 +255,40 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
             xtype: 'grid', itemId: 'ongletPrevisions', title: 'Prévisions', store: store,
             viewConfig: {emptyText: 'Aucun produit pour ces critères.', deferEmptyText: false, stripeRows: true},
             columns: [
-                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 220, renderer: function (v, m, r) {
-                        return '<b>' + me.h(v) + '</b><br><span style="color:#7f8c8d">' + me.h(r.get('cip')) + ' · ' + me.h(r.get('grossiste')) + '</span>';
+                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 260, tooltip: 'Désignation · code CIP · grossiste habituel',
+                    renderer: function (v, m, r) {
+                        return me.produitUneLigne(m, v, r.get('cip'), r.get('grossiste'));
                     }},
-                {text: 'Ventes 12 mois', dataIndex: 'ventes12', width: 90, align: 'right'},
-                {text: 'Tendance', dataIndex: 'historique', width: 120, sortable: false, renderer: function (v) {
+                {text: 'Ventes 12 mois', dataIndex: 'ventes12', width: 90, align: 'right', tooltip: 'Quantité vendue sur les 12 derniers mois complets'},
+                {text: 'Tendance', dataIndex: 'historique', width: 120, sortable: false, tooltip: 'Ventes mois par mois sur 12 mois (le plus récent à droite)', renderer: function (v) {
                         return me.miniCourbe(v);
                     }},
-                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 85, align: 'right', renderer: function (v) {
+                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 85, align: 'right', tooltip: 'Ventes prévues pour le mois qui vient, par la méthode retenue', renderer: function (v) {
                         return '<b>' + String(v).replace('.', ',') + '</b>';
                     }},
-                {text: 'Méthode', dataIndex: 'methode', width: 115, renderer: function (v) {
+                {text: 'Méthode', dataIndex: 'methode', width: 115, tooltip: 'Méthode de prévision retenue : celle qui s\'est le moins trompée sur les 6 derniers mois', renderer: function (v) {
                         return me.h(me.METHODES[v] || v);
                     }},
-                {text: 'Fiabilité', dataIndex: 'fiabilite', width: 110, renderer: function (v, m, r) {
+                {text: 'Fiabilité', dataIndex: 'fiabilite', width: 110, tooltip: '100 − erreur moyenne de la prévision sur les 6 derniers mois (100 % = parfaite)', renderer: function (v, m, r) {
                         return r.get('ventes12') > 0 ? me.fiabilite(v) : '<span style="color:#9aa8b6">sans vente</span>';
                     }},
-                {text: 'Stock', dataIndex: 'stock', width: 60, align: 'right', renderer: function (v) {
+                {text: 'Stock', dataIndex: 'stock', width: 60, align: 'right', tooltip: 'Stock actuel, rayon et réserve', renderer: function (v) {
                         return v > 0 ? v : '<b style="color:#c0392b">' + v + '</b>';
                     }},
-                {text: 'En cours', dataIndex: 'enCours', width: 65, align: 'right'},
-                {text: 'Équiv. DCI', dataIndex: 'equivalents', width: 70, align: 'right', renderer: function (v, m) {
+                {text: 'En cours', dataIndex: 'enCours', width: 65, align: 'right', tooltip: 'Quantité en commande, pas encore livrée (commandes de moins de 45 jours)'},
+                {text: 'Équiv. DCI', dataIndex: 'equivalents', width: 70, align: 'right', tooltip: 'Stock des équivalents DCI directs (même DCI, dosage et forme), déduit de la quantité recommandée', renderer: function (v, m) {
                         if (v > 0) {
                             m.tdAttr = 'data-qtip="Stock des équivalents DCI directs (même DCI, dosage et forme)"';
                         }
                         return v > 0 ? v : '';
                     }},
-                {text: 'Couverture', dataIndex: 'couverture', width: 80, align: 'right', renderer: function (v) {
+                {text: 'Couverture', dataIndex: 'couverture', width: 80, align: 'right', tooltip: 'Nombre de jours de vente couverts par le stock et les commandes en cours', renderer: function (v) {
                         return v === null || v === undefined || v === '' ? '<span style="color:#9aa8b6">—</span>' : (v > 999 ? '> 999' : v) + ' j';
                     }},
-                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', renderer: function (v) {
+                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', tooltip: 'Quantité à commander : ventes prévues sur le délai de livraison et la couverture voulue + stock de sécurité − stock − en cours − équivalents', renderer: function (v) {
                         return v > 0 ? '<b style="color:#d35400">' + v + '</b>' : '0';
                     }},
-                {text: 'Valeur', dataIndex: 'valeur', width: 90, align: 'right', renderer: function (v) {
+                {text: 'Valeur', dataIndex: 'valeur', width: 90, align: 'right', tooltip: 'Quantité recommandée × prix d\'achat', renderer: function (v) {
                         return v > 0 ? me.nombre(v) : '';
                     }}
             ],
@@ -350,29 +407,31 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                     return r.get('grave') ? 'ac-ligne-grave' : '';
                 }},
             columns: [
-                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 200, renderer: function (v, m, r) {
-                        return '<b>' + me.h(v) + '</b><br><span style="color:#7f8c8d">' + me.h(r.get('cip'))
-                                + (r.get('nouveau') ? ' · nouveau produit' : '') + '</span>';
+                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 240, tooltip: 'Désignation · code CIP (nouveau produit : jamais vendu)',
+                    renderer: function (v, m, r) {
+                        return me.produitUneLigne(m, v, r.get('cip'), r.get('nouveau') ? 'nouveau produit' : '');
                     }},
-                {text: 'Proposé', dataIndex: 'quantite', width: 70, align: 'right', renderer: function (v) {
+                {text: 'Proposé', dataIndex: 'quantite', width: 70, align: 'right', tooltip: 'Quantité inscrite sur la suggestion ou la commande', renderer: function (v) {
                         return '<b>' + v + '</b>';
                     }},
-                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right'},
-                {text: 'Écart', dataIndex: 'ecart', width: 65, align: 'right', renderer: function (v) {
+                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', tooltip: 'Quantité que la prévision recommande pour ce produit'},
+                {text: 'Écart', dataIndex: 'ecart', width: 65, align: 'right', tooltip: 'Proposé − recommandé : en violet, on commande plus que prévu ; en orange, moins', renderer: function (v) {
                         return v === 0 ? '0' : '<span style="color:' + (v > 0 ? '#8e44ad' : '#d35400') + '">' + (v > 0 ? '+' : '') + v + '</span>';
                     }},
-                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 80, align: 'right', renderer: function (v) {
+                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 80, align: 'right', tooltip: 'Ventes prévues pour le mois qui vient', renderer: function (v) {
                         return String(v).replace('.', ',');
                     }},
-                {text: 'Stock', dataIndex: 'stock', width: 55, align: 'right'},
-                {text: 'En cours', dataIndex: 'enCours', width: 62, align: 'right'},
-                {text: 'Couverture', dataIndex: 'couverture', width: 75, align: 'right', renderer: function (v) {
+                {text: 'Stock', dataIndex: 'stock', width: 55, align: 'right', tooltip: 'Stock actuel, rayon et réserve'},
+                {text: 'En cours', dataIndex: 'enCours', width: 62, align: 'right', tooltip: 'Quantité déjà en commande, pas encore livrée'},
+                {text: 'Couverture', dataIndex: 'couverture', width: 75, align: 'right', tooltip: 'Jours de vente couverts par le stock et les commandes en cours', renderer: function (v) {
                         return v === null || v === undefined || v === '' ? '—' : (v > 999 ? '> 999' : v) + ' j';
                     }},
-                {text: 'Prix / dernier', dataIndex: 'prix', width: 105, align: 'right', renderer: function (v, m, r) {
-                        return me.nombre(v) + (r.get('dernierPrix') ? '<br><span style="color:#7f8c8d">' + me.nombre(r.get('dernierPrix')) + '</span>' : '');
+                {text: 'Prix / dernier', dataIndex: 'prix', width: 130, align: 'right',
+                    tooltip: 'Prix d\'achat de la ligne / prix payé au dernier achat de ce produit',
+                    renderer: function (v, m, r) {
+                        return me.nombre(v) + (r.get('dernierPrix') ? ' <span style="color:#7f8c8d">/ ' + me.nombre(r.get('dernierPrix')) + '</span>' : '');
                     }},
-                {text: 'Alertes', dataIndex: 'alertes', flex: 1, minWidth: 230, renderer: function (v, m) {
+                {text: 'Alertes', dataIndex: 'alertes', flex: 1, minWidth: 230, tooltip: 'Points à vérifier sur la ligne (survoler la cellule pour le détail)', renderer: function (v, m) {
                         var a = v || [];
                         if (!a.length) {
                             return '<span style="color:#27ae60">✓ conforme</span>';

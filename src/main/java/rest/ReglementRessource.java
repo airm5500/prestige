@@ -49,10 +49,11 @@ public class ReglementRessource {
     @Path("liste")
     public Response searchProduct(@QueryParam(value = "query") String query,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "userId") String userId, @QueryParam(value = "pairclient") boolean pairclient)
-            throws JSONException {
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "pairclient") boolean pairclient,
+            @QueryParam(value = "etat") String etat) throws JSONException {
 
         Params body = new Params();
+        body.setEtatDiffere(etat);
         if (!"".equals(query)) {
             body.setDescription(query);
         }

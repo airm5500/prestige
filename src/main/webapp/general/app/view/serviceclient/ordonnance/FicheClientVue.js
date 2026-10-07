@@ -398,6 +398,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             me.ouvrirCourbe(cible.getAttribute('data-id'));
         } else if (action === 'parametre') {
             me.choisirParametre(cible.getAttribute('data-id'));
+            me.focusSaisieMesure();
         } else if (action === 'terrain') {
             if (!me.peutEcrire()) {
                 return;
@@ -426,6 +427,20 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                 me.dire(r.message || 'Le dossier n\'a pas pu être enregistré.', r.success !== true);
             }
         });
+    },
+
+    /** Retours du 07/10 : apres le choix d'un parametre ou d'une mesure, le curseur va dans le champ de saisie. */
+    focusSaisieMesure: function () {
+        var me = this;
+        Ext.defer(function () {
+            if (me.isDestroyed) {
+                return;
+            }
+            var champ = me.down('#fcTension').isVisible() ? me.down('#fcGSys') : me.down('#fcValeur');
+            if (champ && champ.isVisible(true) && !champ.isDisabled() && !champ.readOnly) {
+                champ.focus(true);
+            }
+        }, 80);
     },
 
     parametre: function (id) {

@@ -31,6 +31,16 @@ public class DelayedDTO implements Serializable {
     private LocalDateTime date;
     private int solde;
     private String soldeFormated;
+    /** NON_REGLE, PARTIEL ou REGLE (retours du 07/10) ; vide hors liste des differes. */
+    private String etat;
+
+    public String getEtat() {
+        return etat;
+    }
+
+    public void setEtat(String etat) {
+        this.etat = etat;
+    }
 
     public String getId() {
         return id;
@@ -215,6 +225,9 @@ public class DelayedDTO implements Serializable {
             this.bon = p.getStrREF();
         }
         this.montantRegle = tp.getIntPRICERESTE();
+        int reste = tp.getIntPRICERESTE() == null ? 0 : tp.getIntPRICERESTE();
+        int du = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
+        this.etat = reste <= 0 ? "REGLE" : reste >= du ? "NON_REGLE" : "PARTIEL";
         try {
             TClient client = tp.getLgCOMPTECLIENTID().getLgCLIENTID();
             this.clientId = client.getLgCLIENTID();

@@ -95,6 +95,9 @@ Ext.define('testextjs.controller.DiffereCtr', {
             'delayed #user': {
                 select: this.onUserSelect
             },
+            'delayed #etatDiffere': {
+                select: this.doSearch
+            },
             'delayed #userre': {
                 select: this.onUsers
             },
@@ -150,7 +153,8 @@ Ext.define('testextjs.controller.DiffereCtr', {
         if (!v) {
             v = '';
         }
-        var linkUrl = '../FacturePdfServlet?mode=LISTE_DIFFERES&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&userId=' + v + '&query=' + query;
+        var linkUrl = '../FacturePdfServlet?mode=LISTE_DIFFERES&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&userId=' + v + '&query=' + query
+                + '&etat=' + encodeURIComponent(me.etatDiffere());
         window.open(linkUrl);
     },
     onPdf: function () {
@@ -187,7 +191,14 @@ Ext.define('testextjs.controller.DiffereCtr', {
         myProxy.setExtraParam('query', me.getQuery().getValue());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
+        myProxy.setExtraParam('etat', me.etatDiffere());
 
+    },
+
+    /** Retours du 07/10 : filtre regle / non regle / partiel de la liste des differes. */
+    etatDiffere: function () {
+        var c = Ext.ComponentQuery.query('delayed #etatDiffere')[0];
+        return (c && c.getValue()) || 'NON_SOLDES';
     },
 
     doInitStore: function () {
@@ -202,7 +213,8 @@ Ext.define('testextjs.controller.DiffereCtr', {
                 dtStart: me.getDtStart().getSubmitValue(),
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 query: me.getQuery().getValue(),
-                userId: me.getUserCombo().getValue()
+                userId: me.getUserCombo().getValue(),
+                etat: me.etatDiffere()
 
             }
         });

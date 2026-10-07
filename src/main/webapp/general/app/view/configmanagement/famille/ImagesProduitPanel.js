@@ -75,6 +75,13 @@ Ext.define('testextjs.view.configmanagement.famille.ImagesProduitPanel', {
                                 + '" title="' + (me.modifiable ? 'Choisir comme image principale' : 'Ouvrir') + '">';
                     }).join('') + '</div>' : '');
         }
+        /* retours du 07/10 : le fichier de l'image principale et le dossier des images, lisibles et copiables */
+        if (principale && principale.fichier) {
+            html += '<div class="img-chemin" title="Chemin du fichier sur le serveur (en base, table t_famille_image : '
+                    + enc(principale.chemin) + ')">Fichier : <span>' + enc(principale.fichier) + '</span></div>';
+        } else if (o.dossier && !o.creation) {
+            html += '<div class="img-chemin">Dossier des images : <span>' + enc(o.dossier) + '</span></div>';
+        }
         me.update('<div class="img-zone">' + html + '</div>');
         var barre = me.down('#barreImages');
         if (barre) {

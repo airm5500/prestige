@@ -26,7 +26,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
     extend: 'Ext.grid.Panel',
     xtype: 'tierspayantmanager',
     id: 'tierspayantmanagerID',
-    requires: [
+    requires: ['testextjs.view.vente.SuiviConsoFenetre',
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -742,8 +742,24 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         {text: 'N° S&eacute;curit&eacute;', flex: 1, dataIndex: 'str_NUMERO_SECURITE_SOCIAL'},
                         {text: 'Nom &amp; Pr&eacute;nom(s)', flex: 2, dataIndex: 'str_FIRST_LAST_NAME'},
                         {text: 'Date de naissance', flex: 1, dataIndex: 'dt_NAISSANCE'},
-                        {text: 'Sexe', flex: 0.4, dataIndex: 'str_SEXE'}
+                        {text: 'Sexe', flex: 0.4, dataIndex: 'str_SEXE'},
+                        /* retours du 07/10 : la fiche de chaque client (identite, assurances, achats), sans quitter l'ecran */
+                        {xtype: 'actioncolumn', text: 'Fiche', width: 60, align: 'center', sortable: false, menuDisabled: true,
+                            items: [{icon: 'resources/images/icons/fam/user.png', tooltip: 'Fiche client : identité, assurances et achats',
+                                    handler: function (g, i) {
+                                        var c = g.getStore().getAt(i);
+                                        Ext.create('testextjs.view.vente.SuiviConsoFenetre', {
+                                            clientId: c.get('lg_CLIENT_ID'),
+                                            nomClient: c.get('str_FIRST_LAST_NAME')
+                                                    || Ext.String.trim((c.get('str_FIRST_NAME') || '') + ' ' + (c.get('str_LAST_NAME') || ''))
+                                        }).show();
+                                    }}]}
                     ],
+                    listeners: {itemdblclick: function (v, c) {
+                            Ext.create('testextjs.view.vente.SuiviConsoFenetre', {
+                                clientId: c.get('lg_CLIENT_ID'), nomClient: c.get('str_FIRST_LAST_NAME')
+                            }).show();
+                        }},
                     dockedItems: [{
                             dock: 'top',
                             xtype: 'toolbar',
