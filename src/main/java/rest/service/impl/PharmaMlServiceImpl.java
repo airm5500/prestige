@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -136,14 +137,23 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildNormale(order, grossiste.getLgGROSSISTEID()),
                     StringUtils.isEmpty(commentaire) ? order.getStrREFORDER() : commentaire,
                     order.getStrREFORDER() + LocalDateTime.now().format(DateTimeFormatter.ofPattern("mmss")));
-            System.err.println("envoiCommande payLoad " + payLoad);
+            journalEnvoi("commande", order.getStrREFORDER(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, order.getStrREFORDER(), grossiste);
-            System.err.println(" envoiCommande enveloppeResponse " + enveloppeResponse);
             if (Objects.isNull(enveloppeResponse)) {
-                return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
+                return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
             }
             return traiterCommandeRepondue(order, enveloppeResponse);
+        } catch (RefusHttp ex) {
+            TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
+            LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
+            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
         } catch (Exception ex) {
+            if (erreurReseau(ex)) {
+                TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
+                LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1})",
+                        new Object[] { g.getStrLIBELLE(), ex.getClass().getSimpleName() });
+                return new JSONObject().put("success", false).put("msg", messageReseau(g, ex));
+            }
             LOG.log(Level.SEVERE, null, ex);
             return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
         }
@@ -162,18 +172,39 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildFromRupture(ruptureDetails, grossisteId),
                     rupture.getReference(), rupture.getReference() + "_"
                             + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyMMddHHmmss")));
-            System.err.println(" renvoiPharmaCommande payLoad " + payLoad);
+            journalEnvoi("renvoi de rupture", rupture.getReference(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, rupture.getReference(), grossiste);
-            System.err.println(" renvoiPharmaCommande enveloppeResponse " + enveloppeResponse);
             if (Objects.isNull(enveloppeResponse)) {
-                return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
+                return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
             }
             return traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
+        } catch (RefusHttp ex) {
+            TGrossiste g = em.find(TGrossiste.class, grossisteId);
+            LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
+            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
         } catch (Exception ex) {
+            if (erreurReseau(ex)) {
+                TGrossiste g = em.find(TGrossiste.class, grossisteId);
+                LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1})",
+                        new Object[] { g.getStrLIBELLE(), ex.getClass().getSimpleName() });
+                return new JSONObject().put("success", false).put("msg", messageReseau(g, ex));
+            }
             LOG.log(Level.SEVERE, null, ex);
             return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
         }
 
+    }
+
+    static final String REPONSE_ILLISIBLE = "Le grossiste n'a pas renvoyé de réponse exploitable. Le message envoyé et la"
+            + " réponse sont archivés dans le dossier PharmaML.";
+
+    /**
+     * Une ligne par envoi : version REELLEMENT envoyee (l'objet interne reste au format 1.0.0.0 et n'est converti qu'a
+     * l'envoi en 3.0.0.0 : l'afficher faisait croire a un envoi en 1.0.0.0).
+     */
+    private void journalEnvoi(String quoi, String reference, TGrossiste grossiste) {
+        LOG.log(Level.INFO, "PharmaML : envoi {0} {1} en version {2} a {3} ({4})", new Object[] { quoi, reference,
+                versionCommande(grossiste), grossiste.getStrLIBELLE(), grossiste.getStrURLPHARMAML() });
     }
 
     private CsrpEnveloppeResponse processommandeXml(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
@@ -198,7 +229,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
         HttpClient client = getHttpClient();
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
-                .header("Content-Type", "text/xml; charset=UTF-8")
+                .timeout(DELAI_REPONSE).header("Content-Type", "text/xml; charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(sw.toString())).build();
 
         HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
@@ -226,7 +257,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
         HttpClient client = getHttpClient();
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
-                .header("Content-Type", "text/xml; charset=UTF-8")
+                .timeout(DELAI_REPONSE).header("Content-Type", "text/xml; charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(sw.toString())).build();
 
         HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
@@ -267,8 +298,31 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
         } else {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
+            throw new RefusHttp(httpCode, "R_LOG_" + fileName);
         }
         return null;
+    }
+
+    /** Le serveur du grossiste a repondu, mais avec un code HTTP d'erreur : la commande n'est pas acceptee. */
+    static final class RefusHttp extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        final int code;
+        final String archive;
+
+        RefusHttp(int code, String archive) {
+            super("HTTP " + code);
+            this.code = code;
+            this.archive = archive;
+        }
+    }
+
+    static String messageRefus(TGrossiste grossiste, RefusHttp r) {
+        String explication = r.code == 404 ? " (adresse PharmaML incorrecte ?)"
+                : r.code == 401 || r.code == 403 ? " (accès refusé : identifiants de l'officine chez le grossiste ?)"
+                        : r.code >= 500 ? " (erreur du serveur du grossiste)" : "";
+        return "Le serveur PharmaML de " + StringUtils.trimToEmpty(grossiste.getStrLIBELLE()) + " a répondu HTTP "
+                + r.code + explication + " : la commande n'a pas été acceptée. Réponse archivée : " + r.archive
+                + ".xml";
     }
 
     private List<LigneNReponse> getLigneNReponses(CsrpEnveloppeResponse response) {
@@ -719,8 +773,49 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return ligneNReponse.getQuantiteLivree() * getPrixAchatPrixUni(ligneNReponse.getPrix()).getLeft();
     }
 
+    /** Delai de connexion au serveur du grossiste : au-dela, message clair au lieu d'un blocage de 20 a 30 s. */
+    static final Duration DELAI_CONNEXION = Duration.ofSeconds(15);
+    /** Delai de reponse a une commande (le grossiste traite toutes les lignes avant de repondre). */
+    static final Duration DELAI_REPONSE = Duration.ofSeconds(120);
+
     private HttpClient getHttpClient() {
-        return HttpClient.newHttpClient();
+        return HttpClient.newBuilder().connectTimeout(DELAI_CONNEXION).build();
+    }
+
+    /** Message lisible quand le serveur du grossiste n'est pas joignable (rien n'a ete envoye ou recu). */
+    static String messageReseau(TGrossiste grossiste, Throwable ex) {
+        String nom = StringUtils.trimToEmpty(grossiste.getStrLIBELLE());
+        String url = StringUtils.trimToEmpty(grossiste.getStrURLPHARMAML());
+        if (ex instanceof java.net.http.HttpTimeoutException
+                && !(ex instanceof java.net.http.HttpConnectTimeoutException)) {
+            return "Le serveur PharmaML de " + nom + " n'a pas répondu à temps (" + DELAI_REPONSE.getSeconds()
+                    + " s). La commande a pu être reçue : vérifiez auprès du grossiste avant de la renvoyer.";
+        }
+        String cause = adresseIntrouvable(ex) ? "adresse introuvable" : "connexion impossible";
+        return "Le serveur PharmaML de " + nom + " ne répond pas (" + cause + " : " + url
+                + "). La commande n'a pas été envoyée. Vérifiez l'adresse PharmaML du grossiste et l'accès internet du serveur.";
+    }
+
+    static boolean adresseIntrouvable(Throwable ex) {
+        for (Throwable c = ex; c != null; c = c.getCause() == c ? null : c.getCause()) {
+            if (c instanceof java.net.UnknownHostException
+                    || c instanceof java.nio.channels.UnresolvedAddressException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Erreur de transport (connexion, delai, adresse) : distincte d'une erreur de traitement. */
+    static boolean erreurReseau(Throwable ex) {
+        for (Throwable c = ex; c != null; c = c.getCause() == c ? null : c.getCause()) {
+            if (c instanceof java.net.ConnectException || c instanceof java.net.http.HttpTimeoutException
+                    || c instanceof java.net.UnknownHostException || c instanceof java.net.NoRouteToHostException
+                    || c instanceof java.nio.channels.UnresolvedAddressException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private CsrpEnveloppe buildPayload(TGrossiste grossiste, TOfficine of, Normale normale, String commentaire,
@@ -944,13 +1039,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         ecrireArchive("C_" + fileName, xml);
         HttpResponse<String> httpResponse = getHttpClient().send(
-                HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
+                HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML())).timeout(DELAI_REPONSE)
                         .header("Content-Type", "text/xml; charset=UTF-8")
                         .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (httpResponse.statusCode() != 200) {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
-            return null;
+            throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
         }
         ecrireArchive("R_" + fileName, httpResponse.body());
         try {
