@@ -192,7 +192,7 @@ public final class FichePharmagora {
     static String texte(String html) {
         String s = html.replaceAll("(?s)<\\?xml[^>]*\\?>", "").replaceAll("(?s)<[^>]+>", "");
         s = entites(s);
-        return reparer(s).trim();
+        return AccentsFrancais.reparer(reparer(s)).trim();
     }
 
     static String reparer(String s) {

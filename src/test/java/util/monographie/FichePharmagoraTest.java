@@ -45,7 +45,7 @@ class FichePharmagoraTest {
         JSONArray classes = f.getJSONArray("interactions");
         assertEquals(2, classes.length());
         JSONObject para = classes.getJSONObject(0);
-        assertEquals("Parac?tamol", para.getString("classe"));
+        assertEquals("Paracétamol", para.getString("classe"));
         JSONArray avec = para.getJSONArray("avec");
         assertEquals(2, avec.length());
         assertEquals("Flucloxacilline", avec.getJSONObject(0).getString("classe"));
@@ -62,9 +62,9 @@ class FichePharmagoraTest {
         /* accents en UTF-8 lus comme ISO-8859-1 : repares */
         assertTrue(oral.getJSONObject(1).getString("conseilDispensateur").contains("précaution"),
                 oral.getJSONObject(1).getString("conseilDispensateur"));
-        assertEquals("A prendre en compte", oral.getJSONObject(2).getString("niveau"));
+        assertEquals("À prendre en compte", oral.getJSONObject(2).getString("niveau"));
         assertEquals(1, oral.getJSONObject(2).getInt("gravite"));
-        assertTrue(f.getBoolean("accentsPerdus"), "« Parac?tamol » : accents perdus a la source");
+        assertFalse(f.getBoolean("accentsPerdus"), "« Parac?tamol » : accents perdus a la source, retablis");
     }
 
     @Test
