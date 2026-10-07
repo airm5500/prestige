@@ -1,0 +1,2305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 2 U (http://www.xmlspy.com) -->
+<xsd:schema targetNamespace="urn:x-csrp:fr.csrp.protocole:message" xmlns="urn:x-csrp:fr.csrp.protocole:message" xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<!--Schema message conforme aux spécifications Pharma-ML v4.8-->
+	<!--Déclaration des éléments globaux-->
+	<xsd:element name="MESSAGE_OFFICINE">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ENTETE">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="EMETTEUR" type="ctOfficine"/>
+							<xsd:element name="DESTINATAIRE" type="ctRepartiteur"/>
+							<xsd:element name="DATE" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>Date et heure d'émission du message à la précision seconde</xsd:documentation>
+								</xsd:annotation>
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:dateTime">
+										<xsd:pattern value=".+T[^Z+-\.]+"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+							<xsd:any namespace="##other" processContents="strict" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>Pour version différenciée</xsd:documentation>
+								</xsd:annotation>
+							</xsd:any>
+						</xsd:sequence>
+						<xsd:anyAttribute namespace="##any" processContents="strict"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="CORPS">
+					<xsd:complexType>
+						<xsd:choice>
+							<xsd:element name="COMMANDE">
+								<xsd:complexType>
+									<xsd:choice>
+										<xsd:element name="NORMALE">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE_N" maxOccurs="10000">
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Commentaire_Produit" type="stCommentaireLigneOfficine" use="optional"/>
+															<xsd:attributeGroup ref="attgConsignesLivraison"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="SPECIALE">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE_S" maxOccurs="10000">
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Commentaire_Produit" type="stCommentaireLigneOfficine" use="optional"/>
+															<xsd:attributeGroup ref="attgConsignesLivraison"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attributeGroup ref="attgCodeCommandeSpeciale"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="PACKAGE">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE_P">
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Nombre de package commandés</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire_Produit" type="stCommentaireLigneOfficine" use="optional"/>
+															<xsd:attributeGroup ref="attgConsignesLivraison"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attributeGroup ref="attgCodeCommandePackage"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:choice>
+									<xsd:attribute name="Ref_Cde_Client" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Date_livraison" type="stDateLocale" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Date de livraison souhaitée par l'officine</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire_General" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:maxLength value="255"/>
+												<xsd:minLength value="1"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire_Livraison" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:maxLength value="255"/>
+												<xsd:minLength value="1"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="REQ_INFO_PRODUIT">
+								<xsd:annotation>
+									<xsd:documentation>Requête information produit</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attributeGroup ref="attgProduit"/>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Req_Info_Produit" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:maxLength value="20"/>
+												<xsd:minLength value="1"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="REQ_RETOUR">
+								<xsd:annotation>
+									<xsd:documentation>Demande de retour</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="DOCUMENT" minOccurs="0">
+											<xsd:annotation>
+												<xsd:documentation>Référence du document objet du retour</xsd:documentation>
+											</xsd:annotation>
+											<xsd:complexType>
+												<xsd:attributeGroup ref="attgDocument"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="LIGNE" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence minOccurs="0">
+													<xsd:element name="PRIX">
+														<xsd:complexType>
+															<xsd:attribute name="Nature" use="required" fixed="PUBTC">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:NMTOKEN">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="5"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Valeur" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:minInclusive value="0"/>
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attributeGroup ref="attgProduit"/>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Motif" type="stCodeReponse" use="required"/>
+												<xsd:attribute name="Commentaire_produit" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:string">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="255"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Demande_Retour" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="RECLAMATIONS">
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="PRODUIT_FACTURE">
+														<xsd:complexType>
+															<xsd:attributeGroup ref="attgProduit"/>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="PRODUIT_LIVRE" minOccurs="0">
+														<xsd:complexType>
+															<xsd:attributeGroup ref="attgProduit"/>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="PRIX" type="ctPrix" minOccurs="0" maxOccurs="10">
+														<xsd:annotation>
+															<xsd:documentation>Prix unitaire</xsd:documentation>
+														</xsd:annotation>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Num_Ligne_Document" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attribute name="Motif" type="stCodeReponse" use="required"/>
+												<xsd:attribute name="Action" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Action correctrice souhaitée</xsd:documentation>
+													</xsd:annotation>
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:nonNegativeInteger">
+															<xsd:maxInclusive value="9999"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Quantite_prevue" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attribute name="Quantite_livree" type="xsd:nonNegativeInteger" use="optional"/>
+												<xsd:attribute name="Quantite_facturee" type="xsd:nonNegativeInteger" use="optional"/>
+												<xsd:attribute name="Commentaire" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:string">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="255"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Reclamation" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDocument"/>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="INVENTAIRE">
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="10000">
+											<xsd:complexType>
+												<xsd:choice>
+													<xsd:element name="PRODUIT_CODIFIE">
+														<xsd:complexType>
+															<xsd:sequence>
+																<xsd:element name="PRIX_PC" minOccurs="0">
+																	<xsd:complexType>
+																		<xsd:attribute name="Nature" use="required" fixed="PUBTC">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="5"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Valeur" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:decimal">
+																					<xsd:minInclusive value="0"/>
+																					<xsd:fractionDigits value="3"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="TAXE_PC" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+															</xsd:sequence>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Nom_Fabricant" type="stNomFabricant" use="optional"/>
+															<xsd:attribute name="Marge" type="stTaux" use="optional"/>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="PRODUIT_CLAIR">
+														<xsd:complexType>
+															<xsd:choice minOccurs="0">
+																<xsd:element name="INFOS_ACHAT">
+																	<xsd:complexType>
+																		<xsd:sequence>
+																			<xsd:element name="PRIX_IA" minOccurs="0">
+																				<xsd:complexType>
+																					<xsd:attribute name="Nature" use="required" fixed="PHAHT">
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:NMTOKEN">
+																								<xsd:minLength value="1"/>
+																								<xsd:maxLength value="5"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																					<xsd:attribute name="Valeur" use="required">
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:decimal">
+																								<xsd:minInclusive value="0"/>
+																								<xsd:fractionDigits value="3"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																				</xsd:complexType>
+																			</xsd:element>
+																		</xsd:sequence>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="INFOS_VENTE">
+																	<xsd:complexType>
+																		<xsd:sequence>
+																			<xsd:element name="PRIX_IV" minOccurs="0">
+																				<xsd:complexType>
+																					<xsd:attribute name="Nature" use="required" fixed="PUBTC">
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:NMTOKEN">
+																								<xsd:minLength value="1"/>
+																								<xsd:maxLength value="5"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																					<xsd:attribute name="Valeur" use="required">
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:decimal">
+																								<xsd:minInclusive value="0"/>
+																								<xsd:fractionDigits value="3"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																				</xsd:complexType>
+																			</xsd:element>
+																			<xsd:element name="TAXE_IV" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+																		</xsd:sequence>
+																		<xsd:attribute name="Marge" type="stTaux" use="required"/>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:choice>
+															<xsd:attributeGroup ref="attgProduitClair"/>
+															<xsd:attribute name="Nom_Fabricant" type="stNomFabricant" use="optional"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:choice>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Inventaire" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Nature" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:enumeration value="COMPLET"/>
+												<xsd:enumeration value="PARTIEL"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Date" type="stDateLocale" use="required">
+										<xsd:annotation>
+											<xsd:documentation>Date de comptage physique</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="REQ_ETAT_COMMANDE">
+								<xsd:annotation>
+									<xsd:documentation>Requête état commande</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="10000">
+											<xsd:annotation>
+												<xsd:documentation>Ligne unique dans le cas d'une commande package</xsd:documentation>
+											</xsd:annotation>
+											<xsd:complexType>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Num_Ligne_Commande" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attributeGroup ref="attgProduit"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Cde_Client" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Ref_Cde_Repartiteur" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="LIBRE">
+								<xsd:annotation>
+									<xsd:documentation>Information libre</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:attribute name="Ref_Info_Libre" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="ERREUR" type="ctErreur"/>
+							<xsd:any namespace="##other" processContents="strict">
+								<xsd:annotation>
+									<xsd:documentation>Pour version différenciée</xsd:documentation>
+								</xsd:annotation>
+							</xsd:any>
+						</xsd:choice>
+						<xsd:anyAttribute namespace="##other" processContents="strict">
+							<xsd:annotation>
+								<xsd:documentation>Pour version différenciée</xsd:documentation>
+							</xsd:annotation>
+						</xsd:anyAttribute>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="MESSAGE_REPARTITEUR">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ENTETE">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="EMETTEUR" type="ctRepartiteur"/>
+							<xsd:element name="DESTINATAIRE" type="ctOfficine"/>
+							<xsd:element name="DATE" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>date et heure d'émission du message à la précision seconde</xsd:documentation>
+								</xsd:annotation>
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:dateTime">
+										<xsd:pattern value=".+T[^Z+-\.]+"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+							<xsd:any namespace="##other" processContents="strict" minOccurs="0"/>
+						</xsd:sequence>
+						<xsd:anyAttribute namespace="##any" processContents="strict"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="CORPS">
+					<xsd:complexType>
+						<xsd:choice>
+							<xsd:element name="REP_COMMANDE">
+								<xsd:annotation>
+									<xsd:documentation>Réponse à commande</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="INFOS_LIVRAISON" type="ctInformationsLivraison" minOccurs="0"/>
+										<xsd:choice>
+											<xsd:element name="NORMALE">
+												<xsd:complexType>
+													<xsd:sequence>
+														<xsd:element name="LIGNE_N" maxOccurs="11000">
+															<xsd:annotation>
+																<xsd:documentation>Ligne détail : référence le produit commandé</xsd:documentation>
+															</xsd:annotation>
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="PRIX_N" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																	<xsd:element name="INDISPONIBILITE_N" type="ctIndisponibilite" minOccurs="0"/>
+																</xsd:sequence>
+																<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+																<xsd:attribute name="Num_Ligne_Commande" type="xsd:positiveInteger" use="optional"/>
+																<xsd:attributeGroup ref="attgProduit"/>
+																<xsd:attribute name="Quantite_livree" type="xsd:nonNegativeInteger" use="required"/>
+																<xsd:attribute name="Commentaire" type="stCommentaireLigneRepartiteur" use="optional"/>
+															</xsd:complexType>
+														</xsd:element>
+													</xsd:sequence>
+												</xsd:complexType>
+											</xsd:element>
+											<xsd:element name="SPECIALE">
+												<xsd:complexType>
+													<xsd:sequence>
+														<xsd:element name="LIGNE_S" maxOccurs="11000">
+															<xsd:annotation>
+																<xsd:documentation>Ligne détail : référence le produit commandé</xsd:documentation>
+															</xsd:annotation>
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="PRIX_S" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																	<xsd:element name="INDISPONIBILITE_S" type="ctIndisponibilite" minOccurs="0"/>
+																</xsd:sequence>
+																<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+																<xsd:attribute name="Num_Ligne_Commande" type="xsd:positiveInteger" use="optional"/>
+																<xsd:attributeGroup ref="attgProduit"/>
+																<xsd:attribute name="Quantite_livree" type="xsd:nonNegativeInteger" use="required"/>
+																<xsd:attribute name="Commentaire" type="stCommentaireLigneRepartiteur" use="optional"/>
+															</xsd:complexType>
+														</xsd:element>
+													</xsd:sequence>
+													<xsd:attributeGroup ref="attgCodeCommandeSpeciale"/>
+												</xsd:complexType>
+											</xsd:element>
+											<xsd:element name="PACKAGE">
+												<xsd:complexType>
+													<xsd:choice>
+														<xsd:element name="LIGNE_GLOBALE">
+															<xsd:annotation>
+																<xsd:documentation>Réponse globale au package demandé</xsd:documentation>
+															</xsd:annotation>
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="PRIX_LG" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																	<xsd:element name="INDISPONIBILITE_LG" type="ctIndisponibilite" minOccurs="0"/>
+																</xsd:sequence>
+																<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required" fixed="1"/>
+																<xsd:attribute name="Quantite_livree" type="xsd:nonNegativeInteger" use="required">
+																	<xsd:annotation>
+																		<xsd:documentation>Représente un nombre de packages</xsd:documentation>
+																	</xsd:annotation>
+																</xsd:attribute>
+																<xsd:attribute name="Commentaire" type="stCommentaireLigneRepartiteur" use="optional"/>
+															</xsd:complexType>
+														</xsd:element>
+														<xsd:element name="LIGNE_DETAIL" maxOccurs="11000">
+															<xsd:annotation>
+																<xsd:documentation>Réponse détail sur lignes produit du package</xsd:documentation>
+															</xsd:annotation>
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="PRIX_LD" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																	<xsd:element name="INDISPONIBILITE_LD" type="ctIndisponibilite" minOccurs="0"/>
+																</xsd:sequence>
+																<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+																<xsd:attributeGroup ref="attgProduit"/>
+																<xsd:attribute name="Quantite_livree" type="xsd:nonNegativeInteger" use="required">
+																	<xsd:annotation>
+																		<xsd:documentation>Représente une quantité de produit</xsd:documentation>
+																	</xsd:annotation>
+																</xsd:attribute>
+																<xsd:attribute name="Commentaire" type="stCommentaireLigneRepartiteur" use="optional"/>
+															</xsd:complexType>
+														</xsd:element>
+													</xsd:choice>
+													<xsd:attributeGroup ref="attgCodeCommandePackage"/>
+												</xsd:complexType>
+											</xsd:element>
+										</xsd:choice>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Cde_Client" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Ref_Rep_Repartiteur" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="REP_INFO_PRODUIT">
+								<xsd:annotation>
+									<xsd:documentation>Réponse à demande information produit</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="PRIX" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+													<xsd:choice>
+														<xsd:element name="DISPO">
+															<xsd:complexType/>
+														</xsd:element>
+														<xsd:element name="NON_DISPO">
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="INFOS_DISPO_ND" type="ctInformationsDisponibilite" minOccurs="0"/>
+																	<xsd:element name="PRODUIT_REMPLACANT_ND" minOccurs="0">
+																		<xsd:complexType>
+																			<xsd:sequence>
+																				<xsd:element name="PRIX_ND" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																			</xsd:sequence>
+																			<xsd:attributeGroup ref="attgProduitRemplacant"/>
+																		</xsd:complexType>
+																	</xsd:element>
+																</xsd:sequence>
+																<xsd:attributeGroup ref="attgReponseProduit"/>
+																<xsd:attribute name="Commentaire" use="optional">
+																	<xsd:simpleType>
+																		<xsd:restriction base="xsd:string">
+																			<xsd:minLength value="1"/>
+																			<xsd:maxLength value="255"/>
+																		</xsd:restriction>
+																	</xsd:simpleType>
+																</xsd:attribute>
+															</xsd:complexType>
+														</xsd:element>
+														<xsd:element name="AUTRE">
+															<xsd:complexType>
+																<xsd:sequence minOccurs="0">
+																	<xsd:element name="INFOS_DISPO_AU" type="ctInformationsDisponibilite" minOccurs="0"/>
+																	<xsd:element name="PRODUIT_REMPLACANT_AU" minOccurs="0">
+																		<xsd:complexType>
+																			<xsd:sequence>
+																				<xsd:element name="PRIX_AU" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																			</xsd:sequence>
+																			<xsd:attributeGroup ref="attgProduitRemplacant"/>
+																		</xsd:complexType>
+																	</xsd:element>
+																</xsd:sequence>
+																<xsd:attribute name="Commentaire" use="required">
+																	<xsd:simpleType>
+																		<xsd:restriction base="xsd:string">
+																			<xsd:minLength value="1"/>
+																			<xsd:maxLength value="255"/>
+																		</xsd:restriction>
+																	</xsd:simpleType>
+																</xsd:attribute>
+															</xsd:complexType>
+														</xsd:element>
+													</xsd:choice>
+												</xsd:sequence>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Num_Ligne_Demande" type="xsd:positiveInteger" use="required"/>
+												<xsd:attributeGroup ref="attgProduit"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Reponse_Info" type="xsd:NMTOKEN" use="required"/>
+									<xsd:attribute name="Ref_Demande_Info" type="xsd:NMTOKEN" use="required"/>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="ALERTE_REGLEMENTAIRE">
+								<xsd:annotation>
+									<xsd:documentation>Information réglementaire urgente</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="EMETTEUR_FABRICANT" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="INSTRUCTIONS">
+														<xsd:complexType>
+															<xsd:attribute name="Renvoi" type="xsd:boolean" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Renvoi au répartiteur du stock concerné</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_limite_Reprise" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="PRODUIT" maxOccurs="11000">
+														<xsd:complexType>
+															<xsd:choice>
+																<xsd:element name="TOUS_LOTS">
+																	<xsd:complexType>
+																		<xsd:attribute name="Commentaire" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:string">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="255"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="LOT" maxOccurs="unbounded">
+																	<xsd:complexType>
+																		<xsd:attribute name="Numero_Lot" type="stNumeroLot" use="required"/>
+																		<xsd:attribute name="Date_Peremption" type="stDateLocale" use="optional"/>
+																		<xsd:attribute name="Commentaire" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:string">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="255"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:choice>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attributeGroup ref="attgProduitAlerte"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Nom" use="required">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:normalizedString">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="255"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attributeGroup ref="attgAdresse"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Numero_Alerte" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:normalizedString">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="30"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Motif" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="1024"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Clause" use="optional" default="Le laboratoire, seul responsable des informations portées sur ce bordereau, a mandaté le Grossiste répartiteur pour saisir ces informations et les router à ses clients. La responsabilité du Grossiste répartiteur n’est pas engagée au-delà de ce mandat.">
+										<xsd:annotation>
+											<xsd:documentation>Clause de responsabilité</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Designation_globale" use="required">
+										<xsd:annotation>
+											<xsd:documentation>Désignation globale des produits</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="128"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Arret_immediat" type="xsd:boolean" use="required"/>
+									<xsd:attribute name="Commentaire_Instructions" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire_Annexe" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="2048"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="ALERTE_COMMERCIALE">
+								<xsd:annotation>
+									<xsd:documentation>Information commerciale urgente</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="EMETTEUR_FABRICANT" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="INSTRUCTIONS" minOccurs="0">
+														<xsd:complexType>
+															<xsd:attribute name="Renvoi" type="xsd:boolean" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Renvoi au répartiteur du stock concerné</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_limite_Reprise" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="PRODUIT" maxOccurs="11000">
+														<xsd:complexType>
+															<xsd:choice minOccurs="0">
+																<xsd:element name="TOUS_LOTS">
+																	<xsd:complexType>
+																		<xsd:attribute name="Commentaire" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:string">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="255"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="LOT" maxOccurs="unbounded">
+																	<xsd:complexType>
+																		<xsd:attribute name="Numero_Lot" type="stNumeroLot" use="required"/>
+																		<xsd:attribute name="Date_Peremption" type="stDateLocale" use="optional"/>
+																		<xsd:attribute name="Commentaire" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:string">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="255"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:choice>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attributeGroup ref="attgProduitAlerte"/>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Nom" use="required">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:normalizedString">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="255"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attributeGroup ref="attgAdresse"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Numero_Alerte" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:normalizedString">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="30"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Motif" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="1024"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Clause" use="optional" default="Le laboratoire, seul responsable des informations portées sur ce bordereau, a mandaté le Grossiste répartiteur pour saisir ces informations et les router à ses clients. La responsabilité du Grossiste répartiteur n’est pas engagée au-delà de ce mandat.">
+										<xsd:annotation>
+											<xsd:documentation>Clause de responsabilité</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Designation_globale" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Désignation globale des produits</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="128"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Arret_immediat" type="xsd:boolean" use="required"/>
+									<xsd:attribute name="Commentaire_Instructions" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire_Annexe" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="2048"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="BON_RETOUR">
+								<xsd:annotation>
+									<xsd:documentation>Réponse à demande de retour</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE" maxOccurs="50">
+											<xsd:complexType>
+												<xsd:sequence minOccurs="0">
+													<xsd:element name="PRIX">
+														<xsd:complexType>
+															<xsd:attribute name="Nature" use="required" fixed="NETHT">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:NMTOKEN">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="5"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Valeur" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:minInclusive value="0"/>
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Num_Ligne_Demande" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attributeGroup ref="attgProduit"/>
+												<xsd:attribute name="Quantite_acceptee" type="xsd:nonNegativeInteger" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Quantité acceptée pour examen</xsd:documentation>
+													</xsd:annotation>
+												</xsd:attribute>
+												<xsd:attribute name="Date_Reprise" type="stDateLocale" use="optional"/>
+												<xsd:attribute name="Commentaire" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:string">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="255"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Demande_Retour" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Ref_Bon_Retour" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="VALOR_INVENTAIRE">
+								<xsd:annotation>
+									<xsd:documentation>Réponse Valorisation inventaire</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="LIGNE_DETAIL" maxOccurs="11000">
+											<xsd:complexType>
+												<xsd:choice>
+													<xsd:element name="LIGNE_VALORISEE">
+														<xsd:complexType>
+															<xsd:sequence>
+																<xsd:element name="PRIX_PHAHT">
+																	<xsd:annotation>
+																		<xsd:documentation>Prix produit unitaire Achat Hors Taxe Pharmacien</xsd:documentation>
+																	</xsd:annotation>
+																	<xsd:complexType>
+																		<xsd:attribute name="Nature" use="required" fixed="PHAHT">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="5"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Valeur" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:decimal">
+																					<xsd:minInclusive value="0"/>
+																					<xsd:fractionDigits value="3"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="PRIX_LV" type="ctPrix" minOccurs="0" maxOccurs="9">
+																	<xsd:annotation>
+																		<xsd:documentation>Prix produit unitaire</xsd:documentation>
+																	</xsd:annotation>
+																</xsd:element>
+																<xsd:element name="TAXE_LV" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+															</xsd:sequence>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Nom_Fabricant" type="stNomFabricant" use="optional"/>
+															<xsd:attribute name="Montant_PHAHT" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Montant de la ligne au prix d'achat HT Pharmacien
+</xsd:documentation>
+																</xsd:annotation>
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Marge" type="stTaux" use="optional"/>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="LIGNE_NON_VALORISE">
+														<xsd:complexType>
+															<xsd:choice>
+																<xsd:element name="PRODUIT_CODIFIE">
+																	<xsd:complexType>
+																		<xsd:sequence>
+																			<xsd:element name="PRIX_PC" type="ctPrix" minOccurs="0"/>
+																			<xsd:element name="TAXE_PC" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+																		</xsd:sequence>
+																		<xsd:attributeGroup ref="attgProduit"/>
+																		<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+																		<xsd:attribute name="Nom_Fabricant" type="stNomFabricant" use="optional"/>
+																		<xsd:attribute name="Marge" type="stTaux" use="optional"/>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="PRODUIT_CLAIR">
+																	<xsd:complexType>
+																		<xsd:choice minOccurs="0">
+																			<xsd:element name="INFOS_ACHAT">
+																				<xsd:complexType>
+																					<xsd:sequence>
+																						<xsd:element name="PRIX_IA" minOccurs="0">
+																							<xsd:complexType>
+																								<xsd:attribute name="Nature" use="required" fixed="PHAHT">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:NMTOKEN">
+																											<xsd:minLength value="1"/>
+																											<xsd:maxLength value="5"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																								<xsd:attribute name="Valeur" use="required">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:decimal">
+																											<xsd:minInclusive value="0"/>
+																											<xsd:fractionDigits value="3"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																							</xsd:complexType>
+																						</xsd:element>
+																					</xsd:sequence>
+																				</xsd:complexType>
+																			</xsd:element>
+																			<xsd:element name="INFOS_VENTE">
+																				<xsd:complexType>
+																					<xsd:sequence>
+																						<xsd:element name="PRIX_IV" minOccurs="0">
+																							<xsd:complexType>
+																								<xsd:attribute name="Nature" use="required" fixed="PUBTC">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:NMTOKEN">
+																											<xsd:minLength value="1"/>
+																											<xsd:maxLength value="5"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																								<xsd:attribute name="Valeur" use="required">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:decimal">
+																											<xsd:minInclusive value="0"/>
+																											<xsd:fractionDigits value="3"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																							</xsd:complexType>
+																						</xsd:element>
+																						<xsd:element name="TAXE_IV" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+																					</xsd:sequence>
+																					<xsd:attribute name="Marge" type="stTaux" use="required"/>
+																				</xsd:complexType>
+																			</xsd:element>
+																		</xsd:choice>
+																		<xsd:attributeGroup ref="attgProduitClair"/>
+																		<xsd:attribute name="Nom_Fabricant" type="stNomFabricant" use="optional"/>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:choice>
+															<xsd:attribute name="Motif" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:choice>
+												<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+												<xsd:attribute name="Num_Ligne_Demande" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="LIGNE_CUMUL_TAXE" minOccurs="0" maxOccurs="9">
+											<xsd:annotation>
+												<xsd:documentation>Ligne cumul des lignes détail valorisées uniquement</xsd:documentation>
+											</xsd:annotation>
+											<xsd:complexType>
+												<xsd:attribute name="Nature" use="required">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:NMTOKEN">
+															<xsd:length value="4"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Taux" type="stTaux" use="required"/>
+												<xsd:attribute name="Nb_Reference_Produit" type="xsd:positiveInteger" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Nombre de références produit</xsd:documentation>
+													</xsd:annotation>
+												</xsd:attribute>
+												<xsd:attribute name="Montant_PHAHT" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Montant total en prix d'achat pharmacien</xsd:documentation>
+													</xsd:annotation>
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:decimal">
+															<xsd:fractionDigits value="3"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="VALOR_GLOBALE" minOccurs="0">
+											<xsd:annotation>
+												<xsd:documentation>Valorisation globale des lignes détail valorisées, en principe obligatoire si nature de l'inventaire est COMPLET</xsd:documentation>
+											</xsd:annotation>
+											<xsd:complexType>
+												<xsd:attribute name="Nb_Reference_Produit" type="xsd:positiveInteger" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Nombre de références produit</xsd:documentation>
+													</xsd:annotation>
+												</xsd:attribute>
+												<xsd:attribute name="Montant_PHAHT" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Montant total en prix d'achat pharmacien</xsd:documentation>
+													</xsd:annotation>
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:decimal">
+															<xsd:fractionDigits value="3"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Ref_Demande_Inventaire" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Nature" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:enumeration value="COMPLET"/>
+												<xsd:enumeration value="PARTIEL"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Date" type="stDateLocale" use="required">
+										<xsd:annotation>
+											<xsd:documentation>Date de comptage physique</xsd:documentation>
+										</xsd:annotation>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="SUIVI_COMMANDE">
+								<xsd:complexType>
+									<xsd:choice>
+										<xsd:element name="NORMALE">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE_N" maxOccurs="11000">
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Num_Ligne_Commande" type="xsd:positiveInteger" use="optional"/>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Quantité prévue</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_Livraison" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Code_Statut" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Libelle_Statut" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:normalizedString">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="50"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="SPECIALE">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE_S" maxOccurs="11000">
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Num_Ligne_Commande" type="xsd:positiveInteger" use="optional"/>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Quantité prévue</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_Livraison" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Code_Statut" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Libelle_Statut" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:normalizedString">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="50"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attributeGroup ref="attgCodeCommandeSpeciale"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="PACKAGE">
+											<xsd:complexType>
+												<xsd:choice>
+													<xsd:element name="LIGNE_GLOBALE">
+														<xsd:annotation>
+															<xsd:documentation>Réponse globale au package demandé</xsd:documentation>
+														</xsd:annotation>
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required" fixed="1"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Nombre de packages prévue</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_Livraison" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Code_Statut" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Libelle_Statut" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:normalizedString">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="50"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="LIGNE_DETAIL" maxOccurs="11000">
+														<xsd:annotation>
+															<xsd:documentation>Réponses sur lignes détail produits du package</xsd:documentation>
+														</xsd:annotation>
+														<xsd:complexType>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Quantité prévue</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Date_Livraison" type="stDateLocale" use="optional"/>
+															<xsd:attribute name="Code_Statut" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Libelle_Statut" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:normalizedString">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="50"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:choice>
+												<xsd:attributeGroup ref="attgCodeCommandePackage"/>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:choice>
+									<xsd:attribute name="Ref_Cde_Client" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Ref_Cde_Repartiteur" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="LIBRE">
+								<xsd:annotation>
+									<xsd:documentation>Information libre</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:attribute name="Ref_Info_Libre" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Commentaire" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="BON_LIVRAISON">
+								<xsd:annotation>
+									<xsd:documentation>Bon de livraison valorisé</xsd:documentation>
+								</xsd:annotation>
+								<xsd:complexType>
+									<xsd:sequence>
+										<xsd:element name="INFOS_LIVRAISON" type="ctInformationsLivraison" minOccurs="0"/>
+										<xsd:element name="VALOR" minOccurs="0" maxOccurs="unbounded">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LOGISTIQUE" minOccurs="0">
+														<xsd:complexType>
+															<xsd:attribute name="Nb_Bac" type="xsd:nonNegativeInteger" use="optional"/>
+															<xsd:attribute name="Nb_Ligne" type="xsd:nonNegativeInteger" use="optional"/>
+															<xsd:attribute name="Nb_Unite" type="xsd:nonNegativeInteger" use="optional"/>
+															<xsd:attribute name="Poids_brut" type="xsd:positiveInteger" use="optional">
+																<xsd:annotation>
+																	<xsd:documentation>Poids en grammes
+</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="LIGNE_COMPLEMENT" minOccurs="0" maxOccurs="11000">
+														<xsd:annotation>
+															<xsd:documentation>Ligne de facturation complémentaire</xsd:documentation>
+														</xsd:annotation>
+														<xsd:complexType>
+															<xsd:sequence minOccurs="0">
+																<xsd:element name="TAXE_LC" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+															</xsd:sequence>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Nature" use="required">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:NMTOKEN">
+																		<xsd:length value="4"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Designation" type="stDesignationProduit" use="optional"/>
+															<xsd:attribute name="Montant_HT" use="required">
+																<xsd:annotation>
+																	<xsd:documentation>Montant facturé Hors Taxe</xsd:documentation>
+																</xsd:annotation>
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+													<xsd:element name="CUMUL" minOccurs="0">
+														<xsd:complexType>
+															<xsd:sequence minOccurs="0">
+																<xsd:element name="TAXE_C" minOccurs="0" maxOccurs="9">
+																	<xsd:complexType>
+																		<xsd:attribute name="Nature" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:length value="4"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Taux" type="stTaux" use="required"/>
+																		<xsd:attribute name="Montant" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:decimal">
+																					<xsd:fractionDigits value="3"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Montant_Assiette_HT" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:decimal">
+																					<xsd:fractionDigits value="3"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="NATURE_TAXE" minOccurs="0" maxOccurs="9">
+																	<xsd:complexType>
+																		<xsd:attribute name="Nature" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:length value="4"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Montant" use="required">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:decimal">
+																					<xsd:fractionDigits value="3"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:element name="PAIEMENT">
+																	<xsd:complexType>
+																		<xsd:sequence>
+																			<xsd:element name="ECHEANCE" minOccurs="0" maxOccurs="10">
+																				<xsd:complexType>
+																					<xsd:sequence>
+																						<xsd:element name="DELAI" minOccurs="0">
+																							<xsd:complexType>
+																								<xsd:attribute name="Decalage_Depart" use="optional">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:NMTOKEN">
+																											<xsd:length value="4"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																								<xsd:attribute name="Nb_Jour" type="xsd:nonNegativeInteger" use="required">
+																									<xsd:annotation>
+																										<xsd:documentation>La valeur zero signifie paiement comptant</xsd:documentation>
+																									</xsd:annotation>
+																								</xsd:attribute>
+																								<xsd:attribute name="Decalage_Arrivee" use="optional">
+																									<xsd:simpleType>
+																										<xsd:restriction base="xsd:NMTOKEN">
+																											<xsd:length value="4"/>
+																										</xsd:restriction>
+																									</xsd:simpleType>
+																								</xsd:attribute>
+																							</xsd:complexType>
+																						</xsd:element>
+																					</xsd:sequence>
+																					<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+																					<xsd:attribute name="Moyen_Paiement" use="optional">
+																						<xsd:annotation>
+																							<xsd:documentation>Si renseigné, a priorité pour le paiement de cette échéance sur le moyen de paiement général</xsd:documentation>
+																						</xsd:annotation>
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:NMTOKEN">
+																								<xsd:minLength value="1"/>
+																								<xsd:maxLength value="4"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																					<xsd:attribute name="Date" type="stDateLocale" use="optional"/>
+																					<xsd:attribute name="Montant" use="required">
+																						<xsd:simpleType>
+																							<xsd:restriction base="xsd:decimal">
+																								<xsd:fractionDigits value="3"/>
+																							</xsd:restriction>
+																						</xsd:simpleType>
+																					</xsd:attribute>
+																				</xsd:complexType>
+																			</xsd:element>
+																		</xsd:sequence>
+																		<xsd:attribute name="Moyen_Paiement" type="xsd:NMTOKEN" use="required"/>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:sequence>
+															<xsd:attribute name="Montant_HT" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Montant_Total_Taxes" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Montant_TTC" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Reste_A_Payer" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Pourcentage_Escompte" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="2"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Montant_Escompte_TTC" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Reste_A_Payer_Escompte" use="optional">
+																<xsd:annotation>
+																	<xsd:documentation>Montant à payer escompte déduit</xsd:documentation>
+																</xsd:annotation>
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:decimal">
+																		<xsd:fractionDigits value="3"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Ref_Facture" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Numéro de facture émis par le répartiteur</xsd:documentation>
+													</xsd:annotation>
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:NMTOKEN">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="20"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Date" type="stDateLocale" use="required"/>
+												<xsd:attribute name="Heure" type="stHeureLocale" use="optional"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="LIVRAISON" minOccurs="0" maxOccurs="unbounded">
+											<xsd:complexType>
+												<xsd:sequence>
+													<xsd:element name="LIGNE" minOccurs="0" maxOccurs="11000">
+														<xsd:annotation>
+															<xsd:documentation>Ligne produit livré ou ligne produit commandé si quantité livrée est nulle.</xsd:documentation>
+														</xsd:annotation>
+														<xsd:complexType>
+															<xsd:sequence>
+																<xsd:element name="PRIX" type="ctPrix" minOccurs="0" maxOccurs="10"/>
+																<xsd:element name="TAXE_LV" type="ctTaxe" minOccurs="0" maxOccurs="9"/>
+																<xsd:element name="REMISE" minOccurs="0">
+																	<xsd:complexType>
+																		<xsd:attribute name="Taux" type="stTaux" use="optional"/>
+																		<xsd:attribute name="Periode" use="optional" default="IMMEDIATE">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="30"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Categorie" use="optional">
+																			<xsd:simpleType>
+																				<xsd:restriction base="xsd:NMTOKEN">
+																					<xsd:minLength value="1"/>
+																					<xsd:maxLength value="20"/>
+																				</xsd:restriction>
+																			</xsd:simpleType>
+																		</xsd:attribute>
+																		<xsd:attribute name="Montant_factureHT" type="xsd:decimal" use="optional">
+																			<xsd:annotation>
+																				<xsd:documentation>Montant facturé HT remise déduite</xsd:documentation>
+																			</xsd:annotation>
+																		</xsd:attribute>
+																	</xsd:complexType>
+																</xsd:element>
+																<xsd:choice minOccurs="0">
+																	<xsd:element name="NORMALE">
+																		<xsd:complexType/>
+																	</xsd:element>
+																	<xsd:element name="SPECIALE">
+																		<xsd:complexType>
+																			<xsd:attributeGroup ref="attgCodeCommandeSpeciale"/>
+																		</xsd:complexType>
+																	</xsd:element>
+																	<xsd:element name="DETAIL_PACKAGE">
+																		<xsd:annotation>
+																			<xsd:documentation>Ligne détail du package</xsd:documentation>
+																		</xsd:annotation>
+																		<xsd:complexType>
+																			<xsd:attributeGroup ref="attgCodeCommandePackage"/>
+																		</xsd:complexType>
+																	</xsd:element>
+																	<xsd:element name="GLOBAL_PACKAGE">
+																		<xsd:annotation>
+																			<xsd:documentation>Ligne globale package (unique)</xsd:documentation>
+																		</xsd:annotation>
+																		<xsd:complexType>
+																			<xsd:attributeGroup ref="attgCodeCommandePackage"/>
+																		</xsd:complexType>
+																	</xsd:element>
+																</xsd:choice>
+																<xsd:element name="INDISPONIBILITE" minOccurs="0">
+																	<xsd:annotation>
+																		<xsd:documentation>Renseigné si quantité livrée n'est pas la quantité commandée</xsd:documentation>
+																	</xsd:annotation>
+																	<xsd:complexType>
+																		<xsd:sequence>
+																			<xsd:element name="PRODUIT_REMPLACANT" minOccurs="0">
+																				<xsd:complexType>
+																					<xsd:attributeGroup ref="attgProduitRemplacant"/>
+																				</xsd:complexType>
+																			</xsd:element>
+																			<xsd:element name="INFOS_DISPO" type="ctInformationsDisponibilite" minOccurs="0"/>
+																		</xsd:sequence>
+																		<xsd:attributeGroup ref="attgReponseProduit"/>
+																	</xsd:complexType>
+																</xsd:element>
+															</xsd:sequence>
+															<xsd:attribute name="Num_Ligne" type="xsd:positiveInteger" use="required"/>
+															<xsd:attribute name="Ref_Cde_Client" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:NMTOKEN">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="20"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Num_Ligne_Client" type="xsd:positiveInteger" use="optional">
+																<xsd:annotation>
+																	<xsd:documentation>Obligatoire si commande normale ou spéciale, non significatif si commande packagée</xsd:documentation>
+																</xsd:annotation>
+															</xsd:attribute>
+															<xsd:attribute name="Ref_Cde_Repartiteur" use="optional">
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:NMTOKEN">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="20"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attribute name="Num_Ligne_Cde_Repartiteur" type="xsd:positiveInteger" use="optional"/>
+															<xsd:attribute name="Canal" use="optional">
+																<xsd:annotation>
+																	<xsd:documentation>Canal de pasation de la commande</xsd:documentation>
+																</xsd:annotation>
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:positiveInteger">
+																		<xsd:maxInclusive value="9999"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+															<xsd:attributeGroup ref="attgProduit"/>
+															<xsd:attribute name="Quantite_commandee" type="xsd:positiveInteger" use="optional"/>
+															<xsd:attribute name="Quantite_livree" type="xsd:integer" use="required"/>
+															<xsd:attribute name="Quantite_facturee" type="xsd:nonNegativeInteger" use="optional"/>
+															<xsd:attribute name="Produit_remboursable" type="xsd:boolean" use="optional"/>
+															<xsd:attribute name="Prix_public_fixe" type="xsd:boolean" use="optional"/>
+															<xsd:attribute name="Commentaire" use="optional">
+																<xsd:annotation>
+																	<xsd:documentation>Commentaire précisant par exemple désignation, type ou nature de la commande</xsd:documentation>
+																	<xsd:documentation/>
+																</xsd:annotation>
+																<xsd:simpleType>
+																	<xsd:restriction base="xsd:string">
+																		<xsd:minLength value="1"/>
+																		<xsd:maxLength value="255"/>
+																	</xsd:restriction>
+																</xsd:simpleType>
+															</xsd:attribute>
+														</xsd:complexType>
+													</xsd:element>
+												</xsd:sequence>
+												<xsd:attribute name="Ref_Livraison" use="required">
+													<xsd:annotation>
+														<xsd:documentation>Numéro de facture émis par le répartiteur</xsd:documentation>
+													</xsd:annotation>
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:NMTOKEN">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="20"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Date" type="stDateLocale" use="required"/>
+												<xsd:attribute name="Heure" type="stHeureLocale" use="optional"/>
+											</xsd:complexType>
+										</xsd:element>
+										<xsd:element name="STATISTIQUE" minOccurs="0" maxOccurs="20">
+											<xsd:complexType>
+												<xsd:attribute name="Categorie" use="required">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:NMTOKEN">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="20"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Designation_Categorie" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:normalizedString">
+															<xsd:minLength value="1"/>
+															<xsd:maxLength value="50"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Date" type="stDateLocale" use="optional"/>
+												<xsd:attribute name="Periode" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:NMTOKEN">
+															<xsd:length value="4"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attribute name="Nb_Ligne" type="xsd:positiveInteger" use="optional"/>
+												<xsd:attribute name="MontantHT" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:decimal">
+															<xsd:fractionDigits value="3"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+												<xsd:attribute name="MontantTTC" use="optional">
+													<xsd:simpleType>
+														<xsd:restriction base="xsd:decimal">
+															<xsd:fractionDigits value="3"/>
+														</xsd:restriction>
+													</xsd:simpleType>
+												</xsd:attribute>
+											</xsd:complexType>
+										</xsd:element>
+									</xsd:sequence>
+									<xsd:attribute name="Nature_Document" type="xsd:positiveInteger" use="required" fixed="0003"/>
+									<xsd:attribute name="Ref_Document" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Id_Client" use="optional">
+										<xsd:annotation>
+											<xsd:documentation>Doit être égal à Id_Officine de l'entête</xsd:documentation>
+										</xsd:annotation>
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:NMTOKEN">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="20"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Nom_Client" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:normalizedString">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="50"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attribute name="Adresse_Livraison" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="128"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+									<xsd:attributeGroup ref="attgDevise"/>
+									<xsd:attribute name="Commentaire" use="optional">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:minLength value="1"/>
+												<xsd:maxLength value="255"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="ERREUR" type="ctErreur"/>
+							<xsd:any namespace="##other" processContents="strict">
+								<xsd:annotation>
+									<xsd:documentation>Pour version différenciée</xsd:documentation>
+								</xsd:annotation>
+							</xsd:any>
+						</xsd:choice>
+						<xsd:anyAttribute namespace="##other" processContents="strict"/>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<!--Définition des types complexes-->
+	<xsd:complexType name="ctOfficine">
+		<xsd:attribute name="Nature_Partenaire" type="stCodePartenaire" use="optional" default="OF"/>
+		<xsd:attribute name="Id_Client" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:normalizedString">
+					<xsd:maxLength value="20"/>
+					<xsd:minLength value="1"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:complexType>
+	<xsd:complexType name="ctPrix">
+		<xsd:attribute name="Nature" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="5"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Valeur" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:decimal">
+					<xsd:fractionDigits value="3"/>
+					<xsd:minInclusive value="0"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:complexType>
+	<xsd:complexType name="ctTaxe">
+		<xsd:attribute name="Nature" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:length value="4"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Taux" type="stTaux" use="required"/>
+	</xsd:complexType>
+	<xsd:complexType name="ctRepartiteur">
+		<xsd:attribute name="Nature_Partenaire" type="stCodePartenaire" use="optional" default="RE"/>
+		<xsd:attribute name="Code_Societe" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Code attribué au répartiteur par la CSRP</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:length value="2"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Id_Societe" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Code propriétaire attribué par le répartiteur à ses établissements. Associé au code Société il permet d'identifier de manière unique un établissement.</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="20"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:complexType>
+	<xsd:complexType name="ctInformationsLivraison">
+		<xsd:sequence minOccurs="0">
+			<xsd:element name="LIVREUR" minOccurs="0">
+				<xsd:complexType>
+					<xsd:attribute name="Societe" use="optional">
+						<xsd:simpleType>
+							<xsd:restriction base="xsd:normalizedString">
+								<xsd:minLength value="1"/>
+								<xsd:maxLength value="30"/>
+							</xsd:restriction>
+						</xsd:simpleType>
+					</xsd:attribute>
+					<xsd:attribute name="Etablissement" use="optional">
+						<xsd:simpleType>
+							<xsd:restriction base="xsd:normalizedString">
+								<xsd:minLength value="1"/>
+								<xsd:maxLength value="30"/>
+							</xsd:restriction>
+						</xsd:simpleType>
+					</xsd:attribute>
+				</xsd:complexType>
+			</xsd:element>
+			<xsd:element name="TOURNEE" minOccurs="0">
+				<xsd:complexType>
+					<xsd:attribute name="Reference" use="required">
+						<xsd:simpleType>
+							<xsd:restriction base="xsd:normalizedString">
+								<xsd:minLength value="1"/>
+								<xsd:maxLength value="20"/>
+							</xsd:restriction>
+						</xsd:simpleType>
+					</xsd:attribute>
+					<xsd:attribute name="Date" type="stDateLocale" use="optional"/>
+					<xsd:attribute name="Heure" type="stHeureLocale" use="optional">
+						<xsd:annotation>
+							<xsd:documentation>Précision de l'heure de livraison est la minute</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:complexType>
+			</xsd:element>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="ctInformationsDisponibilite">
+		<xsd:attribute name="Date" type="stDateLocale" use="optional"/>
+		<xsd:attribute name="Heure" type="stHeureLocale" use="optional"/>
+		<xsd:attribute name="Quantite" type="xsd:positiveInteger" use="optional"/>
+	</xsd:complexType>
+	<xsd:complexType name="ctIndisponibilite">
+		<xsd:sequence>
+			<xsd:element name="INFOS_DISPO" type="ctInformationsDisponibilite" minOccurs="0"/>
+			<xsd:element name="PRODUIT_REMPLACANT" minOccurs="0">
+				<xsd:complexType>
+					<xsd:attributeGroup ref="attgProduitRemplacant"/>
+				</xsd:complexType>
+			</xsd:element>
+		</xsd:sequence>
+		<xsd:attributeGroup ref="attgReponseProduit"/>
+	</xsd:complexType>
+	<xsd:complexType name="ctErreur">
+		<xsd:attribute name="Statut" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:positiveInteger">
+					<xsd:maxInclusive value="9999"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Detail" use="optional">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:string">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="128"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:complexType>
+	<!--Définition des types simples-->
+	<xsd:simpleType name="stCodePartenaire">
+		<xsd:restriction base="xsd:NMTOKEN">
+			<xsd:length value="2"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stDevise">
+		<xsd:restriction base="xsd:NMTOKEN">
+			<xsd:length value="3"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCodeReponse">
+		<xsd:restriction base="xsd:positiveInteger">
+			<xsd:maxInclusive value="9999"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCodificationProduit">
+		<xsd:restriction base="xsd:NMTOKEN">
+			<xsd:enumeration value="EAN13"/>
+			<xsd:enumeration value="CIP39"/>
+			<xsd:enumeration value="SPECIALE"/>
+			<xsd:enumeration value="CLAIR"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stNumeroLot">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:maxLength value="255"/>
+			<xsd:minLength value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stTaux">
+		<xsd:restriction base="xsd:decimal">
+			<xsd:fractionDigits value="3"/>
+			<xsd:minInclusive value="0"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stHeureLocale">
+		<xsd:restriction base="xsd:time">
+			<xsd:pattern value="[0-2][0-9]:[0-5][0-9]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stDateLocale">
+		<xsd:restriction base="xsd:date">
+			<xsd:pattern value="[0-9][0-9][0-9][0-9]\-[0-9][0-9]\-[0-9][0-9]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCodeCommandeSpeciale">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="15"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCodeCommandePackage">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="15"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stDesignationProduit">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="50"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCodeProduit">
+		<xsd:restriction base="xsd:NMTOKEN">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="20"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stNomFabricant">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="30"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCommentaireLigneOfficine">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="255"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="stCommentaireLigneRepartiteur">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="255"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<!--Définition des groupes d'attribut-->
+	<xsd:attributeGroup name="attgProduit">
+		<xsd:attribute name="Type_Codification" type="stCodificationProduit" use="required"/>
+		<xsd:attribute name="Code_Produit" type="stCodeProduit" use="required"/>
+		<xsd:attribute name="Designation" type="stDesignationProduit" use="optional"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgProduitClair">
+		<xsd:attribute name="Type_Codification" type="stCodificationProduit" use="required" fixed="CLAIR"/>
+		<xsd:attribute name="Code_Produit" type="stCodeProduit" use="required" fixed="0"/>
+		<xsd:attribute name="Designation" type="stDesignationProduit" use="required"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgProduitRemplacant">
+		<xsd:attribute name="Type_Remplacement" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:enumeration value="RL"/>
+					<xsd:enumeration value="EL"/>
+					<xsd:enumeration value="EP"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attributeGroup ref="attgProduit"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgConsignesLivraison">
+		<xsd:attribute name="Partielle" type="xsd:boolean" use="optional" default="true"/>
+		<xsd:attribute name="Reliquat" type="xsd:boolean" use="optional" default="false"/>
+		<xsd:attribute name="Equivalent" type="xsd:boolean" use="optional" default="false"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgAdresse">
+		<xsd:attribute name="Adresse" use="optional">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:string">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="128"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Code_postal" use="optional">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:normalizedString">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="10"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Ville" use="optional">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:normalizedString">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="50"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Pays" use="optional" default="FRA">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:length value="3"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgDevise">
+		<xsd:attribute name="Devise" type="stDevise" use="optional" default="EUR"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgReponseProduit">
+		<xsd:attribute name="Code_Reponse" type="stCodeReponse" use="required"/>
+		<xsd:attribute name="Additif" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:normalizedString">
+					<xsd:maxLength value="50"/>
+					<xsd:minLength value="1"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Date_Effet" type="stDateLocale" use="optional"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgDocument">
+		<xsd:attribute name="Nature_Document" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:nonNegativeInteger">
+					<xsd:maxInclusive value="9999"/>
+					<xsd:enumeration value="0001">
+						<xsd:annotation>
+							<xsd:documentation>Facture</xsd:documentation>
+						</xsd:annotation>
+					</xsd:enumeration>
+					<xsd:enumeration value="0002">
+						<xsd:annotation>
+							<xsd:documentation>Bon de livraison</xsd:documentation>
+						</xsd:annotation>
+					</xsd:enumeration>
+					<xsd:enumeration value="0003">
+						<xsd:annotation>
+							<xsd:documentation>Bon de livraison valorisé</xsd:documentation>
+						</xsd:annotation>
+					</xsd:enumeration>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Ref_Document" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="20"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgCodeCommandeSpeciale">
+		<xsd:attribute name="Code_Speciale" type="stCodeCommandeSpeciale" use="required"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgCodeCommandePackage">
+		<xsd:attribute name="Code_Package" type="stCodeCommandePackage" use="required"/>
+	</xsd:attributeGroup>
+	<xsd:attributeGroup name="attgProduitAlerte">
+		<xsd:attribute name="Type_Codification" type="stCodificationProduit" use="required"/>
+		<xsd:attribute name="Code_Produit" type="stCodeProduit" use="required"/>
+		<xsd:attribute name="Designation" use="optional">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:normalizedString">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="255"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+</xsd:schema>

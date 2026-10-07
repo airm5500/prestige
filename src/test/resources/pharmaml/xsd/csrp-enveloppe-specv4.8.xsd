@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 2 U (http://www.xmlspy.com)  -->
+<xsd:schema targetNamespace="urn:x-csrp:fr.csrp.protocole:enveloppe" xmlns="urn:x-csrp:fr.csrp.protocole:enveloppe" xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<!--Schema enveloppe conforme aux spécifications Pharma-ML v4.8-->
+	<!--Définition des éléments globaux-->
+	<xsd:element name="CSRP_ENVELOPPE">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="ENTETE">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="EMETTEUR">
+								<xsd:complexType>
+									<xsd:attributeGroup ref="attgPartenaire"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="RECEPTEUR">
+								<xsd:complexType>
+									<xsd:attributeGroup ref="attgPartenaire"/>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="REF_MESSAGE" type="stMessageId"/>
+							<xsd:element name="EN_REPONSE_A" type="stMessageId" minOccurs="0"/>
+							<xsd:element name="DATE" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>date et heure d'émission du message à la précision seconde</xsd:documentation>
+								</xsd:annotation>
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:dateTime">
+										<xsd:pattern value=".+T[^Z+-\.]+"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="CORPS">
+					<xsd:complexType>
+						<xsd:choice>
+							<xsd:element name="ERREUR">
+								<xsd:complexType>
+									<xsd:attribute name="Description_libre" use="required">
+										<xsd:simpleType>
+											<xsd:restriction base="xsd:string">
+												<xsd:maxLength value="128"/>
+												<xsd:minLength value="1"/>
+											</xsd:restriction>
+										</xsd:simpleType>
+									</xsd:attribute>
+								</xsd:complexType>
+							</xsd:element>
+							<xsd:element name="ACTION">
+								<xsd:annotation>
+									<xsd:documentation>Action de cinématique : ACQUITTEMENT, VIDAGE ou FIN_SERVICE</xsd:documentation>
+								</xsd:annotation>
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:NMTOKEN">
+										<xsd:enumeration value="ACQUITTEMENT"/>
+										<xsd:enumeration value="VIDAGE"/>
+										<xsd:enumeration value="FIN_SERVICE"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+							</xsd:element>
+							<xsd:any namespace="##other" processContents="strict"/>
+						</xsd:choice>
+						<xsd:anyAttribute namespace="##other" processContents="strict"/>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="Version_Protocole" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:pattern value="\d{1,2}\.\d{1,2}\.\d{1,2}\.\d{1,2}"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="Nature_Action" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="REQ_EMISSION"/>
+						<xsd:enumeration value="REQ_RECEPTION"/>
+						<xsd:enumeration value="REP_EMISSION"/>
+						<xsd:enumeration value="REP_RECEPTION"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="Id_Logiciel" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:normalizedString">
+						<xsd:minLength value="1"/>
+						<xsd:maxLength value="30"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="Version_Logiciel" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:normalizedString">
+						<xsd:minLength value="1"/>
+						<xsd:maxLength value="10"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="Usage" use="required">
+				<xsd:annotation>
+					<xsd:documentation>Indique nature production ou test du message</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:NMTOKEN">
+						<xsd:length value="1"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<!--Définition des types simples-->
+	<xsd:simpleType name="stMessageId">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="20"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<!--Définition des groupes d'attribut-->
+	<xsd:attributeGroup name="attgPartenaire">
+		<xsd:attribute name="Nature" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:enumeration value="RE"/>
+					<xsd:enumeration value="OF"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Code" use="optional" default="00">
+			<xsd:annotation>
+				<xsd:documentation>Obligatoire si nature partenaire
+est RE (répartiteur), la valeur par défaut est utilisée pour partenaire OF (Officine)</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:length value="2"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Id" use="required">
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NMTOKEN">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="20"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="Adresse" use="required">
+			<xsd:annotation>
+				<xsd:documentation>Nom et adresse du partenaire</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:string">
+					<xsd:minLength value="1"/>
+					<xsd:maxLength value="128"/>
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+</xsd:schema>

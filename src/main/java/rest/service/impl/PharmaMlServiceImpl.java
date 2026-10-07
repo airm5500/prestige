@@ -259,26 +259,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             throws JAXBException, IOException, InterruptedException {
         /*
          * Plan d'octobre 1.2, decision Q-B : la version de l'envoi de commande se regle par grossiste (3.0.0.0 par
-         * defaut). En 3.0.0.0, les MEMES lignes, quantites, references et date sont envoyees dans l'enveloppe SRP ; la
-         * reponse est ramenee au format 1.0.0.0 et suit exactement le traitement existant.
+         * defaut). Les MEMES lignes, quantites, references et date sont envoyees dans l'enveloppe de la version ; une
+         * reponse 3.0.0.0 est ramenee au format 1.0.0.0 et suit exactement le traitement existant.
          */
-        if (PharmaMlMessages.V3.equals(versionCommande(grossiste))) {
-            return envoyerCommandeV3(payLoad, reference, grossiste);
-        }
-
-        JAXBContext requestContext = JAXBContext.newInstance(CsrpEnveloppe.class);
-        Marshaller marshaller = requestContext.createMarshaller();
-        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-        StringWriter sw = new StringWriter();
-        marshaller.marshal(payLoad, sw); // save file // a supprimer a l'avenir
-        String fileName = reference + "_"
-                + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
-        createSaveXmlFile(marshaller, payLoad, "C", fileName);
-
-        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), sw.toString(),
-                grossiste.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION, DELAI_REPONSE).reponse;
-        return processResponse(httpResponse, fileName);
-
+        /* 1.0.0.0 et 3.0.0.0 : meme generateur, au format exact des echanges reels (plus de JAXB et de prefixe ns2) */
+        return envoyerCommande(payLoad, reference, grossiste, versionCommande(grossiste));
     }
 
     private JSONObject processommandeXml(TOrder order) throws JAXBException, IOException, InterruptedException {
@@ -319,37 +304,6 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     private JSONObject processResponseTesting(TOrder order) {
         return traiterCommandeRepondue(order, loadFromFileForTestingPurpose());
-    }
-
-    private CsrpEnveloppeResponse processResponse(HttpResponse<String> httpResponse, String fileName) {
-        int httpCode = httpResponse.statusCode();
-
-        if (httpCode == 200) {
-            String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
-            if (erreur != null) {
-                saveResponse(httpResponse.body(), fileName);
-                throw new RefusGrossiste(erreur, "R_" + fileName, PharmaMlMessages.V1);
-            }
-            try {
-
-                JAXBContext jaxbContext = JAXBContext.newInstance(CsrpEnveloppeResponse.class);
-                Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-                /*
-                 * archive : la reponse BRUTE du grossiste (l'objet relu perdait tout ce qu'il ne connait pas, erreurs
-                 * comprises, et donnait un fichier R_ vide)
-                 */
-                saveResponse(httpResponse.body(), fileName);
-                return (CsrpEnveloppeResponse) unmarshaller.unmarshal(new StringReader(httpResponse.body()));
-
-            } catch (JAXBException ex) {
-                LOG.log(Level.SEVERE, null, ex);
-            }
-
-        } else {
-            saveResponse(httpResponse.body(), "LOG_" + fileName);
-            throw new RefusHttp(httpCode, "R_LOG_" + fileName);
-        }
-        return null;
     }
 
     /** Le serveur du grossiste a repondu, mais avec un code HTTP d'erreur : la commande n'est pas acceptee. */
@@ -1097,8 +1051,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
     }
 
-    private CsrpEnveloppeResponse envoyerCommandeV3(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
-            throws IOException, InterruptedException {
+    private CsrpEnveloppeResponse envoyerCommande(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste,
+            String version) throws IOException, InterruptedException {
         Entete en = payLoad.getEntete();
         PharmaMlMessages.Partenaires p = new PharmaMlMessages.Partenaires();
         p.codeOfficine = StringUtils.defaultString(en.getEmetteur().getCode());
@@ -1113,8 +1067,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         for (LigneN l : c.getNormale().getLignes()) {
             lignes.add(new PharmaMlMessages.Ligne(l.getCodeProduit(), "", Integer.parseInt(l.getQuantite())));
         }
-        String xml = PharmaMlMessages.commandeV3(p, en.getRefMessage(), c.getRefCdeClient(), c.getCommentaireGeneral(),
-                c.getDateLivraison(), lignes);
+        String xml = PharmaMlMessages.commande(version, p, en.getRefMessage(), c.getRefCdeClient(),
+                c.getCommentaireGeneral(), c.getDateLivraison(), lignes);
         String fileName = reference + "_"
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         ecrireArchive("C_" + fileName, xml);
@@ -1127,13 +1081,15 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         ecrireArchive("R_" + fileName, httpResponse.body());
         String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
         if (erreur != null) {
-            throw new RefusGrossiste(erreur, "R_" + fileName, PharmaMlMessages.V3);
+            throw new RefusGrossiste(erreur, "R_" + fileName, version);
         }
         try {
+            String corps = PharmaMlMessages.V3.equals(version) ? PharmaMlMessages.reponseV3VersV1(httpResponse.body())
+                    : httpResponse.body();
             return (CsrpEnveloppeResponse) JAXBContext.newInstance(CsrpEnveloppeResponse.class).createUnmarshaller()
-                    .unmarshal(new StringReader(PharmaMlMessages.reponseV3VersV1(httpResponse.body())));
+                    .unmarshal(new StringReader(corps));
         } catch (JAXBException ex) {
-            LOG.log(Level.SEVERE, "reponse de commande PharmaML 3.0.0.0 illisible", ex);
+            LOG.log(Level.SEVERE, "reponse de commande PharmaML " + version + " illisible", ex);
             return null;
         }
     }

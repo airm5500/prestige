@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CSRP_ENVELOPPE xmlns="urn:x-csrp:fr.csrp.protocole:enveloppe" Nature_Action="REQ_EMISSION" Version_Protocole="1.0.0.0" Id_Logiciel="EXEMPLE" Version_Logiciel="17.0.10.0" Usage="P">
+  <ENTETE>
+    <EMETTEUR Nature="OF" Code="00" Id="461" Adresse="PHARMACIE DEV-LOG"/>
+    <RECEPTEUR Nature="RE" Code="01" Id="VRI" Adresse="TEDISPHARMA TEST-DEV"/>
+    <REF_MESSAGE>20260429165836000</REF_MESSAGE>
+    <DATE>2026-04-29T16:58:36</DATE>
+  </ENTETE>
+  <CORPS>
+    <MESSAGE_OFFICINE xmlns="urn:x-csrp:fr.csrp.protocole:message">
+      <ENTETE>
+        <EMETTEUR Id_Client="461" Nature_Partenaire="OF"/>
+        <DESTINATAIRE Code_Societe="01" Id_Societe="VRI" Nature_Partenaire="RE"/>
+        <DATE>2026-04-29T16:58:36</DATE>
+      </ENTETE>
+      <CORPS>
+        <COMMANDE Ref_Cde_Client="0366319609" Commentaire_General="0366319609" Date_livraison="2026-04-29">
+          <NORMALE>
+            <LIGNE_N Num_Ligne="0001" Type_Codification="CIP39" Code_Produit="5120878" Quantite="0002" Designation="TOPICREM UH STICK LEV 5G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0002" Type_Codification="CIP39" Code_Produit="1312791" Quantite="0001" Designation="HEMOREX KIT CR T/35G+COMP BT30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0003" Type_Codification="EAN13" Code_Produit="3000000263068" Quantite="0001" Designation="TRAMFIZ INJ IM IV 100MG/2ML BT5" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0004" Type_Codification="CIP39" Code_Produit="2475070" Quantite="0001" Designation="NOVER UNE 400MG CPR BT20" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0005" Type_Codification="CIP39" Code_Produit="8716583" Quantite="0001" Designation="IDUMOL CAPS BT20" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0006" Type_Codification="CIP39" Code_Produit="2473847" Quantite="0001" Designation="ALOZOL CPR 400MG BT 100" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0007" Type_Codification="EAN13" Code_Produit="3000000844366" Quantite="0001" Designation="HEMAFER 100MG CPR A CROQUER BTE /30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0008" Type_Codification="CIP39" Code_Produit="2476253" Quantite="0001" Designation="LONGRICH PATE DENTIFRICE 200G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0009" Type_Codification="EAN13" Code_Produit="3400922385563" Quantite="0004" Designation="HELICIDINE 10% SS EDULC. SIROP FL125ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0010" Type_Codification="CIP39" Code_Produit="7112216" Quantite="0001" Designation="A CERUMEN 2ML DOSE B/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0011" Type_Codification="CIP39" Code_Produit="8391690" Quantite="0015" Designation="GYNOSPAN SUPPO B/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0012" Type_Codification="CIP39" Code_Produit="3267672" Quantite="0003" Designation="ANTADYS 100MG COMP B/15" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0013" Type_Codification="CIP39" Code_Produit="3447463" Quantite="0003" Designation="HUMEX RHUME CP+GELU B/12+4" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0014" Type_Codification="CIP39" Code_Produit="3364062" Quantite="0050" Designation="ADVILMED SUP BUV ENF/NN FL/200ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0015" Type_Codification="EAN13" Code_Produit="3582910063230" Quantite="0050" Designation="IBEX 200/235/30MG GEL B/24" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0016" Type_Codification="CIP39" Code_Produit="8359887" Quantite="0001" Designation="JUVAMINE GINSENG TONUS AMP BUV" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0017" Type_Codification="CIP39" Code_Produit="3057124" Quantite="0001" Designation="LARGACTIL 100MG COMP FL/30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0018" Type_Codification="CIP39" Code_Produit="9991001" Quantite="0001" Designation="LAROXYL 25MG COMP B/60" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0019" Type_Codification="CIP39" Code_Produit="8283262" Quantite="0001" Designation="LEUKOPLAST PERFORE 5MX18CM" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0020" Type_Codification="CIP39" Code_Produit="2257648" Quantite="0001" Designation="LEUKOPLAST PERFORE 5X10CM" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0021" Type_Codification="CIP39" Code_Produit="3192796" Quantite="0001" Designation="LOCAPRED CREME T/15G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0022" Type_Codification="CIP39" Code_Produit="3295510" Quantite="0001" Designation="LOXEN LP 50 B/60 GELLULES" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0023" Type_Codification="CIP39" Code_Produit="7649293" Quantite="0001" Designation="MARIMER SPRAY NASAL ISOT. F/100ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0024" Type_Codification="CIP39" Code_Produit="8363446" Quantite="0005" Designation="METRONYL 500MG CPR BT20" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0025" Type_Codification="CIP39" Code_Produit="3480911" Quantite="0005" Designation="DOLIPRANE NN 100MG SUPPO B/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0026" Type_Codification="CIP39" Code_Produit="3356341" Quantite="0002" Designation="NAABAK COLLYRE FL 5ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0027" Type_Codification="CIP39" Code_Produit="7018339" Quantite="0003" Designation="NURSIE 1AGE LAIT BT/400G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0028" Type_Codification="CIP39" Code_Produit="8213936" Quantite="0002" Designation="NUTRIFORT BLE SOJA B/250G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0029" Type_Codification="CIP39" Code_Produit="8371747" Quantite="0010" Designation="OROFER 50MG SP F/150ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0030" Type_Codification="CIP39" Code_Produit="2492600" Quantite="0003" Designation="OTRIVINE 0.1% GTTE NAS FL10ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0031" Type_Codification="CIP39" Code_Produit="8309872" Quantite="0020" Designation="PAIDOTERIN SOL ORALE FL100ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0032" Type_Codification="CIP39" Code_Produit="8311797" Quantite="0001" Designation="PARACETAMOL CREAT 500MG 100B/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0033" Type_Codification="CIP39" Code_Produit="8016526" Quantite="0025" Designation="RESPIBIEN GTTES NASALES F/15ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0034" Type_Codification="CIP39" Code_Produit="3091523" Quantite="0001" Designation="RIFAMYCINE CHIBR 1% COLLYRE 10ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0035" Type_Codification="CIP39" Code_Produit="7528313" Quantite="0001" Designation="ROGE CAV SAV SURGR LAIT+MIEL 150G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0036" Type_Codification="CIP39" Code_Produit="7694170" Quantite="0001" Designation="ROGE CAV SAV SURGR LAIT MIEL 2X250MG" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0037" Type_Codification="CIP39" Code_Produit="8348903" Quantite="0002" Designation="SENSODYNE PRO SOIN CPLET T/75ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0038" Type_Codification="CIP39" Code_Produit="8276003" Quantite="0001" Designation="SERING UBI ONE 3P 2,5 AIG100" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0039" Type_Codification="CIP39" Code_Produit="3186301" Quantite="0010" Designation="SPASFON LYOC 80MG CPR ORAL BT10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0040" Type_Codification="CIP39" Code_Produit="8210151" Quantite="0001" Designation="FARINOR MAIS SOJA LAIT 200G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0041" Type_Codification="CIP39" Code_Produit="3098614" Quantite="0010" Designation="SPASFON SUPPO BT 10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0042" Type_Codification="CIP39" Code_Produit="4704867" Quantite="0001" Designation="TENSOPLAST HB BANDE ADH 2,5MX15CM/1" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0043" Type_Codification="CIP39" Code_Produit="8242085" Quantite="0010" Designation="TEST GROSSESSE DAVID B/1" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0044" Type_Codification="CIP39" Code_Produit="3595784" Quantite="0001" Designation="TOPLEXIL SIROP FL 150ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0045" Type_Codification="CIP39" Code_Produit="3111154" Quantite="0002" Designation="VALDA PAST BOITE FER/60" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0046" Type_Codification="CIP39" Code_Produit="3112662" Quantite="0001" Designation="VICKS INHALER TUBE/1ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0047" Type_Codification="CIP39" Code_Produit="8371753" Quantite="0006" Designation="VIFEX 1MG SP F/100ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0048" Type_Codification="CIP39" Code_Produit="8331966" Quantite="0001" Designation="WORMIN 100MG CPR B/6" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0049" Type_Codification="CIP39" Code_Produit="8377508" Quantite="0002" Designation="XYLO ACINO 0,05% SPR NASAL F/10ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0050" Type_Codification="CIP39" Code_Produit="8377514" Quantite="0009" Designation="XYLO ACINO 0,1% SPR NASAL F/10ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0051" Type_Codification="CIP39" Code_Produit="8386157" Quantite="0005" Designation="FRANCE LAIT 1 1ER AGE B/400G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0052" Type_Codification="CIP39" Code_Produit="3684826" Quantite="0011" Designation="ZENTEL 400MG CPR BT1" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0053" Type_Codification="CIP39" Code_Produit="3312148" Quantite="0001" Designation="ZINNAT 250MG CPR B/8" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0054" Type_Codification="CIP39" Code_Produit="8349162" Quantite="0001" Designation="ZITHROMAX 500MG CPR B/3" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0055" Type_Codification="CIP39" Code_Produit="7934473" Quantite="0001" Designation="GILET CONTENT MEMB SUP T3 CPF" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0056" Type_Codification="CIP39" Code_Produit="8092906" Quantite="0004" Designation="CLAVAM 1125MG CP PELL B/12" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0057" Type_Codification="CIP39" Code_Produit="3825451" Quantite="0001" Designation="GAVISCONELL SUSP BUV MEN SS B/12" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0058" Type_Codification="CIP39" Code_Produit="8003475" Quantite="0002" Designation="AZITHRIN DRY PDRE SUSP BUV F/15ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0059" Type_Codification="CIP39" Code_Produit="8095112" Quantite="0002" Designation="SOCLAV 100MG 12,5MG/ML F/30ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0060" Type_Codification="CIP39" Code_Produit="4168624" Quantite="0005" Designation="SPASFON LYOC 160MG LYOPH ORAL/5" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0061" Type_Codification="CIP39" Code_Produit="8425331" Quantite="0002" Designation="EXIFOL GEL B/30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0062" Type_Codification="CIP39" Code_Produit="8357055" Quantite="0006" Designation="NURSIE EXPERTISE 1 LAIT PDRE B/400G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0063" Type_Codification="EAN13" Code_Produit="3000000182680" Quantite="0002" Designation="PRIMALAC PREMIUM 3 LAIT PDRE B/400G" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0064" Type_Codification="CIP39" Code_Produit="3307199" Quantite="0025" Designation="DOLIPRANE 500MG CPR EFF BT 16" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0065" Type_Codification="CIP39" Code_Produit="3481017" Quantite="0005" Designation="DOLIPRANE G.ENF 300MG SUPPO/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0066" Type_Codification="CIP39" Code_Produit="8150331" Quantite="0001" Designation="RINIALER SP FL/120ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0067" Type_Codification="CIP39" Code_Produit="8065683" Quantite="0001" Designation="CO-ARTESIANE PDR SUSP BUV FL/120ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0068" Type_Codification="CIP39" Code_Produit="8017655" Quantite="0002" Designation="UNOZIT 500MG CPR PELL 1BL3" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0069" Type_Codification="CIP39" Code_Produit="8426276" Quantite="0001" Designation="AZIX 1500MG PDRE BUV F/37,5ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0070" Type_Codification="CIP39" Code_Produit="8358675" Quantite="0001" Designation="TOPICREM AC NETT PURIF GEL F/200ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0071" Type_Codification="CIP39" Code_Produit="8059659" Quantite="0001" Designation="NEUCIPRO 0,3% COLLYRE F/5ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0072" Type_Codification="CIP39" Code_Produit="8496006" Quantite="0006" Designation="SOLFER SP F/200ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0073" Type_Codification="CIP39" Code_Produit="8062093" Quantite="0016" Designation="SPASMEX 150/150MG SUPPO B/6" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0074" Type_Codification="CIP39" Code_Produit="8081877" Quantite="0001" Designation="CHINTHER 40/240MG CPR B/12" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0075" Type_Codification="EAN13" Code_Produit="3000000271995" Quantite="0005" Designation="RINASAN ENF 0,05%FL /10ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0076" Type_Codification="CIP39" Code_Produit="8139453" Quantite="0009" Designation="VALDA PAST DIET SSUC B/60 AFR" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0077" Type_Codification="CIP39" Code_Produit="8062578" Quantite="0001" Designation="SITRUS SR CP B/30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0078" Type_Codification="EAN13" Code_Produit="3000000374092" Quantite="0001" Designation="AZEE 500MG CPR B/3 WA" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0079" Type_Codification="CIP39" Code_Produit="3335959" Quantite="0001" Designation="FERVEX GLE SS SUC SACH B/8" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0080" Type_Codification="EAN13" Code_Produit="3400926738266" Quantite="0015" Designation="MONOPROST 50ECG/ML COLL UNIDOSE 0.2ML/30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0081" Type_Codification="CIP39" Code_Produit="8425118" Quantite="0002" Designation="D-ARTEPP 80MG/640MG CPR PELL B/6" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0082" Type_Codification="CIP39" Code_Produit="8434206" Quantite="0003" Designation="PHESTAL 500MG CPR B/6" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0083" Type_Codification="CIP39" Code_Produit="8601905" Quantite="0001" Designation="PARIB C CP B/10" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0084" Type_Codification="CIP39" Code_Produit="8511622" Quantite="0001" Designation="PHYSIOMER BB SOL NAS UNID/5ML B/30 EXP" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0085" Type_Codification="CIP39" Code_Produit="8059725" Quantite="0001" Designation="AMLO VH 10MG/25MG/160MG CPR B/30" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0086" Type_Codification="EAN13" Code_Produit="3000000460117" Quantite="0004" Designation="Z-COLD SP F/100ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0087" Type_Codification="EAN13" Code_Produit="3000000526255" Quantite="0002" Designation="METFORMIN GH LP 500MG CPR B/100" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0088" Type_Codification="CIP39" Code_Produit="1205181" Quantite="0004" Designation="XYKAA EXTEND 1000MG CP B/20" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0089" Type_Codification="CIP39" Code_Produit="9999599" Quantite="0001" Designation="LYATEM 40MG/ML IM SOL INJ B/6 AMP" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0090" Type_Codification="CIP39" Code_Produit="8444297" Quantite="0004" Designation="TAXIM O FORTE 100MG/5ML PDR FL60ML" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0091" Type_Codification="CIP39" Code_Produit="8438374" Quantite="0001" Designation="SEKALGIC 400MG/500MG/30MG CPRB/12" Equivalent="false" Partielle="false" Reliquat="false"/>
+            <LIGNE_N Num_Ligne="0092" Type_Codification="CIP39" Code_Produit="8440081" Quantite="0002" Designation="ARTEFAN DT 40MG/240MG CPR DISP B/6" Equivalent="false" Partielle="false" Reliquat="false"/>
+          </NORMALE>
+        </COMMANDE>
+      </CORPS>
+    </MESSAGE_OFFICINE>
+  </CORPS>
+</CSRP_ENVELOPPE>

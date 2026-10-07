@@ -179,6 +179,16 @@ public final class PharmaMlMessages {
     /** Commande en version 3.0.0.0 (memes lignes et memes options que l'envoi 1.0.0.0 existant). */
     public static String commandeV3(Partenaires p, String reference, String refCdeClient, String commentaire,
             String dateLivraison, List<Ligne> lignes) {
+        return commande(V3, p, reference, refCdeClient, commentaire, dateLivraison, lignes);
+    }
+
+    /**
+     * Commande dans l'enveloppe de la version : CSRP 1.0.0.0 ou SRP 3.0.0.0, sur le modele des echanges reels (espace
+     * de noms du message declare sur MESSAGE_OFFICINE, sans prefixe). Designation omise si inconnue (le schema l'impose
+     * non vide quand elle est presente).
+     */
+    public static String commande(String version, Partenaires p, String reference, String refCdeClient,
+            String commentaire, String dateLivraison, List<Ligne> lignes) {
         StringBuilder c = new StringBuilder("        <COMMANDE Ref_Cde_Client=\"").append(esc(refCdeClient))
                 .append("\" Commentaire_General=\"").append(esc(tronque(commentaire, 255)))
                 .append("\" Date_livraison=\"").append(esc(dateLivraison)).append("\">\n          <NORMALE>\n");
@@ -186,12 +196,15 @@ public final class PharmaMlMessages {
         for (Ligne l : lignes) {
             c.append("            <LIGNE_N Num_Ligne=\"").append(pad4(i++)).append("\" Type_Codification=\"")
                     .append(l.typeCodification).append("\" Code_Produit=\"").append(esc(l.code))
-                    .append("\" Quantite=\"").append(pad4(l.quantite)).append("\" Designation=\"")
-                    .append(esc(tronque(l.designation, 50)))
-                    .append("\" Equivalent=\"false\" Partielle=\"false\" Reliquat=\"false\"/>\n");
+                    .append("\" Quantite=\"").append(pad4(l.quantite)).append("\"");
+            String d = tronque(l.designation == null ? "" : l.designation.trim(), 50);
+            if (!d.isEmpty()) {
+                c.append(" Designation=\"").append(esc(d)).append("\"");
+            }
+            c.append(" Equivalent=\"false\" Partielle=\"false\" Reliquat=\"false\"/>\n");
         }
         c.append("          </NORMALE>\n        </COMMANDE>\n");
-        return enveloppe(V3, p, reference, c.toString());
+        return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
     }
 
     /**
