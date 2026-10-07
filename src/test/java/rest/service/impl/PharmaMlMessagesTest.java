@@ -178,4 +178,20 @@ public class PharmaMlMessagesTest {
                 PharmaMlMessages.erreurReponse("<X><ERREUR>  stock\n epuise </ERREUR></X>"));
         org.junit.jupiter.api.Assertions.assertFalse(PharmaMlMessages.enveloppeV1Attendue("stock epuise"));
     }
+
+    /**
+     * Vraie reponse de DPCI (07/10) en 1.0.0.0 : ERREUR Statut="11" Detail="Elément de contrôle (Content-PharmaML)
+     * absent."
+     */
+    @org.junit.jupiter.api.Test
+    void erreurStatutDetailDpci() throws Exception {
+        String xml;
+        try (java.io.InputStream in = getClass().getResourceAsStream("/pharmaml/R_DPCI_controle_absent_v1.xml")) {
+            xml = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        String e = PharmaMlMessages.erreurReponse(xml);
+        org.junit.jupiter.api.Assertions.assertEquals("statut 11 : Elément de contrôle (Content-PharmaML) absent.", e);
+        org.junit.jupiter.api.Assertions.assertTrue(PharmaMlMessages.erreurControle(e));
+        org.junit.jupiter.api.Assertions.assertFalse(PharmaMlMessages.enveloppeV1Attendue(e));
+    }
 }

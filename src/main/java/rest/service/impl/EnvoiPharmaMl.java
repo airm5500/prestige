@@ -58,15 +58,59 @@ public final class EnvoiPharmaMl {
 
     public static Resultat envoyer(List<String> adresses, String xml, Duration delaiConnexion, Duration delaiReponse)
             throws IOException, InterruptedException {
+        return envoyer(adresses, xml, null, null, delaiConnexion, delaiReponse);
+    }
+
+    /** Nom de l'en-tete HTTP de controle exige par certains repartiteurs (ex. DPCI : statut 11 s'il manque). */
+    public static final String ENTETE_CONTROLE = "Content-PharmaML";
+    /** Modes de calcul du controle (parametre KEY_PHARMAML_CONTROLE). */
+    public static final String HMAC_MD5 = "HMAC_MD5", MD5_CLE_FIN = "MD5_CLE_FIN", MD5_CLE_DEBUT = "MD5_CLE_DEBUT",
+            AUCUN = "AUCUN";
+
+    /**
+     * Valeur de l'en-tete Content-PharmaML : empreinte du message (octets UTF-8 exactement envoyes) avec la cle de
+     * l'officine chez le grossiste, encodee en base64. null si pas de cle ou mode AUCUN. La cle n'est jamais
+     * journalisee.
+     */
+    public static String controle(String xml, String cle, String mode) {
+        String m = StringUtils.defaultIfBlank(StringUtils.upperCase(StringUtils.trim(mode)), HMAC_MD5);
+        if (StringUtils.isEmpty(cle) || AUCUN.equals(m)) {
+            return null;
+        }
+        byte[] corps = xml.getBytes(StandardCharsets.UTF_8), k = cle.getBytes(StandardCharsets.UTF_8);
+        try {
+            byte[] empreinte;
+            if (MD5_CLE_FIN.equals(m) || MD5_CLE_DEBUT.equals(m)) {
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                md.update(MD5_CLE_DEBUT.equals(m) ? k : corps);
+                md.update(MD5_CLE_DEBUT.equals(m) ? corps : k);
+                empreinte = md.digest();
+            } else {
+                javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacMD5");
+                mac.init(new javax.crypto.spec.SecretKeySpec(k, "HmacMD5"));
+                empreinte = mac.doFinal(corps);
+            }
+            return java.util.Base64.getEncoder().encodeToString(empreinte);
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("controle PharmaML", e);
+        }
+    }
+
+    public static Resultat envoyer(List<String> adresses, String xml, String cle, String mode, Duration delaiConnexion,
+            Duration delaiReponse) throws IOException, InterruptedException {
+        String controle = controle(xml, cle, mode);
         HttpClient client = HttpClient.newBuilder().connectTimeout(delaiConnexion).build();
         IOException derniere = null;
         for (int i = 0; i < adresses.size(); i++) {
             String url = adresses.get(i);
             try {
+                HttpRequest.Builder req = HttpRequest.newBuilder().uri(URI.create(url)).timeout(delaiReponse)
+                        .header("Content-Type", "text/xml; charset=UTF-8");
+                if (controle != null) {
+                    req.header(ENTETE_CONTROLE, controle);
+                }
                 HttpResponse<String> r = client.send(
-                        HttpRequest.newBuilder().uri(URI.create(url)).timeout(delaiReponse)
-                                .header("Content-Type", "text/xml; charset=UTF-8")
-                                .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
+                        req.POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
                         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (i > 0) {
                     LOG.log(Level.INFO, "PharmaML : message envoye par l''adresse de secours {0}", url);

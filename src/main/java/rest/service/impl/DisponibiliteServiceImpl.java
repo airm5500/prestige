@@ -119,8 +119,10 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         List<Tuple> g = em.createNativeQuery("SELECT g.str_LIBELLE AS libelle, g.str_URL_PHARMAML AS url,"
                 + " g.str_OFFICINE_ID AS codeOf, g.str_ID_RECEPTEUR_PHARMA AS idOf, g.str_CODE_RECEPTEUR_PHARMA AS codeRe,"
                 + " g.idrepartiteur AS idRe, g.str_PHARMAML_VERSION_INFO AS version,"
-                + " g.str_URL_PHARMAML_SECOURS AS secours FROM t_grossiste g" + " WHERE g.lg_GROSSISTE_ID = :g",
-                Tuple.class).setParameter("g", gid).getResultList();
+                + " g.str_URL_PHARMAML_SECOURS AS secours, g.str_CLE_RECEPTEUR AS cle,"
+                + " (SELECT p.str_VALUE FROM t_parameters p WHERE p.str_KEY = 'KEY_PHARMAML_CONTROLE') AS controle"
+                + " FROM t_grossiste g" + " WHERE g.lg_GROSSISTE_ID = :g", Tuple.class).setParameter("g", gid)
+                .getResultList();
         if (g.isEmpty()) {
             return new JSONObject().put("success", false).put("msg", "Grossiste introuvable");
         }
@@ -178,7 +180,8 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         try {
             /* adresse de secours essayee seulement si la principale est injoignable */
             HttpResponse<String> http = EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(url, (String) gr.get("secours")),
-                    xml, Duration.ofSeconds(20), Duration.ofSeconds(90)).reponse;
+                    xml, (String) gr.get("cle"), (String) gr.get("controle"), Duration.ofSeconds(20),
+                    Duration.ofSeconds(90)).reponse;
             reponse = http.body();
             archiver("RI_" + fichier, reponse == null ? "" : reponse);
             if (http.statusCode() != 200) {

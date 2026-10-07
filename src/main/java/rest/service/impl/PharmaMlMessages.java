@@ -298,9 +298,17 @@ public final class PharmaMlMessages {
             tous.add(0, d.getDocumentElement());
             for (Element e : tous) {
                 if ("ERREUR".equals(nom(e))) {
+                    /* selon le repartiteur : Description_libre, ou Statut + Detail (DPCI), ou le texte */
                     String t = e.getAttribute("Description_libre");
                     if (t == null || t.trim().isEmpty()) {
+                        t = e.getAttribute("Detail");
+                    }
+                    if (t == null || t.trim().isEmpty()) {
                         t = e.getTextContent();
+                    }
+                    String statut = e.getAttribute("Statut");
+                    if (statut != null && !statut.trim().isEmpty()) {
+                        t = "statut " + statut.trim() + " : " + (t == null ? "" : t);
                     }
                     t = t == null ? "" : t.replaceAll("\\s+", " ").trim();
                     return t.isEmpty() ? "erreur sans description" : (t.length() > 300 ? t.substring(0, 300) + "…" : t);
@@ -310,6 +318,11 @@ public final class PharmaMlMessages {
             return null; /* illisible : traite plus loin comme reponse non exploitable */
         }
         return null;
+    }
+
+    /** Le grossiste reclame ou rejette l'element de controle Content-PharmaML (calcul avec la cle). */
+    public static boolean erreurControle(String erreur) {
+        return erreur != null && erreur.toUpperCase(Locale.ROOT).contains("CONTENT-PHARMAML");
     }
 
     /** Le grossiste rejette l'enveloppe 3.0.0.0 (il attend une enveloppe CSRP 1.0.0.0). */

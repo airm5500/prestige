@@ -108,4 +108,44 @@ class EnvoiPharmaMlTest {
         assertEquals(List.of("http://a/", "http://b/"), EnvoiPharmaMl.adresses("http://a/", "http://b/"));
         assertEquals(List.of(), EnvoiPharmaMl.adresses(null, null));
     }
+
+    /** Vecteur de la RFC 2104 (HMAC-MD5) : cle « Jefe ». */
+    @Test
+    void controleHmacMd5() {
+        byte[] hex = new byte[16];
+        String h = "750c783e6ab0b503eaa86e310a5db738";
+        for (int i = 0; i < 16; i++) {
+            hex[i] = (byte) Integer.parseInt(h.substring(2 * i, 2 * i + 2), 16);
+        }
+        String attendu = java.util.Base64.getEncoder().encodeToString(hex);
+        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", "Jefe", null));
+        assertEquals(attendu, EnvoiPharmaMl.controle("what do ya want for nothing?", "Jefe", "hmac_md5"));
+    }
+
+    @Test
+    void controleAutresModesEtAbsences() throws Exception {
+        java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+        String fin = java.util.Base64.getEncoder()
+                .encodeToString(md.digest("<X/>4083".getBytes(StandardCharsets.UTF_8)));
+        String debut = java.util.Base64.getEncoder()
+                .encodeToString(md.digest("4083<X/>".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(fin, EnvoiPharmaMl.controle("<X/>", "4083", "MD5_CLE_FIN"));
+        assertEquals(debut, EnvoiPharmaMl.controle("<X/>", "4083", "MD5_CLE_DEBUT"));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "", "HMAC_MD5"));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", null, null));
+        assertEquals(null, EnvoiPharmaMl.controle("<X/>", "4083", "AUCUN"));
+    }
+
+    @Test
+    void enteteEnvoyeAvecLeMessage() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> recu = new java.util.concurrent.atomic.AtomicReference<>();
+        serveur.createContext("/controle", e -> {
+            recu.set(e.getRequestHeaders().getFirst("Content-PharmaML"));
+            repondre(e, 200, "<R/>", new AtomicInteger());
+        });
+        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X>é</X>", "ShFD", null, C, R);
+        assertEquals(EnvoiPharmaMl.controle("<X>é</X>", "ShFD", "HMAC_MD5"), recu.get());
+        EnvoiPharmaMl.envoyer(List.of(base + "/controle"), "<X/>", null, null, C, R);
+        assertEquals(null, recu.get(), "sans cle : pas d'en-tete (comportement d'avant)");
+    }
 }

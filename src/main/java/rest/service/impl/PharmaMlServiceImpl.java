@@ -212,6 +212,18 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     }
 
+    /** Calcul de l'en-tete Content-PharmaML (parametre KEY_PHARMAML_CONTROLE, HMAC_MD5 par defaut). */
+    String modeControle() {
+        try {
+            List<?> r = em
+                    .createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_PHARMAML_CONTROLE'")
+                    .getResultList();
+            return r.isEmpty() ? null : (String) r.get(0);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** Adresse principale puis, si elle est renseignee, l'adresse de secours du grossiste. */
     private List<String> adresses(TGrossiste grossiste) {
         return EnvoiPharmaMl.adresses(grossiste.getStrURLPHARMAML(), urlSecours(grossiste.getLgGROSSISTEID()));
@@ -263,8 +275,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         createSaveXmlFile(marshaller, payLoad, "C", fileName);
 
-        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), sw.toString(), DELAI_CONNEXION,
-                DELAI_REPONSE).reponse;
+        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), sw.toString(),
+                grossiste.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION, DELAI_REPONSE).reponse;
         return processResponse(httpResponse, fileName);
 
     }
@@ -370,7 +382,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         String conseil = PharmaMlMessages.V3.equals(r.version) && PharmaMlMessages.enveloppeV1Attendue(r.getMessage())
                 ? " Ce grossiste n'accepte pas PharmaML 3.0.0.0 : dans sa fiche, réglez « PharmaML : commande » sur"
                         + " 1.0.0.0 puis renvoyez la commande."
-                : "";
+                : PharmaMlMessages.erreurControle(r.getMessage()) ? (StringUtils.isBlank(grossiste.getStrCLERECEPTEUR())
+                        ? " Ce grossiste exige le contrôle calculé avec la clé de l'officine : renseignez la clé"
+                                + " fournie par le grossiste."
+                        : " Le contrôle calculé avec la clé n'est pas reconnu : vérifiez la clé fournie par le"
+                                + " grossiste (majuscules et minuscules comptent) ; à défaut, essayez un autre"
+                                + " calcul (paramètre KEY_PHARMAML_CONTROLE : HMAC_MD5, MD5_CLE_FIN, MD5_CLE_DEBUT).")
+                        : "";
         return nom + " a refusé la commande : « " + r.getMessage() + " ». La commande n'a pas été prise en compte."
                 + conseil + " Réponse archivée : " + r.archive + ".xml";
     }
@@ -1100,8 +1118,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         String fileName = reference + "_"
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         ecrireArchive("C_" + fileName, xml);
-        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), xml, DELAI_CONNEXION,
-                DELAI_REPONSE).reponse;
+        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), xml,
+                grossiste.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION, DELAI_REPONSE).reponse;
         if (httpResponse.statusCode() != 200) {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
