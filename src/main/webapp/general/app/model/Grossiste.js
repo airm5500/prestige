@@ -90,6 +90,19 @@ Ext.define('testextjs.model.Grossiste', {
         name: 'str_URL_PHARMAML',
         type: 'string'
     },
+    /* PharmaML : versions et adresse de secours (sans ces champs, la fiche ne les recevait pas) */
+    {
+        name: 'str_PHARMAML_VERSION_INFO',
+        type: 'string'
+    },
+    {
+        name: 'str_PHARMAML_VERSION_CMDE',
+        type: 'string'
+    },
+    {
+        name: 'str_URL_PHARMAML_SECOURS',
+        type: 'string'
+    },
     {
         name: 'str_CODE_RECEPTEUR_PHARMA',
         type: 'string'

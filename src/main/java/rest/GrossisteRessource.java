@@ -173,13 +173,14 @@ public class GrossisteRessource {
     @Path("pharmaml-version")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response versionsPharmaMl(@FormParam("lg_GROSSISTE_ID") String grossisteId,
-            @FormParam("versionInfo") String versionInfo, @FormParam("versionCommande") String versionCommande) {
+            @FormParam("versionInfo") String versionInfo, @FormParam("versionCommande") String versionCommande,
+            @FormParam("urlSecours") String urlSecours) {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok()
-                .entity(grossisteService.versionsPharmaMl(grossisteId, versionInfo, versionCommande).toString())
+        return Response.ok().entity(
+                grossisteService.versionsPharmaMl(grossisteId, versionInfo, versionCommande, urlSecours).toString())
                 .build();
     }
 }

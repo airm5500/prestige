@@ -195,6 +195,22 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     }
 
+    /** Adresse principale puis, si elle est renseignee, l'adresse de secours du grossiste. */
+    private List<String> adresses(TGrossiste grossiste) {
+        return EnvoiPharmaMl.adresses(grossiste.getStrURLPHARMAML(), urlSecours(grossiste.getLgGROSSISTEID()));
+    }
+
+    String urlSecours(String grossisteId) {
+        try {
+            List<?> r = em
+                    .createNativeQuery("SELECT str_URL_PHARMAML_SECOURS FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1")
+                    .setParameter(1, grossisteId).getResultList();
+            return r.isEmpty() ? null : (String) r.get(0);
+        } catch (Exception e) {
+            return null; /* colonne absente (migration non passee) : pas de secours */
+        }
+    }
+
     static final String REPONSE_ILLISIBLE = "Le grossiste n'a pas renvoyé de réponse exploitable. Le message envoyé et la"
             + " réponse sont archivés dans le dossier PharmaML.";
 
@@ -227,12 +243,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         createSaveXmlFile(marshaller, payLoad, "C", fileName);
 
-        HttpClient client = getHttpClient();
-        HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
-                .timeout(DELAI_REPONSE).header("Content-Type", "text/xml; charset=UTF-8")
-                .POST(HttpRequest.BodyPublishers.ofString(sw.toString())).build();
-
-        HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), sw.toString(), DELAI_CONNEXION,
+                DELAI_REPONSE).reponse;
         return processResponse(httpResponse, fileName);
 
     }
@@ -783,7 +795,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     }
 
     /** Message lisible quand le serveur du grossiste n'est pas joignable (rien n'a ete envoye ou recu). */
-    static String messageReseau(TGrossiste grossiste, Throwable ex) {
+    String messageReseau(TGrossiste grossiste, Throwable ex) {
+        String secours = urlSecours(grossiste.getLgGROSSISTEID());
         String nom = StringUtils.trimToEmpty(grossiste.getStrLIBELLE());
         String url = StringUtils.trimToEmpty(grossiste.getStrURLPHARMAML());
         if (ex instanceof java.net.http.HttpTimeoutException
@@ -793,6 +806,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
         String cause = adresseIntrouvable(ex) ? "adresse introuvable" : "connexion impossible";
         return "Le serveur PharmaML de " + nom + " ne répond pas (" + cause + " : " + url
+                + (StringUtils.isBlank(secours) || secours.trim().equals(url) ? ""
+                        : ", adresse de secours " + secours.trim() + " également injoignable")
                 + "). La commande n'a pas été envoyée. Vérifiez l'adresse PharmaML du grossiste et l'accès internet du serveur.";
     }
 
@@ -1038,11 +1053,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         String fileName = reference + "_"
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         ecrireArchive("C_" + fileName, xml);
-        HttpResponse<String> httpResponse = getHttpClient().send(
-                HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML())).timeout(DELAI_REPONSE)
-                        .header("Content-Type", "text/xml; charset=UTF-8")
-                        .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), xml, DELAI_CONNEXION,
+                DELAI_REPONSE).reponse;
         if (httpResponse.statusCode() != 200) {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);

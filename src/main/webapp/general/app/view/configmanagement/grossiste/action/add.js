@@ -99,6 +99,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
         var form = new Ext.form.Panel({
             bodyPadding: 10,
             layout: 'anchor',
+            autoScroll: true, /* petits ecrans : la fiche defile au lieu d'etre coupee */
             fieldDefaults: {
                 labelAlign: 'right',
                 labelWidth: 160,
@@ -108,9 +109,10 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                     xtype: 'fieldset',
                     title: 'Information Grossiste',
                     defaultType: 'textfield',
-                    layout: 'vbox',
+                    /* lignes etirees sur toute la largeur, hauteur selon le contenu (plus de colonne coupee a
+                     * droite ni de grand blanc) */
+                    layout: {type: 'vbox', align: 'stretch'},
                     anchor: '100%',
-                    height: 360,
                     defaults: {
                         anchor: '100%'
                     },
@@ -361,11 +363,12 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     id: 'str_URL_PHARMAML',
                                     fieldLabel: 'lien pharmaML',
                                     emptyText: 'lien pharmaML',
-                                    flex: 1
+                                    flex: 1.5
                                 },
                                 {
                                     name: 'str_CODE_RECEPTEUR_PHARMA',
                                     id: 'str_CODE_RECEPTEUR_PHARMA',
+                                    labelWidth: 120,
                                     fieldLabel: 'Code recepteur',
                                     emptyText: 'Code recepteur',
                                     flex: 1
@@ -373,6 +376,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     name: 'str_ID_RECEPTEUR_PHARMA',
                                     id: 'str_ID_RECEPTEUR_PHARMA',
+                                    labelWidth: 120,
                                     fieldLabel: 'Code Client',
                                     emptyText: 'Code Client',
                                     flex: 1
@@ -380,6 +384,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     name: 'str_OFFICINE_ID',
                                     id: 'str_OFFICINE_ID',
+                                    labelWidth: 120,
                                     fieldLabel: 'Identifiant Officine',
                                     emptyText: 'Identifiant Officine',
                                     flex: 1
@@ -406,6 +411,22 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '3.0.0.0'}, {v: '1.0.0.0'}]}),
                                     disabled: Omode !== 'update',
                                     tooltip: 'Réglable après la création du grossiste'
+                                },
+                                {
+                                    /* Retours du 07/10 : adresse de secours (ex. DPCI : URL secondaire), essayee seulement
+                                     * si l'adresse principale est injoignable */
+                                    xtype: 'textfield', id: 'str_URL_PHARMAML_SECOURS', name: 'str_URL_PHARMAML_SECOURS',
+                                    fieldLabel: 'Lien PharmaML secours', emptyText: 'http://… (facultatif)',
+                                    flex: 1, maxLength: 255, disabled: Omode !== 'update',
+                                    regex: /^(https?:\/\/\S+)?$/i,
+                                    regexText: 'L\'adresse doit commencer par http:// ou https://',
+                                    listeners: {
+                                        afterrender: function (c) {
+                                            Ext.create('Ext.tip.ToolTip', {target: c.getEl(), dismissDelay: 15000,
+                                                html: 'Utilisée uniquement si le lien principal ne répond pas (connexion impossible ou adresse introuvable). '
+                                                        + 'Jamais après une réponse du grossiste : une commande n\'est pas envoyée deux fois.'});
+                                        }
+                                    }
                                 }
                             ]
                         }
@@ -477,6 +498,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             Ext.getCmp('str_OFFICINE_ID').setValue(this.getOdatasource().str_OFFICINE_ID);
             Ext.getCmp('str_PHARMAML_VERSION_INFO').setValue(this.getOdatasource().str_PHARMAML_VERSION_INFO || '3.0.0.0');
             Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '3.0.0.0');
+            Ext.getCmp('str_URL_PHARMAML_SECOURS').setValue(this.getOdatasource().str_URL_PHARMAML_SECOURS || '');
 
         }
 
@@ -484,7 +506,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             autoShow: true,
             title: this.getTitre(),
             width: '80%',
-            height: 400,
+            height: Math.min(380, Ext.getBody().getViewSize().height - 40),
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
@@ -563,7 +585,14 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                             Ext.Ajax.request({
                                 url: url_services_rest_grossiste + 'pharmaml-version', method: 'POST',
                                 params: {lg_GROSSISTE_ID: ref, versionInfo: Ext.getCmp('str_PHARMAML_VERSION_INFO').getValue(),
-                                    versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue()}
+                                    versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(),
+                                    urlSecours: Ext.String.trim(Ext.getCmp('str_URL_PHARMAML_SECOURS').getValue() || '')},
+                                success: function (r) {
+                                    var o = Ext.JSON.decode(r.responseText, true) || {};
+                                    if (o.success === false && o.msg) {
+                                        Ext.MessageBox.alert('PharmaML', o.msg);
+                                    }
+                                }
                             });
                         }
                         Ext.MessageBox.alert('Confirmation', object.errors);

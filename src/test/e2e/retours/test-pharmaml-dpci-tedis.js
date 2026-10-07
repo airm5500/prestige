@@ -5,6 +5,9 @@
  *    Id_Repartiteur du grossiste ; memes lignes ; reponse traitee (success) ;
  *  - serveur injoignable (port ferme) : message clair « ne répond pas … n'a pas été envoyée », en moins de
  *    25 s, plus de blocage ; adresse inconnue : « adresse introuvable » ;
+ *  - adresse de secours (DPCI) : principale injoignable -> commande envoyee par le secours ; principale qui REPOND
+ *    (403) -> pas de second envoi ; les deux injoignables -> message citant les deux ; fiche grossiste : champ
+ *    « Lien PharmaML de secours » rempli, adresse invalide refusee (ecran et serveur) ;
  *  - commandes d'essai retirees, adresses des grossistes remises.
  */
 const { execFileSync } = require('child_process');
@@ -38,13 +41,14 @@ function poser(G) {
   P.forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
     + " VALUES ('" + CMD + "-" + i + "', '" + CMD + "', '" + p + "', '" + G + "', " + (i + 2) + ", 0, 1000, 2000, 'is_Process', NOW(), NOW())"));
 }
+const secours = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML_SECOURS = " + (u === null ? 'NULL' : "'" + u + "'") + " WHERE lg_GROSSISTE_ID = '" + G + "'");
 const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === null ? 'NULL' : "'" + u + "'") + " WHERE lg_GROSSISTE_ID = '" + G + "'");
 
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   for (const [n, G] of Object.entries(GROSSISTES)) {
-    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
-    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4] };
+    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
+    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5] };
   }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
@@ -58,6 +62,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     for (const [n, G] of Object.entries(GROSSISTES)) {
       const s = sauves[n];
       ok(n + ' : version de commande réglée sur 3.0.0.0', s.version === '3.0.0.0', s.version);
+      secours(G, null);
       url(G, 'http://127.0.0.1:' + PORT + '/PharmaML/');
       poser(G);
       recus.length = 0;
@@ -75,10 +80,55 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       const j = JSON.parse(k.r);
       ok(n + ' : serveur injoignable → message clair en moins de 25 s', j.success === false && /ne répond pas/.test(j.msg) && /n'a pas été envoyée/.test(j.msg) && k.ms < 25000, k.ms + ' ms ' + k.r);
     }
+    /* ---- adresse de secours (DPCI) */
+    const D = GROSSISTES.DPCI;
+    url(D, 'http://127.0.0.1:1/PharmaML/'); secours(D, 'http://127.0.0.1:' + PORT + '/secours/');
+    poser(D); recus.length = 0;
+    const s1 = JSON.parse((await envoyer()).r);
+    ok('Secours : principale injoignable → commande envoyée par l\'adresse de secours et traitée', s1.success === true && recus.length === 1, JSON.stringify(s1));
+    url(D, 'http://127.0.0.1:' + PORT + '/refus/');
+    poser(D); recus.length = 0;
+    const s2 = JSON.parse((await envoyer()).r);
+    ok('Secours : principale qui répond (403) → pas de second envoi', s2.success === false && /HTTP 403/.test(s2.msg) && recus.length === 1, recus.length + ' ' + JSON.stringify(s2));
+    url(D, 'http://127.0.0.1:1/PharmaML/'); secours(D, 'http://127.0.0.1:2/PharmaML/');
+    poser(D);
+    const s3 = JSON.parse((await envoyer()).r);
+    ok('Secours : les deux injoignables → message citant les deux adresses', s3.success === false && /ne répond pas/.test(s3.msg) && /adresse de secours http:\/\/127\.0\.0\.1:2/.test(s3.msg), JSON.stringify(s3));
+    /* API de la fiche : adresse invalide refusee, vide = retiree */
+    const api = (u) => p.evaluate(async (a) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ lg_GROSSISTE_ID: a.g, versionInfo: '3.0.0.0', versionCommande: '3.0.0.0', urlSecours: a.u }).toString() })).text(), { g: D, u });
+    const a1 = JSON.parse(await api('ftp://x'));
+    const a2 = JSON.parse(await api('javascript:alert(1)'));
+    ok('Fiche (serveur) : adresse de secours invalide refusée', a1.success === false && a2.success === false && /http:\/\//.test(a1.msg), JSON.stringify([a1, a2]));
+    const a3 = JSON.parse(await api('  http://dpciml.dpci.ci/PharmaML/  '));
+    ok('Fiche (serveur) : adresse valide enregistrée sans espaces', a3.success === true && q("SELECT str_URL_PHARMAML_SECOURS FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === 'http://dpciml.dpci.ci/PharmaML/', JSON.stringify(a3));
+    /* Ecran : fiche grossiste en modification (version commande mise a 1.0.0.0 pour verifier qu'elle est bien lue) */
+    exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '1.0.0.0' WHERE lg_GROSSISTE_ID = '" + D + "'");
+    await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
+    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('grossistemanager', 'Grossistes', ''));
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; return g && g.getStore && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
+    await p.evaluate((D) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; const st = g.getStore(); let i = st.findExact('lg_GROSSISTE_ID', D);
+      if (i < 0) { st.getProxy().extraParams.search_value = 'DPCI'; } }, D);
+    await p.waitForTimeout(500);
+    const ouvert = await p.evaluate((D) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; const st = g.getStore(); const i = st.findExact('lg_GROSSISTE_ID', D);
+      if (i < 0) { return 'absent'; } g.onEditClick(g, i); return 'ok'; }, D);
+    await p.waitForFunction(() => Ext.getCmp('str_URL_PHARMAML_SECOURS') && Ext.getCmp('str_URL_PHARMAML_SECOURS').rendered, null, { timeout: 20000 });
+    await p.waitForTimeout(500);
+    const ecran = await p.evaluate(() => { const c = Ext.getCmp('str_URL_PHARMAML_SECOURS'); const v = c.getValue(); const lab = c.labelEl ? c.labelEl.dom : null;
+      c.setValue('ftp://x'); const inval = !c.isValid(); c.setValue(v);
+      const box = c.getEl().dom.getBoundingClientRect(), corps = c.up('window').body.dom.getBoundingClientRect();
+      const visible = box.bottom <= corps.bottom + 1 && box.right <= corps.right + 1 && box.width > 150;
+      return { v, visible, cmde: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(), actif: !c.isDisabled(), inval, valide: c.isValid(), tronque: lab ? lab.scrollWidth > lab.clientWidth + 1 : true }; });
+    exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '" + sauves.DPCI.version + "' WHERE lg_GROSSISTE_ID = '" + D + "'");
+    ok('Fiche (écran) : la version réellement réglée est affichée (1.0.0.0), plus de retour forcé à 3.0.0.0', ecran.cmde === '1.0.0.0', JSON.stringify(ecran));
+    ok('Fiche (écran) : champ « Lien PharmaML de secours » visible sans défiler, rempli, modifiable, adresse invalide signalée, libellé entier', ouvert === 'ok' && ecran.v === 'http://dpciml.dpci.ci/PharmaML/' && ecran.visible && ecran.actif && ecran.inval && ecran.valide && !ecran.tronque, ouvert + ' ' + JSON.stringify(ecran));
+    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/grossiste-url-secours.png' });
+    await p.evaluate(() => { const w = Ext.getCmp('str_URL_PHARMAML_SECOURS').up('window'); if (w) { w.close(); } });
     url(GROSSISTES.TEDIS, 'http://127.0.0.1:' + PORT + '/refus/');
     poser(GROSSISTES.TEDIS);
     const r403 = JSON.parse((await envoyer()).r);
     ok('Grossiste qui refuse (HTTP 403) → message avec le code et la réponse archivée', r403.success === false && /a répondu HTTP 403/.test(r403.msg) && /accès refusé/.test(r403.msg) && /R_LOG_/.test(r403.msg), JSON.stringify(r403));
+    secours(GROSSISTES.DPCI, null);
     url(GROSSISTES.DPCI, 'http://grossiste-inexistant.invalid/PharmaML/');
     poser(GROSSISTES.DPCI);
     const u = JSON.parse((await envoyer()).r);
@@ -89,9 +139,10 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     await b.close();
     serveur.close();
     nettoyer();
-    for (const [n, G] of Object.entries(GROSSISTES)) { url(G, sauves[n].url); }
+    for (const [n, G] of Object.entries(GROSSISTES)) { url(G, sauves[n].url); secours(G, sauves[n].secours); }
     ok('Commandes d\'essai retirées, adresses remises', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'") === '0'
-      && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === (sauves.DPCI.url || 'NULL'));
+      && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === (sauves.DPCI.url || 'NULL')
+      && q("SELECT IFNULL(str_URL_PHARMAML_SECOURS, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === (sauves.DPCI.secours || 'NULL'));
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
     process.exit(ko ? 1 : 0);

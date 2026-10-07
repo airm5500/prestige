@@ -118,8 +118,9 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         String gid = StringUtils.isNotBlank(grossisteId) ? grossisteId : grossisteDeLaSource(source, sourceId);
         List<Tuple> g = em.createNativeQuery("SELECT g.str_LIBELLE AS libelle, g.str_URL_PHARMAML AS url,"
                 + " g.str_OFFICINE_ID AS codeOf, g.str_ID_RECEPTEUR_PHARMA AS idOf, g.str_CODE_RECEPTEUR_PHARMA AS codeRe,"
-                + " g.idrepartiteur AS idRe, g.str_PHARMAML_VERSION_INFO AS version FROM t_grossiste g"
-                + " WHERE g.lg_GROSSISTE_ID = :g", Tuple.class).setParameter("g", gid).getResultList();
+                + " g.idrepartiteur AS idRe, g.str_PHARMAML_VERSION_INFO AS version,"
+                + " g.str_URL_PHARMAML_SECOURS AS secours FROM t_grossiste g" + " WHERE g.lg_GROSSISTE_ID = :g",
+                Tuple.class).setParameter("g", gid).getResultList();
         if (g.isEmpty()) {
             return new JSONObject().put("success", false).put("msg", "Grossiste introuvable");
         }
@@ -175,11 +176,9 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         archiver("I_" + fichier, xml);
         String reponse;
         try {
-            HttpResponse<String> http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build()
-                    .send(HttpRequest.newBuilder().uri(URI.create(url)).timeout(Duration.ofSeconds(90))
-                            .header("Content-Type", "text/xml; charset=UTF-8")
-                            .POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
-                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            /* adresse de secours essayee seulement si la principale est injoignable */
+            HttpResponse<String> http = EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(url, (String) gr.get("secours")),
+                    xml, Duration.ofSeconds(20), Duration.ofSeconds(90)).reponse;
             reponse = http.body();
             archiver("RI_" + fichier, reponse == null ? "" : reponse);
             if (http.statusCode() != 200) {
