@@ -399,7 +399,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
+            /* Ergonomie (07/10) : la barre unique sortait de l'ecran en 1366 px (« Diagnostic produit » coupe) ;
+               creation, fusion et recherche sur la premiere ligne, Top Nx, coches et diagnostic sur la seconde. */
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
                 {
                     text: 'Suggerer',
                     scope: this,
@@ -468,8 +473,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             Me.onRechClick();
                         }
                     }
-                },
-                '->',
+                }
+                    ]
+                }, {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
                 {
                     xtype: 'numberfield',
                     itemId: 'nxField',
@@ -519,7 +528,8 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     scope: this,
                     handler: this.onDiagnosticClick
                 }
-            ],
+                    ]
+                }],
             bbar: {
                 xtype: 'pagingtoolbar',
                 pageSize: itemsPerPage,

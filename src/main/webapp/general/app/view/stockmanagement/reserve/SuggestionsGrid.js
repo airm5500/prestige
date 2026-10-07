@@ -83,7 +83,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         });
         storeMotifs.load();
 
-        // Tous les filtres sur UNE seule ligne, separes par de vrais separateurs.
+        // Les filtres sur la premiere ligne, separes par de vrais separateurs.
         // Choisir dans une liste lance directement la recherche : plus besoin de cliquer.
         var filtres = [
             {xtype: 'textfield', itemId: 'fSearch', emptyText: 'Produit ou CIP', width: 150,
@@ -151,8 +151,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             {xtype: 'datefield', itemId: 'fFin', emptyText: 'Au', format: 'd/m/Y', width: 100,
                 listeners: {select: function () {
                         me.onRechercher();
-                    }}},
-            '-',
+                    }}}
+        ];
+
+        // Seconde ligne : les actions. La barre unique etait pleine, les boutons finissaient
+        // hors du champ visible des que la fenetre retrecissait.
+        // Ergonomie (07/10) : le controle et le tri y passent aussi ; en 1366 px ils sortaient
+        // de la premiere ligne.
+        var actions = [
             combo('fControle', 'Controle : tous', [
                 {valeur: 'N', libelle: 'A controler'},
                 {valeur: 'O', libelle: 'Controlees'}
@@ -162,12 +168,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {valeur: 'date', libelle: 'Tri : date'},
                 {valeur: 'statut', libelle: 'Tri : statut'},
                 {valeur: 'utilisateur', libelle: 'Tri : utilisateur'}
-            ], 130)
-        ];
-
-        // Seconde ligne : les actions. La barre unique etait pleine, les boutons finissaient
-        // hors du champ visible des que la fenetre retrecissait.
-        var actions = [
+            ], 130),
+            '-',
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
             '-',

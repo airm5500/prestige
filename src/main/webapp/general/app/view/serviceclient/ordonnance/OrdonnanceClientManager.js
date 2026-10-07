@@ -2178,8 +2178,11 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
                             iconCls: 'add',
                             cls: 'ordo-btn'
                         }, {
+                            // Ergonomie (07/10) : la note prend la place restante et passe a la ligne au besoin
+                            // (sur une seule ligne, elle sortait de la carte en 1366 px).
                             xtype: 'tbtext',
-                            style: 'color:#777',
+                            flex: 1,
+                            style: 'color:#777;white-space:normal;line-height:16px',
                             text: 'Modification directe, enregistrée aussitôt. Décocher « Actif » retire'
                                     + ' de la fiche sans effacer des ordonnances.'
                         }]

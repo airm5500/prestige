@@ -561,7 +561,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             xtype: 'tbtext',
                             text: 'Heures du jour cumul&eacute;es sur la p&eacute;riode ; '
                                     + 'clients ramen&eacute;s &agrave; l\'heure tenue.'
-                        }, '->', {
+                        }]
+                }, {
+                    /* Ergonomie (07/10) : en 1366 px, une seule barre coupait les reglages a droite ;
+                     * l'historique et l'effectif passent sur une seconde ligne. */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
                             // H3 : la meme lecture sur l'HISTORIQUE des gardes cochees, heures tenues
                             // additionnees : c'est ce qui dit ou il faut du monde, garde apres garde.
                             text: 'Sur les gardes coch&eacute;es',
@@ -806,7 +812,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             itemId: 'commandesResume',
                             text: 'Produits command&eacute;s pour la garde, rapproch&eacute;s de ce qui s\'en est '
                                     + 'vendu pendant la garde.'
-                        }, '->', {
+                        }]
+                }, {
+                    /* Ergonomie (07/10) : le resume charge occupe a lui seul une ligne en 1366 px ; les
+                     * actions et le compte apres filtre passent sur la ligne suivante. */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
                             /*
                              * LA PREPARATION (21/09) : « les gardes se preparent la semaine ou les jours d'avant ».
                              * Les commandes des N jours avant le debut de la garde comptent comme preparation ; les
@@ -838,6 +850,8 @@ Ext.define('testextjs.view.garde.GardeManager', {
                         }, {
                             text: 'Exporter', itemId: 'commandesExporter', iconCls: 'export_excel_icon',
                             tooltip: 'Exporter au format Excel'
+                        }, '->', {
+                            xtype: 'tbtext', itemId: 'commandesCompte', text: ''
                         }]
                 }, {
                     /* Les filtres, tous appliques SUR PLACE : recherche, stock, quantite vendue, statut. */
@@ -845,7 +859,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                     dock: 'top',
                     items: [{
                             xtype: 'textfield', itemId: 'commandesRecherche', fieldLabel: 'Produit', labelWidth: 48,
-                            width: 250, emptyText: 'CIP ou nom', enableKeyEvents: true
+                            width: 190, emptyText: 'CIP ou nom', enableKeyEvents: true
                         }, '-', operateur('commandesStockOp', 'Stock'), {
                             xtype: 'numberfield', itemId: 'commandesStockVal', width: 70, hideTrigger: true,
                             emptyText: 'valeur', enableKeyEvents: true
@@ -858,7 +872,7 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             itemId: 'commandesFiltre',
                             fieldLabel: 'Afficher',
                             labelWidth: 55,
-                            width: 190,
+                            width: 165,
                             store: Ext.create('Ext.data.ArrayStore', {
                                 data: [['', 'Tous'], ['vendu', 'Vendus'], ['non', 'Non vendus']],
                                 fields: ['value', 'libelle']
@@ -870,8 +884,6 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             value: ''
                         }, {
                             text: 'Effacer', itemId: 'commandesEffacer', tooltip: 'Effacer les filtres'
-                        }, '->', {
-                            xtype: 'tbtext', itemId: 'commandesCompte', text: ''
                         }]
                 }],
             columns: [
@@ -1117,8 +1129,13 @@ Ext.define('testextjs.view.garde.GardeManager', {
                             text: '<b>Evolution</b> : chiffre d\'affaires rapport&eacute; &agrave; la garde '
                                     + 'pr&eacute;c&eacute;dente. <b>Par heure</b> : seule base comparable entre '
                                     + 'gardes de dur&eacute;es diff&eacute;rentes.'
-                        }, '->',
-                        {
+                        }]
+                }, {
+                    /* Ergonomie (07/10) : le choix des gardes a comparer, sur sa propre ligne (en 1366 px
+                     * il etait coupe au bord droit, derriere l'explication). */
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [{
                             xtype: 'combobox',
                             itemId: 'nombreGardes',
                             fieldLabel: 'Comparer les',
