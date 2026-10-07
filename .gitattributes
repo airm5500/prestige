@@ -1,0 +1,3 @@
+# Messages PharmaML de reference : octets exacts (l'empreinte Content-PharmaML porte sur les octets envoyes ;
+# une conversion des fins de ligne a l'extraction sous Windows les changerait).
+src/test/resources/pharmaml/** -text

@@ -157,7 +157,11 @@ class EnvoiPharmaMlTest {
     void controleCsrpEgalAuCalculDeDpci() throws Exception {
         String xml;
         try (java.io.InputStream in = getClass().getResourceAsStream("/pharmaml/C_DPCI_commande_v1.xml")) {
-            xml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            /*
+             * message envoye a DPCI avec des fins de ligne « \n » : une extraction Git sous Windows peut les convertir
+             * en « \r\n », ce qui changerait l'empreinte
+             */
+            xml = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
         }
         assertEquals("09999080000000004083", EnvoiPharmaMl.donneeSecrete("0999908", "4083"));
         assertEquals("jbRS0FUm//7Dq2m4sJg0rQ==", EnvoiPharmaMl.controle(xml, "0999908", "4083", null));
