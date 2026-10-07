@@ -22,9 +22,6 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 /* ecrans d'action (ouverture de caisse, vente en cours...) ou qui ne sont pas des listes */
 const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', 'ventedepot', 'tableaubord', 'dashboard',
   'mainmenumanager', 'supportcontact', 'preenregistrementmanager_new',
-  /* « Achats fournisseurs » : procedure stockee de plus de 2 min sur la base d'essai (lenteur a traiter a part) ; l'ouvrir
-     occupe un fil du serveur pendant des minutes */
-  'achatfourManager',
   /* « Menu personnel » : fonction desactivee par parametre sur la base d'essai, l'ecran s'ouvre sur une erreur */
   'kobysky'];
 

@@ -598,6 +598,7 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
 
         var fenetre = Ext.create('Ext.window.Window', {
             title: enModification ? 'Modifier la demande' : 'Nouvelle vente ratée',
+            vrSaisie: true,
             modal: true,
             width: 650,
             bodyPadding: 12,
@@ -890,6 +891,14 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                     margin: '0 12 0 0'
                 }],
             listeners: {
+                /* la fenetre de saisie ouverte d'office ne doit jamais survivre a la liste du jour */
+                destroy: function () {
+                    Ext.WindowManager.each(function (w) {
+                        if (w.vrSaisie && !w.isDestroyed) {
+                            w.close();
+                        }
+                    });
+                },
                 afterrender: function () {
                     recharger();
                     // « Nombre de produits : N » en rouge, bien visible : les produits

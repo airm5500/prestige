@@ -28,10 +28,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 700) + ']' : '')); }
 /* ecrans d'action (vente en cours, ouverture de caisse...) : ils ont leurs propres essais */
 const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', 'ventedepot', 'tableaubord', 'dashboard',
-  'mainmenumanager', 'supportcontact', 'preenregistrementmanager_new',
-  /* « Achats fournisseurs » : procedure stockee de plus de 2 min sur la base d'essai (lenteur a traiter a part) ; l'ouvrir
-     occupe un fil du serveur pendant des minutes */
-  'achatfourManager'];
+  'mainmenumanager', 'supportcontact', 'preenregistrementmanager_new'];
 const CREER = /^\s*(\+\s*)?(ajouter|nouveau|nouvelle|nouvel|cr[ée]er)\b/i;
 const ENREGISTRER = /^\s*(enregistrer|valider|sauvegarder|ajouter|cr[ée]er|confirmer|ok)\b/i;
 const DATE_IMPOSSIBLE = '31/02/2026';

@@ -19,7 +19,7 @@ const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', p
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', 'ventedepot', 'tableaubord', 'dashboard',
-  'mainmenumanager', 'supportcontact', 'preenregistrementmanager_new', 'kobysky', 'achatfourManager'];
+  'mainmenumanager', 'supportcontact', 'preenregistrementmanager_new', 'kobysky'];
 
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
