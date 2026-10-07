@@ -93,6 +93,28 @@ public class ReglementRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    private static LocalDate dateOu(String v, LocalDate defaut) {
+        try {
+            return v == null || v.isBlank() ? defaut : LocalDate.parse(v.trim().substring(0, 10));
+        } catch (RuntimeException e) {
+            return defaut;
+        }
+    }
+
+    /** Onglet « Solde » de la gestion des differes (retours du 07/10). */
+    @GET
+    @Path("releve")
+    public Response releveDifferes(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "clientId") String clientId) {
+        LocalDate au = dateOu(dtEnd, LocalDate.now());
+        LocalDate du = dateOu(dtStart, au.withDayOfMonth(1));
+        if (du.isAfter(au)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début est après la date de fin.").toString()).build();
+        }
+        return Response.ok(reglementService.releveDifferes(du, au, clientId).toString()).build();
+    }
+
     @GET
     @Path("details")
     public Response detailsDifferes(@QueryParam(value = "ref") String ref) throws JSONException {

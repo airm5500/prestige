@@ -1037,4 +1037,60 @@ public class ReglementServiceImpl implements ReglementService {
                 .collect(Collectors.toList());
     }
 
+    /* ------------------------------------------------------------------ releve des differes (retours du 07/10) */
+
+    /** Ventes mises en differe : montant du (int_PRICE de la part differee), date de la vente. */
+    private static final String VENTES_DIFFEREES = " FROM t_preenregistrement_compte_client tp"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tp.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = tp.lg_COMPTE_CLIENT_ID"
+            + " JOIN t_client c ON c.lg_CLIENT_ID = cc.lg_CLIENT_ID JOIN t_user u ON u.lg_USER_ID = tp.lg_USER_ID"
+            + " WHERE tp.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND u.lg_EMPLACEMENT_ID = ?1"
+            + " AND (?2 = '' OR c.lg_CLIENT_ID = ?2)";
+
+    /** Reglements de differes : mouvements de type « Reglements differes », client = organisme. */
+    private static final String REGLEMENTS = " FROM mvttransaction m LEFT JOIN t_client c ON c.lg_CLIENT_ID = m.organisme"
+            + " WHERE m.typeMvtCaisseId = '" + Constant.MVT_REGLE_DIFF + "' AND m.checked = 1"
+            + " AND m.lg_EMPLACEMENT_ID = ?1 AND (?2 = '' OR m.organisme = ?2)";
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject releveDifferes(LocalDate du, LocalDate au, String clientId) {
+        try {
+            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            String client = clientId == null ? "" : clientId.trim();
+            java.sql.Timestamp debut = java.sql.Timestamp.valueOf(du.atStartOfDay());
+            java.sql.Timestamp fin = java.sql.Timestamp.valueOf(au.plusDays(1).atStartOfDay());
+            EntityManager em = getEmg();
+            Number ventesAvant = (Number) em
+                    .createNativeQuery(
+                            "SELECT COALESCE(SUM(tp.int_PRICE), 0)" + VENTES_DIFFEREES + " AND p.dt_UPDATED < ?3")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
+            Number reglesAvant = (Number) em
+                    .createNativeQuery("SELECT COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS + " AND m.createdAt < ?3")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
+            List<ReleveDifferes.Operation> ops = new ArrayList<>();
+            for (Object[] r : (List<Object[]>) em
+                    .createNativeQuery("SELECT p.dt_UPDATED, p.str_REF,"
+                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), tp.int_PRICE" + VENTES_DIFFEREES
+                            + " AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
+                    .setMaxResults(20000).getResultList()) {
+                ops.add(new ReleveDifferes.Operation(((java.sql.Timestamp) r[0]).toLocalDateTime(), "Vente différée",
+                        (String) r[1], (String) r[2], ((Number) r[3]).longValue(), 0));
+            }
+            for (Object[] r : (List<Object[]>) em
+                    .createNativeQuery("SELECT m.createdAt, m.reference,"
+                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), m.montantRegle" + REGLEMENTS
+                            + " AND m.createdAt >= ?3 AND m.createdAt < ?4")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
+                    .setMaxResults(20000).getResultList()) {
+                ops.add(new ReleveDifferes.Operation(((java.sql.Timestamp) r[0]).toLocalDateTime(), "Règlement",
+                        (String) r[1], (String) r[2], 0, r[3] == null ? 0 : ((Number) r[3]).longValue()));
+            }
+            return ReleveDifferes.releve(ventesAvant.longValue() - reglesAvant.longValue(), ops);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "releve des differes", e);
+            return new JSONObject().put("success", false).put("msg", "Le relevé n'a pas pu être calculé.");
+        }
+    }
 }

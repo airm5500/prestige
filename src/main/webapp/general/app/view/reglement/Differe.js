@@ -570,7 +570,87 @@ Ext.define('testextjs.view.reglement.Differe', {
             me.items.reverse();
         }
         me.callParent(arguments);
+        /* retours du 07/10 : onglet « Solde » (releve date et heure, debit, credit, solde, solde de fin de mois) */
+        me.add(me.ongletSolde());
+    },
+
+    ongletSolde: function () {
+        var me = this, f = function (v) {
+            return String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        };
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['type', 'date', 'libelle', 'reference', 'client', {name: 'debit', type: 'int'}, {name: 'credit', type: 'int'},
+                {name: 'solde', type: 'int'}],
+            proxy: {type: 'ajax', url: '../api/v1/reglement/releve', reader: {type: 'json', root: 'data'}}
+        });
+        var clients = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.caisse.ClientLambda', pageSize: 100,
+            proxy: {type: 'ajax', url: '../api/v1/client/differes', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        var charger = function () {
+            var g = me.down('#grilleSolde');
+            store.load({params: {dtStart: g.down('#soldeDu').getSubmitValue(), dtEnd: g.down('#soldeAu').getSubmitValue(),
+                    clientId: g.down('#soldeClient').getValue() || ''}});
+        };
+        store.on('load', function (s, r, ok) {
+            var o = s.getProxy().getReader().rawData || {}, g = me.down('#grilleSolde');
+            if (o.success === false) {
+                Ext.MessageBox.alert('Solde des différés', Ext.String.htmlEncode(o.msg || 'Relevé indisponible.'));
+                return;
+            }
+            g.down('#soldeResume').update('Solde au début : <b>' + f(o.soldeInitial) + '</b> · Débit (ventes) : <b>' + f(o.totalDebit)
+                    + '</b> · Crédit (règlements) : <b>' + f(o.totalCredit) + '</b> · Solde à la fin : <b style="color:#c0392b">'
+                    + f(o.soldeFinal) + '</b>');
+        });
+        var montant = function (v, m, r) {
+            if (r.get('type') === 'MOIS') {
+                m.tdCls = 'differe-mois';
+            }
+            return v ? f(v) : '';
+        };
+        return {
+            xtype: 'gridpanel', title: 'SOLDE', itemId: 'grilleSolde', store: store,
+            viewConfig: {emptyText: 'Aucune vente différée ni règlement sur la période.', deferEmptyText: false,
+                getRowClass: function (r) {
+                    return r.get('type') === 'MOIS' ? 'differe-ligne-mois' : '';
+                }},
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'datefield', itemId: 'soldeDu', fieldLabel: 'Du', labelWidth: 25, width: 145, format: 'd/m/Y',
+                            submitFormat: 'Y-m-d', value: Ext.Date.getFirstDateOfMonth(new Date())},
+                        {xtype: 'datefield', itemId: 'soldeAu', fieldLabel: 'Au', labelWidth: 25, width: 145, format: 'd/m/Y',
+                            submitFormat: 'Y-m-d', value: new Date()},
+                        {xtype: 'combobox', itemId: 'soldeClient', store: clients, valueField: 'lgCLIENTID', displayField: 'fullName',
+                            width: 280, minChars: 2, queryMode: 'remote', emptyText: 'Tous les clients (ou choisir un client)',
+                            listeners: {select: charger, change: function (c, v) {
+                                    if (!v) {
+                                        charger();
+                                    }
+                                }}},
+                        {text: 'Rechercher', iconCls: 'searchicon', handler: charger}]},
+                {xtype: 'toolbar', dock: 'top', items: [{xtype: 'component', itemId: 'soldeResume', html: ''}]}],
+            columns: [
+                {text: 'Date et heure', dataIndex: 'date', width: 130},
+                {text: 'Opération', dataIndex: 'libelle', flex: 1, minWidth: 170, renderer: function (v, m, r) {
+                        return r.get('type') === 'MOIS' ? '<b>' + Ext.String.htmlEncode(v) + '</b>' : Ext.String.htmlEncode(v)
+                                + (r.get('reference') ? ' <span style="color:#7f8c8d">· ' + Ext.String.htmlEncode(r.get('reference')) + '</span>' : '');
+                    }},
+                {text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150, renderer: function (v) {
+                        return Ext.String.htmlEncode(v);
+                    }},
+                {text: 'Débit', dataIndex: 'debit', width: 110, align: 'right', renderer: montant,
+                    tooltip: 'Vente mise en différé : le client doit ce montant'},
+                {text: 'Crédit', dataIndex: 'credit', width: 110, align: 'right', renderer: montant,
+                    tooltip: 'Règlement du client : diminue ce qu\'il doit'},
+                {text: 'Solde', dataIndex: 'solde', width: 120, align: 'right', tooltip: 'Reste dû après l\'opération (solde précédent + débit − crédit)',
+                    renderer: function (v, m, r) {
+                        return '<b>' + f(v) + '</b>';
+                    }}
+            ],
+            listeners: {activate: function () {
+                    if (!store.getCount()) {
+                        charger();
+                    }
+                }}
+        };
     }
 });
-
-

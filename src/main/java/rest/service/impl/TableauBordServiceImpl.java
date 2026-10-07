@@ -19,9 +19,11 @@ import org.json.JSONObject;
 import rest.service.TableauBordService;
 
 /**
- * Nouveau tableau de bord : les formules de {@code bll.report.Dashboard} (memes conditions, memes colonnes de date)
- * rendues parametrables par la date, et les lectures nouvelles du plan (valorisation rayon / reserve, encaissements par
- * mode, alertes, emplacements). Une methode = une carte = une requete (ou deux) : rien n'est lu pour une carte retiree.
+ * Nouveau tableau de bord : les formules de {@code bll.report.Dashboard} (memes conditions, memes colonnes de date ;
+ * verifie carte par carte le 07/10 : courbe, valorisation, groupes de grossistes, mouvements et tops alignes sur
+ * l'ancien) rendues parametrables par la date, et les lectures nouvelles du plan (valorisation rayon / reserve,
+ * encaissements par mode, alertes, emplacements). Une methode = une carte = une requete (ou deux) : rien n'est lu pour
+ * une carte retiree.
  *
  * <p>
  * Remarque sur la marge : l'ancienne requete ecrit {@code CASE WHEN d.int_PRICE_REMISE != NULL}, toujours faux en SQL ;
@@ -198,14 +200,14 @@ public class TableauBordServiceImpl implements TableauBordService {
         JSONObject o = new JSONObject().put("annee", annee);
         try {
             /*
-             * getCaGrapheData, sur deux annees : la demandee et la precedente (comparaison N-1). Les ventes ANNULEES
-             * sont ecartees, comme pour la tuile du CA et le pilotage (l'ancienne courbe les comptait, ce qui gonflait
-             * le mois d'une annulation).
+             * getCaGrapheData, sur deux annees : la demandee et la precedente (comparaison N-1). Memes conditions que
+             * l'ancienne courbe, ventes annulees comprises (retours du 07/10 : « je ne veux pas de difference avec
+             * l'ancien »).
              */
             List<Object[]> l = lignes(
                     "SELECT YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED), SUM(p.int_PRICE - p.int_PRICE_REMISE)"
-                            + " FROM t_preenregistrement p WHERE" + VENTE_OK
-                            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2"
+                            + " FROM t_preenregistrement p WHERE p.lg_TYPE_VENTE_ID <> '5' AND p.int_PRICE > 0"
+                            + " AND p.str_STATUT = 'is_Closed'" + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2"
                             + " GROUP BY YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED)",
                     ts(LocalDate.of(annee - 1, 1, 1)), ts(LocalDate.of(annee + 1, 1, 1)));
             long[] n0 = new long[12], n1 = new long[12];
@@ -238,13 +240,17 @@ public class TableauBordServiceImpl implements TableauBordService {
             Object[] r = ligne("SELECT COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PAF), 0),"
                     + " COALESCE(SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE), 0) FROM t_famille_stock s"
                     + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = ?1"
-                    + " AND f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 0", emplacementId);
+                    /*
+                     * memes conditions que l'ancien tableau de bord (ProduitServiceImpl.valorisationStock) : lignes de
+                     * stock actives, stocks negatifs compris (retours du 07/10 : aucune difference avec l'ancien)
+                     */
+                    + " AND f.str_STATUT = 'enable' AND s.str_STATUT = 'enable'", emplacementId);
             /* Reserve : meme source que la fiche article (t_type_stock_famille, type 2). */
             Object[] v = ligne(
                     "SELECT COALESCE(SUM(t.int_NUMBER * f.int_PAF), 0), COALESCE(SUM(t.int_NUMBER * f.int_PRICE), 0)"
                             + " FROM t_type_stock_famille t JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID"
                             + " WHERE t.lg_TYPE_STOCK_ID = '2' AND t.lg_EMPLACEMENT_ID = ?1 AND f.str_STATUT = 'enable'"
-                            + " AND t.int_NUMBER > 0",
+                            + " AND t.str_STATUT = 'enable'",
                     emplacementId);
             long ra = n(at(r, 0)), rv = n(at(r, 1)), sa = n(at(v, 0)), sv = n(at(v, 1));
             o.put("rayon", new JSONObject().put("achat", ra).put("vente", rv))
@@ -347,12 +353,15 @@ public class TableauBordServiceImpl implements TableauBordService {
             long solde = 0;
             for (Object[] r : l) {
                 int cat = (int) n(r[2]);
+                /*
+                 * montant avec son signe tel qu'enregistre, comme l'ancien tableau de bord (getListMVT) ; la categorie
+                 * ne fait que la couleur (2 sortie, 3 achat : rouge) - retours du 07/10
+                 */
                 long montant = Math.round(d(r[1]));
-                boolean sortie = cat == 2 || cat == 3 || montant < 0;
-                long signe = sortie ? -Math.abs(montant) : Math.abs(montant);
-                solde += signe;
-                a.put(new JSONObject().put("libelle", t(r[0])).put("montant", signe).put("categorie", cat).put("sortie",
-                        sortie));
+                boolean sortie = cat == 2 || cat == 3;
+                solde += montant;
+                a.put(new JSONObject().put("libelle", t(r[0])).put("montant", montant).put("categorie", cat)
+                        .put("sortie", sortie));
             }
             o.put("data", a).put("solde", solde);
         } catch (Exception e) {
@@ -567,7 +576,9 @@ public class TableauBordServiceImpl implements TableauBordService {
                 ca.put(new JSONObject().put("libelle", t(r[0])).put("quantite", n(r[1])).put("valeur", n(r[2]))
                         .put("cip", t(r[3])));
             }
-            for (Object[] r : lignes(base + " ORDER BY SUM(d.int_QUANTITY) DESC LIMIT " + max, ts(jour),
+            /* comme getTOP5ArticleVendueQTY : les produits a quantite nulle ou negative ne figurent pas */
+            for (Object[] r : lignes(
+                    base + " HAVING SUM(d.int_QUANTITY) > 0 ORDER BY SUM(d.int_QUANTITY) DESC LIMIT " + max, ts(jour),
                     ts(jour.plusDays(1)))) {
                 qte.put(new JSONObject().put("libelle", t(r[0])).put("valeur", n(r[1])).put("ca", n(r[2])).put("cip",
                         t(r[3])));
@@ -603,12 +614,52 @@ public class TableauBordServiceImpl implements TableauBordService {
 
     @Override
     public JSONObject grossistes(LocalDate jour, int limite) {
-        /* getAllAchatByGrossiste : HT des BL clotures du mois, a la date de saisie. */
+        if (limite > 0) {
+            return groupesGrossistes(jour);
+        }
+        /*
+         * « Voir plus » = getAllAchatByGrossiste : HT des BL clotures du mois, a la date de saisie, un par grossiste.
+         */
         return liste("SELECT g.str_LIBELLE, SUM(b.int_MHT) FROM t_bon_livraison b, t_order o, t_grossiste g"
                 + " WHERE o.lg_ORDER_ID = b.lg_ORDER_ID AND o.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID AND b.dt_UPDATED >= ?1"
                 + " AND b.dt_UPDATED <= ?2 AND b.str_STATUT = 'is_Closed' GROUP BY g.lg_GROSSISTE_ID, g.str_LIBELLE"
                 + " ORDER BY SUM(b.int_MHT) DESC" + (limite > 0 ? " LIMIT " + limite : ""), "grossistes",
                 ts(jour.withDayOfMonth(1)), ts(finMois(jour)));
+    }
+
+    /**
+     * Carte « Achats par grossiste » : les 5 groupes de l'ancien tableau de bord (getValeurAchatByGrossiste), dans le
+     * meme ordre et avec les memes regles (UBIPHARM = UBI% ou LABOR%, puis DPCI, COPHARMED, TEDIS PHARMA, AUTRES) ; la
+     * part de chacun est donc calculee sur TOUS les achats du mois (retours du 07/10 : aucune difference avec
+     * l'ancien).
+     */
+    private JSONObject groupesGrossistes(LocalDate jour) {
+        JSONObject o = new JSONObject();
+        try {
+            Object[] r = ligne("SELECT"
+                    + " SUM(CASE WHEN g.str_LIBELLE LIKE 'UBI%' OR g.str_LIBELLE LIKE 'LABOR%' THEN b.int_MHT ELSE 0 END),"
+                    + " SUM(CASE WHEN g.str_LIBELLE LIKE 'DPCI%' THEN b.int_MHT ELSE 0 END),"
+                    + " SUM(CASE WHEN g.str_LIBELLE LIKE 'COPHARMED%' THEN b.int_MHT ELSE 0 END),"
+                    + " SUM(CASE WHEN g.str_LIBELLE LIKE 'TEDIS PHARMA%' THEN b.int_MHT ELSE 0 END),"
+                    + " SUM(CASE WHEN g.str_LIBELLE NOT LIKE 'TEDIS PHARMA%' AND g.str_LIBELLE NOT LIKE 'COPHARMED%'"
+                    + " AND g.str_LIBELLE NOT LIKE 'DPCI%' AND g.str_LIBELLE NOT LIKE 'UBI%' AND g.str_LIBELLE NOT LIKE 'LABOR%'"
+                    + " THEN b.int_MHT ELSE 0 END), COUNT(b.lg_BON_LIVRAISON_ID)"
+                    + " FROM t_bon_livraison b, t_order o, t_grossiste g WHERE o.lg_ORDER_ID = b.lg_ORDER_ID"
+                    + " AND o.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID AND b.str_STATUT = 'is_Closed'"
+                    + " AND b.dt_UPDATED >= ?1 AND b.dt_UPDATED <= ?2", ts(jour.withDayOfMonth(1)), ts(finMois(jour)));
+            JSONArray a = new JSONArray();
+            if (n(at(r, 5)) > 0) {
+                String[] noms = { "UBIPHARM", "DPCI", "COPHARMED", "TEDIS PHARMA", "AUTRES" };
+                for (int i = 0; i < noms.length; i++) {
+                    a.put(new JSONObject().put("libelle", noms[i]).put("valeur", n(at(r, i))));
+                }
+            }
+            o.put("data", a).put("groupes", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "tableau de bord : groupes de grossistes", e);
+            o.put("erreur", true);
+        }
+        return o;
     }
 
     @Override
@@ -649,7 +700,10 @@ public class TableauBordServiceImpl implements TableauBordService {
                         + " JOIN t_compte_client_tiers_payant cc ON tp.lg_TIERS_PAYANT_ID = cc.lg_TIERS_PAYANT_ID"
                         + " JOIN t_preenregistrement_compte_client_tiers_payent c ON cc.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
                         + " JOIN t_preenregistrement p ON c.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                        /* meme jointure que getBestClients : seuls les tiers payants d'un type connu */
+                        + " JOIN t_type_tiers_payant ty ON ty.lg_TYPE_TIERS_PAYANT_ID = tp.lg_TYPE_TIERS_PAYANT_ID"
                         + " WHERE p.str_STATUT = 'is_Closed' AND c.str_STATUT_FACTURE = 'unpaid' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+                        + " AND ty.lg_TYPE_TIERS_PAYANT_ID"
                         + " AND p.dt_CREATED >= ?1 AND p.dt_CREATED <= ?2 GROUP BY tp.str_FULLNAME ORDER BY SUM(c.int_PRICE) DESC"
                         + (limite > 0 ? " LIMIT " + limite : ""),
                 "tiers payants", ts(jour.withDayOfMonth(1)), ts(finMois(jour)));

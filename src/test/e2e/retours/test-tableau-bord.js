@@ -91,15 +91,43 @@ const n = (v) => Number(v || 0);
     const achBl = await api('../api/v1/tableau-bord/tuiles?achats=bl&date=' + D);
     const nbBl = q("SELECT COUNT(*) FROM t_bon_livraison WHERE str_STATUT = 'is_Closed' AND dt_DATE_LIVRAISON >= '" + D + "' AND dt_DATE_LIVRAISON < DATE_ADD('" + D + "', INTERVAL 1 DAY)");
     ok('Tuile achats (date BL) : BL à la date du grossiste', achBl.achats.mode === 'bl' && achBl.achats.bl === n(nbBl), achBl.achats.bl + ' / ' + nbBl);
-    const ev = await api('../api/v1/tableau-bord/evolution?annee=' + new Date().getFullYear());
+    const ev = await api('../api/v1/tableau-bord/evolution?frais=1&annee=' + new Date().getFullYear());
     const vieux = await api('../api/v1/recap/dashboard/ca-graphe');
     const cles = ['jan', 'fev', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'sept', 'oct', 'nov', 'dec'];
     const an = new Date().getFullYear();
-    const annul = q("SELECT GROUP_CONCAT(CONCAT(m, ':', v)) FROM (SELECT MONTH(dt_UPDATED) m, SUM(int_PRICE - int_PRICE_REMISE) v FROM t_preenregistrement WHERE lg_TYPE_VENTE_ID <> '5' AND int_PRICE > 0"
-      + " AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 1 AND dt_UPDATED >= '" + an + "-01-01' AND dt_UPDATED < '" + (an + 1) + "-01-01' GROUP BY MONTH(dt_UPDATED)) x");
-    const parMois = {}; (annul === 'NULL' ? '' : annul).split(',').filter(Boolean).forEach((x) => { const [m, v] = x.split(':'); parMois[Number(m) - 1] = Number(v); });
-    ok('Courbe de l\'année : ancienne courbe moins les ventes annulées (que l\'ancienne comptait)', cles.every((k, i) => n(vieux[k]) - (parMois[i] || 0) === ev.mois[i]),
-      'écart dû aux annulations : ' + JSON.stringify(parMois));
+    /* retours du 07/10 : « je ne veux pas de difference avec l'ancien » : la courbe compte les ventes annulees comme
+       l'ancienne, mois par mois a l'identique */
+    ok('Courbe de l\'année : identique à l\'ancienne courbe, mois par mois (ventes annulées comprises, comme avant)',
+      cles.every((k, i) => n(vieux[k]) === ev.mois[i]), JSON.stringify(cles.map((k, i) => n(vieux[k]) + '/' + ev.mois[i])));
+    /* valorisation, groupes de grossistes, mouvements : memes chiffres que les routes de l'ancien tableau de bord */
+    const valoVieux = ((await api('../api/v1/produit/valorisation?mode=0&dtStart=' + new Date().toISOString().slice(0, 10))) || {}).data || {};
+    const valoNeuf = await api('../api/v1/tableau-bord/valorisation?frais=1');
+    ok('Valorisation du stock (rayon) = ancien tableau de bord (stocks négatifs compris, lignes actives)',
+      n(valoVieux.totalValue) === valoNeuf.rayon.achat && n(valoVieux.totalValueTwo) === valoNeuf.rayon.vente,
+      valoVieux.totalValue + '/' + valoNeuf.rayon.achat + ' ; ' + valoVieux.totalValueTwo + '/' + valoNeuf.rayon.vente);
+    const auj = new Date().toISOString().slice(0, 10);
+    const groVieux = await api('../api/v1/recap/dashboard/achat-grossiste');
+    const groNeuf = await api('../api/v1/tableau-bord/grossistes?limite=5&frais=1&date=' + auj);
+    const g = groVieux.data || [];
+    const attenduGro = (g.length ? [n(g[0].LABOREX), n(g[1].DPCI), n(g[2].COPHARMED), n(g[3].TEDISPHARMA), n(g[4].AUTRES)] : []).join(',');
+    ok('Carte grossistes : les 5 groupes de l\'ancien (UBIPHARM, DPCI, COPHARMED, TEDIS PHARMA, AUTRES), mêmes montants',
+      groNeuf.data.map((x) => x.valeur).join(',') === attenduGro && (!groNeuf.data.length || groNeuf.data.map((x) => x.libelle).join('|') === 'UBIPHARM|DPCI|COPHARMED|TEDIS PHARMA|AUTRES'),
+      groNeuf.data.map((x) => x.libelle + ' ' + x.valeur).join(', ') + ' / ancien ' + attenduGro);
+    /* sur un mois qui a des achats (juillet 2026), la requete exacte de l'ancien getValeurAchatByGrossiste */
+    const juillet = await api('../api/v1/tableau-bord/grossistes?limite=5&frais=1&date=2026-07-31');
+    const juilSql = q("SELECT CONCAT_WS(',', SUM(CASE WHEN g.str_LIBELLE LIKE 'UBI%' OR g.str_LIBELLE LIKE 'LABOR%' THEN b.int_MHT ELSE 0 END),"
+      + " SUM(CASE WHEN g.str_LIBELLE LIKE 'DPCI%' THEN b.int_MHT ELSE 0 END), SUM(CASE WHEN g.str_LIBELLE LIKE 'COPHARMED%' THEN b.int_MHT ELSE 0 END),"
+      + " SUM(CASE WHEN g.str_LIBELLE LIKE 'TEDIS PHARMA%' THEN b.int_MHT ELSE 0 END), SUM(CASE WHEN g.str_LIBELLE NOT LIKE 'TEDIS PHARMA%' AND g.str_LIBELLE NOT LIKE 'COPHARMED%'"
+      + " AND g.str_LIBELLE NOT LIKE 'DPCI%' AND g.str_LIBELLE NOT LIKE 'UBI%' AND g.str_LIBELLE NOT LIKE 'LABOR%' THEN b.int_MHT ELSE 0 END))"
+      + " FROM t_bon_livraison b, t_order o, t_grossiste g WHERE o.lg_ORDER_ID = b.lg_ORDER_ID AND o.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID"
+      + " AND b.str_STATUT = 'is_Closed' AND b.dt_UPDATED >= '2026-07-01' AND b.dt_UPDATED < '2026-08-01'");
+    ok('Carte grossistes, juillet 2026 : mêmes 5 groupes et montants que la requête de l\'ancien', juillet.data.map((x) => x.valeur).join(',') === juilSql && juilSql !== '0,0,0,0,0',
+      juillet.data.map((x) => x.libelle + ' ' + x.valeur).join(', ') + ' / ancien ' + juilSql);
+    const mvVieux = await api('../api/v1/recap/dashboard/mouvements');
+    const mvNeuf = await api('../api/v1/tableau-bord/mouvements?frais=1&date=' + auj);
+    const mvA = (mvVieux.data || []).map((x) => Math.round(Number(x.AMOUNT))).sort().join(',');
+    const mvB = mvNeuf.data.map((x) => x.montant).sort().join(',');
+    ok('Mouvements de caisse : montants avec leur signe, comme l\'ancien', mvA === mvB, mvA + ' / ' + mvB);
     const topJ = await api('../api/v1/tableau-bord/top-jour?limite=5&date=' + D);
     const topSql = q("SELECT GROUP_CONCAT(x.v ORDER BY x.v DESC SEPARATOR ',') FROM (SELECT SUM(d.int_PRICE) v FROM t_preenregistrement_detail d, t_preenregistrement p, t_famille f WHERE p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID AND f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
       + " AND p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.dt_CREATED >= '" + D + "' AND p.dt_CREATED < DATE_ADD('" + D + "', INTERVAL 1 DAY) AND p.lg_TYPE_VENTE_ID <> '5' GROUP BY f.str_NAME ORDER BY v DESC LIMIT 5) x");

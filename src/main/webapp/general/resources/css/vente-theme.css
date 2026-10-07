@@ -2861,3 +2861,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #tb-impression * { animation: none !important; transition: none !important; }
 }
+
+/* Retours du 07/10 : releve des differes, ligne de solde de fin de mois */
+.differe-ligne-mois td { background: #eef3fa !important; border-top: 1px solid #c3cfdb !important; }
+.differe-ligne-mois .x-grid-cell-inner { color: #1e3a5f; font-weight: 700; }

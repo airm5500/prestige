@@ -46,4 +46,9 @@ public interface ReglementService {
 
     List<DossierReglementDTO> listeReglementFactures(String dtStart, String dtEnd, String tiersPayantId);
 
+    /**
+     * Releve des differes (onglet « Solde », retours du 07/10) : solde au debut, ventes differees (debit) et reglements
+     * (credit) de la periode, solde apres chaque operation et solde de fin de chaque mois.
+     */
+    JSONObject releveDifferes(LocalDate du, LocalDate au, String clientId);
 }

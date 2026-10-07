@@ -84,6 +84,14 @@ const SORTIE = process.env.SORTIE || '/tmp';
     /* ------------------------------------------------ menus */
     const menus = await p.evaluate(() => { const s = Ext.ComponentQuery.query('navigation')[0].getStore(); return ['rappelshabitude', 'analysecommande'].map((id) => { const n = s.getNodeById(id); return n ? n.get('text') + '|' + (n.raw.aide || '') : id + ' ?'; }); });
     ok('Menus renommés, explication en info-bulle', /^Rappels traitement\|.+/.test(menus[0]) && /^Prévisions vente \/ achat \/ analyse\|Prévisions de ventes/.test(menus[1]), menus.join(' / '));
+    /* « oui, passe les autres menus en libelle court » : libelle court, explication en info-bulle */
+    const COURTS = { rhmanager: 'Ressources humaines', gardemanager: 'Gestion des gardes', analysearticle: 'Analyse article',
+      whatsappcomptes: 'Comptes WhatsApp', modelemessagemanager: 'Modèles de messages', detailsmanager: 'Détails',
+      ventesmodifieesmanager: 'Ventes modifiées', RetrocessionsManager: 'Évolution des rétrocessions',
+      analyseFrequentationOffManager: 'Fréquentation officine', statActiviteOperateurManager: 'Activité opérateurs' };
+    const lus = await p.evaluate((ids) => { const s = Ext.ComponentQuery.query('navigation')[0].getStore(); return ids.map((id) => { const n = s.getNodeById(id); return n ? [id, n.get('text'), n.raw.aide || ''] : [id, null, '']; }); }, Object.keys(COURTS));
+    const fautes = lus.filter((l) => l[1] !== null && (l[1] !== COURTS[l[0]] || l[2].length <= l[1].length));
+    ok('Autres menus : libellé court et explication en info-bulle', lus.some((l) => l[1] !== null) && fautes.length === 0, JSON.stringify(fautes.length ? fautes : lus.map((l) => l[1])));
 
     /* ------------------------------------------------ previsions */
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('analysecommande', 'Prévisions vente / achat / analyse', ''));
