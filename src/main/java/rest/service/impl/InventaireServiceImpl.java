@@ -795,12 +795,27 @@ public class InventaireServiceImpl implements InventaireService {
 
         em.persist(oTInventaire);
 
+        /*
+         * retours du 08/10 : un produit sans fiche de stock active a l'emplacement (produit desactive, vendu ailleurs)
+         * faisait echouer toute la creation ; il est ecarte, les autres sont inventories
+         */
+        int ajoutes = 0;
         for (String produitId : produitIds) {
             TFamilleStock familleStock = findByProduitId(produitId, emplacement.getLgEMPLACEMENTID());
+            if (familleStock == null) {
+                continue;
+            }
             saveInventaireFamille(oTInventaire, familleStock);
+            ajoutes++;
         }
-
-        return produitIds.size();
+        if (ajoutes < produitIds.size()) {
+            LOG.log(Level.INFO, "Inventaire {0} : {1} produit(s) sans fiche de stock a l''emplacement ecarte(s)",
+                    new Object[] { name, produitIds.size() - ajoutes });
+        }
+        if (ajoutes == 0) {
+            em.remove(oTInventaire);
+        }
+        return ajoutes;
     }
 
     /*
@@ -844,6 +859,9 @@ public class InventaireServiceImpl implements InventaireService {
             try {
                 TFamilleStock familleStock = findByProduitId(famille.getLgFAMILLEID(),
                         emplacement.getLgEMPLACEMENTID());
+                if (familleStock == null) {
+                    throw new IllegalStateException("aucune fiche de stock active");
+                }
                 saveInventaireFamille(nouveau, familleStock);
                 count++;
             } catch (Exception e) {
@@ -1073,7 +1091,8 @@ public class InventaireServiceImpl implements InventaireService {
         tp.setMaxResults(1);
         tp.setParameter(1, produitId);
         tp.setParameter(2, emplId);
-        return tp.getSingleResult();
+        List<TFamilleStock> l = tp.getResultList();
+        return l.isEmpty() ? null : l.get(0);
 
     }
 

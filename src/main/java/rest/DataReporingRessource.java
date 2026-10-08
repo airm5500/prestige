@@ -152,10 +152,20 @@ public class DataReporingRessource {
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         try {
             int nombre = inventaireService.create(produits, nom, nom + " - période " + periodeLisible(dtStart, dtEnd));
-            return Response.ok()
-                    .entity(new JSONObject().put("success", true).put("count", nombre).put("nom", nom)
-                            .put("msg", "Inventaire « " + nom + " » créé avec " + nombre + " produit(s).").toString())
-                    .build();
+            int ecartes = produits.size() - nombre;
+            if (nombre == 0) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false).put("msg",
+                                "Aucun des produits n'a de fiche de stock à votre emplacement : aucun inventaire créé.")
+                                .toString())
+                        .build();
+            }
+            return Response.ok().entity(new JSONObject().put("success", true).put("count", nombre)
+                    .put("ecartes", ecartes).put("nom", nom)
+                    .put("msg", "Inventaire « " + nom + " » créé avec " + nombre + " produit(s)." + (ecartes > 0
+                            ? " " + ecartes + " produit(s) sans fiche de stock à votre" + " emplacement écarté(s)."
+                            : ""))
+                    .toString()).build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "inventaire depuis la marge sur produits vendus", e);
             return Response.ok().entity(

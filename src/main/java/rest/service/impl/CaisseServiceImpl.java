@@ -2004,12 +2004,12 @@ public class CaisseServiceImpl implements CaisseService {
     }
 
     private String replaceUserPlaceholder(String sql, String userId) {
-        return StringUtils.isNotEmpty(userId) ? String.format(sql, String.format(" AND u.lg_USER_ID=%s ", userId))
-                : String.format(sql, " ");
+        /* l'utilisateur est un parametre de requete (?4), jamais concatene */
+        return StringUtils.isNotEmpty(userId) ? String.format(sql, " AND u.lg_USER_ID=?4 ") : String.format(sql, " ");
     }
 
     private String replaceUserIdPlaceholder(String sql, String userId) {
-        return StringUtils.isNotEmpty(userId) ? sql.replace("{userId}", String.format(" AND u.lg_USER_ID=%s ", userId))
+        return StringUtils.isNotEmpty(userId) ? sql.replace("{userId}", " AND u.lg_USER_ID=?4 ")
                 : sql.replace("{userId}", "");
     }
 
@@ -2060,6 +2060,9 @@ public class CaisseServiceImpl implements CaisseService {
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, checked)
                     .setParameter(2, java.sql.Date.valueOf(dtStart)).setParameter(3, java.sql.Date.valueOf(dtEnd));
+            if (StringUtils.isNotEmpty(userId)) {
+                query.setParameter(4, userId);
+            }
             if (!all) {
                 query.setFirstResult(start);
                 query.setMaxResults(limit);
@@ -2078,7 +2081,9 @@ public class CaisseServiceImpl implements CaisseService {
         try {
             Query query = em.createNativeQuery(sql).setParameter(1, checked)
                     .setParameter(2, java.sql.Date.valueOf(dtStart)).setParameter(3, java.sql.Date.valueOf(dtEnd));
-
+            if (StringUtils.isNotEmpty(userId)) {
+                query.setParameter(4, userId);
+            }
             return ((Number) query.getSingleResult()).longValue();
 
         } catch (Exception e) {
@@ -2094,7 +2099,9 @@ public class CaisseServiceImpl implements CaisseService {
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, checked)
                     .setParameter(2, java.sql.Date.valueOf(dtStart)).setParameter(3, java.sql.Date.valueOf(dtEnd));
-
+            if (StringUtils.isNotEmpty(userId)) {
+                query.setParameter(4, userId);
+            }
             return ((List<Tuple>) query.getResultList()).stream().map(this::buildCaissesSummary)
                     .collect(Collectors.groupingBy(rest.service.dto.MvtCaisseDTO::getModeReglement));
 

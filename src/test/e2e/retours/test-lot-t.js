@@ -174,7 +174,12 @@ function xlsxTexte(fichier) {
     ok('Point 8 : l inventaire est cree', /Inventaire « INVENTAIRE MARGE PRODUITS VENDUS/.test(boiteM.texte), boiteM.texte);
     await repondre('ok');
     const invM = q("SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE str_NAME LIKE 'INVENTAIRE MARGE PRODUITS VENDUS %' ORDER BY dt_CREATED DESC LIMIT 1");
-    ok('Point 8 : l inventaire porte autant de produits que la liste', invM && q("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + invM + "'") === String(totalMarge), invM);
+    /* retours du 08/10 : un produit sans fiche de stock a l'emplacement est ecarte (il faisait echouer tout l'inventaire) et annonce */
+    const ecartesM = Number((boiteM.texte.match(/(\d+) produit\(s\) sans fiche de stock/) || [0, 0])[1]);
+    const creesM = Number((boiteM.texte.match(/créé avec (\d+) produit/) || [0, -1])[1]);
+    const enBaseM = invM ? q("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + invM + "'") : '';
+    ok('Point 8 : l inventaire porte les produits de la liste (ceux sans fiche de stock écartés et annoncés)',
+      invM && enBaseM === String(creesM) && creesM + ecartesM === totalMarge, invM + ' base=' + enBaseM + ' crees=' + creesM + ' ecartes=' + ecartesM + ' liste=' + totalMarge);
 
     /* ------------------------------------------------------------ point 3 : mouvements de caisse */
     const jourMvt = q("SELECT DATE_SUB(CURDATE(), INTERVAL 410 DAY)");
