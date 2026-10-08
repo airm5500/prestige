@@ -303,6 +303,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 .setParameter(6, ex.refCde).setParameter(7, ex.version).setParameter(8, EN_ATTENTE).executeUpdate();
         LOG.log(Level.INFO, "PharmaML : {0} a recu l''envoi {1} (FIN_SERVICE), reponse differee",
                 new Object[] { g.getStrLIBELLE(), ex.refMessage });
+        ArchivePharmaMl.journal("COMMANDE", g.getStrLIBELLE(), "EN_ATTENTE",
+                source + " " + sourceId + " | message " + ex.refMessage + " | commande "
+                        + StringUtils.defaultString(ex.refCde)
+                        + " | recue par le grossiste (FIN_SERVICE), reponse a recuperer par vidage");
     }
 
     /**
@@ -330,10 +334,15 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 .setParameter(3, source).setParameter(4, sourceId).setParameter(5, payLoad.getEntete().getRefMessage())
                 .setParameter(6, refCde).setParameter(7, versionCommande(g)).setParameter(8, TRAITEE)
                 .setParameter(9, resume.toString()).executeUpdate();
+        ArchivePharmaMl.journal("COMMANDE", g.getStrLIBELLE(), "TRAITEE",
+                source + " " + sourceId + " | message " + payLoad.getEntete().getRefMessage() + " | "
+                        + (traite == null ? "" : traite.optInt("nbreproduit") + " pris en compte, "
+                                + traite.optInt("nbrerupture") + " en rupture sur " + traite.optInt("totalProduit")));
     }
 
     /** Envoi refuse ou impossible : note pour la liste des commandes, puis le message habituel. */
     private JSONObject noterEchec(TGrossiste g, String source, String sourceId, String statut, String msg) {
+        ArchivePharmaMl.journal("COMMANDE", g.getStrLIBELLE(), statut, source + " " + sourceId + " | " + msg);
         try {
             em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
                     + " str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NOW())")
@@ -449,30 +458,46 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         PharmaMlService moi = contexte.getBusinessObject(PharmaMlService.class);
         int traitees = 0;
         try {
+            ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "DEBUT",
+                    "version " + version + " | adresse " + ArchivePharmaMl.adresseSure(g.getStrURLPHARMAML()));
             for (int i = 0; i < 50; i++) {
-                ecrireArchive("V_" + ref + "_" + nomFichier, xml);
+                String archiveV = ecrireArchive("V_" + ref + "_" + nomFichier, xml);
+                ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), i == 0 ? "DEMANDE" : "ACQUITTEMENT + DEMANDE",
+                        "message " + ref + " | archive " + StringUtils.defaultString(archiveV, "(non archivee)"));
                 HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
                         g.getStrCLERECEPTEUR(), modeControle(g), DELAI_CONNEXION, DELAI_REPONSE).reponse;
                 String corps = rep.body();
-                ecrireArchive("RV_" + ref + "_" + nomFichier, PharmaMlMessages.indenter(corps));
+                String archiveRV = ecrireArchive("RV_" + ref + "_" + nomFichier, PharmaMlMessages.indenter(corps));
+                ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "REPONSE RECUE", "HTTP " + rep.statusCode()
+                        + " | archive " + StringUtils.defaultString(archiveRV, "(non archivee)"));
                 if (rep.statusCode() != 200) {
+                    ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "REFUS HTTP", "HTTP " + rep.statusCode());
                     return out.put("traitees", traitees).put("msg", "HTTP " + rep.statusCode());
                 }
                 PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(corps);
                 if ("FIN_SERVICE".equals(env.action) && !env.repCommande) {
+                    ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "FIN",
+                            i == 0 ? "aucune reponse en attente au depot" : traitees + " reponse(s) traitee(s)");
                     return out.put("traitees", traitees).put("msg", i == 0 ? "aucune réponse en attente" : "fin");
                 }
                 if (StringUtils.isBlank(env.refMessage)) {
+                    ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "ILLISIBLE", "reponse sans REF_MESSAGE");
                     return out.put("traitees", traitees).put("msg", "réponse illisible");
                 }
                 if (env.erreur && !env.repCommande && StringUtils.isBlank(env.enReponseA)) {
                     /* refus de la demande de vidage elle-meme (controle, identifiants) : rien a acquitter */
+                    ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "REFUS",
+                            StringUtils.defaultString(PharmaMlMessages.erreurReponse(corps)));
                     return out.put("traitees", traitees).put("msg",
                             "refus : " + StringUtils.defaultString(PharmaMlMessages.erreurReponse(corps)));
                 }
                 JSONObject r = moi.appliquerReponseDifferee(g.getLgGROSSISTEID(), corps,
                         "RV_" + ref + "_" + nomFichier);
                 out.getJSONArray("messages").put(r);
+                ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), "MESSAGE " + r.optString("statut"),
+                        "message du grossiste " + env.refMessage + " | en reponse a "
+                                + StringUtils.defaultString(env.enReponseA) + (r.has("resultat")
+                                        ? " | " + StringUtils.left(String.valueOf(r.opt("resultat")), 300) : ""));
                 if (TRAITEE.equals(r.optString("statut"))) {
                     traitees++;
                 }
@@ -484,6 +509,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "PharmaML : vidage {0} ({1})",
                     new Object[] { g.getStrLIBELLE(), e.getClass().getSimpleName() });
+            ArchivePharmaMl.journal("VIDAGE", g.getStrLIBELLE(), erreurReseau(e) ? "INJOIGNABLE" : "ERREUR",
+                    e.getClass().getSimpleName() + " | " + traitees + " reponse(s) traitee(s) avant l'erreur");
             return out.put("traitees", traitees).put("msg",
                     erreurReseau(e) ? messageReseau(g, e) : "erreur : " + e.getClass().getSimpleName());
         }
@@ -514,12 +541,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("archivée : ([A-Za-z0-9_.-]+)\\.xml")
                 .matcher(StringUtils.defaultString((String) l.get(0)[1]));
-        if (!m.find() || StringUtils.isBlank(ap.pharmaMlDir)) {
+        if (!m.find()) {
             return new JSONObject().put("statut", "SANS_ARCHIVE");
         }
         String archive = m.group(1);
-        Path fichier = Paths.get(ap.pharmaMlDir, archive + ".xml");
-        if (!Files.isRegularFile(fichier)) {
+        /* rangee (vidages/AAAA-MM) ou ancienne (racine) */
+        Path fichier = ArchivePharmaMl.trouver(archive);
+        if (fichier == null) {
             return new JSONObject().put("statut", "SANS_ARCHIVE");
         }
         String xml;
@@ -691,6 +719,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     private void journalEnvoi(String quoi, String reference, TGrossiste grossiste) {
         LOG.log(Level.INFO, "PharmaML : envoi {0} {1} en version {2} a {3} ({4})", new Object[] { quoi, reference,
                 versionCommande(grossiste), grossiste.getStrLIBELLE(), grossiste.getStrURLPHARMAML() });
+        ArchivePharmaMl.journal("COMMANDE", grossiste.getStrLIBELLE(), "PREPARATION",
+                quoi + " " + reference + " | version " + versionCommande(grossiste) + " | adresse "
+                        + ArchivePharmaMl.adresseSure(grossiste.getStrURLPHARMAML()));
     }
 
     private CsrpEnveloppeResponse processommandeXml(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
@@ -1762,10 +1793,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     private void createSaveXmlFile(Marshaller marshaller, Object objectToSave, String prefix, String fileName) {
         try {
-            Path path = Paths.get(ap.pharmaMlDir + File.separator + prefix.toUpperCase() + "_" + fileName + ".xml");
-            try (OutputStream os = Files.newOutputStream(path)) {
-                marshaller.marshal(objectToSave, os);
-            }
+            StringWriter w = new StringWriter();
+            marshaller.marshal(objectToSave, w);
+            ArchivePharmaMl.ecrire(prefix.toUpperCase() + "_" + fileName, w.toString());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
@@ -1804,7 +1834,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 c.getCommentaireGeneral(), c.getDateLivraison(), lignes);
         String fileName = reference + "_"
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
-        ecrireArchive("C_" + fileName, xml);
+        String archiveC = ecrireArchive("C_" + fileName, xml);
+        ArchivePharmaMl.journal("COMMANDE", grossiste.getStrLIBELLE(), "ENVOI",
+                "message " + en.getRefMessage() + " | commande " + c.getRefCdeClient() + " | " + lignes.size()
+                        + " ligne(s) | version " + version + " | archive "
+                        + StringUtils.defaultString(archiveC, "(non archivee)"));
         HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), xml,
                 grossiste.getStrIDRECEPTEURPHARMA(), grossiste.getStrCLERECEPTEUR(), modeControle(grossiste),
                 DELAI_CONNEXION, DELAI_REPONSE).reponse;
@@ -1812,7 +1846,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
         }
-        ecrireArchive("R_" + fileName, PharmaMlMessages.indenter(httpResponse.body()));
+        String archiveR = ecrireArchive("R_" + fileName, PharmaMlMessages.indenter(httpResponse.body()));
+        ArchivePharmaMl.journal("COMMANDE", grossiste.getStrLIBELLE(), "REPONSE RECUE", "message " + en.getRefMessage()
+                + " | archive " + StringUtils.defaultString(archiveR, "(non archivee)"));
         String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
         if (erreur != null) {
             throw new RefusGrossiste(erreur, "R_" + fileName, version);
@@ -1833,22 +1869,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
     }
 
-    private void ecrireArchive(String nom, String contenu) {
-        try {
-            Files.write(Paths.get(ap.pharmaMlDir + File.separator + nom + ".xml"),
-                    (contenu == null ? "" : contenu).getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "archive PharmaML {0} : {1}", new Object[] { nom, e.getMessage() });
-        }
+    /** Retours du 08/10 (5) : rangement par type et par mois (ArchivePharmaMl) ; renvoie le chemin relatif. */
+    private String ecrireArchive(String nom, String contenu) {
+        return ArchivePharmaMl.ecrire(nom, contenu);
     }
 
     private void saveResponse(String response, String fileName) {
-        try {
-            Path path = Paths.get(ap.pharmaMlDir + File.separator + "R_" + fileName + ".xml");
-            Files.write(path, response.getBytes(StandardCharsets.UTF_8));
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, "saveResonse", ex);
-        }
+        ArchivePharmaMl.ecrire("R_" + fileName, response);
     }
 
     private CsrpEnveloppeResponse loadFromFileForTestingPurpose() {

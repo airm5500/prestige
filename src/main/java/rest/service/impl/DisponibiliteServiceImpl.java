@@ -194,7 +194,10 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         String reference = "PRS" + LocalDateTime.now().format(REF);
         String xml = PharmaMlMessages.reqInfoProduit(version, p, reference, lignes);
         String fichier = reference + "_" + libelle.replaceAll("[^A-Za-z0-9]", "");
-        archiver("I_" + fichier, xml);
+        String archiveI = archiver("I_" + fichier, xml);
+        ArchivePharmaMl.journal("INFOPRODUIT", libelle, "ENVOI",
+                "message " + reference + " | " + lignes.size() + " produit(s) | version " + version + " | archive "
+                        + StringUtils.defaultString(archiveI, "(non archivee)"));
         String reponse;
         try {
             /* adresse de secours essayee seulement si la principale est injoignable */
@@ -202,7 +205,9 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                     xml, (String) gr.get("idOf"), (String) gr.get("cle"), (String) gr.get("controle"),
                     Duration.ofSeconds(20), Duration.ofSeconds(90)).reponse;
             reponse = http.body();
-            archiver("RI_" + fichier, reponse == null ? "" : PharmaMlMessages.indenter(reponse));
+            String archiveRI = archiver("RI_" + fichier, reponse == null ? "" : PharmaMlMessages.indenter(reponse));
+            ArchivePharmaMl.journal("INFOPRODUIT", libelle, "REPONSE RECUE", "message " + reference + " | HTTP "
+                    + http.statusCode() + " | archive " + StringUtils.defaultString(archiveRI, "(non archivee)"));
             if (http.statusCode() != 200) {
                 return new JSONObject().put("success", false).put("msg",
                         "Le grossiste " + libelle + " a répondu en erreur (HTTP " + http.statusCode() + ")");
@@ -212,10 +217,13 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
             return new JSONObject().put("success", false).put("msg", "Interrogation interrompue");
         } catch (Exception e) {
             LOG.log(Level.WARNING, "PharmaML information produit : grossiste injoignable ({0})", e.getMessage());
+            ArchivePharmaMl.journal("INFOPRODUIT", libelle, "INJOIGNABLE",
+                    "message " + reference + " | " + e.getClass().getSimpleName());
             return new JSONObject().put("success", false).put("msg", "Le grossiste " + libelle + " est injoignable");
         }
         String erreur = PharmaMlMessages.erreurReponse(reponse);
         if (erreur != null) {
+            ArchivePharmaMl.journal("INFOPRODUIT", libelle, "REFUS", "message " + reference + " | " + erreur);
             return new JSONObject().put("success", false).put("msg", "Le grossiste " + libelle
                     + " a refusé la demande : « " + erreur + " »."
                     + (PharmaMlMessages.V3.equals(version) && PharmaMlMessages.enveloppeV1Attendue(erreur)
@@ -295,6 +303,10 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                     + " (ligne vide) : il ne semble pas fournir la disponibilité par PharmaML. Vous pouvez la désactiver"
                     + " dans sa fiche grossiste (« Interroger la disponibilité »).");
         }
+        ArchivePharmaMl.journal("INFOPRODUIT", libelle, "RESULTAT",
+                "message " + reference + " | " + oui + " disponible(s), " + non + " non disponible(s), " + autre
+                        + " autre(s), " + inconnu + " sans reponse"
+                        + (out.optBoolean("reponseVide") ? " | reponse vide (aucune information produit)" : ""));
         return out;
     }
 
@@ -313,17 +325,9 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         return r.isEmpty() ? "" : String.valueOf(r.get(0));
     }
 
-    private void archiver(String nom, String contenu) {
-        String dossier = AppParameters.getInstance().pharmaMlDir;
-        if (StringUtils.isBlank(dossier)) {
-            LOG.log(Level.WARNING, "Dossier PharmaML non configure : echange {0} non archive", nom);
-            return;
-        }
-        try {
-            Files.write(Paths.get(dossier + File.separator + nom + ".xml"), contenu.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "Archivage PharmaML impossible : {0}", e.getMessage());
-        }
+    /** Retours du 08/10 (5) : infoproduit/AAAA-MM ; renvoie le chemin relatif (null si non archive). */
+    private String archiver(String nom, String contenu) {
+        return ArchivePharmaMl.ecrire(nom, contenu);
     }
 
     @Override

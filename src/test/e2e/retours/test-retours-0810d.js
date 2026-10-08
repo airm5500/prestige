@@ -46,9 +46,7 @@ const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c)
 
 const liste = (a) => a.map((x) => "'" + x + "'").join(',');
 function nettoyer() {
-  if (fs.existsSync(DOSSIER)) {
-    fs.readdirSync(DOSSIER).filter((f) => /E2E-0810D/.test(f)).forEach((f) => fs.unlinkSync(DOSSIER + '/' + f));
-  }
+  require('./archives-pharmaml').retirer(/E2E-0810D/);
   exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference IN (" + liste(CMDS) + ")); DELETE FROM rupture WHERE reference IN (" + liste(CMDS) + ");"
     + "DELETE FROM t_order_detail WHERE lg_ORDER_ID IN (" + liste(CMDS) + "); DELETE FROM t_order WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"
     + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID IN (" + liste(CMDS) + "); DELETE FROM t_pharmaml_remplacement WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"

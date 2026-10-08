@@ -13,6 +13,7 @@
 const { execFileSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const archives = require('./archives-pharmaml');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
 const BASE = process.env.DB_TEST || 'capitale';
@@ -34,9 +35,7 @@ const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c)
 const liste = (a) => a.map((x) => "'" + x + "'").join(',');
 let sauveUrl = null, fgAvant = '';
 function nettoyer() {
-  if (fs.existsSync(DOSSIER)) {
-    fs.readdirSync(DOSSIER).filter((f) => /E2E-PM5/.test(f)).forEach((f) => fs.unlinkSync(DOSSIER + '/' + f));
-  }
+  archives.retirer(/E2E-PM5/);
   exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference IN (" + liste(CMDS) + ")); DELETE FROM rupture WHERE reference IN (" + liste(CMDS) + ");"
     + "DELETE FROM t_order_detail WHERE lg_ORDER_ID IN (" + liste(CMDS) + "); DELETE FROM t_order WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"
     + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID IN (" + liste(CMDS) + "); DELETE FROM t_pharmaml_remplacement WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"
@@ -80,7 +79,8 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Commande A traitée (1 pris en compte, 1 en rupture)', rA.success !== false && rA.nbrerupture === 1, JSON.stringify(rA));
     const prop = q("SELECT CONCAT(str_TYPE, '|', str_STATUT, '|', str_CODE_REMPLACANT, '|', IF(lg_RUPTURE_DETAIL_ID IS NULL, 'sans', 'avec')) FROM t_pharmaml_remplacement WHERE lg_ORDER_ID = '" + CMDS[0] + "'");
     ok('Équivalent proposé noté (EP, PROPOSE, rattaché à la ligne de rupture)', prop === 'EP|PROPOSE|' + cipEquivalent + '|avec', prop);
-    const nouveauxR = (fs.existsSync(DOSSIER) ? fs.readdirSync(DOSSIER) : []).filter((f) => /^R_E2E-PM5-A/.test(f));
+    /* retours du 08/10 (5) : reponses de commande rangees dans commandes/AAAA-MM */
+    const nouveauxR = archives.fichiers().filter((f) => /^commandes\/\d{4}-\d{2}\/R_E2E-PM5-A/.test(f));
     const contenuR = nouveauxR.length ? fs.readFileSync(DOSSIER + '/' + nouveauxR[0], 'utf8') : '';
     ok('Archive R_ réindentée balise par balise (une balise par ligne)', /\n    <MESSAGE_REPARTITEUR/.test(contenuR) && /\n            <LIGNE_N /.test(contenuR) && contenuR.split('\n').length > 10, nouveauxR.join(',') + ' / ' + contenuR.slice(0, 200));
 
@@ -175,7 +175,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     url(sauveUrl === 'NULL' ? null : sauveUrl);
     ok('Données d\'essai retirées, grossiste remis', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID IN (" + liste(CMDS) + ")") === '0'
       && q("SELECT COUNT(*) FROM t_pharmaml_remplacement WHERE lg_ORDER_ID IN (" + liste(CMDS) + ")") === '0'
-      && !(fs.existsSync(DOSSIER) && fs.readdirSync(DOSSIER).some((f) => /E2E-PM5/.test(f)))
+      && !archives.fichiers().some((f) => !/^log\//.test(f) && /E2E-PM5/.test(f))
       && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'") === sauveUrl);
     const n = res.filter((r) => r.c).length;
     console.log('\n' + n + '/' + res.length + ' OK');

@@ -134,6 +134,9 @@ public final class EnvoiPharmaMl {
         for (int i = 0; i < adresses.size(); i++) {
             String url = adresses.get(i);
             for (int essai = 1; essai <= ESSAIS_PAR_ADRESSE; essai++) {
+                long debut = System.nanoTime();
+                String essaiTexte = "essai " + essai + "/" + ESSAIS_PAR_ADRESSE + (i > 0 ? " (secours)" : "") + " "
+                        + ArchivePharmaMl.adresseSure(url);
                 try {
                     HttpRequest.Builder req = HttpRequest.newBuilder().uri(URI.create(url)).timeout(delaiReponse)
                             .header("Content-Type", "text/xml; charset=UTF-8");
@@ -146,8 +149,16 @@ public final class EnvoiPharmaMl {
                     if (i > 0) {
                         LOG.log(Level.INFO, "PharmaML : message envoye par l''adresse de secours {0}", url);
                     }
+                    /* journal des transmissions : adresse, code HTTP, duree, tailles (jamais le contenu ni la cle) */
+                    ArchivePharmaMl.journal("HTTP", "", "REPONSE " + r.statusCode(), essaiTexte + " | " + duree(debut)
+                            + " ms | envoye " + xml.getBytes(StandardCharsets.UTF_8).length + " octets, recu "
+                            + (r.body() == null ? 0 : r.body().getBytes(StandardCharsets.UTF_8).length) + " octets"
+                            + (controle != null ? " | controle " + StringUtils.defaultString(mode, CSRP) : ""));
                     return new Resultat(r, url, i > 0);
                 } catch (IOException e) {
+                    ArchivePharmaMl.journal("HTTP", "", injoignable(e) ? "INJOIGNABLE" : "ECHEC",
+                            essaiTexte + " | " + duree(debut) + " ms | " + e.getClass().getSimpleName()
+                                    + (e.getMessage() == null ? "" : " : " + StringUtils.left(e.getMessage(), 200)));
                     if (!injoignable(e)) {
                         throw e;
                     }
@@ -173,6 +184,10 @@ public final class EnvoiPharmaMl {
      * (meme reference de message) : le grossiste reconnait un doublon. Jamais de relance apres une reponse ou un delai
      * de reponse depasse.
      */
+    private static long duree(long debutNano) {
+        return (System.nanoTime() - debutNano) / 1_000_000L;
+    }
+
     static final int ESSAIS_PAR_ADRESSE = 3;
     /** Attente avant le 2e essai ; doublee ensuite (2 s puis 4 s). Modifiable par les tests. */
     static volatile long attenteInitialeMs = 2000;

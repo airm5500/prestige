@@ -44,6 +44,7 @@ class EnvoiPharmaMlTest {
         serveur.start();
         base = "http://127.0.0.1:" + serveur.getAddress().getPort();
         EnvoiPharmaMl.attenteInitialeMs = 100;
+        ArchivePharmaMl.racineForcee = ""; /* jamais le dossier PharmaML reel de la machine */
     }
 
     private static void repondre(com.sun.net.httpserver.HttpExchange e, int code, String corps, AtomicInteger n)
@@ -61,6 +62,7 @@ class EnvoiPharmaMlTest {
     void arreter() {
         serveur.stop(0);
         EnvoiPharmaMl.attenteInitialeMs = 2000;
+        ArchivePharmaMl.racineForcee = null;
     }
 
     @Test
@@ -223,5 +225,31 @@ class EnvoiPharmaMlTest {
         assertEquals("U05MjN4nHUBsJUoDhDX6Rw==", EnvoiPharmaMl.controle(xml, "0999908", "4083", "HMAC_MD5"),
                 "valeur refusee par DPCI (ancien reglage)");
         assertEquals("ABCDEFGHIJKLMNOPCLE1", EnvoiPharmaMl.donneeSecrete("ABCDEFGHIJKLMNOPQRS", "CLE1"));
+    }
+
+    /** Retours du 08/10 (5) : chaque essai est trace dans le journal, sans la cle, l'en-tete ni le contenu. */
+    @Test
+    void journalDesEssais(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dossier) throws Exception {
+        ArchivePharmaMl.racineForcee = dossier.toString();
+        try {
+            EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(FERME, base + "/ok"), "<X>CONTENU-SECRET</X>", "0999908",
+                    "CLE42", EnvoiPharmaMl.CSRP, C, R);
+            java.nio.file.Path j = dossier.resolve(
+                    "log/" + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+                            + "/pharmaml_" + java.time.LocalDate.now() + ".log");
+            List<String> l = java.nio.file.Files.readAllLines(j, StandardCharsets.UTF_8);
+            assertEquals(4, l.size(), String.join("\n", l));
+            for (int i = 0; i < 3; i++) {
+                assertTrue(l.get(i).contains("| INJOIGNABLE | essai " + (i + 1) + "/3 http://127.0.0.1:1/PharmaML/"),
+                        l.get(i));
+            }
+            assertTrue(l.get(3).contains("| REPONSE 200 | essai 1/3 (secours) " + base + "/ok"), l.get(3));
+            assertTrue(l.get(3).contains("controle CSRP"), l.get(3));
+            String tout = String.join("\n", l);
+            assertFalse(tout.contains("CLE42") || tout.contains("CONTENU-SECRET") || tout.contains("Content-PharmaML"),
+                    tout);
+        } finally {
+            ArchivePharmaMl.racineForcee = "";
+        }
     }
 }
