@@ -64,7 +64,7 @@ import util.FunctionUtils;
 public class SuggestionImpl implements SuggestionService {
 
     private static final Logger LOG = Logger.getLogger(SuggestionImpl.class.getName());
-    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste, IFNULL(o.`str_COMMENTAIRE`, '') AS commentaire, DATE_FORMAT(o.`dt_COMMANDEE`, '%d/%m/%Y %H:%i') AS dateCommande, o.`str_MODE_COMMANDE` AS modeCommande, DATE_FORMAT(o.`dt_CLOTURE`, '%d/%m/%Y %H:%i') AS dateCloture FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending','cloturee','commandee') AND (?2 = '' OR o.`str_STATUT` = ?2) AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
+    private static final String SUGGESTION_QUERY = "SELECT g.int_DATE_BUTOIR_ARTICLE AS dateButoir, SUM(d.`int_NUMBER` * d.`int_PRICE_DETAIL`) AS montantVente,SUM(d.`int_NUMBER` * d.`int_PAF_DETAIL`) AS montantAchat, o.`lg_SUGGESTION_ORDER_ID` AS id,o.`str_REF` AS reference,o.`str_STATUT` AS statut, DATE_FORMAT(o.`dt_CREATED`, '%d/%m/%Y') AS dateSuggession,DATE_FORMAT(o.`dt_CREATED`, '%k:%i:%s') AS heureSuggession, COUNT(d.`lg_SUGGESTION_ORDER_DETAILS_ID`) AS itemCount , SUM(d.`int_NUMBER`) AS productCount,o.`lg_GROSSISTE_ID` AS grossisteId,g.str_LIBELLE AS libelleGrossiste, IFNULL(o.`str_COMMENTAIRE`, '') AS commentaire, DATE_FORMAT(o.`dt_COMMANDEE`, '%d/%m/%Y %H:%i') AS dateCommande, o.`str_MODE_COMMANDE` AS modeCommande, o.`lg_ORDER_ID` AS commandeId, DATE_FORMAT(o.`dt_CLOTURE`, '%d/%m/%Y %H:%i') AS dateCloture FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending','cloturee','commandee') AND (?2 = '' OR o.`str_STATUT` = ?2) AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1) GROUP BY id ORDER BY o.`dt_UPDATED` desc";
     private static final String SUGGESTION_QUERY_COUNT = "SELECT COUNT( distinct o.`lg_SUGGESTION_ORDER_ID`) AS COUNT_SUGGESTION  FROM  t_suggestion_order_details d JOIN t_suggestion_order o ON o.`lg_SUGGESTION_ORDER_ID`=d.`lg_SUGGESTION_ORDER_ID` JOIN t_famille f ON f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` WHERE o.`str_STATUT` IN ('is_Process','auto','pending','cloturee','commandee') AND (?2 = '' OR o.`str_STATUT` = ?2) AND (o.`str_REF` LIKE ?1 OR f.int_CIP LIKE ?1 OR f.str_NAME LIKE ?1)";
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -1535,6 +1535,15 @@ public class SuggestionImpl implements SuggestionService {
         suggestions.setCommentaire(t.get("commentaire", String.class));
         suggestions.setDateCommande(t.get("dateCommande", String.class));
         suggestions.setModeCommande(t.get("modeCommande", String.class));
+        /* Retours du 08/10 : statut du dernier envoi PharmaML de la commande liee (memes pastilles qu'en commande) */
+        try {
+            String[] e = StatutEnvoiPharmaMl.dernierEnvoi(em, t.get("commandeId", String.class));
+            if (e != null) {
+                suggestions.setEnvoiPharmaMl(e[0], e[1], e[2]);
+            }
+        } catch (RuntimeException ex) {
+            LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", ex.getMessage());
+        }
         suggestions.setDateCloture(t.get("dateCloture", String.class));
         return suggestions;
     }

@@ -13,6 +13,26 @@ public final class StatutEnvoiPharmaMl {
     private StatutEnvoiPharmaMl() {
     }
 
+    /**
+     * Dernier envoi PharmaML d'une commande : { code, date, detail } ou null. Commun a la liste des commandes et a
+     * celle des suggestions (commande liee).
+     */
+    @SuppressWarnings("unchecked")
+    public static String[] dernierEnvoi(javax.persistence.EntityManager em, String commandeId) {
+        if (StringUtils.isBlank(commandeId)) {
+            return null;
+        }
+        java.util.List<Object[]> r = em.createNativeQuery("SELECT str_STATUT, str_DETAIL,"
+                + " DATE_FORMAT(COALESCE(dt_REPONSE, dt_ENVOI), '%d/%m/%Y %H:%i') FROM t_pharmaml_attente"
+                + " WHERE lg_SOURCE_ID = ?1 AND str_SOURCE = 'COMMANDE' ORDER BY dt_ENVOI DESC, dt_REPONSE DESC")
+                .setParameter(1, commandeId).setMaxResults(1).getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        String statut = (String) r.get(0)[0], detail = (String) r.get(0)[1];
+        return new String[] { code(statut, detail), (String) r.get(0)[2], detail(statut, detail) };
+    }
+
     public static String code(String statut, String detail) {
         if (statut == null) {
             return "";

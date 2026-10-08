@@ -215,4 +215,28 @@ public class SuggestionsDTO {
     public void setDateCloture(String dateCloture) {
         this.dateCloture = dateCloture;
     }
+
+    /* Retours du 08/10 : statut du dernier envoi PharmaML de la commande liee */
+    private String envoiPharmaMl = "", envoiPharmaMlDate = "", envoiPharmaMlDetail = "";
+
+    @JSONPropertyName("str_ENVOI_PHARMAML")
+    public String getEnvoiPharmaMl() {
+        return envoiPharmaMl;
+    }
+
+    @JSONPropertyName("dt_ENVOI_PHARMAML")
+    public String getEnvoiPharmaMlDate() {
+        return envoiPharmaMlDate;
+    }
+
+    @JSONPropertyName("str_ENVOI_PHARMAML_DETAIL")
+    public String getEnvoiPharmaMlDetail() {
+        return envoiPharmaMlDetail;
+    }
+
+    public void setEnvoiPharmaMl(String code, String date, String detail) {
+        this.envoiPharmaMl = code == null ? "" : code;
+        this.envoiPharmaMlDate = date == null ? "" : date;
+        this.envoiPharmaMlDetail = detail == null ? "" : detail;
+    }
 }

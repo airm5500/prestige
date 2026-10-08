@@ -164,8 +164,26 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     const e5 = await p.evaluate(async (id) => (await fetch('../api/v1/suggestion-pharmaml/' + id, { method: 'POST' })).json(), S.E);
     ok('Réponse différée (FIN_SERVICE) : envoi accepté, suggestion PAS commandée (commande liée, en attente)', e5.success === true && e5.enAttente === true
       && etatSugg(S.E) === 'is_Process||1|2', JSON.stringify(e5) + ' / ' + etatSugg(S.E));
-    const vid = await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).json(), G);
-    ok('Réponse reçue au vidage : la suggestion passe « commandee » (mode PHARMAML)', etatSugg(S.E) === 'commandee|PHARMAML|1|2', JSON.stringify(vid).slice(0, 300) + ' / ' + etatSugg(S.E));
+    /* ecran : pastille « En attente », renvoi masque, bouton de recuperation sur la ligne */
+    const ligneE = async () => { await liste(S.E + '-REF'); return p.evaluate((ref) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; const i = g.getStore().findExact('str_REF', ref);
+      const n = g.getView().getNode(i); const b = n.querySelector('.envoi-pml'); const col = g.query('gridcolumn[dataIndex=str_STATUT]')[0];
+      const rec = n.querySelector('img.envoi-pml-recuperer'); if (rec) { rec.id = 'e2e-recuperer-sugg'; }
+      const env = n.querySelector('.x-grid-cell-commanderPharmaMl .act-envoyer');
+      const dh = g.down('#colDateHeure'); const h = dh.getEl().dom.querySelector('.x-column-header-text');
+      return { badge: b ? b.getAttribute('data-envoi') : '', texte: b ? b.textContent : '', recuperer: !!rec, renvoi: !!(env && !env.classList.contains('x-hide-display')),
+        statut: n.querySelector('.x-grid-cell-' + col.getId()).textContent.trim(), date: n.querySelector('.x-grid-cell-' + dh.getItemId()).textContent.trim(),
+        enteteTronque: h ? h.scrollWidth > h.clientWidth + 1 : true }; }, S.E + '-REF'); };
+    const avantE = await ligneE();
+    ok('Liste des suggestions : pastille « En attente », bouton « récupérer la réponse » sur la ligne, renvoi masqué ; date et heure dans une colonne',
+      avantE.badge === 'EN_ATTENTE' && avantE.texte === 'En attente' && avantE.recuperer && !avantE.renvoi && /^\d{2}\/\d{2}\/\d{4} \d{1,2}:\d{2}/.test(avantE.date), JSON.stringify(avantE));
+    await p.screenshot({ path: CAPT + '/suggestion-en-attente.png' });
+    await p.click('#e2e-recuperer-sugg');
+    await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envois encore en attente/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 60000 });
+    const vid = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
+    await p.evaluate(() => Ext.MessageBox.hide());
+    ok('Récupération depuis la ligne : réponse appliquée, la suggestion passe « commandee » (mode PHARMAML)', etatSugg(S.E) === 'commandee|PHARMAML|1|2' && /1 réponse\(s\) traitée\(s\)/.test(vid), vid + ' / ' + etatSugg(S.E));
+    const apresE = await ligneE();
+    ok('Liste après réponse : « COMMANDÉE · PHARMAML », pastille « Répondue », plus de bouton de récupération', apresE.statut === 'COMMANDÉE · PHARMAML' && apresE.badge === 'REPONDUE' && !apresE.recuperer, JSON.stringify(apresE));
     url(G, 'http://127.0.0.1:' + PORT + '/');
 
     /* D : bouton historique inchange */

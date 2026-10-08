@@ -326,7 +326,9 @@ public final class PharmaMlMessages {
                 o.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             }
             int niveau = 0;
-            boolean ouvert = false;
+            /* retours du 08/10 : une ligne de produit (LIGNE_...) et tout son detail sur une seule ligne */
+            int niveauLigne = -1;
+            boolean ouvert = false, enfants = false;
             StringBuilder texte = new StringBuilder();
             while (r.hasNext()) {
                 int ev = r.next();
@@ -335,10 +337,16 @@ public final class PharmaMlMessages {
                         o.append('>').append(echapper(texte.toString().trim(), false));
                     }
                     texte.setLength(0);
-                    if (o.length() > 0) {
-                        o.append('\n');
+                    if (niveauLigne < 0) {
+                        if (o.length() > 0) {
+                            o.append('\n');
+                        }
+                        o.append("  ".repeat(niveau));
+                        if (r.getLocalName().toUpperCase(Locale.ROOT).startsWith("LIGNE")) {
+                            niveauLigne = niveau;
+                        }
                     }
-                    o.append("  ".repeat(niveau)).append('<').append(nomQualifie(r.getPrefix(), r.getLocalName()));
+                    o.append('<').append(nomQualifie(r.getPrefix(), r.getLocalName()));
                     for (int i = 0; i < r.getNamespaceCount(); i++) {
                         String px = r.getNamespacePrefix(i);
                         o.append(px == null || px.isEmpty() ? " xmlns" : " xmlns:" + px).append("=\"")
@@ -361,11 +369,16 @@ public final class PharmaMlMessages {
                         o.append("/>");
                     } else if (ouvert) {
                         o.append('>').append(echapper(t, false)).append("</").append(nom).append('>');
+                    } else if (niveauLigne >= 0) {
+                        o.append(echapper(t, false)).append("</").append(nom).append('>');
                     } else {
                         if (!t.isEmpty()) {
                             o.append('\n').append("  ".repeat(niveau + 1)).append(echapper(t, false));
                         }
                         o.append('\n').append("  ".repeat(niveau)).append("</").append(nom).append('>');
+                    }
+                    if (niveau == niveauLigne) {
+                        niveauLigne = -1;
                     }
                     texte.setLength(0);
                     ouvert = false;

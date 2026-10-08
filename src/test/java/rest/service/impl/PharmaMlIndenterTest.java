@@ -21,6 +21,12 @@ class PharmaMlIndenterTest {
         assertTrue(x.contains("\n        <REP_COMMANDE Ref_Cde_Client=\"08102026_000025927\""), x);
         assertTrue(x.contains("<LIVREUR Societe=\"D.P.C.I.  REPARTITION\" Etablissement="),
                 "ordre des attributs garde : " + x);
+        /* retours du 08/10 : chaque ligne de produit et son detail sur une seule ligne */
+        assertTrue(x.contains(
+                "\n            <LIGNE_N Num_Ligne=\"1\" Num_Ligne_Commande=\"1\" Type_Codification=\"CIP39\" Code_Produit=\"3153342\" Quantite_livree=\"0\">"
+                        + "<PRIX_N Nature=\"PUBTC\" Valeur=\"2095.000\"/><PRIX_N Nature=\"PHAHT\" Valeur=\"1390.000\"/><PRIX_N Nature=\"NETHT\" Valeur=\"1390.000\"/>"
+                        + "<PRIX_N Nature=\"PTCBT\" Valeur=\"2095.000\"/><INDISPONIBILITE_N Code_Reponse=\"0005\" Additif=\"Manque Rayon\"/></LIGNE_N>\n          </NORMALE>"),
+                x);
         assertTrue(x.contains("<INDISPONIBILITE_N Code_Reponse=\"0005\" Additif=\"Manque Rayon\"/>"), x);
         assertTrue(!x.contains("\n\n") && !x.contains("\n \n"), "pas de ligne vide : " + x);
         /* meme contenu : la reponse relue donne les memes informations */

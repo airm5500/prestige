@@ -22,7 +22,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
     plain: true,
     maximizable: true,
     closable: false,
-    requires: ['testextjs.view.commandemanagement.bonlivraison.ImportXLS'],
+    requires: ['testextjs.view.commandemanagement.bonlivraison.ImportXLS', 'testextjs.view.commandemanagement.order.EnvoiPharmaMl'],
 
     initComponent: function () {
 
@@ -91,22 +91,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     itemId: 'colEnvoiPharmaml',
                     width: 118,
                     renderer: function (v, meta, r) {
-                        var S = {
-                            EN_ATTENTE: ['En attente', '#b26a00', '#fff4e0'],
-                            REPONDUE: ['Répondue', '#17795f', '#e3f6ef'],
-                            PARTIELLE: ['Partielle', '#8a5a00', '#fdf0d2'],
-                            REFUSEE: ['Refusée', '#b42318', '#fde7e6'],
-                            NON_ENVOYEE: ['Non envoyée', '#b42318', '#fde7e6'],
-                            ERREUR: ['Erreur', '#b42318', '#fde7e6']
-                        }[v];
-                        if (!S) {
-                            return '';
-                        }
-                        var info = S[0] + ' · ' + (r.get('dt_ENVOI_PHARMAML') || '')
-                                + (r.get('str_ENVOI_PHARMAML_DETAIL') ? '<br>' + Ext.String.htmlEncode(r.get('str_ENVOI_PHARMAML_DETAIL')) : '');
-                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(info) + '"';
-                        return '<span class="envoi-pml" data-envoi="' + v + '" style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:'
-                                + S[1] + ';background:' + S[2] + '">' + S[0] + '</span>';
+                        return testextjs.view.commandemanagement.order.EnvoiPharmaMl.rendu(v, meta, r);
                     }
                 },
                 {
@@ -151,18 +136,14 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     flex: 1
                 },
                 {
+                    /* Retours du 08/10 : date et heure dans une seule colonne (place pour le statut PharmaML) */
                     header: 'Date',
                     dataIndex: 'dt_CREATED',
-                    flex: 0.7,
-                     renderer: function (value) {
-                         return '<span style="color:green; font-weight:bold; font-size:1em;">' +value+'</span>';            
-                    }
-                }, {
-                    header: 'Heure',
-                    dataIndex: 'dt_UPDATED',
-                    flex: 0.5,
-                     renderer: function (value) {
-                         return '<span style="color:green; font-weight:bold; font-size:1em;">' +value+ '</span>';            
+                    itemId: 'colDateHeure',
+                    width: 128,
+                    renderer: function (value, meta, r) {
+                        return '<span style="color:green; font-weight:bold; font-size:1em;">' + Ext.String.htmlEncode(value || '')
+                                + (r.get('dt_UPDATED') ? ' ' + Ext.String.htmlEncode(r.get('dt_UPDATED')) : '') + '</span>';
                     }
                 },
                 {
@@ -190,6 +171,16 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.envoiPharmaML
                         }, '-',
 
+                        {
+                            /* Retours du 08/10 : reponse PharmaML en attente, recuperee depuis la ligne */
+                            iconCls: 'act-ico act-telecharger',
+                            tooltip: 'Récupérer la réponse PharmaML (interroge le grossiste de cette commande)',
+                            scope: this,
+                            getClass: function (v, meta, rec) {
+                                return testextjs.view.commandemanagement.order.EnvoiPharmaMl.classeRecuperer(v, meta, rec);
+                            },
+                            handler: this.recupererReponseLigne
+                        },
                         {
                             icon: 'resources/images/icons/fam/folder_go.png',
                             tooltip: 'Créer le bon de livraisson',
@@ -469,40 +460,22 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         });
     },
 
+    /*
+     * Bouton du haut : tous les grossistes ayant un envoi en attente. Le protocole ne permet pas de demander la reponse
+     * d'une seule commande : le grossiste rend ses reponses en attente une par une (voir EnvoiPharmaMl.js).
+     */
     reponsesPharmaML: function () {
         const me = this;
-        const progress = Ext.MessageBox.wait('Interrogation des grossistes . . .', 'Réponses PharmaML');
-        Ext.Ajax.request({
-            method: 'POST',
-            timeout: 600000,
-            url: '../api/v1/pharma/reponses',
-            success: function (response) {
-                progress.hide();
-                const r = Ext.JSON.decode(response.responseText, true) || {};
-                const enc = Ext.String.htmlEncode;
-                let lignes = [];
-                Ext.each(r.grossistes || [], function (g) {
-                    let t = '<b>' + enc(g.grossiste) + '</b> : ' + (g.traitees ? g.traitees + ' réponse(s) traitée(s)' : enc(g.msg || ''));
-                    Ext.each(g.messages || [], function (m) {
-                        if (m.statut === 'ERREUR' || m.statut === 'ORPHELINE') {
-                            t += '<br>&nbsp;&nbsp;- ' + (m.statut === 'ERREUR' ? 'refus : ' : 'réponse non rattachée (archivée) ')
-                                    + enc(((m.resultat || {}).msg) || m.enReponseA || '');
-                        }
-                    });
-                    lignes.push(t);
-                });
-                if (!lignes.length) {
-                    lignes.push('Aucun grossiste à interroger.');
-                }
-                lignes.push('<br>Envois encore en attente de réponse : <b>' + (r.enAttente || 0) + '</b>');
-                Ext.MessageBox.show({title: 'Réponses PharmaML', width: 560, msg: lignes.join('<br>'),
-                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.INFO});
-                me.getStore().reload();
-            },
-            failure: function (response) {
-                progress.hide();
-                Ext.Msg.alert('Réponses PharmaML', 'Erreur du serveur ' + response.status);
-            }
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.recuperer(null, function () {
+            me.getStore().reload();
+        });
+    },
+
+    /* Retours du 08/10 : la meme recuperation depuis la ligne, pour le grossiste de cette commande. */
+    recupererReponseLigne: function (grid, rowIndex) {
+        const me = this, rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.recuperer(rec.get('lg_GROSSISTE_ID'), function () {
+            me.getStore().reload();
         });
     },
 

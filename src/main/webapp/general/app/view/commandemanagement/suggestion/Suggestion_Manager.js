@@ -20,6 +20,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     extend: 'Ext.grid.Panel',
     xtype: 'i_sugg_manager',
     id: 'i_sugg_managerID',
+    requires: ['testextjs.view.commandemanagement.order.EnvoiPharmaMl'],
     frame: true,
     animCollapse: false,
     title: 'Liste Suggestion',
@@ -107,7 +108,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     name: 'isChecked',
                     type: 'boolean',
                     defaultValue: false
-                }
+                },
+                /* Retours du 08/10 : grossiste (identifiant) et statut du dernier envoi PharmaML de la commande liee */
+                {name: 'lgGROSSISTEID', type: 'string'},
+                {name: 'str_ENVOI_PHARMAML', type: 'string'},
+                {name: 'dt_ENVOI_PHARMAML', type: 'string'},
+                {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'}
             ],
             pageSize: itemsPerPage,
             autoLoad: true,
@@ -218,13 +224,24 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     }
                 },
                 {
+                    /* Retours du 08/10 : meme statut d'envoi PharmaML que la liste des commandes */
+                    header: 'PHARMAML',
+                    dataIndex: 'str_ENVOI_PHARMAML',
+                    itemId: 'colEnvoiPharmaml',
+                    width: 118,
+                    renderer: function (v, meta, r) {
+                        return testextjs.view.commandemanagement.order.EnvoiPharmaMl.rendu(v, meta, r);
+                    }
+                },
+                {
+                    /* date et heure dans une seule colonne (place pour le statut PharmaML) */
                     header: 'DATE',
                     dataIndex: 'dt_CREATED',
-                    flex: 1
-                }, {
-                    header: 'HEURE',
-                    dataIndex: 'dt_UPDATED',
-                    flex: 1
+                    itemId: 'colDateHeure',
+                    width: 140,
+                    renderer: function (v, meta, r) {
+                        return Ext.String.htmlEncode((v || '') + (r.get('dt_UPDATED') ? ' ' + r.get('dt_UPDATED') : ''));
+                    }
                 },
                 {
                     xtype: 'actioncolumn',
@@ -331,10 +348,21 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             iconCls: 'act-ico act-envoyer',
                             tooltip: 'Commander par PharmaML (la suggestion est conservée, statut « Commandée »)',
                             getClass: function (v, meta, rec) {
-                                return rec.get('str_STATUT') === 'commandee' || rec.get('str_STATUT') === 'enable' ? 'x-hide-display' : 'act-ico act-envoyer';
+                                /* deja commandee, ou envoi recu par le grossiste en attente de reponse : pas de renvoi */
+                                return rec.get('str_STATUT') === 'commandee' || rec.get('str_STATUT') === 'enable'
+                                        || rec.get('str_ENVOI_PHARMAML') === 'EN_ATTENTE' ? 'x-hide-display' : 'act-ico act-envoyer';
                             },
                             scope: this,
                             handler: this.onCommanderPharmaMlClick
+                        }, {
+                            /* Retours du 08/10 : reponse en attente, recuperee depuis la ligne (meme effet qu'en commande) */
+                            iconCls: 'act-ico act-telecharger',
+                            tooltip: 'Récupérer la réponse PharmaML (interroge le grossiste de cette suggestion)',
+                            getClass: function (v, meta, rec) {
+                                return testextjs.view.commandemanagement.order.EnvoiPharmaMl.classeRecuperer(v, meta, rec);
+                            },
+                            scope: this,
+                            handler: this.onRecupererReponseClick
                         }]
                 },
                 {
@@ -1077,6 +1105,14 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             });
                         });
             }
+        });
+    },
+
+    /* Retours du 08/10 : la suggestion passe « Commandée » des que la reponse est appliquee. */
+    onRecupererReponseClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.recuperer(rec.get('lgGROSSISTEID'), function () {
+            grid.getStore().reload();
         });
     },
 

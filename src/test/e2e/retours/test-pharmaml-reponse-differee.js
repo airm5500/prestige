@@ -112,6 +112,15 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
     ok('Envoi (écran) : « a bien reçu la commande », pas d\'échec ; en-tête de contrôle correct', /a bien reçu la commande/.test(t1) && !/impossible/.test(t1) && recus.length === 1 && recus[0].controleOk, t1 + JSON.stringify(recus));
     ok('Envoi : commande intacte, envoi enregistré EN_ATTENTE avec la référence du message', etat(CMD) === avant && statut(CMD) === 'EN_ATTENTE'
       && q("SELECT str_REF_MESSAGE FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + CMD + "'") === recus[0].ref, etat(CMD) + ' ' + statut(CMD));
+    /* liste des commandes : pastille « En attente », bouton de recuperation sur la ligne, date et heure regroupees */
+    await p.evaluate(() => { Ext.ComponentQuery.query('i_order_manager')[0].getStore().reload(); });
+    await p.waitForFunction((id) => { const g = Ext.ComponentQuery.query('i_order_manager')[0]; return !g.getStore().isLoading() && g.getStore().findExact('lg_ORDER_ID', id) >= 0; }, CMD, { timeout: 30000 });
+    const ligne = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('i_order_manager')[0]; const n = g.getView().getNode(g.getStore().findExact('lg_ORDER_ID', id));
+      const b = n.querySelector('.envoi-pml'); const dh = g.down('#colDateHeure');
+      return { badge: b ? b.getAttribute('data-envoi') : '', recuperer: !!n.querySelector('img.envoi-pml-recuperer'), date: n.querySelector('.x-grid-cell-' + dh.getItemId()).textContent.trim(),
+        heure: g.query('gridcolumn[text=Heure]').length }; }, CMD);
+    ok('Liste des commandes : « En attente » + bouton de récupération sur la ligne ; date et heure dans une seule colonne', ligne.badge === 'EN_ATTENTE' && ligne.recuperer
+      && /^\d{2}\/\d{2}\/\d{4} \d{1,2}:\d{2}/.test(ligne.date) && ligne.heure === 0, JSON.stringify(ligne));
     /* 2. renvoi refuse */
     recus.length = 0;
     const t2 = await envoyerEcran(CMD);

@@ -2707,14 +2707,9 @@ public class OrderServiceImpl implements OrderService {
     @SuppressWarnings("unchecked")
     private void envoiPharmaMl(CommandeDTO commande) {
         try {
-            List<Object[]> r = getEmg().createNativeQuery("SELECT str_STATUT, str_DETAIL,"
-                    + " DATE_FORMAT(COALESCE(dt_REPONSE, dt_ENVOI), '%d/%m/%Y %H:%i') FROM t_pharmaml_attente"
-                    + " WHERE lg_SOURCE_ID = ?1 AND str_SOURCE = 'COMMANDE' ORDER BY dt_ENVOI DESC, dt_REPONSE DESC")
-                    .setParameter(1, commande.getLgORDERID()).setMaxResults(1).getResultList();
-            if (!r.isEmpty()) {
-                String statut = (String) r.get(0)[0], detail = (String) r.get(0)[1];
-                commande.setEnvoiPharmaMl(StatutEnvoiPharmaMl.code(statut, detail), (String) r.get(0)[2],
-                        StatutEnvoiPharmaMl.detail(statut, detail));
+            String[] e = StatutEnvoiPharmaMl.dernierEnvoi(getEmg(), commande.getLgORDERID());
+            if (e != null) {
+                commande.setEnvoiPharmaMl(e[0], e[1], e[2]);
             }
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", e.getMessage());

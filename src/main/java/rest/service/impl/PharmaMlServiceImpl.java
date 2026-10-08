@@ -402,7 +402,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                                         + " AND dt_ENVOI > NOW() - INTERVAL 15 DAY")
                         .setParameter(1, EN_ATTENTE).getResultList();
         JSONArray parGrossiste = new JSONArray();
-        int traitees = 0;
+        int traitees = 0, reprises = 0;
         PharmaMlService moi = contexte.getBusinessObject(PharmaMlService.class);
         for (Object orpheline : (List<Object>) em
                 .createNativeQuery("SELECT lg_ID FROM t_pharmaml_attente"
@@ -410,6 +410,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 .setParameter(1, ORPHELINE).getResultList()) {
             if (TRAITEE.equals(moi.reprendreOrpheline((String) orpheline).optString("statut"))) {
                 traitees++;
+                reprises++;
             }
         }
         for (Object id : ids) {
@@ -422,7 +423,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                     new Object[] { ids.size(), traitees });
         }
         return new JSONObject().put("success", true).put("grossistes", parGrossiste).put("traitees", traitees)
-                .put("enAttente", attentes().getJSONArray("data").length());
+                .put("reprises", reprises).put("enAttente", attentes().getJSONArray("data").length());
     }
 
     private JSONObject vidage(TGrossiste g) {
