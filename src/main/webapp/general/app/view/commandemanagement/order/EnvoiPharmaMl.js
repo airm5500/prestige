@@ -39,7 +39,7 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
 
     /** Action de ligne visible seulement pour un envoi en attente de reponse. */
     classeRecuperer: function (v, meta, rec) {
-        return rec.get('str_ENVOI_PHARMAML') === 'EN_ATTENTE' ? 'act-ico act-telecharger envoi-pml-recuperer' : 'x-hide-display';
+        return rec.get('str_ENVOI_PHARMAML') === 'EN_ATTENTE' ? 'act-ico act-telecharger envoi-pml-recuperer' : 'act-ico act-telecharger x-hide-display';
     },
 
     /** Texte du resultat d'une recuperation (un ou plusieurs grossistes). */

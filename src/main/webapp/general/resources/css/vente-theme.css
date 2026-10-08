@@ -2851,14 +2851,11 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
   html.tb-imprime body > *:not(#tb-impression) { display: none !important; }
   html.tb-imprime, html.tb-imprime body { height: auto !important; overflow: visible !important; background: #fff !important; }
   html.tb-imprime #tb-impression { display: block !important; position: static !important; width: 100%; }
-  #tb-impression .tb-print { padding: 0 !important; background: #fff !important; }
-  #tb-impression .tb-print-entete { display: flex; justify-content: space-between; color: #1e3a5f; font-size: 13px;
-    border-bottom: 2px solid #1e3a5f; padding-bottom: 4px; margin-bottom: 8px; }
-  #tb-impression .tb-print-entete span { color: #6b7b8c; font-size: 11px; }
-  #tb-impression .tb-tuiles { display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 8px !important; }
-  #tb-impression .tb-tuiles, #tb-impression .tb-grille { break-inside: auto; }
-  #tb-impression .tb-tuile, #tb-impression .tb-carte { break-inside: avoid; box-shadow: none !important; transform: none !important;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 08/10 : copie fidele de l'ecran (disposition posee en ligne par imprimer()) ; couleurs et fonds imprimes */
+  #tb-impression .tb { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #tb-impression .tb * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #tb-impression .tb-tuile, #tb-impression .tb-carte { break-inside: avoid; transform: none !important; opacity: 1 !important; }
+  #tb-impression .tb-imprime-le { color: #c9d6e6; font-size: 12px; }
   #tb-impression * { animation: none !important; transition: none !important; }
 }
 
@@ -2903,3 +2900,23 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .inter-ligne.g3 { border-left-color: #d9661f; } .inter-ligne.g3 .mono-niveau { background: #d9661f; color: #fff; }
 .inter-ligne.g2 { border-left-color: #d4a514; } .inter-ligne.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
 .inter-conseil { color: #4a5866; }
+
+/* Retours du 08/10 : icones d'action et lignes moins « plates ».
+ * 1) Boutons d'icone teintes (plus blancs sur fond blanc), bordure et ombre legeres.
+ * 2) Lignes alternees et separateurs plus marques dans les listes.
+ * 3) Colonne d'actions a plusieurs icones (4 et plus) : une icone absente garde sa place (vide), les autres ne se
+ *    decalent plus d'une ligne a l'autre. Les colonnes a 1-3 icones (icones alternees : activer / desactiver...) ne
+ *    changent pas. Sans :has (ancien navigateur), comportement d'avant. */
+.act-ico { background-color: #edf2f7; border-color: #c3cfdc; box-shadow: 0 1px 1px rgba(15, 35, 60, .08); }
+.act-ico:hover { background-color: #dde9f6; border-color: #2E75B6; }
+.x-grid-row-selected .act-ico, .x-grid-row-over .act-ico { background-color: #fff; }
+.x-grid-row .x-grid-cell { border-bottom: 1px solid #e3e9f0; }
+.x-grid-row-alt > .x-grid-cell, .theme-grille .x-grid-row-alt .x-grid-cell, .theme-liste .x-grid-row-alt .x-grid-cell,
+.x-grid-view tr.x-grid-data-row:nth-of-type(even) > .x-grid-cell { background-color: #f6f9fc; }
+.x-grid-cell-inner:has(> .x-action-col-icon:nth-of-type(4)) > .x-action-col-icon.x-hide-display {
+    display: inline-block !important; visibility: hidden !important; }
+/* la place vide a la taille d'un bouton d'icone (getClass remplace la classe de l'icone quand elle est masquee) */
+.x-grid-cell-inner:has(> .act-ico):has(> .x-action-col-icon:nth-of-type(4)) > .x-action-col-icon.x-hide-display {
+    width: 26px !important; height: 26px !important; margin: 0 3px; border: 1px solid transparent; vertical-align: middle; box-sizing: border-box; }
+.theme-liste .x-grid-cell-inner:has(> .act-ico):has(> .x-action-col-icon:nth-of-type(4)) > .x-action-col-icon.x-hide-display {
+    width: 24px !important; height: 24px !important; margin: 0 2px; }

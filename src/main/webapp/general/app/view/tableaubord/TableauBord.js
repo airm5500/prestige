@@ -300,27 +300,65 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
     },
 
     /**
-     * Retours du 07/10 : le tableau de bord imprime ou enregistre en PDF, page A4 PAYSAGE. Une copie des tuiles et
-     * des cartes (graphiques en SVG, donc copiables) est placee dans une zone d'impression ; l'impression du
-     * navigateur ne montre qu'elle (choisir « Enregistrer au format PDF »). La mise en page paysage n'est posee que
-     * le temps de cette impression : les autres editions ne changent pas.
+     * Impression (PDF, A4 paysage) FIDELE a l'ecran (retours du 08/10) : copie de la page telle qu'affichee (en-tete,
+     * tuiles, cartes, graphiques SVG, interrupteurs et listes avec la valeur choisie), avec la MEME disposition : colonnes
+     * des tuiles et largeur de chaque carte relevees a l'ecran (sur papier, la largeur A4 declencherait sinon la
+     * disposition « petit ecran », cartes empilees). La copie garde la largeur de l'ecran et est reduite (zoom) pour
+     * tenir sur la largeur de la page. Seuls les boutons d'action (Personnaliser, Actualiser, Imprimer, outils des
+     * cartes) ne sont pas imprimes. La mise en page paysage n'est posee que le temps de cette impression.
      */
     imprimer: function () {
-        var me = this, titre = me.q('[data-tb="date"]');
+        var me = this, racine = me.q('.tb');
+        if (!racine) {
+            return;
+        }
         var ancienne = document.getElementById('tb-impression');
         if (ancienne) {
             ancienne.parentNode.removeChild(ancienne);
         }
+        var copie = racine.cloneNode(true);
+        /* disposition de l'ecran, element par element (meme ordre dans l'original et la copie) */
+        var orig = Ext.Array.slice(racine.querySelectorAll('.tb-tuiles, .tb-grille, .tb-tuile, .tb-carte, select, input'));
+        var dest = Ext.Array.slice(copie.querySelectorAll('.tb-tuiles, .tb-grille, .tb-tuile, .tb-carte, select, input'));
+        Ext.each(orig, function (o, i) {
+            var d = dest[i], cs = window.getComputedStyle(o);
+            if (!d) {
+                return;
+            }
+            if (o.classList.contains('tb-tuiles') || o.classList.contains('tb-grille')) {
+                d.style.gridTemplateColumns = cs.gridTemplateColumns;
+            } else if (o.classList.contains('tb-tuile') || o.classList.contains('tb-carte')) {
+                d.style.gridColumn = cs.gridColumnStart + ' / ' + cs.gridColumnEnd;
+                d.style.display = cs.display;
+            } else if (o.tagName === 'SELECT') {
+                Ext.each(Ext.Array.slice(d.options), function (opt, k) {
+                    opt.selected = k === o.selectedIndex;
+                    if (k === o.selectedIndex) {
+                        opt.setAttribute('selected', 'selected');
+                    }
+                });
+            } else {
+                d.setAttribute('value', o.value);
+                if (o.checked) {
+                    d.setAttribute('checked', 'checked');
+                }
+            }
+        });
+        Ext.each(Ext.Array.slice(copie.querySelectorAll('[data-tb="perso"], [data-tb="actualiser"], [data-tb="imprimer"], '
+                + '[data-tb="perso-rappel"], .tb-bandeau, .tb-tuile-outils, .tb-carte-outils')), function (e) {
+            e.parentNode.removeChild(e);
+        });
+        var esp = copie.querySelector('.tb-esp');
+        if (esp) {
+            esp.innerHTML = '<span class="tb-imprime-le">Imprimé le ' + Ext.Date.format(new Date(), 'd/m/Y à H:i') + '</span>';
+        }
+        /* meme largeur qu'a l'ecran, reduite a la largeur utile d'une page A4 paysage (297 - 2 x 8 mm, a 96 ppp) */
+        var largeur = Math.round(racine.getBoundingClientRect().width), utile = Math.floor((297 - 16) / 25.4 * 96);
+        copie.style.width = largeur + 'px';
+        copie.style.zoom = Math.min(1, utile / largeur).toFixed(4);
         var zone = document.createElement('div');
         zone.id = 'tb-impression';
-        zone.innerHTML = '<div class="tb tb-print"><div class="tb-print-entete"><b>'
-                + Ext.String.htmlEncode(titre ? titre.textContent : 'Tableau de bord') + '</b><span>Imprimé le '
-                + Ext.Date.format(new Date(), 'd/m/Y à H:i') + '</span></div>'
-                + '<div class="tb-tuiles">' + me.q('[data-tb="tuiles"]').innerHTML + '</div>'
-                + '<div class="tb-grille">' + me.q('[data-tb="cartes"]').innerHTML + '</div></div>';
-        Ext.each(Ext.Array.slice(zone.querySelectorAll('.tb-tuile-outils, .tb-carte-outils, button, .tb-seg, input, label')), function (e) {
-            e.style.display = 'none';
-        });
+        zone.appendChild(copie);
         document.body.appendChild(zone);
         var page = document.createElement('style');
         page.id = 'tb-page-paysage';

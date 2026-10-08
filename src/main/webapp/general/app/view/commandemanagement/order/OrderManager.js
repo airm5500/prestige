@@ -140,7 +140,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'Date',
                     dataIndex: 'dt_CREATED',
                     itemId: 'colDateHeure',
-                    width: 128,
+                    width: 152,
                     renderer: function (value, meta, r) {
                         return '<span style="color:green; font-weight:bold; font-size:1em;">' + Ext.String.htmlEncode(value || '')
                                 + (r.get('dt_UPDATED') ? ' ' + Ext.String.htmlEncode(r.get('dt_UPDATED')) : '') + '</span>';
