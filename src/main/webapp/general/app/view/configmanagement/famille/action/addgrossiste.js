@@ -365,31 +365,43 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
             }
         }, url_services_data_famille_grossiste);
     },
+    /*
+     * Retours du 08/10 (9) : verification de disponibilite PharmaML raccordee (meme interrogation que la suggestion et
+     * la commande). Resultat complet dans une boite assez large (plus de texte coupe).
+     */
     onIsProductDispoClick: function(grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        testextjs.app.getController('App').ShowWaitingProcess();
+        var rec = grid.getStore().getAt(rowIndex), enc = Ext.String.htmlEncode;
+        var attente = Ext.MessageBox.wait('Interrogation du grossiste…', 'Disponibilité PharmaML');
         Ext.Ajax.request({
-            // Verification PHARMA ML en API REST (comportement identique au mode JSP historique)
-            url: '../api/v1/famille-grossiste/check-dispo/' + rec.get('lg_FAMILLE_GROSSISTE_ID'),
-            method: 'GET',
-            success: function(response)
-            {
-                testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success === 0) {
-                    Ext.MessageBox.alert('Error Message', object.errors);
+            url: '../api/v1/famille-grossiste/check-dispo/' + encodeURIComponent(rec.get('lg_FAMILLE_GROSSISTE_ID')),
+            method: 'GET', timeout: 120000,
+            success: function(response) {
+                attente.hide();
+                var o = Ext.JSON.decode(response.responseText, true) || {}, t, icone = Ext.MessageBox.INFO;
+                if (!o.success) {
+                    t = enc(o.msg || o.errors || 'Vérification impossible.');
+                    icone = Ext.MessageBox.WARNING;
                 } else {
-                    Ext.MessageBox.alert('confirmation', object.errors);
+                    var S = {OUI: ['Disponible', '#17795f'], NON: ['Non disponible', '#b42318'], AUTRE: ['Réponse particulière', '#b26a00'], INCONNU: ['Sans réponse', '#6b7b8c']}[o.statut]
+                            || ['Sans réponse', '#6b7b8c'];
+                    t = '<b>' + enc(o.produit || '') + '</b> chez <b>' + enc(o.grossiste || '') + '</b> :<br><br>'
+                            + '<span class="dispo-fiche-statut" data-statut="' + enc(o.statut || '') + '" style="font-weight:700;color:' + S[1] + '">' + S[0] + '</span>'
+                            + (o.libelle ? ' — ' + enc(o.libelle) : '') + (o.codeReponse && o.codeReponse !== '0000' ? ' (code ' + enc(o.codeReponse) + ')' : '')
+                            + (o.dateDispo ? '<br>Mise à disposition prévue : ' + enc(o.dateDispo) + (o.qteDispo ? ' (' + o.qteDispo + ')' : '') : '')
+                            + (o.remplacantCode ? '<br>Remplaçant proposé : ' + enc(o.remplacantNom || '') + ' (' + enc(o.remplacantCode) + ')' : '')
+                            + (o.prix ? '<br>Prix d\'achat annoncé : ' + Ext.util.Format.number(o.prix, '0,000.') : '')
+                            + (o.avertissement ? '<br><br><span style="color:#b26a00">' + enc(o.avertissement) + '</span>' : '')
+                            + '<br><br><span style="color:#6b7b8c">Code interrogé : ' + enc(o.codeEnvoye || '') + '. Information seulement : aucune commande n\'a été passée.</span>';
+                    icone = o.statut === 'NON' ? Ext.MessageBox.WARNING : Ext.MessageBox.INFO;
                 }
+                Ext.defer(function () {
+                    Ext.MessageBox.show({title: 'Disponibilité PharmaML', msg: t, width: 480, buttons: Ext.MessageBox.OK, icon: icone});
+                }, 60);
             },
-            failure: function(response)
-            {
-                testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
+            failure: function(response) {
+                attente.hide();
+                Ext.MessageBox.alert('Disponibilité PharmaML', 'Erreur du serveur ' + response.status);
             }
         });
-
     }
 });

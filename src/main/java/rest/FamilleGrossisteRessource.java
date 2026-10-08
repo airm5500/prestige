@@ -133,10 +133,12 @@ public class FamilleGrossisteRessource {
         }
     }
 
+    @javax.ejb.EJB
+    private rest.service.DisponibiliteService disponibiliteService;
+
     /**
-     * Verification de disponibilite PHARMA ML. Le mode checkdispoproduct de la JSP historique n'appelait plus rien
-     * (verification desactivee dans le code depuis longtemps) : l'endpoint repond honnetement que la fonction n'est pas
-     * disponible au lieu de renvoyer un message vide.
+     * Retours du 08/10 (9) : verification de disponibilite PharmaML d'un produit chez le grossiste de la ligne (fiche
+     * article, gerer grossiste) ; meme interrogation que la suggestion et la commande.
      */
     @GET
     @javax.ws.rs.Path("check-dispo/{id}")
@@ -145,8 +147,7 @@ public class FamilleGrossisteRessource {
         if (user == null) {
             return deconnecte();
         }
-        return reponseTransaction(commonparameter.PROCESS_FAILED,
-                "La vérification de disponibilité PHARMA ML n'est pas disponible");
+        return Response.ok(disponibiliteService.verifierFiche(familleGrossisteId, user).toString()).build();
     }
 
     @GET

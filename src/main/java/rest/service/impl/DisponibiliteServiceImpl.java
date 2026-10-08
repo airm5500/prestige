@@ -50,11 +50,14 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
     private EntityManager em;
 
     private static boolean sourceValide(String source) {
-        return SUGGESTION.equals(source) || COMMANDE.equals(source);
+        return SUGGESTION.equals(source) || COMMANDE.equals(source) || FICHE.equals(source);
     }
 
     /** Lignes de la source : produit, quantite. */
     private String requeteLignes(String source) {
+        if (FICHE.equals(source)) {
+            return "SELECT f.lg_FAMILLE_ID AS id, 1 AS qte FROM t_famille f WHERE f.lg_FAMILLE_ID = :s";
+        }
         return SUGGESTION.equals(source)
                 ? "SELECT d.lg_FAMILLE_ID AS id, SUM(COALESCE(d.int_NUMBER, 1)) AS qte FROM t_suggestion_order_details d"
                         + " WHERE d.lg_SUGGESTION_ORDER_ID = :s GROUP BY d.lg_FAMILLE_ID"
@@ -63,6 +66,9 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
     }
 
     private String grossisteDeLaSource(String source, String sourceId) {
+        if (FICHE.equals(source)) {
+            return null; /* fiche article : le grossiste de la ligne est toujours fourni */
+        }
         List<?> r = em
                 .createNativeQuery(SUGGESTION.equals(source)
                         ? "SELECT lg_GROSSISTE_ID FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = :s"
@@ -389,5 +395,43 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
             sortie.add(m);
         }
         return sortie;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject verifierFiche(String familleGrossisteId, TUser user) {
+        List<Object[]> fg = em
+                .createNativeQuery("SELECT fg.lg_FAMILLE_ID, fg.lg_GROSSISTE_ID, g.str_LIBELLE, f.str_NAME"
+                        + " FROM t_famille_grossiste fg JOIN t_grossiste g ON g.lg_GROSSISTE_ID = fg.lg_GROSSISTE_ID"
+                        + " JOIN t_famille f ON f.lg_FAMILLE_ID = fg.lg_FAMILLE_ID WHERE fg.lg_FAMILLE_GROSSISTE_ID = ?1")
+                .setParameter(1, familleGrossisteId).getResultList();
+        if (fg.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Ligne grossiste introuvable.");
+        }
+        String familleId = (String) fg.get(0)[0], grossisteId = (String) fg.get(0)[1];
+        JSONObject r = verifier(FICHE, familleId, grossisteId, java.util.Collections.singletonList(familleId), user);
+        JSONObject out = new JSONObject().put("success", r.optBoolean("success")).put("grossiste", fg.get(0)[2])
+                .put("produit", fg.get(0)[3]);
+        if (!r.optBoolean("success")) {
+            return out.put("msg", r.optString("msg", "Vérification impossible."));
+        }
+        List<Object[]> d = em
+                .createNativeQuery("SELECT str_STATUT, IFNULL(str_CODE_REPONSE, ''), IFNULL(str_LIBELLE, ''),"
+                        + " IFNULL(str_DATE_DISPO, ''), int_QTE_DISPO, IFNULL(str_REMPLACANT_CODE, ''), IFNULL(str_REMPLACANT_NOM, ''),"
+                        + " int_PRIX, str_CODE_ENVOYE FROM t_disponibilite_produit WHERE str_SOURCE = ?1 AND lg_SOURCE_ID = ?2"
+                        + " AND lg_GROSSISTE_ID = ?3 ORDER BY dt_CREATED DESC")
+                .setParameter(1, FICHE).setParameter(2, familleId).setParameter(3, grossisteId).setMaxResults(1)
+                .getResultList();
+        if (!d.isEmpty()) {
+            Object[] l = d.get(0);
+            out.put("statut", l[0]).put("codeReponse", l[1]).put("libelle", l[2]).put("dateDispo", l[3])
+                    .put("qteDispo", l[4] == null ? JSONObject.NULL : l[4]).put("remplacantCode", l[5])
+                    .put("remplacantNom", l[6]).put("prix", l[7] == null ? JSONObject.NULL : l[7])
+                    .put("codeEnvoye", l[8]);
+        }
+        if (r.has("avertissement")) {
+            out.put("avertissement", r.getString("avertissement"));
+        }
+        return out;
     }
 }
