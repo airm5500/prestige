@@ -34,4 +34,18 @@ class PharmaMlIndenterTest {
         assertEquals("", PharmaMlMessages.indenter(""));
         assertEquals(null, PharmaMlMessages.indenter(null));
     }
+
+    /** Vidage reel DPCI du 08/10 : EN_REPONSE_A = reference du vidage ; rattachement par Ref_Cde_Client. */
+    @Test
+    void vidageDpciReelRefCdeClientLu() throws Exception {
+        String x = new String(
+                Files.readAllBytes(Paths.get("src/test/resources/pharmaml/RV_DPCI_vidage_rep_commande_v1.xml")),
+                StandardCharsets.UTF_8);
+        PharmaMlMessages.Enveloppe e = PharmaMlMessages.lireEnveloppe(x);
+        assertEquals("261008091521007", e.enReponseA);
+        assertEquals("08102026_00003", e.refCdeClient);
+        assertTrue(e.repCommande);
+        assertEquals("", PharmaMlMessages.lireEnveloppe(
+                "<CSRP_ENVELOPPE><CORPS><ACTION>FIN_SERVICE</ACTION></CORPS></CSRP_ENVELOPPE>").refCdeClient);
+    }
 }

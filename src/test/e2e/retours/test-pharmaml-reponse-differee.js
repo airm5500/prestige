@@ -1,6 +1,7 @@
 /* PHARMAML : REPONSE DIFFEREE (retours du 08/10, specification v4.8 § 4.1.2-4.1.3). Faux serveur au comportement reel
  * de DPCI : la commande recoit « FIN_SERVICE » (recue, reponse plus tard) ; la demande de VIDAGE (REQ_RECEPTION) rend
- * la reponse de commande (REP_RECEPTION, EN_REPONSE_A = REF_MESSAGE de la commande) ; l'ACQUITTEMENT la retire du depot
+ * la reponse de commande (REP_RECEPTION) avec, COMME LE VRAI DPCI (fichier RV_ du 08/10), EN_REPONSE_A = reference de la
+ * DEMANDE DE VIDAGE et Ref_Cde_Client = reference de la commande : le rattachement se fait par Ref_Cde_Client ; l'ACQUITTEMENT la retire du depot
  * et rend FIN_SERVICE. Reglages reels de DPCI (code client, cle) ; seule l'adresse est detournee.
  *  - envoi par l'ecran : message « a bien reçu », pas d'echec, commande intacte, envoi enregistre EN_ATTENTE ;
  *  - renvoi refuse (doublon chez le grossiste) sans rien envoyer ;
@@ -30,7 +31,7 @@ let n = 0;
 const env = (nature, enRep, corps) => '<?xml version="1.0" encoding="UTF-8"?><CSRP_ENVELOPPE xmlns="urn:x-csrp:fr.csrp.protocole:enveloppe" Nature_Action="' + nature
   + '" Version_Protocole="1.0.0.0" Id_Logiciel="FAUX" Version_Logiciel="1" Usage="P"><ENTETE><EMETTEUR Nature="RE" Code="12" Id="04" Adresse="DPCI"/><RECEPTEUR Nature="OF" Code="00" Id="0999908" Adresse="X"/>'
   + '<REF_MESSAGE>M' + (++n) + '</REF_MESSAGE>' + (enRep ? '<EN_REPONSE_A>' + enRep + '</EN_REPONSE_A>' : '') + '<DATE>2026-10-08T10:00:00</DATE></ENTETE><CORPS>' + corps + '</CORPS></CSRP_ENVELOPPE>';
-const repCommande = (codes) => '<MESSAGE_REPARTITEUR xmlns="urn:x-csrp:fr.csrp.protocole:message"><ENTETE><EMETTEUR Code_Societe="12" Id_Societe="04"/><DESTINATAIRE Id_Client="0999908"/></ENTETE><CORPS><REP_COMMANDE><NORMALE>'
+const repCommande = (codes, refCde) => '<MESSAGE_REPARTITEUR xmlns="urn:x-csrp:fr.csrp.protocole:message"><ENTETE><EMETTEUR Code_Societe="12" Id_Societe="04"/><DESTINATAIRE Id_Client="0999908"/></ENTETE><CORPS><REP_COMMANDE' + (refCde ? ' Ref_Cde_Client="' + refCde + '"' : '') + '><NORMALE>'
   + codes.map((c, i) => i === 0 ? '<LIGNE_N Num_Ligne="' + (i + 1) + '" Code_Produit="' + c.code + '" Quantite_livree="' + c.q + '"><PRIX_N Nature="PHAHT" Valeur="1500"/><PRIX_N Nature="PUBTC" Valeur="2500"/></LIGNE_N>'
     : '<LIGNE_N Num_Ligne="' + (i + 1) + '" Code_Produit="' + c.code + '" Quantite_livree="0"><PRIX_N Nature="PHAHT" Valeur="900"/><PRIX_N Nature="PUBTC" Valeur="1400"/><INDISPONIBILITE_N Code_Reponse="2" Additif="PAS EN STOCK"/></LIGNE_N>').join('')
   + '</NORMALE></REP_COMMANDE></CORPS></MESSAGE_REPARTITEUR>';
@@ -44,7 +45,8 @@ const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c)
   const repondre = (x) => { rep.writeHead(200, { 'Content-Type': 'text/xml' }); rep.end(x); };
   if (m.action === 'COMMANDE') {
     const codes = [...b.matchAll(/<LIGNE_N [^>]*Code_Produit="([^"]*)"[^>]*Quantite="(\d+)"/g)].map((x) => ({ code: x[1], q: Number(x[2]) }));
-    depot.push({ enRep: m.ref, codes });
+    /* comportement reel de DPCI : la reponse portera EN_REPONSE_A = reference du vidage, et Ref_Cde_Client */
+    depot.push({ reel: true, refCde: (b.match(/Ref_Cde_Client="([^"]*)"/) || [])[1], codes });
     return repondre(env('REP_EMISSION', m.ref, '<ACTION>FIN_SERVICE</ACTION>'));
   }
   if (m.action === 'VIDAGE' && mode === 'refus') {
@@ -54,7 +56,7 @@ const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c)
   if (m.action === 'VIDAGE' || m.action === 'ACQUITTEMENT') {
     if (!depot.length) { return repondre(env('REP_RECEPTION', m.ref, '<ACTION>FIN_SERVICE</ACTION>')); }
     const d = depot[0];
-    return repondre(env('REP_RECEPTION', d.enRep, repCommande(d.codes)));
+    return repondre(env('REP_RECEPTION', d.reel ? m.ref : d.enRep, repCommande(d.codes, d.reel ? d.refCde : null)));
   }
   repondre(env('REP_EMISSION', m.ref, '<ERREUR Description_libre="inattendu"/>'));
 }); });
@@ -125,7 +127,7 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
     ok('« Réponses PharmaML » : VIDAGE (REQ_RECEPTION) puis ACQUITTEMENT du message reçu, contrôle sur chaque message', vid.length >= 1 && acq.length === 1 && vid[0].nature === 'REQ_RECEPTION'
       && acq[0].nature === 'REQ_RECEPTION' && /^M\d+$/.test(acq[0].enRep) && recus.every((r) => r.controleOk), JSON.stringify(recus));
     const apres = etat(CMD);
-    ok('Réponse appliquée à la commande : produit 1 livré (prix 1500), produit 2 en rupture ; envoi TRAITEE', apres !== avant && /1500/.test(apres) && /\|1$/.test(apres) && statut(CMD) === 'TRAITEE', avant + ' -> ' + apres);
+    ok('Réponse au format réel DPCI (EN_REPONSE_A = référence du vidage) rattachée par Ref_Cde_Client et appliquée : produit 1 livré (prix 1500), produit 2 en rupture ; envoi TRAITEE', apres !== avant && /1500/.test(apres) && /\|1$/.test(apres) && statut(CMD) === 'TRAITEE', avant + ' -> ' + apres);
     ok('Écran : DPCI seul interrogé, « 1 réponse(s) traitée(s) », plus rien en attente', /DPCI : 1 réponse\(s\) traitée\(s\)/.test(t3) && !/LABOREX/.test(t3) && /attente de réponse : 0/.test(t3), t3);
     /* 4. 30 s entre deux vidages */
     const r4 = JSON.parse(await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).text(), G));
@@ -152,6 +154,23 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
     const r6 = JSON.parse(await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).text(), G));
     ok('Refus de la demande de vidage : arrêt, motif affiché, aucun acquittement', /refus : .*controle/.test(r6.grossistes[0].msg) && recus.every((r) => r.action !== 'ACQUITTEMENT') && depot.length === 1, JSON.stringify(r6));
     mode = 'normal'; depot.length = 0;
+    /* 7. reponse deja archivee « non rattachee » (cas reel du 08/10, avant correction) : reprise depuis l'archive */
+    const fs = require('fs'), DOSSIER = '/root/prestige/pharmaml', ARCH = 'RV_E2E-PMD-ORPH_DPCI';
+    fs.mkdirSync(DOSSIER, { recursive: true });
+    fs.writeFileSync(DOSSIER + '/' + ARCH + '.xml', env('REP_RECEPTION', '261008091521007', repCommande(codes.map((c, i) => ({ code: c, q: i + 2 })), CMD2)));
+    exec("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID, str_REF_MESSAGE, str_REF_CDE, str_STATUT, dt_ENVOI) VALUES ('e2e-pmd-3', '" + G + "', 'COMMANDE', '" + CMD2 + "', '20261008091358', '" + CMD2 + "', 'EN_ATTENTE', NOW());"
+      + "INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, str_REF_MESSAGE, str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE) VALUES ('e2e-pmd-4', '" + G + "', 'COMMANDE', '261008091521007', 'ORPHELINE', 'Réponse non rattachée, archivée : " + ARCH + ".xml', NOW(), NOW())");
+    const avant7 = etat(CMD2);
+    recus.length = 0;
+    const r7 = JSON.parse(await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).text(), G));
+    const st7 = q("SELECT GROUP_CONCAT(CONCAT(lg_ID, ':', str_STATUT) ORDER BY lg_ID) FROM t_pharmaml_attente WHERE lg_ID IN ('e2e-pmd-3', 'e2e-pmd-4')");
+    ok('Réponse archivée non rattachée : reprise depuis l\'archive, rattachée par Ref_Cde_Client et appliquée (envoi TRAITEE, ligne RATTACHEE)', st7 === 'e2e-pmd-3:TRAITEE,e2e-pmd-4:RATTACHEE'
+      && etat(CMD2) !== avant7 && /1500/.test(etat(CMD2)) && r7.traitees >= 1, st7 + ' ' + avant7 + ' -> ' + etat(CMD2) + ' ' + JSON.stringify(r7).slice(0, 200));
+    const orphelineInconnue = q("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = '" + G + "' AND str_STATUT = 'ORPHELINE'");
+    ok('Réponse archivée toujours inconnue (sans Ref_Cde_Client connu) : laissée non rattachée, jamais appliquée', orphelineInconnue === '1', orphelineInconnue);
+    const r7b = JSON.parse(await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).text(), G));
+    ok('Reprise rejouée : rien n\'est appliqué deux fois', st7 === q("SELECT GROUP_CONCAT(CONCAT(lg_ID, ':', str_STATUT) ORDER BY lg_ID) FROM t_pharmaml_attente WHERE lg_ID IN ('e2e-pmd-3', 'e2e-pmd-4')") && r7b.traitees === 0, JSON.stringify(r7b).slice(0, 200));
+    fs.unlinkSync(DOSSIER + '/' + ARCH + '.xml');
     const att = JSON.parse(await p.evaluate(async () => (await fetch('../api/v1/pharma/attentes')).text()));
     ok('Liste des envois en attente / réponses non rattachées disponible', att.success && Array.isArray(att.data) && att.data.some((a) => a.statut === 'ORPHELINE'), JSON.stringify(att).slice(0, 200));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

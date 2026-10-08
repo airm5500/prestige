@@ -250,7 +250,7 @@ public final class PharmaMlMessages {
 
     /** Ce que dit l'enveloppe d'une reponse : nature, references, action de cinematique, presence d'une reponse. */
     public static final class Enveloppe {
-        public String natureAction = "", refMessage = "", enReponseA = "", action = "";
+        public String natureAction = "", refMessage = "", enReponseA = "", action = "", refCdeClient = "";
         public boolean repCommande, erreur;
     }
 
@@ -276,6 +276,7 @@ public final class PharmaMlMessages {
                     e.action = x.getTextContent().trim().toUpperCase(Locale.ROOT);
                 } else if ("REP_COMMANDE".equals(n)) {
                     e.repCommande = true;
+                    e.refCdeClient = x.getAttribute("Ref_Cde_Client").trim();
                 } else if ("ERREUR".equals(n)) {
                     e.erreur = true;
                 }

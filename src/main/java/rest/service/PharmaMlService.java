@@ -33,6 +33,9 @@ public interface PharmaMlService {
     /** Usage interne (transaction propre) : applique une reponse recue par vidage a l'envoi qu'elle concerne. */
     JSONObject appliquerReponseDifferee(String grossisteId, String xml, String archive);
 
+    /** Reponse archivee « non rattachee » reprise depuis son archive (rattachement par Ref_Cde_Client). */
+    JSONObject reprendreOrpheline(String idOrpheline);
+
     /** Envois en attente de reponse (ecran des commandes). */
     JSONObject attentes();
 

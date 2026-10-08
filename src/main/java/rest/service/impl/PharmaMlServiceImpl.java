@@ -316,13 +316,19 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 resume.put(k, traite.opt(k));
             }
         }
+        String refCde = null;
+        try {
+            refCde = payLoad.getCorps().getMessageOfficine().getCorps().getCommande().getRefCdeClient();
+        } catch (RuntimeException e) {
+            /* pas de reference de commande lisible : rattachement par REF_MESSAGE seulement */
+        }
         em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
-                + " str_REF_MESSAGE, str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE)"
-                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NOW(), NOW())")
+                + " str_REF_MESSAGE, str_REF_CDE, str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NOW(), NOW())")
                 .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
                 .setParameter(3, source).setParameter(4, sourceId).setParameter(5, payLoad.getEntete().getRefMessage())
-                .setParameter(6, versionCommande(g)).setParameter(7, TRAITEE).setParameter(8, resume.toString())
-                .executeUpdate();
+                .setParameter(6, refCde).setParameter(7, versionCommande(g)).setParameter(8, TRAITEE)
+                .setParameter(9, resume.toString()).executeUpdate();
     }
 
     /** Envoi refuse ou impossible : note pour la liste des commandes, puis le message habituel. */
@@ -397,6 +403,15 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         .setParameter(1, EN_ATTENTE).getResultList();
         JSONArray parGrossiste = new JSONArray();
         int traitees = 0;
+        PharmaMlService moi = contexte.getBusinessObject(PharmaMlService.class);
+        for (Object orpheline : (List<Object>) em
+                .createNativeQuery("SELECT lg_ID FROM t_pharmaml_attente"
+                        + " WHERE str_STATUT = ?1 AND dt_REPONSE > NOW() - INTERVAL 15 DAY ORDER BY dt_REPONSE")
+                .setParameter(1, ORPHELINE).getResultList()) {
+            if (TRAITEE.equals(moi.reprendreOrpheline((String) orpheline).optString("statut"))) {
+                traitees++;
+            }
+        }
         for (Object id : ids) {
             JSONObject r = vidage(em.find(TGrossiste.class, (String) id));
             traitees += r.optInt("traitees");
@@ -476,6 +491,57 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     @SuppressWarnings("unchecked")
     public JSONObject appliquerReponseDifferee(String grossisteId, String xml, String archive) {
+        return appliquer(grossisteId, xml, archive, true);
+    }
+
+    /**
+     * Retours du 08/10 : reponses archivees « non rattachees » (ex. DPCI, rattachement impossible avant la lecture de
+     * Ref_Cde_Client) reprises depuis leur archive. Rattachee : appliquee comme a la reception, la ligne passe
+     * RATTACHEE ; toujours inconnue : laissee telle quelle.
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    @SuppressWarnings("unchecked")
+    public JSONObject reprendreOrpheline(String idOrpheline) {
+        List<Object[]> l = em
+                .createNativeQuery("SELECT lg_GROSSISTE_ID, str_DETAIL FROM t_pharmaml_attente"
+                        + " WHERE lg_ID = ?1 AND str_STATUT = ?2")
+                .setParameter(1, idOrpheline).setParameter(2, ORPHELINE).getResultList();
+        if (l.isEmpty()) {
+            return new JSONObject().put("statut", "ABSENTE");
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("archivée : ([A-Za-z0-9_.-]+)\\.xml")
+                .matcher(StringUtils.defaultString((String) l.get(0)[1]));
+        if (!m.find() || StringUtils.isBlank(ap.pharmaMlDir)) {
+            return new JSONObject().put("statut", "SANS_ARCHIVE");
+        }
+        String archive = m.group(1);
+        Path fichier = Paths.get(ap.pharmaMlDir, archive + ".xml");
+        if (!Files.isRegularFile(fichier)) {
+            return new JSONObject().put("statut", "SANS_ARCHIVE");
+        }
+        String xml;
+        try {
+            xml = new String(Files.readAllBytes(fichier), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return new JSONObject().put("statut", "SANS_ARCHIVE");
+        }
+        JSONObject r = appliquer((String) l.get(0)[0], xml, archive, false);
+        if (!ORPHELINE.equals(r.optString("statut"))) {
+            em.createNativeQuery("UPDATE t_pharmaml_attente SET str_STATUT = ?1, str_DETAIL = ?2 WHERE lg_ID = ?3")
+                    .setParameter(1, RATTACHEE)
+                    .setParameter(2, StringUtils.left("Reprise de " + archive + ".xml : " + r.optString("statut"), 500))
+                    .setParameter(3, idOrpheline).executeUpdate();
+            LOG.log(Level.INFO, "PharmaML : reponse archivee {0} rattachee ({1})",
+                    new Object[] { archive, r.optString("statut") });
+        }
+        return r;
+    }
+
+    static final String RATTACHEE = "RATTACHEE";
+
+    @SuppressWarnings("unchecked")
+    private JSONObject appliquer(String grossisteId, String xml, String archive, boolean noterOrpheline) {
         TGrossiste g = em.find(TGrossiste.class, grossisteId);
         PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(xml);
         JSONObject r = new JSONObject().put("refMessage", env.refMessage).put("enReponseA", env.enReponseA);
@@ -485,13 +551,30 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 .setParameter(1, grossisteId).setParameter(2, EN_ATTENTE).setParameter(3, env.enReponseA)
                 .getResultList();
         Object[] attente = a.isEmpty() ? null : a.get(0);
+        if (attente == null && StringUtils.isNotBlank(env.refCdeClient)) {
+            /*
+             * Retours du 08/10 : DPCI met dans EN_REPONSE_A la reference de la DEMANDE DE VIDAGE, pas celle de la
+             * commande. Rattachement par Ref_Cde_Client (stable depuis le 08/10) : envoi en attente de ce grossiste ;
+             * si cet envoi a deja recu sa reponse (copie d'une reponse immediate), elle n'est pas reappliquee.
+             */
+            List<Object[]> parRef = em
+                    .createNativeQuery("SELECT lg_ID, str_SOURCE, lg_SOURCE_ID, str_VERSION, str_STATUT"
+                            + " FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = ?1 AND str_REF_CDE = ?2"
+                            + " AND str_STATUT IN (?3, ?4) ORDER BY (str_STATUT = ?3) DESC, dt_ENVOI DESC")
+                    .setParameter(1, grossisteId).setParameter(2, env.refCdeClient).setParameter(3, EN_ATTENTE)
+                    .setParameter(4, TRAITEE).getResultList();
+            if (!parRef.isEmpty() && TRAITEE.equals(parRef.get(0)[4])) {
+                return r.put("statut", "DEJA_TRAITEE");
+            }
+            attente = parRef.isEmpty() ? null : parRef.get(0);
+        }
         String erreur = PharmaMlMessages.erreurReponse(xml);
         if (attente == null && StringUtils.isNotBlank(env.enReponseA)) {
             Number deja = (Number) em
                     .createNativeQuery("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = ?1"
-                            + " AND str_REF_MESSAGE = ?2 AND str_STATUT <> ?3")
-                    .setParameter(1, grossisteId).setParameter(2, env.enReponseA).setParameter(3, EN_ATTENTE)
-                    .getSingleResult();
+                            + " AND str_REF_MESSAGE = ?2 AND str_STATUT IN (?3, ?4)")
+                    .setParameter(1, grossisteId).setParameter(2, env.enReponseA).setParameter(3, TRAITEE)
+                    .setParameter(4, ERREUR).getSingleResult();
             if (deja.intValue() > 0) {
                 /*
                  * copie d'une reponse deja traitee (ex. reponse immediate non acquittee) : acquittee, jamais
@@ -499,6 +582,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                  */
                 return r.put("statut", "DEJA_TRAITEE");
             }
+        }
+        if (attente == null && !noterOrpheline) {
+            return r.put("statut", ORPHELINE);
         }
         if (attente == null) {
             /* reponse a un envoi inconnu : archivee, acquittee, signalee (rattachement manuel) */
