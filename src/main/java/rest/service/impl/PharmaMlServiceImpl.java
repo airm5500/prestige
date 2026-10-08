@@ -1133,7 +1133,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         + " f.int_CIP, f.str_NAME, DATE_FORMAT(r.dt_CREATED, '%d/%m/%Y %H:%i'),"
                         + " (SELECT e.str_NAME FROM t_famille e WHERE e.int_CIP = r.str_CODE_REMPLACANT LIMIT 1),"
                         + " (r.lg_RUPTURE_DETAIL_ID IS NOT NULL AND EXISTS (SELECT 1 FROM rupture_detail d"
-                        + "   WHERE d.id = r.lg_RUPTURE_DETAIL_ID))"
+                        + "   WHERE d.id = r.lg_RUPTURE_DETAIL_ID)),"
+                        + " (SELECT d.ruptureId FROM rupture_detail d WHERE d.id = r.lg_RUPTURE_DETAIL_ID)"
                         + " FROM t_pharmaml_remplacement r JOIN t_grossiste g ON g.lg_GROSSISTE_ID = r.lg_GROSSISTE_ID"
                         + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
                         + " WHERE r.str_STATUT = 'PROPOSE' ORDER BY r.dt_CREATED DESC")
@@ -1144,7 +1145,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                     .put("qte", l[4]).put("prixAchat", l[5]).put("reference", l[6]).put("grossiste", l[7])
                     .put("cipOrigine", StringUtils.defaultString((String) l[8]))
                     .put("produitOrigine", StringUtils.defaultString((String) l[9])).put("date", l[10])
-                    .put("ruptureOuverte", l[12] != null && ((Number) l[12]).intValue() == 1));
+                    .put("ruptureOuverte", l[12] != null && ((Number) l[12]).intValue() == 1)
+                    /* retours du 08/10 (4) : rupture de rattachement (filtre par la ligne choisie en haut) */
+                    .put("ruptureId", l[13] == null ? "" : l[13]));
         }
         return new JSONObject().put("success", true).put("data", a).put("total", a.length());
     }
@@ -1473,9 +1476,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         if (indispo == null) {
             return null;
         }
-        String motif = StringUtils.defaultIfBlank(StringUtils.trimToNull(indispo.getAdditif()),
-                StringUtils.trimToNull(indispo.getCodeReponse()));
-        return StringUtils.abbreviate(motif, 255);
+        /* retours du 08/10 (4) : sans texte du grossiste, libelle du code (tableau 9 de la specification) */
+        return StringUtils.abbreviate(CodeReponsePharmaMl.motif(indispo.getCodeReponse(), indispo.getAdditif()), 255);
     }
 
     static String remplacant(LigneNReponse ligne) {

@@ -26,7 +26,7 @@ class PharmaMlMotifRuptureTest {
     @Test
     void motifAdditifPuisCode() {
         assertEquals("Manque Rayon", PharmaMlServiceImpl.motifIndisponibilite(ligne("0005", " Manque Rayon ", null)));
-        assertEquals("0005", PharmaMlServiceImpl.motifIndisponibilite(ligne("0005", "  ", null)));
+        assertEquals("Manque rayon", PharmaMlServiceImpl.motifIndisponibilite(ligne("0005", "  ", null)));
         assertNull(PharmaMlServiceImpl.motifIndisponibilite(ligne("", "", null)));
         assertNull(PharmaMlServiceImpl.motifIndisponibilite(new LigneNReponse()));
         assertNull(PharmaMlServiceImpl.motifIndisponibilite(null));

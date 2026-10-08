@@ -189,4 +189,19 @@ public class GrossisteRessource {
                         .toString())
                 .build();
     }
+
+    /**
+     * Retours du 08/10 (4) : la fiche montre si la cle est enregistree (et sa longueur) et permet de verifier une cle
+     * saisie. La valeur de la cle ne quitte jamais le serveur.
+     */
+    @POST
+    @Path("pharmaml-cle")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response clePharmaMl(@FormParam("lg_GROSSISTE_ID") String grossisteId, @FormParam("cle") String cle) {
+        if (currentUser() == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(grossisteService.clePharmaMl(grossisteId, cle).toString())
+                .header("Cache-Control", "no-store").build();
+    }
 }

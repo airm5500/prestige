@@ -56,7 +56,8 @@ public class GrossisteServiceImpl implements GrossisteService {
                 page.forEach(g -> ids.add(g.getLgGROSSISTEID()));
                 for (Object o : em.createNativeQuery("SELECT lg_GROSSISTE_ID, str_PHARMAML_VERSION_INFO,"
                         + " str_PHARMAML_VERSION_CMDE, str_URL_PHARMAML_SECOURS, str_PHARMAML_CONTROLE,"
-                        + " int_PHARMAML_DISPO, IF(COALESCE(str_CLE_RECEPTEUR, '') = '', 0, 1) FROM t_grossiste"
+                        + " int_PHARMAML_DISPO, IF(COALESCE(str_CLE_RECEPTEUR, '') = '', 0, 1),"
+                        + " CHAR_LENGTH(COALESCE(str_CLE_RECEPTEUR, '')) FROM t_grossiste"
                         + " WHERE lg_GROSSISTE_ID IN (:ids)").setParameter("ids", ids).getResultList()) {
                     Object[] r = (Object[]) o;
                     versions.put((String) r[0], r);
@@ -72,6 +73,7 @@ public class GrossisteServiceImpl implements GrossisteService {
                 row.put("int_PHARMAML_DISPO", v == null || EnvoiPharmaMl.disponibiliteActive(v[5]));
                 /* la cle elle-meme ne quitte jamais le serveur */
                 row.put("cle_definie", v != null && v[6] != null && ((Number) v[6]).intValue() == 1);
+                row.put("cle_longueur", v == null || v[7] == null ? 0 : ((Number) v[7]).intValue());
                 row.put("lg_GROSSISTE_ID", g.getLgGROSSISTEID());
                 row.put("str_LIBELLE", g.getStrLIBELLE());
                 row.put("str_DESCRIPTION", g.getStrDESCRIPTION());
@@ -157,6 +159,27 @@ public class GrossisteServiceImpl implements GrossisteService {
                 .put("urlSecours", secours == null ? JSONObject.NULL : secours)
                 .put("disponibilite", disponibilite == null ? JSONObject.NULL : disponibilite)
                 .put("cleModifiee", nouvelleCle != null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject clePharmaMl(String grossisteId, String cleAVerifier) {
+        java.util.List<Object> r = em
+                .createNativeQuery("SELECT COALESCE(str_CLE_RECEPTEUR, '') FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1")
+                .setParameter(1, grossisteId).getResultList();
+        if (r.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Grossiste introuvable.");
+        }
+        String cle = String.valueOf(r.get(0));
+        JSONObject out = new JSONObject().put("success", true).put("definie", !cle.isEmpty()).put("longueur",
+                cle.length());
+        String essai = StringUtils.trimToNull(cleAVerifier);
+        if (essai != null) {
+            out.put("identique",
+                    java.security.MessageDigest.isEqual(essai.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            cle.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }
+        return out;
     }
 
     @Override

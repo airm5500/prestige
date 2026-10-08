@@ -23,4 +23,10 @@ public interface GrossisteService {
 
     /** Desactivation (actif=false) ou reactivation (actif=true) d'un grossiste. */
     JSONObject toggleStatus(TUser user, String grossisteId, boolean actif);
+
+    /**
+     * Retours du 08/10 (4) : etat de la cle PharmaML (enregistree, longueur) et, si une cle est fournie, si elle est
+     * identique a celle enregistree. La cle elle-meme n'est jamais renvoyee.
+     */
+    JSONObject clePharmaMl(String grossisteId, String cleAVerifier);
 }

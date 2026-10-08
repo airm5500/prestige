@@ -94,9 +94,17 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                     renderer: function (v) {
                         return v ? Ext.String.htmlEncode(v) : '<span style="color:#8a97a6">Général</span>';
                     }},
-                {header: 'Clé', dataIndex: 'cle_definie', width: 46, align: 'center', tooltip: 'Clé du grossiste enregistrée (la valeur n\'est jamais affichée)',
+                {header: 'Clé', dataIndex: 'cle_definie', itemId: 'colCle', width: 70, align: 'center', tooltip: 'Clé du grossiste enregistrée (la valeur n\'est jamais affichée)',
+                    /* retours du 08/10 (4) : longueur de la cle a cote de la coche (la valeur reste sur le serveur) */
                     renderer: function (v, meta, r) {
-                        return r.get('str_URL_PHARMAML') ? (v ? '&#10003;' : '<span style="color:#c0392b">—</span>') : '';
+                        if (!r.get('str_URL_PHARMAML')) {
+                            return '';
+                        }
+                        if (!v) {
+                            return '<span style="color:#c0392b">—</span>';
+                        }
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Clé enregistrée : ' + r.get('cle_longueur') + ' caractère(s). Vérifiable dans la fiche (Modifier).') + '"';
+                        return '<span class="cle-etat">&#10003; <span style="color:#6b7b8c">' + r.get('cle_longueur') + ' car.</span></span>';
                     }},
                 {header: 'Dispo', dataIndex: 'int_PHARMAML_DISPO', width: 58, align: 'center', tooltip: 'Interrogation de la disponibilité',
                     renderer: function (v, meta, r) {

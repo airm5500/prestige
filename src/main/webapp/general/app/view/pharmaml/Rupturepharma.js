@@ -215,6 +215,31 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                     itemId: 'grilleRuptures',
                     flex: 1,
                     minHeight: 260,
+                    /* retours du 08/10 (4) : la ligne cliquee choisit les equivalents affiches en dessous */
+                    viewConfig: {
+                        /* le RowExpander ignore getRowClass : la classe est posee sur la ligne apres chaque affichage */
+                        listeners: {
+                            refresh: function (v) {
+                                var e = v.up('rupturepharma');
+                                if (e) {
+                                    e.marquerRuptureChoisie();
+                                }
+                            }
+                        }
+                    },
+                    listeners: {
+                        itemclick: function (view, rec, item, i, e) {
+                            var cible = e && e.target, n;
+                            for (n = cible; n && n !== item; n = n.parentNode) {
+                                if (/(^|\s)(x-action-col-icon|x-grid-row-checker|x-grid-row-expander)(\s|$)/.test(n.className || '')) {
+                                    return;
+                                }
+                            }
+                            var ecran = view.up('rupturepharma');
+                            ecran.filtrerEquivalents(rec);
+                            ecran.marquerRuptureChoisie();
+                        }
+                    },
                     plugins: [{
                             ptype: 'rowexpander',
                             rowBodyTpl: new Ext.XTemplate(
@@ -341,6 +366,55 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
     },
 
     /*
+     * Retours du 08/10 (4) : les equivalents affiches sont ceux de la rupture choisie en haut (clic sur une ligne) ;
+     * ils changent a chaque clic. Rien de choisi : tous, avec le rappel de cliquer une ligne.
+     */
+    ruptureChoisie: null,
+
+    marquerRuptureChoisie: function () {
+        var me = this, g = me.down('#grilleRuptures'), v = g && g.getView(), choix = me.ruptureChoisie;
+        if (!v || !v.rendered) {
+            return;
+        }
+        g.getStore().each(function (r) {
+            var n = v.getNode(r);
+            if (n) {
+                Ext.fly(n)[choix && choix.id === r.get('id') ? 'addCls' : 'removeCls']('rupture-choisie');
+            }
+        });
+    },
+
+    filtrerEquivalents: function (rec) {
+        var me = this, g = me.down('#grilleEquivalents'), st, n, total;
+        if (rec !== undefined) {
+            me.ruptureChoisie = rec ? {id: rec.get('id'), reference: rec.get('reference')} : null;
+        }
+        if (!g) {
+            return;
+        }
+        st = g.getStore();
+        st.clearFilter(true);
+        total = st.getCount();
+        if (me.ruptureChoisie) {
+            var choix = me.ruptureChoisie;
+            st.filterBy(function (r) {
+                return r.get('ruptureId') ? r.get('ruptureId') === choix.id : r.get('reference') === choix.reference;
+            });
+        } else {
+            st.filterBy(function () {
+                return true;
+            });
+        }
+        n = st.getCount();
+        g.setTitle('Équivalents proposés par les grossistes' + (me.ruptureChoisie
+                ? ' · rupture ' + Ext.String.htmlEncode(me.ruptureChoisie.reference) + ' (' + n + ' sur ' + total + ')'
+                : ' (' + n + ') · cliquez une rupture en haut pour ne voir que les siens'));
+        g.getView().emptyText = '<div style="padding:10px;color:#6b7b8c">' + (me.ruptureChoisie
+                ? 'Aucun équivalent proposé pour cette rupture.' : 'Aucun équivalent proposé en attente.') + '</div>';
+        g.getView().refresh();
+    },
+
+    /*
      * Point 5 du 08/10 : equivalents proposes (EP) par le grossiste dans sa reponse PharmaML, non livres. Accepter = la
      * ligne de rupture passe sur l'equivalent (le renvoi de la rupture le commandera) ; refuser = rien ne change.
      * « Mémoriser » : le meme choix sera applique automatiquement a ce couple de produits. Pas de fenetre : tout se
@@ -349,14 +423,14 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
     grilleEquivalents: function () {
         var store = Ext.create('Ext.data.Store', {
             fields: ['id', 'type', 'codeRemplacant', 'designationRemplacant', {name: 'connu', type: 'boolean'}, 'qte', 'prixAchat',
-                'reference', 'grossiste', 'cipOrigine', 'produitOrigine', 'date', {name: 'ruptureOuverte', type: 'boolean'}],
+                'reference', 'grossiste', 'cipOrigine', 'produitOrigine', 'date', {name: 'ruptureOuverte', type: 'boolean'}, 'ruptureId'],
             autoLoad: true,
             proxy: {type: 'ajax', url: '../api/v1/pharma/remplacements', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
             listeners: {
-                load: function (st) {
-                    var g = Ext.ComponentQuery.query('rupturepharma #grilleEquivalents')[0];
-                    if (g) {
-                        g.setTitle('Équivalents proposés par les grossistes (' + st.getCount() + ')');
+                load: function () {
+                    var ecran = Ext.ComponentQuery.query('rupturepharma')[0];
+                    if (ecran) {
+                        ecran.filtrerEquivalents();
                     }
                 }
             }
@@ -392,6 +466,12 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                     xtype: 'toolbar', dock: 'top',
                     items: [{xtype: 'checkboxfield', itemId: 'memoriserChoix', boxLabel: 'Mémoriser mon choix pour ce couple de produits'},
                         '->', {xtype: 'component', itemId: 'infoEquivalent', html: ''},
+                        {xtype: 'button', itemId: 'toutesRuptures', text: 'Toutes les ruptures', tooltip: 'Afficher les équivalents de toutes les ruptures',
+                            handler: function (b) {
+                                var ecran = b.up('rupturepharma');
+                                ecran.filtrerEquivalents(null);
+                                ecran.marquerRuptureChoisie();
+                            }},
                         {xtype: 'button', text: 'Actualiser', handler: function () {
                                 store.reload();
                             }}]

@@ -567,10 +567,23 @@ public final class PharmaMlMessages {
                     explicite = normaliser(x.getTextContent());
                 }
             }
-            r.statut = !explicite.isEmpty() ? explicite : (indispo ? "NON" : (autre ? "AUTRE" : "OUI"));
             r.codeReponse = StringUtils.defaultIfBlank(attribut(e, a -> a.equals("CODE_REPONSE")), motifCode);
-            r.libelle = StringUtils.defaultIfBlank(attribut(e, a -> a.equals("ADDITIF") || a.equals("LIBELLE_REPONSE")),
+            /*
+             * Retours du 08/10 (4) : TEDIS ne met pas de balise d'indisponibilite ; le code reponse est porte par la
+             * ligne (Code_Reponse="0001" Libelle="Produit inconnu"). 0 = disponible, tout autre code = non disponible
+             * (tableau 9 de la specification).
+             */
+            Integer code = CodeReponsePharmaMl.valeur(r.codeReponse);
+            if (explicite.isEmpty() && !indispo && code != null) {
+                indispo = code != 0;
+            }
+            r.statut = !explicite.isEmpty() ? explicite : (indispo ? "NON" : (autre ? "AUTRE" : "OUI"));
+            r.libelle = StringUtils.defaultIfBlank(
+                    attribut(e, a -> a.equals("ADDITIF") || a.equals("LIBELLE_REPONSE") || a.equals("LIBELLE")),
                     motifTexte);
+            if (r.libelle.isEmpty() && code != null && code != 0) {
+                r.libelle = CodeReponsePharmaMl.libelle(r.codeReponse);
+            }
             r.commentaire = attribut(e, a -> a.equals("COMMENTAIRE"));
             r.dateDispo = attribut(e, a -> a.startsWith("DATE_MISE") || a.equals("DATE_DISPONIBILITE"));
             r.quantiteDispo = entier(attribut(e, a -> a.startsWith("QUANTITE_DISPO") || a.startsWith("QUANTITE_MISE")));
@@ -582,6 +595,11 @@ public final class PharmaMlMessages {
                 } else if (nx.startsWith("PRIX") && r.prix == null) {
                     r.prix = entier(x.getAttribute("Valeur"));
                 }
+            }
+            /* TEDIS : prix porte par la ligne (Nature="PHAHT" Valeur="1040") ; 0 = pas de prix */
+            if (r.prix == null && e.hasAttribute("Valeur")) {
+                Integer v = entier(e.getAttribute("Valeur"));
+                r.prix = v != null && v > 0 ? v : null;
             }
             sortie.add(r);
         }

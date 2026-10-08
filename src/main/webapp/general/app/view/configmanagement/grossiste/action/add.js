@@ -439,6 +439,19 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     disabled: Omode !== 'update', emptyText: 'Aucune clé', autoComplete: false
                                 },
                                 {
+                                    /* retours du 08/10 (4) : compare la cle saisie a celle enregistree (la cle n'est jamais renvoyee) */
+                                    xtype: 'button', id: 'btnVerifierCle', text: 'Vérifier', margin: '0 8 0 4',
+                                    tooltip: 'Compare la clé saisie à la clé enregistrée', disabled: Omode !== 'update',
+                                    handler: function () {
+                                        var c = Ext.getCmp('str_CLE_RECEPTEUR'), v = Ext.String.trim(c.getValue() || '');
+                                        if (!v) {
+                                            Ext.getCmp('etatCle').update('<span style="color:#b26a00">Saisissez la clé à vérifier.</span>');
+                                            return;
+                                        }
+                                        Ext.getCmp('str_CLE_RECEPTEUR').up('window').etatCle(v);
+                                    }
+                                },
+                                {
                                     /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
                                     xtype: 'combobox', id: 'str_PHARMAML_VERSION_INFO', fieldLabel: 'Version info produit', flex: 1, editable: false,
                                     queryMode: 'local', displayField: 'v', valueField: 'v', value: '1.0.0.0',
@@ -455,6 +468,11 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     tooltip: 'Réglable après la création du grossiste'
                                 }
                             ]
+                        },
+                        {
+                            /* retours du 08/10 (4) : etat de la cle enregistree (jamais sa valeur) */
+                            xtype: 'component', id: 'etatCle', hidden: true, margin: '0 0 6 125',
+                            style: 'font-size:12px', html: ''
                         },
                         {
                             xtype: 'container',
@@ -595,6 +613,33 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                     }
                 }]
         });
+        /* retours du 08/10 (4) : la fiche dit si la cle est enregistree, et si la cle saisie est la meme */
+        win.etatCle = function (essai) {
+            Ext.Ajax.request({
+                url: '../api/v1/grossistes/pharmaml-cle', method: 'POST',
+                params: {lg_GROSSISTE_ID: win.grossisteId, cle: essai || ''},
+                success: function (r) {
+                    var o = Ext.JSON.decode(r.responseText, true) || {}, el = Ext.getCmp('etatCle'), t;
+                    if (!el || el.isDestroyed || !o.success) {
+                        return;
+                    }
+                    t = o.definie ? '<span style="color:#17795f">&#10003; Clé enregistrée (' + o.longueur + ' caractère(s)).</span>'
+                            : '<span style="color:#b42318">Aucune clé enregistrée.</span>';
+                    if (essai) {
+                        t += o.identique ? ' <b style="color:#17795f">La clé saisie est identique.</b>'
+                                : ' <b style="color:#b42318">La clé saisie est différente' + (o.definie ? ' : « Enregistrer » la remplacera.' : '.') + '</b>';
+                    } else if (o.definie) {
+                        t += ' <span style="color:#6b7b8c">Pour la contrôler, saisissez-la puis « Vérifier ».</span>';
+                    }
+                    el.update(t);
+                    el.show();
+                }
+            });
+        };
+        if (Omode === 'update') {
+            win.grossisteId = this.getOdatasource().lg_GROSSISTE_ID;
+            win.etatCle();
+        }
     },
     onbtnsave: function (button) {
 
