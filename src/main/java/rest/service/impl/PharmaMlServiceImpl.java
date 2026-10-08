@@ -40,7 +40,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.annotation.Resource;
 import javax.ejb.EJB;
+import javax.ejb.SessionContext;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -53,6 +57,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.OrderService;
 import rest.service.PharmaMlService;
@@ -108,6 +113,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     private ProduitService produitService;
     @EJB
     private SessionHelperService sessionHelperService;
+    @Resource
+    private SessionContext contexte;
 
     public EntityManager getEntityManager() {
         return em;
@@ -133,6 +140,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
             }
 
+            JSONObject dejaEnvoyee = attenteEnCours(commandeId, grossiste);
+            if (dejaEnvoyee != null) {
+                return dejaEnvoyee;
+            }
             TOfficine officine = getOfficine();
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildNormale(order, grossiste.getLgGROSSISTEID()),
                     StringUtils.isEmpty(commentaire) ? order.getStrREFORDER() : commentaire,
@@ -146,7 +157,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 /* une rupture totale renvoie quand meme les lignes (quantite 0) : aucune ligne = reponse anormale */
                 return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
             }
-            return traiterCommandeRepondue(order, enveloppeResponse);
+            JSONObject traite = traiterCommandeRepondue(order, enveloppeResponse);
+            enregistrerTraite(grossiste, SOURCE_COMMANDE, commandeId, payLoad);
+            return traite;
+        } catch (EnAttente ex) {
+            TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
+            enregistrerAttente(g, SOURCE_COMMANDE, commandeId, ex);
+            return reponseEnAttente(g);
         } catch (RefusGrossiste ex) {
             TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
             LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
@@ -176,6 +193,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             if (StringUtils.isEmpty(grossiste.getStrURLPHARMAML())) {
                 return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
             }
+            JSONObject dejaEnvoyee = attenteEnCours(ruptureId, grossiste);
+            if (dejaEnvoyee != null) {
+                return dejaEnvoyee;
+            }
             List<RuptureDetail> ruptureDetails = orderService.ruptureDetaisDtoByRupture(rupture.getId());
             TOfficine officine = getOfficine();
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildFromRupture(ruptureDetails, grossisteId),
@@ -189,7 +210,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             if (getLigneNReponses(enveloppeResponse).isEmpty() && !ruptureDetails.isEmpty()) {
                 return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
             }
-            return traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
+            JSONObject traite = traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
+            enregistrerTraite(grossiste, SOURCE_RUPTURE, ruptureId, payLoad);
+            return traite;
+        } catch (EnAttente ex) {
+            TGrossiste g = em.find(TGrossiste.class, grossisteId);
+            enregistrerAttente(g, SOURCE_RUPTURE, ruptureId, ex);
+            return reponseEnAttente(g);
         } catch (RefusGrossiste ex) {
             TGrossiste g = em.find(TGrossiste.class, grossisteId);
             LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
@@ -238,6 +265,279 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         } catch (Exception e) {
             return null; /* colonne absente (migration non passee) : pas de secours */
         }
+    }
+
+    /* ================================================================== reponses differees (vidage) */
+
+    static final String SOURCE_COMMANDE = "COMMANDE", SOURCE_RUPTURE = "RUPTURE";
+    static final String EN_ATTENTE = "EN_ATTENTE", TRAITEE = "TRAITEE", ERREUR = "ERREUR", ORPHELINE = "ORPHELINE";
+    /** Specification v4.8 § 4.1.3 : 30 secondes au moins entre deux demandes de vidage. */
+    static final long DELAI_ENTRE_VIDAGES_MS = 30_000L;
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> DERNIER_VIDAGE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicInteger COMPTEUR = new java.util.concurrent.atomic.AtomicInteger();
+
+    /** Le grossiste a recu l'envoi (FIN_SERVICE) mais repondra plus tard. */
+    static final class EnAttente extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        final String refMessage, refCde, version;
+
+        EnAttente(String refMessage, String refCde, String version) {
+            super("FIN_SERVICE");
+            this.refMessage = refMessage;
+            this.refCde = refCde;
+            this.version = version;
+        }
+    }
+
+    private void enregistrerAttente(TGrossiste g, String source, String sourceId, EnAttente ex) {
+        em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                + " str_REF_MESSAGE, str_REF_CDE, str_VERSION, str_STATUT, dt_ENVOI) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NOW())")
+                .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                .setParameter(3, source).setParameter(4, sourceId).setParameter(5, ex.refMessage)
+                .setParameter(6, ex.refCde).setParameter(7, ex.version).setParameter(8, EN_ATTENTE).executeUpdate();
+        LOG.log(Level.INFO, "PharmaML : {0} a recu l''envoi {1} (FIN_SERVICE), reponse differee",
+                new Object[] { g.getStrLIBELLE(), ex.refMessage });
+    }
+
+    /** Reponse immediate traitee : l'envoi est note, pour reconnaitre une copie de cette reponse au depot. */
+    private void enregistrerTraite(TGrossiste g, String source, String sourceId, CsrpEnveloppe payLoad) {
+        em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                + " str_REF_MESSAGE, str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'réponse immédiate', NOW(), NOW())")
+                .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                .setParameter(3, source).setParameter(4, sourceId).setParameter(5, payLoad.getEntete().getRefMessage())
+                .setParameter(6, versionCommande(g)).setParameter(7, TRAITEE).executeUpdate();
+    }
+
+    private static JSONObject reponseEnAttente(TGrossiste g) {
+        String nom = StringUtils.trimToEmpty(g.getStrLIBELLE());
+        return new JSONObject().put("success", true).put("enAttente", true).put("msg", nom
+                + " a bien reçu la commande. Sa réponse (quantités livrées, ruptures) n'est pas immédiate : elle sera"
+                + " récupérée automatiquement, ou par le bouton « Réponses PharmaML ». Ne renvoyez pas la commande.");
+    }
+
+    /** Un envoi deja recu par le grossiste et sans reponse : on ne renvoie pas (doublon chez le grossiste). */
+    @SuppressWarnings("unchecked")
+    private JSONObject attenteEnCours(String sourceId, TGrossiste g) {
+        List<Object> r = em.createNativeQuery("SELECT DATE_FORMAT(dt_ENVOI, '%d/%m/%Y %H:%i') FROM t_pharmaml_attente"
+                + " WHERE lg_SOURCE_ID = ?1 AND lg_GROSSISTE_ID = ?2 AND str_STATUT = ?3 ORDER BY dt_ENVOI DESC")
+                .setParameter(1, sourceId).setParameter(2, g.getLgGROSSISTEID()).setParameter(3, EN_ATTENTE)
+                .getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        return new JSONObject().put("success", false).put("enAttente", true).put("msg",
+                "Cette commande a déjà été reçue par " + StringUtils.trimToEmpty(g.getStrLIBELLE()) + " le " + r.get(0)
+                        + " et attend sa réponse : la renvoyer"
+                        + " créerait un doublon. Utilisez « Réponses PharmaML » pour récupérer la réponse.");
+    }
+
+    private PharmaMlMessages.Partenaires partenaires(TGrossiste g) {
+        PharmaMlMessages.Partenaires p = new PharmaMlMessages.Partenaires();
+        p.codeOfficine = StringUtils.defaultIfBlank(g.getStrOFFICINEID(), PharmaMlUtils.CODE_VALUE);
+        p.idOfficine = StringUtils.defaultString(g.getStrIDRECEPTEURPHARMA());
+        TOfficine of = getOfficine();
+        p.nomOfficine = of == null ? "" : StringUtils.defaultString(of.getStrNOMCOMPLET());
+        p.codeRepartiteur = StringUtils.defaultString(g.getStrCODERECEPTEURPHARMA());
+        p.idRepartiteur = StringUtils.defaultString(g.getIdRepartiteur());
+        p.nomRepartiteur = StringUtils.defaultString(g.getStrLIBELLE());
+        p.date = getDate();
+        return p;
+    }
+
+    /** REF_MESSAGE unique, 20 caracteres au plus (schema). */
+    private static String refMessage() {
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMddHHmmss"))
+                + String.format("%03d", COMPTEUR.incrementAndGet() % 1000);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    @SuppressWarnings("unchecked")
+    public JSONObject recupererReponses(String grossisteId, boolean auto) {
+        /*
+         * grossistes ayant un envoi en attente (ou celui demande) : jamais les autres, pour ne pas relire chez eux
+         * d'anciennes reponses non acquittees
+         */
+        List<Object> ids = StringUtils.isNotBlank(grossisteId)
+                ? List.of(grossisteId) : em
+                        .createNativeQuery(
+                                "SELECT DISTINCT lg_GROSSISTE_ID FROM t_pharmaml_attente WHERE str_STATUT = ?1"
+                                        + " AND dt_ENVOI > NOW() - INTERVAL 15 DAY")
+                        .setParameter(1, EN_ATTENTE).getResultList();
+        JSONArray parGrossiste = new JSONArray();
+        int traitees = 0;
+        for (Object id : ids) {
+            JSONObject r = vidage(em.find(TGrossiste.class, (String) id));
+            traitees += r.optInt("traitees");
+            parGrossiste.put(r);
+        }
+        if (!auto || traitees > 0) {
+            LOG.log(Level.INFO, "PharmaML : vidage de {0} grossiste(s), {1} reponse(s) traitee(s)",
+                    new Object[] { ids.size(), traitees });
+        }
+        return new JSONObject().put("success", true).put("grossistes", parGrossiste).put("traitees", traitees)
+                .put("enAttente", attentes().getJSONArray("data").length());
+    }
+
+    private JSONObject vidage(TGrossiste g) {
+        JSONObject out = new JSONObject().put("grossiste", g == null ? "" : g.getStrLIBELLE()).put("traitees", 0)
+                .put("messages", new JSONArray());
+        if (g == null || StringUtils.isBlank(g.getStrURLPHARMAML())) {
+            return out.put("msg", "pas d'adresse PharmaML");
+        }
+        long maintenant = System.currentTimeMillis();
+        Long dernier = DERNIER_VIDAGE.get(g.getLgGROSSISTEID());
+        if (dernier != null && maintenant - dernier < DELAI_ENTRE_VIDAGES_MS) {
+            return out.put("msg",
+                    "Dernière interrogation il y a moins de 30 secondes (règle PharmaML) : réessayez dans "
+                            + ((DELAI_ENTRE_VIDAGES_MS - (maintenant - dernier)) / 1000 + 1) + " s.");
+        }
+        DERNIER_VIDAGE.put(g.getLgGROSSISTEID(), maintenant);
+        String version = versionCommande(g);
+        PharmaMlMessages.Partenaires p = partenaires(g);
+        String nomFichier = StringUtils.replace(g.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        String ref = refMessage();
+        String xml = PharmaMlMessages.action(version, p, ref, "REQ_RECEPTION", null, "VIDAGE");
+        PharmaMlService moi = contexte.getBusinessObject(PharmaMlService.class);
+        int traitees = 0;
+        try {
+            for (int i = 0; i < 50; i++) {
+                ecrireArchive("V_" + ref + "_" + nomFichier, xml);
+                HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
+                        g.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION, DELAI_REPONSE).reponse;
+                String corps = rep.body();
+                ecrireArchive("RV_" + ref + "_" + nomFichier, corps);
+                if (rep.statusCode() != 200) {
+                    return out.put("traitees", traitees).put("msg", "HTTP " + rep.statusCode());
+                }
+                PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(corps);
+                if ("FIN_SERVICE".equals(env.action) && !env.repCommande) {
+                    return out.put("traitees", traitees).put("msg", i == 0 ? "aucune réponse en attente" : "fin");
+                }
+                if (StringUtils.isBlank(env.refMessage)) {
+                    return out.put("traitees", traitees).put("msg", "réponse illisible");
+                }
+                if (env.erreur && !env.repCommande && StringUtils.isBlank(env.enReponseA)) {
+                    /* refus de la demande de vidage elle-meme (controle, identifiants) : rien a acquitter */
+                    return out.put("traitees", traitees).put("msg",
+                            "refus : " + StringUtils.defaultString(PharmaMlMessages.erreurReponse(corps)));
+                }
+                JSONObject r = moi.appliquerReponseDifferee(g.getLgGROSSISTEID(), corps,
+                        "RV_" + ref + "_" + nomFichier);
+                out.getJSONArray("messages").put(r);
+                if (TRAITEE.equals(r.optString("statut"))) {
+                    traitees++;
+                }
+                /* acquittement : le grossiste retire le message de son depot et envoie le suivant (ou FIN_SERVICE) */
+                ref = refMessage();
+                xml = PharmaMlMessages.action(version, p, ref, "REQ_RECEPTION", env.refMessage, "ACQUITTEMENT");
+            }
+            return out.put("traitees", traitees).put("msg", "arrêt après 50 messages");
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "PharmaML : vidage {0} ({1})",
+                    new Object[] { g.getStrLIBELLE(), e.getClass().getSimpleName() });
+            return out.put("traitees", traitees).put("msg",
+                    erreurReseau(e) ? messageReseau(g, e) : "erreur : " + e.getClass().getSimpleName());
+        }
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    @SuppressWarnings("unchecked")
+    public JSONObject appliquerReponseDifferee(String grossisteId, String xml, String archive) {
+        TGrossiste g = em.find(TGrossiste.class, grossisteId);
+        PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(xml);
+        JSONObject r = new JSONObject().put("refMessage", env.refMessage).put("enReponseA", env.enReponseA);
+        List<Object[]> a = em
+                .createNativeQuery("SELECT lg_ID, str_SOURCE, lg_SOURCE_ID, str_VERSION FROM t_pharmaml_attente"
+                        + " WHERE lg_GROSSISTE_ID = ?1 AND str_STATUT = ?2 AND str_REF_MESSAGE = ?3")
+                .setParameter(1, grossisteId).setParameter(2, EN_ATTENTE).setParameter(3, env.enReponseA)
+                .getResultList();
+        Object[] attente = a.isEmpty() ? null : a.get(0);
+        String erreur = PharmaMlMessages.erreurReponse(xml);
+        if (attente == null && StringUtils.isNotBlank(env.enReponseA)) {
+            Number deja = (Number) em
+                    .createNativeQuery("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = ?1"
+                            + " AND str_REF_MESSAGE = ?2 AND str_STATUT <> ?3")
+                    .setParameter(1, grossisteId).setParameter(2, env.enReponseA).setParameter(3, EN_ATTENTE)
+                    .getSingleResult();
+            if (deja.intValue() > 0) {
+                /*
+                 * copie d'une reponse deja traitee (ex. reponse immediate non acquittee) : acquittee, jamais
+                 * reappliquee
+                 */
+                return r.put("statut", "DEJA_TRAITEE");
+            }
+        }
+        if (attente == null) {
+            /* reponse a un envoi inconnu : archivee, acquittee, signalee (rattachement manuel) */
+            em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, str_REF_MESSAGE,"
+                    + " str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW(), NOW())")
+                    .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, grossisteId)
+                    .setParameter(3, env.repCommande ? SOURCE_COMMANDE : "MESSAGE").setParameter(4, env.enReponseA)
+                    .setParameter(5, ORPHELINE).setParameter(6, StringUtils.left("Réponse non rattachée, archivée : "
+                            + archive + ".xml" + (erreur == null ? "" : " — " + erreur), 500))
+                    .executeUpdate();
+            return r.put("statut", ORPHELINE);
+        }
+        String idAttente = (String) attente[0], source = (String) attente[1], sourceId = (String) attente[2];
+        JSONObject resultat;
+        String statut;
+        if (erreur != null || !env.repCommande) {
+            statut = ERREUR;
+            resultat = new JSONObject().put("msg", erreur == null ? "message sans réponse de commande" : erreur);
+        } else {
+            CsrpEnveloppeResponse reponse = lireReponseCommande(xml, (String) attente[3]);
+            if (reponse == null || getLigneNReponses(reponse).isEmpty()) {
+                statut = ERREUR;
+                resultat = new JSONObject().put("msg", SANS_LIGNE);
+            } else if (SOURCE_RUPTURE.equals(source)) {
+                Rupture rupture = em.find(Rupture.class, sourceId);
+                resultat = traiterCommandeRepondue(rupture, orderService.ruptureDetaisDtoByRupture(sourceId), g,
+                        reponse);
+                statut = TRAITEE;
+            } else {
+                TOrder order = em.find(TOrder.class, sourceId);
+                resultat = order == null ? new JSONObject().put("msg", "commande introuvable")
+                        : traiterCommandeRepondue(order, reponse);
+                statut = order == null ? ERREUR : TRAITEE;
+            }
+        }
+        em.createNativeQuery("UPDATE t_pharmaml_attente SET str_STATUT = ?1, str_DETAIL = ?2, dt_REPONSE = NOW()"
+                + " WHERE lg_ID = ?3").setParameter(1, statut)
+                .setParameter(2, StringUtils.left(resultat.toString(), 500)).setParameter(3, idAttente).executeUpdate();
+        return r.put("statut", statut).put("source", source).put("sourceId", sourceId).put("resultat", resultat);
+    }
+
+    private CsrpEnveloppeResponse lireReponseCommande(String xml, String version) {
+        try {
+            String corps = PharmaMlMessages.V3.equals(version)
+                    || xml.contains("SRP_ENVELOPPE") && !xml.contains("CSRP_ENVELOPPE")
+                            ? PharmaMlMessages.reponseV3VersV1(xml) : xml;
+            return (CsrpEnveloppeResponse) JAXBContext.newInstance(CsrpEnveloppeResponse.class).createUnmarshaller()
+                    .unmarshal(new StringReader(corps));
+        } catch (JAXBException ex) {
+            LOG.log(Level.WARNING, "PharmaML : reponse differee illisible", ex);
+            return null;
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject attentes() {
+        JSONArray a = new JSONArray();
+        for (Object[] l : (List<Object[]>) em
+                .createNativeQuery("SELECT a.lg_SOURCE_ID, a.str_SOURCE, g.str_LIBELLE,"
+                        + " DATE_FORMAT(a.dt_ENVOI, '%d/%m/%Y %H:%i'), IFNULL(o.str_REF_ORDER, ''), a.str_STATUT"
+                        + " FROM t_pharmaml_attente a JOIN t_grossiste g ON g.lg_GROSSISTE_ID = a.lg_GROSSISTE_ID"
+                        + " LEFT JOIN t_order o ON o.lg_ORDER_ID = a.lg_SOURCE_ID WHERE a.str_STATUT IN (?1, ?2)"
+                        + " ORDER BY a.dt_ENVOI")
+                .setParameter(1, EN_ATTENTE).setParameter(2, ORPHELINE).getResultList()) {
+            a.put(new JSONObject().put("sourceId", l[0]).put("source", l[1]).put("grossiste", l[2]).put("envoi", l[3])
+                    .put("reference", l[4]).put("statut", l[5]));
+        }
+        return new JSONObject().put("success", true).put("data", a);
     }
 
     static final String SANS_LIGNE = "Le grossiste a répondu sans aucune ligne de commande : rien n'a été pris en"
@@ -1083,6 +1383,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
         if (erreur != null) {
             throw new RefusGrossiste(erreur, "R_" + fileName, version);
+        }
+        PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(httpResponse.body());
+        if (!env.repCommande && "FIN_SERVICE".equals(env.action)) {
+            /* specification v4.8 § 4.1.2 : commande recue, reponse a recuperer plus tard par une demande de vidage */
+            throw new EnAttente(en.getRefMessage(), c.getRefCdeClient(), version);
         }
         try {
             String corps = PharmaMlMessages.V3.equals(version) ? PharmaMlMessages.reponseV3VersV1(httpResponse.body())

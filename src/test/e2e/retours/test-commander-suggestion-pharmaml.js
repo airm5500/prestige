@@ -48,6 +48,7 @@ function nettoyer() {
     const l = cmds.map((c) => "'" + c + "'").join(',');
     exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference IN (SELECT str_REF_ORDER FROM t_order WHERE lg_ORDER_ID IN (" + l + ")));"
       + "DELETE FROM rupture WHERE reference IN (SELECT str_REF_ORDER FROM t_order WHERE lg_ORDER_ID IN (" + l + "));"
+      + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID IN (" + l + ");"
       + "DELETE FROM t_order_detail WHERE lg_ORDER_ID IN (" + l + "); DELETE FROM t_order WHERE lg_ORDER_ID IN (" + l + ");");
   }
   const ids = Object.values(S).map((x) => "'" + x + "'").join(',');

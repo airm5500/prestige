@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -43,6 +44,23 @@ public class PharmaMlResource {
 
         JSONObject json = pharmaMlService.envoiCommande(commandeId, LocalDate.now().plusDays(1), 0, null, null);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Reponses differees (FIN_SERVICE puis VIDAGE, specification v4.8 § 4.1.3) : interroge le grossiste donne, ou tous
+     * les grossistes actifs a lien PharmaML.
+     */
+    @POST
+    @Path("reponses")
+    public Response recupererReponses(@QueryParam("grossiste") String grossisteId) {
+        return Response.ok(pharmaMlService.recupererReponses(grossisteId, false).toString()).build();
+    }
+
+    /** Envois recus par le grossiste et sans reponse (ou reponses non rattachees). */
+    @GET
+    @Path("attentes")
+    public Response attentes() {
+        return Response.ok(pharmaMlService.attentes().toString()).build();
     }
 
     @PUT

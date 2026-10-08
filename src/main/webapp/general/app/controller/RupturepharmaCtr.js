@@ -371,34 +371,29 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/pharma/rupture/' + record.get('id') + '/' + grossisteId,
             success: function (response, options) {
-               
-                   const result = Ext.JSON.decode(response.responseText, true);
-                if (result.success) {
-                  let message = result.nbreproduit + '/' + result.totalProduit + ' produit pris en compte ';
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                let message;
+                if (result.success && result.enAttente) {
+                    message = result.msg;
+                } else if (result.success) {
+                    message = result.nbreproduit + '/' + result.totalProduit + ' produit(s) pris en compte';
                     if (result.nbrerupture > 0) {
-                        message += ' ' + result.nbrerupture + ' produit(s) en rupture';
+                        message += ', ' + result.nbrerupture + ' produit(s) en rupture';
                     }
-                    Ext.MessageBox.show({
-                        title: 'Message',
-                        width: 320,
-                        msg: message,
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
-
-                    });
-                    grid.getStore().reload();
                 } else {
-                    progress.hide();
-                    Ext.MessageBox.show({
-                        title: 'Message d\'erreur',
-                        width: 320,
-                        msg: "ERROR",
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
-
-                    });
+                    message = result.msg || 'Envoi impossible.';
                 }
-
+                Ext.MessageBox.show({
+                    title: result.success ? 'Envoi PharmaML' : 'Envoi PharmaML impossible',
+                    width: 520,
+                    msg: Ext.String.htmlEncode(message),
+                    buttons: Ext.MessageBox.OK,
+                    icon: result.success ? Ext.MessageBox.INFO : Ext.MessageBox.ERROR
+                });
+                if (result.success) {
+                    grid.getStore().reload();
+                }
             },
             failure: function (response, options) {
                 progress.hide();

@@ -311,6 +311,17 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     scope: this,
                     handler: this.funsionCommande
                 },
+                {
+                    /* Retours du 08/10 : reponses PharmaML differees (le grossiste repond « FIN_SERVICE » puis met la
+                     * reponse a disposition : specification v4.8 § 4.1.3) */
+                    text: 'RÉPONSES PHARMAML',
+                    itemId: 'btnReponsesPharmaml',
+                    iconCls: 'refresh',
+                    tooltip: 'Récupère les réponses que les grossistes n\'ont pas données tout de suite (quantités livrées, ruptures). '
+                            + 'Elles sont aussi récupérées automatiquement toutes les 5 minutes.',
+                    scope: this,
+                    handler: this.reponsesPharmaML
+                },
 
                 '-', {
                     text: 'Verifier l\'importation',
@@ -402,44 +413,71 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
             timeout: 240000,
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/pharma/' + record.get('lg_ORDER_ID'),
-            success: function (response, options) {
-
-
-                const result = Ext.JSON.decode(response.responseText, true);
-                if (result.success) {
-
-                    let message = result.nbreproduit + '/' + result.totalProduit + ' produit pris en compte ';
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                let message;
+                if (result.success && result.enAttente) {
+                    message = result.msg; /* recue par le grossiste, reponse differee */
+                } else if (result.success) {
+                    message = result.nbreproduit + '/' + result.totalProduit + ' produit(s) pris en compte';
                     if (result.nbrerupture > 0) {
-                        message += ' ' + result.nbrerupture + ' produit(s) en rupture';
+                        message += ', ' + result.nbrerupture + ' produit(s) en rupture';
                     }
-                    Ext.MessageBox.show({
-                        title: 'Message',
-                        width: 320,
-                        msg: message,
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
-
-                    });
-                    grid.getStore().reload();
-
                 } else {
-                    progress.hide();
-                    Ext.MessageBox.show({
-                        title: 'Message d\'erreur',
-                        width: 320,
-                        msg: "ERROR",
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
-
-                    });
+                    /* le vrai motif (refus du grossiste, serveur injoignable, deja envoyee...) au lieu de « ERROR » */
+                    message = result.msg || 'Envoi impossible.';
                 }
-
+                Ext.MessageBox.show({
+                    title: result.success ? 'Envoi PharmaML' : 'Envoi PharmaML impossible',
+                    width: 520,
+                    msg: Ext.String.htmlEncode(message),
+                    buttons: Ext.MessageBox.OK,
+                    icon: result.success ? Ext.MessageBox.INFO : Ext.MessageBox.ERROR
+                });
+                grid.getStore().reload();
             },
-            failure: function (response, options) {
+            failure: function (response) {
                 progress.hide();
                 Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
             }
+        });
+    },
 
+    reponsesPharmaML: function () {
+        const me = this;
+        const progress = Ext.MessageBox.wait('Interrogation des grossistes . . .', 'Réponses PharmaML');
+        Ext.Ajax.request({
+            method: 'POST',
+            timeout: 600000,
+            url: '../api/v1/pharma/reponses',
+            success: function (response) {
+                progress.hide();
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                const enc = Ext.String.htmlEncode;
+                let lignes = [];
+                Ext.each(r.grossistes || [], function (g) {
+                    let t = '<b>' + enc(g.grossiste) + '</b> : ' + (g.traitees ? g.traitees + ' réponse(s) traitée(s)' : enc(g.msg || ''));
+                    Ext.each(g.messages || [], function (m) {
+                        if (m.statut === 'ERREUR' || m.statut === 'ORPHELINE') {
+                            t += '<br>&nbsp;&nbsp;- ' + (m.statut === 'ERREUR' ? 'refus : ' : 'réponse non rattachée (archivée) ')
+                                    + enc(((m.resultat || {}).msg) || m.enReponseA || '');
+                        }
+                    });
+                    lignes.push(t);
+                });
+                if (!lignes.length) {
+                    lignes.push('Aucun grossiste à interroger.');
+                }
+                lignes.push('<br>Envois encore en attente de réponse : <b>' + (r.enAttente || 0) + '</b>');
+                Ext.MessageBox.show({title: 'Réponses PharmaML', width: 560, msg: lignes.join('<br>'),
+                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.INFO});
+                me.getStore().reload();
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Réponses PharmaML', 'Erreur du serveur ' + response.status);
+            }
         });
     },
 

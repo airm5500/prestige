@@ -208,6 +208,82 @@ public final class PharmaMlMessages {
     }
 
     /**
+     * Message de cinematique (specification v4.8 § 4.1) : demande de VIDAGE du depot ou ACQUITTEMENT d'un message recu,
+     * Nature_Action REQ_RECEPTION (ou REQ_EMISSION pour acquitter une reponse immediate), EN_REPONSE_A si renseigne.
+     */
+    public static String action(String version, Partenaires p, String reference, String natureAction, String enReponseA,
+            String action) {
+        boolean v1 = V1.equals(version);
+        StringBuilder x = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        if (v1) {
+            x.append("<CSRP_ENVELOPPE xmlns=\"").append(NS_V1_ENV).append("\" Nature_Action=\"").append(natureAction)
+                    .append("\" Version_Protocole=\"").append(V1)
+                    .append("\" Id_Logiciel=\"Prestige\" Version_Logiciel=\"").append(VERSION_MOTEUR)
+                    .append("\" Usage=\"P\">\n  <ENTETE>\n    <EMETTEUR Nature=\"OF\" Code=\"")
+                    .append(esc(p.codeOfficine)).append("\" Id=\"").append(esc(p.idOfficine)).append("\" Adresse=\"")
+                    .append(esc(p.nomOfficine)).append("\"/>\n    <RECEPTEUR Nature=\"RE\" Code=\"")
+                    .append(esc(p.codeRepartiteur)).append("\" Id=\"").append(esc(p.idRepartiteur))
+                    .append("\" Adresse=\"").append(esc(p.nomRepartiteur)).append("\"/>\n");
+        } else {
+            x.append("<SRP_ENVELOPPE xmlns=\"").append(NS_V3_ENV).append("\" Nature_Action=\"").append(natureAction)
+                    .append("\" Version_Protocole=\"").append(V3).append("\" Id_Moteur=\"").append(ID_MOTEUR)
+                    .append("\" Version_Moteur=\"").append(VERSION_MOTEUR)
+                    .append("\" Usage=\"P\">\n  <ENTETE>\n    <EMETTEUR Nature=\"OF\" Code=\"")
+                    .append(esc(p.codeOfficine)).append("\" Id_Officine=\"").append(esc(p.idOfficine))
+                    .append("\" Adresse=\"").append(esc(p.nomOfficine))
+                    .append("\"/>\n    <RECEPTEUR Nature=\"RE\" Code=\"").append(esc(p.codeRepartiteur))
+                    .append("\" Id_Repartiteur=\"").append(esc(p.idRepartiteur)).append("\" Adresse=\"")
+                    .append(esc(p.nomRepartiteur)).append("\"/>\n");
+        }
+        x.append("    <REF_MESSAGE>").append(esc(reference)).append("</REF_MESSAGE>\n");
+        if (enReponseA != null && !enReponseA.isEmpty()) {
+            x.append("    <EN_REPONSE_A>").append(esc(enReponseA)).append("</EN_REPONSE_A>\n");
+        }
+        x.append("    <DATE>").append(esc(p.date)).append("</DATE>\n  </ENTETE>\n  <CORPS>\n    <ACTION>")
+                .append(esc(action)).append("</ACTION>\n  </CORPS>\n</").append(v1 ? "CSRP_ENVELOPPE" : "SRP_ENVELOPPE")
+                .append(">\n");
+        return x.toString();
+    }
+
+    /** Ce que dit l'enveloppe d'une reponse : nature, references, action de cinematique, presence d'une reponse. */
+    public static final class Enveloppe {
+        public String natureAction = "", refMessage = "", enReponseA = "", action = "";
+        public boolean repCommande, erreur;
+    }
+
+    public static Enveloppe lireEnveloppe(String xml) {
+        Enveloppe e = new Enveloppe();
+        if (xml == null || xml.trim().isEmpty()) {
+            return e;
+        }
+        try {
+            Document d = lireXml(xml);
+            Element racine = d.getDocumentElement();
+            e.natureAction = racine.getAttribute("Nature_Action");
+            for (Element x : descendants(racine)) {
+                String n = nom(x);
+                Node parent = x.getParentNode();
+                boolean enteteEnveloppe = parent instanceof Element && "ENTETE".equals(nom(parent))
+                        && parent.getParentNode() == racine;
+                if (enteteEnveloppe && "REF_MESSAGE".equals(n)) {
+                    e.refMessage = x.getTextContent().trim();
+                } else if (enteteEnveloppe && "EN_REPONSE_A".equals(n)) {
+                    e.enReponseA = x.getTextContent().trim();
+                } else if ("ACTION".equals(n)) {
+                    e.action = x.getTextContent().trim().toUpperCase(Locale.ROOT);
+                } else if ("REP_COMMANDE".equals(n)) {
+                    e.repCommande = true;
+                } else if ("ERREUR".equals(n)) {
+                    e.erreur = true;
+                }
+            }
+        } catch (Exception ex) {
+            /* illisible : enveloppe vide */
+        }
+        return e;
+    }
+
+    /**
      * Reponse 3.0.0.0 ramenee aux espaces de noms 1.0.0.0 : le traitement de la reponse de commande existant (classes
      * JAXB du protocole 1) la lit alors telle quelle. Les attributs propres a la V3 sont ignores par JAXB.
      */
