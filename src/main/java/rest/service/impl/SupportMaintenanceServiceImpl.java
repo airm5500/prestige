@@ -29,6 +29,7 @@ import rest.service.SupportMaintenanceService;
 import static rest.service.SupportMaintenanceService.ACTION_COMMANDES_EN_COURS;
 import static rest.service.SupportMaintenanceService.ACTION_ETIQUETTES;
 import static rest.service.SupportMaintenanceService.ACTION_LOTS_PERIMES_FANTOMES;
+import static rest.service.SupportMaintenanceService.ACTION_ARCHIVES_PHARMAML;
 import static rest.service.SupportMaintenanceService.ACTION_PIECES_JOINTES;
 import static rest.service.SupportMaintenanceService.ACTION_SUGGESTIONS;
 import static rest.service.SupportMaintenanceService.PIECES_JOINTES_JOURS_DEFAUT;
@@ -388,5 +389,28 @@ public class SupportMaintenanceServiceImpl implements SupportMaintenanceService 
             LOG.log(Level.SEVERE, "countNative " + sql, e);
             return -1;
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Archives et journal PharmaML (retours du 08/10 (6), operation manuelle)
+    // ------------------------------------------------------------------
+
+    @Override
+    public Map<String, Object> comptesArchivesPharmaMl(int mois) {
+        return ArchivePharmaMl.comptesPurge(mois);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> purgerArchivesPharmaMl(int mois, String utilisateur) {
+        Map<String, Object> r = ArchivePharmaMl.purger(mois);
+        r.put("lignes", r.get("fichiersPurges"));
+        supportEventService.recordMaintenance(ACTION_ARCHIVES_PHARMAML,
+                "Maintenance : purge des archives et du journal PharmaML de plus de " + r.get("mois") + " mois ("
+                        + r.get("fichiersPurges") + " fichier(s), " + r.get("volumePurgeMo")
+                        + " Mo libérés ; conservé depuis " + r.get("conserveDepuis") + " ; dossiers : "
+                        + String.join(", ", (List<String>) r.get("dossiersPurges")) + ")",
+                utilisateur);
+        return r;
     }
 }

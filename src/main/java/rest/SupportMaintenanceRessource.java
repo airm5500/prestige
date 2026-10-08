@@ -71,7 +71,8 @@ public class SupportMaintenanceRessource {
 
     @POST
     @Path("vider")
-    public Response vider(@QueryParam("action") String action, @QueryParam("jours") Integer jours) {
+    public Response vider(@QueryParam("action") String action, @QueryParam("jours") Integer jours,
+            @QueryParam("mois") Integer mois) {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -83,7 +84,9 @@ public class SupportMaintenanceRessource {
             String auteur = StringUtils.trimToEmpty(user.getStrFIRSTNAME()) + " "
                     + StringUtils.trimToEmpty(user.getStrLASTNAME()) + " (" + user.getStrLOGIN() + ")";
             Map<String, Object> resultat;
-            if (SupportMaintenanceService.ACTION_PIECES_JOINTES.equals(action)) {
+            if (SupportMaintenanceService.ACTION_ARCHIVES_PHARMAML.equals(action)) {
+                resultat = supportMaintenanceService.purgerArchivesPharmaMl(moisConserves(mois), auteur);
+            } else if (SupportMaintenanceService.ACTION_PIECES_JOINTES.equals(action)) {
                 resultat = supportMaintenanceService.viderPiecesJointes(anciennete(jours), auteur);
             } else {
                 resultat = supportMaintenanceService.vider(action, auteur);
@@ -92,6 +95,30 @@ public class SupportMaintenanceRessource {
         } catch (IllegalArgumentException e) {
             return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
         }
+    }
+
+    /**
+     * Retours du 08/10 (6) : archives et journal PharmaML (dossiers par mois), a consulter AVANT la purge.
+     */
+    @GET
+    @Path("archives-pharmaml")
+    public Response archivesPharmaMl(@QueryParam("mois") Integer mois) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (!isAdmin(user)) {
+            return Response.ok().entity(ResultFactory.getFailResult("Action réservée aux administrateurs")).build();
+        }
+        return Response.ok()
+                .entity(ResultFactory
+                        .getSuccessResult(supportMaintenanceService.comptesArchivesPharmaMl(moisConserves(mois)), 1))
+                .build();
+    }
+
+    /** 12 mois par defaut ; jamais moins de 1 ni plus de 120. */
+    private int moisConserves(Integer mois) {
+        return mois == null || mois < 1 ? 12 : Math.min(mois, 120);
     }
 
     private int anciennete(Integer jours) {

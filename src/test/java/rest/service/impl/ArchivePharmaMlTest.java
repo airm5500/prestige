@@ -96,4 +96,72 @@ class ArchivePharmaMlTest {
         assertNull(ArchivePharmaMl.ecrire("C_1", "x"));
         ArchivePharmaMl.journal("COMMANDE", "G", "ENVOI", "x");
     }
+
+    // retours du 08/10 (6) : purge au-dela de 12 mois
+
+    private Path fichier(String relatif, String contenu) throws Exception {
+        Path p = racine.resolve(relatif);
+        Files.createDirectories(p.getParent());
+        Files.write(p, contenu.getBytes(StandardCharsets.UTF_8));
+        return p;
+    }
+
+    @Test
+    void premierMoisConserve() {
+        assertEquals(java.time.YearMonth.of(2025, 10),
+                ArchivePharmaMl.premierMoisConserve(12, java.time.YearMonth.of(2026, 10)));
+        assertEquals(java.time.YearMonth.of(2025, 10),
+                ArchivePharmaMl.premierMoisConserve(0, java.time.YearMonth.of(2026, 10)), "12 par defaut");
+        assertEquals(java.time.YearMonth.of(2026, 7),
+                ArchivePharmaMl.premierMoisConserve(3, java.time.YearMonth.of(2026, 10)));
+    }
+
+    @Test
+    void purgeDesMoisDePlusDe12MoisSeulement() throws Exception {
+        java.time.YearMonth m = java.time.YearMonth.now();
+        String vieux = m.minusMonths(13).toString(), limite = m.minusMonths(12).toString(), recent = m.toString();
+        fichier("commandes/" + vieux + "/C_1.xml", "xxxx");
+        fichier("commandes/" + vieux + "/R_1.xml", "yy");
+        fichier("log/" + vieux + "/pharmaml_x.log", "z");
+        fichier("vidages/" + m.minusMonths(30) + "/RV_1.xml", "z");
+        fichier("commandes/" + limite + "/C_2.xml", "garde");
+        fichier("infoproduit/" + recent + "/RI_3.xml", "garde");
+        fichier("commandes/divers/C_9.xml", "pas un mois : garde");
+        Path ancienRacine = fichier("RV_ANCIEN.xml", "vieux");
+        Files.setLastModifiedTime(ancienRacine, java.nio.file.attribute.FileTime
+                .from(java.time.Instant.now().minus(500, java.time.temporal.ChronoUnit.DAYS)));
+        Path recentRacine = fichier("C_RECENT.xml", "garde");
+        Path autre = fichier("valorisation_2020.pdf", "pas PharmaML");
+        Files.setLastModifiedTime(autre, java.nio.file.attribute.FileTime
+                .from(java.time.Instant.now().minus(900, java.time.temporal.ChronoUnit.DAYS)));
+
+        java.util.Map<String, Object> avant = ArchivePharmaMl.comptesPurge(12);
+        assertEquals(8L, avant.get("fichiers"),
+                "archives et journal seulement (ni dossier hors mois, ni autre fichier)");
+        assertEquals(5L, avant.get("fichiersPurges"));
+        assertEquals(limite, avant.get("conserveDepuis"));
+        assertTrue(Files.exists(racine.resolve("commandes/" + vieux + "/C_1.xml")), "le comptage ne supprime rien");
+
+        java.util.Map<String, Object> r = ArchivePharmaMl.purger(12);
+        assertEquals(5L, r.get("fichiersPurges"));
+        assertEquals(java.util.Arrays.asList("commandes/" + vieux, "log/" + vieux, "vidages/" + m.minusMonths(30)),
+                r.get("dossiersPurges"));
+        assertFalse(Files.exists(racine.resolve("commandes/" + vieux)));
+        assertFalse(Files.exists(racine.resolve("log/" + vieux)));
+        assertFalse(Files.exists(ancienRacine));
+        assertTrue(Files.exists(racine.resolve("commandes/" + limite + "/C_2.xml")), "12 derniers mois conserves");
+        assertTrue(Files.exists(racine.resolve("infoproduit/" + recent + "/RI_3.xml")));
+        assertTrue(Files.exists(racine.resolve("commandes/divers/C_9.xml")));
+        assertTrue(Files.exists(recentRacine));
+        assertTrue(Files.exists(autre), "les autres fichiers du dossier ne sont jamais touches");
+        assertEquals(0L, ArchivePharmaMl.comptesPurge(12).get("fichiersPurges"), "rejouable : plus rien a purger");
+    }
+
+    @Test
+    void purgeSansDossier() {
+        ArchivePharmaMl.racineForcee = "";
+        java.util.Map<String, Object> r = ArchivePharmaMl.purger(12);
+        assertEquals(false, r.get("dossierPresent"));
+        assertEquals(0L, r.get("fichiersPurges"));
+    }
 }

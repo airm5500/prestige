@@ -22,6 +22,7 @@ public interface SupportMaintenanceService {
     String ACTION_COMMANDES_EN_COURS = "COMMANDES_EN_COURS";
     String ACTION_LOTS_PERIMES_FANTOMES = "LOTS_PERIMES_FANTOMES";
     String ACTION_PIECES_JOINTES = "PIECES_JOINTES";
+    String ACTION_ARCHIVES_PHARMAML = "ARCHIVES_PHARMAML";
 
     /** Anciennete par defaut, en jours, au-dela de laquelle une piece jointe peut etre liberee du disque. */
     int PIECES_JOINTES_JOURS_DEFAUT = 365;
@@ -56,4 +57,13 @@ public interface SupportMaintenanceService {
      * Operation manuelle : aucun planificateur ne la declenche.
      */
     Map<String, Object> viderPiecesJointes(int jours, String utilisateur);
+
+    /**
+     * Retours du 08/10 (6) : archives PharmaML (commandes, vidages, infoproduit) et journal des transmissions. Etat
+     * avant purge : volume total et ce qui depasse {@code mois} mois (12 par defaut, en plus du mois en cours).
+     */
+    Map<String, Object> comptesArchivesPharmaMl(int mois);
+
+    /** Supprime les dossiers de mois de plus de {@code mois} mois ; operation manuelle, tracee. */
+    Map<String, Object> purgerArchivesPharmaMl(int mois, String utilisateur);
 }

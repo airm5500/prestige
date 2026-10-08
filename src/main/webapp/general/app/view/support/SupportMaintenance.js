@@ -202,6 +202,83 @@ Ext.define('testextjs.view.support.SupportMaintenance', {
             });
         }
 
+        /* Retours du 08/10 (6) : archives et journal PharmaML (dossiers par mois), purge au-dela de N mois */
+        function moisPharmaMl() {
+            const champ = me.down('#numMoisPML');
+            const valeur = champ ? parseInt(champ.getValue(), 10) : 0;
+            return (valeur && valeur > 0) ? valeur : 12;
+        }
+
+        function chargerComptesPharmaMl() {
+            const label = me.down('#lblArchivesPharmaMl');
+            if (label) {
+                label.setText('Calcul en cours...', false);
+            }
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/support/maintenance/archives-pharmaml',
+                params: {mois: moisPharmaMl()},
+                success: function (response) {
+                    const result = Ext.JSON.decode(response.responseText, true) || {};
+                    if (!result.success) {
+                        Ext.Msg.alert('Message', result.msg || 'Impossible de calculer le volume des archives PharmaML');
+                        return;
+                    }
+                    const c = result.data || {};
+                    if (!label) {
+                        return;
+                    }
+                    if (!c.dossierPresent) {
+                        label.setText('Aucun dossier PharmaML sur ce serveur.', false);
+                        return;
+                    }
+                    label.setText(c.fichiers + ' fichier(s), ' + c.volumeMo + ' Mo au total — <span style="color:'
+                            + (c.fichiersPurges > 0 ? '#b35c00' : '#555') + ';">' + c.fichiersPurges + ' fichier(s), '
+                            + c.volumePurgeMo + ' Mo de plus de ' + c.mois + ' mois</span> (conservé à partir de '
+                            + Ext.String.htmlEncode(c.conserveDepuis) + ')', false);
+                },
+                failure: function () {
+                    Ext.Msg.alert('Message', 'Un problème avec le serveur');
+                }
+            });
+        }
+
+        function purgerPharmaMl() {
+            const mois = moisPharmaMl();
+            Ext.Msg.confirm('Confirmation', 'Cette action est IRRÉVERSIBLE.<br/><br/>'
+                    + '<b>Purger les archives et le journal PharmaML</b><br/>'
+                    + 'Les dossiers de mois de plus de ' + mois + ' mois (commandes, vidages, infoproduit, log) '
+                    + 'et les anciennes archives de la racine seront supprimés du disque. Les commandes, ruptures et '
+                    + 'réponses enregistrées en base ne sont pas touchées.<br/><br/>Confirmer la purge ?', function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                const progress = Ext.MessageBox.wait('Purge en cours . . .', 'Veuillez patienter');
+                Ext.Ajax.request({
+                    method: 'POST',
+                    url: '../api/v1/support/maintenance/vider?action=ARCHIVES_PHARMAML&mois=' + mois,
+                    headers: {'Content-Type': 'application/json'},
+                    success: function (response) {
+                        progress.hide();
+                        const result = Ext.JSON.decode(response.responseText, true) || {};
+                        if (!result.success) {
+                            Ext.Msg.alert('Message', result.msg || 'Échec de la purge');
+                            return;
+                        }
+                        const res = result.data || {};
+                        Ext.Msg.alert('Message', (res.fichiersPurges || 0) + ' fichier(s) supprimé(s), '
+                                + (res.volumePurgeMo || 0) + ' Mo libérés (' + ((res.dossiersPurges || []).length)
+                                + ' dossier(s) de mois).<br/>L\'action a été tracée dans le journal des événements.');
+                        chargerComptesPharmaMl();
+                    },
+                    failure: function () {
+                        progress.hide();
+                        Ext.Msg.alert('Message', 'Un problème avec le serveur');
+                    }
+                });
+            });
+        }
+
         const cartes = Ext.Array.map(ACTIONS, function (a) {
             return {
                 xtype: 'panel',
@@ -288,9 +365,67 @@ Ext.define('testextjs.view.support.SupportMaintenance', {
             ]
         });
 
+        cartes.push({
+            xtype: 'panel',
+            itemId: 'carteArchivesPharmaMl',
+            frame: true,
+            margin: '0 0 14 0',
+            bodyPadding: 12,
+            title: 'Purger les archives et le journal PharmaML',
+            items: [
+                {
+                    xtype: 'component',
+                    html: 'Supprime du disque les échanges PharmaML archivés (commandes, vidages, disponibilités) et '
+                            + 'le journal des transmissions des mois plus anciens que l\'ancienneté choisie ; '
+                            + '<b>les 12 derniers mois et le mois en cours sont conservés</b> par défaut. '
+                            + 'Les commandes, ruptures et réponses enregistrées en base ne sont jamais touchées.',
+                    style: 'color:#555;margin-bottom:8px;'
+                },
+                {
+                    xtype: 'numberfield',
+                    itemId: 'numMoisPML',
+                    fieldLabel: 'Conserver (mois)',
+                    labelWidth: 130,
+                    width: 230,
+                    value: 12,
+                    minValue: 1,
+                    maxValue: 120,
+                    allowBlank: false,
+                    style: 'margin-bottom:8px;'
+                },
+                {
+                    xtype: 'label',
+                    itemId: 'lblArchivesPharmaMl',
+                    text: 'Calcul en cours...',
+                    style: 'font-weight:bold;display:block;margin-bottom:10px;'
+                },
+                {
+                    xtype: 'container',
+                    layout: {type: 'hbox'},
+                    defaults: {margin: '0 8 0 0'},
+                    items: [
+                        {
+                            xtype: 'button',
+                            itemId: 'btnRecalculerPML',
+                            text: 'Recalculer',
+                            handler: chargerComptesPharmaMl
+                        },
+                        {
+                            xtype: 'button',
+                            itemId: 'btnPurgerPML',
+                            text: 'Purger',
+                            iconCls: 'icon-delete',
+                            handler: purgerPharmaMl
+                        }
+                    ]
+                }
+            ]
+        });
+
         function chargerTousLesCompteurs() {
             chargerCompteurs();
             chargerComptesPiecesJointes();
+            chargerComptesPharmaMl();
         }
 
         Ext.applyIf(me, {
