@@ -209,7 +209,16 @@ Ext.define('testextjs.controller.App', {
 
     },
 
+    /*
+     * Retours du 08/10 (12) : « Commandes en cours » s'ouvre en onglets avec le suivi PharmaML (ruptures,
+     * substitutions, alertes, tableau de bord), d'ou qu'on l'ouvre (menu, tableau de bord, retour d'une commande).
+     */
+    ecranReel: function (xtype) {
+        return xtype === 'i_order_manager' && Ext.ClassManager.getNameByAlias('widget.commandesencours') ? 'commandesencours' : xtype;
+    },
+
     onLoadNewComponent: function (ComponentXtype, ComponentLabel, name_ressource) {
+        ComponentXtype = this.ecranReel(ComponentXtype);
         // alert(ComponentXtype);
 
         // Fil d'Ariane du Centre de Support : trace l'ecran ouvert.
@@ -301,6 +310,7 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponentWithDataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource) {
+        ComponentXtype = this.ecranReel(ComponentXtype);
 
         var text = ComponentLabel,
                 xtype = ComponentXtype,
@@ -928,6 +938,7 @@ Ext.define('testextjs.controller.App', {
     },
 
     onRedirectTo: function (ComponentXtype, data) {
+        ComponentXtype = this.ecranReel(ComponentXtype);
 
 
         var

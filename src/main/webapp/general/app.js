@@ -434,6 +434,7 @@ Ext.application({
         'testextjs.model.Order',
         'testextjs.view.commandemanagement.bonlivraison.action.add',
         'testextjs.view.commandemanagement.order.OrderManager',
+        'testextjs.view.commandemanagement.order.CommandesEnCours',
         'testextjs.view.commandemanagement.order.action.add',
         'testextjs.model.TSuggestionOrderDetails',
         'testextjs.model.OrderDetail',

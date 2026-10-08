@@ -2993,3 +2993,16 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pml-tuile-titre { font-size: 12px; font-weight: 600; color: #3b4a5a; margin-top: 2px; }
 .pml-tuile-sous { font-size: 11px; color: #6b7785; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pml-tuiles-pied { font-size: 11px; color: #6b7785; margin-top: 6px; }
+
+/* Retours du 08/10 (12) : Commandes en cours en onglets (liste + suivi PharmaML) */
+.cec-onglets.x-toolbar { background: #eef2f6; border: 0; border-bottom: 1px solid #d5dde6; padding: 6px 8px 0 8px; }
+.cec-onglets .cec-onglet.x-btn { border-radius: 8px 8px 0 0; border: 1px solid #d5dde6; border-bottom: 0; background: #fff; margin-right: 4px; padding: 4px 12px; }
+.cec-onglets .cec-onglet.x-btn .x-btn-inner { color: #2b3a4a; font-weight: 600; font-size: 12px; }
+.cec-onglets .cec-onglet.x-btn-pressed { background: #1f3b5a; border-color: #1f3b5a; }
+.cec-onglets .cec-onglet.x-btn-pressed .x-btn-inner { color: #fff; }
+.cec-pastille { display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 4px; border-radius: 9px; font-size: 11px; font-weight: 700; line-height: 16px; color: #fff; background: #d08a00; text-align: center; }
+.cec-pastille.critique { background: #b42318; }
+.cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed,
+.cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed:hover { background: #1f3b5a !important; background-image: none !important; border-color: #1f3b5a !important; }
+.cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed .x-btn-inner { color: #fff !important; }
+.cec-hub .cec-onglets .x-btn.cec-onglet:not(.x-btn-pressed):hover { background: #e4effa !important; }

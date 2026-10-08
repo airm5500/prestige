@@ -543,6 +543,12 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 const lien = b.getEl().down('[data-ouvrir-alertes]');
                 if (lien) {
                     lien.on('click', function () {
+                        /* retours du 08/10 (12) : dans l'ecran a onglets, on change simplement d'onglet */
+                        const hub = me.up('commandesencours');
+                        if (hub) {
+                            hub.afficher('alertes');
+                            return;
+                        }
                         testextjs.view.pharmaml.Rupturepharma.ongletDemande = 'ongletAlertes';
                         const ouvert = Ext.ComponentQuery.query('rupturepharma')[0];
                         testextjs.app.getController('App').onLoadNewComponent('rupturepharma', 'Liste des ruptures', '');

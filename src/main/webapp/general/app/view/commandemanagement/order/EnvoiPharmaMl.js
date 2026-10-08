@@ -324,6 +324,15 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
 
     /** Retours du 08/10 (7) : liste des ruptures, equivalents proposes limites a cette commande. */
     ouvrirPropositions: function (reference) {
+        /* retours du 08/10 (12) : depuis l'ecran Commandes en cours a onglets, onglet Ruptures du meme ecran */
+        var hub = Ext.ComponentQuery.query('commandesencours')[0];
+        if (hub && hub.isVisible()) {
+            var e = hub.afficher('ruptures');
+            Ext.defer(function () {
+                e.choisirReference(reference);
+            }, 300);
+            return;
+        }
         testextjs.view.pharmaml.Rupturepharma.referenceDemandee = reference;
         var ouvert = Ext.ComponentQuery.query('rupturepharma')[0];
         testextjs.app.getController('App').onLoadNewComponent('rupturepharma', 'Liste des ruptures', '');
@@ -436,7 +445,7 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                             + ((m.resultat || {}).commande ? ' (commande ' + enc(m.resultat.commande) + ')' : ' (non rattaché)');
                 } else if (m.statut === 'TRAITEE' && m.source === 'ALERTE') {
                     t += '<br>&nbsp;&nbsp;- <b style="color:#b42318">alerte ' + ((m.resultat || {}).type === 'COMMERCIALE' ? 'commerciale' : 'réglementaire')
-                            + ' ' + enc((m.resultat || {}).alerte || '') + '</b> : voir Liste des ruptures, onglet Alertes';
+                            + ' ' + enc((m.resultat || {}).alerte || '') + '</b> : voir l\'onglet Alertes';
                 }
                 if (m.statut === 'ERREUR' || m.statut === 'ORPHELINE') {
                     t += '<br>&nbsp;&nbsp;- ' + (m.statut === 'ERREUR' ? 'refus : ' : 'réponse non rattachée (archivée) ')
