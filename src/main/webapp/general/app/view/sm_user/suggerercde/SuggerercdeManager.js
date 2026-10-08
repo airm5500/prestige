@@ -314,7 +314,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                     tooltip: 'Disponibilité PharmaML',
                                     renderer: function (v, meta, record) {
                                         return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.renduAvecVerif(
-                                                (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta);
+                                                (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta, Me_Window.dispoActive === false);
                                     }},
                                 /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
                                 {text: 'DCI', itemId: 'colEquivalentDci', width: 64, sortable: false, menuDisabled: true, hidden: true, align: 'center',
@@ -662,8 +662,10 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         if (!orderIdRef || orderIdRef === '0') {
             return;
         }
-        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('SUGGESTION', orderIdRef, function (etat) {
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('SUGGESTION', orderIdRef, function (etat, active) {
             Me_Window.etatDispo = etat;
+            Me_Window.dispoActive = active;
+            testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.appliquerActive(active, ['btn_dispo_verifier']);
             var g = Ext.getCmp('gridpanelSuggestionID');
             if (g && g.rendered) {
                 g.getView().refresh();
@@ -948,6 +950,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 } else {
                     Ext.MessageBox.alert(' Message', "Operation effectuée avec succes");
                 }
+                /* le nouveau grossiste peut avoir la disponibilite PharmaML desactivee */
+                Me_Window.chargerDispo();
             },
             failure: function (response) {
                 Ext.MessageBox.alert('Error Message', response.responseText);

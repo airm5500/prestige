@@ -990,8 +990,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
     chargerDispo: function () {
         var me = this;
-        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('COMMANDE', me.getNameintern(), function (etat) {
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('COMMANDE', me.getNameintern(), function (etat, active) {
             me.etatDispo = etat;
+            testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.appliquerActive(active, ['btn_cmd_dispo_verifier']);
             var g = Ext.getCmp('gridpanelID');
             if (g && g.rendered) {
                 g.getView().refresh();

@@ -44,6 +44,17 @@ public final class EnvoiPharmaMl {
     private EnvoiPharmaMl() {
     }
 
+    /** int_PHARMAML_DISPO (TINYINT(1), lu en Boolean ou en nombre selon le pilote) : vide = active. */
+    public static boolean disponibiliteActive(Object valeur) {
+        if (valeur == null) {
+            return true;
+        }
+        if (valeur instanceof Boolean) {
+            return (Boolean) valeur;
+        }
+        return !(valeur instanceof Number) || ((Number) valeur).intValue() != 0;
+    }
+
     /** Adresses a essayer, dans l'ordre, sans vide ni doublon. */
     public static List<String> adresses(String principale, String secours) {
         List<String> l = new ArrayList<>();
@@ -122,29 +133,52 @@ public final class EnvoiPharmaMl {
         IOException derniere = null;
         for (int i = 0; i < adresses.size(); i++) {
             String url = adresses.get(i);
-            try {
-                HttpRequest.Builder req = HttpRequest.newBuilder().uri(URI.create(url)).timeout(delaiReponse)
-                        .header("Content-Type", "text/xml; charset=UTF-8");
-                if (controle != null) {
-                    req.header(ENTETE_CONTROLE, controle);
+            for (int essai = 1; essai <= ESSAIS_PAR_ADRESSE; essai++) {
+                try {
+                    HttpRequest.Builder req = HttpRequest.newBuilder().uri(URI.create(url)).timeout(delaiReponse)
+                            .header("Content-Type", "text/xml; charset=UTF-8");
+                    if (controle != null) {
+                        req.header(ENTETE_CONTROLE, controle);
+                    }
+                    HttpResponse<String> r = client.send(
+                            req.POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
+                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                    if (i > 0) {
+                        LOG.log(Level.INFO, "PharmaML : message envoye par l''adresse de secours {0}", url);
+                    }
+                    return new Resultat(r, url, i > 0);
+                } catch (IOException e) {
+                    if (!injoignable(e)) {
+                        throw e;
+                    }
+                    derniere = e;
+                    if (essai < ESSAIS_PAR_ADRESSE) {
+                        long attente = attenteAvantEssai(essai);
+                        LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1}), nouvel essai dans {2} ms",
+                                new Object[] { url, e.getClass().getSimpleName(), attente });
+                        Thread.sleep(attente);
+                    } else if (i < adresses.size() - 1) {
+                        LOG.log(Level.WARNING,
+                                "PharmaML : {0} injoignable apres {1} essais, essai de l''adresse de secours",
+                                new Object[] { url, ESSAIS_PAR_ADRESSE });
+                    }
                 }
-                HttpResponse<String> r = client.send(
-                        req.POST(HttpRequest.BodyPublishers.ofString(xml, StandardCharsets.UTF_8)).build(),
-                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (i > 0) {
-                    LOG.log(Level.INFO, "PharmaML : message envoye par l''adresse de secours {0}", url);
-                }
-                return new Resultat(r, url, i > 0);
-            } catch (IOException e) {
-                if (!injoignable(e) || i == adresses.size() - 1) {
-                    throw e;
-                }
-                LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1}), essai de l''adresse de secours",
-                        new Object[] { url, e.getClass().getSimpleName() });
-                derniere = e;
             }
         }
         throw derniere != null ? derniere : new ConnectException("aucune adresse PharmaML");
+    }
+
+    /**
+     * Specification CSRP 4.8 par. 4.1.5 : 3 echecs de connexion avant l'adresse de secours. Le meme XML est renvoye
+     * (meme reference de message) : le grossiste reconnait un doublon. Jamais de relance apres une reponse ou un delai
+     * de reponse depasse.
+     */
+    static final int ESSAIS_PAR_ADRESSE = 3;
+    /** Attente avant le 2e essai ; doublee ensuite (2 s puis 4 s). Modifiable par les tests. */
+    static volatile long attenteInitialeMs = 2000;
+
+    static long attenteAvantEssai(int essai) {
+        return attenteInitialeMs << (essai - 1);
     }
 
     /** Rien n'a pu partir : connexion refusee ou trop longue, adresse introuvable, pas de route. */

@@ -43,6 +43,7 @@ class EnvoiPharmaMlTest {
         });
         serveur.start();
         base = "http://127.0.0.1:" + serveur.getAddress().getPort();
+        EnvoiPharmaMl.attenteInitialeMs = 100;
     }
 
     private static void repondre(com.sun.net.httpserver.HttpExchange e, int code, String corps, AtomicInteger n)
@@ -59,6 +60,7 @@ class EnvoiPharmaMlTest {
     @AfterEach
     void arreter() {
         serveur.stop(0);
+        EnvoiPharmaMl.attenteInitialeMs = 2000;
     }
 
     @Test
@@ -92,6 +94,58 @@ class EnvoiPharmaMlTest {
                 () -> EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(base + "/lent", base + "/ok"), "<X/>", C, R));
         assertEquals(1, lent.get());
         assertEquals(0, ok.get(), "le grossiste a pu recevoir la commande : pas de second envoi");
+    }
+
+    @Test
+    void principaleRevenueAuDeuxiemeEssaiSecoursInutile() throws Exception {
+        int port;
+        try (java.net.ServerSocket libre = new java.net.ServerSocket(0)) {
+            port = libre.getLocalPort();
+        }
+        AtomicInteger revenu = new AtomicInteger();
+        HttpServer[] tardif = new HttpServer[1];
+        Thread t = new Thread(() -> {
+            try {
+                Thread.sleep(40);
+                tardif[0] = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+                tardif[0].createContext("/ok", e -> repondre(e, 200, "<R/>", revenu));
+                tardif[0].start();
+            } catch (Exception x) {
+                throw new IllegalStateException(x);
+            }
+        });
+        t.start();
+        try {
+            EnvoiPharmaMl.Resultat r = EnvoiPharmaMl
+                    .envoyer(EnvoiPharmaMl.adresses("http://127.0.0.1:" + port + "/ok", base + "/ok"), "<X/>", C, R);
+            assertFalse(r.secours);
+            assertEquals(1, revenu.get());
+            assertEquals(0, ok.get(), "la principale a repondu : le secours ne recoit rien");
+        } finally {
+            t.join();
+            tardif[0].stop(0);
+        }
+    }
+
+    @Test
+    void troisEssaisAvantLeSecours() throws Exception {
+        long debut = System.nanoTime();
+        EnvoiPharmaMl.Resultat r = EnvoiPharmaMl.envoyer(EnvoiPharmaMl.adresses(FERME, base + "/ok"), "<X/>", C, R);
+        long ms = (System.nanoTime() - debut) / 1_000_000;
+        assertTrue(r.secours);
+        assertTrue(ms >= 300, "attentes de 100 puis 200 ms entre les 3 essais : " + ms + " ms");
+        assertEquals(1, ok.get());
+        assertEquals(100, EnvoiPharmaMl.attenteAvantEssai(1));
+        assertEquals(200, EnvoiPharmaMl.attenteAvantEssai(2));
+    }
+
+    @Test
+    void disponibiliteLueEnBooleenOuEnNombre() {
+        assertTrue(EnvoiPharmaMl.disponibiliteActive(null));
+        assertTrue(EnvoiPharmaMl.disponibiliteActive(Boolean.TRUE));
+        assertFalse(EnvoiPharmaMl.disponibiliteActive(Boolean.FALSE));
+        assertTrue(EnvoiPharmaMl.disponibiliteActive(1));
+        assertFalse(EnvoiPharmaMl.disponibiliteActive((byte) 0));
     }
 
     @Test

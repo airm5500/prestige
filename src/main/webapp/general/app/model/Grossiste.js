@@ -108,6 +108,11 @@ Ext.define('testextjs.model.Grossiste', {
         type: 'string'
     },
     {
+        name: 'int_PHARMAML_DISPO',
+        type: 'boolean',
+        defaultValue: true
+    },
+    {
         name: 'str_CODE_RECEPTEUR_PHARMA',
         type: 'string'
     },

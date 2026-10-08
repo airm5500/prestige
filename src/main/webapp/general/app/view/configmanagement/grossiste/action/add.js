@@ -456,7 +456,19 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                         }
                                     }
                                 },
-                                {xtype: 'component', flex: 2}
+                                {
+                                    /* 08/10 : interrogation de disponibilite coupee pour un grossiste qui la refuse */
+                                    xtype: 'checkboxfield', id: 'int_PHARMAML_DISPO', boxLabel: 'Interroger la disponibilité',
+                                    margin: '0 0 0 15', flex: 2, checked: true, inputValue: '1', uncheckedValue: '0',
+                                    disabled: Omode !== 'update',
+                                    listeners: {
+                                        afterrender: function (c) {
+                                            Ext.create('Ext.tip.ToolTip', {target: c.getEl(), dismissDelay: 15000,
+                                                html: 'Décoché : le bouton « Vérifier la disponibilité » et la vérification par ligne '
+                                                        + 'disparaissent pour ce grossiste (suggestion et commande). La commande PharmaML n\'est pas concernée.'});
+                                        }
+                                    }
+                                }
                             ]
                         }
 
@@ -528,6 +540,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             Ext.getCmp('str_PHARMAML_VERSION_INFO').setValue(this.getOdatasource().str_PHARMAML_VERSION_INFO || '1.0.0.0');
             Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '1.0.0.0');
             Ext.getCmp('str_PHARMAML_CONTROLE').setValue(this.getOdatasource().str_PHARMAML_CONTROLE || '');
+            Ext.getCmp('int_PHARMAML_DISPO').setValue(this.getOdatasource().int_PHARMAML_DISPO !== false);
             Ext.getCmp('str_URL_PHARMAML_SECOURS').setValue(this.getOdatasource().str_URL_PHARMAML_SECOURS || '');
 
         }
@@ -617,7 +630,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 params: {lg_GROSSISTE_ID: ref, versionInfo: Ext.getCmp('str_PHARMAML_VERSION_INFO').getValue(),
                                     versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(),
                                     urlSecours: Ext.String.trim(Ext.getCmp('str_URL_PHARMAML_SECOURS').getValue() || ''),
-                                    controle: Ext.getCmp('str_PHARMAML_CONTROLE').getValue() || ''},
+                                    controle: Ext.getCmp('str_PHARMAML_CONTROLE').getValue() || '',
+                                    disponibilite: Ext.getCmp('int_PHARMAML_DISPO').getValue() ? '1' : '0'},
                                 success: function (r) {
                                     var o = Ext.JSON.decode(r.responseText, true) || {};
                                     if (o.success === false && o.msg) {

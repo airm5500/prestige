@@ -55,8 +55,8 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   for (const [n, G] of Object.entries(GROSSISTES)) {
-    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), IFNULL(str_PHARMAML_CONTROLE, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
-    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5], controle: v[6] === 'NULL' ? null : v[6] };
+    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), IFNULL(str_PHARMAML_CONTROLE, 'NULL'), int_PHARMAML_DISPO, str_PHARMAML_VERSION_INFO) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
+    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5], controle: v[6] === 'NULL' ? null : v[6], dispo: v[7], versionInfo: v[8] };
   }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
@@ -80,6 +80,8 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       ok(n + ' : SRP 3.0.0.0, émetteur Id_Officine = ' + s.id + ', récepteur Code ' + s.code + ' / Id_Repartiteur ' + s.rep,
         /<SRP_ENVELOPPE[^>]*Version_Protocole="3\.0\.0\.0"/.test(x) && att('EMETTEUR', 'Id_Officine') === s.id && att('RECEPTEUR', 'Code') === s.code && att('RECEPTEUR', 'Id_Repartiteur') === s.rep
         && att('DESTINATAIRE', 'Id_Repartiteur') === s.rep, x.slice(0, 600));
+      const refAttendue = CMD.replace(/[^A-Za-z0-9._:-]/g, '').slice(0, 20);
+      ok(n + ' : Ref_Cde_Client stable = référence de la commande (sans horodatage, 20 car. au plus)', att('COMMANDE', 'Ref_Cde_Client') === refAttendue, att('COMMANDE', 'Ref_Cde_Client') + ' / ' + refAttendue);
       const cle = q("SELECT IFNULL(str_CLE_RECEPTEUR, '') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'");
       /* specification Pharma-ML v4.8 § 4.4.3 : MD5(corps + identifiant officine sur 16 car. completes de « 0 » + cle) */
       const attendu = require('crypto').createHash('md5').update(Buffer.from(x, 'utf8')).update(s.id.padEnd(16, '0') + cle).digest('base64');
@@ -164,7 +166,19 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     ok('Fiche (écran) : « Contrôle PharmaML » de DPCI affiché (Spécification CSRP), libellé entier', ecran.controle === 'CSRP' && /Spécification CSRP/.test(ecran.controleTexte) && !ecran.controleTronque, JSON.stringify(ecran));
     ok('Fiche (écran) : champ « Lien PharmaML de secours » visible sans défiler, rempli, modifiable, adresse invalide signalée, libellé entier', ouvert === 'ok' && ecran.v === 'http://dpciml.dpci.ci/PharmaML/' && ecran.visible && ecran.actif && ecran.inval && ecran.valide && !ecran.tronque, ouvert + ' ' + JSON.stringify(ecran));
     await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/grossiste-url-secours.png' });
-    await p.evaluate(() => { const w = Ext.getCmp('str_URL_PHARMAML_SECOURS').up('window'); if (w) { w.close(); } });
+    /* 08/10 : case « Interroger la disponibilité » (cochée pour DPCI), decochee puis enregistree par le bouton de la fiche */
+    const caseDispo = await p.evaluate(() => { const c = Ext.getCmp('int_PHARMAML_DISPO'); const box = c.getEl().dom.getBoundingClientRect(), corps = c.up('window').body.dom.getBoundingClientRect();
+      const lab = c.getEl().dom.querySelector('.x-form-cb-label');
+      return { coche: c.getValue(), actif: !c.isDisabled(), visible: box.bottom <= corps.bottom + 1 && box.right <= corps.right + 1 && box.width > 0, tronque: lab ? lab.scrollWidth > lab.clientWidth + 1 : true }; });
+    ok('Fiche (écran) : case « Interroger la disponibilité » cochée, modifiable, visible, libellé entier', caseDispo.coche === true && caseDispo.actif && caseDispo.visible && !caseDispo.tronque, JSON.stringify(caseDispo));
+    await p.evaluate(() => { Ext.getCmp('int_PHARMAML_DISPO').setValue(false); });
+    const idEnr = await p.evaluate(() => Ext.getCmp('int_PHARMAML_DISPO').up('window').down('button[text=Enregistrer]').getId());
+    await p.click('#' + idEnr);
+    let dispoBase = '1';
+    for (let i = 0; i < 40 && dispoBase !== '0'; i++) { await p.waitForTimeout(250); dispoBase = q("SELECT int_PHARMAML_DISPO FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'"); }
+    ok('Fiche (écran) : case décochée → disponibilité désactivée en base, contrôle inchangé', dispoBase === '0' && q("SELECT IFNULL(str_PHARMAML_CONTROLE,'') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === 'CSRP', dispoBase);
+    exec("UPDATE t_grossiste SET int_PHARMAML_DISPO = 1 WHERE lg_GROSSISTE_ID = '" + D + "'");
+    await p.evaluate(() => { const c = Ext.getCmp('str_URL_PHARMAML_SECOURS'); const w = c && c.up('window'); if (w) { w.close(); } Ext.MessageBox.hide(); });
     url(GROSSISTES.TEDIS, 'http://127.0.0.1:' + PORT + '/refus/');
     poser(GROSSISTES.TEDIS);
     const r403 = JSON.parse((await envoyer()).r);
@@ -183,7 +197,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     for (const [n, G] of Object.entries(GROSSISTES)) {
       url(G, sauves[n].url); secours(G, sauves[n].secours);
       exec("UPDATE t_grossiste SET str_PHARMAML_CONTROLE = " + (sauves[n].controle ? "'" + sauves[n].controle + "'" : 'NULL') + " WHERE lg_GROSSISTE_ID = '" + G + "'");
-      exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '" + sauves[n].version + "' WHERE lg_GROSSISTE_ID = '" + G + "'");
+      exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '" + sauves[n].version + "', str_PHARMAML_VERSION_INFO = '" + sauves[n].versionInfo + "', int_PHARMAML_DISPO = " + sauves[n].dispo + " WHERE lg_GROSSISTE_ID = '" + G + "'");
     }
     ok('Commandes d\'essai retirées, adresses remises', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'") === '0'
       && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'") === (sauves.DPCI.url || 'NULL')

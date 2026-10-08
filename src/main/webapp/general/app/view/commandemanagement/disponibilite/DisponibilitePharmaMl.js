@@ -18,16 +18,29 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
     COULEURS: {OUI: '#17987e', NON: '#c0392b', AUTRE: '#e08a1e', INCONNU: '#9aa8b6'},
     LIBELLES: {OUI: 'Disponible', NON: 'Non disponible', AUTRE: 'Autre', INCONNU: 'Sans réponse'},
 
-    /** Dernier etat connu par produit : cb(map lg_FAMILLE_ID -> etat). */
+    /**
+     * Dernier etat connu par produit : cb(map lg_FAMILLE_ID -> etat, active). active = false quand la disponibilite
+     * est desactivee dans la fiche du grossiste de la source (V6.9.98) : l'ecran masque alors la verification.
+     */
     chargerEtat: function (source, id, cb) {
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/disponibilite/etat', params: {source: source, id: id},
             success: function (r) {
                 var o = Ext.decode(r.responseText, true) || {};
-                cb(o.produits || {});
+                cb(o.produits || {}, o.active !== false);
             },
             failure: function () {
-                cb({});
+                cb({}, true);
+            }
+        });
+    },
+
+    /** Affiche ou masque les boutons de verification selon le reglage du grossiste. */
+    appliquerActive: function (active, ids) {
+        Ext.each(ids, function (id) {
+            var b = Ext.getCmp(id);
+            if (b) {
+                b.setVisible(active);
             }
         });
     },
@@ -60,8 +73,12 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
      * Rendu compact pour une colonne sans entete (retours du 06/10) : la pastille et, a cote, le bouton de verification
      * de ce seul produit (clic capte par la grille via [data-verif-dispo]).
      */
-    renduAvecVerif: function (etat, meta) {
+    renduAvecVerif: function (etat, meta, desactivee) {
         var pastille = this.rendu(etat, meta);
+        if (desactivee) {
+            /* disponibilite coupee pour ce grossiste : pas de bouton ⟳, l'ancien resultat reste visible */
+            return pastille;
+        }
         if (meta && !etat) {
             meta.tdAttr = 'data-qtip="Disponibilité non vérifiée"';
         }

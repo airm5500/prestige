@@ -50,15 +50,15 @@ function nettoyer() {
     + "DELETE FROM t_order_detail WHERE lg_ORDER_ID = '" + CMD + "'; DELETE FROM t_order WHERE lg_ORDER_ID = '" + CMD + "';"
     + "DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_GROSSISTE_ID LIKE 'E2E-DSP-%';");
   [[GA, sauveA], [GB, sauveB]].forEach(([g, s]) => { if (g && s) {
-    exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (s[0] === 'NULL' ? 'NULL' : "'" + s[0] + "'") + ", str_PHARMAML_VERSION_INFO = '" + s[1] + "', str_PHARMAML_VERSION_CMDE = '" + s[2] + "' WHERE lg_GROSSISTE_ID = '" + g + "'"); } });
+    exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (s[0] === 'NULL' ? 'NULL' : "'" + s[0] + "'") + ", str_PHARMAML_VERSION_INFO = '" + s[1] + "', str_PHARMAML_VERSION_CMDE = '" + s[2] + "', int_PHARMAML_DISPO = " + s[3] + " WHERE lg_GROSSISTE_ID = '" + g + "'"); } });
 }
 
 function poser() {
   [GA, GB] = q("SELECT GROUP_CONCAT(lg_GROSSISTE_ID ORDER BY str_LIBELLE SEPARATOR '|') FROM (SELECT lg_GROSSISTE_ID, str_LIBELLE FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE LIMIT 2) x").split('|');
-  sauveA = q("SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', str_PHARMAML_VERSION_INFO, '|', str_PHARMAML_VERSION_CMDE) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GA + "'").split('|');
-  sauveB = q("SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', str_PHARMAML_VERSION_INFO, '|', str_PHARMAML_VERSION_CMDE) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GB + "'").split('|');
-  exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/a', str_PHARMAML_VERSION_INFO = '3.0.0.0' WHERE lg_GROSSISTE_ID = '" + GA + "';"
-    + "UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/b', str_PHARMAML_VERSION_INFO = '3.0.0.0' WHERE lg_GROSSISTE_ID = '" + GB + "'");
+  sauveA = q("SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', str_PHARMAML_VERSION_INFO, '|', str_PHARMAML_VERSION_CMDE, '|', int_PHARMAML_DISPO) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GA + "'").split('|');
+  sauveB = q("SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', str_PHARMAML_VERSION_INFO, '|', str_PHARMAML_VERSION_CMDE, '|', int_PHARMAML_DISPO) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GB + "'").split('|');
+  exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/a', str_PHARMAML_VERSION_INFO = '3.0.0.0', int_PHARMAML_DISPO = 1 WHERE lg_GROSSISTE_ID = '" + GA + "';"
+    + "UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/b', str_PHARMAML_VERSION_INFO = '3.0.0.0', int_PHARMAML_DISPO = 1 WHERE lg_GROSSISTE_ID = '" + GB + "'");
   prods = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', int_CIP) ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, int_CIP, str_NAME FROM t_famille WHERE str_STATUT = 'enable'"
     + " AND int_CIP REGEXP '^[0-9]{7}$' AND COALESCE(bool_DECONDITIONNE, 0) = 0 ORDER BY str_NAME LIMIT " + N + ") x").split('|').map((x) => ({ id: x.split(':')[0], cip: x.split(':')[1] }));
   exec("INSERT INTO t_suggestion_order (lg_SUGGESTION_ORDER_ID, str_REF, lg_GROSSISTE_ID, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('" + SUGG + "', '" + REF + "', '" + GA + "', 'is_Process', NOW(), NOW())");
@@ -166,6 +166,25 @@ function poser() {
     ok('Commande : vérification (1 requête, 2 produits, aucune COMMANDE), colonne DISPO remplie', recus.length === 1 && (recus[0].xml.match(/<LIGNE_REQ_INFO_PRODUIT /g) || []).length === 2
       && !/<COMMANDE[ >]/.test(recus[0].xml) && boules === 2 && q("SELECT COUNT(*) FROM t_disponibilite_produit WHERE lg_SOURCE_ID='" + CMD + "' AND str_SOURCE='COMMANDE'") === '2', fin3 + ' / ' + boules);
     await p.screenshot({ path: CAPT + '/dispo-commande.png' });
+
+    /* Disponibilite desactivee dans la fiche du grossiste (08/10) */
+    const d0 = await p.evaluate(async (g) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_GROSSISTE_ID=' + g + '&versionInfo=1.0.0.0&versionCommande=3.0.0.0&disponibilite=0' })).json(), GA);
+    ok('Fiche : disponibilité désactivée enregistrée, versions inchangées', d0.success && q("SELECT CONCAT(int_PHARMAML_DISPO, str_PHARMAML_VERSION_CMDE) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GA + "'") === '03.0.0.0', JSON.stringify(d0));
+    await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('i_order_manager', {}); });
+    await p.waitForFunction(() => Ext.ComponentQuery.query('i_order_manager').length > 0 && Ext.ComponentQuery.query('i_order_manager')[0].isVisible(), null, { timeout: 30000 });
+    await p.waitForTimeout(1200);
+    await p.evaluate((ref) => { Ext.getCmp('rechecher').setValue(ref); Ext.ComponentQuery.query('i_order_manager')[0].onRechClick(); }, CMD);
+    await p.waitForFunction((ref) => { const st = Ext.ComponentQuery.query('i_order_manager')[0].getStore(); return !st.isLoading() && st.findExact('str_REF_ORDER', ref) >= 0; }, CMD, { timeout: 30000 });
+    await p.evaluate((ref) => { const g = Ext.ComponentQuery.query('i_order_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF_ORDER', ref)); }, CMD);
+    await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 30000 });
+    await p.waitForFunction(() => { const b = Ext.getCmp('btn_cmd_dispo_verifier'); return b && b.isHidden(); }, null, { timeout: 15000 }).catch(() => {});
+    const etatBoutons = await p.evaluate(() => ({ verifier: Ext.getCmp('btn_cmd_dispo_verifier').isHidden(), reverifier: Ext.getCmp('btn_cmd_dispo_reverifier').isHidden(), imprimer: Ext.getCmp('btn_cmd_dispo_imprimer').isHidden(),
+      boules: Ext.getCmp('gridpanelID').getEl().dom.querySelectorAll('.dispo-boule').length }));
+    ok('Commande, grossiste désactivé : « Vérifier » masqué, anciens résultats et impression gardés', etatBoutons.verifier && !etatBoutons.imprimer && etatBoutons.boules === 2, JSON.stringify(etatBoutons));
+    recus.length = 0;
+    const refus = await p.evaluate(async (a) => (await fetch('../api/v1/disponibilite/verifier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'COMMANDE', id: a.cmd, familles: [a.f] }) })).json(), { cmd: CMD, f: prods[0].id });
+    ok('Appel direct refusé avec un message clair, rien envoyé au grossiste', refus.success === false && refus.desactivee === true && /désactivée/.test(refus.msg) && recus.length === 0, JSON.stringify(refus));
+    await p.screenshot({ path: CAPT + '/dispo-commande-desactivee.png' });
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Parcours sans exception', false, e.message);

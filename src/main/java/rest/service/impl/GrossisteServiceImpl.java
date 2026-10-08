@@ -54,9 +54,11 @@ public class GrossisteServiceImpl implements GrossisteService {
             if (!page.isEmpty()) {
                 List<String> ids = new java.util.ArrayList<>();
                 page.forEach(g -> ids.add(g.getLgGROSSISTEID()));
-                for (Object o : em.createNativeQuery("SELECT lg_GROSSISTE_ID, str_PHARMAML_VERSION_INFO,"
-                        + " str_PHARMAML_VERSION_CMDE, str_URL_PHARMAML_SECOURS, str_PHARMAML_CONTROLE FROM t_grossiste"
-                        + " WHERE lg_GROSSISTE_ID IN (:ids)").setParameter("ids", ids).getResultList()) {
+                for (Object o : em
+                        .createNativeQuery("SELECT lg_GROSSISTE_ID, str_PHARMAML_VERSION_INFO,"
+                                + " str_PHARMAML_VERSION_CMDE, str_URL_PHARMAML_SECOURS, str_PHARMAML_CONTROLE,"
+                                + " int_PHARMAML_DISPO FROM t_grossiste" + " WHERE lg_GROSSISTE_ID IN (:ids)")
+                        .setParameter("ids", ids).getResultList()) {
                     Object[] r = (Object[]) o;
                     versions.put((String) r[0], r);
                 }
@@ -68,6 +70,7 @@ public class GrossisteServiceImpl implements GrossisteService {
                 row.put("str_PHARMAML_VERSION_CMDE", v == null || v[2] == null ? "1.0.0.0" : v[2]);
                 row.put("str_PHARMAML_CONTROLE", v == null || v[4] == null ? "" : v[4]);
                 row.put("str_URL_PHARMAML_SECOURS", v == null || v[3] == null ? "" : v[3]);
+                row.put("int_PHARMAML_DISPO", v == null || EnvoiPharmaMl.disponibiliteActive(v[5]));
                 row.put("lg_GROSSISTE_ID", g.getLgGROSSISTEID());
                 row.put("str_LIBELLE", g.getStrLIBELLE());
                 row.put("str_DESCRIPTION", g.getStrDESCRIPTION());
@@ -116,7 +119,7 @@ public class GrossisteServiceImpl implements GrossisteService {
 
     @Override
     public JSONObject versionsPharmaMl(String grossisteId, String versionInfo, String versionCommande,
-            String urlSecours, String controle) {
+            String urlSecours, String controle, Boolean disponibilite) {
         String vi = rest.service.impl.PharmaMlMessages.version(versionInfo);
         String vc = rest.service.impl.PharmaMlMessages.version(versionCommande);
         String secours = urlSecours == null ? null : StringUtils.trimToEmpty(urlSecours);
@@ -134,14 +137,18 @@ public class GrossisteServiceImpl implements GrossisteService {
                 .createNativeQuery("UPDATE t_grossiste SET str_PHARMAML_VERSION_INFO = :vi,"
                         + " str_PHARMAML_VERSION_CMDE = :vc,"
                         + " str_URL_PHARMAML_SECOURS = CASE WHEN :maj = 1 THEN :s ELSE str_URL_PHARMAML_SECOURS END,"
-                        + " str_PHARMAML_CONTROLE = CASE WHEN :majc = 1 THEN :c ELSE str_PHARMAML_CONTROLE END"
+                        + " str_PHARMAML_CONTROLE = CASE WHEN :majc = 1 THEN :c ELSE str_PHARMAML_CONTROLE END,"
+                        + " int_PHARMAML_DISPO = CASE WHEN :majd = 1 THEN :d ELSE int_PHARMAML_DISPO END"
                         + " WHERE lg_GROSSISTE_ID = :g")
                 .setParameter("vi", vi).setParameter("vc", vc).setParameter("maj", secours == null ? 0 : 1)
-                .setParameter("majc", ctl == null ? 0 : 1).setParameter("c", ctl == null || ctl.isEmpty() ? null : ctl)
+                .setParameter("majc", ctl == null ? 0 : 1).setParameter("majd", disponibilite == null ? 0 : 1)
+                .setParameter("d", Boolean.FALSE.equals(disponibilite) ? 0 : 1)
+                .setParameter("c", ctl == null || ctl.isEmpty() ? null : ctl)
                 .setParameter("s", secours == null || secours.isEmpty() ? null : secours).setParameter("g", grossisteId)
                 .executeUpdate();
         return new JSONObject().put("success", n == 1).put("versionInfo", vi).put("versionCommande", vc)
-                .put("urlSecours", secours == null ? JSONObject.NULL : secours);
+                .put("urlSecours", secours == null ? JSONObject.NULL : secours)
+                .put("disponibilite", disponibilite == null ? JSONObject.NULL : disponibilite);
     }
 
     @Override

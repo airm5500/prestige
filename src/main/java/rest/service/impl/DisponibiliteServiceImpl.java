@@ -71,6 +71,20 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
         return r.isEmpty() ? null : (String) r.get(0);
     }
 
+    /** Disponibilite coupee dans la fiche du grossiste de la source (V6.9.98) : bouton et pastille masques. */
+    private boolean disponibiliteActive(String source, String sourceId) {
+        if (!sourceValide(source)) {
+            return true;
+        }
+        String gid = grossisteDeLaSource(source, sourceId);
+        if (gid == null) {
+            return true;
+        }
+        List<?> r = em.createNativeQuery("SELECT int_PHARMAML_DISPO FROM t_grossiste WHERE lg_GROSSISTE_ID = :g")
+                .setParameter("g", gid).getResultList();
+        return r.isEmpty() || EnvoiPharmaMl.disponibiliteActive(r.get(0));
+    }
+
     /** Dernier resultat par produit dans cette source. */
     private static final String DERNIERS = "SELECT d.* FROM t_disponibilite_produit d JOIN (SELECT lg_FAMILLE_ID AS f,"
             + " MAX(dt_CREATED) AS dt FROM t_disponibilite_produit WHERE lg_SOURCE_ID = :s GROUP BY lg_FAMILLE_ID) x"
@@ -121,14 +135,19 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                 + " g.idrepartiteur AS idRe, g.str_PHARMAML_VERSION_INFO AS version,"
                 + " g.str_URL_PHARMAML_SECOURS AS secours, g.str_CLE_RECEPTEUR AS cle,"
                 + " COALESCE(NULLIF(g.str_PHARMAML_CONTROLE, ''), (SELECT p.str_VALUE FROM t_parameters p"
-                + " WHERE p.str_KEY = 'KEY_PHARMAML_CONTROLE')) AS controle" + " FROM t_grossiste g"
-                + " WHERE g.lg_GROSSISTE_ID = :g", Tuple.class).setParameter("g", gid).getResultList();
+                + " WHERE p.str_KEY = 'KEY_PHARMAML_CONTROLE')) AS controle, g.int_PHARMAML_DISPO AS dispo"
+                + " FROM t_grossiste g" + " WHERE g.lg_GROSSISTE_ID = :g", Tuple.class).setParameter("g", gid)
+                .getResultList();
         if (g.isEmpty()) {
             return new JSONObject().put("success", false).put("msg", "Grossiste introuvable");
         }
         Tuple gr = g.get(0);
         String url = StringUtils.trimToEmpty((String) gr.get("url"));
         String libelle = StringUtils.defaultString((String) gr.get("libelle"));
+        if (!EnvoiPharmaMl.disponibiliteActive(gr.get("dispo"))) {
+            return new JSONObject().put("success", false).put("desactivee", true).put("msg", "La disponibilité PharmaML"
+                    + " est désactivée pour " + libelle + " (fiche grossiste). La commande n'est pas concernée.");
+        }
         if (url.isEmpty()) {
             return new JSONObject().put("success", false).put("msg",
                     "Le grossiste " + libelle + " n'a pas de lien PharmaML (fiche grossiste)");
@@ -321,7 +340,8 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                             .put("grossiste", StringUtils.defaultString((String) t.get("grossiste")))
                             .put("date", t.get("dt")));
         }
-        return new JSONObject().put("success", true).put("produits", parProduit).put("total", r.size());
+        return new JSONObject().put("success", true).put("produits", parProduit).put("total", r.size()).put("active",
+                disponibiliteActive(source, sourceId));
     }
 
     @Override

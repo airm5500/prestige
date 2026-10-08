@@ -147,7 +147,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             TOfficine officine = getOfficine();
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildNormale(order, grossiste.getLgGROSSISTEID()),
                     StringUtils.isEmpty(commentaire) ? order.getStrREFORDER() : commentaire,
-                    order.getStrREFORDER() + LocalDateTime.now().format(DateTimeFormatter.ofPattern("mmss")));
+                    refCdeClient(order.getStrREFORDER(), null));
             journalEnvoi("commande", order.getStrREFORDER(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, order.getStrREFORDER(), grossiste);
             if (Objects.isNull(enveloppeResponse)) {
@@ -200,8 +200,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             List<RuptureDetail> ruptureDetails = orderService.ruptureDetaisDtoByRupture(rupture.getId());
             TOfficine officine = getOfficine();
             CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildFromRupture(ruptureDetails, grossisteId),
-                    rupture.getReference(), rupture.getReference() + "_"
-                            + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyMMddHHmmss")));
+                    rupture.getReference(), refCdeClient(rupture.getReference(), "R" + rupture.getId()));
             journalEnvoi("renvoi de rupture", rupture.getReference(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, rupture.getReference(), grossiste);
             if (Objects.isNull(enveloppeResponse)) {
@@ -1151,6 +1150,19 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             }
         }
         return false;
+    }
+
+    /**
+     * Ref_Cde_Client stable (CSRP 4.8 : NMTOKEN, 20 caracteres au plus). Sans horodatage : un renvoi du meme document
+     * porte la meme reference et le grossiste reconnait le doublon. Le suffixe (renvoi de rupture) distingue deux
+     * documents differents tires de la meme commande ; il est garde en entier, la base est raccourcie si besoin.
+     */
+    static String refCdeClient(String base, String suffixe) {
+        String b = StringUtils.defaultString(base).replaceAll("[^A-Za-z0-9._:-]", "");
+        String s = StringUtils.defaultString(suffixe).replaceAll("[^A-Za-z0-9._:-]", "");
+        s = StringUtils.left(s, 6);
+        String r = StringUtils.left(b, 20 - s.length()) + s;
+        return r.isEmpty() ? "CDE" : r;
     }
 
     private CsrpEnveloppe buildPayload(TGrossiste grossiste, TOfficine of, Normale normale, String commentaire,
