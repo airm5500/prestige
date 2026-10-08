@@ -477,7 +477,10 @@ public final class PharmaMlMessages {
     }
 
     private static Long somme(Long a, Long b) {
-        return b == null ? a : a == null ? b : a + b;
+        if (b == null) {
+            return a;
+        }
+        return a == null ? b : Long.valueOf(a.longValue() + b.longValue());
     }
 
     /**

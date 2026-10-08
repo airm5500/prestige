@@ -124,6 +124,16 @@ public class PharmaMlResource {
         return Response.ok(pharmaMlService.blv(id, commande).toString()).build();
     }
 
+    /** Retours du 08/10 (11) : tableau de bord PharmaML. */
+    @GET
+    @Path("tableau-bord")
+    public Response tableauBord() {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.tableauBord().toString()).build();
+    }
+
     /** Informations reglementaires urgentes et alertes commerciales recues. */
     @GET
     @Path("alertes")

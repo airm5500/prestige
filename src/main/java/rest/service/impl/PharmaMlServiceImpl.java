@@ -434,6 +434,19 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                                 "SELECT DISTINCT lg_GROSSISTE_ID FROM t_pharmaml_attente WHERE str_STATUT = ?1"
                                         + " AND dt_ENVOI > NOW() - INTERVAL 15 DAY")
                         .setParameter(1, EN_ATTENTE).getResultList();
+        if (!auto && StringUtils.isBlank(grossisteId)) {
+            /* retours du 08/10 (11) : a la demande, aussi les grossistes actifs (BLV et alertes deposes) */
+            ids = new ArrayList<>(ids);
+            for (Object id : (List<Object>) em
+                    .createNativeQuery("SELECT DISTINCT a.lg_GROSSISTE_ID FROM t_pharmaml_attente a"
+                            + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = a.lg_GROSSISTE_ID WHERE a.dt_ENVOI > NOW() - INTERVAL 30 DAY"
+                            + " AND IFNULL(g.str_URL_PHARMAML, '') <> '' AND g.str_STATUT = 'enable'")
+                    .getResultList()) {
+                if (!ids.contains(id)) {
+                    ids.add(id);
+                }
+            }
+        }
         JSONArray parGrossiste = new JSONArray();
         int traitees = 0, reprises = 0;
         PharmaMlService moi = contexte.getBusinessObject(PharmaMlService.class);
@@ -457,6 +470,27 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
         return new JSONObject().put("success", true).put("grossistes", parGrossiste).put("traitees", traitees)
                 .put("reprises", reprises).put("enAttente", attentes().getJSONArray("data").length());
+    }
+
+    /**
+     * Retours du 08/10 (11) : vidage des grossistes PharmaML actifs (un envoi dans les 30 derniers jours), meme sans
+     * envoi en attente, pour recevoir les bons de livraison valorises et les alertes.
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    @SuppressWarnings("unchecked")
+    public JSONObject recupererMessages() {
+        List<Object> ids = em.createNativeQuery("SELECT DISTINCT a.lg_GROSSISTE_ID FROM t_pharmaml_attente a"
+                + " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = a.lg_GROSSISTE_ID WHERE a.dt_ENVOI > NOW() - INTERVAL 30 DAY"
+                + " AND IFNULL(g.str_URL_PHARMAML, '') <> '' AND g.str_STATUT = 'enable'").getResultList();
+        int traitees = 0;
+        JSONArray parGrossiste = new JSONArray();
+        for (Object id : ids) {
+            JSONObject r = vidage(em.find(TGrossiste.class, (String) id));
+            traitees += r.optInt("traitees");
+            parGrossiste.put(r);
+        }
+        return new JSONObject().put("success", true).put("grossistes", parGrossiste).put("traitees", traitees);
     }
 
     private JSONObject vidage(TGrossiste g) {
@@ -1457,6 +1491,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     @Override
     public JSONObject alertes(boolean nonLuesSeulement) {
         return BlvPharmaMl.alertes(em, nonLuesSeulement);
+    }
+
+    @Override
+    public JSONObject tableauBord() {
+        return TableauBordPharmaMl.calculer(em);
     }
 
     @Override

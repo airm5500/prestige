@@ -78,3 +78,8 @@ CREATE TABLE IF NOT EXISTS `t_pharmaml_alerte_produit` (
   PRIMARY KEY (`lg_ID`),
   KEY `idx_pml_alerte_produit` (`lg_ALERTE_ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- Les BLV et les alertes arrivent sans demande de l'officine : les grossistes PharmaML actifs (un envoi dans les 30
+-- derniers jours) sont aussi videes periodiquement, meme sans envoi en attente. 0 = jamais (seulement a la demande).
+INSERT IGNORE INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT) VALUES
+('KEY_PHARMAML_VIDAGE_MESSAGES_MIN', '30', 'PharmaML : intervalle en minutes de la recuperation automatique des bons de livraison valorises et des alertes deposes par les grossistes (0 = seulement a la demande)', 'SYSTEME', 'enable');

@@ -33,6 +33,21 @@ public class PharmaMlVidageScheduler {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    private long dernierVidageMessages;
+
+    @SuppressWarnings("unchecked")
+    private int intervalleMessages() {
+        List<Object> p = em
+                .createNativeQuery(
+                        "SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_PHARMAML_VIDAGE_MESSAGES_MIN'")
+                .getResultList();
+        try {
+            return p.isEmpty() ? 30 : Math.max(0, Integer.parseInt(String.valueOf(p.get(0)).trim()));
+        } catch (NumberFormatException e) {
+            return 30;
+        }
+    }
+
     @Schedule(hour = "*", minute = "*/5", second = "20", persistent = false)
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     @SuppressWarnings("unchecked")
@@ -54,6 +69,17 @@ public class PharmaMlVidageScheduler {
                     .getSingleResult();
             if (n.intValue() > 0) {
                 pharmaMl.recupererReponses(null, true);
+            }
+            /*
+             * retours du 08/10 (11) : bons de livraison valorises et alertes deposes sans demande de l'officine ;
+             * grossistes actifs videes tous les KEY_PHARMAML_VIDAGE_MESSAGES_MIN minutes (regle des 30 s respectee par
+             * le vidage lui-meme)
+             */
+            int intervalle = intervalleMessages();
+            long maintenant = System.currentTimeMillis();
+            if (intervalle > 0 && maintenant - dernierVidageMessages >= intervalle * 60_000L - 30_000L) {
+                dernierVidageMessages = maintenant;
+                pharmaMl.recupererMessages();
             }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "PharmaML : recuperation automatique des reponses", e);

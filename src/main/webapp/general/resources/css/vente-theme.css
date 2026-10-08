@@ -2967,3 +2967,29 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 #btn_cmd_envoyer_pml.btn-commander-pml.x-btn-disabled, #btn_sugg_commander_pml.btn-commander-pml.x-btn-disabled {
     background: #e3f6ef !important; border-color: #b8e2d3 !important; opacity: 1; }
 #btn_cmd_envoyer_pml.btn-commander-pml.x-btn-disabled .x-btn-inner, #btn_sugg_commander_pml.btn-commander-pml.x-btn-disabled .x-btn-inner { color: #17795f !important; }
+
+/* Retours du 08/10 (11) : bon de livraison valorise PharmaML et alertes */
+.blv-ecart { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: 11px; font-weight: 600; color: #b42318; background: #fde7e6; }
+.blv-ok { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: 11px; font-weight: 600; color: #17795f; background: #e3f6ef; }
+.blv-info { font-size: 11px; color: #3b4a5a; line-height: 16px; }
+.blv-muet { color: #6b7785; }
+.blv-entete { line-height: 20px; }
+.blv-ligne-ecart .x-grid-cell { background: #fff8f7; }
+.alerte-pml-bandeau { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #fde7e6; color: #8f1d14; border: 1px solid #f5b8b3; font-size: 12px; }
+.alerte-pml-bandeau.commerciale { background: #fdf0d2; color: #6b4600; border-color: #f0d38f; }
+.alerte-pml-bandeau a { color: inherit; font-weight: 600; }
+.alerte-pml-type { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; background: #b42318; }
+.alerte-pml-type.commerciale { background: #b26b00; }
+.alerte-pml-lue { opacity: .65; }
+.pml-tuiles { display: flex; flex-wrap: wrap; gap: 10px; }
+.pml-tuile { flex: 1 1 170px; min-width: 160px; padding: 10px 12px; border-radius: 8px; background: #f6f8fa; border: 1px solid #e3e8ee; border-left: 4px solid #9aa7b5; }
+.pml-tuile.ok { border-left-color: #17795f; }
+.pml-tuile.info { border-left-color: #1f5f9e; }
+.pml-tuile.alerte { border-left-color: #d08a00; background: #fffaf0; }
+.pml-tuile.critique { border-left-color: #b42318; background: #fff5f4; }
+.pml-tuile.cliquable { cursor: pointer; }
+.pml-tuile.cliquable:hover { box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.pml-tuile-valeur { font-size: 22px; font-weight: 700; color: #1d2733; line-height: 26px; }
+.pml-tuile-titre { font-size: 12px; font-weight: 600; color: #3b4a5a; margin-top: 2px; }
+.pml-tuile-sous { font-size: 11px; color: #6b7785; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pml-tuiles-pied { font-size: 11px; color: #6b7785; margin-top: 6px; }

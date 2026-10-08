@@ -72,6 +72,12 @@ public interface PharmaMlService {
     /** Prise de connaissance d'une alerte. */
     JSONObject alerteLue(String alerteId, dal.TUser user);
 
+    /** Tableau de bord PharmaML (lecture seule). */
+    JSONObject tableauBord();
+
+    /** Vidage des grossistes actifs (BLV et alertes deposes sans demande). */
+    JSONObject recupererMessages();
+
     JSONObject supprimerChoixMemorise(String familleId, String code, dal.TUser user);
 
     /** Retours du 08/10 : derniere reponse du grossiste a une commande, lisible a l'ecran. */

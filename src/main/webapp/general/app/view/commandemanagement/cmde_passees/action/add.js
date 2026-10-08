@@ -16,7 +16,8 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
     id: 'addbonlivraisonOrederID',
     requires: [
         'Ext.form.*',
-        'Ext.window.Window'
+        'Ext.window.Window',
+        'testextjs.view.commandemanagement.order.EnvoiPharmaMl'
     ],
     config: {
         odatasource: '',
@@ -47,6 +48,17 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                 msgTarget: 'side'
             },
             items: [{
+                    /* retours du 08/10 (11) : bon de livraison valorise recu par PharmaML */
+                    xtype: 'container', id: 'blvPmlZone', hidden: true, margin: '0 0 8 0', layout: 'anchor',
+                    items: [{
+                            xtype: 'combo', id: 'cmbBlvPml', fieldLabel: 'BLV PharmaML', labelAlign: 'right', labelWidth: 115, anchor: '100%',
+                            queryMode: 'local', editable: false, forceSelection: true, displayField: 'libelle', valueField: 'id',
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'refLivraison', 'date', 'montantHt', 'montantTaxes', 'rattache', 'utilise']}),
+                            listeners: {select: function (c, recs) {
+                                    Me.appliquerBlv(recs && recs[0] ? recs[0] : null);
+                                }}
+                        }, {xtype: 'component', id: 'infoBlvPml', cls: 'blv-info', margin: '2 0 0 120'}]
+                }, {
                     xtype: 'fieldset',
                     //   width: 55,
                     title: 'Saisie du bon de livraison',
@@ -146,7 +158,68 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                     }
                 }]
         });
+        if (Omode == "create") {
+            Me.chargerBlv(idOrder, win);
+        }
 
+    },
+
+    /** Retours du 08/10 (11) : BLV recus pour cette commande ; le premier rattache pre-remplit la saisie. */
+    chargerBlv: function (idOrder, win) {
+        Ext.Ajax.request({
+            url: '../api/v1/pharma/blv/commande/' + encodeURIComponent(idOrder),
+            method: 'GET',
+            success: function (resp) {
+                var r = Ext.JSON.decode(resp.responseText, true) || {}, zone = Ext.getCmp('blvPmlZone'), cmb = Ext.getCmp('cmbBlvPml');
+                if (!zone || !r.success || !r.data || !r.data.length) {
+                    return;
+                }
+                var E = testextjs.view.commandemanagement.order.EnvoiPharmaMl, data = [{id: '', libelle: 'Aucun (saisie manuelle)'}], choix = null;
+                Ext.each(r.data, function (b) {
+                    data.push(Ext.apply({libelle: E.libelleBlv(b)}, b));
+                    if (!choix && b.rattache && !b.utilise) {
+                        choix = b.id;
+                    }
+                });
+                cmb.getStore().loadData(data);
+                zone.show();
+                win.setHeight(win.getHeight() + 70);
+                cmb.setValue(choix || '');
+                Me.appliquerBlv(cmb.getStore().findRecord('id', choix || '', 0, false, false, true));
+            }
+        });
+    },
+
+    appliquerBlv: function (rec) {
+        var info = Ext.getCmp('infoBlvPml');
+        if (!info) {
+            return;
+        }
+        if (!rec || !rec.get('id')) {
+            info.update('<span class="blv-muet">Saisie manuelle : les quantités reçues viennent de la réponse du grossiste.</span>');
+            return;
+        }
+        Ext.getCmp('str_REF_LIVRAISON').setValue(rec.get('refLivraison'));
+        var d = rec.get('date') ? Ext.Date.parse(rec.get('date'), 'Y-m-d') : null;
+        if (d && d <= new Date()) {
+            Ext.getCmp('dt_DATE_LIVRAISON').setValue(d);
+        }
+        if (rec.get('montantHt') !== null && rec.get('montantHt') !== undefined) {
+            Ext.getCmp('int_MHT').setValue(rec.get('montantHt'));
+        }
+        if (rec.get('montantTaxes') !== null && rec.get('montantTaxes') !== undefined) {
+            Ext.getCmp('int_TVA').setValue(rec.get('montantTaxes'));
+        }
+        info.update('Numéro, date, montants et quantités reçues repris du bon de livraison valorisé'
+                + (rec.get('rattache') ? '' : ' <b>(non rattaché à cette commande : vérifiez)</b>')
+                + ' · <a href="#" class="blv-voir" data-voir-blv="1">Voir le détail et les écarts</a>');
+        var lien = info.getEl() && info.getEl().down('[data-voir-blv]');
+        if (lien) {
+            lien.on('click', function (e) {
+                e.stopEvent();
+                testextjs.view.commandemanagement.order.EnvoiPharmaMl.voirBlv(rec.get('id'), Ext.getCmp('lg_ORDER_ID').getValue());
+            });
+        }
     },
 
     onbtncreerbl: function (button) {
@@ -214,7 +287,8 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                 ref: Osecondvalue_param,
                 dtStart: Othirdvalue_param,
                 value: Ofourthvalue_param,
-                valueTwo: Ofifthvalue_param
+                valueTwo: Ofifthvalue_param,
+                refTwo: Ext.getCmp('cmbBlvPml') ? (Ext.getCmp('cmbBlvPml').getValue() || null) : null
 
             }),
             success: function (response)

@@ -250,6 +250,78 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         }).show();
     },
 
+    /** Retours du 08/10 (11) : libelle d'un bon de livraison valorise recu (choix a la saisie du bon). */
+    libelleBlv: function (b) {
+        return 'BL ' + (b.refLivraison || b.refDocument || '?') + (b.date ? ' du ' + Ext.Date.format(Ext.Date.parse(b.date, 'Y-m-d') || new Date(0), 'd/m/Y') : '')
+                + ' · ' + b.lignes + ' ligne(s)' + (b.montantHt !== null && b.montantHt !== undefined ? ' · ' + Ext.util.Format.number(b.montantHt, '0,000') + ' HT' : '')
+                + (b.rattache ? '' : ' · non rattaché') + (b.utilise ? ' · déjà utilisé' : '');
+    },
+
+    /** Detail d'un BLV rapproche de la commande : ecarts de quantite et de prix d'achat (lecture seule). */
+    voirBlv: function (blvId, commandeId) {
+        var me = this, enc = Ext.String.htmlEncode, nb = function (v) {
+            return v === null || v === undefined ? '' : Ext.util.Format.number(v, '0,000');
+        };
+        Ext.Ajax.request({
+            url: '../api/v1/pharma/blv/' + encodeURIComponent(blvId) + (commandeId ? '?commande=' + encodeURIComponent(commandeId) : ''),
+            method: 'GET',
+            success: function (resp) {
+                var r = Ext.JSON.decode(resp.responseText, true) || {};
+                if (!r.success) {
+                    Ext.MessageBox.alert('Bon de livraison PharmaML', enc(r.msg || 'Bon de livraison introuvable.'));
+                    return;
+                }
+                var resume = [];
+                resume.push(r.ecartsQte > 0 ? '<span class="blv-ecart">' + r.ecartsQte + ' écart(s) de quantité</span>' : '<span class="blv-ok">quantités conformes</span>');
+                resume.push(r.ecartsPrix > 0 ? '<span class="blv-ecart">' + r.ecartsPrix + ' écart(s) de prix</span>' : '<span class="blv-ok">prix conformes</span>');
+                if (r.horsCommande > 0) {
+                    resume.push('<span class="blv-ecart">' + r.horsCommande + ' produit(s) hors commande</span>');
+                }
+                Ext.create('Ext.window.Window', {
+                    title: 'Bon de livraison valorisé · ' + enc(r.refLivraison || ''), itemId: 'fenBlv', id: 'fenBlvPml', modal: true,
+                    width: Math.min(1000, Ext.getBody().getViewSize().width - 40), height: Math.min(480, Ext.getBody().getViewSize().height - 40), layout: 'border',
+                    items: [{region: 'north', xtype: 'component', itemId: 'enteteBlv', padding: '8 10', cls: 'blv-entete',
+                            html: enc(r.grossiste || '') + (r.date ? ' · livré le <b>' + enc(Ext.Date.format(Ext.Date.parse(r.date, 'Y-m-d') || new Date(0), 'd/m/Y')) + '</b>' : '')
+                                    + (r.refFacture ? ' · facture ' + enc(r.refFacture) : '') + (r.commande ? ' · commande ' + enc(r.commande) : ' · <i>non rattaché à une commande</i>')
+                                    + (r.montantHt !== null ? ' · <b>' + nb(r.montantHt) + '</b> HT' : '') + (r.montantTaxes !== null ? ' · TVA ' + nb(r.montantTaxes) : '')
+                                    + '<br>' + resume.join(' · ') + ' · reçu le ' + enc(r.recu || '')},
+                        {region: 'center', xtype: 'grid', itemId: 'grilleBlv', cls: 'theme-liste',
+                            store: Ext.create('Ext.data.Store', {fields: ['num', 'code', 'produit', 'connu', 'qteCommandee', 'qteLivree', 'qteFacturee', 'prix', 'naturePrix', 'pafCommande', 'tva', 'commentaire', 'ecartQte', 'ecartPrix', 'horsCommande'], data: r.lignes || []}),
+                            viewConfig: {getRowClass: function (rec) {
+                                    return rec.get('ecartQte') || rec.get('ecartPrix') || rec.get('horsCommande') ? 'blv-ligne-ecart' : '';
+                                }},
+                            columns: [
+                                {header: 'Code', dataIndex: 'code', width: 95},
+                                {header: 'Produit', dataIndex: 'produit', flex: 1, minWidth: 160, renderer: function (v, m, rec) {
+                                        m.tdAttr = 'data-qtip="' + enc(enc(v || '')) + '"';
+                                        return enc(v || '') + (rec.get('connu') ? '' : ' <span class="blv-ecart">inconnu</span>') + (rec.get('horsCommande') ? ' <span class="blv-ecart">hors commande</span>' : '');
+                                    }},
+                                {header: 'Cdé', dataIndex: 'qteCommandee', width: 64, align: 'right'},
+                                {header: 'Livré', dataIndex: 'qteLivree', width: 70, align: 'right', renderer: function (v, m, rec) {
+                                        return rec.get('ecartQte') ? '<span class="blv-ecart">' + v + '</span>' : v;
+                                    }},
+                                {header: 'Facturé', dataIndex: 'qteFacturee', width: 100, align: 'right'},
+                                {header: 'Prix BLV', dataIndex: 'prix', width: 96, align: 'right', renderer: function (v, m, rec) {
+                                        m.tdAttr = 'data-qtip="' + enc(rec.get('naturePrix') === 'NETHT' ? 'Prix net HT facturé' : rec.get('naturePrix') === 'PHAHT' ? 'Prix pharmacien HT brut' : '') + '"';
+                                        return rec.get('ecartPrix') ? '<span class="blv-ecart">' + nb(v) + '</span>' : nb(v);
+                                    }},
+                                {header: 'P.A commande', dataIndex: 'pafCommande', width: 140, align: 'right', renderer: nb},
+                                {header: 'TVA %', dataIndex: 'tva', width: 72, align: 'right', renderer: function (v) {
+                                        return v === null || v === undefined || v === '' ? '' : String(parseFloat(v)).replace('.', ',');
+                                    }},
+                                {header: 'Commentaire', dataIndex: 'commentaire', width: 150, renderer: function (v, m) {
+                                        m.tdAttr = 'data-qtip="' + enc(enc(v || '')) + '"';
+                                        return enc(v || '');
+                                    }}
+                            ]}],
+                    buttons: [{text: 'Fermer', handler: function (b) {
+                                b.up('window').close();
+                            }}]
+                }).show();
+            }
+        });
+    },
+
     /** Retours du 08/10 (7) : liste des ruptures, equivalents proposes limites a cette commande. */
     ouvrirPropositions: function (reference) {
         testextjs.view.pharmaml.Rupturepharma.referenceDemandee = reference;
@@ -358,6 +430,14 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         Ext.each(r.grossistes || [], function (g) {
             var t = '<b>' + enc(g.grossiste) + '</b> : ' + (g.traitees ? g.traitees + ' réponse(s) traitée(s)' : enc(g.msg || ''));
             Ext.each(g.messages || [], function (m) {
+                /* retours du 08/10 (11) : bons de livraison valorises et alertes recus */
+                if (m.statut === 'TRAITEE' && m.source === 'BLV') {
+                    t += '<br>&nbsp;&nbsp;- bon de livraison valorisé ' + enc((m.resultat || {}).blv || '')
+                            + ((m.resultat || {}).commande ? ' (commande ' + enc(m.resultat.commande) + ')' : ' (non rattaché)');
+                } else if (m.statut === 'TRAITEE' && m.source === 'ALERTE') {
+                    t += '<br>&nbsp;&nbsp;- <b style="color:#b42318">alerte ' + ((m.resultat || {}).type === 'COMMERCIALE' ? 'commerciale' : 'réglementaire')
+                            + ' ' + enc((m.resultat || {}).alerte || '') + '</b> : voir Liste des ruptures, onglet Alertes';
+                }
                 if (m.statut === 'ERREUR' || m.statut === 'ORPHELINE') {
                     t += '<br>&nbsp;&nbsp;- ' + (m.statut === 'ERREUR' ? 'refus : ' : 'réponse non rattachée (archivée) ')
                             + enc(((m.resultat || {}).msg) || m.enReponseA || '');

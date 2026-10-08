@@ -268,6 +268,8 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
             selModel: {
                 selType: 'cellmodel'
             },
+            /* retours du 08/10 (11) : alertes reglementaires / commerciales PharmaML non lues */
+            dockedItems: [{xtype: 'component', dock: 'top', itemId: 'bandeauAlertesPml', hidden: true, margin: '4 4 2 4'}],
             tbar: [
                 {
                     text: 'NOUVELLE COMMANDE',
@@ -382,6 +384,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         });
 
         this.callParent();
+        this.on('afterrender', this.chargerAlertesPml, this);
         /* retours du 08/10 (7) : pastille « n a decider » -> equivalents proposes de cette commande */
         this.on('cellclick', function (view, td, ci, rec, tr, ri, e) {
             if (e && e.getTarget && e.getTarget('[data-demander-avancement]')) {
@@ -506,6 +509,53 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         const me = this;
         testextjs.view.commandemanagement.order.EnvoiPharmaMl.recuperer(null, function () {
             me.getStore().reload();
+            me.chargerAlertesPml();
+        });
+    },
+
+    /* Retours du 08/10 (11) : bandeau des alertes PharmaML non lues, lien vers l'onglet Alertes. */
+    chargerAlertesPml: function () {
+        const me = this;
+        Ext.Ajax.request({
+            url: '../api/v1/pharma/alertes?nonLues=true', method: 'GET',
+            success: function (r) {
+                const o = Ext.decode(r.responseText, true) || {}, b = me.down('#bandeauAlertesPml');
+                if (!b || b.isDestroyed) {
+                    return;
+                }
+                const data = o.data || [];
+                if (!data.length) {
+                    b.hide();
+                    return;
+                }
+                let regl = 0, arret = 0;
+                Ext.each(data, function (a) {
+                    regl += a.type === 'REGLEMENTAIRE' ? 1 : 0;
+                    arret += a.arretImmediat ? 1 : 0;
+                });
+                const enc = Ext.String.htmlEncode, premiere = data[0];
+                b.update('<div class="alerte-pml-bandeau' + (regl ? '' : ' commerciale') + '">'
+                        + '<span class="alerte-pml-type' + (regl ? '' : ' commerciale') + '">' + data.length + '</span>'
+                        + '<span>' + data.length + ' alerte(s) PharmaML non lue(s)' + (regl ? ', dont ' + regl + ' réglementaire(s)' : '')
+                        + (arret ? ' · <b>' + arret + ' arrêt(s) immédiat(s)</b>' : '') + ' · ' + enc(premiere.designation || premiere.motif || '') + '</span>'
+                        + '<a href="#" data-ouvrir-alertes="1" onclick="return false;">Voir les alertes</a></div>');
+                b.show();
+                const lien = b.getEl().down('[data-ouvrir-alertes]');
+                if (lien) {
+                    lien.on('click', function () {
+                        testextjs.view.pharmaml.Rupturepharma.ongletDemande = 'ongletAlertes';
+                        const ouvert = Ext.ComponentQuery.query('rupturepharma')[0];
+                        testextjs.app.getController('App').onLoadNewComponent('rupturepharma', 'Liste des ruptures', '');
+                        Ext.defer(function () {
+                            const e = Ext.ComponentQuery.query('rupturepharma')[0];
+                            if (e && (e === ouvert || testextjs.view.pharmaml.Rupturepharma.ongletDemande)) {
+                                testextjs.view.pharmaml.Rupturepharma.ongletDemande = null;
+                                e.ouvrirOnglet('ongletAlertes');
+                            }
+                        }, 300);
+                    });
+                }
+            }
         });
     },
 
