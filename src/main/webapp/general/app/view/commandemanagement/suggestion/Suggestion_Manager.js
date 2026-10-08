@@ -1047,7 +1047,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         'Envoyer la suggestion <b>' + enc(a.reference) + '</b> à <b>' + enc(a.grossiste) + '</b> ?<br><br>'
                         + a.lignes + ' ligne(s), valeur ' + Math.round(a.valeur || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' (achat), protocole ' + a.version + '.'
                         + (a.commandeRef ? '<br><br>La commande <b>' + enc(a.commandeRef) + '</b> déjà créée lors d\'un essai précédent sera renvoyée.' : '')
-                        + '<br><br>La suggestion sera conservée avec le statut « Commandée ».',
+                        + '<br><br>La suggestion passera au statut « Commandée » à la réception de la réponse du grossiste.',
                         function (btn) {
                             if (btn !== 'yes') {
                                 return;
@@ -1060,9 +1060,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                                     const o = Ext.decode(r2.responseText, true) || {};
                                     if (!o.success) {
                                         Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'L\'envoi n\'a pas abouti.'));
+                                    } else if (o.enAttente) {
+                                        Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'Commande reçue par le grossiste, réponse en attente.')
+                                                + '<br><br>La suggestion passera au statut « Commandée » à la réception de cette réponse.');
                                     } else {
                                         const e = o.envoi || {};
-                                        Ext.MessageBox.alert('Commander par PharmaML', 'Commande envoyée : la suggestion est <b>commandée</b>.<br>'
+                                        Ext.MessageBox.alert('Commander par PharmaML', 'Réponse du grossiste reçue : la suggestion est <b>commandée</b>.<br>'
                                                 + (e.nbreproduit !== undefined ? e.nbreproduit + ' produit(s) pris en compte, ' + e.nbrerupture + ' en rupture sur ' + e.totalProduit + '.' : ''));
                                     }
                                     grid.getStore().reload();

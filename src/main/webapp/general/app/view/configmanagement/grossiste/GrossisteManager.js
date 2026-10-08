@@ -1,4 +1,12 @@
 var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
+/* Cellule longue (lien) : texte coupe proprement, valeur entiere en info-bulle. */
+function grossisteCelluleLongue(v, meta) {
+    var t = Ext.String.htmlEncode(v || '');
+    if (t) {
+        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(t) + '"';
+    }
+    return t;
+}
 var url_services_transaction_grossiste = '../webservices/configmanagement/grossiste/ws_transaction.jsp?mode=';
 var url_services_pdf_grossiste = '../webservices/configmanagement/grossiste/ws_generate_pdf.jsp';
 // REST dedie a cet ecran (memes formats JSON que les JSP) : liste + create/update/toggle-statut
@@ -69,33 +77,35 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                 {
                     header: 'Nom',
                     dataIndex: 'str_LIBELLE',
-                    flex: 1
+                    flex: 1.3,
+                    minWidth: 150,
+                    renderer: grossisteCelluleLongue
 
                 },
-                {
-                    header: 'ID Repartiteur',
-                    dataIndex: 'idrepartiteur',
-                    flex: 1
-                },
-                {
-                    header: 'URL_PharmaML',
-                    dataIndex: 'str_URL_PHARMAML',
-                    flex: 1
-                },
-                {
-                    header: 'Code Recepteur Pharmacie',
-                    dataIndex: 'str_CODE_RECEPTEUR_PHARMA',
-                    flex: 1
-                },
-                {
-                    header: 'ID Recepteur Pharmacie',
-                    dataIndex: 'str_ID_RECEPTEUR_PHARMA',
-                    flex: 1
-                },
+                /* Retours du 08/10 : champs PharmaML visibles des l'ouverture (memes libelles que la fiche) */
+                {header: 'Agence', dataIndex: 'idrepartiteur', width: 72, tooltip: 'Code agence (identifiant répartiteur)'},
+                {header: 'Lien PharmaML', dataIndex: 'str_URL_PHARMAML', flex: 1.2, minWidth: 120, renderer: grossisteCelluleLongue},
+                {header: 'Secours', dataIndex: 'str_URL_PHARMAML_SECOURS', flex: 0.9, minWidth: 90, tooltip: 'Lien PharmaML de secours', renderer: grossisteCelluleLongue},
+                {header: 'Récepteur', dataIndex: 'str_CODE_RECEPTEUR_PHARMA', width: 88, tooltip: 'Code récepteur'},
+                {header: 'Client', dataIndex: 'str_ID_RECEPTEUR_PHARMA', width: 82, tooltip: 'Code client (identifiant de l\'officine chez le grossiste)'},
+                {header: 'Officine', dataIndex: 'str_OFFICINE_ID', width: 84, tooltip: 'Identifiant officine'},
+                {header: 'Version', dataIndex: 'str_PHARMAML_VERSION_CMDE', width: 84, tooltip: 'Version PharmaML de la commande'},
+                {header: 'Contrôle', dataIndex: 'str_PHARMAML_CONTROLE', width: 96, tooltip: 'En-tête de contrôle Content-PharmaML',
+                    renderer: function (v) {
+                        return v ? Ext.String.htmlEncode(v) : '<span style="color:#8a97a6">Général</span>';
+                    }},
+                {header: 'Clé', dataIndex: 'cle_definie', width: 46, align: 'center', tooltip: 'Clé du grossiste enregistrée (la valeur n\'est jamais affichée)',
+                    renderer: function (v, meta, r) {
+                        return r.get('str_URL_PHARMAML') ? (v ? '&#10003;' : '<span style="color:#c0392b">—</span>') : '';
+                    }},
+                {header: 'Dispo', dataIndex: 'int_PHARMAML_DISPO', width: 58, align: 'center', tooltip: 'Interrogation de la disponibilité',
+                    renderer: function (v, meta, r) {
+                        return r.get('str_URL_PHARMAML') ? (v !== false ? 'Oui' : '<span style="color:#c0392b">Non</span>') : '';
+                    }},
                 {
                     header: 'Telephone',
                     dataIndex: 'str_TELEPHONE',
-                    flex: 1,
+                    width: 112,
                     editor: {
                         allowBlank: false
                     }
@@ -103,7 +113,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                 {
                     header: 'Ville',
                     dataIndex: 'lg_VILLE_ID',
-                    flex: 1,
+                    width: 88,
                     editor: {
                         allowBlank: false
                     }

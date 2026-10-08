@@ -381,7 +381,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void creerRuptureItem(Rupture rupture, TFamille famille, int qty) {
+    public RuptureDetail creerRuptureItem(Rupture rupture, TFamille famille, int qty) {
         RuptureDetail ruptureDetail = new RuptureDetail();
         ruptureDetail.setProduit(famille);
         ruptureDetail.setRupture(rupture);
@@ -389,6 +389,7 @@ public class OrderServiceImpl implements OrderService {
         ruptureDetail.setPrixAchat(famille.getIntPAF());
         ruptureDetail.setPrixVente(famille.getIntPRICE());
         getEmg().persist(ruptureDetail);
+        return ruptureDetail;
     }
 
     @Override
@@ -1413,6 +1414,7 @@ public class OrderServiceImpl implements OrderService {
         commande.setMontantAchat(t.get("montantAchat", BigDecimal.class).intValue());
         commande.setMontantVente(t.get("montantVente", BigDecimal.class).intValue());
         commande.setStatutTraitement(getCommandStatut(commande.getLgORDERID()));
+        envoiPharmaMl(commande);
 
         return commande;
     }
@@ -2699,6 +2701,24 @@ public class OrderServiceImpl implements OrderService {
         bonLivraisonDetail.setCheckedQuantity(addCheckedQuantity.getCheckedQuantity());
         getEmg().merge(bonLivraisonDetail);
 
+    }
+
+    /** Retours du 08/10 : dernier envoi PharmaML de la commande (liste des commandes). */
+    @SuppressWarnings("unchecked")
+    private void envoiPharmaMl(CommandeDTO commande) {
+        try {
+            List<Object[]> r = getEmg().createNativeQuery("SELECT str_STATUT, str_DETAIL,"
+                    + " DATE_FORMAT(COALESCE(dt_REPONSE, dt_ENVOI), '%d/%m/%Y %H:%i') FROM t_pharmaml_attente"
+                    + " WHERE lg_SOURCE_ID = ?1 AND str_SOURCE = 'COMMANDE' ORDER BY dt_ENVOI DESC, dt_REPONSE DESC")
+                    .setParameter(1, commande.getLgORDERID()).setMaxResults(1).getResultList();
+            if (!r.isEmpty()) {
+                String statut = (String) r.get(0)[0], detail = (String) r.get(0)[1];
+                commande.setEnvoiPharmaMl(StatutEnvoiPharmaMl.code(statut, detail), (String) r.get(0)[2],
+                        StatutEnvoiPharmaMl.detail(statut, detail));
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", e.getMessage());
+        }
     }
 
     private StatutTraitement getCommandStatut(String id) {

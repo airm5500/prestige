@@ -48,7 +48,7 @@ public interface OrderService {
 
     Rupture creerRupture(TOrder order);
 
-    void creerRuptureItem(Rupture rupture, TFamille famille, int qty);
+    dal.RuptureDetail creerRuptureItem(Rupture rupture, TFamille famille, int qty);
 
     JSONObject removeRupture(String id);
 

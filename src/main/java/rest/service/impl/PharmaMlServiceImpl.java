@@ -7,6 +7,7 @@ package rest.service.impl;
 
 import dal.Rupture;
 import dal.RuptureDetail;
+import dal.TUser;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TGrossiste;
@@ -110,6 +111,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     @EJB
     private OrderService orderService;
     @EJB
+    private rest.service.SuggestionService suggestionService;
+    @EJB
     private ProduitService produitService;
     @EJB
     private SessionHelperService sessionHelperService;
@@ -151,14 +154,14 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             journalEnvoi("commande", order.getStrREFORDER(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, order.getStrREFORDER(), grossiste);
             if (Objects.isNull(enveloppeResponse)) {
-                return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
+                return noterEchec(grossiste, SOURCE_COMMANDE, commandeId, ERREUR, REPONSE_ILLISIBLE);
             }
             if (getLigneNReponses(enveloppeResponse).isEmpty() && !order.getTOrderDetailCollection().isEmpty()) {
                 /* une rupture totale renvoie quand meme les lignes (quantite 0) : aucune ligne = reponse anormale */
-                return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
+                return noterEchec(grossiste, SOURCE_COMMANDE, commandeId, ERREUR, SANS_LIGNE);
             }
             JSONObject traite = traiterCommandeRepondue(order, enveloppeResponse);
-            enregistrerTraite(grossiste, SOURCE_COMMANDE, commandeId, payLoad);
+            enregistrerTraite(grossiste, SOURCE_COMMANDE, commandeId, payLoad, traite);
             return traite;
         } catch (EnAttente ex) {
             TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
@@ -168,17 +171,17 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
             LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
                     new Object[] { g.getStrLIBELLE(), ex.version });
-            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
+            return noterEchec(g, SOURCE_COMMANDE, commandeId, REFUSEE, messageRefus(g, ex));
         } catch (RefusHttp ex) {
             TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
             LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
-            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
+            return noterEchec(g, SOURCE_COMMANDE, commandeId, REFUSEE, messageRefus(g, ex));
         } catch (Exception ex) {
             if (erreurReseau(ex)) {
                 TGrossiste g = em.find(TOrder.class, commandeId).getLgGROSSISTEID();
                 LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1})",
                         new Object[] { g.getStrLIBELLE(), ex.getClass().getSimpleName() });
-                return new JSONObject().put("success", false).put("msg", messageReseau(g, ex));
+                return noterEchec(g, SOURCE_COMMANDE, commandeId, NON_ENVOYEE, messageReseau(g, ex));
             }
             LOG.log(Level.SEVERE, null, ex);
             return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
@@ -204,13 +207,13 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             journalEnvoi("renvoi de rupture", rupture.getReference(), grossiste);
             CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, rupture.getReference(), grossiste);
             if (Objects.isNull(enveloppeResponse)) {
-                return new JSONObject().put("success", false).put("msg", REPONSE_ILLISIBLE);
+                return noterEchec(grossiste, SOURCE_RUPTURE, ruptureId, ERREUR, REPONSE_ILLISIBLE);
             }
             if (getLigneNReponses(enveloppeResponse).isEmpty() && !ruptureDetails.isEmpty()) {
-                return new JSONObject().put("success", false).put("msg", SANS_LIGNE);
+                return noterEchec(grossiste, SOURCE_RUPTURE, ruptureId, ERREUR, SANS_LIGNE);
             }
             JSONObject traite = traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
-            enregistrerTraite(grossiste, SOURCE_RUPTURE, ruptureId, payLoad);
+            enregistrerTraite(grossiste, SOURCE_RUPTURE, ruptureId, payLoad, traite);
             return traite;
         } catch (EnAttente ex) {
             TGrossiste g = em.find(TGrossiste.class, grossisteId);
@@ -220,17 +223,17 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             TGrossiste g = em.find(TGrossiste.class, grossisteId);
             LOG.log(Level.WARNING, "PharmaML : {0} a refuse la commande ({1})",
                     new Object[] { g.getStrLIBELLE(), ex.version });
-            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
+            return noterEchec(g, SOURCE_RUPTURE, ruptureId, REFUSEE, messageRefus(g, ex));
         } catch (RefusHttp ex) {
             TGrossiste g = em.find(TGrossiste.class, grossisteId);
             LOG.log(Level.WARNING, "PharmaML : {0} a repondu {1}", new Object[] { g.getStrLIBELLE(), ex.getMessage() });
-            return new JSONObject().put("success", false).put("msg", messageRefus(g, ex));
+            return noterEchec(g, SOURCE_RUPTURE, ruptureId, REFUSEE, messageRefus(g, ex));
         } catch (Exception ex) {
             if (erreurReseau(ex)) {
                 TGrossiste g = em.find(TGrossiste.class, grossisteId);
                 LOG.log(Level.WARNING, "PharmaML : {0} injoignable ({1})",
                         new Object[] { g.getStrLIBELLE(), ex.getClass().getSimpleName() });
-                return new JSONObject().put("success", false).put("msg", messageReseau(g, ex));
+                return noterEchec(g, SOURCE_RUPTURE, ruptureId, NON_ENVOYEE, messageReseau(g, ex));
             }
             LOG.log(Level.SEVERE, null, ex);
             return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
@@ -271,6 +274,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     static final String SOURCE_COMMANDE = "COMMANDE", SOURCE_RUPTURE = "RUPTURE";
     static final String EN_ATTENTE = "EN_ATTENTE", TRAITEE = "TRAITEE", ERREUR = "ERREUR", ORPHELINE = "ORPHELINE";
+    /** Retours du 08/10 (statut d'envoi sur la liste des commandes) : refus du grossiste, envoi impossible. */
+    static final String REFUSEE = "REFUSEE", NON_ENVOYEE = "NON_ENVOYEE";
     /** Specification v4.8 § 4.1.3 : 30 secondes au moins entre deux demandes de vidage. */
     static final long DELAI_ENTRE_VIDAGES_MS = 30_000L;
     private static final java.util.concurrent.ConcurrentHashMap<String, Long> DERNIER_VIDAGE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -299,14 +304,39 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 new Object[] { g.getStrLIBELLE(), ex.refMessage });
     }
 
-    /** Reponse immediate traitee : l'envoi est note, pour reconnaitre une copie de cette reponse au depot. */
-    private void enregistrerTraite(TGrossiste g, String source, String sourceId, CsrpEnveloppe payLoad) {
+    /**
+     * Reponse immediate traitee : l'envoi est note, pour reconnaitre une copie de cette reponse au depot, et pour le
+     * statut d'envoi de la liste des commandes (resume : produits livres / en rupture).
+     */
+    private void enregistrerTraite(TGrossiste g, String source, String sourceId, CsrpEnveloppe payLoad,
+            JSONObject traite) {
+        JSONObject resume = new JSONObject().put("reponse", "immédiate");
+        for (String k : new String[] { "nbreproduit", "nbrerupture", "totalProduit" }) {
+            if (traite != null && traite.has(k)) {
+                resume.put(k, traite.opt(k));
+            }
+        }
         em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
                 + " str_REF_MESSAGE, str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE)"
-                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'réponse immédiate', NOW(), NOW())")
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NOW(), NOW())")
                 .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
                 .setParameter(3, source).setParameter(4, sourceId).setParameter(5, payLoad.getEntete().getRefMessage())
-                .setParameter(6, versionCommande(g)).setParameter(7, TRAITEE).executeUpdate();
+                .setParameter(6, versionCommande(g)).setParameter(7, TRAITEE).setParameter(8, resume.toString())
+                .executeUpdate();
+    }
+
+    /** Envoi refuse ou impossible : note pour la liste des commandes, puis le message habituel. */
+    private JSONObject noterEchec(TGrossiste g, String source, String sourceId, String statut, String msg) {
+        try {
+            em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                    + " str_VERSION, str_STATUT, str_DETAIL, dt_ENVOI) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NOW())")
+                    .setParameter(1, java.util.UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                    .setParameter(3, source).setParameter(4, sourceId).setParameter(5, versionCommande(g))
+                    .setParameter(6, statut).setParameter(7, StringUtils.left(msg, 500)).executeUpdate();
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "PharmaML : statut d''envoi non note ({0})", e.getMessage());
+        }
+        return new JSONObject().put("success", false).put("msg", msg);
     }
 
     private static JSONObject reponseEnAttente(TGrossiste g) {
@@ -407,7 +437,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
                         g.getStrCLERECEPTEUR(), modeControle(g), DELAI_CONNEXION, DELAI_REPONSE).reponse;
                 String corps = rep.body();
-                ecrireArchive("RV_" + ref + "_" + nomFichier, corps);
+                ecrireArchive("RV_" + ref + "_" + nomFichier, PharmaMlMessages.indenter(corps));
                 if (rep.statusCode() != 200) {
                     return out.put("traitees", traitees).put("msg", "HTTP " + rep.statusCode());
                 }
@@ -502,12 +532,32 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 resultat = order == null ? new JSONObject().put("msg", "commande introuvable")
                         : traiterCommandeRepondue(order, reponse);
                 statut = order == null ? ERREUR : TRAITEE;
+                if (order != null) {
+                    suggestionCommandee(order);
+                }
             }
         }
         em.createNativeQuery("UPDATE t_pharmaml_attente SET str_STATUT = ?1, str_DETAIL = ?2, dt_REPONSE = NOW()"
                 + " WHERE lg_ID = ?3").setParameter(1, statut)
                 .setParameter(2, StringUtils.left(resultat.toString(), 500)).setParameter(3, idAttente).executeUpdate();
         return r.put("statut", statut).put("source", source).put("sourceId", sourceId).put("resultat", resultat);
+    }
+
+    /**
+     * Retours du 08/10 : une suggestion envoyee par PharmaML ne passe « Commandee » qu'a la reponse du grossiste. Pour
+     * une reponse differee (FIN_SERVICE puis vidage), c'est ici.
+     */
+    @SuppressWarnings("unchecked")
+    private void suggestionCommandee(TOrder order) {
+        List<Object> ids = em
+                .createNativeQuery("SELECT lg_SUGGESTION_ORDER_ID FROM t_suggestion_order"
+                        + " WHERE lg_ORDER_ID = ?1 AND str_STATUT <> ?2")
+                .setParameter(1, order.getLgORDERID()).setParameter(2, rest.service.SuggestionService.STATUT_COMMANDEE)
+                .getResultList();
+        for (Object id : ids) {
+            suggestionService.marquerCommandee((String) id, rest.service.SuggestionService.MODE_COMMANDE_PHARMAML,
+                    order.getLgORDERID(), order.getLgUSERID());
+        }
     }
 
     private CsrpEnveloppeResponse lireReponseCommande(String xml, String version) {
@@ -796,7 +846,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         creationProduit.setIntPriceTips(creationProduit.getIntPrice());
         creationProduit.setIntT("");
         if (produitRemplacant.getTypeCodification().equalsIgnoreCase(TYPE_CODIFICATION_EAN)) {
-            creationProduit.setIntEan13(creationProduit.getIntEan13());
+            creationProduit.setIntEan13(produitRemplacant.getCodeProduit());
         } else {
             creationProduit.setIntCip(produitRemplacant.getCodeProduit());
         }
@@ -869,8 +919,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         Rupture rupture = orderService.creerRupture(order);
         lignesRupture.forEach((orderDetail, coupleProduitResponse) -> {
             LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
-            orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(), orderDetail.getIntNUMBER());
-            processRemplacement(ligneNReponse, grossiste, orderDetail.getIntNUMBER(), order);
+            RuptureDetail ligneRupture = orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(),
+                    orderDetail.getIntNUMBER());
+            processRemplacement(ligneNReponse, grossiste, orderDetail.getIntNUMBER(), order,
+                    coupleProduitResponse.getLeft(), ligneRupture);
             if (ligneNReponse.getQuantiteLivree() == 0) {
                 em.remove(orderDetail);
             }
@@ -893,37 +945,196 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         Rupture rupture = creerRupture(ruptureOrigin, grossiste);
         lignesRupture.forEach((ruptureDetail, coupleProduitResponse) -> {
             LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
-            orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(), ruptureDetail.getQty());
-            processRemplacement(ligneNReponse, grossiste, ruptureDetail.getQty(), order);
+            RuptureDetail ligneRupture = orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(),
+                    ruptureDetail.getQty());
+            processRemplacement(ligneNReponse, grossiste, ruptureDetail.getQty(), order,
+                    coupleProduitResponse.getLeft(), ligneRupture);
 
         });
 
     }
 
-    private void processRemplacement(LigneNReponse ligneNReponse, TGrossiste grossiste, int qty, TOrder order) {
+    /**
+     * Remplacements annonces par le grossiste (point 5 du 08/10). EL / RL : deja livres, ajoutes a la commande comme
+     * avant, et notes. EP : equivalent propose, non livre : note « propose » pour decision dans l'ecran des ruptures,
+     * sauf choix memorise pour ce couple de produits (accepte ou refuse automatiquement).
+     */
+    private void processRemplacement(LigneNReponse ligneNReponse, TGrossiste grossiste, int qty, TOrder order,
+            TFamille origine, RuptureDetail ligneRupture) {
         IndisponibiliteN indisponibilite = ligneNReponse.getIndisponibilite();
-        if (Objects.nonNull(indisponibilite)) {
-            ProduitRemplacant produitRemplacant = indisponibilite.getProduitRemplacant();
-            if (Objects.nonNull(produitRemplacant)
-                    && (TypeRemplacement.EL.name().equals(produitRemplacant.getTypeRemplacement())
-                            || TypeRemplacement.RL.name().equals(produitRemplacant.getTypeRemplacement()))) {
-                TFamilleGrossiste familleGrossiste = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(
-                        produitRemplacant.getCodeProduit(), grossiste.getLgGROSSISTEID());
-                TFamille famille = findTFamilleByCodeCipOrEan(produitRemplacant.getCodeProduit());
-                if (Objects.isNull(familleGrossiste) && Objects.nonNull(famille)) {
-
-                    produitService.createTFamilleGrossisteFromRupture(buildFromLigneNReponse(ligneNReponse), famille,
-                            grossiste);
-
-                } else if (Objects.isNull(famille)) {
-
-                    famille = createTFamille(buildFromLigneNReponse(ligneNReponse), grossiste);
-                }
-                addRemplacement(ligneNReponse, qty, famille, order);
-                // on ajoute la ligne a la commande
-            }
-
+        if (Objects.isNull(indisponibilite) || Objects.isNull(indisponibilite.getProduitRemplacant())) {
+            return;
         }
+        ProduitRemplacant produitRemplacant = indisponibilite.getProduitRemplacant();
+        String type = StringUtils.upperCase(StringUtils.trimToEmpty(produitRemplacant.getTypeRemplacement()));
+        String code = StringUtils.trimToEmpty(produitRemplacant.getCodeProduit());
+        if (code.isEmpty()) {
+            return;
+        }
+        if (TypeRemplacement.EL.name().equals(type) || TypeRemplacement.RL.name().equals(type)) {
+            TFamilleGrossiste familleGrossiste = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(code,
+                    grossiste.getLgGROSSISTEID());
+            TFamille famille = findTFamilleByCodeCipOrEan(code);
+            if (Objects.isNull(familleGrossiste) && Objects.nonNull(famille)) {
+                produitService.createTFamilleGrossisteFromRupture(buildFromLigneNReponse(ligneNReponse), famille,
+                        grossiste);
+            } else if (Objects.isNull(famille)) {
+                famille = createTFamille(buildFromLigneNReponse(ligneNReponse), grossiste);
+            }
+            // on ajoute la ligne a la commande
+            addRemplacement(ligneNReponse, qty, famille, order);
+            noterRemplacement(grossiste, order, origine, null, type, produitRemplacant, ligneNReponse, qty,
+                    REMPL_AJOUTE, "AUTO");
+        } else if (TypeRemplacement.EP.name().equals(type) && origine != null) {
+            String choix = choixMemorise(origine.getLgFAMILLEID(), code);
+            String id = noterRemplacement(grossiste, order, origine, ligneRupture, type, produitRemplacant,
+                    ligneNReponse, qty, REMPL_PROPOSE, null);
+            if (choix != null) {
+                deciderRemplacement(id, ACCEPTER.equals(choix), false, null, "AUTO");
+            }
+        }
+    }
+
+    static final String REMPL_AJOUTE = "AJOUTE", REMPL_PROPOSE = "PROPOSE", REMPL_ACCEPTE = "ACCEPTE",
+            REMPL_REFUSE = "REFUSE", ACCEPTER = "ACCEPTER", REFUSER = "REFUSER";
+
+    private String noterRemplacement(TGrossiste g, TOrder order, TFamille origine, RuptureDetail ligneRupture,
+            String type, ProduitRemplacant p, LigneNReponse ligne, int qty, String statut, String mode) {
+        Pair<Integer, Integer> prix = getPrixAchatPrixUni(ligne.getPrix());
+        String id = java.util.UUID.randomUUID().toString();
+        em.createNativeQuery("INSERT INTO t_pharmaml_remplacement (lg_ID, lg_GROSSISTE_ID, lg_ORDER_ID, str_REF_CDE,"
+                + " lg_FAMILLE_ID, lg_RUPTURE_DETAIL_ID, str_TYPE, str_CODE_REMPLACANT, str_TYPE_CODIFICATION,"
+                + " str_DESIGNATION, int_QTE, int_PRIX_ACHAT, int_PRIX_VENTE, str_STATUT, str_MODE, dt_CREATED,"
+                + " dt_DECISION) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, NOW(),"
+                + " CASE WHEN ?14 = 'PROPOSE' THEN NULL ELSE NOW() END)").setParameter(1, id)
+                .setParameter(2, g.getLgGROSSISTEID()).setParameter(3, order == null ? null : order.getLgORDERID())
+                .setParameter(4, order == null ? null : StringUtils.left(order.getStrREFORDER(), 70))
+                .setParameter(5, origine == null ? "" : origine.getLgFAMILLEID())
+                .setParameter(6, ligneRupture == null ? null : ligneRupture.getId()).setParameter(7, type)
+                .setParameter(8, StringUtils.left(p.getCodeProduit(), 20))
+                .setParameter(9, StringUtils.left(p.getTypeCodification(), 10))
+                .setParameter(10, StringUtils.left(StringUtils.defaultString(p.getDesignation()), 150))
+                .setParameter(11, qty).setParameter(12, prix.getLeft() == null ? 0 : prix.getLeft())
+                .setParameter(13, prix.getRight() == null ? 0 : prix.getRight()).setParameter(14, statut)
+                .setParameter(15, mode).executeUpdate();
+        return id;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String choixMemorise(String familleId, String code) {
+        List<Object> r = em
+                .createNativeQuery("SELECT str_CHOIX FROM t_pharmaml_equivalent_choix"
+                        + " WHERE lg_FAMILLE_ID = ?1 AND str_CODE_REMPLACANT = ?2")
+                .setParameter(1, familleId).setParameter(2, code).getResultList();
+        return r.isEmpty() ? null : (String) r.get(0);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject remplacementsProposes() {
+        JSONArray a = new JSONArray();
+        for (Object[] l : (List<Object[]>) em
+                .createNativeQuery("SELECT r.lg_ID, r.str_TYPE, r.str_CODE_REMPLACANT,"
+                        + " r.str_DESIGNATION, r.int_QTE, r.int_PRIX_ACHAT, IFNULL(r.str_REF_CDE, ''), g.str_LIBELLE,"
+                        + " f.int_CIP, f.str_NAME, DATE_FORMAT(r.dt_CREATED, '%d/%m/%Y %H:%i'),"
+                        + " (SELECT e.str_NAME FROM t_famille e WHERE e.int_CIP = r.str_CODE_REMPLACANT LIMIT 1),"
+                        + " (r.lg_RUPTURE_DETAIL_ID IS NOT NULL AND EXISTS (SELECT 1 FROM rupture_detail d"
+                        + "   WHERE d.id = r.lg_RUPTURE_DETAIL_ID))"
+                        + " FROM t_pharmaml_remplacement r JOIN t_grossiste g ON g.lg_GROSSISTE_ID = r.lg_GROSSISTE_ID"
+                        + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
+                        + " WHERE r.str_STATUT = 'PROPOSE' ORDER BY r.dt_CREATED DESC")
+                .setMaxResults(500).getResultList()) {
+            String designation = StringUtils.defaultIfBlank((String) l[3], (String) l[11]);
+            a.put(new JSONObject().put("id", l[0]).put("type", l[1]).put("codeRemplacant", l[2])
+                    .put("designationRemplacant", StringUtils.defaultString(designation)).put("connu", l[11] != null)
+                    .put("qte", l[4]).put("prixAchat", l[5]).put("reference", l[6]).put("grossiste", l[7])
+                    .put("cipOrigine", StringUtils.defaultString((String) l[8]))
+                    .put("produitOrigine", StringUtils.defaultString((String) l[9])).put("date", l[10])
+                    .put("ruptureOuverte", l[12] != null && ((Number) l[12]).intValue() == 1));
+        }
+        return new JSONObject().put("success", true).put("data", a).put("total", a.length());
+    }
+
+    @Override
+    public JSONObject deciderRemplacement(String id, boolean accepter, boolean memoriser, TUser user) {
+        return deciderRemplacement(id, accepter, memoriser, user, "MANUEL");
+    }
+
+    @SuppressWarnings("unchecked")
+    private JSONObject deciderRemplacement(String id, boolean accepter, boolean memoriser, TUser user, String mode) {
+        List<Object[]> r = em.createNativeQuery("SELECT lg_FAMILLE_ID, lg_RUPTURE_DETAIL_ID, str_CODE_REMPLACANT,"
+                + " str_TYPE_CODIFICATION, str_DESIGNATION, int_PRIX_ACHAT, int_PRIX_VENTE, lg_GROSSISTE_ID, str_STATUT"
+                + " FROM t_pharmaml_remplacement WHERE lg_ID = ?1").setParameter(1, id).getResultList();
+        if (r.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Proposition introuvable");
+        }
+        Object[] l = r.get(0);
+        if (!REMPL_PROPOSE.equals(l[8])) {
+            return new JSONObject().put("success", false).put("msg", "Cette proposition a déjà été traitée");
+        }
+        String familleOrigine = (String) l[0], code = (String) l[2];
+        String nomEquivalent = null;
+        if (accepter) {
+            RuptureDetail ligne = l[1] == null ? null : em.find(RuptureDetail.class, (String) l[1]);
+            if (ligne == null) {
+                return new JSONObject().put("success", false).put("msg", "La rupture de ce produit n'existe plus"
+                        + " (déjà renvoyée ou supprimée) : l'équivalent ne peut plus y être placé.");
+            }
+            TGrossiste g = em.find(TGrossiste.class, (String) l[7]);
+            TFamille equivalent = findTFamilleByCodeCipOrEan(code);
+            CreationProduitDTO c = creationDepuisRemplacement(code, (String) l[3], (String) l[4],
+                    ((Number) l[5]).intValue(), ((Number) l[6]).intValue());
+            if (equivalent == null) {
+                equivalent = createTFamille(c, g);
+            } else if (findTFamilleGrossisteByCodeCipOrEanOrProduitCode(code, g.getLgGROSSISTEID()) == null) {
+                produitService.createTFamilleGrossisteFromRupture(c, equivalent, g);
+            }
+            ligne.setProduit(equivalent);
+            ligne.setPrixAchat(equivalent.getIntPAF());
+            ligne.setPrixVente(equivalent.getIntPRICE());
+            em.merge(ligne);
+            nomEquivalent = equivalent.getStrNAME();
+        }
+        em.createNativeQuery("UPDATE t_pharmaml_remplacement SET str_STATUT = ?1, str_MODE = ?2, lg_USER_ID = ?3,"
+                + " dt_DECISION = NOW() WHERE lg_ID = ?4").setParameter(1, accepter ? REMPL_ACCEPTE : REMPL_REFUSE)
+                .setParameter(2, mode).setParameter(3, user == null ? null : user.getLgUSERID()).setParameter(4, id)
+                .executeUpdate();
+        if (memoriser) {
+            em.createNativeQuery("INSERT INTO t_pharmaml_equivalent_choix (lg_FAMILLE_ID, str_CODE_REMPLACANT,"
+                    + " str_CHOIX, lg_USER_ID, dt_UPDATED) VALUES (?1, ?2, ?3, ?4, NOW()) ON DUPLICATE KEY UPDATE"
+                    + " str_CHOIX = VALUES(str_CHOIX), lg_USER_ID = VALUES(lg_USER_ID), dt_UPDATED = NOW()")
+                    .setParameter(1, familleOrigine).setParameter(2, code)
+                    .setParameter(3, accepter ? ACCEPTER : REFUSER)
+                    .setParameter(4, user == null ? null : user.getLgUSERID()).executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("statut", accepter ? REMPL_ACCEPTE : REMPL_REFUSE).put("msg",
+                accepter ? "Équivalent accepté : la rupture commandera " + nomEquivalent + "."
+                        : "Équivalent refusé : la rupture garde le produit d'origine.");
+    }
+
+    private CreationProduitDTO creationDepuisRemplacement(String code, String codification, String designation,
+            int prixAchat, int prixVente) {
+        CreationProduitDTO c = new CreationProduitDTO();
+        c.setStrName(StringUtils.defaultIfBlank(designation, code));
+        c.setIntPrice(prixVente);
+        c.setIntPaf(prixAchat);
+        c.setIntPat(prixAchat);
+        c.setIntPriceTips(prixVente);
+        c.setIntT("");
+        if (TYPE_CODIFICATION_EAN.equalsIgnoreCase(codification)) {
+            c.setIntEan13(code);
+        } else {
+            c.setIntCip(code);
+        }
+        c.setLgFamilleArticleId("1010");
+        c.setStrCodeRemise("0");
+        c.setStrCodeTauxRemboursement("0");
+        c.setLgZoneGeoId("1");
+        c.setSeuilMax(1);
+        c.setBoolDeconditionne((short) 0);
+        c.setLgTypeEtiquetteId("2");
+        c.setLgCodeTvaId("1");
+        return c;
     }
 
     private void processOnderDetailResponce(TOrderDetail o, LigneNReponse ligneNReponse) {
@@ -1392,7 +1603,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
         }
-        ecrireArchive("R_" + fileName, httpResponse.body());
+        ecrireArchive("R_" + fileName, PharmaMlMessages.indenter(httpResponse.body()));
         String erreur = PharmaMlMessages.erreurReponse(httpResponse.body());
         if (erreur != null) {
             throw new RefusGrossiste(erreur, "R_" + fileName, version);

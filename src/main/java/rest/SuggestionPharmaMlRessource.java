@@ -104,6 +104,11 @@ public class SuggestionPharmaMlRessource {
                                         + ". La commande reste dans les commandes en cours ;"
                                         + " un nouvel essai la reprendra."));
             }
+            if (envoi.optBoolean("enAttente")) {
+                /* recue par le grossiste, reponse differee : « Commandee » seulement a l'arrivee de la reponse */
+                return json(new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)
+                        .put("enAttente", true).put("msg", envoi.optString("msg")).put("envoi", envoi));
+            }
             JSONObject statut = suggestionService.marquerCommandee(id, SuggestionService.MODE_COMMANDE_PHARMAML,
                     orderId, u);
             return json(new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)

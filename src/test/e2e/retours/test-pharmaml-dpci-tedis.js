@@ -171,6 +171,28 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       const lab = c.getEl().dom.querySelector('.x-form-cb-label');
       return { coche: c.getValue(), actif: !c.isDisabled(), visible: box.bottom <= corps.bottom + 1 && box.right <= corps.right + 1 && box.width > 0, tronque: lab ? lab.scrollWidth > lab.clientWidth + 1 : true }; });
     ok('Fiche (écran) : case « Interroger la disponibilité » cochée, modifiable, visible, libellé entier', caseDispo.coche === true && caseDispo.actif && caseDispo.visible && !caseDispo.tronque, JSON.stringify(caseDispo));
+    /* 08/10 : cadre « PharmaML » regroupant tous les champs, visible sans defiler ; cle jamais envoyee au navigateur */
+    const cadre = await p.evaluate(() => { const f = Ext.ComponentQuery.query('fieldset[title=PharmaML]')[0]; const w = f.up('window');
+      const b = f.getEl().dom.getBoundingClientRect(), corps = w.body.dom.getBoundingClientRect();
+      const ids = ['str_URL_PHARMAML', 'str_URL_PHARMAML_SECOURS', 'str_CODE_RECEPTEUR_PHARMA', 'idrepartiteur', 'str_ID_RECEPTEUR_PHARMA', 'str_OFFICINE_ID', 'str_CLE_RECEPTEUR', 'str_PHARMAML_VERSION_INFO', 'str_PHARMAML_VERSION_CMDE', 'str_PHARMAML_CONTROLE', 'int_PHARMAML_DISPO'];
+      const dedans = ids.every((id) => Ext.getCmp(id) && Ext.getCmp(id).up('fieldset') === f);
+      const cle = Ext.getCmp('str_CLE_RECEPTEUR');
+      const tronques = ids.filter((id) => { const c = Ext.getCmp(id); const l = c.labelEl && c.labelEl.dom; return l && l.textContent && l.scrollWidth > l.clientWidth + 1; });
+      return { dedans, visible: b.bottom <= corps.bottom + 1, type: cle.inputEl.dom.type, valeur: cle.getValue(), vide: cle.inputEl.dom.placeholder || cle.emptyText, tronques }; });
+    ok('Fiche : cadre « PharmaML » avec tous les champs (liens, codes, clé, versions, contrôle, disponibilité), visible sans défiler, libellés entiers',
+      cadre.dedans && cadre.visible && cadre.tronques.length === 0, JSON.stringify(cadre));
+    ok('Fiche : clé masquée et jamais renvoyée au navigateur (« Clé enregistrée »)', cadre.type === 'password' && cadre.valeur === '' && /Clé enregistrée/.test(cadre.vide), JSON.stringify(cadre));
+    const fuite = await p.evaluate(async () => { const t = await (await fetch('../api/v1/grossistes?limit=500')).text(); return { cle: /4083/.test(t) && /str_CLE/.test(t), champ: /str_CLE_RECEPTEUR/.test(t), indicateur: /"cle_definie":true/.test(t) }; });
+    ok('Liste des grossistes : aucune clé transmise, seulement l\'indicateur « clé définie »', !fuite.champ && fuite.indicateur, JSON.stringify(fuite));
+    const k1 = await p.evaluate(async (g) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_GROSSISTE_ID=' + g + '&versionInfo=1.0.0.0&versionCommande=3.0.0.0&cle=' + encodeURIComponent('a b;') })).json(), D);
+    ok('Clé invalide refusée, clé inchangée', k1.success === false && /lettres et chiffres/.test(k1.msg) && q("SELECT str_CLE_RECEPTEUR FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === '4083', JSON.stringify(k1));
+    const cleAvant = q("SELECT str_CLE_RECEPTEUR FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'");
+    const k2 = await p.evaluate(async (g) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_GROSSISTE_ID=' + g + '&versionInfo=1.0.0.0&versionCommande=3.0.0.0&cle=E2E9' })).json(), D);
+    const cleApres = q("SELECT str_CLE_RECEPTEUR FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'");
+    exec("UPDATE t_grossiste SET str_CLE_RECEPTEUR = '" + cleAvant + "' WHERE lg_GROSSISTE_ID = '" + D + "'");
+    const k3 = await p.evaluate(async (g) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_GROSSISTE_ID=' + g + '&versionInfo=1.0.0.0&versionCommande=3.0.0.0&cle=' })).json(), D);
+    ok('Clé valide remplacée ; clé vide = clé enregistrée inchangée', k2.success && k2.cleModifiee === true && cleApres === 'E2E9' && k3.success && k3.cleModifiee === false
+      && q("SELECT str_CLE_RECEPTEUR FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === cleAvant, JSON.stringify([k2.cleModifiee, cleApres, k3.cleModifiee]));
     await p.evaluate(() => { Ext.getCmp('int_PHARMAML_DISPO').setValue(false); });
     const idEnr = await p.evaluate(() => Ext.getCmp('int_PHARMAML_DISPO').up('window').down('button[text=Enregistrer]').getId());
     await p.click('#' + idEnr);

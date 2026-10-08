@@ -202,7 +202,7 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                     xml, (String) gr.get("idOf"), (String) gr.get("cle"), (String) gr.get("controle"),
                     Duration.ofSeconds(20), Duration.ofSeconds(90)).reponse;
             reponse = http.body();
-            archiver("RI_" + fichier, reponse == null ? "" : reponse);
+            archiver("RI_" + fichier, reponse == null ? "" : PharmaMlMessages.indenter(reponse));
             if (http.statusCode() != 200) {
                 return new JSONObject().put("success", false).put("msg",
                         "Le grossiste " + libelle + " a répondu en erreur (HTTP " + http.statusCode() + ")");

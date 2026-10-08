@@ -85,6 +85,31 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 },
 
                 {
+                    /* Retours du 08/10 : statut du dernier envoi PharmaML (info-bulle : date et detail) */
+                    header: 'PharmaML',
+                    dataIndex: 'str_ENVOI_PHARMAML',
+                    itemId: 'colEnvoiPharmaml',
+                    width: 118,
+                    renderer: function (v, meta, r) {
+                        var S = {
+                            EN_ATTENTE: ['En attente', '#b26a00', '#fff4e0'],
+                            REPONDUE: ['Répondue', '#17795f', '#e3f6ef'],
+                            PARTIELLE: ['Partielle', '#8a5a00', '#fdf0d2'],
+                            REFUSEE: ['Refusée', '#b42318', '#fde7e6'],
+                            NON_ENVOYEE: ['Non envoyée', '#b42318', '#fde7e6'],
+                            ERREUR: ['Erreur', '#b42318', '#fde7e6']
+                        }[v];
+                        if (!S) {
+                            return '';
+                        }
+                        var info = S[0] + ' · ' + (r.get('dt_ENVOI_PHARMAML') || '')
+                                + (r.get('str_ENVOI_PHARMAML_DETAIL') ? '<br>' + Ext.String.htmlEncode(r.get('str_ENVOI_PHARMAML_DETAIL')) : '');
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(info) + '"';
+                        return '<span class="envoi-pml" data-envoi="' + v + '" style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:'
+                                + S[1] + ';background:' + S[2] + '">' + S[0] + '</span>';
+                    }
+                },
+                {
                     header: 'Nbre.Ligne',
                     dataIndex: 'int_LINE',
                     align: 'right',

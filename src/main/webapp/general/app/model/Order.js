@@ -75,7 +75,11 @@ Ext.define('testextjs.model.Order', {
             name: 'lg_USER_ID',
             type: 'string'
         },
-        {name: 'isChecked', type: 'boolean'}
+        {name: 'isChecked', type: 'boolean'},
+        /* Retours du 08/10 : statut du dernier envoi PharmaML */
+        {name: 'str_ENVOI_PHARMAML', type: 'string'},
+        {name: 'dt_ENVOI_PHARMAML', type: 'string'},
+        {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'}
 
     ]
 });

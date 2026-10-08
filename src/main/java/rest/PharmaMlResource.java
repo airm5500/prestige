@@ -6,6 +6,7 @@
 package rest;
 
 import dal.TUser;
+import toolkits.parameters.commonparameter;
 import java.time.LocalDate;
 import javax.ejb.EJB;
 import javax.inject.Inject;
@@ -37,6 +38,45 @@ public class PharmaMlResource {
 
     @EJB
     PharmaMlService pharmaMlService;
+    @javax.ws.rs.core.Context
+    private HttpServletRequest servletRequest;
+
+    private TUser utilisateur() {
+        HttpSession s = servletRequest.getSession(false);
+        return s == null ? null : (TUser) s.getAttribute(commonparameter.AIRTIME_USER);
+    }
+
+    /** Point 5 du 08/10 : equivalents proposes (EP) par les grossistes, en attente de decision. */
+    @GET
+    @Path("remplacements")
+    public Response remplacements() {
+        if (utilisateur() == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        return Response.ok(pharmaMlService.remplacementsProposes().toString()).build();
+    }
+
+    /** decision = ACCEPTER | REFUSER ; memoriser = meme choix automatique pour ce couple de produits. */
+    @POST
+    @Path("remplacements/{id}")
+    public Response deciderRemplacement(@PathParam("id") String id, @QueryParam("decision") String decision,
+            @QueryParam("memoriser") boolean memoriser) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (!"ACCEPTER".equals(decision) && !"REFUSER".equals(decision)) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "Décision inconnue").toString())
+                    .build();
+        }
+        return Response
+                .ok(pharmaMlService.deciderRemplacement(id, "ACCEPTER".equals(decision), memoriser, u).toString())
+                .build();
+    }
 
     @PUT
     @Path("{id}")

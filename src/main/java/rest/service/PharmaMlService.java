@@ -36,4 +36,9 @@ public interface PharmaMlService {
     /** Envois en attente de reponse (ecran des commandes). */
     JSONObject attentes();
 
+    /** Point 5 du 08/10 : equivalents proposes (EP) en attente de decision. */
+    JSONObject remplacementsProposes();
+
+    /** Accepte (la ligne de rupture passe sur l'equivalent) ou refuse ; memoriser = meme choix a l'avenir. */
+    JSONObject deciderRemplacement(String id, boolean accepter, boolean memoriser, dal.TUser user);
 }

@@ -10,6 +10,8 @@
  *    essai apres correction : la MEME commande est renvoyee (aucun doublon), puis « commandee » ;
  *  - grossiste sans lien PharmaML : refus avant toute creation ;
  *  - le bouton « Commander » historique fonctionne comme avant (commande creee, suggestion supprimee) ;
+ *  - retours du 08/10 : reponse DIFFEREE (FIN_SERVICE) -> la suggestion n'est PAS « commandee » a l'envoi ; elle le
+ *    devient a la reception de la reponse (vidage) ;
  *  - aucune erreur JavaScript ; tout est retire a la fin, grossistes remis.
  */
 const { chromium } = require('playwright-core');
@@ -23,12 +25,32 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CAPT = process.env.CAPTURES || '/tmp';
 const PORT = 18767;
-const S = { A: 'E2E-SPM-A', B: 'E2E-SPM-B', C: 'E2E-SPM-C', D: 'E2E-SPM-D' };
+const S = { A: 'E2E-SPM-A', B: 'E2E-SPM-B', C: 'E2E-SPM-C', D: 'E2E-SPM-D', E: 'E2E-SPM-E' };
+const depot = [];
+let nMsg = 0;
+const envDiffere = (nature, enRep, corps) => '<?xml version="1.0" encoding="UTF-8"?><CSRP_ENVELOPPE xmlns="urn:x-csrp:fr.csrp.protocole:enveloppe" Nature_Action="' + nature
+  + '" Version_Protocole="1.0.0.0"><ENTETE><REF_MESSAGE>S' + (++nMsg) + '</REF_MESSAGE>' + (enRep ? '<EN_REPONSE_A>' + enRep + '</EN_REPONSE_A>' : '') + '</ENTETE><CORPS>' + corps + '</CORPS></CSRP_ENVELOPPE>';
 let G, G2, sauve, sauve2, P, debut;
 const recus = [];
 
 const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
   recus.push(b);
+  if (/differe/.test(req.url)) {
+    /* comme DPCI : commande -> FIN_SERVICE ; VIDAGE -> la reponse ; ACQUITTEMENT -> retrait du depot */
+    const tag = (t) => (b.match(new RegExp('<' + t + '>([^<]*)</' + t + '>')) || [])[1];
+    const action = tag('ACTION') || (/<COMMANDE /.test(b) ? 'COMMANDE' : '');
+    rep.writeHead(200, { 'Content-Type': 'text/xml' });
+    if (action === 'COMMANDE') {
+      depot.push({ enRep: tag('REF_MESSAGE'), lignes: [...b.matchAll(/<LIGNE_N [^>]*Code_Produit="([^"]*)"[^>]*Quantite="(\d+)"/g)] });
+      rep.end(envDiffere('REP_EMISSION', tag('REF_MESSAGE'), '<ACTION>FIN_SERVICE</ACTION>')); return;
+    }
+    if (action === 'ACQUITTEMENT') { depot.shift(); }
+    if (!depot.length) { rep.end(envDiffere('REP_RECEPTION', tag('REF_MESSAGE'), '<ACTION>FIN_SERVICE</ACTION>')); return; }
+    rep.end(envDiffere('REP_RECEPTION', depot[0].enRep, '<MESSAGE_REPARTITEUR xmlns="urn:x-csrp:fr.csrp.protocole:message"><CORPS><REP_COMMANDE><NORMALE>'
+      + depot[0].lignes.map((m) => '<LIGNE_N Code_Produit="' + m[1] + '" Quantite_livree="' + Number(m[2]) + '"><PRIX_N Nature="PHAHT" Valeur="1500"/><PRIX_N Nature="PUBTC" Valeur="2500"/></LIGNE_N>').join('')
+      + '</NORMALE></REP_COMMANDE></CORPS></MESSAGE_REPARTITEUR>'));
+    return;
+  }
   const v3 = /<SRP_ENVELOPPE/.test(b), ns = v3 ? 'urn:x-srp:fr.srp.protocole' : 'urn:x-csrp:fr.csrp.protocole', env = v3 ? 'SRP_ENVELOPPE' : 'CSRP_ENVELOPPE';
   const lignes = [...b.matchAll(/<(?:\w+:)?LIGNE_N [^>]*Code_Produit="([^"]*)"[^>]*Quantite="(\d+)"/g)];
   rep.writeHead(200, { 'Content-Type': 'text/xml' });
@@ -104,14 +126,14 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     await p.click('[data-e2e="cmd-' + S.A + '-REF"]');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envoyer la suggestion/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 20000 });
     const conf = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
-    ok('Confirmation : référence, grossiste, 2 lignes, protocole 1.0.0.0 (défaut), suggestion conservée', /E2E-SPM-A-REF/.test(conf) && /2 ligne\(s\), valeur 5 000/.test(conf) && /1\.0\.0\.0/.test(conf) && /conservée/.test(conf), conf);
+    ok('Confirmation : référence, grossiste, 2 lignes, protocole 1.0.0.0 (défaut), « Commandée » à la réception de la réponse', /E2E-SPM-A-REF/.test(conf) && /2 ligne\(s\), valeur 5 000/.test(conf) && /1\.0\.0\.0/.test(conf) && /passera au statut « Commandée » à la réception de la réponse du grossiste/.test(conf), conf);
     await p.screenshot({ path: CAPT + '/commander-pharmaml-confirmation.png' });
     await p.click('#' + await p.evaluate(() => Ext.MessageBox.msgButtons.yes.getId()));
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /commandée|abouti/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 60000 });
     const fin = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
     await p.evaluate(() => Ext.MessageBox.hide());
     ok('Envoi : COMMANDE 1.0.0.0 (défaut) avec les 2 lignes de la suggestion', recus.length === 1 && /<CSRP_ENVELOPPE[^>]*1\.0\.0\.0/.test(recus[0]) && (recus[0].match(/<LIGNE_N /g) || []).length === 2, recus.length);
-    ok('Résultat affiché : commandée, 1 pris en compte, 1 en rupture', /commandée/.test(fin) && /1 produit\(s\) pris en compte, 1 en rupture sur 2/.test(fin), fin);
+    ok('Résultat affiché : réponse reçue, commandée, 1 pris en compte, 1 en rupture', /Réponse du grossiste reçue/.test(fin) && /commandée/.test(fin) && /1 produit\(s\) pris en compte, 1 en rupture sur 2/.test(fin), fin);
     ok('Suggestion conservée (2 lignes), statut commandee, mode PHARMAML, commande liée', etatSugg(S.A) === 'commandee|PHARMAML|1|2', etatSugg(S.A));
     const lA = await liste(S.A + '-REF');
     ok('Liste : « COMMANDÉE · PHARMAML », action masquée', lA && lA.statut === 'COMMANDÉE · PHARMAML' && !lA.icone, JSON.stringify(lA));
@@ -136,6 +158,15 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     const n0 = commandesCreees().length;
     const e3 = await p.evaluate(async (id) => (await fetch('../api/v1/suggestion-pharmaml/' + id, { method: 'POST' })).json(), S.C);
     ok('Grossiste sans lien PharmaML : refus, aucune commande créée', e3.success === false && /lien PharmaML/.test(e3.msg) && commandesCreees().length === n0 && etatSugg(S.C) === 'is_Process||0|2', JSON.stringify(e3));
+
+    /* E : reponse differee (retours du 08/10) */
+    url(G, 'http://127.0.0.1:' + PORT + '/differe/');
+    const e5 = await p.evaluate(async (id) => (await fetch('../api/v1/suggestion-pharmaml/' + id, { method: 'POST' })).json(), S.E);
+    ok('Réponse différée (FIN_SERVICE) : envoi accepté, suggestion PAS commandée (commande liée, en attente)', e5.success === true && e5.enAttente === true
+      && etatSugg(S.E) === 'is_Process||1|2', JSON.stringify(e5) + ' / ' + etatSugg(S.E));
+    const vid = await p.evaluate(async (g) => (await fetch('../api/v1/pharma/reponses?grossiste=' + g, { method: 'POST' })).json(), G);
+    ok('Réponse reçue au vidage : la suggestion passe « commandee » (mode PHARMAML)', etatSugg(S.E) === 'commandee|PHARMAML|1|2', JSON.stringify(vid).slice(0, 300) + ' / ' + etatSugg(S.E));
+    url(G, 'http://127.0.0.1:' + PORT + '/');
 
     /* D : bouton historique inchange */
     const n1 = commandesCreees().length;

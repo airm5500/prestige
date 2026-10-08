@@ -307,6 +307,84 @@ public final class PharmaMlMessages {
         public Integer quantiteDispo, prix;
     }
 
+    /**
+     * Retours du 08/10 : reponse recue reindentee balise par balise pour l'archive (R_, RV_, RI_), comme les envois.
+     * Lecture seule pour l'humain : le traitement utilise toujours le texte recu. Illisible = texte d'origine.
+     */
+    public static String indenter(String xml) {
+        if (xml == null || xml.isBlank()) {
+            return xml;
+        }
+        try {
+            javax.xml.stream.XMLInputFactory f = javax.xml.stream.XMLInputFactory.newFactory();
+            f.setProperty(javax.xml.stream.XMLInputFactory.SUPPORT_DTD, false);
+            f.setProperty(javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+            javax.xml.stream.XMLStreamReader r = f.createXMLStreamReader(new StringReader(xml.trim()));
+            StringBuilder o = new StringBuilder();
+            if (xml.trim().startsWith("<?xml")) {
+                o.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            }
+            int niveau = 0;
+            boolean ouvert = false;
+            StringBuilder texte = new StringBuilder();
+            while (r.hasNext()) {
+                int ev = r.next();
+                if (ev == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
+                    if (ouvert) {
+                        o.append('>').append(echapper(texte.toString().trim(), false));
+                    }
+                    texte.setLength(0);
+                    if (o.length() > 0) {
+                        o.append('\n');
+                    }
+                    o.append("  ".repeat(niveau)).append('<').append(nomQualifie(r.getPrefix(), r.getLocalName()));
+                    for (int i = 0; i < r.getNamespaceCount(); i++) {
+                        String px = r.getNamespacePrefix(i);
+                        o.append(px == null || px.isEmpty() ? " xmlns" : " xmlns:" + px).append("=\"")
+                                .append(echapper(r.getNamespaceURI(i), true)).append('"');
+                    }
+                    for (int i = 0; i < r.getAttributeCount(); i++) {
+                        o.append(' ').append(nomQualifie(r.getAttributePrefix(i), r.getAttributeLocalName(i)))
+                                .append("=\"").append(echapper(r.getAttributeValue(i), true)).append('"');
+                    }
+                    ouvert = true;
+                    niveau++;
+                } else if (ev == javax.xml.stream.XMLStreamConstants.CHARACTERS
+                        || ev == javax.xml.stream.XMLStreamConstants.CDATA) {
+                    texte.append(r.getText());
+                } else if (ev == javax.xml.stream.XMLStreamConstants.END_ELEMENT) {
+                    niveau--;
+                    String nom = nomQualifie(r.getPrefix(), r.getLocalName());
+                    String t = texte.toString().trim();
+                    if (ouvert && t.isEmpty()) {
+                        o.append("/>");
+                    } else if (ouvert) {
+                        o.append('>').append(echapper(t, false)).append("</").append(nom).append('>');
+                    } else {
+                        if (!t.isEmpty()) {
+                            o.append('\n').append("  ".repeat(niveau + 1)).append(echapper(t, false));
+                        }
+                        o.append('\n').append("  ".repeat(niveau)).append("</").append(nom).append('>');
+                    }
+                    texte.setLength(0);
+                    ouvert = false;
+                }
+            }
+            return o.append('\n').toString();
+        } catch (Exception e) {
+            return xml;
+        }
+    }
+
+    private static String nomQualifie(String prefixe, String local) {
+        return prefixe == null || prefixe.isEmpty() ? local : prefixe + ":" + local;
+    }
+
+    private static String echapper(String v, boolean attribut) {
+        String e = v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return attribut ? e.replace("\"", "&quot;") : e;
+    }
+
     /** Parseur sur, sans DTD ni entite externe. */
     static Document lireXml(String xml) throws Exception {
         DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();

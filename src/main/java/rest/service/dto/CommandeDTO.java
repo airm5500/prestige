@@ -30,6 +30,32 @@ public class CommandeDTO {
     private String lgGROSSISTEID;
     private String details = " ";
     private StatutTraitement statutTraitement;
+    /* Retours du 08/10 : statut du dernier envoi PharmaML (code, date, detail pour l'info-bulle) */
+    private String envoiPharmaMl = "";
+    private String envoiPharmaMlDate = "";
+    private String envoiPharmaMlDetail = "";
+
+    @JSONPropertyName("str_ENVOI_PHARMAML")
+    public String getEnvoiPharmaMl() {
+        return envoiPharmaMl;
+    }
+
+    @JSONPropertyName("dt_ENVOI_PHARMAML")
+    public String getEnvoiPharmaMlDate() {
+        return envoiPharmaMlDate;
+    }
+
+    @JSONPropertyName("str_ENVOI_PHARMAML_DETAIL")
+    public String getEnvoiPharmaMlDetail() {
+        return envoiPharmaMlDetail;
+    }
+
+    public CommandeDTO setEnvoiPharmaMl(String code, String date, String detail) {
+        this.envoiPharmaMl = code == null ? "" : code;
+        this.envoiPharmaMlDate = date == null ? "" : date;
+        this.envoiPharmaMlDetail = detail == null ? "" : detail;
+        return this;
+    }
 
     /*
      * Faute d'annotation, ce champ sortait sous le nom « lgGROSSISTEID », alors que le modele de l'ecran

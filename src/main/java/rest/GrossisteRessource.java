@@ -175,7 +175,7 @@ public class GrossisteRessource {
     public Response versionsPharmaMl(@FormParam("lg_GROSSISTE_ID") String grossisteId,
             @FormParam("versionInfo") String versionInfo, @FormParam("versionCommande") String versionCommande,
             @FormParam("urlSecours") String urlSecours, @FormParam("controle") String controle,
-            @FormParam("disponibilite") String disponibilite) {
+            @FormParam("disponibilite") String disponibilite, @FormParam("cle") String cle) {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -184,7 +184,8 @@ public class GrossisteRessource {
                 .entity(grossisteService
                         .versionsPharmaMl(grossisteId, versionInfo, versionCommande, urlSecours, controle,
                                 disponibilite == null || disponibilite.isEmpty() ? null
-                                        : !("0".equals(disponibilite) || "false".equalsIgnoreCase(disponibilite)))
+                                        : !("0".equals(disponibilite) || "false".equalsIgnoreCase(disponibilite)),
+                                cle)
                         .toString())
                 .build();
     }

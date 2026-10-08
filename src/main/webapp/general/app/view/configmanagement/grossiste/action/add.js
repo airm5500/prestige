@@ -272,14 +272,6 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                             // allowBlank: false
                                 },
                                 {
-                                    name: 'idrepartiteur',
-                                    id: 'idrepartiteur',
-                                    fieldLabel: 'code Agence',
-                                    emptyText: 'code Agence',
-                                    flex: 1
-                                },
-
-                                {
                                     name: 'dbl_CHIFFRE_DAFFAIRE',
                                     id: 'dbl_CHIFFRE_DAFFAIRE',
                                     fieldLabel: 'Chiffre d' + "'" + 'Affaire',
@@ -351,7 +343,17 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 }
 
                             ]
-                        },
+                        }
+
+                    ]
+                },
+                {
+                    xtype: 'fieldset',
+                    title: 'PharmaML',
+                    itemId: 'cadrePharmaml',
+                    layout: {type: 'vbox', align: 'stretch'},
+                    anchor: '100%',
+                    items: [
                         {
                             xtype: 'container',
                             layout: 'hbox',
@@ -361,16 +363,47 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     name: 'str_URL_PHARMAML',
                                     id: 'str_URL_PHARMAML',
-                                    fieldLabel: 'lien pharmaML',
-                                    emptyText: 'lien pharmaML',
-                                    flex: 1.5
+                                    fieldLabel: 'Lien PharmaML',
+                                    emptyText: 'http://…',
+                                    flex: 1
                                 },
+                                {
+                                    /* Retours du 07/10 : adresse de secours (ex. DPCI : URL secondaire), essayee seulement
+                                     * si l'adresse principale est injoignable */
+                                    xtype: 'textfield', id: 'str_URL_PHARMAML_SECOURS', name: 'str_URL_PHARMAML_SECOURS',
+                                    fieldLabel: 'Lien de secours', emptyText: 'http://… (facultatif)',
+                                    flex: 1, maxLength: 255, disabled: Omode !== 'update',
+                                    regex: /^(https?:\/\/\S+)?$/i,
+                                    regexText: 'L\'adresse doit commencer par http:// ou https://',
+                                    listeners: {
+                                        afterrender: function (c) {
+                                            Ext.create('Ext.tip.ToolTip', {target: c.getEl(), dismissDelay: 15000,
+                                                html: 'Utilisée uniquement si le lien principal ne répond pas (connexion impossible ou adresse introuvable). '
+                                                        + 'Jamais après une réponse du grossiste : une commande n\'est pas envoyée deux fois.'});
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            defaultType: 'textfield',
+                            margin: '0 0 5 0',
+                            items: [
                                 {
                                     name: 'str_CODE_RECEPTEUR_PHARMA',
                                     id: 'str_CODE_RECEPTEUR_PHARMA',
                                     labelWidth: 120,
                                     fieldLabel: 'Code recepteur',
                                     emptyText: 'Code recepteur',
+                                    flex: 1
+                                },
+                                {
+                                    name: 'idrepartiteur',
+                                    id: 'idrepartiteur',
+                                    fieldLabel: 'Code agence', labelWidth: 120,
+                                    emptyText: 'Id répartiteur',
                                     flex: 1
                                 },
                                 {
@@ -394,11 +427,20 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                         {
                             xtype: 'container',
                             layout: 'hbox',
+                            defaultType: 'textfield',
                             margin: '0 0 5 0',
                             items: [
                                 {
+                                    /* 08/10 : cle du grossiste (controle Content-PharmaML). Jamais renvoyee au navigateur :
+                                     * vide = cle enregistree inchangee, saisie = remplacee. */
+                                    xtype: 'textfield', inputType: 'password', id: 'str_CLE_RECEPTEUR', name: 'str_CLE_RECEPTEUR',
+                                    fieldLabel: 'Clé', labelWidth: 120, flex: 1, maxLength: 10, enforceMaxLength: true,
+                                    regex: /^[A-Za-z0-9]*$/, regexText: 'Lettres et chiffres seulement (10 au plus)',
+                                    disabled: Omode !== 'update', emptyText: 'Aucune clé', autoComplete: false
+                                },
+                                {
                                     /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
-                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_INFO', fieldLabel: 'PharmaML : info produit', flex: 1, editable: false,
+                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_INFO', fieldLabel: 'Version info produit', flex: 1, editable: false,
                                     queryMode: 'local', displayField: 'v', valueField: 'v', value: '1.0.0.0',
                                     store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '1.0.0.0'}, {v: '3.0.0.0'}]}),
                                     disabled: Omode !== 'update',
@@ -406,38 +448,23 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 },
                                 {
                                     /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
-                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_CMDE', fieldLabel: 'PharmaML : commande', flex: 1, editable: false,
+                                    xtype: 'combobox', id: 'str_PHARMAML_VERSION_CMDE', fieldLabel: 'Version commande', flex: 1, editable: false,
                                     queryMode: 'local', displayField: 'v', valueField: 'v', value: '1.0.0.0',
                                     store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '1.0.0.0'}, {v: '3.0.0.0'}]}),
                                     disabled: Omode !== 'update',
                                     tooltip: 'Réglable après la création du grossiste'
-                                },
-                                {
-                                    /* Retours du 07/10 : adresse de secours (ex. DPCI : URL secondaire), essayee seulement
-                                     * si l'adresse principale est injoignable */
-                                    xtype: 'textfield', id: 'str_URL_PHARMAML_SECOURS', name: 'str_URL_PHARMAML_SECOURS',
-                                    fieldLabel: 'Lien PharmaML secours', emptyText: 'http://… (facultatif)',
-                                    flex: 1, maxLength: 255, disabled: Omode !== 'update',
-                                    regex: /^(https?:\/\/\S+)?$/i,
-                                    regexText: 'L\'adresse doit commencer par http:// ou https://',
-                                    listeners: {
-                                        afterrender: function (c) {
-                                            Ext.create('Ext.tip.ToolTip', {target: c.getEl(), dismissDelay: 15000,
-                                                html: 'Utilisée uniquement si le lien principal ne répond pas (connexion impossible ou adresse introuvable). '
-                                                        + 'Jamais après une réponse du grossiste : une commande n\'est pas envoyée deux fois.'});
-                                        }
-                                    }
                                 }
                             ]
                         },
                         {
                             xtype: 'container',
                             layout: 'hbox',
+                            defaultType: 'textfield',
                             margin: '0 0 5 0',
                             items: [
                                 {
                                     /* Retours du 08/10 : en-tete de controle Content-PharmaML regle par grossiste */
-                                    xtype: 'combobox', id: 'str_PHARMAML_CONTROLE', fieldLabel: 'Contrôle PharmaML', flex: 1,
+                                    xtype: 'combobox', id: 'str_PHARMAML_CONTROLE', fieldLabel: 'Contrôle PharmaML', flex: 1.6,
                                     editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: '',
                                     disabled: Omode !== 'update',
                                     store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
@@ -459,7 +486,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     /* 08/10 : interrogation de disponibilite coupee pour un grossiste qui la refuse */
                                     xtype: 'checkboxfield', id: 'int_PHARMAML_DISPO', boxLabel: 'Interroger la disponibilité',
-                                    margin: '0 0 0 15', flex: 2, checked: true, inputValue: '1', uncheckedValue: '0',
+                                    margin: '0 0 0 15', flex: 1, checked: true, inputValue: '1', uncheckedValue: '0',
                                     disabled: Omode !== 'update',
                                     listeners: {
                                         afterrender: function (c) {
@@ -468,10 +495,10 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                                         + 'disparaissent pour ce grossiste (suggestion et commande). La commande PharmaML n\'est pas concernée.'});
                                         }
                                     }
-                                }
+                                },
+                                {xtype: 'component', flex: 1}
                             ]
                         }
-
                     ]
                 }]
         });
@@ -541,6 +568,9 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '1.0.0.0');
             Ext.getCmp('str_PHARMAML_CONTROLE').setValue(this.getOdatasource().str_PHARMAML_CONTROLE || '');
             Ext.getCmp('int_PHARMAML_DISPO').setValue(this.getOdatasource().int_PHARMAML_DISPO !== false);
+            var champCle = Ext.getCmp('str_CLE_RECEPTEUR');
+            champCle.emptyText = this.getOdatasource().cle_definie ? 'Clé enregistrée (vide = inchangée)' : 'Aucune clé';
+            champCle.applyEmptyText();
             Ext.getCmp('str_URL_PHARMAML_SECOURS').setValue(this.getOdatasource().str_URL_PHARMAML_SECOURS || '');
 
         }
@@ -549,7 +579,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             autoShow: true,
             title: this.getTitre(),
             width: '80%',
-            height: Math.min(380, Ext.getBody().getViewSize().height - 40),
+            height: Math.min(460, Ext.getBody().getViewSize().height - 40),
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
@@ -631,7 +661,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(),
                                     urlSecours: Ext.String.trim(Ext.getCmp('str_URL_PHARMAML_SECOURS').getValue() || ''),
                                     controle: Ext.getCmp('str_PHARMAML_CONTROLE').getValue() || '',
-                                    disponibilite: Ext.getCmp('int_PHARMAML_DISPO').getValue() ? '1' : '0'},
+                                    disponibilite: Ext.getCmp('int_PHARMAML_DISPO').getValue() ? '1' : '0',
+                                    cle: Ext.String.trim(Ext.getCmp('str_CLE_RECEPTEUR').getValue() || '')},
                                 success: function (r) {
                                     var o = Ext.JSON.decode(r.responseText, true) || {};
                                     if (o.success === false && o.msg) {

@@ -13,11 +13,11 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
         },
         {
             ref: 'ruptureGrid',
-            selector: 'rupturepharma gridpanel'
+            selector: 'rupturepharma #grilleRuptures'
         },
         {
             ref: 'pagingtoolbar',
-            selector: 'rupturepharma gridpanel pagingtoolbar'
+            selector: 'rupturepharma #grilleRuptures pagingtoolbar'
         }
 
         , {
@@ -47,7 +47,7 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
     ],
     init: function (application) {
         this.control({
-            'rupturepharma gridpanel pagingtoolbar': {
+            'rupturepharma #grilleRuptures pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
             'rupturepharma #rechercher': {
@@ -61,11 +61,11 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
             }, 'rupturepharma #query': {
                 specialkey: this.onSpecialSpecialKey
             },
-            'rupturepharma gridpanel': {
+            'rupturepharma #grilleRuptures': {
                 viewready: this.doInitStore
             }
             ,
-            "rupturepharma gridpanel actioncolumn": {
+            "rupturepharma #grilleRuptures actioncolumn": {
                 remove: this.remove,
                 exportCsv: this.exportCsv,
                 envoiPharmaML: this.envoiPharmaML
