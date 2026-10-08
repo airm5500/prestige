@@ -67,6 +67,7 @@ function nettoyer() {
     exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference = '" + c + "'); DELETE FROM rupture WHERE reference = '" + c + "';"
       + "DELETE FROM t_order_detail WHERE lg_ORDER_ID = '" + c + "'; DELETE FROM t_order WHERE lg_ORDER_ID = '" + c + "';");
   }
+  exec("DELETE FROM t_pharmaml_reponse_ligne WHERE lg_SOURCE_ID IN ('" + CMD + "', '" + CMD2 + "') OR lg_ORDER_ID IN ('" + CMD + "', '" + CMD2 + "')");
   exec("DELETE FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = '" + G + "' AND (lg_SOURCE_ID IN ('" + CMD + "', '" + CMD2 + "') OR str_STATUT = 'ORPHELINE' OR lg_SOURCE_ID IS NULL OR lg_ID LIKE 'e2e-pmd-%')");
 }
 function poser(id, produits) {

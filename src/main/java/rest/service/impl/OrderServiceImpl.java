@@ -1412,10 +1412,14 @@ public class OrderServiceImpl implements OrderService {
         commande.setDtUPDATED(t.get("heureCreation", String.class));
         commande.setStrSTATUT(t.get("status", String.class));
         commande.setStrRefOrder(t.get("refernceOrder", String.class));
-        commande.setNbreLigne(t.get("itemCount", BigInteger.class).intValue());
-        commande.setTotalQty(t.get("productCount", BigDecimal.class).intValue());
-        commande.setMontantAchat(t.get("montantAchat", BigDecimal.class).intValue());
-        commande.setMontantVente(t.get("montantVente", BigDecimal.class).intValue());
+        /*
+         * retours du 08/10 : une ligne sans prix rendait la somme NULL -> NullPointerException, et toute la liste des
+         * commandes en cours ne s'affichait plus. Somme absente = 0.
+         */
+        commande.setNbreLigne(entier(t.get("itemCount")));
+        commande.setTotalQty(entier(t.get("productCount")));
+        commande.setMontantAchat(entier(t.get("montantAchat")));
+        commande.setMontantVente(entier(t.get("montantVente")));
         commande.setStatutTraitement(getCommandStatut(commande.getLgORDERID()));
         envoiPharmaMl(commande);
 

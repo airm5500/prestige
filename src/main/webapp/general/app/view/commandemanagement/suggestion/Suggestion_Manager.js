@@ -113,7 +113,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 {name: 'lgGROSSISTEID', type: 'string'},
                 {name: 'str_ENVOI_PHARMAML', type: 'string'},
                 {name: 'dt_ENVOI_PHARMAML', type: 'string'},
-                {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'}
+                {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'},
+                /* lignes retenues par le grossiste apres sa reponse (absent tant qu'il n'a pas repondu) */
+                {name: 'int_LIGNES_LIVREES', type: 'auto', defaultValue: null},
+                {name: 'lg_ORDER_ID', type: 'string'}
             ],
             pageSize: itemsPerPage,
             autoLoad: true,
@@ -185,7 +188,19 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 {
                     header: 'NOMBRE.LIGNE',
                     dataIndex: 'int_NOMBRE_ARTICLES',
-                    flex: 1
+                    itemId: 'colNbreLignes',
+                    flex: 1,
+                    /* retours du 08/10 : apres la reponse PharmaML, lignes retenues / lignes de la suggestion */
+                    renderer: function (v, meta, r) {
+                        var livrees = r.get('int_LIGNES_LIVREES');
+                        if (livrees === null || livrees === undefined || livrees === '') {
+                            return v;
+                        }
+                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(livrees + ' ligne(s) retenue(s) par le grossiste sur ' + v
+                                + (Number(livrees) < Number(v) ? ' : les autres sont en rupture (menu Liste des ruptures)' : '')) + '"';
+                        return '<span class="lignes-livrees"' + (Number(livrees) < Number(v) ? ' style="color:#b42318;font-weight:600"' : '') + '>'
+                                + livrees + ' / ' + v + '</span>';
+                    }
                 },
                 {
                     header: 'QTE.ARTICLES',
@@ -361,6 +376,17 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             },
                             scope: this,
                             handler: this.onRecupererReponseClick
+                        }, {
+                            /* Retours du 08/10 : voir la reponse du grossiste sans ouvrir le fichier XML */
+                            iconCls: 'act-ico act-voir',
+                            tooltip: 'Voir la réponse du grossiste (livré, rupture, motif, prix annoncés)',
+                            getClass: function (v, meta, rec) {
+                                return testextjs.view.commandemanagement.order.EnvoiPharmaMl.classeVoirReponse(v, meta, rec);
+                            },
+                            handler: function (grid, rowIndex) {
+                                var rec = grid.getStore().getAt(rowIndex);
+                                testextjs.view.commandemanagement.order.EnvoiPharmaMl.voirReponse(rec.get('lg_ORDER_ID'), rec.get('str_REF'));
+                            }
                         }]
                 },
                 {

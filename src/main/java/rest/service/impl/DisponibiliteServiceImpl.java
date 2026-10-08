@@ -282,9 +282,20 @@ public class DisponibiliteServiceImpl implements DisponibiliteService {
                     .setParameter("u", user == null ? null : user.getLgUSERID()).executeUpdate();
             data.put(new JSONObject().put("familleId", ordre.get(i)).put("statut", d.statut));
         }
-        return new JSONObject().put("success", true).put("grossiste", libelle).put("version", version)
+        JSONObject out = new JSONObject().put("success", true).put("grossiste", libelle).put("version", version)
                 .put("reference", reference).put("oui", oui).put("non", non).put("autre", autre).put("inconnu", inconnu)
                 .put("data", data);
+        if (inconnu == ordre.size() && lus.stream().allMatch(d -> d.code.isEmpty())) {
+            /*
+             * Retours du 08/10 (fichier RI_ de DPCI) : reponse sans aucune information produit (une ligne vide, code et
+             * numero absents). Ce n'est pas « pas de reponse » produit par produit : le grossiste ne fournit pas la
+             * disponibilite par PharmaML.
+             */
+            out.put("reponseVide", true).put("avertissement", libelle + " a répondu sans aucune information produit"
+                    + " (ligne vide) : il ne semble pas fournir la disponibilité par PharmaML. Vous pouvez la désactiver"
+                    + " dans sa fiche grossiste (« Interroger la disponibilité »).");
+        }
+        return out;
     }
 
     private static String premier(String... valeurs) {

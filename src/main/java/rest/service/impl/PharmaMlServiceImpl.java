@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
+import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
@@ -885,8 +886,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         item.setStrSTATUT(Constant.STATUT_PASSED);
         item.setDtCREATED(new Date());
         item.setDtUPDATED(item.getDtCREATED());
-        item.setIntPAFDETAIL(prixs.getLeft());
-        item.setIntPRICEDETAIL(prixs.getRight());
+        item.setIntPAFDETAIL(
+                prixs.getLeft() != null ? prixs.getLeft() : (famille.getIntPAF() == null ? 0 : famille.getIntPAF()));
+        item.setIntPRICEDETAIL(prixs.getRight() != null && prixs.getRight() > 0 ? prixs.getRight()
+                : (famille.getIntPRICE() == null ? 0 : famille.getIntPRICE()));
         item.setIntPRICE(item.getIntPAFDETAIL() * origin.getIntNUMBER());
         em.persist(item);
         order.getTOrderDetailCollection().add(item);
@@ -906,8 +909,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         item.setStrSTATUT(Constant.STATUT_PASSED);
         item.setDtCREATED(new Date());
         item.setDtUPDATED(item.getDtCREATED());
-        item.setIntPAFDETAIL(prixs.getLeft());
-        item.setIntPRICEDETAIL(prixs.getRight());
+        item.setIntPAFDETAIL(
+                prixs.getLeft() != null ? prixs.getLeft() : (famille.getIntPAF() == null ? 0 : famille.getIntPAF()));
+        item.setIntPRICEDETAIL(prixs.getRight() != null && prixs.getRight() > 0 ? prixs.getRight()
+                : (famille.getIntPRICE() == null ? 0 : famille.getIntPRICE()));
         item.setIntPRICE(item.getIntPAFDETAIL() * qtyOrigin);
         em.persist(item);
         order.getTOrderDetailCollection().add(item);
@@ -1008,6 +1013,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
             RuptureDetail ligneRupture = orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(),
                     orderDetail.getIntNUMBER());
+            ligneRupture.setMotif(motifIndisponibilite(ligneNReponse));
             processRemplacement(ligneNReponse, grossiste, orderDetail.getIntNUMBER(), order,
                     coupleProduitResponse.getLeft(), ligneRupture);
             if (ligneNReponse.getQuantiteLivree() == 0) {
@@ -1034,6 +1040,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
             RuptureDetail ligneRupture = orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(),
                     ruptureDetail.getQty());
+            ligneRupture.setMotif(motifIndisponibilite(ligneNReponse));
             processRemplacement(ligneNReponse, grossiste, ruptureDetail.getQty(), order,
                     coupleProduitResponse.getLeft(), ligneRupture);
 
@@ -1142,6 +1149,50 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return new JSONObject().put("success", true).put("data", a).put("total", a.length());
     }
 
+    /**
+     * Retours du 08/10 : reponse du grossiste lisible a l'ecran pour une commande (ou la commande liee d'une
+     * suggestion) : derniere reponse recue, une ligne par produit (commande / livre / prix / motif / remplacant).
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject reponseGrossiste(String commandeId) {
+        JSONObject r = new JSONObject().put("success", true);
+        JSONArray a = new JSONArray();
+        if (StringUtils.isBlank(commandeId)) {
+            return r.put("data", a).put("total", 0);
+        }
+        String[] envoi = StatutEnvoiPharmaMl.dernierEnvoi(em, commandeId);
+        if (envoi != null) {
+            r.put("statut", envoi[0]).put("dateEnvoi", envoi[1]).put("resume", envoi[2]);
+        }
+        List<Object[]> lignes = em.createNativeQuery("SELECT l.str_CODE_PRODUIT, f.str_NAME, l.int_QTE_COMMANDEE,"
+                + " l.int_QTE_LIVREE, l.int_PRIX_ACHAT, l.int_PRIX_VENTE, l.str_CODE_REPONSE, l.str_MOTIF,"
+                + " l.str_REMPLACANT, DATE_FORMAT(l.dt_REPONSE, '%d/%m/%Y %H:%i'), g.str_LIBELLE"
+                + " FROM t_pharmaml_reponse_ligne l JOIN t_grossiste g ON g.lg_GROSSISTE_ID = l.lg_GROSSISTE_ID"
+                + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = l.lg_FAMILLE_ID"
+                + " WHERE (l.lg_SOURCE_ID = ?1 OR l.lg_ORDER_ID = ?1) AND l.dt_REPONSE = (SELECT MAX(x.dt_REPONSE)"
+                + "   FROM t_pharmaml_reponse_ligne x WHERE x.lg_SOURCE_ID = ?1 OR x.lg_ORDER_ID = ?1)"
+                + " ORDER BY (l.int_QTE_LIVREE >= l.int_QTE_COMMANDEE), f.str_NAME").setParameter(1, commandeId)
+                .setMaxResults(1000).getResultList();
+        int livrees = 0;
+        for (Object[] l : lignes) {
+            int cde = ((Number) l[2]).intValue(), liv = ((Number) l[3]).intValue();
+            if (liv > 0) {
+                livrees++;
+            }
+            a.put(new JSONObject().put("code", StringUtils.defaultString((String) l[0]))
+                    .put("produit", StringUtils.defaultString((String) l[1])).put("qteCommandee", cde)
+                    .put("qteLivree", liv).put("prixAchat", l[4] == null ? JSONObject.NULL : l[4])
+                    .put("prixVente", l[5] == null ? JSONObject.NULL : l[5])
+                    .put("etat", liv >= cde ? "LIVRE" : liv > 0 ? "PARTIEL" : "RUPTURE")
+                    .put("codeReponse", StringUtils.defaultString((String) l[6]))
+                    .put("motif", StringUtils.defaultString((String) l[7]))
+                    .put("remplacant", StringUtils.defaultString((String) l[8])).put("date", l[9])
+                    .put("grossiste", l[10]));
+        }
+        return r.put("data", a).put("total", a.length()).put("livrees", livrees);
+    }
+
     @Override
     public JSONObject deciderRemplacement(String id, boolean accepter, boolean memoriser, TUser user) {
         return deciderRemplacement(id, accepter, memoriser, user, "MANUEL");
@@ -1232,13 +1283,23 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         o.setIntQTEMANQUANT(ligneNReponse.getQuantiteLivree());
         o.setIntNUMBER(ligneNReponse.getQuantiteLivree());
 
-        if (prix.getLeft() > 0) {
+        if (prix.getLeft() != null && prix.getLeft() > 0) {
             o.setPrixAchat(prix.getLeft());
             o.setIntPAFDETAIL(prix.getLeft());
         } else {
             o.setPrixAchat(o.getIntPAFDETAIL());
         }
-        o.setPrixUnitaire(prix.getRight());
+        /*
+         * retours du 08/10 : prix de vente (PUBTC) absent de la reponse (ex. DPCI, AFTAGEL : PHAHT et NETHT seulement)
+         * -> on garde le prix de vente de la ligne (ou de la fiche) au lieu de le mettre a 0
+         */
+        Integer pv = prix.getRight();
+        if (pv == null || pv <= 0) {
+            pv = o.getIntPRICEDETAIL() != null && o.getIntPRICEDETAIL() > 0 ? o.getIntPRICEDETAIL()
+                    : (o.getLgFAMILLEID() != null && o.getLgFAMILLEID().getIntPRICE() != null
+                            ? o.getLgFAMILLEID().getIntPRICE() : 0);
+        }
+        o.setPrixUnitaire(pv);
         o.setIntPRICE(o.getIntNUMBER() * o.getPrixAchat());
         o.setIntPRICEDETAIL(o.getPrixUnitaire());
         o.setDtUPDATED(new Date());
@@ -1259,13 +1320,15 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         orderDetail.setIntQTEMANQUANT(orderDetail.getIntNUMBER());
         orderDetail.setLgFAMILLEID(famille);
         orderDetail.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
-        if (prix.getLeft() > 0) {
+        if (prix.getLeft() != null && prix.getLeft() > 0) {
             orderDetail.setPrixAchat(prix.getLeft());
             orderDetail.setIntPAFDETAIL(prix.getLeft());
         } else {
             orderDetail.setPrixAchat(orderDetail.getIntPAFDETAIL());
         }
-        orderDetail.setPrixUnitaire(prix.getRight());
+        /* PUBTC absent de la reponse : prix de vente de la fiche (retours du 08/10) */
+        orderDetail.setPrixUnitaire(prix.getRight() != null && prix.getRight() > 0 ? prix.getRight()
+                : (famille.getIntPRICE() == null ? 0 : famille.getIntPRICE()));
         orderDetail.setIntPRICE(orderDetail.getIntNUMBER() * orderDetail.getPrixAchat());
         orderDetail.setIntPRICEDETAIL(orderDetail.getPrixUnitaire());
         orderDetail.setDtUPDATED(new Date());
@@ -1298,6 +1361,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                     ligneNReponse, idGrossiste);
             int qteLivre = ligneNReponse.getQuantiteLivree();
             RuptureDetail ruptureDetail = produitCommandeItem.getRight();
+            noterLigneReponse(grossiste, "RUPTURE", rupture.getId(), order, produitCommandeItem.getLeft(),
+                    ruptureDetail.getQty(), ligneNReponse);
 
             if (qteLivre >= ruptureDetail.getQty()) {
                 prisEncompte.incrementAndGet();
@@ -1358,6 +1423,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                     ligneNReponse, idGrossiste);
             int qteLivre = ligneNReponse.getQuantiteLivree();
             TOrderDetail orderDetail = produitCommandeItem.getRight();
+            noterLigneReponse(grossiste, "COMMANDE", order.getLgORDERID(), order, produitCommandeItem.getLeft(),
+                    orderDetail.getIntNUMBER(), ligneNReponse);
 
             if (qteLivre >= orderDetail.getIntNUMBER()) {
                 prisEncompte.incrementAndGet();
@@ -1396,6 +1463,59 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return new JSONObject().put("success", true).put("totalProduit", itemSize)
                 .put("nbreproduit", prisEncompte.get()).put("nbrerupture", countRupture.get());
 
+    }
+
+    /**
+     * Retours du 08/10 : motif d'indisponibilite lisible (Additif, sinon code reponse), plus le remplacant annonce.
+     */
+    static String motifIndisponibilite(LigneNReponse ligne) {
+        IndisponibiliteN indispo = ligne == null ? null : ligne.getIndisponibilite();
+        if (indispo == null) {
+            return null;
+        }
+        String motif = StringUtils.defaultIfBlank(StringUtils.trimToNull(indispo.getAdditif()),
+                StringUtils.trimToNull(indispo.getCodeReponse()));
+        return StringUtils.abbreviate(motif, 255);
+    }
+
+    static String remplacant(LigneNReponse ligne) {
+        IndisponibiliteN indispo = ligne == null ? null : ligne.getIndisponibilite();
+        ProduitRemplacant r = indispo == null ? null : indispo.getProduitRemplacant();
+        if (r == null || StringUtils.isBlank(r.getCodeProduit())) {
+            return null;
+        }
+        return StringUtils.abbreviate(StringUtils.trimToEmpty(r.getTypeRemplacement()) + " " + r.getCodeProduit().trim()
+                + " " + StringUtils.trimToEmpty(r.getDesignation()), 200).trim();
+    }
+
+    /**
+     * Retours du 08/10 : chaque ligne de la reponse du grossiste est gardee pour etre lue a l'ecran (commandes en
+     * cours, suggestions) sans ouvrir le fichier XML. Une erreur ici n'empeche jamais le traitement de la reponse.
+     */
+    private void noterLigneReponse(TGrossiste grossiste, String source, String sourceId, TOrder order, TFamille famille,
+            int qteCommandee, LigneNReponse ligne) {
+        try {
+            Pair<Integer, Integer> prix = getPrixAchatPrixUni(ligne.getPrix());
+            em.createNativeQuery(
+                    "INSERT INTO t_pharmaml_reponse_ligne (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                            + " lg_ORDER_ID, lg_FAMILLE_ID, str_CODE_PRODUIT, int_QTE_COMMANDEE, int_QTE_LIVREE, int_PRIX_ACHAT,"
+                            + " int_PRIX_VENTE, str_CODE_REPONSE, str_MOTIF, str_REMPLACANT, dt_REPONSE)"
+                            + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, NOW())")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, grossiste.getLgGROSSISTEID())
+                    .setParameter(3, source).setParameter(4, sourceId)
+                    .setParameter(5, order == null ? null : order.getLgORDERID())
+                    .setParameter(6, famille == null ? null : famille.getLgFAMILLEID())
+                    .setParameter(7, StringUtils.abbreviate(StringUtils.trimToEmpty(ligne.getCodeProduit()), 20))
+                    .setParameter(8, qteCommandee).setParameter(9, ligne.getQuantiteLivree())
+                    .setParameter(10, prix.getLeft()).setParameter(11, prix.getRight())
+                    .setParameter(12,
+                            ligne.getIndisponibilite() == null ? null
+                                    : StringUtils.abbreviate(
+                                            StringUtils.trimToNull(ligne.getIndisponibilite().getCodeReponse()), 10))
+                    .setParameter(13, motifIndisponibilite(ligne)).setParameter(14, remplacant(ligne)).executeUpdate();
+        } catch (RuntimeException ex) {
+            LOG.log(Level.WARNING, "ligne de reponse PharmaML non conservee : {0}", ex.getMessage());
+        }
     }
 
     private int computeOrderAmount(LigneNReponse ligneNReponse) {

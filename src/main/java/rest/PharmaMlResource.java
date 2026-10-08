@@ -58,6 +58,18 @@ public class PharmaMlResource {
         return Response.ok(pharmaMlService.remplacementsProposes().toString()).build();
     }
 
+    /** Retours du 08/10 : reponse du grossiste a une commande, sans ouvrir le fichier XML (lecture seule). */
+    @GET
+    @Path("reponse/{commandeId}")
+    public Response reponseGrossiste(@PathParam("commandeId") String commandeId) {
+        if (utilisateur() == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        return Response.ok(pharmaMlService.reponseGrossiste(commandeId).toString()).build();
+    }
+
     /** decision = ACCEPTER | REFUSER ; memoriser = meme choix automatique pour ce couple de produits. */
     @POST
     @Path("remplacements/{id}")

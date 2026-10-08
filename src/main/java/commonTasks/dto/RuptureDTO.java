@@ -147,7 +147,10 @@ public class RuptureDTO implements Serializable {
         this.grossisteId = g.getLgGROSSISTEID();
         this.reference = r.getReference();
         this.dtCreated = r.getDtCreated();
-        this.commandeDate = r.getDtCreated().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        /* retours du 08/10 : date ET heure de la rupture quand la base la connait */
+        this.commandeDate = r.getDtHeure() != null && r.getDtHeure().toLocalDate().equals(r.getDtCreated())
+                ? r.getDtHeure().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                : r.getDtCreated().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         LongAdder prixAchat0 = new LongAdder();
         LongAdder prixVente0 = new LongAdder();
         LongAdder qty0 = new LongAdder();
@@ -161,8 +164,12 @@ public class RuptureDTO implements Serializable {
                     + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLibelle()
                     + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getQty()
                     + ")</span><span style='display:inline-block;width: 15%;'>"
-                    + DateConverter.amountFormat(tpd.getPrixAchat(), '.') + " F CFA " + "</span></b><br> "
-                    + this.details;
+                    + DateConverter.amountFormat(tpd.getPrixAchat(), '.') + " F CFA " + "</span></b>"
+                    + (tpd.getMotif() == null || tpd.getMotif().isEmpty() ? ""
+                            : "<span class='rupt-motif' style='display:inline-block;margin-left:8px;color:#b42318;font-weight:600'>Motif : "
+                                    + tpd.getMotif().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                                    + "</span>")
+                    + "<br> " + this.details;
         });
         this.qty = qty0.intValue();
         this.prixAchat = prixAchat0.intValue();

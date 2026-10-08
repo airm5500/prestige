@@ -40,7 +40,7 @@ const sauves = {};
 function nettoyer() {
   exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference = '" + CMD + "'); DELETE FROM rupture WHERE reference = '" + CMD + "';"
     + "DELETE FROM t_order_detail WHERE lg_ORDER_ID = '" + CMD + "'; DELETE FROM t_order WHERE lg_ORDER_ID = '" + CMD + "';"
-    + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + CMD + "';");
+    + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + CMD + "'; DELETE FROM t_pharmaml_reponse_ligne WHERE lg_SOURCE_ID = '" + CMD + "' OR lg_ORDER_ID = '" + CMD + "';");
 }
 function poser(G) {
   nettoyer();

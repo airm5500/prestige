@@ -146,7 +146,7 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
     },
 
     lancer: function (cfg, familles, grossisteId) {
-        var me = this, paquets = [], i, cumul = {oui: 0, non: 0, autre: 0, inconnu: 0}, erreur = null, grossiste = '';
+        var me = this, paquets = [], i, cumul = {oui: 0, non: 0, autre: 0, inconnu: 0}, erreur = null, grossiste = '', avertissement = null;
         for (i = 0; i < familles.length; i += 50) {
             paquets.push(familles.slice(i, i + 50));
         }
@@ -163,9 +163,16 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
                     if (cfg.apres) {
                         cfg.apres(etat);
                     }
-                    Ext.MessageBox.alert('Disponibilité PharmaML', erreur ? Ext.String.htmlEncode(erreur)
+                    var texte = erreur ? Ext.String.htmlEncode(erreur)
                             : '<b>' + Ext.String.htmlEncode(grossiste) + '</b> : ' + cumul.oui + ' disponible(s), ' + cumul.non + ' non disponible(s), '
-                            + cumul.autre + ' autre(s), ' + cumul.inconnu + ' sans réponse.<br><span style="color:#6b7b8c">Information seulement : aucune commande n\'a été passée.</span>');
+                            + cumul.autre + ' autre(s), ' + cumul.inconnu + ' sans réponse.'
+                            + (avertissement ? '<br><br><span style="color:#b26a00">' + Ext.String.htmlEncode(avertissement) + '</span>' : '')
+                            + '<br><br><span style="color:#6b7b8c">Information seulement : aucune commande n\'a été passée.</span>';
+                    /* retours du 08/10 : boite recreee apres la barre d'attente, largeur fixe : le texte n'est plus tronque */
+                    Ext.defer(function () {
+                        Ext.MessageBox.show({title: 'Disponibilité PharmaML', msg: texte, width: 460, buttons: Ext.MessageBox.OK,
+                            icon: erreur ? Ext.MessageBox.ERROR : (avertissement ? Ext.MessageBox.WARNING : Ext.MessageBox.INFO)});
+                    }, 60);
                 });
                 return;
             }
@@ -182,6 +189,7 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
                         cumul.non += o.non;
                         cumul.autre += o.autre;
                         cumul.inconnu += o.inconnu;
+                        avertissement = o.avertissement || avertissement;
                     }
                     var fait = Math.min(familles.length, (n + 1) * 50);
                     if (Ext.MessageBox.progressBar) {

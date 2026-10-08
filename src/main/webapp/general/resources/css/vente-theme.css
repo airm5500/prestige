@@ -2914,10 +2914,13 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
  *    changent pas. Sans :has (ancien navigateur), comportement d'avant. */
 .act-ico { background-color: #edf2f7; border-color: #c3cfdc; box-shadow: 0 1px 1px rgba(15, 35, 60, .08); }
 .act-ico:hover { background-color: #dde9f6; border-color: #2E75B6; }
-.x-grid-row-selected .act-ico, .x-grid-row-over .act-ico { background-color: #fff; }
+/* ligne selectionnee ou survolee : la couleur de la ligne reste continue sous les boutons (retours du 08/10) */
+.x-grid-row-selected .act-ico, .x-grid-row-over .act-ico, .x-grid-data-row:hover .act-ico {
+    background-color: rgba(255, 255, 255, .45) !important; border-color: rgba(30, 58, 95, .35) !important; box-shadow: none; }
 .x-grid-row .x-grid-cell { border-bottom: 1px solid #e3e9f0; }
-.x-grid-row-alt > .x-grid-cell, .theme-grille .x-grid-row-alt .x-grid-cell, .theme-liste .x-grid-row-alt .x-grid-cell,
-.x-grid-view tr.x-grid-data-row:nth-of-type(even) > .x-grid-cell { background-color: #f6f9fc; }
+.x-grid-row-alt:not(.x-grid-row-selected):not(.x-grid-row-over) > .x-grid-cell,
+.x-grid-view tr.x-grid-data-row:nth-of-type(even):not(.x-grid-row-selected):not(.x-grid-row-over):not(.x-grid-row-focused) > .x-grid-cell {
+    background-color: #f6f9fc; }
 .x-grid-cell-inner:has(> .x-action-col-icon:nth-of-type(4)) > .x-action-col-icon.x-hide-display {
     display: inline-block !important; visibility: hidden !important; }
 /* la place vide a la taille d'un bouton d'icone (getClass remplace la classe de l'icone quand elle est masquee) */
@@ -2937,3 +2940,15 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     background-color: rgba(255, 255, 255, .28) !important; box-shadow: 0 0 0 3px rgba(255, 255, 255, .28); }
 .x-window.fen-theme > .x-window-header .x-tool:hover, .x-message-box.mb-theme .x-tool:hover, .x-window.ouv-caisse > .x-window-header .x-tool:hover {
     background-color: #c0392b !important; box-shadow: 0 0 0 3px #c0392b; }
+
+/* Retours du 08/10 : trait de selection discontinu. Le theme peignait la CELLULE de la ligne selectionnee en bleu
+   pale et l'application son INTERIEUR en violet (couleur de selection reglable) : les cellules d'icones, moins hautes,
+   laissaient voir le bleu. Cellule et interieur prennent la meme couleur (selection, puis survol par-dessus). */
+.theme-grille .x-grid-row-selected > .x-grid-cell, .theme-grille .x-grid-row-selected > .x-grid-cell > .x-grid-cell-inner,
+.theme-liste .x-grid-row-selected > .x-grid-cell, .theme-liste .x-grid-row-selected > .x-grid-cell > .x-grid-cell-inner {
+    background-color: var(--vp-selection-fond, #CE93D8) !important; }
+.theme-grille .x-grid-row-over > .x-grid-cell, .theme-grille .x-grid-data-row:hover > .x-grid-cell,
+.theme-liste .x-grid-row-over > .x-grid-cell, .theme-liste .x-grid-data-row:hover > .x-grid-cell,
+.theme-grille .x-grid-row-over > .x-grid-cell > .x-grid-cell-inner, .theme-grille .x-grid-data-row:hover > .x-grid-cell > .x-grid-cell-inner,
+.theme-liste .x-grid-row-over > .x-grid-cell > .x-grid-cell-inner, .theme-liste .x-grid-data-row:hover > .x-grid-cell > .x-grid-cell-inner {
+    background-color: var(--vp-survol-fond, #ffcc80) !important; }

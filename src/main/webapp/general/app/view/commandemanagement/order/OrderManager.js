@@ -182,6 +182,18 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.recupererReponseLigne
                         },
                         {
+                            /* Retours du 08/10 : voir la reponse du grossiste sans ouvrir le fichier XML */
+                            iconCls: 'act-ico act-voir',
+                            tooltip: 'Voir la réponse du grossiste (livré, rupture, motif, prix annoncés)',
+                            getClass: function (v, meta, rec) {
+                                return testextjs.view.commandemanagement.order.EnvoiPharmaMl.classeVoirReponse(v, meta, rec);
+                            },
+                            handler: function (grid, rowIndex) {
+                                var rec = grid.getStore().getAt(rowIndex);
+                                testextjs.view.commandemanagement.order.EnvoiPharmaMl.voirReponse(rec.get('lg_ORDER_ID'), rec.get('str_REF_ORDER'));
+                            }
+                        },
+                        {
                             icon: 'resources/images/icons/fam/folder_go.png',
                             tooltip: 'Créer le bon de livraisson',
                             scope: this,

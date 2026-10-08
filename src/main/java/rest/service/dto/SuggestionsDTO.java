@@ -216,6 +216,30 @@ public class SuggestionsDTO {
         this.dateCloture = dateCloture;
     }
 
+    /* Retours du 08/10 : lignes retenues par le grossiste (null tant qu'il n'a pas repondu) */
+    private Integer nbreLigneLivree;
+
+    @JSONPropertyName("int_LIGNES_LIVREES")
+    public Integer getNbreLigneLivree() {
+        return nbreLigneLivree;
+    }
+
+    public void setNbreLigneLivree(Integer nbreLigneLivree) {
+        this.nbreLigneLivree = nbreLigneLivree;
+    }
+
+    /* commande liee (vue « reponse du grossiste ») */
+    private String commandeId = "";
+
+    @JSONPropertyName("lg_ORDER_ID")
+    public String getCommandeId() {
+        return commandeId;
+    }
+
+    public void setCommandeId(String commandeId) {
+        this.commandeId = commandeId == null ? "" : commandeId;
+    }
+
     /* Retours du 08/10 : statut du dernier envoi PharmaML de la commande liee */
     private String envoiPharmaMl = "", envoiPharmaMlDate = "", envoiPharmaMlDetail = "";
 

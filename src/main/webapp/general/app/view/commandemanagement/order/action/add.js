@@ -514,9 +514,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 },
                                 /* Disponibilite PharmaML (plan d'octobre 1.2) */
                                 {
+                                    /* retours du 08/10 : verification de ce seul produit sur la ligne (comme en suggestion) */
                                     text: 'DISPO', itemId: 'colDispo', width: 56, sortable: false, menuDisabled: true, align: 'center',
                                     renderer: function (v, meta, record) {
-                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.rendu((ecranCommande().etatDispo || {})[record.get('lg_FAMILLE_ID')], meta);
+                                        var e = ecranCommande();
+                                        return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.renduAvecVerif((e.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta,
+                                                e.dispoActive === false || !e.estModification());
                                     }
                                 },
                                 {
@@ -911,6 +914,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         }
 
 
+        Ext.getCmp('gridpanelID').on('cellclick', function (view, td, ci, record, tr, ri, e) {
+            if (e && e.getTarget && e.getTarget('[data-verif-dispo]')) {
+                ecranCommande().verifierDispoProduit(record.get('lg_FAMILLE_ID'));
+                return false;
+            }
+        });
         Ext.getCmp('gridpanelID').on('edit', function (editor, e) {
             let qte = Number(e.record.data.int_NUMBER);
             let url = '../api/v1/commande/updateorderitem';
@@ -988,10 +997,23 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         });
     },
 
+    /* retours du 08/10 : verification d'un seul produit, depuis sa ligne */
+    verifierDispoProduit: function (familleId) {
+        var me = this;
+        testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.verifierProduit({
+            source: 'COMMANDE', id: me.getNameintern(),
+            apres: function (etat) {
+                me.etatDispo = etat;
+                Ext.getCmp('gridpanelID').getView().refresh();
+            }
+        }, familleId);
+    },
+
     chargerDispo: function () {
         var me = this;
         testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.chargerEtat('COMMANDE', me.getNameintern(), function (etat, active) {
             me.etatDispo = etat;
+            me.dispoActive = active;
             testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.appliquerActive(active, ['btn_cmd_dispo_verifier']);
             var g = Ext.getCmp('gridpanelID');
             if (g && g.rendered) {

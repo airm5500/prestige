@@ -1,6 +1,7 @@
 package rest.service.impl;
 
 import java.io.StringReader;
+import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -548,10 +549,18 @@ public final class PharmaMlMessages {
                 }
             }
             boolean indispo = false, autre = false;
+            String motifCode = "", motifTexte = "";
             for (Element x : descendants(e)) {
                 String nx = nom(x);
-                if (nx.startsWith("INDISPONIBILITE")) {
+                if (nx.startsWith("INDISPONIBILITE") || nx.startsWith("NON_DISPO")) {
+                    /* NON_DISPO : balise de DPCI (fichier RI_ du 08/10) */
                     indispo = true;
+                    if (x.hasAttribute("Code_Reponse") && !x.getAttribute("Code_Reponse").isBlank()) {
+                        motifCode = x.getAttribute("Code_Reponse").trim();
+                    }
+                    if (x.hasAttribute("Additif") && !x.getAttribute("Additif").isBlank()) {
+                        motifTexte = x.getAttribute("Additif").trim();
+                    }
                 } else if (nx.startsWith("AUTRE")) {
                     autre = true;
                 } else if (nx.equals("DISPONIBILITE") && explicite.isEmpty()) {
@@ -559,8 +568,9 @@ public final class PharmaMlMessages {
                 }
             }
             r.statut = !explicite.isEmpty() ? explicite : (indispo ? "NON" : (autre ? "AUTRE" : "OUI"));
-            r.codeReponse = attribut(e, a -> a.equals("CODE_REPONSE"));
-            r.libelle = attribut(e, a -> a.equals("ADDITIF") || a.equals("LIBELLE_REPONSE"));
+            r.codeReponse = StringUtils.defaultIfBlank(attribut(e, a -> a.equals("CODE_REPONSE")), motifCode);
+            r.libelle = StringUtils.defaultIfBlank(attribut(e, a -> a.equals("ADDITIF") || a.equals("LIBELLE_REPONSE")),
+                    motifTexte);
             r.commentaire = attribut(e, a -> a.equals("COMMENTAIRE"));
             r.dateDispo = attribut(e, a -> a.startsWith("DATE_MISE") || a.equals("DATE_DISPONIBILITE"));
             r.quantiteDispo = entier(attribut(e, a -> a.startsWith("QUANTITE_DISPO") || a.startsWith("QUANTITE_MISE")));

@@ -1535,11 +1535,19 @@ public class SuggestionImpl implements SuggestionService {
         suggestions.setCommentaire(t.get("commentaire", String.class));
         suggestions.setDateCommande(t.get("dateCommande", String.class));
         suggestions.setModeCommande(t.get("modeCommande", String.class));
+        suggestions.setCommandeId(t.get("commandeId", String.class));
         /* Retours du 08/10 : statut du dernier envoi PharmaML de la commande liee (memes pastilles qu'en commande) */
         try {
             String[] e = StatutEnvoiPharmaMl.dernierEnvoi(em, t.get("commandeId", String.class));
             if (e != null) {
                 suggestions.setEnvoiPharmaMl(e[0], e[1], e[2]);
+                /* lignes reellement commandees apres la reponse (les ruptures sont retirees de la commande) */
+                if ("REPONDUE".equals(e[0]) || "PARTIELLE".equals(e[0]) || "RUPTURE".equals(e[0])) {
+                    Number n = (Number) em
+                            .createNativeQuery("SELECT COUNT(*) FROM t_order_detail WHERE lg_ORDER_ID = ?1")
+                            .setParameter(1, t.get("commandeId", String.class)).getSingleResult();
+                    suggestions.setNbreLigneLivree(n.intValue());
+                }
             }
         } catch (RuntimeException ex) {
             LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", ex.getMessage());

@@ -143,6 +143,7 @@ public class RuptureDetailDTO implements Serializable {
         this.prixAchat = d.getPrixAchat();
         this.prixVente = d.getPrixVente();
         this.qty = d.getQty();
+        this.motif = d.getMotif();
 
     }
 
@@ -172,11 +173,23 @@ public class RuptureDetailDTO implements Serializable {
         this.seuil = f.getIntSEUILMIN();
         this.stock = stock;
         this.dateRrupture = r.getDtCreated().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        this.motif = d.getMotif();
         try {
             this.familleLibelle = f.getLgFAMILLEARTICLEID().getStrLIBELLE();
         } catch (Exception e) {
         }
 
+    }
+
+    /* retours du 08/10 : motif de rupture donne par le grossiste */
+    private String motif;
+
+    public String getMotif() {
+        return motif;
+    }
+
+    public void setMotif(String motif) {
+        this.motif = motif;
     }
 
     public Integer getStock() {

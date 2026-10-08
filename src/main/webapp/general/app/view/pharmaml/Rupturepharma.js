@@ -260,9 +260,11 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                             flex: 1
                         },
                         {
+                            /* retours du 08/10 : date et heure */
                             header: 'Date',
                             dataIndex: 'commandeDate',
-                            flex: 0.7
+                            itemId: 'colDateRupture',
+                            width: 128
 
                         },
 

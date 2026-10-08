@@ -40,6 +40,17 @@ public class RuptureDetail implements Serializable {
     private Integer prixAchat = 0;
     @Column(name = "prixVente")
     private Integer prixVente = 0;
+    /* retours du 08/10 : motif d'indisponibilite donne par le grossiste (reponse PharmaML) */
+    @Column(name = "motif", length = 255)
+    private String motif;
+
+    public String getMotif() {
+        return motif;
+    }
+
+    public void setMotif(String motif) {
+        this.motif = motif;
+    }
 
     public RuptureDetail() {
     }

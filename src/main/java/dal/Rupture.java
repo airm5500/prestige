@@ -34,6 +34,9 @@ public class Rupture implements Serializable {
     private String id = UUID.randomUUID().toString();
     @Column(name = "dtCreated")
     private LocalDate dtCreated = LocalDate.now();
+    /* retours du 08/10 : heure de creation, renseignee par la base (la date ci-dessus reste celle des filtres) */
+    @Column(name = "dtHeure", insertable = false, updatable = false)
+    private java.time.LocalDateTime dtHeure;
     @Column(name = "statut", length = 20)
     private String statut = Constant.STATUT_ENABLE;
     @Column(name = "dtUpdated")
@@ -51,6 +54,10 @@ public class Rupture implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public java.time.LocalDateTime getDtHeure() {
+        return dtHeure;
     }
 
     public LocalDate getDtCreated() {

@@ -39,7 +39,8 @@ function nettoyer() {
   }
   exec("DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference IN (" + liste(CMDS) + ")); DELETE FROM rupture WHERE reference IN (" + liste(CMDS) + ");"
     + "DELETE FROM t_order_detail WHERE lg_ORDER_ID IN (" + liste(CMDS) + "); DELETE FROM t_order WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"
-    + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID IN (" + liste(CMDS) + "); DELETE FROM t_pharmaml_remplacement WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");");
+    + "DELETE FROM t_pharmaml_attente WHERE lg_SOURCE_ID IN (" + liste(CMDS) + "); DELETE FROM t_pharmaml_remplacement WHERE lg_ORDER_ID IN (" + liste(CMDS) + ");"
+    + "DELETE FROM t_pharmaml_reponse_ligne WHERE lg_SOURCE_ID IN (" + liste(CMDS) + ") OR lg_ORDER_ID IN (" + liste(CMDS) + ");");
   if (P.length) {
     exec("DELETE FROM t_pharmaml_equivalent_choix WHERE lg_FAMILLE_ID = '" + P[1] + "' AND str_CODE_REMPLACANT = '" + cipEquivalent + "';"
       + "DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + P[2] + "' AND lg_GROSSISTE_ID = '" + G + "'" + (fgAvant ? " AND lg_FAMILLE_GROSSISTE_ID NOT IN (" + liste(fgAvant.split(',')) + ")" : '') + ";");
