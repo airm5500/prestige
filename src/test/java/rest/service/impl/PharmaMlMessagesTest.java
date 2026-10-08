@@ -41,15 +41,16 @@ public class PharmaMlMessagesTest {
     }
 
     @Test
-    public void versionParDefautTrois() {
-        assertEquals("3.0.0.0", PharmaMlMessages.version(null));
-        assertEquals("3.0.0.0", PharmaMlMessages.version(""));
+    public void versionParDefautUn() {
+        assertEquals("1.0.0.0", PharmaMlMessages.version(null));
+        assertEquals("1.0.0.0", PharmaMlMessages.version(""));
         assertEquals("1.0.0.0", PharmaMlMessages.version("1.0.0.0"));
+        assertEquals("3.0.0.0", PharmaMlMessages.version("3.0.0.0"));
     }
 
     @Test
     public void requeteV3CommeLExempleReel() throws Exception {
-        String x = PharmaMlMessages.reqInfoProduit(null, p(), "PRS2610061000001", lignes(2));
+        String x = PharmaMlMessages.reqInfoProduit("3.0.0.0", p(), "PRS2610061000001", lignes(2));
         Document d = PharmaMlMessages.lireXml(x);
         Element r = d.getDocumentElement();
         assertEquals("SRP_ENVELOPPE", r.getLocalName());

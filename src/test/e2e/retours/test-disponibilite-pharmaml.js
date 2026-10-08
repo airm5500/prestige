@@ -5,7 +5,7 @@
  * Le grossiste B (revérification) repond « disponible » pour tout.
  *
  * Ce que le test etablit, sur les vrais ecrans (suggestion puis commande) :
- *  - « Vérifier la disponibilité » : 55 produits -> deux requetes (50 + 5), en 3.0.0.0 par defaut (SRP_ENVELOPPE,
+ *  - « Vérifier la disponibilité » : 55 produits -> deux requetes (50 + 5), en 3.0.0.0 (reglee sur la fiche ; SRP_ENVELOPPE,
  *    REQ_INFO_PRODUIT, Id_Moteur PRESTIGE), JAMAIS de message COMMANDE ; 55 resultats enregistres ;
  *  - la colonne DISPO : vert / rouge, info-bulle (motif, mise a disposition, remplacant) ; filtre « Non disponibles » ;
  *  - « Revérifier les indisponibles » : choix du grossiste B, seuls les non disponibles partent chez B, avec le CODE
@@ -108,7 +108,7 @@ function poser() {
     nbPairs = envoyes.filter((c) => Number(c.slice(-1)) % 2 === 0).length;
     ok('Deux requêtes (50 + 5) au grossiste de la suggestion', recus.length === 2 && recus.every((r) => r.chemin === '/a')
       && (recus[0].xml.match(/<LIGNE_REQ_INFO_PRODUIT /g) || []).length === 50 && (recus[1].xml.match(/<LIGNE_REQ_INFO_PRODUIT /g) || []).length === 5, recus.map((r) => r.chemin + ':' + (r.xml.match(/<LIGNE_REQ_INFO_PRODUIT /g) || []).length).join(','));
-    ok('Version 3.0.0.0 par défaut : SRP_ENVELOPPE, REQ_INFO_PRODUIT, Id_Moteur PRESTIGE', recus.every((r) => /<SRP_ENVELOPPE[^>]*Version_Protocole="3\.0\.0\.0"[^>]*Id_Moteur="PRESTIGE"/.test(r.xml) && /<REQ_INFO_PRODUIT /.test(r.xml)));
+    ok('Version 3.0.0.0 (fiche) : SRP_ENVELOPPE, REQ_INFO_PRODUIT, Id_Moteur PRESTIGE', recus.every((r) => /<SRP_ENVELOPPE[^>]*Version_Protocole="3\.0\.0\.0"[^>]*Id_Moteur="PRESTIGE"/.test(r.xml) && /<REQ_INFO_PRODUIT /.test(r.xml)));
     ok('Jamais de message COMMANDE', recus.every((r) => !/<COMMANDE[ >]|LIGNE_N /.test(r.xml)));
     ok('Résumé : non disponibles et disponibles comptés selon les réponses (' + nbPairs + ' / ' + (N - nbPairs) + ')', new RegExp((N - nbPairs) + ' disponible\\(s\\), ' + nbPairs + ' non disponible').test(fin1), fin1);
     ok('55 résultats enregistrés', q("SELECT COUNT(*) FROM t_disponibilite_produit WHERE lg_SOURCE_ID = '" + SUGG + "'") === String(N));

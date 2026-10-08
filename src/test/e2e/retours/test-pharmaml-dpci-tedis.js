@@ -55,8 +55,8 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   for (const [n, G] of Object.entries(GROSSISTES)) {
-    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
-    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5] };
+    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), IFNULL(str_PHARMAML_CONTROLE, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
+    sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5], controle: v[6] === 'NULL' ? null : v[6] };
   }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
@@ -83,7 +83,11 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       const cle = q("SELECT IFNULL(str_CLE_RECEPTEUR, '') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'");
       /* specification Pharma-ML v4.8 § 4.4.3 : MD5(corps + identifiant officine sur 16 car. completes de « 0 » + cle) */
       const attendu = require('crypto').createHash('md5').update(Buffer.from(x, 'utf8')).update(s.id.padEnd(16, '0') + cle).digest('base64');
-      ok(n + ' : en-tête Content-PharmaML = calcul de la spécification (MD5 corps + identifiant + clé)', cle !== '' && entetes[0] === attendu, entetes[0] + ' / ' + attendu);
+      if (n === 'DPCI') {
+        ok('DPCI (contrôle CSRP) : en-tête Content-PharmaML = calcul de la spécification (MD5 corps + identifiant + clé)', s.controle === 'CSRP' && cle !== '' && entetes[0] === attendu, s.controle + ' ' + entetes[0] + ' / ' + attendu);
+      } else {
+        ok(n + ' (contrôle AUCUN) : aucun en-tête de contrôle, comme avant le 07/10', s.controle === 'AUCUN' && entetes[0] === null, s.controle + ' ' + entetes[0]);
+      }
       ok(n + ' : 2 lignes envoyées, réponse traitée', (x.match(/<LIGNE_N /g) || []).length === 2 && /"success":true/.test(e.r), e.r);
       /* serveur injoignable : port ferme */
       url(G, 'http://127.0.0.1:1/PharmaML/');
@@ -133,9 +137,12 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     const a2 = JSON.parse(await api('javascript:alert(1)'));
     ok('Fiche (serveur) : adresse de secours invalide refusée', a1.success === false && a2.success === false && /http:\/\//.test(a1.msg), JSON.stringify([a1, a2]));
     const a3 = JSON.parse(await api('  http://dpciml.dpci.ci/PharmaML/  '));
+    const c1 = JSON.parse(await p.evaluate(async (a) => (await fetch('../api/v1/grossistes/pharmaml-version', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ lg_GROSSISTE_ID: a, versionInfo: '1.0.0.0', versionCommande: '1.0.0.0', controle: 'N_IMPORTE' }).toString() })).text(), D));
+    ok('Fiche (serveur) : contrôle inconnu refusé, réglage inchangé', c1.success === false && /inconnu/.test(c1.msg) && q("SELECT IFNULL(str_PHARMAML_CONTROLE,'') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === (sauves.DPCI.controle || ''), JSON.stringify(c1));
     ok('Fiche (serveur) : adresse valide enregistrée sans espaces', a3.success === true && q("SELECT str_URL_PHARMAML_SECOURS FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + D + "'") === 'http://dpciml.dpci.ci/PharmaML/', JSON.stringify(a3));
     /* Ecran : fiche grossiste en modification (version commande mise a 1.0.0.0 pour verifier qu'elle est bien lue) */
-    exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '1.0.0.0' WHERE lg_GROSSISTE_ID = '" + D + "'");
+    exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '3.0.0.0' WHERE lg_GROSSISTE_ID = '" + D + "'");
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('grossistemanager', 'Grossistes', ''));
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; return g && g.getStore && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
@@ -150,9 +157,11 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
       c.setValue('ftp://x'); const inval = !c.isValid(); c.setValue(v);
       const box = c.getEl().dom.getBoundingClientRect(), corps = c.up('window').body.dom.getBoundingClientRect();
       const visible = box.bottom <= corps.bottom + 1 && box.right <= corps.right + 1 && box.width > 150;
-      return { v, visible, cmde: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(), actif: !c.isDisabled(), inval, valide: c.isValid(), tronque: lab ? lab.scrollWidth > lab.clientWidth + 1 : true }; });
+      const ctl = Ext.getCmp('str_PHARMAML_CONTROLE'); const ctlLab = ctl.labelEl ? ctl.labelEl.dom : null;
+      return { v, visible, controle: ctl.getValue(), controleTexte: ctl.getRawValue(), controleTronque: ctlLab ? ctlLab.scrollWidth > ctlLab.clientWidth + 1 : true, cmde: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(), actif: !c.isDisabled(), inval, valide: c.isValid(), tronque: lab ? lab.scrollWidth > lab.clientWidth + 1 : true }; });
     exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '3.0.0.0' WHERE lg_GROSSISTE_ID = '" + D + "'");
-    ok('Fiche (écran) : la version réellement réglée est affichée (1.0.0.0), plus de retour forcé à 3.0.0.0', ecran.cmde === '1.0.0.0', JSON.stringify(ecran));
+    ok('Fiche (écran) : la version réellement réglée est affichée (3.0.0.0 forcée pour l\'essai), plus de retour à la valeur par défaut', ecran.cmde === '3.0.0.0', JSON.stringify(ecran));
+    ok('Fiche (écran) : « Contrôle PharmaML » de DPCI affiché (Spécification CSRP), libellé entier', ecran.controle === 'CSRP' && /Spécification CSRP/.test(ecran.controleTexte) && !ecran.controleTronque, JSON.stringify(ecran));
     ok('Fiche (écran) : champ « Lien PharmaML de secours » visible sans défiler, rempli, modifiable, adresse invalide signalée, libellé entier', ouvert === 'ok' && ecran.v === 'http://dpciml.dpci.ci/PharmaML/' && ecran.visible && ecran.actif && ecran.inval && ecran.valide && !ecran.tronque, ouvert + ' ' + JSON.stringify(ecran));
     await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/grossiste-url-secours.png' });
     await p.evaluate(() => { const w = Ext.getCmp('str_URL_PHARMAML_SECOURS').up('window'); if (w) { w.close(); } });
@@ -173,6 +182,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     nettoyer();
     for (const [n, G] of Object.entries(GROSSISTES)) {
       url(G, sauves[n].url); secours(G, sauves[n].secours);
+      exec("UPDATE t_grossiste SET str_PHARMAML_CONTROLE = " + (sauves[n].controle ? "'" + sauves[n].controle + "'" : 'NULL') + " WHERE lg_GROSSISTE_ID = '" + G + "'");
       exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE = '" + sauves[n].version + "' WHERE lg_GROSSISTE_ID = '" + G + "'");
     }
     ok('Commandes d\'essai retirées, adresses remises', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'") === '0'

@@ -18,7 +18,8 @@ public interface GrossisteService {
     /**
      * Versions PharmaML et adresse de secours. {@code urlSecours} null = inchangee, vide = retiree ; sinon http(s)://.
      */
-    JSONObject versionsPharmaMl(String grossisteId, String versionInfo, String versionCommande, String urlSecours);
+    JSONObject versionsPharmaMl(String grossisteId, String versionInfo, String versionCommande, String urlSecours,
+            String controle);
 
     /** Desactivation (actif=false) ou reactivation (actif=true) d'un grossiste. */
     JSONObject toggleStatus(TUser user, String grossisteId, boolean actif);

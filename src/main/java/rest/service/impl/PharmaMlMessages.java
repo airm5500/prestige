@@ -50,9 +50,12 @@ public final class PharmaMlMessages {
     private PharmaMlMessages() {
     }
 
-    /** Version normalisee : 1.0.0.0 si demandee explicitement, 3.0.0.0 sinon (defaut du 06/10). */
+    /**
+     * Version normalisee : 3.0.0.0 si demandee explicitement, 1.0.0.0 sinon (defaut retabli le 08/10 : DPCI refuse la
+     * 3.0.0.0, les envois 1.0.0.0 fonctionnaient chez les autres grossistes).
+     */
     public static String version(String v) {
-        return v != null && v.trim().startsWith("1") ? V1 : V3;
+        return v != null && v.trim().startsWith("3") ? V3 : V1;
     }
 
     /** Les parties de l'echange (lues dans la fiche grossiste et l'officine). */

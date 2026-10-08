@@ -104,6 +104,10 @@ Ext.define('testextjs.model.Grossiste', {
         type: 'string'
     },
     {
+        name: 'str_PHARMAML_CONTROLE',
+        type: 'string'
+    },
+    {
         name: 'str_CODE_RECEPTEUR_PHARMA',
         type: 'string'
     },

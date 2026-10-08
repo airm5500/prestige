@@ -399,16 +399,16 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
                                     xtype: 'combobox', id: 'str_PHARMAML_VERSION_INFO', fieldLabel: 'PharmaML : info produit', flex: 1, editable: false,
-                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '3.0.0.0',
-                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '3.0.0.0'}, {v: '1.0.0.0'}]}),
+                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '1.0.0.0',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '1.0.0.0'}, {v: '3.0.0.0'}]}),
                                     disabled: Omode !== 'update',
                                     tooltip: 'Réglable après la création du grossiste'
                                 },
                                 {
                                     /* Plan d'octobre 1.2 : version PharmaML (3.0.0.0 par defaut, 1.0.0.0 possible) */
                                     xtype: 'combobox', id: 'str_PHARMAML_VERSION_CMDE', fieldLabel: 'PharmaML : commande', flex: 1, editable: false,
-                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '3.0.0.0',
-                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '3.0.0.0'}, {v: '1.0.0.0'}]}),
+                                    queryMode: 'local', displayField: 'v', valueField: 'v', value: '1.0.0.0',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v'], data: [{v: '1.0.0.0'}, {v: '3.0.0.0'}]}),
                                     disabled: Omode !== 'update',
                                     tooltip: 'Réglable après la création du grossiste'
                                 },
@@ -428,6 +428,35 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                         }
                                     }
                                 }
+                            ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            margin: '0 0 5 0',
+                            items: [
+                                {
+                                    /* Retours du 08/10 : en-tete de controle Content-PharmaML regle par grossiste */
+                                    xtype: 'combobox', id: 'str_PHARMAML_CONTROLE', fieldLabel: 'Contrôle PharmaML', flex: 1,
+                                    editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: '',
+                                    disabled: Omode !== 'update',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
+                                            {v: '', l: 'Réglage général'},
+                                            {v: 'CSRP', l: 'Spécification CSRP (code client + clé)'},
+                                            {v: 'AUCUN', l: 'Aucun (pas d\'en-tête)'},
+                                            {v: 'HMAC_MD5', l: 'HMAC-MD5 de la clé'},
+                                            {v: 'MD5_CLE_FIN', l: 'MD5 message + clé'},
+                                            {v: 'MD5_CLE_DEBUT', l: 'MD5 clé + message'}]}),
+                                    listeners: {
+                                        afterrender: function (c) {
+                                            Ext.create('Ext.tip.ToolTip', {target: c.getEl(), dismissDelay: 15000,
+                                                html: 'En-tête de contrôle « Content-PharmaML » envoyé avec chaque message, calculé avec la clé de la fiche. '
+                                                        + '« Spécification CSRP » : exigé par DPCI. « Aucun » : comme avant le 07/10. '
+                                                        + 'Sans clé dans la fiche, aucun en-tête n\'est envoyé.'});
+                                        }
+                                    }
+                                },
+                                {xtype: 'component', flex: 2}
                             ]
                         }
 
@@ -496,8 +525,9 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             Ext.getCmp('str_CODE_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_CODE_RECEPTEUR_PHARMA);
             Ext.getCmp('str_ID_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_ID_RECEPTEUR_PHARMA);
             Ext.getCmp('str_OFFICINE_ID').setValue(this.getOdatasource().str_OFFICINE_ID);
-            Ext.getCmp('str_PHARMAML_VERSION_INFO').setValue(this.getOdatasource().str_PHARMAML_VERSION_INFO || '3.0.0.0');
-            Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '3.0.0.0');
+            Ext.getCmp('str_PHARMAML_VERSION_INFO').setValue(this.getOdatasource().str_PHARMAML_VERSION_INFO || '1.0.0.0');
+            Ext.getCmp('str_PHARMAML_VERSION_CMDE').setValue(this.getOdatasource().str_PHARMAML_VERSION_CMDE || '1.0.0.0');
+            Ext.getCmp('str_PHARMAML_CONTROLE').setValue(this.getOdatasource().str_PHARMAML_CONTROLE || '');
             Ext.getCmp('str_URL_PHARMAML_SECOURS').setValue(this.getOdatasource().str_URL_PHARMAML_SECOURS || '');
 
         }
@@ -586,7 +616,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 url: url_services_rest_grossiste + 'pharmaml-version', method: 'POST',
                                 params: {lg_GROSSISTE_ID: ref, versionInfo: Ext.getCmp('str_PHARMAML_VERSION_INFO').getValue(),
                                     versionCommande: Ext.getCmp('str_PHARMAML_VERSION_CMDE').getValue(),
-                                    urlSecours: Ext.String.trim(Ext.getCmp('str_URL_PHARMAML_SECOURS').getValue() || '')},
+                                    urlSecours: Ext.String.trim(Ext.getCmp('str_URL_PHARMAML_SECOURS').getValue() || ''),
+                                    controle: Ext.getCmp('str_PHARMAML_CONTROLE').getValue() || ''},
                                 success: function (r) {
                                     var o = Ext.JSON.decode(r.responseText, true) || {};
                                     if (o.success === false && o.msg) {

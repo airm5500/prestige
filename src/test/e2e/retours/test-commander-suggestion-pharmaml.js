@@ -3,7 +3,7 @@
  * Faux grossiste (serveur HTTP local) : produit 1 livre, produit 2 en rupture.
  *
  * Ce que le test etablit :
- *  - action de ligne « Commander par PharmaML » : confirmation (grossiste, lignes, protocole), envoi en 3.0.0.0
+ *  - action de ligne « Commander par PharmaML » : confirmation (grossiste, lignes, protocole), envoi en 1.0.0.0 (defaut)
  *    (COMMANDE avec les lignes de la suggestion) ; la suggestion est CONSERVEE (memes lignes), statut « commandee »,
  *    mode PHARMAML, commande liee ; liste « COMMANDÉE · PHARMAML », actions masquees ;
  *  - envoi en echec (grossiste injoignable) : message clair, suggestion inchangee, commande creee et liee ; nouvel
@@ -104,13 +104,13 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     await p.click('[data-e2e="cmd-' + S.A + '-REF"]');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envoyer la suggestion/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 20000 });
     const conf = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
-    ok('Confirmation : référence, grossiste, 2 lignes, protocole 3.0.0.0, suggestion conservée', /E2E-SPM-A-REF/.test(conf) && /2 ligne\(s\), valeur 5 000/.test(conf) && /3\.0\.0\.0/.test(conf) && /conservée/.test(conf), conf);
+    ok('Confirmation : référence, grossiste, 2 lignes, protocole 1.0.0.0 (défaut), suggestion conservée', /E2E-SPM-A-REF/.test(conf) && /2 ligne\(s\), valeur 5 000/.test(conf) && /1\.0\.0\.0/.test(conf) && /conservée/.test(conf), conf);
     await p.screenshot({ path: CAPT + '/commander-pharmaml-confirmation.png' });
     await p.click('#' + await p.evaluate(() => Ext.MessageBox.msgButtons.yes.getId()));
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /commandée|abouti/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 60000 });
     const fin = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
     await p.evaluate(() => Ext.MessageBox.hide());
-    ok('Envoi : COMMANDE 3.0.0.0 avec les 2 lignes de la suggestion', recus.length === 1 && /<SRP_ENVELOPPE[^>]*3\.0\.0\.0/.test(recus[0]) && (recus[0].match(/<LIGNE_N /g) || []).length === 2, recus.length);
+    ok('Envoi : COMMANDE 1.0.0.0 (défaut) avec les 2 lignes de la suggestion', recus.length === 1 && /<CSRP_ENVELOPPE[^>]*1\.0\.0\.0/.test(recus[0]) && (recus[0].match(/<LIGNE_N /g) || []).length === 2, recus.length);
     ok('Résultat affiché : commandée, 1 pris en compte, 1 en rupture', /commandée/.test(fin) && /1 produit\(s\) pris en compte, 1 en rupture sur 2/.test(fin), fin);
     ok('Suggestion conservée (2 lignes), statut commandee, mode PHARMAML, commande liée', etatSugg(S.A) === 'commandee|PHARMAML|1|2', etatSugg(S.A));
     const lA = await liste(S.A + '-REF');

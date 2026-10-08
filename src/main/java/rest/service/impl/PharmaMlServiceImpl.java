@@ -240,11 +240,12 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     }
 
     /** Calcul de l'en-tete Content-PharmaML (parametre KEY_PHARMAML_CONTROLE, CSRP par defaut). */
-    String modeControle() {
+    /** Reglage du grossiste (fiche) ; a defaut, parametre global KEY_PHARMAML_CONTROLE ; a defaut, CSRP. */
+    String modeControle(TGrossiste g) {
         try {
-            List<?> r = em
-                    .createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_PHARMAML_CONTROLE'")
-                    .getResultList();
+            List<?> r = em.createNativeQuery("SELECT COALESCE(NULLIF(g.str_PHARMAML_CONTROLE, ''), (SELECT p.str_VALUE"
+                    + " FROM t_parameters p WHERE p.str_KEY = 'KEY_PHARMAML_CONTROLE')) FROM t_grossiste g"
+                    + " WHERE g.lg_GROSSISTE_ID = ?1").setParameter(1, g.getLgGROSSISTEID()).getResultList();
             return r.isEmpty() ? null : (String) r.get(0);
         } catch (Exception e) {
             return null;
@@ -405,7 +406,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             for (int i = 0; i < 50; i++) {
                 ecrireArchive("V_" + ref + "_" + nomFichier, xml);
                 HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
-                        g.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION, DELAI_REPONSE).reponse;
+                        g.getStrCLERECEPTEUR(), modeControle(g), DELAI_CONNEXION, DELAI_REPONSE).reponse;
                 String corps = rep.body();
                 ecrireArchive("RV_" + ref + "_" + nomFichier, corps);
                 if (rep.statusCode() != 200) {
@@ -640,8 +641,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         ? " Ce grossiste exige le contrôle calculé avec la clé de l'officine : renseignez la clé"
                                 + " fournie par le grossiste."
                         : " Le contrôle n'est pas reconnu : vérifiez dans la fiche grossiste la clé (4 caractères,"
-                                + " majuscules et minuscules comptent) et le code client de l'officine chez ce"
-                                + " grossiste ; le paramètre KEY_PHARMAML_CONTROLE doit valoir CSRP.")
+                                + " majuscules et minuscules comptent), le code client de l'officine chez ce grossiste"
+                                + " et son réglage « Contrôle PharmaML » (Spécification CSRP).")
                         : "";
         return nom + " a refusé la commande : « " + r.getMessage() + " ». La commande n'a pas été prise en compte."
                 + conseil + " Réponse archivée : " + r.archive + ".xml";
@@ -1346,8 +1347,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                     .setParameter(1, grossiste.getLgGROSSISTEID()).getResultList();
             return PharmaMlMessages.version(r.isEmpty() ? null : (String) r.get(0));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "version PharmaML du grossiste : 3.0.0.0 par defaut", e);
-            return PharmaMlMessages.V3;
+            LOG.log(Level.WARNING, "version PharmaML du grossiste : 1.0.0.0 par defaut", e);
+            return PharmaMlMessages.V1;
         }
     }
 
@@ -1373,8 +1374,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
         ecrireArchive("C_" + fileName, xml);
         HttpResponse<String> httpResponse = EnvoiPharmaMl.envoyer(adresses(grossiste), xml,
-                grossiste.getStrIDRECEPTEURPHARMA(), grossiste.getStrCLERECEPTEUR(), modeControle(), DELAI_CONNEXION,
-                DELAI_REPONSE).reponse;
+                grossiste.getStrIDRECEPTEURPHARMA(), grossiste.getStrCLERECEPTEUR(), modeControle(grossiste),
+                DELAI_CONNEXION, DELAI_REPONSE).reponse;
         if (httpResponse.statusCode() != 200) {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
             throw new RefusHttp(httpResponse.statusCode(), "R_LOG_" + fileName);
