@@ -70,6 +70,89 @@ public class PharmaMlResource {
         return Response.ok(pharmaMlService.reponseGrossiste(commandeId).toString()).build();
     }
 
+    // Retours du 08/10 (7) : suivi des substitutions
+
+    private Response refuse() {
+        return Response.ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                .build();
+    }
+
+    private static LocalDate date(String v, LocalDate defaut) {
+        try {
+            return v == null || v.isBlank() ? defaut : LocalDate.parse(v.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            return defaut;
+        }
+    }
+
+    @GET
+    @Path("substitutions")
+    public Response substitutions(@QueryParam("statut") String statut, @QueryParam("grossiste") String grossiste,
+            @QueryParam("du") String du, @QueryParam("au") String au, @QueryParam("query") String query) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        String st = statut == null ? "" : statut.trim().toUpperCase();
+        if (!st.isEmpty()
+                && !java.util.Arrays.asList("PROPOSE", "ACCEPTE", "REFUSE", "AJOUTE", "RETIRE").contains(st)) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "État inconnu").toString()).build();
+        }
+        LocalDate fin = date(au, LocalDate.now()), debut = date(du, fin.minusMonths(1));
+        if (debut.isAfter(fin)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        return Response.ok(pharmaMlService.substitutions(st, grossiste, debut, fin, query).toString()).build();
+    }
+
+    @GET
+    @Path("substitutions/commande/{id}")
+    public Response substitutionsCommande(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.substitutionsCommande(id).toString()).build();
+    }
+
+    @POST
+    @Path("substitutions/{id}/annuler")
+    public Response annulerAcceptation(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.annulerAcceptation(id, u).toString()).build();
+    }
+
+    @POST
+    @Path("substitutions/{id}/retirer")
+    public Response retirerSubstitution(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.retirerSubstitution(id, u).toString()).build();
+    }
+
+    @GET
+    @Path("substitutions/choix")
+    public Response choixMemorises() {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.choixMemorises().toString()).build();
+    }
+
+    @POST
+    @Path("substitutions/choix/supprimer")
+    public Response supprimerChoix(@QueryParam("famille") String famille, @QueryParam("code") String code) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.supprimerChoixMemorise(famille, code, u).toString()).build();
+    }
+
     /** decision = ACCEPTER | REFUSER ; memoriser = meme choix automatique pour ce couple de produits. */
     @POST
     @Path("remplacements/{id}")

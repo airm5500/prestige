@@ -209,7 +209,18 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                 }
 
             ],
-            items: [
+            /* retours du 08/10 (7) : onglets « Ruptures » (liste + equivalents proposes) et « Substitutions » */
+            items: [{
+                    xtype: 'tabpanel',
+                    itemId: 'ongletsRuptures',
+                    flex: 1,
+                    minHeight: 560,
+                    plain: true,
+                    items: [{
+                            title: 'Ruptures',
+                            itemId: 'ongletRuptures',
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [
                 {
                     xtype: 'gridpanel',
                     itemId: 'grilleRuptures',
@@ -359,10 +370,233 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
 
                 },
                 me.grilleEquivalents()
-            ]
+                            ]
+                        }, me.ongletSubstitutions()]
+                }]
 
         });
         me.callParent(arguments);
+        /* ouverture depuis une commande (pastille « a decider ») */
+        var demandee = testextjs.view.pharmaml.Rupturepharma.referenceDemandee;
+        if (demandee) {
+            testextjs.view.pharmaml.Rupturepharma.referenceDemandee = null;
+            me.ruptureChoisie = {id: null, reference: demandee};
+        }
+        /* la barre du haut (periode, grossiste, recherche) sert aussi a l'onglet Substitutions */
+        me.on('afterrender', function () {
+            var b = me.down('#rechercher');
+            if (b) {
+                b.on('click', function () {
+                    if (me.down('#ongletsRuptures').getActiveTab() === me.down('#ongletSubstitutions')) {
+                        me.chargerSubstitutions();
+                    }
+                });
+            }
+        });
+    },
+
+    /*
+     * Retours du 08/10 (7) : historique des substitutions proposees ou livrees par les grossistes, avec qui a decide et
+     * quand. Actions sur la ligne (sans fenetre de saisie) : annuler une acceptation tant que la rupture n'a pas ete
+     * renvoyee ; retirer de la commande un produit deja livre (EL/RL) avant la reception. En dessous : les choix
+     * memorises (decision automatique pour un couple de produits), supprimables.
+     */
+    ETATS_SUBST: {
+        PROPOSE: ['À décider', '#b26a00', '#fff4e0'],
+        ACCEPTE: ['Acceptée', '#17795f', '#e3f6ef'],
+        REFUSE: ['Refusée', '#6b7b8c', '#eef2f6'],
+        AJOUTE: ['Livrée (ajoutée)', '#1f5f9e', '#e4effa'],
+        RETIRE: ['Retirée', '#b42318', '#fde7e6']
+    },
+
+    chargerSubstitutions: function () {
+        var me = this, g = me.down('#grilleSubstitutions'), d1 = me.down('#dtStart'), d2 = me.down('#dtEnd'),
+                gr = me.down('#grossiste'), q = me.down('#query'), st = g.getStore();
+        st.getProxy().extraParams = {
+            statut: me.down('#filtreEtatSubst').getValue() || '',
+            du: d1 && d1.getValue() ? Ext.Date.format(d1.getValue(), 'Y-m-d') : '',
+            au: d2 && d2.getValue() ? Ext.Date.format(d2.getValue(), 'Y-m-d') : '',
+            grossiste: gr && gr.getValue() ? gr.getValue() : '',
+            query: q && q.getValue() ? q.getValue() : ''
+        };
+        st.load();
+        me.down('#grilleChoix').getStore().load();
+    },
+
+    actionSubstitution: function (rec, action) {
+        var me = this, info = me.down('#infoSubstitution'), enc = Ext.String.htmlEncode;
+        var url = action === 'choix' ? '../api/v1/pharma/substitutions/choix/supprimer?famille=' + encodeURIComponent(rec.get('familleId'))
+                + '&code=' + encodeURIComponent(rec.get('codeRemplacant'))
+                : '../api/v1/pharma/substitutions/' + encodeURIComponent(rec.get('id')) + '/' + action;
+        var faire = function () {
+            Ext.Ajax.request({
+                method: 'POST', url: url,
+                success: function (r) {
+                    var o = Ext.decode(r.responseText, true) || {};
+                    info.update('<span style="color:' + (o.success ? '#17795f' : '#b42318') + '">' + enc(o.msg || 'Opération impossible.') + '</span>');
+                    me.chargerSubstitutions();
+                    var eq = me.down('#grilleEquivalents');
+                    if (eq) {
+                        eq.getStore().reload();
+                    }
+                    var rup = me.down('#grilleRuptures');
+                    if (rup) {
+                        rup.getStore().reload();
+                    }
+                },
+                failure: function () {
+                    info.update('<span style="color:#b42318">Le serveur ne répond pas.</span>');
+                }
+            });
+        };
+        if (action === 'retirer') {
+            /* suppression d'une ligne de commande : confirmation */
+            Ext.MessageBox.confirm('Retirer de la commande', 'Retirer « ' + enc(rec.get('designationRemplacant')) + ' » de la commande '
+                    + enc(rec.get('reference')) + ' ?<br>Le grossiste l\'a livré à la place de ' + enc(rec.get('produitOrigine')) + '.', function (b) {
+                if (b === 'yes') {
+                    faire();
+                }
+            });
+        } else {
+            faire();
+        }
+    },
+
+    ongletSubstitutions: function () {
+        var me = this, enc = Ext.String.htmlEncode;
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['id', 'type', 'statut', 'mode', 'date', 'dateDecision', 'utilisateur', 'grossiste', 'reference', 'cipOrigine',
+                'produitOrigine', 'codeRemplacant', 'designationRemplacant', 'qte', 'prixAchat', 'historique', 'commandeId',
+                {name: 'annulable', type: 'boolean'}, {name: 'retirable', type: 'boolean'}, 'raison'],
+            proxy: {type: 'ajax', url: '../api/v1/pharma/substitutions', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        var choix = Ext.create('Ext.data.Store', {
+            fields: ['familleId', 'codeRemplacant', 'choix', 'date', 'cipOrigine', 'produitOrigine', 'designationRemplacant', 'utilisateur'],
+            proxy: {type: 'ajax', url: '../api/v1/pharma/substitutions/choix', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        var pastille = function (t, c, f) {
+            return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:' + c + ';background:' + f + '">' + t + '</span>';
+        };
+        return {
+            title: 'Substitutions',
+            itemId: 'ongletSubstitutions',
+            layout: {type: 'vbox', align: 'stretch'},
+            listeners: {
+                activate: function () {
+                    me.chargerSubstitutions();
+                }
+            },
+            items: [{
+                    xtype: 'gridpanel',
+                    itemId: 'grilleSubstitutions',
+                    cls: 'theme-liste',
+                    flex: 1,
+                    minHeight: 280,
+                    store: store,
+                    viewConfig: {emptyText: '<div style="padding:10px;color:#6b7b8c">Aucune substitution sur la période.</div>', deferEmptyText: false},
+                    dockedItems: [{
+                            xtype: 'toolbar', dock: 'top',
+                            items: [{
+                                    xtype: 'combobox', itemId: 'filtreEtatSubst', fieldLabel: 'État', labelWidth: 36, width: 230, editable: false,
+                                    queryMode: 'local', displayField: 'l', valueField: 'v', value: '',
+                                    store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: 'Tous'}, {v: 'PROPOSE', l: 'À décider'},
+                                            {v: 'ACCEPTE', l: 'Acceptées'}, {v: 'REFUSE', l: 'Refusées'}, {v: 'AJOUTE', l: 'Livrées (ajoutées)'}, {v: 'RETIRE', l: 'Retirées'}]}),
+                                    listeners: {
+                                        select: function () {
+                                            me.chargerSubstitutions();
+                                        }
+                                    }
+                                }, {xtype: 'component', html: '<span style="color:#6b7b8c">Période, grossiste et recherche : barre du haut</span>'},
+                                '->', {xtype: 'component', itemId: 'infoSubstitution', html: ''}]
+                        }],
+                    columns: [
+                        {header: 'Date', dataIndex: 'date', width: 128},
+                        {header: 'Commande', dataIndex: 'reference', width: 120},
+                        {header: 'Grossiste', dataIndex: 'grossiste', width: 110},
+                        {header: 'Produit commandé', dataIndex: 'produitOrigine', flex: 1, renderer: function (v, m, r) {
+                                m.tdAttr = 'data-qtip="' + enc(enc((v || '') + ' ' + (r.get('cipOrigine') || ''))) + '"';
+                                return enc(v) + ' <span style="color:#6b7b8c">' + enc(r.get('cipOrigine')) + '</span>';
+                            }},
+                        {header: 'Substitut', dataIndex: 'designationRemplacant', flex: 1, renderer: function (v, m, r) {
+                                m.tdAttr = 'data-qtip="' + enc(enc((v || '') + ' ' + r.get('codeRemplacant'))) + '"';
+                                return '<b>' + enc(v || r.get('codeRemplacant')) + '</b> <span style="color:#6b7b8c">' + enc(r.get('codeRemplacant')) + '</span>';
+                            }},
+                        {header: 'Type', dataIndex: 'type', width: 64, renderer: function (v, m) {
+                                m.tdAttr = 'data-qtip="' + enc({EL: 'Équivalent livré', RL: 'Remplaçant livré', EP: 'Équivalent proposé (non livré)'}[v] || v) + '"';
+                                return enc(v);
+                            }},
+                        {header: 'Qté', dataIndex: 'qte', width: 48, align: 'right'},
+                        {header: 'État', dataIndex: 'statut', width: 128, renderer: function (v, m, r) {
+                                var E = me.ETATS_SUBST[v] || [v, '#333', '#eee'];
+                                var h = r.get('historique');
+                                if (h) {
+                                    m.tdAttr = 'data-qtip="' + enc(enc(h).replace(/ ; /g, '<br>')) + '"';
+                                }
+                                return '<span class="etat-subst" data-etat="' + enc(v) + '">' + pastille(E[0] + (r.get('mode') === 'AUTO' && v !== 'AJOUTE' ? ' (auto)' : ''), E[1], E[2]) + '</span>';
+                            }},
+                        {header: 'Décidé par', dataIndex: 'utilisateur', width: 130, renderer: function (v, m, r) {
+                                return enc(v || (r.get('mode') === 'AUTO' ? 'Automatique' : '')) + (r.get('dateDecision') ? '<br><span style="color:#6b7b8c;font-size:11px">' + enc(r.get('dateDecision')) + '</span>' : '');
+                            }},
+                        {header: '', dataIndex: 'id', itemId: 'colActionSubst', width: 175, sortable: false, menuDisabled: true, renderer: function (v, m, r) {
+                                if (r.get('annulable')) {
+                                    m.tdAttr = 'data-qtip="La rupture reprend le produit d\'origine ; la proposition redevient à décider."';
+                                    return '<a href="#" class="subst-annuler" data-subst-action="annuler" style="color:#b42318;font-weight:600">Annuler l\'acceptation</a>';
+                                }
+                                if (r.get('retirable')) {
+                                    m.tdAttr = 'data-qtip="Enlève ce produit de la commande ' + enc(enc(r.get('reference'))) + ' (avant réception)."';
+                                    return '<a href="#" class="subst-retirer" data-subst-action="retirer" style="color:#b42318;font-weight:600">Retirer de la commande</a>';
+                                }
+                                if (r.get('statut') === 'PROPOSE') {
+                                    return '<span style="color:#6b7b8c">Décision : onglet Ruptures</span>';
+                                }
+                                return r.get('raison') ? '<span style="color:#6b7b8c" data-qtip="' + enc(r.get('raison')) + '">' + enc(r.get('raison')) + '</span>' : '';
+                            }}
+                    ],
+                    listeners: {
+                        cellclick: function (view, td, ci, rec, tr, ri, e) {
+                            var t = e.getTarget('[data-subst-action]');
+                            if (t) {
+                                e.preventDefault();
+                                me.actionSubstitution(rec, t.getAttribute('data-subst-action'));
+                            }
+                        }
+                    }
+                }, {
+                    xtype: 'gridpanel',
+                    itemId: 'grilleChoix',
+                    title: 'Choix mémorisés (décision automatique pour un couple de produits)',
+                    cls: 'theme-liste',
+                    height: 190,
+                    margin: '8 0 0 0',
+                    collapsible: true,
+                    store: choix,
+                    viewConfig: {emptyText: '<div style="padding:10px;color:#6b7b8c">Aucun choix mémorisé.</div>', deferEmptyText: false},
+                    columns: [
+                        {header: 'Produit commandé', dataIndex: 'produitOrigine', flex: 1, renderer: function (v, m, r) {
+                                return enc(v) + ' <span style="color:#6b7b8c">' + enc(r.get('cipOrigine')) + '</span>';
+                            }},
+                        {header: 'Substitut', dataIndex: 'designationRemplacant', flex: 1, renderer: function (v, m, r) {
+                                return enc(v || '') + ' <span style="color:#6b7b8c">' + enc(r.get('codeRemplacant')) + '</span>';
+                            }},
+                        {header: 'Choix', dataIndex: 'choix', width: 150, renderer: function (v) {
+                                return v === 'ACCEPTER' ? pastille('Toujours accepter', '#17795f', '#e3f6ef') : pastille('Toujours refuser', '#b42318', '#fde7e6');
+                            }},
+                        {header: 'Par', dataIndex: 'utilisateur', width: 130},
+                        {header: 'Le', dataIndex: 'date', width: 128},
+                        {header: '', width: 110, sortable: false, menuDisabled: true, dataIndex: 'familleId', renderer: function () {
+                                return '<a href="#" class="choix-supprimer" data-subst-action="choix" style="color:#b42318">Supprimer</a>';
+                            }}
+                    ],
+                    listeners: {
+                        cellclick: function (view, td, ci, rec, tr, ri, e) {
+                            if (e.getTarget('[data-subst-action]')) {
+                                e.preventDefault();
+                                me.actionSubstitution(rec, 'choix');
+                            }
+                        }
+                    }
+                }]
+        };
     },
 
     /*
@@ -370,6 +604,17 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
      * ils changent a chaque clic. Rien de choisi : tous, avec le rappel de cliquer une ligne.
      */
     ruptureChoisie: null,
+
+    /** Retours du 08/10 (7) : ouverture depuis une commande : equivalents de cette commande seulement. */
+    choisirReference: function (reference) {
+        var me = this, onglets = me.down('#ongletsRuptures');
+        if (onglets) {
+            onglets.setActiveTab(me.down('#ongletRuptures'));
+        }
+        me.ruptureChoisie = reference ? {id: null, reference: reference} : null;
+        me.filtrerEquivalents();
+        me.marquerRuptureChoisie();
+    },
 
     marquerRuptureChoisie: function () {
         var me = this, g = me.down('#grilleRuptures'), v = g && g.getView(), choix = me.ruptureChoisie;
@@ -398,7 +643,8 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
         if (me.ruptureChoisie) {
             var choix = me.ruptureChoisie;
             st.filterBy(function (r) {
-                return r.get('ruptureId') ? r.get('ruptureId') === choix.id : r.get('reference') === choix.reference;
+                /* choix par commande (pastille de la liste des commandes) : reference seule */
+                return choix.id && r.get('ruptureId') ? r.get('ruptureId') === choix.id : r.get('reference') === choix.reference;
             });
         } else {
             st.filterBy(function () {

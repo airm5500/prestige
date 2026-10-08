@@ -533,7 +533,24 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     text: 'DESIGNATION',
                                     flex: 2.5,
                                     sortable: true,
-                                    dataIndex: 'lg_FAMILLE_NAME'
+                                    dataIndex: 'lg_FAMILLE_NAME',
+                                    /* retours du 08/10 (7) : produit livre par le grossiste a la place d'un autre (EL / RL) */
+                                    renderer: function (v, meta, r) {
+                                        var e = ecranCommande(), s = e && e.substitutions && e.substitutions[r.get('lg_ORDERDETAIL_ID')];
+                                        var t = Ext.String.htmlEncode(v || '');
+                                        if (!s) {
+                                            return t;
+                                        }
+                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode((s.type === 'RL' ? 'Remplaçant' : 'Équivalent')
+                                                + ' livré par ' + s.grossiste + ' à la place de ' + s.produitOrigine + ' (' + s.cipOrigine + ')'
+                                                + (s.retirable ? '. « Retirer » l\'enlève de la commande (avant réception).' : (s.raison ? '. Retrait impossible : ' + s.raison + '.' : '')))) + '"';
+                                        /* seconde ligne de la cellule : le badge ne depend plus de la longueur du nom ; « Retirer » toujours visible */
+                                        return t + '<br><span class="ligne-substitution" style="display:flex;align-items:center;gap:6px;max-width:100%">'
+                                                + '<span class="badge-substitution" data-substitution="' + Ext.String.htmlEncode(s.id) + '" style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+                                                + 'padding:0 7px;border-radius:9px;font-size:10.5px;font-weight:600;color:#8a5a00;background:#fdf0d2">Remplace ' + Ext.String.htmlEncode(s.produitOrigine) + '</span>'
+                                                + (s.retirable ? '<a href="#" class="retirer-substitution" data-retirer-substitution="' + Ext.String.htmlEncode(s.id)
+                                                        + '" style="flex:0 0 auto;font-size:11px;font-weight:600;color:#b42318">Retirer</a>' : '') + '</span>';
+                                    }
                                 },
                                 {
                                     text: 'STOCK',
@@ -914,7 +931,16 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         }
 
 
+        if (this.estModification()) {
+            this.chargerSubstitutions();
+        }
         Ext.getCmp('gridpanelID').on('cellclick', function (view, td, ci, record, tr, ri, e) {
+            var retrait = e && e.getTarget && e.getTarget('[data-retirer-substitution]');
+            if (retrait) {
+                e.preventDefault();
+                ecranCommande().retirerSubstitution(retrait.getAttribute('data-retirer-substitution'), record.get('lg_FAMILLE_NAME'));
+                return false;
+            }
             if (e && e.getTarget && e.getTarget('[data-verif-dispo]')) {
                 ecranCommande().verifierDispoProduit(record.get('lg_FAMILLE_ID'));
                 return false;
@@ -1059,6 +1085,73 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
     loadStore: function () {
         ecranCommande().onRechClick();
+    },
+
+    /*
+     * Retours du 08/10 (7) : substitutions PharmaML de cette commande. Lignes livrees a la place d'un autre produit
+     * (badge « Remplace … », retrait possible avant reception) et equivalents proposes encore a decider (bandeau).
+     */
+    chargerSubstitutions: function () {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/pharma/substitutions/commande/' + encodeURIComponent(me.getNameintern()),
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {}, g = Ext.getCmp('gridpanelID'), bandeau;
+                if (!o.success || !g || g.isDestroyed) {
+                    return;
+                }
+                me.substitutions = {};
+                Ext.each(o.data || [], function (s) {
+                    if (s.ligneCommandeId && s.statut === 'AJOUTE') {
+                        me.substitutions[s.ligneCommandeId] = s;
+                    }
+                });
+                bandeau = g.down('#bandeauSubstitutions');
+                if (bandeau) {
+                    g.removeDocked(bandeau, true);
+                }
+                if (o.aDecider > 0) {
+                    g.addDocked({xtype: 'component', dock: 'top', itemId: 'bandeauSubstitutions', cls: 'bandeau-substitutions',
+                        style: 'padding:6px 10px;background:#fdf0d2;color:#8a5a00;font-weight:600',
+                        html: o.aDecider + ' équivalent(s) proposé(s) par le grossiste à décider : '
+                                + '<a href="#" data-ouvrir-propositions="1" style="color:#2E75B6">ouvrir la liste des ruptures</a>',
+                        listeners: {
+                            afterrender: function (c) {
+                                c.getEl().on('click', function (ev) {
+                                    if (ev.getTarget('[data-ouvrir-propositions]')) {
+                                        ev.preventDefault();
+                                        testextjs.view.commandemanagement.order.EnvoiPharmaMl.ouvrirPropositions(me.getOdatasource().str_REF_ORDER);
+                                    }
+                                });
+                            }
+                        }});
+                }
+                g.getView().refresh();
+            }
+        });
+    },
+
+    retirerSubstitution: function (id, nom) {
+        var me = this;
+        Ext.MessageBox.confirm('Retirer de la commande', 'Retirer « ' + Ext.String.htmlEncode(nom || '') + ' » de la commande ?'
+                + '<br>Le grossiste l\'a livré à la place d\'un autre produit ; la ligne et son montant sont retirés.', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
+            Ext.Ajax.request({
+                method: 'POST', url: '../api/v1/pharma/substitutions/' + encodeURIComponent(id) + '/retirer',
+                success: function (r) {
+                    var o = Ext.decode(r.responseText, true) || {};
+                    if (!o.success) {
+                        Ext.MessageBox.alert('Retirer de la commande', Ext.String.htmlEncode(o.msg || 'Retrait impossible.'));
+                        return;
+                    }
+                    Ext.getCmp('gridpanelID').getStore().reload();
+                    me.getCommandeAmount(me.getNameintern());
+                    me.chargerSubstitutions();
+                }
+            });
+        });
     },
 
     onbtndetail: function () {

@@ -33,9 +33,29 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         if (v === 'EN_ATTENTE') {
             info += '<br>Bouton « récupérer la réponse » sur la ligne';
         }
+        var n = r.get('int_PROPOSITIONS') || 0;
+        if (n > 0) {
+            info += '<br>' + n + ' équivalent(s) proposé(s) par le grossiste à décider (clic sur la pastille)';
+        }
         meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(info) + '"';
         return '<span class="envoi-pml" data-envoi="' + v + '" style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:'
-                + S[1] + ';background:' + S[2] + '">' + S[0] + '</span>';
+                + S[1] + ';background:' + S[2] + '">' + S[0] + '</span>'
+                /* retours du 08/10 (7) : equivalents a decider, clic = liste des ruptures sur cette commande */
+                + (n > 0 ? ' <span class="pml-a-decider" data-a-decider="' + n + '" style="display:inline-block;cursor:pointer;padding:1px 6px;border-radius:10px;'
+                        + 'font-size:10.5px;font-weight:700;color:#fff;background:#b26a00">' + n + ' à décider</span>' : '');
+    },
+
+    /** Retours du 08/10 (7) : liste des ruptures, equivalents proposes limites a cette commande. */
+    ouvrirPropositions: function (reference) {
+        testextjs.view.pharmaml.Rupturepharma.referenceDemandee = reference;
+        var ouvert = Ext.ComponentQuery.query('rupturepharma')[0];
+        testextjs.app.getController('App').onLoadNewComponent('rupturepharma', 'Liste des ruptures', '');
+        Ext.defer(function () {
+            var e = Ext.ComponentQuery.query('rupturepharma')[0];
+            if (e && (e === ouvert || !testextjs.view.pharmaml.Rupturepharma.referenceDemandee)) {
+                e.choisirReference(reference);
+            }
+        }, 300);
     },
 
     /** Action de ligne visible seulement pour un envoi en attente de reponse. */

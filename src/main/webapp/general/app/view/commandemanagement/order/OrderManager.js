@@ -89,7 +89,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'PharmaML',
                     dataIndex: 'str_ENVOI_PHARMAML',
                     itemId: 'colEnvoiPharmaml',
-                    width: 118,
+                    width: 168,
                     renderer: function (v, meta, r) {
                         return testextjs.view.commandemanagement.order.EnvoiPharmaMl.rendu(v, meta, r);
                     }
@@ -371,6 +371,13 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         });
 
         this.callParent();
+        /* retours du 08/10 (7) : pastille « n a decider » -> equivalents proposes de cette commande */
+        this.on('cellclick', function (view, td, ci, rec, tr, ri, e) {
+            if (e && e.getTarget && e.getTarget('[data-a-decider]')) {
+                testextjs.view.commandemanagement.order.EnvoiPharmaMl.ouvrirPropositions(rec.get('str_REF_ORDER'));
+                return false;
+            }
+        });
 
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,

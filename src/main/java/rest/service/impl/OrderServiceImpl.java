@@ -2717,6 +2717,9 @@ public class OrderServiceImpl implements OrderService {
             String[] e = StatutEnvoiPharmaMl.dernierEnvoi(getEmg(), commande.getLgORDERID());
             if (e != null) {
                 commande.setEnvoiPharmaMl(e[0], e[1], e[2]);
+                /* retours du 08/10 (7) : equivalents proposes par le grossiste, en attente de decision */
+                commande.setPropositionsADecider(
+                        PharmaMlServiceImpl.propositionsADecider(getEmg(), commande.getLgORDERID()));
             }
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", e.getMessage());

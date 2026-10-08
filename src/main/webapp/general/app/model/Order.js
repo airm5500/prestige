@@ -79,7 +79,9 @@ Ext.define('testextjs.model.Order', {
         /* Retours du 08/10 : statut du dernier envoi PharmaML */
         {name: 'str_ENVOI_PHARMAML', type: 'string'},
         {name: 'dt_ENVOI_PHARMAML', type: 'string'},
-        {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'}
+        {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'},
+        /* retours du 08/10 (7) : equivalents proposes a decider */
+        {name: 'int_PROPOSITIONS', type: 'int'}
 
     ]
 });

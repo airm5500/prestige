@@ -927,7 +927,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     }
 
-    private void addRemplacement(LigneNReponse ligneNReponse, int qtyOrigin, TFamille famille, TOrder order) {
+    private String addRemplacement(LigneNReponse ligneNReponse, int qtyOrigin, TFamille famille, TOrder order) {
         Pair<Integer, Integer> prixs = getPrixAchatPrixUni(ligneNReponse.getPrix());
 
         TOrderDetail item = new TOrderDetail(KeyUtilGen.getId());
@@ -947,7 +947,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         item.setIntPRICE(item.getIntPAFDETAIL() * qtyOrigin);
         em.persist(item);
         order.getTOrderDetailCollection().add(item);
-
+        return item.getLgORDERDETAILID();
     }
 
     // on creer le produit s'il n'existe pas
@@ -1107,9 +1107,12 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 famille = createTFamille(buildFromLigneNReponse(ligneNReponse), grossiste);
             }
             // on ajoute la ligne a la commande
-            addRemplacement(ligneNReponse, qty, famille, order);
-            noterRemplacement(grossiste, order, origine, null, type, produitRemplacant, ligneNReponse, qty,
-                    REMPL_AJOUTE, "AUTO");
+            String ligneAjoutee = addRemplacement(ligneNReponse, qty, famille, order);
+            String idRempl = noterRemplacement(grossiste, order, origine, null, type, produitRemplacant, ligneNReponse,
+                    qty, REMPL_AJOUTE, "AUTO");
+            /* retours du 08/10 (7) : ligne de la commande, pour la marquer et pouvoir la retirer avant reception */
+            em.createNativeQuery("UPDATE t_pharmaml_remplacement SET lg_ORDERDETAIL_ID = ?1 WHERE lg_ID = ?2")
+                    .setParameter(1, ligneAjoutee).setParameter(2, idRempl).executeUpdate();
         } else if (TypeRemplacement.EP.name().equals(type) && origine != null) {
             String choix = choixMemorise(origine.getLgFAMILLEID(), code);
             String id = noterRemplacement(grossiste, order, origine, ligneRupture, type, produitRemplacant,
@@ -1121,7 +1124,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     }
 
     static final String REMPL_AJOUTE = "AJOUTE", REMPL_PROPOSE = "PROPOSE", REMPL_ACCEPTE = "ACCEPTE",
-            REMPL_REFUSE = "REFUSE", ACCEPTER = "ACCEPTER", REFUSER = "REFUSER";
+            REMPL_REFUSE = "REFUSE", REMPL_RETIRE = "RETIRE", ACCEPTER = "ACCEPTER", REFUSER = "REFUSER";
 
     private String noterRemplacement(TGrossiste g, TOrder order, TFamille origine, RuptureDetail ligneRupture,
             String type, ProduitRemplacant p, LigneNReponse ligne, int qty, String statut, String mode) {
@@ -1152,6 +1155,288 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         + " WHERE lg_FAMILLE_ID = ?1 AND str_CODE_REMPLACANT = ?2")
                 .setParameter(1, familleId).setParameter(2, code).getResultList();
         return r.isEmpty() ? null : (String) r.get(0);
+    }
+
+    // ------------------------------------------------------------------
+    // Retours du 08/10 (7) : suivi des substitutions (onglet « Substitutions » des ruptures, lignes de commande)
+    // ------------------------------------------------------------------
+
+    private static final java.time.format.DateTimeFormatter HORODATAGE_HISTO = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy HH:mm");
+
+    static String nomUtilisateur(TUser u) {
+        if (u == null) {
+            return "le système";
+        }
+        String n = (StringUtils.trimToEmpty(u.getStrFIRSTNAME()) + " " + StringUtils.trimToEmpty(u.getStrLASTNAME()))
+                .trim();
+        return n.isEmpty() ? StringUtils.defaultString(u.getStrLOGIN()) : n;
+    }
+
+    /** Historique existant + nouvelle entree datee (le plus recent a la fin), borne a 1000 caracteres. */
+    @SuppressWarnings("unchecked")
+    private String historique(String id, String entree) {
+        List<Object> r = em.createNativeQuery("SELECT str_HISTORIQUE FROM t_pharmaml_remplacement WHERE lg_ID = ?1")
+                .setParameter(1, id).getResultList();
+        String avant = r.isEmpty() || r.get(0) == null ? "" : (String) r.get(0);
+        String ligne = java.time.LocalDateTime.now().format(HORODATAGE_HISTO) + " : " + entree;
+        String tout = avant.isEmpty() ? ligne : avant + " ; " + ligne;
+        return tout.length() <= 1000 ? tout : "… " + tout.substring(tout.length() - 998);
+    }
+
+    /** Rupture deja renvoyee au grossiste (envoi recu, en attente ou traite) : la substitution n'est plus annulable. */
+    @SuppressWarnings("unchecked")
+    private boolean ruptureRenvoyee(String ruptureId) {
+        if (ruptureId == null) {
+            return false;
+        }
+        List<Object> r = em
+                .createNativeQuery("SELECT COUNT(*) FROM t_pharmaml_attente WHERE str_SOURCE = ?1"
+                        + " AND lg_SOURCE_ID = ?2 AND str_STATUT IN (?3, ?4, ?5)")
+                .setParameter(1, SOURCE_RUPTURE).setParameter(2, ruptureId).setParameter(3, EN_ATTENTE)
+                .setParameter(4, TRAITEE).setParameter(5, RATTACHEE).getResultList();
+        return ((Number) r.get(0)).intValue() > 0;
+    }
+
+    private static final String SQL_SUBSTITUTIONS = "SELECT r.lg_ID, r.str_TYPE, r.str_STATUT, IFNULL(r.str_MODE, ''),"
+            + " DATE_FORMAT(r.dt_CREATED, '%d/%m/%Y %H:%i'), IFNULL(DATE_FORMAT(r.dt_DECISION, '%d/%m/%Y %H:%i'), ''),"
+            + " IFNULL(TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))), ''),"
+            + " g.str_LIBELLE, IFNULL(r.str_REF_CDE, ''), IFNULL(fo.int_CIP, ''), IFNULL(fo.str_NAME, ''),"
+            + " r.str_CODE_REMPLACANT, IFNULL(NULLIF(r.str_DESIGNATION, ''), IFNULL((SELECT e.str_NAME FROM t_famille e"
+            + "   WHERE e.int_CIP = r.str_CODE_REMPLACANT LIMIT 1), '')), r.int_QTE, r.int_PRIX_ACHAT,"
+            + " IFNULL(r.str_HISTORIQUE, ''), r.lg_ORDER_ID, r.lg_ORDERDETAIL_ID, IFNULL(o.str_STATUT, ''),"
+            + " (SELECT d.ruptureId FROM rupture_detail d WHERE d.id = r.lg_RUPTURE_DETAIL_ID),"
+            + " (SELECT d.produitId FROM rupture_detail d WHERE d.id = r.lg_RUPTURE_DETAIL_ID), r.lg_FAMILLE_ID,"
+            + " (SELECT COUNT(*) FROM t_order_detail od WHERE od.lg_ORDERDETAIL_ID = r.lg_ORDERDETAIL_ID)"
+            + " FROM t_pharmaml_remplacement r JOIN t_grossiste g ON g.lg_GROSSISTE_ID = r.lg_GROSSISTE_ID"
+            + " LEFT JOIN t_famille fo ON fo.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
+            + " LEFT JOIN t_user u ON u.lg_USER_ID = r.lg_USER_ID LEFT JOIN t_order o ON o.lg_ORDER_ID = r.lg_ORDER_ID";
+
+    private JSONObject ligneSubstitution(Object[] l) {
+        String statut = (String) l[2], type = (String) l[1];
+        String ruptureId = (String) l[19], produitRupture = (String) l[20], origine = (String) l[21];
+        boolean ligneCommande = l[22] != null && ((Number) l[22]).intValue() > 0;
+        String statutCommande = (String) l[18];
+        boolean commandeNonRecue = "is_Process".equals(statutCommande) || Constant.STATUT_PHARMA.equals(statutCommande);
+        /* annulable : acceptee, rupture encore la et non renvoyee, la ligne porte toujours l'equivalent */
+        boolean annulable = REMPL_ACCEPTE.equals(statut) && ruptureId != null && produitRupture != null
+                && !produitRupture.equals(origine) && !ruptureRenvoyee(ruptureId);
+        /* retirable : deja livre (EL/RL) ajoute a une commande pas encore receptionnee (aucun bon de livraison) */
+        boolean retirable = REMPL_AJOUTE.equals(statut) && ligneCommande && commandeNonRecue;
+        String raison = "";
+        if (REMPL_ACCEPTE.equals(statut) && !annulable) {
+            raison = ruptureId == null ? "rupture supprimée" : "rupture déjà renvoyée au grossiste";
+        } else if (REMPL_AJOUTE.equals(statut) && !retirable) {
+            raison = !ligneCommande ? "ligne absente de la commande" : "commande déjà en réception (bon de livraison)";
+        }
+        return new JSONObject().put("id", l[0]).put("type", type).put("statut", statut).put("mode", l[3])
+                .put("date", l[4]).put("dateDecision", l[5]).put("utilisateur", l[6]).put("grossiste", l[7])
+                .put("reference", l[8]).put("cipOrigine", l[9]).put("produitOrigine", l[10])
+                .put("codeRemplacant", l[11]).put("designationRemplacant", l[12]).put("qte", l[13])
+                .put("prixAchat", l[14]).put("historique", l[15]).put("commandeId", l[16] == null ? "" : l[16])
+                .put("ligneCommandeId", l[17] == null ? "" : l[17]).put("ruptureId", ruptureId == null ? "" : ruptureId)
+                .put("annulable", annulable).put("retirable", retirable).put("raison", raison);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject substitutions(String statut, String grossisteId, java.time.LocalDate du, java.time.LocalDate au,
+            String recherche) {
+        StringBuilder sql = new StringBuilder(SQL_SUBSTITUTIONS).append(" WHERE DATE(r.dt_CREATED) BETWEEN ?1 AND ?2");
+        if (StringUtils.isNotBlank(statut)) {
+            sql.append(" AND r.str_STATUT = ?3");
+        }
+        if (StringUtils.isNotBlank(grossisteId)) {
+            sql.append(" AND r.lg_GROSSISTE_ID = ?4");
+        }
+        if (StringUtils.isNotBlank(recherche)) {
+            sql.append(" AND (r.str_REF_CDE LIKE ?5 OR fo.str_NAME LIKE ?5 OR fo.int_CIP LIKE ?5"
+                    + " OR r.str_DESIGNATION LIKE ?5 OR r.str_CODE_REMPLACANT LIKE ?5)");
+        }
+        sql.append(" ORDER BY r.dt_CREATED DESC");
+        javax.persistence.Query q = em.createNativeQuery(sql.toString()).setParameter(1, du).setParameter(2, au);
+        if (StringUtils.isNotBlank(statut)) {
+            q.setParameter(3, statut);
+        }
+        if (StringUtils.isNotBlank(grossisteId)) {
+            q.setParameter(4, grossisteId);
+        }
+        if (StringUtils.isNotBlank(recherche)) {
+            q.setParameter(5, "%" + recherche.trim() + "%");
+        }
+        JSONArray a = new JSONArray();
+        for (Object[] l : (List<Object[]>) q.setMaxResults(1000).getResultList()) {
+            a.put(ligneSubstitution(l));
+        }
+        return new JSONObject().put("success", true).put("data", a).put("total", a.length());
+    }
+
+    /** Substitutions d'une commande : lignes ajoutees (EL/RL) et equivalents proposes en attente de decision. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject substitutionsCommande(String commandeId) {
+        JSONArray a = new JSONArray();
+        int aDecider = 0;
+        for (Object[] l : (List<Object[]>) em
+                .createNativeQuery(SQL_SUBSTITUTIONS + " WHERE r.lg_ORDER_ID = ?1" + " ORDER BY r.dt_CREATED")
+                .setParameter(1, commandeId).getResultList()) {
+            JSONObject o = ligneSubstitution(l);
+            if (REMPL_PROPOSE.equals(o.getString("statut"))) {
+                aDecider++;
+            }
+            a.put(o);
+        }
+        return new JSONObject().put("success", true).put("data", a).put("aDecider", aDecider);
+    }
+
+    /** Equivalents proposes en attente de decision, par commande (pastille de la liste des commandes). */
+    @SuppressWarnings("unchecked")
+    public static int propositionsADecider(javax.persistence.EntityManager em, String commandeId) {
+        if (StringUtils.isBlank(commandeId)) {
+            return 0;
+        }
+        List<Object> r = em.createNativeQuery(
+                "SELECT COUNT(*) FROM t_pharmaml_remplacement WHERE lg_ORDER_ID = ?1" + " AND str_STATUT = 'PROPOSE'")
+                .setParameter(1, commandeId).getResultList();
+        return ((Number) r.get(0)).intValue();
+    }
+
+    /**
+     * Annule une acceptation tant que la rupture n'a pas ete renvoyee : la ligne de rupture reprend le produit
+     * d'origine et la proposition redevient a decider. La fiche creee a l'acceptation (produit inconnu) reste.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject annulerAcceptation(String id, TUser user) {
+        List<Object[]> r = em.createNativeQuery(SQL_SUBSTITUTIONS + " WHERE r.lg_ID = ?1").setParameter(1, id)
+                .getResultList();
+        if (r.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Substitution introuvable");
+        }
+        JSONObject o = ligneSubstitution(r.get(0));
+        if (!REMPL_ACCEPTE.equals(o.getString("statut"))) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Seule une substitution acceptée peut être annulée.");
+        }
+        if (!o.getBoolean("annulable")) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Annulation impossible : " + o.getString("raison") + ".");
+        }
+        List<Object> ligneRupture = em
+                .createNativeQuery("SELECT lg_RUPTURE_DETAIL_ID FROM t_pharmaml_remplacement" + " WHERE lg_ID = ?1")
+                .setParameter(1, id).getResultList();
+        RuptureDetail ligne = em.find(RuptureDetail.class, (String) ligneRupture.get(0));
+        TFamille origine = em.find(TFamille.class, (String) r.get(0)[21]);
+        if (ligne == null || origine == null) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Annulation impossible : rupture ou produit introuvable.");
+        }
+        ligne.setProduit(origine);
+        ligne.setPrixAchat(origine.getIntPAF());
+        ligne.setPrixVente(origine.getIntPRICE());
+        em.merge(ligne);
+        em.createNativeQuery("UPDATE t_pharmaml_remplacement SET str_STATUT = ?1, str_MODE = NULL, lg_USER_ID = NULL,"
+                + " dt_DECISION = NULL, str_HISTORIQUE = ?2 WHERE lg_ID = ?3").setParameter(1, REMPL_PROPOSE)
+                .setParameter(2, historique(id, "Acceptation annulée par " + nomUtilisateur(user))).setParameter(3, id)
+                .executeUpdate();
+        boolean memorise = !em
+                .createNativeQuery("SELECT 1 FROM t_pharmaml_equivalent_choix WHERE lg_FAMILLE_ID = ?1"
+                        + " AND str_CODE_REMPLACANT = ?2 AND str_CHOIX = ?3")
+                .setParameter(1, origine.getLgFAMILLEID()).setParameter(2, o.getString("codeRemplacant"))
+                .setParameter(3, ACCEPTER).getResultList().isEmpty();
+        ArchivePharmaMl.journal("SUBSTITUTION", o.getString("grossiste"), "ACCEPTATION ANNULEE",
+                "commande " + o.getString("reference") + " | " + origine.getStrNAME()
+                        + " retrouve sa place (au lieu de " + o.getString("designationRemplacant") + ") | par "
+                        + nomUtilisateur(user));
+        return new JSONObject().put("success", true).put("msg",
+                "Acceptation annulée : la rupture commandera de nouveau " + origine.getStrNAME()
+                        + ". La proposition est de nouveau à décider."
+                        + (memorise
+                                ? " Attention : ce choix est mémorisé (acceptation automatique) ; retirez-le dans « Choix mémorisés »"
+                                        + " pour qu'il ne s'applique plus."
+                                : ""));
+    }
+
+    /**
+     * Retire de la commande un equivalent / remplacant deja livre (EL, RL), avant la reception (pas de bon de
+     * livraison). Le montant de la commande est recalcule.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject retirerSubstitution(String id, TUser user) {
+        List<Object[]> r = em.createNativeQuery(SQL_SUBSTITUTIONS + " WHERE r.lg_ID = ?1").setParameter(1, id)
+                .getResultList();
+        if (r.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Substitution introuvable");
+        }
+        JSONObject o = ligneSubstitution(r.get(0));
+        if (!REMPL_AJOUTE.equals(o.getString("statut"))) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Seul un produit déjà livré par le grossiste (ajouté à la commande) peut être retiré.");
+        }
+        if (!o.getBoolean("retirable")) {
+            return new JSONObject().put("success", false).put("msg", "Retrait impossible : " + o.getString("raison")
+                    + (o.getString("raison").contains("bon de livraison") ? ". Retirez-le à la réception." : "."));
+        }
+        TOrderDetail d = em.find(TOrderDetail.class, o.getString("ligneCommandeId"));
+        TOrder commande = d.getLgORDERID();
+        if (commande.getTOrderDetailCollection() != null) {
+            commande.getTOrderDetailCollection().remove(d);
+        }
+        em.remove(d);
+        em.flush();
+        /* montant d'achat recalcule sur les lignes restantes (comme la liste des commandes) */
+        Number montant = (Number) em
+                .createNativeQuery("SELECT COALESCE(SUM(int_NUMBER * int_PAF_DETAIL), 0)"
+                        + " FROM t_order_detail WHERE lg_ORDER_ID = ?1")
+                .setParameter(1, commande.getLgORDERID()).getSingleResult();
+        commande.setIntPRICE(montant.intValue());
+        commande.setDtUPDATED(new Date());
+        em.merge(commande);
+        em.createNativeQuery("UPDATE t_pharmaml_remplacement SET str_STATUT = ?1, str_MODE = 'MANUEL', lg_USER_ID = ?2,"
+                + " dt_DECISION = NOW(), str_HISTORIQUE = ?3 WHERE lg_ID = ?4").setParameter(1, REMPL_RETIRE)
+                .setParameter(2, user == null ? null : user.getLgUSERID())
+                .setParameter(3, historique(id, "Retiré de la commande par " + nomUtilisateur(user)))
+                .setParameter(4, id).executeUpdate();
+        ArchivePharmaMl.journal("SUBSTITUTION", o.getString("grossiste"), "RETIRE DE LA COMMANDE",
+                "commande " + o.getString("reference") + " | " + o.getString("designationRemplacant") + " ("
+                        + o.getString("codeRemplacant") + ") | par " + nomUtilisateur(user));
+        return new JSONObject().put("success", true).put("msg", o.getString("designationRemplacant")
+                + " a été retiré de la commande " + o.getString("reference") + ".");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject choixMemorises() {
+        JSONArray a = new JSONArray();
+        for (Object[] l : (List<Object[]>) em.createNativeQuery("SELECT c.lg_FAMILLE_ID, c.str_CODE_REMPLACANT,"
+                + " c.str_CHOIX, DATE_FORMAT(c.dt_UPDATED, '%d/%m/%Y %H:%i'), IFNULL(f.int_CIP, ''), IFNULL(f.str_NAME, ''),"
+                + " IFNULL((SELECT e.str_NAME FROM t_famille e WHERE e.int_CIP = c.str_CODE_REMPLACANT LIMIT 1), ''),"
+                + " IFNULL(TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))), '')"
+                + " FROM t_pharmaml_equivalent_choix c LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID"
+                + " LEFT JOIN t_user u ON u.lg_USER_ID = c.lg_USER_ID ORDER BY c.dt_UPDATED DESC").setMaxResults(1000)
+                .getResultList()) {
+            a.put(new JSONObject().put("familleId", l[0]).put("codeRemplacant", l[1]).put("choix", l[2])
+                    .put("date", l[3]).put("cipOrigine", l[4]).put("produitOrigine", l[5])
+                    .put("designationRemplacant", l[6]).put("utilisateur", l[7]));
+        }
+        return new JSONObject().put("success", true).put("data", a).put("total", a.length());
+    }
+
+    @Override
+    public JSONObject supprimerChoixMemorise(String familleId, String code, TUser user) {
+        int n = em
+                .createNativeQuery("DELETE FROM t_pharmaml_equivalent_choix WHERE lg_FAMILLE_ID = ?1"
+                        + " AND str_CODE_REMPLACANT = ?2")
+                .setParameter(1, familleId).setParameter(2, code).executeUpdate();
+        if (n > 0) {
+            ArchivePharmaMl.journal("SUBSTITUTION", "", "CHOIX MEMORISE SUPPRIME",
+                    "produit " + familleId + " | remplacant " + code + " | par " + nomUtilisateur(user));
+        }
+        return new JSONObject().put("success", n > 0)
+                .put("msg", n > 0
+                        ? "Choix supprimé : les prochaines propositions de ce couple de produits seront à décider."
+                        : "Ce choix n'existe plus.");
     }
 
     @Override
@@ -1268,8 +1553,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             nomEquivalent = equivalent.getStrNAME();
         }
         em.createNativeQuery("UPDATE t_pharmaml_remplacement SET str_STATUT = ?1, str_MODE = ?2, lg_USER_ID = ?3,"
-                + " dt_DECISION = NOW() WHERE lg_ID = ?4").setParameter(1, accepter ? REMPL_ACCEPTE : REMPL_REFUSE)
-                .setParameter(2, mode).setParameter(3, user == null ? null : user.getLgUSERID()).setParameter(4, id)
+                + " dt_DECISION = NOW(), str_HISTORIQUE = ?5 WHERE lg_ID = ?4")
+                .setParameter(1, accepter ? REMPL_ACCEPTE : REMPL_REFUSE).setParameter(2, mode)
+                .setParameter(3, user == null ? null : user.getLgUSERID()).setParameter(4, id)
+                .setParameter(5, historique(id, (accepter ? "Acceptée" : "Refusée")
+                        + ("AUTO".equals(mode) ? " automatiquement (choix mémorisé)" : " par " + nomUtilisateur(user))))
                 .executeUpdate();
         if (memoriser) {
             em.createNativeQuery("INSERT INTO t_pharmaml_equivalent_choix (lg_FAMILLE_ID, str_CODE_REMPLACANT,"
@@ -1281,6 +1569,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
         return new JSONObject().put("success", true).put("statut", accepter ? REMPL_ACCEPTE : REMPL_REFUSE).put("msg",
                 accepter ? "Équivalent accepté : la rupture commandera " + nomEquivalent + "."
+                        + ("AUTO".equals(mode) ? ""
+                                : " Annulable dans l'onglet « Substitutions » tant que la rupture n'est pas renvoyée.")
                         : "Équivalent refusé : la rupture garde le produit d'origine.");
     }
 

@@ -50,6 +50,18 @@ public class CommandeDTO {
         return envoiPharmaMlDetail;
     }
 
+    /* Retours du 08/10 (7) : equivalents proposes en attente de decision (pastille de la liste) */
+    private int propositionsADecider;
+
+    @JSONPropertyName("int_PROPOSITIONS")
+    public int getPropositionsADecider() {
+        return propositionsADecider;
+    }
+
+    public void setPropositionsADecider(int n) {
+        this.propositionsADecider = n;
+    }
+
     public CommandeDTO setEnvoiPharmaMl(String code, String date, String detail) {
         this.envoiPharmaMl = code == null ? "" : code;
         this.envoiPharmaMlDate = date == null ? "" : date;

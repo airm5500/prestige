@@ -57,7 +57,8 @@ function poser(cmd) {
   P.forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
     + " VALUES ('" + cmd + "-" + i + "', '" + cmd + "', '" + p + "', '" + G + "', " + (i + 2) + ", 0, 1000, 2000, 'is_Process', NOW(), NOW())"));
 }
-const journalAjoute = () => (fs.existsSync(JOURNAL) ? fs.readFileSync(JOURNAL, 'utf8').slice(tailleJournal) : '');
+/* position de depart en OCTETS (le journal contient des lettres accentuees) */
+const journalAjoute = () => (fs.existsSync(JOURNAL) ? fs.readFileSync(JOURNAL).subarray(tailleJournal).toString('utf8') : '');
 const racine = () => fs.readdirSync(archives.DOSSIER).filter((f) => /E2E-PMJ|PRS\d+_/.test(f) && fs.statSync(path.join(archives.DOSSIER, f)).mtimeMs > d.getTime());
 
 (async () => {

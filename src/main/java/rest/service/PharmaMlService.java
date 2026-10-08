@@ -42,6 +42,20 @@ public interface PharmaMlService {
     /** Point 5 du 08/10 : equivalents proposes (EP) en attente de decision. */
     JSONObject remplacementsProposes();
 
+    /** Retours du 08/10 (7) : historique des substitutions (onglet « Substitutions » de la liste des ruptures). */
+    JSONObject substitutions(String statut, String grossisteId, java.time.LocalDate du, java.time.LocalDate au,
+            String recherche);
+
+    JSONObject substitutionsCommande(String commandeId);
+
+    JSONObject annulerAcceptation(String id, dal.TUser user);
+
+    JSONObject retirerSubstitution(String id, dal.TUser user);
+
+    JSONObject choixMemorises();
+
+    JSONObject supprimerChoixMemorise(String familleId, String code, dal.TUser user);
+
     /** Retours du 08/10 : derniere reponse du grossiste a une commande, lisible a l'ecran. */
     JSONObject reponseGrossiste(String commandeId);
 
