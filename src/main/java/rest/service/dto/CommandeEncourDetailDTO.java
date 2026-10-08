@@ -302,8 +302,15 @@ public class CommandeEncourDetailDTO {
         this.produitPrixVente = detail.getIntPRICEDETAIL();
         this.produitPrixReference = famille.getIntPRICETIPS();
         this.produitPrixMachine = famille.getIntPRICE();
-        this.prixDiff = detail.getIntPRICEDETAIL().compareTo(famille.getIntPRICE()) != 0;
-        this.qteLivree = detail.getIntNUMBER() - detail.getIntQTEMANQUANT();
+        /*
+         * retours du 08/10 : ligne sans prix de vente (commande creee depuis une suggestion dont la ligne n'en avait
+         * pas) -> plus d'erreur a l'ouverture de la commande ; prix absent = 0
+         */
+        int prixLigne = detail.getIntPRICEDETAIL() == null ? 0 : detail.getIntPRICEDETAIL();
+        int prixFiche = famille.getIntPRICE() == null ? 0 : famille.getIntPRICE();
+        this.prixDiff = prixLigne != prixFiche;
+        this.qteLivree = (detail.getIntNUMBER() == null ? 0 : detail.getIntNUMBER())
+                - (detail.getIntQTEMANQUANT() == null ? 0 : detail.getIntQTEMANQUANT());
         this.seuil = famille.getIntSEUILMIN();
         famille.getTFamilleStockCollection().stream()
                 .filter(s -> s.getLgEMPLACEMENTID().equals(order.getLgUSERID().getLgEMPLACEMENTID())).findFirst()
@@ -410,8 +417,15 @@ public class CommandeEncourDetailDTO {
         this.produitPrixVente = detail.getIntPRICEDETAIL();
         this.produitPrixReference = famille.getIntPRICETIPS();
         this.produitPrixMachine = famille.getIntPRICE();
-        this.prixDiff = detail.getIntPRICEDETAIL().compareTo(famille.getIntPRICE()) != 0;
-        this.qteLivree = detail.getIntNUMBER() - detail.getIntQTEMANQUANT();
+        /*
+         * retours du 08/10 : ligne sans prix de vente (commande creee depuis une suggestion dont la ligne n'en avait
+         * pas) -> plus d'erreur a l'ouverture de la commande ; prix absent = 0
+         */
+        int prixLigne = detail.getIntPRICEDETAIL() == null ? 0 : detail.getIntPRICEDETAIL();
+        int prixFiche = famille.getIntPRICE() == null ? 0 : famille.getIntPRICE();
+        this.prixDiff = prixLigne != prixFiche;
+        this.qteLivree = (detail.getIntNUMBER() == null ? 0 : detail.getIntNUMBER())
+                - (detail.getIntQTEMANQUANT() == null ? 0 : detail.getIntQTEMANQUANT());
         this.seuil = famille.getIntSEUILMIN();
         this.stock = familleStock.getIntNUMBERAVAILABLE();
         this.qteReasor = Math.abs(familleStock.getIntNUMBERAVAILABLE() - famille.getIntSEUILMIN());

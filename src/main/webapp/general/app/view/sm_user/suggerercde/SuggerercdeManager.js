@@ -1010,6 +1010,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         var moisFr = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août',
             'septembre', 'octobre', 'novembre', 'décembre'];
         var mois = moisFr[new Date().getMonth()];
+        /* retours du 08/10 : libelles abreges (le libelle complet reste en info-bulle) */
+        var moisCourt = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'][new Date().getMonth()];
+        var abr = function (court, complet) {
+            return '<span data-qtip="' + Ext.String.htmlEncode(complet) + '">' + court + '</span>';
+        };
         // Moyenne d'achat 3 mois = somme des 3 derniers mois fermes (colonnes) / 3 ; vente hebdo = moyenne / 4
         var v1 = Number(record.get('int_VALUE1')) || 0,
                 v2 = Number(record.get('int_VALUE2')) || 0,
@@ -1028,13 +1033,13 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 // Moyenne d'achat 3 mois = quantites RECUES (achats) des 3 derniers mois fermes / 3 (backend)
                 var moyAchat3 = Math.round((Number(d.moyenneAchat3Mois) || 0) * 100) / 100;
                 var html = '<b style="color:blue;">' + Ext.String.htmlEncode(nom) + '</b> &nbsp;|&nbsp; '
-                        + 'Date dernière entrée : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
+                        + abr('Date dern. entrée', 'Date de la dernière entrée') + ' : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
                         + '(qté <span style="color:red;font-weight:bold;">' + (d.derniereEntreeQte || 0) + '</span>) &nbsp;|&nbsp; '
-                        + "Fréquence achat (" + mois + ") : <span style=\"color:orange;font-weight:bold;\">" + (d.frequenceAchatMois || 0) + '</span> &nbsp;|&nbsp; '
-                        + 'Qté total entrée (' + mois + ') : <span style="color:orange;font-weight:bold;">' + (d.qteEntreeMois || 0) + '</span> &nbsp;|&nbsp; '
-                        + 'Stock Reserve : <span style="color:' + srColor + ';font-weight:bold;">' + sr + '</span> &nbsp;|&nbsp; '
-                        + 'Vente hebdo (MOY/4) : <span style="color:red;font-weight:bold;">' + venteHebdo + '</span> &nbsp;|&nbsp; '
-                        + "Moyenne d'achat 3mois : <span style=\"color:red;font-weight:bold;\">" + moyAchat3 + '</span>';
+                        + abr('Fréq.achat (' + moisCourt + ')', 'Fréquence d\'achat (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.frequenceAchatMois || 0) + '</span> &nbsp;|&nbsp; '
+                        + abr('Qté entrée (' + moisCourt + ')', 'Quantité totale entrée (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.qteEntreeMois || 0) + '</span> &nbsp;|&nbsp; '
+                        + abr('Stock Res', 'Stock réserve') + ' : <span style="color:' + srColor + ';font-weight:bold;">' + sr + '</span> &nbsp;|&nbsp; '
+                        + abr('VMH (MOY/4)', 'Vente moyenne hebdomadaire (moyenne des 3 mois / 4)') + ' : <span style="color:red;font-weight:bold;">' + venteHebdo + '</span> &nbsp;|&nbsp; '
+                        + abr('Moy d\'achat 3mois', 'Moyenne d\'achat sur 3 mois') + ' : <span style="color:red;font-weight:bold;">' + moyAchat3 + '</span>';
                 bar.setText(html, false);
             },
             failure: function () {

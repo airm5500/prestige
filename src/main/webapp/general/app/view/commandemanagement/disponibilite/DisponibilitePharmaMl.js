@@ -150,7 +150,12 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
         for (i = 0; i < familles.length; i += 50) {
             paquets.push(familles.slice(i, i + 50));
         }
-        Ext.MessageBox.progress('Disponibilité PharmaML', 'Interrogation du grossiste…', '0 / ' + familles.length);
+        /*
+         * retours du 08/10 : barre ANIMEE pendant toute l'attente (un paquet peut prendre plusieurs secondes chez le
+         * grossiste ; avec une barre « a l'avancement », rien ne bougeait avant la fin) ; le texte donne l'avancement.
+         */
+        Ext.MessageBox.wait('Interrogation du grossiste…', 'Disponibilité PharmaML',
+                {interval: 120, increment: 25, text: '0 / ' + familles.length + ' produit(s)'});
         var suivant = function (n) {
             if (n >= paquets.length || erreur) {
                 Ext.MessageBox.hide();
@@ -179,7 +184,9 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
                         cumul.inconnu += o.inconnu;
                     }
                     var fait = Math.min(familles.length, (n + 1) * 50);
-                    Ext.MessageBox.updateProgress(fait / familles.length, fait + ' / ' + familles.length);
+                    if (Ext.MessageBox.progressBar) {
+                        Ext.MessageBox.progressBar.updateText(fait + ' / ' + familles.length + ' produit(s)');
+                    }
                     suivant(n + 1);
                 },
                 failure: function () {

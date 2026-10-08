@@ -61,6 +61,29 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
         return this.getEl() ? this.getEl().down('.' + cls) : null;
     },
 
+    /*
+     * Retours du 08/10 : le contenu est pose en HTML, hors du calcul de mise en page d'ExtJS ; sans recalcul, la fiche
+     * gardait l'ancienne hauteur (texte coupe, pas de barre de defilement tant qu'on ne redimensionnait pas). Recalcul
+     * apres chaque affichage, propage aux conteneurs (fiche article).
+     */
+    ajuster: function () {
+        var me = this;
+        Ext.defer(function () {
+            if (me.isDestroyed || !me.rendered) {
+                return;
+            }
+            me.updateLayout();
+            var c = me.ownerCt;
+            while (c) {
+                if (c.autoScroll || c.isXType('window')) {
+                    c.updateLayout();
+                    break;
+                }
+                c = c.ownerCt;
+            }
+        }, 10);
+    },
+
     dessinerRubriques: function () {
         var me = this, h = '';
         Ext.each(me.rubriques, function (r) {
@@ -70,6 +93,7 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
         var z = me.zone('mono-rubriques');
         if (z) {
             z.setHTML(h);
+            me.ajuster();
         }
     },
 
@@ -82,6 +106,7 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
         me.dessinerRubriques();
         corps.setHTML('<div class="mono-vide">Chargement…</div>');
         me.zone('mono-etat').setHTML('');
+        me.ajuster();
         me.demande = (me.demande || 0) + 1;
         var n = me.demande;
         Ext.Ajax.request({
@@ -107,11 +132,13 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
         if (!o.success) {
             corps.setHTML('<div class="mono-vide mono-erreur">' + enc(o.msg || 'Erreur') + '</div>');
             etat.setHTML('<a class="mono-relire" href="javascript:void(0)">Réessayer</a>');
+            me.ajuster();
             return;
         }
         if (!o.trouve) {
             corps.setHTML('<div class="mono-vide">' + enc(o.msg) + '</div>');
             etat.setHTML('<a class="mono-relire" href="javascript:void(0)">Chercher à nouveau</a>');
+            me.ajuster();
             return;
         }
         var f = o.fiche || {}, h = '';
@@ -135,6 +162,7 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
         etat.setHTML('Source DS Pharmagora (VIDAL) · lue le ' + Ext.Date.format(new Date(o.lueLe), 'd/m/Y à H:i')
                 + (o.ancienne ? ' · <b class="mono-ancienne">service injoignable : dernière fiche connue</b>' : '')
                 + ' · <a class="mono-relire" href="javascript:void(0)" data-qtip="Relire la fiche sur le service maintenant">Relire</a>');
+        me.ajuster();
     },
 
     htmlInteractions: function (classes) {

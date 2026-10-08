@@ -60,6 +60,12 @@ const mesurer = (sel) => {
         imprimeLe: /Imprimé le \d{2}\/\d{2}\/\d{4}/.test(z.textContent), zoom, largeurRendue: z.getBoundingClientRect().width,
         cartesSurPapier: getComputedStyle(z.querySelector('.tb-grille')).gridTemplateColumns.split(' ').length }; });
     await p.screenshot({ path: SORTIE + '/tableau-bord-impression.png', fullPage: true });
+    /* retours du 08/10 (2) : pas de zone vide (une carte vide n'a plus 300 px de hauteur minimale sur papier) */
+    const vides = await p.evaluate(() => { const ecran = {}; document.querySelectorAll('.tb:not(#tb-impression .tb) [data-carte]').forEach((c) => { ecran[c.getAttribute('data-carte')] = c.getBoundingClientRect().height; });
+      return [...document.querySelectorAll('#tb-impression [data-carte]')].filter((c) => /Aucun/.test(c.textContent) && !c.querySelector('svg, table'))
+        .map((c) => ({ id: c.getAttribute('data-carte'), corps: c.querySelector('.tb-c').getBoundingClientRect().height / Number(document.querySelector('#tb-impression .tb').style.zoom || 1),
+          minimum: getComputedStyle(c.querySelector('.tb-c')).minHeight })); });
+    ok('Impression : cartes vides compactes (plus de hauteur minimale de 300 px), donc moins de pages', vides.length >= 1 && vides.every((v) => v.corps < 260 && v.minimum === '0px') && vides.some((v) => v.corps < 120), JSON.stringify(vides));
 
     const ids = Object.keys(ecran.out);
     const ecarts = ids.filter((id) => !papier.out[id] || Math.abs(papier.out[id].x - ecran.out[id].x) > 0.01 || Math.abs(papier.out[id].w - ecran.out[id].w) > 0.01);

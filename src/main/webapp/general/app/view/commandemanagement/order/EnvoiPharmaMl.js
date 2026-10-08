@@ -16,6 +16,7 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         EN_ATTENTE: ['En attente', '#b26a00', '#fff4e0'],
         REPONDUE: ['Répondue', '#17795f', '#e3f6ef'],
         PARTIELLE: ['Partielle', '#8a5a00', '#fdf0d2'],
+        RUPTURE: ['Rupture', '#b42318', '#fde7e6'],
         REFUSEE: ['Refusée', '#b42318', '#fde7e6'],
         NON_ENVOYEE: ['Non envoyée', '#b42318', '#fde7e6'],
         ERREUR: ['Erreur', '#b42318', '#fde7e6']

@@ -2856,6 +2856,11 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
   #tb-impression .tb * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #tb-impression .tb-tuile, #tb-impression .tb-carte { break-inside: avoid; transform: none !important; opacity: 1 !important; }
   #tb-impression .tb-imprime-le { color: #c9d6e6; font-size: 12px; }
+  /* 08/10 (2) : pas de zone vide sur papier : une carte prend la hauteur de son contenu (a l'ecran 300 px minimum,
+     meme vide) ; les cartes d'une meme ligne ne sont plus etirees. Disposition en largeur inchangee. */
+  #tb-impression .tb-c { min-height: 0 !important; flex: 0 0 auto !important; }
+  #tb-impression .tb-grille { align-items: start !important; }
+  #tb-impression .tb-carte { height: auto !important; min-height: 0 !important; }
   #tb-impression * { animation: none !important; transition: none !important; }
 }
 
@@ -2920,3 +2925,15 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     width: 26px !important; height: 26px !important; margin: 0 3px; border: 1px solid transparent; vertical-align: middle; box-sizing: border-box; }
 .theme-liste .x-grid-cell-inner:has(> .act-ico):has(> .x-action-col-icon:nth-of-type(4)) > .x-action-col-icon.x-hide-display {
     width: 24px !important; height: 24px !important; margin: 0 2px; }
+
+/* Retours du 08/10 : bouton Fermer des fenetres du nouveau theme invisible. La croix etait posee en ::after sur
+   l'<img> de l'outil (jamais rendu par les navigateurs) : il ne restait qu'un rond pale a 50 %. Croix blanche en image
+   SVG sur l'outil lui-meme, rond plus marque. */
+.x-window.fen-theme > .x-window-header .x-tool-close, .x-message-box.mb-theme .x-tool-close,
+.x-window.ouv-caisse > .x-window-header .x-tool-close {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / 11px 11px no-repeat !important;
+    opacity: 1 !important; width: 15px !important; height: 15px !important; }
+.x-window.fen-theme > .x-window-header .x-tool, .x-message-box.mb-theme .x-tool, .x-window.ouv-caisse > .x-window-header .x-tool {
+    background-color: rgba(255, 255, 255, .28) !important; box-shadow: 0 0 0 3px rgba(255, 255, 255, .28); }
+.x-window.fen-theme > .x-window-header .x-tool:hover, .x-message-box.mb-theme .x-tool:hover, .x-window.ouv-caisse > .x-window-header .x-tool:hover {
+    background-color: #c0392b !important; box-shadow: 0 0 0 3px #c0392b; }

@@ -1329,8 +1329,11 @@ public class OrderServiceImpl implements OrderService {
         orderDetail.setIntNUMBER(details.getIntNUMBER());
         orderDetail.setIntQTEREPGROSSISTE(orderDetail.getIntNUMBER());
         orderDetail.setIntQTEMANQUANT(orderDetail.getIntNUMBER());
-        orderDetail.setIntPAFDETAIL(details.getIntPAFDETAIL());
-        orderDetail.setIntPRICEDETAIL(details.getIntPRICEDETAIL());
+        /* retours du 08/10 : prix absents de la ligne de suggestion -> prix de la fiche article */
+        orderDetail.setIntPAFDETAIL(details.getIntPAFDETAIL() != null ? details.getIntPAFDETAIL()
+                : (famille.getIntPAF() == null ? 0 : famille.getIntPAF()));
+        orderDetail.setIntPRICEDETAIL(details.getIntPRICEDETAIL() != null ? details.getIntPRICEDETAIL()
+                : (famille.getIntPRICE() == null ? 0 : famille.getIntPRICE()));
         orderDetail.setIntPRICE(orderDetail.getIntNUMBER() * orderDetail.getIntPAFDETAIL());
         orderDetail.setLgFAMILLEID(famille);
         orderDetail.setLgGROSSISTEID(grossiste);

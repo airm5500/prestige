@@ -6,7 +6,8 @@ import org.json.JSONObject;
 /**
  * Retours du 08/10 : statut d'envoi PharmaML d'une commande, lu dans t_pharmaml_attente (dernier envoi) et affiche sur
  * la liste des commandes. Codes : EN_ATTENTE (recue par le grossiste, reponse differee), REPONDUE, PARTIELLE (une
- * partie en rupture), REFUSEE (refus du grossiste), NON_ENVOYEE (serveur injoignable), ERREUR (reponse inexploitable).
+ * partie en rupture), RUPTURE (rien de livre), REFUSEE (refus du grossiste), NON_ENVOYEE (serveur injoignable), ERREUR
+ * (reponse inexploitable).
  */
 public final class StatutEnvoiPharmaMl {
 
@@ -40,7 +41,13 @@ public final class StatutEnvoiPharmaMl {
         switch (statut) {
         case PharmaMlServiceImpl.TRAITEE:
             JSONObject d = lire(detail);
-            return d != null && d.optInt("nbrerupture", 0) > 0 ? "PARTIELLE" : "REPONDUE";
+            if (d == null || d.optInt("nbrerupture", 0) == 0) {
+                return "REPONDUE";
+            }
+            /*
+             * retours du 08/10 : rien de livre (ex. Quantite_livree 0, « Manque Rayon ») = rupture, pas « partielle »
+             */
+            return d.optInt("nbreproduit", 0) == 0 ? "RUPTURE" : "PARTIELLE";
         case PharmaMlServiceImpl.EN_ATTENTE:
         case PharmaMlServiceImpl.REFUSEE:
         case PharmaMlServiceImpl.NON_ENVOYEE:

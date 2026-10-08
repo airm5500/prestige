@@ -111,6 +111,15 @@ function nettoyer() {
     ok('Écran : section MONOGRAPHIE, 7 rubriques, Posologie ouverte, texte et source affichés, rien de tronqué', v1.rub === 7 && v1.actif === 'Posologie' && /DOLIPRANE/.test(v1.titre) && v1.p > 3
       && /DS Pharmagora/.test(v1.etat) && /lue le/.test(v1.etat) && v1.tronques === 0 && !v1.deborde, JSON.stringify(v1));
     await p.screenshot({ path: SORTIE + '/monographie-posologie.png' });
+    /* retours du 08/10 : tout le texte visible et la fin atteignable par defilement, sans redimensionner la fenetre */
+    await p.waitForTimeout(400);
+    const v1b = await p.evaluate(() => { const c = Ext.ComponentQuery.query('#monographieDetail')[0]; const d = c.getEl().dom;
+      let s = d.parentElement; while (s && !(/(auto|scroll)/.test(getComputedStyle(s).overflowY) && s.scrollHeight > s.clientHeight)) { s = s.parentElement; }
+      const coupe = d.getBoundingClientRect().height + 1 < d.querySelector('.mono').getBoundingClientRect().height;
+      if (s) { s.scrollTop = s.scrollHeight; }
+      const fin = d.querySelector('.mono-etat').getBoundingClientRect(), cadre = s ? s.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+      return { coupe, defile: !!s, finVisible: fin.bottom <= cadre.bottom + 1 && fin.top >= cadre.top - 1 }; });
+    ok('Monographie : texte entier (rien de coupé), fin atteignable par la barre de défilement, sans redimensionner', !v1b.coupe && v1b.defile && v1b.finVisible, JSON.stringify(v1b));
     await p.click('.mono-rub[data-rub="3"]');
     await p.waitForFunction(() => document.querySelector('.mono-inter'), null, { timeout: 30000 });
     const v2 = await p.evaluate(() => { const d = document.querySelector('.mono'); const g2 = d.querySelector('.mono-inter.g2');

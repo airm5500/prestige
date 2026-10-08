@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Unite DALPU (EclipseLink, anciens ecrans JSP / bll) uniquement. Les colonnes JSON ci-dessous sont lues par Hibernate
+  (@Type(type = "json"), unite JTA_UNIT) ; EclipseLink ignore cette annotation et tentait de les DESERIALISER :
+  « [] » ecrit par Hibernate -> ConversionException EclipseLink-3002 (ex. commandes passees,
+  ws_data_order_passed_grossiste.jsp, retours du 08/10). Aucun ecran ancien ne lit ces champs : ils sont ignores ici.
+-->
+<entity-mappings xmlns="http://xmlns.jcp.org/xml/ns/persistence/orm" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence/orm http://xmlns.jcp.org/xml/ns/persistence/orm_2_1.xsd" version="2.1">
+    <entity class="dal.TOrderDetail" metadata-complete="false">
+        <attributes>
+            <transient name="lots"/>
+        </attributes>
+    </entity>
+    <entity class="dal.TBonLivraisonDetail" metadata-complete="false">
+        <attributes>
+            <transient name="lots"/>
+        </attributes>
+    </entity>
+    <entity class="dal.StockSnapshot" metadata-complete="false">
+        <attributes>
+            <transient name="stocks"/>
+        </attributes>
+    </entity>
+    <entity class="dal.HistoriqueImportation" metadata-complete="false">
+        <attributes>
+            <transient name="deatils"/>
+        </attributes>
+    </entity>
+</entity-mappings>

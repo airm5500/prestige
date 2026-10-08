@@ -1425,7 +1425,9 @@ public class orderManagement extends bllBase {
         int result = 0;
         try {
             for (TOrderDetail OTOrderDetail : lstTOrderDetail) {
-                result += OTOrderDetail.getIntPRICEDETAIL() * OTOrderDetail.getIntQTEREPGROSSISTE();
+                /* retours du 08/10 : ligne sans prix (ou sans quantite) = 0, au lieu d'une erreur journalisee */
+                Integer prix = OTOrderDetail.getIntPRICEDETAIL(), qte = OTOrderDetail.getIntQTEREPGROSSISTE();
+                result += (prix == null ? 0 : prix) * (qte == null ? 0 : qte);
             }
         } catch (Exception e) {
             e.printStackTrace();

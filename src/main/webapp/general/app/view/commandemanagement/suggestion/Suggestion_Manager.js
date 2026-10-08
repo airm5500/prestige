@@ -197,29 +197,27 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     header: 'STATUT',
                     dataIndex: 'str_STATUT',
                     flex: 1,
+                    /* retours du 08/10 : pastille a bords arrondis, comme le statut PharmaML */
                     renderer: function (val, m, r) {
-
-
-                        if (val === 'is_Process') {
-                            val = 'MANUELLE';
-                        } else if (val === 'enable') {
-                            val = 'COMMANDEE';
-                        } else if (val === 'auto') {
-                            val = 'AUTO';
-                        } else if (val === 'pending') {
-                            /* Plan d'octobre 1.3 : ouverte = « En cours » (meme valeur en base qu'avant) */
-                            val = 'EN COURS';
-                            m.style = 'background-color:#2E75B6;color:#FFF;font-weight:800;';
-                        } else if (val === 'cloturee') {
+                        var S = {
+                            is_Process: ['MANUELLE', '#3b4a5c', '#eef2f6'],
+                            enable: ['COMMANDEE', '#17795f', '#e3f6ef'],
+                            auto: ['AUTO', '#5b3fa0', '#efeafb'],
+                            pending: ['EN COURS', '#1f5f9e', '#e4effa'],
+                            cloturee: ['CLÔTURÉE', '#9a5b00', '#fdf0d2'],
+                            commandee: ['COMMANDÉE' + (r.get('str_MODE_COMMANDE') ? ' · ' + r.get('str_MODE_COMMANDE') : ''), '#17795f', '#e3f6ef']
+                        }[val];
+                        if (val === 'cloturee') {
                             m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Clôturée le ' + r.get('dt_CLOTURE')) + '"';
-                            val = 'CLÔTURÉE';
-                            m.style = 'background-color:#e08a1e;color:#FFF;font-weight:800;';
                         } else if (val === 'commandee') {
                             m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Commandée le ' + r.get('dt_COMMANDEE')
                                     + (r.get('str_MODE_COMMANDE') ? ' (' + r.get('str_MODE_COMMANDE') + ')' : '')) + '"';
-                            val = 'COMMANDÉE' + (r.get('str_MODE_COMMANDE') ? ' · ' + r.get('str_MODE_COMMANDE') : '');
-                            m.style = 'background-color:#17987e;color:#FFF;font-weight:800;';
                         }
+                        if (!S) {
+                            return Ext.String.htmlEncode(val || '');
+                        }
+                        val = '<span class="statut-sugg" data-statut="' + Ext.String.htmlEncode(val) + '" style="display:inline-block;padding:1px 9px;border-radius:10px;'
+                                + 'font-size:11px;font-weight:700;white-space:nowrap;color:' + S[1] + ';background:' + S[2] + '">' + Ext.String.htmlEncode(S[0]) + '</span>';
                         return val;
                     }
                 },

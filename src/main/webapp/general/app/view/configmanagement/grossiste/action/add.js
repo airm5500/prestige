@@ -552,9 +552,9 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                     Ext.each(records, function (item) {
                         let rec = item.data;
                         if (rec.id == groupeId) {
+                            /* retours du 08/10 : « combobox » n'existait pas (erreur JavaScript) ; setValue affiche deja le libelle */
                             Ext.getCmp('groupeId').setValue(rec.id);
-                            combobox.setDisplayField(rec.libelle);
-                            return ;
+                            return false;
                         }
                     });
 

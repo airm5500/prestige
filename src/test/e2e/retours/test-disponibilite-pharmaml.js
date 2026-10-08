@@ -41,8 +41,9 @@ function repondre(xml, tout) {
         + '</LIGNE_REP_INFO_PRODUIT>'; }).join('')
     + '</NORMALE></REP_INFO_PRODUIT></CORPS></MESSAGE_REPARTITEUR></CORPS></' + env + '>';
 }
+let attenteServeur = 0;
 const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
-  recus.push({ chemin: req.url, xml: b }); rep.writeHead(200, { 'Content-Type': 'text/xml' }); rep.end(repondre(b, req.url === '/b')); }); });
+  recus.push({ chemin: req.url, xml: b }); setTimeout(() => { rep.writeHead(200, { 'Content-Type': 'text/xml' }); rep.end(repondre(b, req.url === '/b')); }, attenteServeur); }); });
 
 function nettoyer() {
   exec("DELETE FROM t_disponibilite_produit WHERE lg_SOURCE_ID IN ('" + SUGG + "','" + CMD + "');"
@@ -101,7 +102,14 @@ function poser() {
     ok('Ouverture : aucune interrogation du grossiste', recus.length === 0, recus.length);
 
     /* Verifier */
+    attenteServeur = 1500;
     await p.click('#btn_dispo_verifier');
+    /* retours du 08/10 : barre animee pendant l'attente du grossiste (elle defile meme pour un seul paquet) */
+    await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.progressBar && Ext.MessageBox.progressBar.isVisible(), null, { timeout: 10000 });
+    const anim = await p.evaluate(async () => { const pb = Ext.MessageBox.progressBar; const l1 = pb.bar.getWidth(); await new Promise((r) => setTimeout(r, 400));
+      return { attente: pb.isWaiting(), l1, l2: pb.bar.getWidth(), texte: pb.getEl().dom.textContent }; });
+    ok('Vérification : barre de progression animée pendant l\'attente du grossiste, avancement en texte', anim.attente && anim.l1 !== anim.l2 && /produit\(s\)/.test(anim.texte), JSON.stringify(anim));
+    attenteServeur = 0;
     const fin1 = await attendreFin();
     /* Codes reellement envoyes (code article chez ce grossiste s'il existe, sinon CIP) : le faux grossiste repond selon eux. */
     const envoyes = recus.flatMap((r) => [...r.xml.matchAll(/<LIGNE_REQ_INFO_PRODUIT [^>]*Code_Produit="([^"]*)"/g)].map((m) => m[1]));
