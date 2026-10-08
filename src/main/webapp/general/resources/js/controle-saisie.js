@@ -14,3 +14,30 @@
     }
     Ext.form.field.Date.prototype.useStrict = true;
 })();
+
+/*
+ * Retours du 08/10 (controle de saisie) : une liste deroulante dont la reponse du serveur arrive APRES la fermeture de
+ * l'ecran (changement de menu pendant une recherche) est deja detruite : son magasin vaut null et ExtJS 4.2 levait
+ * « Cannot read properties of null (reading 'getCount' / 'findRecord') ». La reponse tardive est desormais ignoree.
+ */
+(function () {
+    if (!window.Ext || !Ext.form || !Ext.form.field || !Ext.form.field.ComboBox) {
+        return;
+    }
+    var proto = Ext.form.field.ComboBox.prototype;
+    var morte = function (c) {
+        return c.isDestroyed || !c.store;
+    };
+    Ext.each(['afterQuery', 'onLoad', 'assertValue', 'doAutoSelect', 'onTypeAhead'], function (nom) {
+        var origine = proto[nom];
+        if (typeof origine === 'function') {
+            proto[nom] = function () {
+                return morte(this) ? undefined : origine.apply(this, arguments);
+            };
+        }
+    });
+    var findRecord = proto.findRecord;
+    proto.findRecord = function () {
+        return morte(this) ? false : findRecord.apply(this, arguments);
+    };
+})();
