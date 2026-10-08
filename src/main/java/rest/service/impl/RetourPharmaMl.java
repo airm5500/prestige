@@ -85,6 +85,20 @@ public final class RetourPharmaMl {
                 .executeUpdate();
     }
 
+    /**
+     * Reponse a la reclamation : ajoutee au detail ; l'etat ne recule pas (bon de retour deja recu : REPONDU reste ;
+     * demande de retour encore attendue : EN_ATTENTE reste ; sinon ENVOYE, ou ERREUR si refus).
+     */
+    public static void reponseReclamation(EntityManager em, String retourId, boolean refus, String texte) {
+        em.createNativeQuery(
+                "UPDATE t_retour_fournisseur r SET r.str_PML_DETAIL = LEFT(CONCAT_WS(' · ', NULLIF(r.str_PML_DETAIL, ''), ?2), 500),"
+                        + " r.str_PML_STATUT = CASE WHEN ?3 = 1 THEN 'ERREUR' WHEN r.str_PML_STATUT = 'REPONDU' THEN 'REPONDU'"
+                        + " WHEN EXISTS (SELECT 1 FROM t_pharmaml_attente a WHERE a.lg_SOURCE_ID = r.lg_RETOUR_FRS_ID AND a.str_SOURCE = 'RETOUR'"
+                        + " AND a.str_STATUT = 'EN_ATTENTE') THEN 'EN_ATTENTE' ELSE 'ENVOYE' END WHERE r.lg_RETOUR_FRS_ID = ?1")
+                .setParameter(1, retourId).setParameter(2, "Réclamation : " + StringUtils.left(texte, 300))
+                .setParameter(3, refus ? 1 : 0).executeUpdate();
+    }
+
     /** Retour dont la demande porte cette reference (bon de retour sans EN_REPONSE_A exploitable). */
     @SuppressWarnings("unchecked")
     public static String retourDeLaDemande(EntityManager em, String grossisteId, String refDemande) {
@@ -148,7 +162,10 @@ public final class RetourPharmaMl {
                 + " ligne(s) acceptée(s), " + refusees + " refusée(s) en tout ou partie"
                 + (inconnues > 0 ? ", " + inconnues + " ligne(s) non rattachée(s)" : "");
         em.createNativeQuery(
-                "UPDATE t_retour_fournisseur SET str_PML_STATUT = ?2, str_PML_DETAIL = ?3, str_PML_REF_BON_RETOUR = ?4,"
+                /* la reponse a une reclamation deja recue est conservee a la suite */
+                "UPDATE t_retour_fournisseur SET str_PML_STATUT = ?2, str_PML_DETAIL = LEFT(CONCAT_WS(' · ', ?3,"
+                        + " IF(INSTR(IFNULL(str_PML_DETAIL, ''), 'Réclamation :') > 0,"
+                        + " SUBSTRING(str_PML_DETAIL, INSTR(str_PML_DETAIL, 'Réclamation :')), NULL)), 500), str_PML_REF_BON_RETOUR = ?4,"
                         + " dt_PML_REPONSE = NOW() WHERE lg_RETOUR_FRS_ID = ?1")
                 .setParameter(1, retourId).setParameter(2, REPONDU).setParameter(3, StringUtils.left(detail, 500))
                 .setParameter(4, StringUtils.left((String) bon[1], 20)).executeUpdate();

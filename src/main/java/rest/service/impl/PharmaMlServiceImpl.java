@@ -716,8 +716,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             String libre = PharmaMlMessages.commentaireLibre(xml);
             resultat = new JSONObject().put("msg", erreur != null ? "réclamation refusée : " + erreur
                     : "réponse à la réclamation" + (libre.isEmpty() ? " : prise en compte" : " : « " + libre + " »"));
-            RetourPharmaMl.statut(em, sourceId, erreur != null ? RetourPharmaMl.ERREUR : RetourPharmaMl.ENVOYE,
-                    resultat.optString("msg"), null, null, false);
+            RetourPharmaMl.reponseReclamation(em, sourceId, erreur != null, resultat.optString("msg"));
         } else if (erreur != null || !env.repCommande) {
             statut = ERREUR;
             resultat = new JSONObject().put("msg", erreur == null ? "message sans réponse de commande" : erreur);

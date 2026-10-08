@@ -165,9 +165,10 @@ function nettoyer() {
     const refDemande = (demande.match(/Ref_Demande_Retour="([^"]*)"/) || [])[1];
     const refMsgReclam = (reclam.match(/<REF_MESSAGE>([^<]*)</) || [])[1];
     const cipRetour = (demande.match(/Code_Produit="([^"]*)"/) || [])[1];
-    depot.push(env(msg('<BON_RETOUR Ref_Demande_Retour="' + refDemande + '" Ref_Bon_Retour="BR-E2E-1"><LIGNE Num_Ligne="1" Num_Ligne_Demande="1" Type_Codification="CIP39" Code_Produit="' + cipRetour
-      + '" Quantite_acceptee="0" Commentaire="Refusé : produit hors délai"/></BON_RETOUR>')),
-      env(msg('<LIBRE Ref_Info_Libre="REC1" Commentaire="Avoir de 1 boîte établi sur la prochaine facture"/>'), refMsgReclam));
+    /* la reponse a la reclamation arrive avant le bon de retour : les deux doivent rester visibles */
+    depot.push(env(msg('<LIBRE Ref_Info_Libre="REC1" Commentaire="Avoir de 1 boîte établi sur la prochaine facture"/>'), refMsgReclam),
+      env(msg('<BON_RETOUR Ref_Demande_Retour="' + refDemande + '" Ref_Bon_Retour="BR-E2E-1"><LIGNE Num_Ligne="1" Num_Ligne_Demande="1" Type_Codification="CIP39" Code_Produit="' + cipRetour
+      + '" Quantite_acceptee="0" Commentaire="Refusé : produit hors délai"/></BON_RETOUR>')));
     const vid = await p.evaluate(async () => JSON.parse(await (await fetch('../api/v1/pharma/reponses', { method: 'POST' })).text()));
     const statuts = (vid.grossistes || []).flatMap((x) => (x.messages || []).map((m) => m.statut + ':' + (m.source || '')));
     const repReclam = q("SELECT IFNULL(str_PML_DETAIL, '') FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '" + retourId + "'");
@@ -178,7 +179,7 @@ function nettoyer() {
     await p.waitForFunction(() => /Réponse du grossiste reçue/.test(Ext.getCmp('retourPmlEtat').getEl().dom.textContent), null, { timeout: 20000 });
     e = await etatEcran();
     ok('Écran : « Réponse du grossiste reçue », ligne « Accepté 0 / 1 », bouton bloqué',
-      e.lignes.some((l) => /Accepté 0 \/ 1/.test(l.pml)) && !e.actif && /Répondu/.test(e.bouton) && /BR-E2E-1/.test(e.etat), JSON.stringify(e));
+      e.lignes.some((l) => /Accepté 0 \/ 1/.test(l.pml)) && !e.actif && /Répondu/.test(e.bouton) && /BR-E2E-1/.test(e.etat) && /Réclamation : réponse à la réclamation/.test(e.etat), JSON.stringify(e));
     const ligne = q("SELECT CONCAT(int_PML_QTE_ACCEPTEE, '|', int_NUMBER_ANSWER, '|', str_PML_COMMENTAIRE) FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '" + retourId + "' AND str_PML_TYPE = 'RETOUR'");
     ok('Ligne : quantité acceptée 0, réponse pré-remplie, commentaire du grossiste', ligne === '0|0|Refusé : produit hors délai', ligne);
     await p.screenshot({ path: SORTIE + '/retour-pml-reponse.png' });
