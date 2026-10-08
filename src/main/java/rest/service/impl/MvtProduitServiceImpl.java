@@ -1134,9 +1134,26 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             final String emplecementId = empl.getLgEMPLACEMENTID();
             JSONArray items = new JSONArray();
             TBonLivraison bonLivraison = fournisseur.getLgBONLIVRAISONID();
+            /*
+             * retours du 08/10 (13) : si le grossiste a repondu par PharmaML (bon de retour), seule la quantite
+             * acceptee sort du stock ; une ligne refusee reste en stock. Sans reponse PharmaML : quantite saisie, comme
+             * avant.
+             */
+            java.util.Map<String, Integer> acceptees = RetourPharmaMl.quantitesAcceptees(emg, params.getRef());
             details.forEach(d -> {
 
                 TFamille tf = d.getLgFAMILLEID();
+                Integer acceptee = acceptees.get(d.getLgRETOURFRSDETAIL());
+                if (acceptee != null && acceptee < d.getIntNUMBERRETURN()) {
+                    d.setIntNUMBERRETURN(Math.max(0, acceptee));
+                }
+                if (d.getIntNUMBERRETURN() == 0) {
+                    /* ligne refusee par le grossiste : rien ne sort du stock, aucun mouvement */
+                    d.setStrSTATUT(STATUT_ENABLE);
+                    d.setDtUPDATED(new Date());
+                    emg.merge(d);
+                    return;
+                }
                 TFamilleStock stock = findStockByProduitId(tf.getLgFAMILLEID(), emplecementId);
                 int sockInit = stock.getIntNUMBERAVAILABLE();
                 int finalQty = sockInit - d.getIntNUMBERRETURN();

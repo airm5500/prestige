@@ -3006,3 +3006,15 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed:hover { background: #1f3b5a !important; background-image: none !important; border-color: #1f3b5a !important; }
 .cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed .x-btn-inner { color: #fff !important; }
 .cec-hub .cec-onglets .x-btn.cec-onglet:not(.x-btn-pressed):hover { background: #e4effa !important; }
+
+/* Retours du 08/10 (13) : retours fournisseurs par PharmaML */
+#btn_retour_pml.btn-commander-pml { background: #17795f !important; border-color: #17795f !important; background-image: none !important; }
+#btn_retour_pml.btn-commander-pml .x-btn-inner { color: #fff !important; font-weight: 600; }
+#btn_retour_pml.x-btn-disabled { opacity: .55; }
+.retour-pml-etat { font-size: 12px; line-height: 18px; white-space: normal; }
+.retour-pml-statut { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #1f5f9e; background: #e4effa; }
+.retour-pml-statut.repondu { color: #17795f; background: #e3f6ef; }
+.retour-pml-statut.en_attente { color: #8a5a00; background: #fdf0d2; }
+.retour-pml-statut.erreur { color: #b42318; background: #fde7e6; }
+.retour-pml-detail { color: #4b5866; }
+.retour-pml-prevu { color: #4b5866; font-size: 11px; }

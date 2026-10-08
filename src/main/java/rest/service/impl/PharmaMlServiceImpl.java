@@ -277,6 +277,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     /* ================================================================== reponses differees (vidage) */
 
     static final String SOURCE_COMMANDE = "COMMANDE", SOURCE_RUPTURE = "RUPTURE", SOURCE_SUIVI = "SUIVI";
+    /* retours du 08/10 (13) : demande de retour et reclamation (str_SOURCE sur 10 caracteres) */
+    static final String SOURCE_RETOUR = "RETOUR", SOURCE_RECLAM = "RECLAM";
     static final String EN_ATTENTE = "EN_ATTENTE", TRAITEE = "TRAITEE", ERREUR = "ERREUR", ORPHELINE = "ORPHELINE";
     /** Retours du 08/10 (statut d'envoi sur la liste des commandes) : refus du grossiste, envoi impossible. */
     static final String REFUSEE = "REFUSEE", NON_ENVOYEE = "NON_ENVOYEE";
@@ -631,6 +633,10 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     private JSONObject appliquer(String grossisteId, String xml, String archive, boolean noterOrpheline) {
         TGrossiste g = em.find(TGrossiste.class, grossisteId);
         PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(xml);
+        if (xml != null && xml.contains("BON_RETOUR") && !env.repCommande) {
+            /* retours du 08/10 (13) : bon de retour (reponse a une demande de retour), souvent differe */
+            return appliquerBonRetourDiffere(g, env, xml, archive, noterOrpheline);
+        }
         if (BlvPharmaMl.estBlv(xml) && !env.repCommande) {
             /* retours du 08/10 (11) : bon de livraison valorise depose au depot */
             JSONObject b = BlvPharmaMl.enregistrerBlv(em, grossisteId, env.refMessage, xml, archive);
@@ -704,7 +710,14 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         String idAttente = (String) attente[0], source = (String) attente[1], sourceId = (String) attente[2];
         JSONObject resultat;
         String statut;
-        if (erreur != null || !env.repCommande) {
+        if (SOURCE_RECLAM.equals(source)) {
+            /* reponse a une reclamation : prise en compte (ou refus) ; le detail reste dans l'archive */
+            statut = erreur != null ? ERREUR : TRAITEE;
+            resultat = new JSONObject().put("msg", erreur != null ? "réclamation refusée : " + erreur
+                    : "réclamation prise en compte par le grossiste");
+            RetourPharmaMl.statut(em, sourceId, erreur != null ? RetourPharmaMl.ERREUR : RetourPharmaMl.ENVOYE,
+                    resultat.optString("msg"), null, null, false);
+        } else if (erreur != null || !env.repCommande) {
             statut = ERREUR;
             resultat = new JSONObject().put("msg", erreur == null ? "message sans réponse de commande" : erreur);
         } else {
@@ -1474,6 +1487,219 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     @Override
     public JSONObject avancementConnu(String commandeId) {
         return avancement(em, commandeId).put("success", true);
+    }
+
+    // ------------------------------------------------------------------
+    // Retours du 08/10 (13) : retours fournisseurs et reclamations par PharmaML
+    // ------------------------------------------------------------------
+
+    /**
+     * Envoie le retour : les lignes « retour » en demande d'autorisation (REQ_RETOUR), les lignes « reclamation » en
+     * reclamation (RECLAMATIONS), selon le motif. Reponse immediate (bon de retour) appliquee ; fin de service : la
+     * reponse sera recuperee au vidage (souvent plus tard) ; refus : code et conseil.
+     */
+    @Override
+    public JSONObject envoyerRetour(String retourId, TUser user) {
+        Object[] e = RetourPharmaMl.entete(em, retourId);
+        if (e == null) {
+            return new JSONObject().put("success", false).put("msg", "Retour introuvable.");
+        }
+        if (RetourPharmaMl.EN_ATTENTE.equals(e[4]) || RetourPharmaMl.REPONDU.equals(e[4])) {
+            return new JSONObject().put("success", false).put("msg", RetourPharmaMl.REPONDU.equals(e[4])
+                    ? "Le grossiste a déjà répondu à ce retour : il n'est pas renvoyé."
+                    : "Ce retour a déjà été envoyé ; la réponse du grossiste est attendue (« Réponses PharmaML »).");
+        }
+        TGrossiste g = e[0] == null ? null : em.find(TGrossiste.class, (String) e[0]);
+        if (g == null || StringUtils.isBlank(g.getStrURLPHARMAML())) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Le grossiste " + (g == null ? "" : g.getStrLIBELLE() + " ") + "n'a pas de lien PharmaML.");
+        }
+        String refBl = (String) e[1], refRetour = StringUtils.defaultString((String) e[2]);
+        List<RetourPharmaMl.Ligne> retours = new ArrayList<>(), reclamations = new ArrayList<>();
+        List<String> ignores = new ArrayList<>();
+        for (RetourPharmaMl.Ligne l : RetourPharmaMl.lignes(em, retourId)) {
+            if (RetourPharmaMl.RETOUR.equals(l.type) && StringUtils.isNotBlank(l.codeNorme)) {
+                retours.add(l);
+            } else if (RetourPharmaMl.RECLAMATION.equals(l.type) && StringUtils.isNotBlank(l.codeNorme)) {
+                reclamations.add(l);
+            } else {
+                ignores.add(l.designation + " (motif " + StringUtils.defaultIfBlank(l.motifLocal, "?") + ")");
+            }
+        }
+        if (retours.isEmpty() && reclamations.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Aucune ligne à envoyer : les motifs choisis ne"
+                    + " partent pas par PharmaML (" + String.join(", ", ignores) + ").");
+        }
+        if (retours.size() > PharmaMlMessages.MAX_LIGNES || reclamations.size() > PharmaMlMessages.MAX_LIGNES) {
+            return new JSONObject().put("success", false).put("msg",
+                    "PharmaML accepte 50 lignes au plus par demande : scindez ce retour.");
+        }
+        if (!reclamations.isEmpty() && StringUtils.isBlank(refBl)) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Une réclamation porte sur un bon de livraison : choisissez le bon de livraison du retour.");
+        }
+        String version = versionCommande(g);
+        String refDemande = StringUtils.left("RT" + refRetour, 20), refReclam = StringUtils.left("RC" + refRetour, 20);
+        List<String> messages = new ArrayList<>();
+        boolean attente = false, erreur = false, repondu = false;
+        if (!retours.isEmpty()) {
+            List<PharmaMlMessages.LigneRetour> lignes = new ArrayList<>();
+            for (int i = 0; i < retours.size(); i++) {
+                RetourPharmaMl.Ligne l = retours.get(i);
+                lignes.add(new PharmaMlMessages.LigneRetour(l.code, l.designation, l.quantite, l.codeNorme, null, null,
+                        null, null));
+                RetourPharmaMl.noterEnvoiLigne(em, l, i + 1);
+            }
+            String ref = refMessage();
+            JSONObject r = echangeRetour(g, SOURCE_RETOUR, retourId, refRetour, ref, refDemande,
+                    PharmaMlMessages.demandeRetour(version, partenaires(g), ref, refDemande, refBl, lignes), version);
+            messages.add("Demande de retour (" + retours.size() + " ligne(s)) : " + r.optString("msg"));
+            attente |= r.optBoolean("enAttente");
+            erreur |= !r.optBoolean("success");
+            repondu |= r.optBoolean("repondu");
+        }
+        if (!reclamations.isEmpty()) {
+            List<PharmaMlMessages.LigneRetour> lignes = new ArrayList<>();
+            for (int i = 0; i < reclamations.size(); i++) {
+                RetourPharmaMl.Ligne l = reclamations.get(i);
+                lignes.add(new PharmaMlMessages.LigneRetour(l.code, l.designation, l.quantite, l.codeNorme, l.action,
+                        null, null, null));
+                RetourPharmaMl.noterEnvoiLigne(em, l, i + 1);
+            }
+            String ref = refMessage();
+            JSONObject r = echangeRetour(g, SOURCE_RECLAM, retourId, refRetour, ref, refReclam,
+                    PharmaMlMessages.reclamations(version, partenaires(g), ref, refReclam, refBl, lignes), version);
+            messages.add("Réclamation (" + reclamations.size() + " ligne(s)) : " + r.optString("msg"));
+            attente |= r.optBoolean("enAttente");
+            erreur |= !r.optBoolean("success");
+        }
+        if (!ignores.isEmpty()) {
+            messages.add("Non envoyé (motif interne) : " + String.join(", ", ignores));
+        }
+        String statut = erreur ? RetourPharmaMl.ERREUR
+                : repondu ? RetourPharmaMl.REPONDU : attente ? RetourPharmaMl.EN_ATTENTE : RetourPharmaMl.ENVOYE;
+        String detail = String.join(" · ", messages);
+        if (!RetourPharmaMl.REPONDU.equals(statut)) {
+            RetourPharmaMl.statut(em, retourId, statut, detail, retours.isEmpty() ? null : refDemande,
+                    reclamations.isEmpty() ? null : refReclam, true);
+        }
+        return new JSONObject().put("success", !erreur).put("statut", statut).put("msg", detail).put("enAttente",
+                attente);
+    }
+
+    /** Un message (demande de retour ou reclamation) : envoi, archives T_/RT_ ou Q_/RQ_, journal, reponse. */
+    private JSONObject echangeRetour(TGrossiste g, String source, String retourId, String refRetour, String ref,
+            String refDocument, String xml, String version) {
+        String nom = StringUtils.replace(g.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        boolean retour = SOURCE_RETOUR.equals(source);
+        String prefixe = retour ? "T_" : "Q_", domaine = retour ? "RETOUR" : "RECLAMATION";
+        String archive = ecrireArchive(prefixe + refRetour + "_" + nom, xml);
+        ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "DEMANDE", "retour " + refRetour + " | message " + ref
+                + " | document " + refDocument + " | archive " + StringUtils.defaultString(archive, "(non archivee)"));
+        String corps;
+        try {
+            HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
+                    g.getStrCLERECEPTEUR(), modeControle(g), DELAI_CONNEXION, DELAI_REPONSE).reponse;
+            corps = rep.body();
+            ecrireArchive("R" + prefixe + refRetour + "_" + nom, PharmaMlMessages.indenter(corps));
+            if (rep.statusCode() != 200) {
+                ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "REFUS HTTP", "HTTP " + rep.statusCode());
+                return new JSONObject().put("success", false).put("msg",
+                        "le serveur a répondu HTTP " + rep.statusCode());
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return new JSONObject().put("success", false).put("msg", "envoi interrompu");
+        } catch (Exception ex) {
+            ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), erreurReseau(ex) ? "INJOIGNABLE" : "ERREUR",
+                    ex.getClass().getSimpleName());
+            return new JSONObject().put("success", false).put("msg", erreurReseau(ex) ? messageReseau(g, ex)
+                    : "envoi impossible (" + ex.getClass().getSimpleName() + ")");
+        }
+        String erreur = PharmaMlMessages.erreurReponse(corps);
+        if (erreur != null) {
+            ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "REFUS", erreur);
+            return new JSONObject().put("success", false).put("msg",
+                    "refusé : « " + erreur + " »." + CodeErreurPharmaMl.conseil(PharmaMlMessages.codeErreur(erreur)));
+        }
+        Object[] bon = null;
+        try {
+            bon = retour ? PharmaMlMessages.lireBonRetour(corps) : null;
+        } catch (Exception ex) {
+            bon = null;
+        }
+        if (bon != null) {
+            JSONObject a = RetourPharmaMl.appliquerBonRetour(em, retourId, bon);
+            ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "BON DE RETOUR", a.optString("msg"));
+            return new JSONObject().put("success", true).put("repondu", true).put("msg", a.optString("msg"));
+        }
+        PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(corps);
+        if (retour || "FIN_SERVICE".equals(env.action)) {
+            /* reponse differee : le bon de retour (ou la reponse a la reclamation) sera recupere au vidage */
+            em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                    + " str_REF_MESSAGE, str_REF_CDE, str_VERSION, str_STATUT, dt_ENVOI) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NOW())")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                    .setParameter(3, source).setParameter(4, retourId).setParameter(5, ref).setParameter(6, refDocument)
+                    .setParameter(7, version).setParameter(8, EN_ATTENTE).executeUpdate();
+            ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "EN_ATTENTE",
+                    "retour " + refRetour + " | reponse au depot");
+            return new JSONObject().put("success", true).put("enAttente", true).put("msg", g.getStrLIBELLE()
+                    + " a reçu la demande ; sa réponse sera récupérée automatiquement (ou par « Réponses PharmaML »).");
+        }
+        ArchivePharmaMl.journal(domaine, g.getStrLIBELLE(), "RECUE", "reclamation prise en compte");
+        return new JSONObject().put("success", true).put("msg",
+                g.getStrLIBELLE() + " a pris en compte la réclamation.");
+    }
+
+    /** Bon de retour depose au depot : rattache a la demande en attente, sinon par la reference de la demande. */
+    private JSONObject appliquerBonRetourDiffere(TGrossiste g, PharmaMlMessages.Enveloppe env, String xml,
+            String archive, boolean noterOrpheline) {
+        JSONObject r = new JSONObject().put("refMessage", env.refMessage).put("enReponseA", env.enReponseA);
+        Object[] bon;
+        try {
+            bon = PharmaMlMessages.lireBonRetour(xml);
+        } catch (Exception e) {
+            bon = null;
+        }
+        if (bon == null) {
+            return r.put("statut", ERREUR).put("resultat", new JSONObject().put("msg", "bon de retour illisible"));
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> a = em
+                .createNativeQuery("SELECT lg_ID, lg_SOURCE_ID FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = ?1"
+                        + " AND str_SOURCE = ?2 AND str_STATUT = ?3 AND (str_REF_MESSAGE = ?4 OR str_REF_CDE = ?5) ORDER BY dt_ENVOI DESC")
+                .setParameter(1, g.getLgGROSSISTEID()).setParameter(2, SOURCE_RETOUR).setParameter(3, EN_ATTENTE)
+                .setParameter(4, StringUtils.defaultString(env.enReponseA)).setParameter(5, (String) bon[0])
+                .getResultList();
+        String retourId = a.isEmpty() ? RetourPharmaMl.retourDeLaDemande(em, g.getLgGROSSISTEID(), (String) bon[0])
+                : (String) a.get(0)[1];
+        if (retourId == null) {
+            if (noterOrpheline) {
+                em.createNativeQuery(
+                        "INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, str_REF_MESSAGE,"
+                                + " str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW(), NOW())")
+                        .setParameter(1, UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                        .setParameter(3, SOURCE_RETOUR).setParameter(4, env.enReponseA).setParameter(5, ORPHELINE)
+                        .setParameter(6,
+                                StringUtils.left("Bon de retour non rattaché, archivé : " + archive + ".xml", 500))
+                        .executeUpdate();
+            }
+            return r.put("statut", ORPHELINE);
+        }
+        JSONObject res = RetourPharmaMl.appliquerBonRetour(em, retourId, bon);
+        if (!a.isEmpty()) {
+            em.createNativeQuery(
+                    "UPDATE t_pharmaml_attente SET str_STATUT = ?1, str_DETAIL = ?2, dt_REPONSE = NOW() WHERE lg_ID = ?3")
+                    .setParameter(1, TRAITEE).setParameter(2, StringUtils.left(res.optString("msg"), 500))
+                    .setParameter(3, a.get(0)[0]).executeUpdate();
+        }
+        ArchivePharmaMl.journal("RETOUR", g.getStrLIBELLE(), "BON DE RETOUR", res.optString("msg"));
+        return r.put("statut", TRAITEE).put("source", SOURCE_RETOUR).put("sourceId", retourId).put("resultat", res);
+    }
+
+    @Override
+    public JSONObject etatRetour(String retourId) {
+        return RetourPharmaMl.etat(em, retourId);
     }
 
     // Retours du 08/10 (11) : bons de livraison valorises et alertes deposes au depot

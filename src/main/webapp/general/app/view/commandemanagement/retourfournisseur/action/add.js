@@ -162,6 +162,10 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             }
 
         });
+        /* retours du 08/10 (13) : etat PharmaML du retour a chaque chargement des lignes */
+        store_details_retourfournisseur.on('load', function () {
+            Me.chargerEtatPml();
+        });
         this.cellEditing = new Ext.grid.plugin.CellEditing({
             clicksToEdit: 1
         });
@@ -459,7 +463,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                 {
                                     xtype: 'rownumberer',
                                     text: 'LG',
-                                    width: 45,
+                                    width: 56,
                                     sortable: true/*,
                                      locked: true*/
                                 },
@@ -509,6 +513,17 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                     dataIndex: 'motif'
                                 },
                                 {
+                                    /* retours du 08/10 (13) : destination PharmaML de la ligne et reponse du grossiste */
+                                    text: 'PharmaML',
+                                    itemId: 'colRetourPml',
+                                    width: 230,
+                                    sortable: false,
+                                    dataIndex: 'lgRETOURFRSDETAIL',
+                                    renderer: function (v, meta) {
+                                        return Me.renduLignePml(v, meta);
+                                    }
+                                },
+                                {
                                     xtype: 'actioncolumn',
                                     width: 30,
                                     sortable: false,
@@ -551,7 +566,16 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
-                    items: ['->',
+                    items: [{xtype: 'component', id: 'retourPmlEtat', cls: 'retour-pml-etat', flex: 1, html: ''}, '->',
+                        {
+                            text: 'Envoyer par PharmaML',
+                            id: 'btn_retour_pml',
+                            cls: 'btn-primary btn-commander-pml',
+                            tooltip: 'Demande d\'autorisation de retour et réclamations au grossiste, selon le motif de chaque ligne',
+                            disabled: true,
+                            scope: this,
+                            handler: this.envoyerPharmaMl
+                        },
                         {
                             text: 'Enregistrer',
                             id: 'btn_save',
@@ -591,6 +615,12 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             comboFamille.getStore().reload();
         }
 
+
+        /* retours du 08/10 (13) : ouvert depuis l'etat de controle des achats, bon de livraison deja choisi */
+        const pre = this.getOdatasource() && this.getOdatasource().blPreselection;
+        if (pre && titre !== "Modification fiche retour fournisseur") {
+            Me.choisirBl(pre.ref, pre.grossiste);
+        }
 
         Ext.getCmp('gridpanelID').on('edit', function (editor, e) {
             let qte = Number(e.record.data.intNUMBERRETURN);
@@ -643,9 +673,111 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
 
         });
     },
+    /* bon de livraison choisi d'office : meme effet qu'un choix dans la liste (grossiste, produits du bon) */
+    choisirBl: function (refBl, grossiste) {
+        const combo = Ext.getCmp('lg_BON_LIVRAISON_ID');
+        combo.getStore().load({
+            params: {query: refBl},
+            callback: function () {
+                if (!combo.getStore().findRecord('str_REF_LIVRAISON', refBl, 0, false, false, true)) {
+                    return;
+                }
+                combo.setValue(refBl);
+                Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(grossiste || combo.findRecord('str_REF_LIVRAISON', refBl).get('str_GROSSISTE_LIBELLE'));
+                const comboFamille = Ext.getCmp('str_NAME');
+                comboFamille.clearValue();
+                comboFamille.getStore().getProxy().url = "../RetourFourData?lg_BON_LIVRAISON_ID=" + encodeURIComponent(refBl);
+                comboFamille.getStore().reload();
+                comboFamille.enable();
+                comboFamille.focus(true, 100);
+            }
+        });
+    },
+
     loadStore: function () {
         Ext.getCmp('gridpanelID').getStore().load({
             callback: this.onStoreLoad
+        });
+    },
+
+    /* identifiant du retour affiche (cree dans cet ecran, ou ouvert en modification) */
+    idRetour: function () {
+        return Me.getCurrent() || (ref && ref !== '0' ? ref : null);
+    },
+
+    TYPES_PML: {RETOUR: 'Demande de retour', RECLAMATION: 'Réclamation', AUCUN: 'Non envoyé (motif interne)'},
+
+    renduLignePml: function (id, meta) {
+        var enc = Ext.String.htmlEncode, l = (Me.etatPml && Me.etatPml.parLigne || {})[id];
+        if (!l) {
+            return '';
+        }
+        var t = l.type || l.typePrevu, txt = (Me.TYPES_PML[t] || t) + (l.code ? ' ' + l.code : ''), cls = 'retour-pml-prevu';
+        if (l.acceptee !== null && l.acceptee !== undefined) {
+            txt = 'Accepté ' + l.acceptee + ' / ' + l.demandee + (l.dateReprise ? ' · reprise ' + l.dateReprise : '');
+            cls = l.acceptee >= l.demandee ? 'blv-ok' : 'blv-ecart';
+        } else if (l.type) {
+            txt += ' · envoyé';
+        }
+        meta.tdAttr = 'data-qtip="' + enc(enc(txt + (l.commentaire ? ' — ' + l.commentaire : ''))) + '"';
+        return '<span class="' + cls + '">' + enc(txt) + '</span>';
+    },
+
+    chargerEtatPml: function () {
+        var id = Me.idRetour(), bouton = Ext.getCmp('btn_retour_pml'), etat = Ext.getCmp('retourPmlEtat');
+        if (!id || !bouton) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/pharma/retour/' + encodeURIComponent(id), method: 'GET',
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {}, enc = Ext.String.htmlEncode;
+                if (!o.success || !Ext.getCmp('btn_retour_pml')) {
+                    return;
+                }
+                o.parLigne = {};
+                Ext.each(o.lignes || [], function (l) {
+                    o.parLigne[l.id] = l;
+                });
+                Me.etatPml = o;
+                Ext.getCmp('gridpanelID').getView().refresh();
+                var libelles = {EN_ATTENTE: 'Envoyé le ' + o.envoi + ' · réponse du grossiste attendue', REPONDU: 'Réponse du grossiste reçue le ' + o.reponse,
+                    ENVOYE: 'Envoyé le ' + o.envoi, ERREUR: 'Dernier envoi refusé'};
+                etat.update(o.statut ? '<span class="retour-pml-statut ' + o.statut.toLowerCase() + '">' + enc(libelles[o.statut] || o.statut) + '</span> '
+                        + '<span class="retour-pml-detail">' + enc(o.detail || '') + '</span>' : '');
+                var bloque = o.statut === 'EN_ATTENTE' || o.statut === 'REPONDU', vide = !(o.lignes || []).length;
+                bouton.setDisabled(bloque || vide);
+                bouton.setText(o.statut === 'REPONDU' ? 'Répondu par PharmaML' : o.statut === 'EN_ATTENTE' ? 'Envoyé (réponse attendue)'
+                        : o.statut === 'ERREUR' ? 'Renvoyer par PharmaML' : 'Envoyer par PharmaML');
+            }
+        });
+    },
+
+    envoyerPharmaMl: function () {
+        var id = Me.idRetour();
+        if (!id) {
+            return;
+        }
+        Ext.MessageBox.confirm('Envoyer par PharmaML', 'Envoyer ce retour au grossiste ?<br>Les lignes partent en demande de retour ou en réclamation selon leur motif.', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
+            var attente = Ext.MessageBox.wait('Envoi au grossiste . . .', 'PharmaML');
+            Ext.Ajax.request({
+                url: '../api/v1/pharma/retour/' + encodeURIComponent(id), method: 'POST', timeout: 240000,
+                success: function (r) {
+                    attente.hide();
+                    var o = Ext.decode(r.responseText, true) || {};
+                    Ext.MessageBox.show({title: o.success ? 'Envoi PharmaML' : 'Envoi PharmaML impossible', width: 560,
+                        msg: Ext.String.htmlEncode(o.msg || 'Envoi impossible.').replace(/ · /g, '<br>'),
+                        buttons: Ext.MessageBox.OK, icon: o.success ? Ext.MessageBox.INFO : Ext.MessageBox.ERROR});
+                    Me.chargerEtatPml();
+                },
+                failure: function (r) {
+                    attente.hide();
+                    Ext.MessageBox.alert('Envoi PharmaML', 'Erreur du serveur ' + r.status);
+                }
+            });
         });
     },
     onStoreLoad: function () {

@@ -40,6 +40,8 @@ public final class ArchivePharmaMl {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HORODATAGE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final String SUIVIS = "suivis";
+    /** retours du 08/10 (13) : demandes de retour (T_/RT_) et reclamations (Q_/RQ_) */
+    public static final String RETOURS = "retours";
     public static final String COMMANDES = "commandes", VIDAGES = "vidages", INFOPRODUIT = "infoproduit",
             JOURNAL = "log", AUTRES = "autres";
 
@@ -65,6 +67,9 @@ public final class ArchivePharmaMl {
         String n = StringUtils.defaultString(nom).toUpperCase(java.util.Locale.ROOT);
         if (n.startsWith("RV_") || n.startsWith("V_")) {
             return VIDAGES;
+        }
+        if (n.startsWith("RT_") || n.startsWith("T_") || n.startsWith("RQ_") || n.startsWith("Q_")) {
+            return RETOURS;
         }
         if (n.startsWith("RE_") || n.startsWith("E_")) {
             return SUIVIS; /* retours du 08/10 (10) : etat d'avancement des commandes */
@@ -186,7 +191,8 @@ public final class ArchivePharmaMl {
 
     /** Anciennete conservee par defaut : 12 mois, en plus du mois en cours. */
     public static final int MOIS_CONSERVES_DEFAUT = 12;
-    private static final String[] DOSSIERS_RANGES = { COMMANDES, VIDAGES, INFOPRODUIT, SUIVIS, JOURNAL, AUTRES };
+    private static final String[] DOSSIERS_RANGES = { COMMANDES, VIDAGES, INFOPRODUIT, SUIVIS, RETOURS, JOURNAL,
+            AUTRES };
     private static final java.util.regex.Pattern DOSSIER_MOIS = java.util.regex.Pattern.compile("\\d{4}-\\d{2}");
     private static final java.util.regex.Pattern ANCIEN_ECHANGE = java.util.regex.Pattern
             .compile("(?i)(C|R|V|RV|I|RI|E|RE)_.*\\.xml");

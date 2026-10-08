@@ -156,7 +156,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     private TBonLivraisonDetail getTBonLivraisonDetailLast(String lgBONLIVRAISONID, String lgFAMILLEID) {
         TypedQuery<TBonLivraisonDetail> qry = getEntityManager().createQuery(
-                "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.strREFLIVRAISON = ?1  AND t.lgFAMILLEID.lgFAMILLEID = ?2",
+                /* retours du 08/10 : numero de bon repris (homonymes) -> le bon le plus recent, au lieu d'une erreur */
+                "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.strREFLIVRAISON = ?1  AND t.lgFAMILLEID.lgFAMILLEID = ?2"
+                        + " ORDER BY t.lgBONLIVRAISONID.dtCREATED DESC",
                 TBonLivraisonDetail.class).setParameter(1, lgBONLIVRAISONID).setParameter(2, lgFAMILLEID);
         qry.setMaxResults(1);
         return qry.getSingleResult();
@@ -165,8 +167,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     private TBonLivraison getTBonLivraison(String lgBONLIVRAISONID) {
         TypedQuery<TBonLivraison> qry = getEntityManager()
-                .createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1", TBonLivraison.class)
-                .setParameter(1, lgBONLIVRAISONID);
+                .createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 ORDER BY t.dtCREATED DESC",
+                        TBonLivraison.class)
+                .setParameter(1, lgBONLIVRAISONID).setMaxResults(1);
         return qry.getSingleResult();
     }
 

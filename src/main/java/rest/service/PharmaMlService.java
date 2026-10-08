@@ -72,6 +72,12 @@ public interface PharmaMlService {
     /** Prise de connaissance d'une alerte. */
     JSONObject alerteLue(String alerteId, dal.TUser user);
 
+    /** Retours du 08/10 (13) : envoi d'un retour fournisseur (demande de retour et/ou reclamation). */
+    JSONObject envoyerRetour(String retourId, dal.TUser user);
+
+    /** Etat d'envoi PharmaML d'un retour et de ses lignes. */
+    JSONObject etatRetour(String retourId);
+
     /** Tableau de bord PharmaML (lecture seule). */
     JSONObject tableauBord();
 

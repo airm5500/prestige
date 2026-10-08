@@ -124,6 +124,26 @@ public class PharmaMlResource {
         return Response.ok(pharmaMlService.blv(id, commande).toString()).build();
     }
 
+    /** Retours du 08/10 (13) : envoi d'un retour fournisseur par PharmaML (demande de retour, reclamation). */
+    @POST
+    @Path("retour/{id}")
+    public Response envoyerRetour(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.envoyerRetour(id, u).toString()).build();
+    }
+
+    @GET
+    @Path("retour/{id}")
+    public Response etatRetour(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.etatRetour(id).toString()).build();
+    }
+
     /** Retours du 08/10 (11) : tableau de bord PharmaML. */
     @GET
     @Path("tableau-bord")

@@ -358,6 +358,24 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 },
 
                 {
+                    /* retours du 08/10 (13) : retour fournisseur (partiel) de ce bon, ecran de retour pre-rempli */
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/fleche_verte_gauche.svg',
+                            tooltip: 'Retour fournisseur : choisir les produits de ce bon à retourner',
+                            iconCls: 'retour-frs-ligne',
+                            scope: this,
+                            getClass: function (value, metadata, record) {
+                                return record.get('strSTATUT') === 'delete' ? 'x-hide-display' : 'retour-frs-ligne';
+                            },
+                            handler: this.retourFournisseurBL
+                        }]
+                },
+
+                {
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
@@ -1007,6 +1025,12 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             titre: "Mise &agrave; jour des informations du Bon de livraison N&deg;" + rec.get('strREFLIVRAISON')
         });
     },
+    retourFournisseurBL: function (view, rowIndex, colIndex, item, e, record) {
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfournisseurmanagerlist',
+                'Ajouter detail retour fournisseur', '0',
+                {blPreselection: {ref: record.get('strREFLIVRAISON'), grossiste: (record.get('fournisseur') || {}).fournisseurLibelle || ''}});
+    },
+
     retourCompletBL: function (view, rowIndex, colIndex, item, e, record, row) {
         let storetypemotif = new Ext.data.Store({
             idProperty: 'lgMOTIFRETOUR',

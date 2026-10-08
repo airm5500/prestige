@@ -233,6 +233,125 @@ public final class PharmaMlMessages {
         return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
     }
 
+    /** Ligne d'une demande de retour (§ 3.1.5) ou d'une reclamation (§ 3.1.4). */
+    public static class LigneRetour {
+
+        public final String code, typeCodification, designation, motif, action, commentaire;
+        public final int quantite;
+        public final Integer quantiteLivree, quantiteFacturee;
+
+        public LigneRetour(String code, String designation, int quantite, String motif, String action,
+                Integer quantiteLivree, Integer quantiteFacturee, String commentaire) {
+            this.code = code == null ? "" : code.trim();
+            this.typeCodification = this.code.length() == 13 ? "EAN13" : "CIP39";
+            this.designation = designation == null ? "" : designation.trim();
+            this.quantite = Math.max(1, quantite);
+            this.motif = motif;
+            this.action = action;
+            this.quantiteLivree = quantiteLivree;
+            this.quantiteFacturee = quantiteFacturee;
+            this.commentaire = commentaire == null ? "" : commentaire.trim();
+        }
+    }
+
+    private static String produit(LigneRetour l) {
+        String d = tronque(l.designation, 50);
+        return " Type_Codification=\"" + l.typeCodification + "\" Code_Produit=\"" + esc(l.code) + "\""
+                + (d.isEmpty() ? "" : " Designation=\"" + esc(d) + "\"");
+    }
+
+    /**
+     * Demande d'autorisation de retour de produits sur stock (REQ_RETOUR, § 3.1.5) : 50 lignes au plus, motif du
+     * tableau 6, document d'origine (bon de livraison) si connu.
+     */
+    public static String demandeRetour(String version, Partenaires p, String reference, String refDemande, String refBl,
+            List<LigneRetour> lignes) {
+        if (lignes == null || lignes.isEmpty() || lignes.size() > MAX_LIGNES) {
+            throw new IllegalArgumentException("Entre 1 et " + MAX_LIGNES + " lignes par demande de retour");
+        }
+        StringBuilder c = new StringBuilder("        <REQ_RETOUR Ref_Demande_Retour=\"")
+                .append(esc(tronque(refDemande, 20))).append("\">\n");
+        if (refBl != null && !refBl.trim().isEmpty()) {
+            c.append("          <DOCUMENT Nature_Document=\"0002\" Ref_Document=\"")
+                    .append(esc(tronque(refBl.trim(), 20))).append("\"/>\n");
+        }
+        int i = 1;
+        for (LigneRetour l : lignes) {
+            String com = tronque(l.commentaire, 255);
+            c.append("          <LIGNE Num_Ligne=\"").append(i++).append("\"").append(produit(l)).append(" Quantite=\"")
+                    .append(l.quantite).append("\" Motif=\"").append(esc(l.motif)).append("\"")
+                    .append(com.isEmpty() ? "" : " Commentaire_produit=\"" + esc(com) + "\"").append("/>\n");
+        }
+        c.append("        </REQ_RETOUR>\n");
+        return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
+    }
+
+    /**
+     * Reclamations sur une livraison (RECLAMATIONS, § 3.1.4) : document d'origine obligatoire (bon de livraison), motif
+     * du tableau 3, action correctrice du tableau 4, 50 lignes au plus.
+     */
+    public static String reclamations(String version, Partenaires p, String reference, String refReclamation,
+            String refBl, List<LigneRetour> lignes) {
+        if (lignes == null || lignes.isEmpty() || lignes.size() > MAX_LIGNES) {
+            throw new IllegalArgumentException("Entre 1 et " + MAX_LIGNES + " lignes par réclamation");
+        }
+        if (refBl == null || refBl.trim().isEmpty()) {
+            throw new IllegalArgumentException("Une réclamation porte sur un bon de livraison");
+        }
+        StringBuilder c = new StringBuilder("        <RECLAMATIONS Ref_Reclamation=\"")
+                .append(esc(tronque(refReclamation, 20))).append("\" Nature_Document=\"0002\" Ref_Document=\"")
+                .append(esc(tronque(refBl.trim(), 20))).append("\">\n");
+        int i = 1;
+        for (LigneRetour l : lignes) {
+            String com = tronque(l.commentaire, 255);
+            c.append("          <LIGNE Num_Ligne=\"").append(i++).append("\" Motif=\"").append(esc(l.motif))
+                    .append("\" Action=\"").append(esc(l.action)).append("\" Quantite=\"").append(l.quantite)
+                    .append("\"");
+            if (l.quantiteLivree != null) {
+                c.append(" Quantite_livree=\"").append(Math.max(0, l.quantiteLivree)).append("\"");
+            }
+            if (l.quantiteFacturee != null) {
+                c.append(" Quantite_facturee=\"").append(Math.max(0, l.quantiteFacturee)).append("\"");
+            }
+            c.append(com.isEmpty() ? "" : " Commentaire=\"" + esc(com) + "\"").append(">\n            <PRODUIT_FACTURE")
+                    .append(produit(l)).append("/>\n          </LIGNE>\n");
+        }
+        c.append("        </RECLAMATIONS>\n");
+        return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
+    }
+
+    /** Ligne d'un bon de retour (reponse du grossiste a la demande de retour, § 3.2.5). */
+    public static class LigneBonRetour {
+
+        public String code = "", commentaire = "", dateReprise = "";
+        public Integer numLigneDemande;
+        public int quantiteAcceptee;
+    }
+
+    /** Bon de retour : references et lignes ; null si le message n'en contient pas. */
+    public static Object[] lireBonRetour(String xml) throws Exception {
+        Element bon = premier(lireXml(xml).getDocumentElement(), "BON_RETOUR");
+        if (bon == null) {
+            return null;
+        }
+        List<LigneBonRetour> lignes = new ArrayList<>();
+        for (Element e : descendants(bon)) {
+            if (!"LIGNE".equals(nom(e))) {
+                continue;
+            }
+            LigneBonRetour l = new LigneBonRetour();
+            l.code = e.getAttribute("Code_Produit").trim();
+            l.numLigneDemande = entier(e.getAttribute("Num_Ligne_Demande"));
+            Integer q = entier(e.getAttribute("Quantite_acceptee"));
+            l.quantiteAcceptee = q == null ? 0 : Math.max(0, q);
+            l.commentaire = e.getAttribute("Commentaire").trim();
+            l.dateReprise = e.getAttribute("Date_Reprise").trim();
+            lignes.add(l);
+        }
+        return new Object[] { bon.getAttribute("Ref_Demande_Retour").trim(), bon.getAttribute("Ref_Bon_Retour").trim(),
+                lignes };
+    }
+
     /** Une ligne de suivi de commande (SUIVI_COMMANDE, § 3.2.2). */
     public static class Suivi {
 
