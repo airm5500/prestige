@@ -135,7 +135,11 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Acceptation : le message indique qu\'elle est annulable dans l\'onglet « Substitutions »', /Annulable dans l'onglet « Substitutions »/.test(msgAcc), msgAcc);
 
     /* 3) onglet Substitutions */
-    const idOnglet = await p.evaluate(() => { const t = Ext.ComponentQuery.query('rupturepharma #ongletsRuptures')[0]; return t.getTabBar().items.getAt(1).getId(); });
+    /* retours du 08/10 (12) : depuis « Commandes en cours », la pastille ouvre l'ecran a onglets (onglet Substitutions
+     * du meme ecran) ; depuis le menu « Liste des ruptures », l'onglet de l'ecran des ruptures */
+    const idOnglet = await p.evaluate(() => { const h = Ext.ComponentQuery.query('commandesencours')[0];
+      if (h && h.isVisible()) { return h.down('#cec-substitutions').getId(); }
+      const t = Ext.ComponentQuery.query('rupturepharma #ongletsRuptures')[0]; return t.getTabBar().items.getAt(1).getId(); });
     await p.click('#' + idOnglet);
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('rupturepharma #grilleSubstitutions')[0]; return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().findExact('reference', 'E2E-SUB-B') >= 0; }, null, { timeout: 20000 });
     await p.waitForTimeout(500);

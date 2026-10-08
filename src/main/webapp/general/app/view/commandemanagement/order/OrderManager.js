@@ -302,7 +302,8 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     handler: this.onRechClick
                 }, '-',
                 {
-                    text: 'IMPORTER UNE NOUVELLE COMMANDE',
+                    /* retours du 08/10 (12) : libelles raccourcis, la barre tient dans l'ecran a onglets */
+                    text: 'IMPORTER UNE COMMANDE',
                     tooltip: 'Importer une nouvelle commande',
                     scope: this,
                     iconCls: 'importicon',
@@ -312,7 +313,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     }
                 }, '-',
                 {
-                    text: 'VERIFICATION DU FICHIER IMPORTE',
+                    text: 'VÉRIFIER L\'IMPORT',
                     tooltip: 'Vérification du fichier importé',
                     iconCls: 'importicon',
                     scope: this,

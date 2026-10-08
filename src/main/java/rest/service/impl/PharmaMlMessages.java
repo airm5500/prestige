@@ -320,6 +320,16 @@ public final class PharmaMlMessages {
         return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
     }
 
+    /** Commentaire d'une information libre (LIBRE) du grossiste, ex. reponse a une reclamation ; vide si absente. */
+    public static String commentaireLibre(String xml) {
+        try {
+            Element l = premier(lireXml(xml).getDocumentElement(), "LIBRE");
+            return l == null ? "" : l.getAttribute("Commentaire").trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     /** Ligne d'un bon de retour (reponse du grossiste a la demande de retour, § 3.2.5). */
     public static class LigneBonRetour {
 

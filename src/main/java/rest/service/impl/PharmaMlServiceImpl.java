@@ -713,8 +713,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         if (SOURCE_RECLAM.equals(source)) {
             /* reponse a une reclamation : prise en compte (ou refus) ; le detail reste dans l'archive */
             statut = erreur != null ? ERREUR : TRAITEE;
+            String libre = PharmaMlMessages.commentaireLibre(xml);
             resultat = new JSONObject().put("msg", erreur != null ? "réclamation refusée : " + erreur
-                    : "réclamation prise en compte par le grossiste");
+                    : "réponse à la réclamation" + (libre.isEmpty() ? " : prise en compte" : " : « " + libre + " »"));
             RetourPharmaMl.statut(em, sourceId, erreur != null ? RetourPharmaMl.ERREUR : RetourPharmaMl.ENVOYE,
                     resultat.optString("msg"), null, null, false);
         } else if (erreur != null || !env.repCommande) {
