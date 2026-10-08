@@ -266,7 +266,20 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 },
 
                                 int_ACHAT,
-                                int_VENTE]
+                                int_VENTE,
+                                /* retours du 08/10 (8) : passer la commande par PharmaML, action principale en haut a droite */
+                                {xtype: 'component', flex: 1},
+                                {
+                                    xtype: 'button',
+                                    text: 'Commander par PharmaML',
+                                    id: 'btn_cmd_envoyer_pml',
+                                    cls: 'btn-primary btn-commander-pml',
+                                    margin: '5 0 0 0',
+                                    hidden: true,
+                                    handler: function () {
+                                        ecranCommande().envoyerPharmaMl();
+                                    }
+                                }]
                         }]
                 }
                 ,
@@ -933,6 +946,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
         if (this.estModification()) {
             this.chargerSubstitutions();
+            this.etatBoutonPharmaMl(this.getOdatasource());
         }
         Ext.getCmp('gridpanelID').on('cellclick', function (view, td, ci, record, tr, ri, e) {
             var retrait = e && e.getTarget && e.getTarget('[data-retirer-substitution]');
@@ -1091,6 +1105,45 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
      * Retours du 08/10 (7) : substitutions PharmaML de cette commande. Lignes livrees a la place d'un autre produit
      * (badge « Remplace … », retrait possible avant reception) et equivalents proposes encore a decider (bandeau).
      */
+    /*
+     * Retours du 08/10 (8) : bouton « Commander par PharmaML » de l'ecran de la commande. Visible si le grossiste a un
+     * lien PharmaML ; desactive (avec la raison) si l'envoi a deja ete recu ou repondu par le grossiste.
+     */
+    etatBoutonPharmaMl: function (d) {
+        var b = Ext.getCmp('btn_cmd_envoyer_pml'), E = testextjs.view.commandemanagement.order.EnvoiPharmaMl;
+        if (!b || !d) {
+            return;
+        }
+        b.setVisible(!!d.str_GROSSISTE_URLPHARMAML);
+        var clos = E.ENVOIS_CLOS[d.str_ENVOI_PHARMAML];
+        b.setDisabled(!!clos);
+        /* un bouton desactive n'a pas d'info-bulle : la raison est dans le libelle */
+        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : 'Commander par PharmaML');
+        b.setTooltip(clos ? 'Commande ' + clos + ' (' + (d.dt_ENVOI_PHARMAML || '') + ') : pas de renvoi'
+                : 'Envoyer cette commande au grossiste par PharmaML ; les produits non livrés vont dans la liste des ruptures');
+    },
+
+    envoyerPharmaMl: function () {
+        var me = this, d = me.getOdatasource() || {}, g = Ext.getCmp('gridpanelID');
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.envoyerCommande({
+            commandeId: me.getNameintern(), reference: d.str_REF_ORDER, grossiste: d.str_GROSSISTE_LIBELLE,
+            lignes: g ? g.getStore().getTotalCount() : undefined
+        }, function (r) {
+            if (r.success) {
+                d.str_ENVOI_PHARMAML = r.enAttente ? 'EN_ATTENTE' : 'REPONDUE';
+                d.dt_ENVOI_PHARMAML = Ext.Date.format(new Date(), 'd/m/Y H:i');
+            } else if (r.enAttente || r.dejaRepondue) {
+                d.str_ENVOI_PHARMAML = r.enAttente ? 'EN_ATTENTE' : 'REPONDUE';
+            }
+            me.etatBoutonPharmaMl(d);
+            if (g) {
+                g.getStore().reload();
+            }
+            me.getCommandeAmount(me.getNameintern());
+            me.chargerSubstitutions();
+        });
+    },
+
     chargerSubstitutions: function () {
         var me = this;
         Ext.Ajax.request({

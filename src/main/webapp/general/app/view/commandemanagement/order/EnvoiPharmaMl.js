@@ -45,6 +45,110 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                         + 'font-size:10.5px;font-weight:700;color:#fff;background:#b26a00">' + n + ' à décider</span>' : '');
     },
 
+    /** Envoi deja recu ou repondu par le grossiste : pas de renvoi (doublon, double commande). */
+    ENVOIS_CLOS: {EN_ATTENTE: 'reçue par le grossiste, réponse en attente', REPONDUE: 'déjà répondue par le grossiste',
+        PARTIELLE: 'déjà répondue par le grossiste', RUPTURE: 'déjà répondue par le grossiste'},
+
+    /**
+     * Retours du 08/10 (8) : passation d'une COMMANDE par PharmaML, commune a la liste et a l'ecran de la commande.
+     * cfg : commandeId, reference, grossiste, lignes (affichage de la confirmation) ; apres(resultat).
+     */
+    envoyerCommande: function (cfg, apres) {
+        var enc = Ext.String.htmlEncode;
+        Ext.MessageBox.confirm('Commander par PharmaML', 'Envoyer la commande <b>' + enc(cfg.reference || '') + '</b> à <b>' + enc(cfg.grossiste || '')
+                + '</b> par PharmaML ?' + (cfg.lignes !== undefined ? '<br><br>' + cfg.lignes + ' ligne(s).' : '')
+                + '<br><br>Les produits non livrés iront dans la liste des ruptures.', function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Envoi au grossiste . . .', 'Commander par PharmaML');
+                    Ext.Ajax.request({
+                        method: 'PUT', timeout: 240000, headers: {'Content-Type': 'application/json'},
+                        url: '../api/v1/pharma/' + encodeURIComponent(cfg.commandeId),
+                        success: function (response) {
+                            progress.hide();
+                            var r = Ext.JSON.decode(response.responseText, true) || {}, message;
+                            if (r.success && r.enAttente) {
+                                message = r.msg;
+                            } else if (r.success) {
+                                message = 'Réponse du grossiste reçue : ' + r.nbreproduit + '/' + r.totalProduit + ' produit(s) pris en compte'
+                                        + (r.nbrerupture > 0 ? ', ' + r.nbrerupture + ' en rupture (liste des ruptures)' : '') + '.';
+                            } else {
+                                message = r.msg || 'Envoi impossible.';
+                            }
+                            Ext.defer(function () {
+                                Ext.MessageBox.show({title: r.success ? 'Commander par PharmaML' : 'Envoi PharmaML impossible', width: 520,
+                                    msg: enc(message), buttons: Ext.MessageBox.OK, icon: r.success ? Ext.MessageBox.INFO : Ext.MessageBox.ERROR});
+                            }, 60);
+                            if (apres) {
+                                apres(r);
+                            }
+                        },
+                        failure: function (response) {
+                            progress.hide();
+                            Ext.Msg.alert('Commander par PharmaML', 'Erreur du serveur ' + response.status);
+                        }
+                    });
+                });
+    },
+
+    /**
+     * Passation d'une SUGGESTION par PharmaML (meme chemin que l'action de la liste des suggestions) : apercu, confirmation,
+     * envoi ; la suggestion passe « Commandee » a la reception de la reponse. apres(resultat).
+     */
+    commanderSuggestion: function (id, apres) {
+        var enc = Ext.String.htmlEncode, App = testextjs.app.getController('App');
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/suggestion-pharmaml/' + encodeURIComponent(id),
+            success: function (response) {
+                var a = Ext.decode(response.responseText, true) || {};
+                if (!a.success) {
+                    Ext.MessageBox.alert('Commander par PharmaML', enc(a.msg || 'Lecture impossible.'));
+                    return;
+                }
+                if (!a.pharmaml) {
+                    Ext.MessageBox.alert('Commander par PharmaML', 'Le grossiste <b>' + enc(a.grossiste) + '</b> n\'a pas de lien PharmaML (fiche grossiste).');
+                    return;
+                }
+                Ext.MessageBox.confirm('Commander par PharmaML',
+                        'Envoyer la suggestion <b>' + enc(a.reference) + '</b> à <b>' + enc(a.grossiste) + '</b> ?<br><br>'
+                        + a.lignes + ' ligne(s), valeur ' + Math.round(a.valeur || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' (achat), protocole ' + a.version + '.'
+                        + (a.commandeRef ? '<br><br>La commande <b>' + enc(a.commandeRef) + '</b> déjà créée lors d\'un essai précédent sera renvoyée.' : '')
+                        + '<br><br>La suggestion passera au statut « Commandée » à la réception de la réponse du grossiste.',
+                        function (btn) {
+                            if (btn !== 'yes') {
+                                return;
+                            }
+                            App.ShowWaitingProcess();
+                            Ext.Ajax.request({
+                                method: 'POST', url: '../api/v1/suggestion-pharmaml/' + encodeURIComponent(id), timeout: 600000,
+                                success: function (r2) {
+                                    App.StopWaitingProcess();
+                                    var o = Ext.decode(r2.responseText, true) || {};
+                                    if (!o.success) {
+                                        Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'L\'envoi n\'a pas abouti.'));
+                                    } else if (o.enAttente) {
+                                        Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'Commande reçue par le grossiste, réponse en attente.')
+                                                + '<br><br>La suggestion passera au statut « Commandée » à la réception de cette réponse.');
+                                    } else {
+                                        var e = o.envoi || {};
+                                        Ext.MessageBox.alert('Commander par PharmaML', 'Réponse du grossiste reçue : la suggestion est <b>commandée</b>.<br>'
+                                                + (e.nbreproduit !== undefined ? e.nbreproduit + ' produit(s) pris en compte, ' + e.nbrerupture + ' en rupture sur ' + e.totalProduit + '.' : ''));
+                                    }
+                                    if (apres) {
+                                        apres(o);
+                                    }
+                                },
+                                failure: function () {
+                                    App.StopWaitingProcess();
+                                    Ext.MessageBox.alert('Commander par PharmaML', 'Le serveur ne répond pas.');
+                                }
+                            });
+                        });
+            }
+        });
+    },
+
     /** Retours du 08/10 (7) : liste des ruptures, equivalents proposes limites a cette commande. */
     ouvrirPropositions: function (reference) {
         testextjs.view.pharmaml.Rupturepharma.referenceDemandee = reference;

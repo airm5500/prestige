@@ -145,6 +145,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
             }
 
             JSONObject dejaEnvoyee = attenteEnCours(commandeId, grossiste);
+            if (dejaEnvoyee == null) {
+                dejaEnvoyee = dejaRepondue(commandeId, grossiste);
+            }
             if (dejaEnvoyee != null) {
                 return dejaEnvoyee;
             }
@@ -376,6 +379,26 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                 "Cette commande a déjà été reçue par " + StringUtils.trimToEmpty(g.getStrLIBELLE()) + " le " + r.get(0)
                         + " et attend sa réponse : la renvoyer"
                         + " créerait un doublon. Utilisez « Réponses PharmaML » pour récupérer la réponse.");
+    }
+
+    /**
+     * Retours du 08/10 (8) : commande deja envoyee ET repondue par le grossiste : la renvoyer la commanderait une
+     * seconde fois (bouton de l'ecran de la commande). Les produits manquants partent par la liste des ruptures.
+     */
+    @SuppressWarnings("unchecked")
+    private JSONObject dejaRepondue(String commandeId, TGrossiste g) {
+        List<Object> r = em.createNativeQuery("SELECT DATE_FORMAT(COALESCE(dt_REPONSE, dt_ENVOI), '%d/%m/%Y %H:%i')"
+                + " FROM t_pharmaml_attente WHERE lg_SOURCE_ID = ?1 AND str_SOURCE = ?2 AND str_STATUT IN (?3, ?4)"
+                + " ORDER BY dt_ENVOI DESC").setParameter(1, commandeId).setParameter(2, SOURCE_COMMANDE)
+                .setParameter(3, TRAITEE).setParameter(4, RATTACHEE).getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        return new JSONObject().put("success", false).put("dejaRepondue", true).put("msg",
+                "Cette commande a déjà été envoyée et " + StringUtils.trimToEmpty(g.getStrLIBELLE())
+                        + " y a répondu le " + r.get(0)
+                        + " : la renvoyer la commanderait une seconde fois. Les produits non livrés sont"
+                        + " dans la liste des ruptures, d'où ils peuvent être renvoyés.");
     }
 
     private PharmaMlMessages.Partenaires partenaires(TGrossiste g) {
@@ -812,7 +835,14 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                                 + " majuscules et minuscules comptent), le code client de l'officine chez ce grossiste"
                                 + " et son réglage « Contrôle PharmaML » (Spécification CSRP).")
                         : "";
-        return nom + " a refusé la commande : « " + r.getMessage() + " ». La commande n'a pas été prise en compte."
+        String code = PharmaMlMessages.codeErreur(r.getMessage());
+        if (conseil.isEmpty()) {
+            /* retours du 08/10 (8) : conseil selon le code d'erreur (tableau 8 de la specification) */
+            conseil = CodeErreurPharmaMl.conseil(code);
+        }
+        return nom + " a refusé la commande : « " + r.getMessage() + " »."
+                + (CodeErreurPharmaMl.doublon(code) ? " Le grossiste indique l'avoir déjà reçue."
+                        : " La commande n'a pas été prise en compte.")
                 + conseil + " Réponse archivée : " + r.archive + ".xml";
     }
 

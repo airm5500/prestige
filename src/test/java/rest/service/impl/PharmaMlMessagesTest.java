@@ -191,7 +191,10 @@ public class PharmaMlMessagesTest {
             xml = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         }
         String e = PharmaMlMessages.erreurReponse(xml);
-        org.junit.jupiter.api.Assertions.assertEquals("statut 11 : Elément de contrôle (Content-PharmaML) absent.", e);
+        /* retours du 08/10 (8) : libelle du tableau 8 ajoute a cote du code */
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "statut 11 (message non intègre, contrôle d'intégrité) : Elément de contrôle (Content-PharmaML) absent.",
+                e);
         org.junit.jupiter.api.Assertions.assertTrue(PharmaMlMessages.erreurControle(e));
         org.junit.jupiter.api.Assertions.assertFalse(PharmaMlMessages.enveloppeV1Attendue(e));
     }

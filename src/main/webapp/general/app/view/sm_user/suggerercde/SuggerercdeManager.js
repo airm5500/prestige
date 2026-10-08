@@ -200,7 +200,18 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             },
                             int_BUTOIR,
                             int_ACHAT,
-                            int_VENTE]
+                            int_VENTE,
+                            /* retours du 08/10 (8) : action principale en haut a droite (la barre du bas est pleine) */
+                            {xtype: 'component', flex: 1},
+                            {xtype: 'button', text: 'Commander par PharmaML', id: 'btn_sugg_commander_pml', cls: 'btn-primary btn-commander-pml',
+                                tooltip: 'Envoyer cette suggestion au grossiste par PharmaML ; elle passe « Commandée » à la réception de la réponse',
+                                handler: function () {
+                                    testextjs.view.commandemanagement.order.EnvoiPharmaMl.commanderSuggestion(orderIdRef || Me_Window.getNameintern(), function (o) {
+                                        if (o && o.success) {
+                                            Me_Window.onbtncancel();
+                                        }
+                                    });
+                                }}]
                     }]
             },
             {

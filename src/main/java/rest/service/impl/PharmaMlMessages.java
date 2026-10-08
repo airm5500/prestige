@@ -493,7 +493,10 @@ public final class PharmaMlMessages {
                     }
                     String statut = e.getAttribute("Statut");
                     if (statut != null && !statut.trim().isEmpty()) {
-                        t = "statut " + statut.trim() + " : " + (t == null ? "" : t);
+                        /* retours du 08/10 (8) : libelle du tableau 8 a cote du code */
+                        String libelle = CodeErreurPharmaMl.libelle(statut);
+                        t = "statut " + statut.trim() + (libelle.isEmpty() ? "" : " (" + libelle + ")") + " : "
+                                + (t == null ? "" : t);
                     }
                     t = t == null ? "" : t.replaceAll("\\s+", " ").trim();
                     return t.isEmpty() ? "erreur sans description" : (t.length() > 300 ? t.substring(0, 300) + "…" : t);
@@ -507,7 +510,15 @@ public final class PharmaMlMessages {
 
     /** Le grossiste reclame ou rejette l'element de controle Content-PharmaML (calcul avec la cle). */
     public static boolean erreurControle(String erreur) {
-        return erreur != null && erreur.toUpperCase(Locale.ROOT).contains("CONTENT-PHARMAML");
+        return erreur != null && (erreur.toUpperCase(Locale.ROOT).contains("CONTENT-PHARMAML")
+                || codeErreur(erreur).equals("0011") || codeErreur(erreur).equals("11"));
+    }
+
+    /** Code d'erreur (tableau 8) lu dans le texte « statut NNNN ... » de erreurReponse ; vide sinon. */
+    public static String codeErreur(String erreur) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^statut (\\d{1,4})")
+                .matcher(erreur == null ? "" : erreur);
+        return m.find() ? m.group(1) : "";
     }
 
     /** Le grossiste rejette l'enveloppe 3.0.0.0 (il attend une enveloppe CSRP 1.0.0.0). */

@@ -2956,3 +2956,14 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Retours du 08/10 (4) : liste des ruptures, ligne dont on affiche les equivalents proposes (repere a gauche) */
 .x-grid-row.rupture-choisie .x-grid-cell:first-child { box-shadow: inset 4px 0 0 #2E75B6; }
 .x-grid-row.rupture-choisie .x-grid-cell .x-grid-cell-inner { font-weight: 600; }
+
+/* Retours du 08/10 (8) : « Commander par PharmaML », action principale des ecrans de suggestion et de commande
+   (identifiants : le theme des boutons est plus specifique qu'une classe) */
+#btn_cmd_envoyer_pml.btn-commander-pml, #btn_sugg_commander_pml.btn-commander-pml {
+    background: #17795f !important; background-image: none !important; border-color: #12614c !important; }
+#btn_cmd_envoyer_pml.btn-commander-pml .x-btn-inner, #btn_sugg_commander_pml.btn-commander-pml .x-btn-inner {
+    color: #fff !important; font-weight: 700 !important; padding: 0 10px; }
+#btn_cmd_envoyer_pml.btn-commander-pml.x-btn-over, #btn_sugg_commander_pml.btn-commander-pml.x-btn-over { background: #12614c !important; }
+#btn_cmd_envoyer_pml.btn-commander-pml.x-btn-disabled, #btn_sugg_commander_pml.btn-commander-pml.x-btn-disabled {
+    background: #e3f6ef !important; border-color: #b8e2d3 !important; opacity: 1; }
+#btn_cmd_envoyer_pml.btn-commander-pml.x-btn-disabled .x-btn-inner, #btn_sugg_commander_pml.btn-commander-pml.x-btn-disabled .x-btn-inner { color: #17795f !important; }

@@ -1081,54 +1081,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     },
 
     onCommanderPharmaMlClick: function (grid, rowIndex) {
-        const rec = grid.getStore().getAt(rowIndex), id = rec.get('lg_SUGGESTION_ORDER_ID'), enc = Ext.String.htmlEncode;
-        const App = testextjs.app.getController('App');
-        Ext.Ajax.request({
-            method: 'GET', url: '../api/v1/suggestion-pharmaml/' + encodeURIComponent(id),
-            success: function (response) {
-                const a = Ext.decode(response.responseText, true) || {};
-                if (!a.success) {
-                    Ext.MessageBox.alert('Commander par PharmaML', a.msg || 'Lecture impossible.');
-                    return;
-                }
-                if (!a.pharmaml) {
-                    Ext.MessageBox.alert('Commander par PharmaML', 'Le grossiste <b>' + enc(a.grossiste) + '</b> n\'a pas de lien PharmaML (fiche grossiste).');
-                    return;
-                }
-                Ext.MessageBox.confirm('Commander par PharmaML',
-                        'Envoyer la suggestion <b>' + enc(a.reference) + '</b> à <b>' + enc(a.grossiste) + '</b> ?<br><br>'
-                        + a.lignes + ' ligne(s), valeur ' + Math.round(a.valeur || 0).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' (achat), protocole ' + a.version + '.'
-                        + (a.commandeRef ? '<br><br>La commande <b>' + enc(a.commandeRef) + '</b> déjà créée lors d\'un essai précédent sera renvoyée.' : '')
-                        + '<br><br>La suggestion passera au statut « Commandée » à la réception de la réponse du grossiste.',
-                        function (btn) {
-                            if (btn !== 'yes') {
-                                return;
-                            }
-                            App.ShowWaitingProcess();
-                            Ext.Ajax.request({
-                                method: 'POST', url: '../api/v1/suggestion-pharmaml/' + encodeURIComponent(id), timeout: 600000,
-                                success: function (r2) {
-                                    App.StopWaitingProcess();
-                                    const o = Ext.decode(r2.responseText, true) || {};
-                                    if (!o.success) {
-                                        Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'L\'envoi n\'a pas abouti.'));
-                                    } else if (o.enAttente) {
-                                        Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'Commande reçue par le grossiste, réponse en attente.')
-                                                + '<br><br>La suggestion passera au statut « Commandée » à la réception de cette réponse.');
-                                    } else {
-                                        const e = o.envoi || {};
-                                        Ext.MessageBox.alert('Commander par PharmaML', 'Réponse du grossiste reçue : la suggestion est <b>commandée</b>.<br>'
-                                                + (e.nbreproduit !== undefined ? e.nbreproduit + ' produit(s) pris en compte, ' + e.nbrerupture + ' en rupture sur ' + e.totalProduit + '.' : ''));
-                                    }
-                                    grid.getStore().reload();
-                                },
-                                failure: function () {
-                                    App.StopWaitingProcess();
-                                    Ext.MessageBox.alert('Commander par PharmaML', 'Le serveur ne répond pas.');
-                                }
-                            });
-                        });
-            }
+        /* retours du 08/10 (8) : meme passation que l'ecran de traitement de la suggestion (EnvoiPharmaMl) */
+        const rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.commanderSuggestion(rec.get('lg_SUGGESTION_ORDER_ID'), function () {
+            grid.getStore().reload();
         });
     },
 
