@@ -27,8 +27,14 @@ Ext.define('testextjs.view.Report.RapportGestions.RapportGestionsGrid', {
                     }
 
                     , this);
-                    Ext.getCmp('TOTALDEPENSES').setValue(depenses);
-                    Ext.getCmp('TOTALREGLEMENT').setValue(reglement);
+                    /* retours du 08/10 : chargement termine apres la fermeture de l'ecran -> champs deja detruits */
+                    var totalDepenses = Ext.getCmp('TOTALDEPENSES'), totalReglement = Ext.getCmp('TOTALREGLEMENT');
+                    if (totalDepenses) {
+                        totalDepenses.setValue(depenses);
+                    }
+                    if (totalReglement) {
+                        totalReglement.setValue(reglement);
+                    }
                 },
                 scope: this
             }

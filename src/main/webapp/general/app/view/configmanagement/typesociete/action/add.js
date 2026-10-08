@@ -111,7 +111,10 @@ Ext.define('testextjs.view.configmanagement.typesociete.action.add', {
 
             Ext.getCmp('str_CODE_TYPE_SOCIETE').setValue(this.getOdatasource().str_CODE_TYPE_SOCIETE);
             Ext.getCmp('str_LIBELLE_TYPE_SOCIETE').setValue(this.getOdatasource().str_LIBELLE_TYPE_SOCIETE);
-            Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID').setValue(this.getOdatasource().lg_ESCOMPTE_SOCIETE_ID);
+            /* retours du 08/10 : le champ escompte est retire de la fenetre (commente) */
+            if (Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID')) {
+                Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID').setValue(this.getOdatasource().lg_ESCOMPTE_SOCIETE_ID);
+            }
         }
 
         var win = new Ext.window.Window({
@@ -158,7 +161,7 @@ Ext.define('testextjs.view.configmanagement.typesociete.action.add', {
                 
                 str_CODE_TYPE_SOCIETE: Ext.getCmp('str_CODE_TYPE_SOCIETE').getValue(),
                 str_LIBELLE_TYPE_SOCIETE: Ext.getCmp('str_LIBELLE_TYPE_SOCIETE').getValue(),               
-                lg_ESCOMPTE_SOCIETE_ID: Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID').getValue()               
+                lg_ESCOMPTE_SOCIETE_ID: Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID') ? Ext.getCmp('lg_ESCOMPTE_SOCIETE_ID').getValue() : ''
             },
             success: function (response)
             {
