@@ -48,4 +48,6 @@ public interface SmsFournisseurService {
     /** Fournisseur par code (ORANGE, LETEXTO...), ou {@code null}. */
     SmsFournisseur findByCode(String code);
 
+    /** Anciens messages sortants (ecran « Gestion des SMS »), recherche et pagination. */
+    org.json.JSONObject messagesSortants(String recherche, int start, int limit);
 }

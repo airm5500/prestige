@@ -24,7 +24,7 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
             ],
             proxy: {
                 type: 'ajax',
-                url: '../webservices/Report/recapactivities/ws_data.jsp',
+                url: '../api/v1/recap/activites', /* retours du 08/10 : API REST (l'ancienne page JSP ne compilait plus) */
                 reader: {
                     type: 'json',
                     root: 'data',

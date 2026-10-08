@@ -1,4 +1,5 @@
-var url_services_data_outboudmessage = '../webservices/sm_user/outboudmessage/ws_data.jsp';
+/* retours du 08/10 : API REST (les anciennes pages JSP de cet ecran ne compilaient plus) */
+var url_services_data_outboudmessage = '../api/v1/sms/sortants';
 var url_services_transaction_outboudmessage = '../webservices/sm_user/outboudmessage/ws_transaction.jsp?mode=';
 
 var Me;
@@ -269,84 +270,43 @@ Ext.define('testextjs.view.sm_user.outboudmessage.OutboudmessageManager', {
         });
     },
     onReloadAllClick: function() {
-        Ext.MessageBox.confirm('Message',
-                'Voulez-vous renvoyer les notifications en attente',
-                function(btn) {
-                    if (btn === 'yes') {
-                        Ext.Ajax.request({
-                            url: url_services_transaction_outboudmessage + 'reloadall',
-                            params: {
-                                search_value: Ext.getCmp('TXT_SEARCH').getValue()
-                            },
-                            success: function(response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == "0") {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.errors);
-                                    Ext.getCmp('GridPanel').getStore().reload();
-                                }
-
-                            },
-                            failure: function(response)
-                            {
-
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                //  alert(object);
-
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
-                            }
-                        });
-                        return;
-                    }
-                });
-
-
+        /* retours du 08/10 : la passerelle d'origine n'existe plus ; reponse claire du serveur */
+        Ext.MessageBox.confirm('Message', 'Voulez-vous renvoyer les notifications en attente', function(btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/sms/sortants/renvoyer', method: 'POST',
+                success: function(response) {
+                    var o = Ext.JSON.decode(response.responseText, true) || {};
+                    Ext.MessageBox.alert(o.success ? 'Confirmation' : 'Information', Ext.String.htmlEncode(o.msg || ''));
+                },
+                failure: function(response) {
+                    Ext.MessageBox.alert('Information', 'Erreur du serveur ' + response.status);
+                }
+            });
+        });
     },
-    onReloadSmsClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Voulez-vous renvoyer la notification',
-                function(btn) {
-                    if (btn === 'yes') {
-                        var rec = grid.getStore().getAt(rowIndex);
-                        Ext.Ajax.request({
-                            url: url_services_transaction_outboudmessage + 'reload',
-                            params: {
-                                lg_OUTBOUND_MESSAGE_ID: rec.get('lg_OUTBOUND_MESSAGE_ID')
-                            },
-                            success: function(response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == "0") {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.errors);
-                                    grid.getStore().reload();
-                                }
 
-                            },
-                            failure: function(response)
-                            {
-
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                //  alert(object);
-
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
-                            }
-                        });
-                        return;
-                    }
-                });
-
-
+    onReloadSmsClick: function() {
+        /* retours du 08/10 : la passerelle d'origine n'existe plus ; reponse claire du serveur */
+        Ext.MessageBox.confirm('Message', 'Voulez-vous renvoyer la notification', function(btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/sms/sortants/renvoyer', method: 'POST',
+                success: function(response) {
+                    var o = Ext.JSON.decode(response.responseText, true) || {};
+                    Ext.MessageBox.alert(o.success ? 'Confirmation' : 'Information', Ext.String.htmlEncode(o.msg || ''));
+                },
+                failure: function(response) {
+                    Ext.MessageBox.alert('Information', 'Erreur du serveur ' + response.status);
+                }
+            });
+        });
     },
+
     onRemoveClick: function(grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
                 'confirm la suppresssion',

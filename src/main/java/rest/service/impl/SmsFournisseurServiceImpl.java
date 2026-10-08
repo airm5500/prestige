@@ -39,6 +39,37 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
     @EJB
     private SmsProviderFactory smsProviderFactory;
 
+    /**
+     * Retours du 08/10 : ecran « Gestion des SMS » (anciens messages sortants, t_outboud_message) en lecture REST ;
+     * l'ancienne page JSP ne compilait plus. Recherche sur le telephone ou le texte (parametree), paginee.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject messagesSortants(String recherche, int start, int limit) {
+        String r = recherche == null ? "" : recherche.trim();
+        String where = r.isEmpty() ? "" : " WHERE str_PHONE LIKE ?1 OR str_MESSAGE LIKE ?1";
+        javax.persistence.Query qc = em.createNativeQuery("SELECT COUNT(*) FROM t_outboud_message" + where);
+        javax.persistence.Query q = em
+                .createNativeQuery("SELECT lg_OUTBOUND_MESSAGE_ID, str_MESSAGE, str_STATUT, str_PHONE,"
+                        + " DATE_FORMAT(dt_CREATED, '%d/%m/%Y %H:%i'), DATE_FORMAT(dt_UPDATED, '%d/%m/%Y %H:%i') FROM t_outboud_message"
+                        + where + " ORDER BY dt_CREATED DESC");
+        if (!r.isEmpty()) {
+            qc.setParameter(1, "%" + r + "%");
+            q.setParameter(1, "%" + r + "%");
+        }
+        q.setFirstResult(Math.max(0, start)).setMaxResults(limit <= 0 ? 20 : Math.min(limit, 200));
+        org.json.JSONArray data = new org.json.JSONArray();
+        for (Object[] x : (List<Object[]>) q.getResultList()) {
+            String statut = x[2] == null ? "" : String.valueOf(x[2]);
+            data.put(new JSONObject().put("lg_OUTBOUND_MESSAGE_ID", x[0]).put("str_MESSAGE", x[1])
+                    .put("str_STATUT",
+                            "is_Waiting".equals(statut) ? "En attente" : "is_Send".equals(statut) ? "Envoyé" : statut)
+                    .put("etat", statut).put("str_PHONE", x[3]).put("dt_CREATED", x[4]).put("dt_UPDATED", x[5]));
+        }
+        return new JSONObject().put("success", true).put("total", ((Number) qc.getSingleResult()).longValue())
+                .put("results", data);
+    }
+
     @Override
     public JSONObject findAll(Boolean actif) {
         try {

@@ -231,6 +231,55 @@ public class DashBoardRessource {
                 "recap_reglements");
     }
 
+    /**
+     * Ecran « Recapitulatif activite » (activitiessummary) : remplace l'ancienne page JSP, dont la methode de calcul
+     * n'existe plus (erreur 500). Memes chiffres que le Rapport de gestion, au format attendu par l'ecran.
+     */
+    @GET
+    @Path("activites")
+    public Response recapActivites(@QueryParam(value = "dt_start") String dtStart,
+            @QueryParam(value = "dt_end") String dtEnd) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        LocalDate debut = jourOuAujourdhui(dtStart), fin = jourOuAujourdhui(dtEnd);
+        if (fin.isBefore(debut)) {
+            LocalDate t = debut;
+            debut = fin;
+            fin = t;
+        }
+        commonTasks.dto.RecapActiviteDTO r = dashBoardService.donneesRecapActivite(debut, fin,
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu);
+        java.util.function.LongFunction<String> f = util.NumberUtils::formatLongToString;
+        JSONArray recettes = new JSONArray();
+        r.getReglements().forEach(x -> recettes
+                .put(new JSONObject().put("name", x.getLibelle()).put("montant", f.apply(x.getMontant()))));
+        JSONObject o = new JSONObject().put("montTTC", f.apply(r.getMontantTTC()))
+                .put("montHT", f.apply(r.getMontantHT())).put("remiseHT", f.apply(r.getMontantRemise()))
+                .put("montantHTCNET", f.apply(r.getMontantNet()))
+                .put("VO", f.apply(r.getMontantCredit()) + " (" + r.getPourcentageCredit() + "%)")
+                .put("VNO", f.apply(r.getMontantEsp()) + " (" + r.getPourcentageEsp() + "%)")
+                .put("datatva",
+                        new JSONArray().put(new JSONObject().put("name", "TVA")
+                                .put("montant", f.apply(r.getMontantTVA())).put("value", 18)))
+                .put("recettes", recettes).put("achats",
+                        new JSONObject().put("th", f.apply(r.getMontantTotalHT()))
+                                .put("ttc", f.apply(r.getMontantTotalTTC())).put("tva", f.apply(r.getMontantTotalTVA()))
+                                .put("marge", f.apply(r.getMarge())).put("ratio", r.getRatio()));
+        return Response.ok().entity(new JSONObject().put("data", new JSONArray().put(o)).put("total", 1).toString())
+                .build();
+    }
+
+    /** Date AAAA-MM-JJ, ou aujourd'hui si absente ou illisible (saisie libre a l'ecran). */
+    private static LocalDate jourOuAujourdhui(String s) {
+        try {
+            return s == null || s.trim().isEmpty() ? LocalDate.now() : LocalDate.parse(s.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            return LocalDate.now();
+        }
+    }
+
     @GET
     @Path("dashboard")
     public Response donneesRecaps(@QueryParam(value = "dtStart") String dtStart,

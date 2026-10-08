@@ -36,6 +36,27 @@ public class SmsResource {
     @EJB
     private rest.service.impl.SmsProviderFactory smsProviderFactory;
 
+    /** Retours du 08/10 : ecran « Gestion des SMS » (remplace la page JSP ws_data, qui ne compilait plus). */
+    @GET
+    @Path("sortants")
+    public Response sortants(@QueryParam("search_value") String recherche, @QueryParam("start") int start,
+            @QueryParam("limit") int limit) {
+        return Response.ok(smsFournisseurService.messagesSortants(recherche, start, limit).toString()).build();
+    }
+
+    /**
+     * Renvoi depuis l'ancien ecran : la passerelle d'origine n'existe plus ; les SMS partent par le fournisseur en
+     * vigueur. Reponse claire au lieu d'une erreur.
+     */
+    @POST
+    @Path("sortants/renvoyer")
+    public Response renvoyerSortants() {
+        return Response.ok(new org.json.JSONObject().put("success", false).put("msg",
+                "Le renvoi depuis cet écran n'est plus disponible : les SMS partent par le fournisseur SMS en vigueur"
+                        + " (menu Fournisseurs SMS).")
+                .toString()).build();
+    }
+
     /** Solde / contrats SMS (bundle restant, expiration) - réponse Orange brute. */
     @GET
     @Path("balance")
