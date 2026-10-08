@@ -50,6 +50,43 @@ public class CommandeDTO {
         return envoiPharmaMlDetail;
     }
 
+    /* Retours du 08/10 (10) : avancement de la commande chez le grossiste (dernier suivi recu) */
+    private String avancement = "", avancementLibelle = "", livraisonPrevue = "", avancementDate = "";
+    private int avancementAnnulees;
+
+    @JSONPropertyName("str_AVANCEMENT")
+    public String getAvancement() {
+        return avancement;
+    }
+
+    @JSONPropertyName("str_AVANCEMENT_LIBELLE")
+    public String getAvancementLibelle() {
+        return avancementLibelle;
+    }
+
+    @JSONPropertyName("dt_LIVRAISON_PREVUE")
+    public String getLivraisonPrevue() {
+        return livraisonPrevue;
+    }
+
+    @JSONPropertyName("dt_AVANCEMENT")
+    public String getAvancementDate() {
+        return avancementDate;
+    }
+
+    @JSONPropertyName("int_AVANCEMENT_ANNULEES")
+    public int getAvancementAnnulees() {
+        return avancementAnnulees;
+    }
+
+    public void setAvancement(String etat, String libelle, String livraison, int annulees, String date) {
+        this.avancement = etat == null ? "" : etat;
+        this.avancementLibelle = libelle == null ? "" : libelle;
+        this.livraisonPrevue = livraison == null ? "" : livraison;
+        this.avancementAnnulees = annulees;
+        this.avancementDate = date == null ? "" : date;
+    }
+
     /* Retours du 08/10 (7) : equivalents proposes en attente de decision (pastille de la liste) */
     private int propositionsADecider;
 

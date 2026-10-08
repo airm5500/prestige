@@ -25,6 +25,7 @@ import util.AppParameters;
  *   commandes/AAAA-MM/    C_ (commande envoyee), R_ (reponse), R_LOG_ (reponse HTTP en erreur)
  *   vidages/AAAA-MM/      V_ (demande de vidage / acquittement), RV_ (reponse)
  *   infoproduit/AAAA-MM/  I_ (demande de disponibilite), RI_ (reponse)
+ *   suivis/AAAA-MM/       E_ (demande d'etat d'une commande), RE_ (reponse : avancement)
  *   log/AAAA-MM/          pharmaml_AAAA-MM-JJ.log : une ligne par evenement (envoi, essai HTTP, reponse, refus...)
  * </pre>
  *
@@ -38,6 +39,7 @@ public final class ArchivePharmaMl {
     private static final DateTimeFormatter MOIS = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter HORODATAGE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final String SUIVIS = "suivis";
     public static final String COMMANDES = "commandes", VIDAGES = "vidages", INFOPRODUIT = "infoproduit",
             JOURNAL = "log", AUTRES = "autres";
 
@@ -63,6 +65,9 @@ public final class ArchivePharmaMl {
         String n = StringUtils.defaultString(nom).toUpperCase(java.util.Locale.ROOT);
         if (n.startsWith("RV_") || n.startsWith("V_")) {
             return VIDAGES;
+        }
+        if (n.startsWith("RE_") || n.startsWith("E_")) {
+            return SUIVIS; /* retours du 08/10 (10) : etat d'avancement des commandes */
         }
         if (n.startsWith("RI_") || n.startsWith("I_")) {
             return INFOPRODUIT;
@@ -181,10 +186,10 @@ public final class ArchivePharmaMl {
 
     /** Anciennete conservee par defaut : 12 mois, en plus du mois en cours. */
     public static final int MOIS_CONSERVES_DEFAUT = 12;
-    private static final String[] DOSSIERS_RANGES = { COMMANDES, VIDAGES, INFOPRODUIT, JOURNAL, AUTRES };
+    private static final String[] DOSSIERS_RANGES = { COMMANDES, VIDAGES, INFOPRODUIT, SUIVIS, JOURNAL, AUTRES };
     private static final java.util.regex.Pattern DOSSIER_MOIS = java.util.regex.Pattern.compile("\\d{4}-\\d{2}");
     private static final java.util.regex.Pattern ANCIEN_ECHANGE = java.util.regex.Pattern
-            .compile("(?i)(C|R|V|RV|I|RI)_.*\\.xml");
+            .compile("(?i)(C|R|V|RV|I|RI|E|RE)_.*\\.xml");
 
     /** Premier mois conserve : les dossiers AAAA-MM anterieurs sont purges (ex. 12 mois en octobre 2026 : 2025-10). */
     static java.time.YearMonth premierMoisConserve(int mois, java.time.YearMonth maintenant) {

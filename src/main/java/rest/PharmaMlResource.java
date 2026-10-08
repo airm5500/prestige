@@ -85,6 +85,65 @@ public class PharmaMlResource {
         }
     }
 
+    /** Retours du 08/10 (10) : « ou en est ma commande ? » (demande au grossiste) et dernier avancement connu. */
+    @POST
+    @Path("avancement/{id}")
+    public Response demanderAvancement(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.avancementCommande(id, u).toString()).build();
+    }
+
+    @GET
+    @Path("avancement/{id}")
+    public Response avancementConnu(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.avancementConnu(id).toString()).build();
+    }
+
+    /** Retours du 08/10 (11) : bons de livraison valorises recus (saisie du bon de livraison). */
+    @GET
+    @Path("blv/commande/{id}")
+    public Response blvsCommande(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.blvsCommande(id).toString()).build();
+    }
+
+    @GET
+    @Path("blv/{id}")
+    public Response blv(@PathParam("id") String id, @QueryParam("commande") String commande) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.blv(id, commande).toString()).build();
+    }
+
+    /** Informations reglementaires urgentes et alertes commerciales recues. */
+    @GET
+    @Path("alertes")
+    public Response alertes(@QueryParam("nonLues") boolean nonLues) {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.alertes(nonLues).toString()).build();
+    }
+
+    @POST
+    @Path("alertes/{id}/lue")
+    public Response alerteLue(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refuse();
+        }
+        return Response.ok(pharmaMlService.alerteLue(id, u).toString()).build();
+    }
+
     @GET
     @Path("substitutions")
     public Response substitutions(@QueryParam("statut") String statut, @QueryParam("grossiste") String grossiste,

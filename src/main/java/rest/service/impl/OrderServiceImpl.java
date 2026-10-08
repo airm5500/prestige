@@ -122,12 +122,15 @@ public class OrderServiceImpl implements OrderService {
         int montant = 0;
         int count = 0;
         int count2 = 0;
+        /* retours du 08/10 (11) : bon de livraison valorise PharmaML choisi -> quantites recues pre-remplies */
+        String blvId = StringUtils.trimToNull(params.getRefTwo());
+        Map<String, Integer> livrees = BlvPharmaMl.quantitesLivrees(getEmg(), blvId);
         for (TOrderDetail d : listTOrderDetail) {
             TFamille famille = d.getLgFAMILLEID();
             TFamilleStock stock = getTProductItemStock(famille.getLgFAMILLEID(), emp);
             if (stock != null) {
                 createBLDetail(oBonLivraison, grossiste, famille, d, famille.getLgZONEGEOID(),
-                        stock.getIntNUMBERAVAILABLE());
+                        stock.getIntNUMBERAVAILABLE(), livrees.get(famille.getLgFAMILLEID()));
                 d.setStrSTATUT(Constant.STATUT_ENTREE_STOCK);
                 d.setDtUPDATED(new Date());
                 d.setIntORERSTATUS((short) 4);
@@ -144,12 +147,15 @@ public class OrderServiceImpl implements OrderService {
         order.setIntPRICE(montant);
         order.setDtUPDATED(new Date());
         getEmg().merge(order);
+        if (blvId != null) {
+            BlvPharmaMl.marquerUtilise(getEmg(), blvId, order.getLgORDERID(), oBonLivraison.getLgBONLIVRAISONID());
+        }
         return json.put("success", true).put("count", count).put("nb", count2).put("data", new JSONArray(erro))
                 .put("msg", "Opération effectuée avec success");
     }
 
     private TBonLivraisonDetail createBLDetail(TBonLivraison oTBonLivraison, TGrossiste oTGrossiste, TFamille oTFamille,
-            TOrderDetail d, TZoneGeographique oTZoneGeographique, int initStock) {
+            TOrderDetail d, TZoneGeographique oTZoneGeographique, int initStock, Integer qteLivreeBlv) {
         TUser user = oTBonLivraison.getLgUSERID();
 
         TOrder order = oTBonLivraison.getLgORDERID();
@@ -162,7 +168,7 @@ public class OrderServiceImpl implements OrderService {
         oTBonLivraisonDetail.setLgZONEGEOID(oTZoneGeographique);
         oTBonLivraisonDetail.setIntQTECMDE(d.getIntNUMBER());
         int qteCmd = Objects.requireNonNullElse(d.getIntNUMBER(), 0);
-        int qteRecu = Objects.requireNonNullElse(d.getIntQTEREPGROSSISTE(), 0);
+        int qteRecu = qteLivreeBlv != null ? qteLivreeBlv : Objects.requireNonNullElse(d.getIntQTEREPGROSSISTE(), 0);
         oTBonLivraisonDetail.setIntQTERECUE(qteRecu);
 
         oTBonLivraisonDetail.setIntPRIXREFERENCE(d.getIntPRICEDETAIL());
@@ -2720,6 +2726,10 @@ public class OrderServiceImpl implements OrderService {
                 /* retours du 08/10 (7) : equivalents proposes par le grossiste, en attente de decision */
                 commande.setPropositionsADecider(
                         PharmaMlServiceImpl.propositionsADecider(getEmg(), commande.getLgORDERID()));
+                /* retours du 08/10 (10) : dernier avancement connu (tableau 11) */
+                org.json.JSONObject a = PharmaMlServiceImpl.avancement(getEmg(), commande.getLgORDERID());
+                commande.setAvancement(a.optString("etat"), a.optString("libelle"), a.optString("dateLivraison"),
+                        a.optInt("annulees"), a.optString("date"));
             }
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "statut d''envoi PharmaML : {0}", e.getMessage());

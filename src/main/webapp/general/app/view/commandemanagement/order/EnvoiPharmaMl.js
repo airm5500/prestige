@@ -149,6 +149,107 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         });
     },
 
+    /* Retours du 08/10 (10) : avancement de la commande chez le grossiste (tableau 11 de la specification) */
+    AVANCEMENTS: {
+        A_FAIRE: ['À faire', '#3b4a5c', '#eef2f6'],
+        EN_COURS: ['En cours', '#1f5f9e', '#e4effa'],
+        PREPAREE: ['Préparée', '#17795f', '#e3f6ef'],
+        ANNULEE: ['Annulée', '#b42318', '#fde7e6'],
+        AUTRE: ['Suivi reçu', '#6b7b8c', '#eef2f6']
+    },
+
+    /** Colonne « Avancement » : pastille, livraison prevue, lien « Où en est-elle ? » pour une commande envoyee. */
+    renduAvancement: function (v, meta, r) {
+        var enc = Ext.String.htmlEncode, A = this.AVANCEMENTS[v], h = '', info = [];
+        if (A) {
+            h += '<span class="avancement-pml" data-avancement-etat="' + enc(v) + '" style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:'
+                    + A[1] + ';background:' + A[2] + '">' + enc(A[0]) + '</span>';
+            info.push(r.get('str_AVANCEMENT_LIBELLE') || A[0]);
+            if (r.get('dt_LIVRAISON_PREVUE')) {
+                /* date courte dans la cellule (jj/mm), complete dans l'info-bulle */
+                var dl = r.get('dt_LIVRAISON_PREVUE'), m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dl);
+                h += ' <span class="livraison-prevue" style="font-size:11px;color:#3b4a5c">liv. ' + enc(m ? m[3] + '/' + m[2] : dl) + '</span>';
+                info.push('Livraison prévue : ' + r.get('dt_LIVRAISON_PREVUE'));
+            }
+            if (r.get('int_AVANCEMENT_ANNULEES') > 0) {
+                info.push(r.get('int_AVANCEMENT_ANNULEES') + ' ligne(s) annulée(s) par le grossiste');
+            }
+            info.push('Suivi reçu le ' + (r.get('dt_AVANCEMENT') || ''));
+        }
+        var envoyee = r.get('str_ENVOI_PHARMAML') === 'EN_ATTENTE' || r.get('str_ENVOI_PHARMAML') === 'REPONDUE' || r.get('str_ENVOI_PHARMAML') === 'PARTIELLE';
+        if (envoyee) {
+            h += (h ? '<br>' : '') + '<a href="#" class="demander-avancement" data-demander-avancement="1" style="font-size:11px;color:#2E75B6">Où en est-elle ?</a>';
+            info.push('« Où en est-elle ? » interroge le grossiste (À faire, En cours, Préparée, Annulée, livraison prévue)');
+        }
+        if (info.length) {
+            meta.tdAttr = 'data-qtip="' + enc(enc(info.join(' · '))) + '"';
+        }
+        return h;
+    },
+
+    /** Demande d'avancement au grossiste, puis detail par ligne (lecture seule). */
+    demanderAvancement: function (commandeId, reference, apres) {
+        var me = this, enc = Ext.String.htmlEncode, attente = Ext.MessageBox.wait('Interrogation du grossiste…', 'Avancement de la commande');
+        Ext.Ajax.request({
+            method: 'POST', timeout: 240000, url: '../api/v1/pharma/avancement/' + encodeURIComponent(commandeId),
+            success: function (response) {
+                attente.hide();
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                if (apres) {
+                    apres(r);
+                }
+                if (!r.success || r.enAttente) {
+                    Ext.defer(function () {
+                        Ext.MessageBox.show({title: 'Avancement de la commande', width: 480, msg: enc(r.msg || 'Interrogation impossible.'),
+                            buttons: Ext.MessageBox.OK, icon: r.success ? Ext.MessageBox.INFO : Ext.MessageBox.WARNING});
+                    }, 60);
+                    return;
+                }
+                me.voirAvancement(r, reference);
+            },
+            failure: function (response) {
+                attente.hide();
+                Ext.Msg.alert('Avancement de la commande', 'Erreur du serveur ' + response.status);
+            }
+        });
+    },
+
+    voirAvancement: function (r, reference) {
+        var me = this, enc = Ext.String.htmlEncode, A = me.AVANCEMENTS[r.etat] || me.AVANCEMENTS.AUTRE;
+        Ext.create('Ext.window.Window', {
+            title: 'Avancement de la commande' + (reference ? ' · ' + reference : ''), itemId: 'fenAvancement', modal: true,
+            width: Math.min(820, Ext.getBody().getViewSize().width - 40), height: Math.min(440, Ext.getBody().getViewSize().height - 40), layout: 'border',
+            items: [{region: 'north', xtype: 'component', itemId: 'enteteAvancement', padding: '8 10',
+                    html: '<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:' + A[1] + ';background:' + A[2] + '">' + enc(A[0]) + '</span> '
+                            + enc(r.libelle || '') + (r.dateLivraison ? ' · livraison prévue <b>' + enc(r.dateLivraison) + '</b>' : '')
+                            + (r.annulees > 0 ? ' · <span style="color:#b42318">' + r.annulees + ' ligne(s) annulée(s)</span>' : '') + ' · réponse du ' + enc(r.date || '')},
+                {region: 'center', xtype: 'grid', itemId: 'grilleAvancement', cls: 'theme-liste',
+                    store: Ext.create('Ext.data.Store', {fields: ['etat', 'libelle', 'dateLivraison', 'commentaire', 'code', 'produit', 'qte'], data: r.lignes || []}),
+                    columns: [
+                        {header: 'Code', dataIndex: 'code', width: 90},
+                        {header: 'Produit', dataIndex: 'produit', flex: 1, renderer: function (v, m) {
+                                m.tdAttr = 'data-qtip="' + enc(enc(v || '')) + '"';
+                                return enc(v || '');
+                            }},
+                        {header: 'Qté', dataIndex: 'qte', width: 50, align: 'right'},
+                        {header: 'Avancement', dataIndex: 'etat', width: 120, renderer: function (v, m, rec) {
+                                var X = me.AVANCEMENTS[v] || me.AVANCEMENTS.AUTRE;
+                                m.tdAttr = 'data-qtip="' + enc(enc(rec.get('libelle') || '')) + '"';
+                                return '<span class="etat-avancement" data-etat="' + enc(v) + '" style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;color:'
+                                        + X[1] + ';background:' + X[2] + '">' + enc(X[0]) + '</span>';
+                            }},
+                        {header: 'Livraison prévue', dataIndex: 'dateLivraison', width: 130},
+                        {header: 'Commentaire', dataIndex: 'commentaire', flex: 1, renderer: function (v, m) {
+                                m.tdAttr = 'data-qtip="' + enc(enc(v || '')) + '"';
+                                return enc(v || '');
+                            }}
+                    ]}],
+            buttons: [{text: 'Fermer', handler: function (b) {
+                        b.up('window').close();
+                    }}]
+        }).show();
+    },
+
     /** Retours du 08/10 (7) : liste des ruptures, equivalents proposes limites a cette commande. */
     ouvrirPropositions: function (reference) {
         testextjs.view.pharmaml.Rupturepharma.referenceDemandee = reference;

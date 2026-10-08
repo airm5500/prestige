@@ -54,6 +54,24 @@ public interface PharmaMlService {
 
     JSONObject choixMemorises();
 
+    /** Retours du 08/10 (10) : demande d'avancement d'une commande au grossiste (tableau 11). */
+    JSONObject avancementCommande(String commandeId, dal.TUser user);
+
+    /** Dernier avancement connu (sans interroger le grossiste). */
+    JSONObject avancementConnu(String commandeId);
+
+    /** Retours du 08/10 (11) : BLV proposes pour la saisie du bon de livraison d'une commande. */
+    JSONObject blvsCommande(String commandeId);
+
+    /** Detail d'un BLV rapproche de la commande (ecarts de quantite et de prix). */
+    JSONObject blv(String blvId, String commandeId);
+
+    /** Alertes reglementaires et commerciales recues (non lues d'abord). */
+    JSONObject alertes(boolean nonLuesSeulement);
+
+    /** Prise de connaissance d'une alerte. */
+    JSONObject alerteLue(String alerteId, dal.TUser user);
+
     JSONObject supprimerChoixMemorise(String familleId, String code, dal.TUser user);
 
     /** Retours du 08/10 : derniere reponse du grossiste a une commande, lisible a l'ecran. */

@@ -276,7 +276,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     /* ================================================================== reponses differees (vidage) */
 
-    static final String SOURCE_COMMANDE = "COMMANDE", SOURCE_RUPTURE = "RUPTURE";
+    static final String SOURCE_COMMANDE = "COMMANDE", SOURCE_RUPTURE = "RUPTURE", SOURCE_SUIVI = "SUIVI";
     static final String EN_ATTENTE = "EN_ATTENTE", TRAITEE = "TRAITEE", ERREUR = "ERREUR", ORPHELINE = "ORPHELINE";
     /** Retours du 08/10 (statut d'envoi sur la liste des commandes) : refus du grossiste, envoi impossible. */
     static final String REFUSEE = "REFUSEE", NON_ENVOYEE = "NON_ENVOYEE";
@@ -597,6 +597,23 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     private JSONObject appliquer(String grossisteId, String xml, String archive, boolean noterOrpheline) {
         TGrossiste g = em.find(TGrossiste.class, grossisteId);
         PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(xml);
+        if (BlvPharmaMl.estBlv(xml) && !env.repCommande) {
+            /* retours du 08/10 (11) : bon de livraison valorise depose au depot */
+            JSONObject b = BlvPharmaMl.enregistrerBlv(em, grossisteId, env.refMessage, xml, archive);
+            ArchivePharmaMl.journal("BLV", g == null ? "" : g.getStrLIBELLE(), b.optString("statut"),
+                    "message " + env.refMessage + " | " + String.valueOf(b.opt("resultat")) + " | archive " + archive);
+            return b;
+        }
+        if (BlvPharmaMl.estAlerte(xml) && !env.repCommande) {
+            JSONObject a = BlvPharmaMl.enregistrerAlerte(em, grossisteId, env.refMessage, xml, archive);
+            ArchivePharmaMl.journal("ALERTE", g == null ? "" : g.getStrLIBELLE(), a.optString("statut"),
+                    "message " + env.refMessage + " | " + String.valueOf(a.opt("resultat")) + " | archive " + archive);
+            return a;
+        }
+        if (xml != null && xml.contains("SUIVI_COMMANDE")) {
+            /* retours du 08/10 (10) : suivi de commande (avancement) depose au depot */
+            return appliquerSuiviDiffere(g, env, xml, archive, noterOrpheline);
+        }
         JSONObject r = new JSONObject().put("refMessage", env.refMessage).put("enReponseA", env.enReponseA);
         List<Object[]> a = em
                 .createNativeQuery("SELECT lg_ID, str_SOURCE, lg_SOURCE_ID, str_VERSION FROM t_pharmaml_attente"
@@ -1185,6 +1202,266 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         + " WHERE lg_FAMILLE_ID = ?1 AND str_CODE_REMPLACANT = ?2")
                 .setParameter(1, familleId).setParameter(2, code).getResultList();
         return r.isEmpty() ? null : (String) r.get(0);
+    }
+
+    // ------------------------------------------------------------------
+    // Retours du 08/10 (10) : avancement des commandes (REQ_ETAT_COMMANDE / SUIVI_COMMANDE, tableau 11)
+    // ------------------------------------------------------------------
+
+    /**
+     * Demande au grossiste ou en est une commande envoyee par PharmaML. Reponse immediate : avancement enregistre et
+     * rendu ; FIN_SERVICE : reponse au depot, recuperee par le vidage ; erreur : code (tableau 8) et conseil.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject avancementCommande(String commandeId, TUser user) {
+        TOrder order = em.find(TOrder.class, commandeId);
+        if (order == null) {
+            return new JSONObject().put("success", false).put("msg", "Commande introuvable.");
+        }
+        TGrossiste g = order.getLgGROSSISTEID();
+        if (StringUtils.isBlank(g.getStrURLPHARMAML())) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Le grossiste " + g.getStrLIBELLE() + " n'a pas de lien PharmaML.");
+        }
+        List<Object> refs = em.createNativeQuery("SELECT str_REF_CDE FROM t_pharmaml_attente WHERE lg_SOURCE_ID = ?1"
+                + " AND str_SOURCE = ?2 AND str_STATUT IN (?3, ?4, ?5) AND str_REF_CDE IS NOT NULL ORDER BY dt_ENVOI DESC")
+                .setParameter(1, commandeId).setParameter(2, SOURCE_COMMANDE).setParameter(3, EN_ATTENTE)
+                .setParameter(4, TRAITEE).setParameter(5, RATTACHEE).setMaxResults(1).getResultList();
+        if (refs.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "Cette commande n'a pas été reçue par le grossiste"
+                    + " par PharmaML : il n'y a pas d'avancement à demander.");
+        }
+        String refCde = (String) refs.get(0);
+        List<PharmaMlMessages.Ligne> lignes = new ArrayList<>();
+        for (LigneN l : buildNormale(order, g.getLgGROSSISTEID()).getLignes()) {
+            lignes.add(new PharmaMlMessages.Ligne(l.getCodeProduit(), "", Integer.parseInt(l.getQuantite())));
+        }
+        if (lignes.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg", "La commande n'a plus de ligne.");
+        }
+        String version = versionCommande(g);
+        String ref = refMessage();
+        String nom = StringUtils.replace(g.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        String xml = PharmaMlMessages.etatCommande(version, partenaires(g), ref, refCde, lignes);
+        String archiveE = ecrireArchive("E_" + order.getStrREFORDER() + "_" + nom, xml);
+        ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), "DEMANDE",
+                "commande " + order.getStrREFORDER() + " | message " + ref + " | " + lignes.size()
+                        + " ligne(s) | archive " + StringUtils.defaultString(archiveE, "(non archivee)"));
+        String corps;
+        try {
+            HttpResponse<String> rep = EnvoiPharmaMl.envoyer(adresses(g), xml, g.getStrIDRECEPTEURPHARMA(),
+                    g.getStrCLERECEPTEUR(), modeControle(g), DELAI_CONNEXION, DELAI_REPONSE).reponse;
+            corps = rep.body();
+            ecrireArchive("RE_" + order.getStrREFORDER() + "_" + nom, PharmaMlMessages.indenter(corps));
+            if (rep.statusCode() != 200) {
+                ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), "REFUS HTTP", "HTTP " + rep.statusCode());
+                return new JSONObject().put("success", false).put("msg",
+                        "Le serveur PharmaML de " + g.getStrLIBELLE() + " a répondu HTTP " + rep.statusCode() + ".");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new JSONObject().put("success", false).put("msg", "Interrogation interrompue.");
+        } catch (Exception e) {
+            ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), erreurReseau(e) ? "INJOIGNABLE" : "ERREUR",
+                    e.getClass().getSimpleName());
+            return new JSONObject().put("success", false).put("msg", erreurReseau(e) ? messageReseau(g, e)
+                    : "Interrogation impossible (" + e.getClass().getSimpleName() + ").");
+        }
+        String erreur = PharmaMlMessages.erreurReponse(corps);
+        if (erreur != null) {
+            String code = PharmaMlMessages.codeErreur(erreur);
+            ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), "REFUS", erreur);
+            boolean nonOuvert = "0006".equals(code) || "6".equals(code) || "0103".equals(code) || "103".equals(code);
+            return new JSONObject().put("success", false).put("serviceFerme", nonOuvert).put("msg",
+                    g.getStrLIBELLE() + " a refusé la demande d'avancement : « " + erreur + " »." + (nonOuvert
+                            ? " Ce grossiste ne propose pas (ou pas à l'officine) le suivi de commande par PharmaML."
+                            : CodeErreurPharmaMl.conseil(code)));
+        }
+        PharmaMlMessages.Enveloppe env = PharmaMlMessages.lireEnveloppe(corps);
+        if (!corps.contains("SUIVI_COMMANDE") && "FIN_SERVICE".equals(env.action)) {
+            em.createNativeQuery("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID,"
+                    + " str_REF_MESSAGE, str_REF_CDE, str_VERSION, str_STATUT, dt_ENVOI) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NOW())")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                    .setParameter(3, SOURCE_SUIVI).setParameter(4, commandeId).setParameter(5, ref)
+                    .setParameter(6, refCde).setParameter(7, version).setParameter(8, EN_ATTENTE).executeUpdate();
+            ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), "EN_ATTENTE",
+                    "commande " + order.getStrREFORDER() + " | reponse au depot (vidage)");
+            return new JSONObject().put("success", true).put("enAttente", true).put("msg", g.getStrLIBELLE()
+                    + " a reçu la demande ; l'avancement sera récupéré avec les réponses PharmaML (bouton « Récupérer »).");
+        }
+        return appliquerSuivi(g, commandeId, corps, ref);
+    }
+
+    /** Lignes du suivi enregistrees ; etat global et date de livraison prevue rendus. */
+    private JSONObject appliquerSuivi(TGrossiste g, String commandeId, String xml, String refMessage) {
+        Object[] lu;
+        try {
+            lu = PharmaMlMessages.lireSuiviCommande(xml);
+        } catch (Exception e) {
+            lu = null;
+        }
+        if (lu == null) {
+            return new JSONObject().put("success", false).put("msg", "Réponse de suivi illisible (archivée).");
+        }
+        @SuppressWarnings("unchecked")
+        List<PharmaMlMessages.Suivi> lignes = (List<PharmaMlMessages.Suivi>) lu[1];
+        for (PharmaMlMessages.Suivi l : lignes) {
+            TFamille f = StringUtils.isBlank(l.code) ? null : famillePourCode(l.code, g.getLgGROSSISTEID());
+            em.createNativeQuery(
+                    "INSERT INTO t_pharmaml_avancement (lg_ID, lg_ORDER_ID, lg_GROSSISTE_ID, str_REF_MESSAGE,"
+                            + " str_CODE_PRODUIT, lg_FAMILLE_ID, int_QTE, str_CODE_STATUT, str_LIBELLE, str_DATE_LIVRAISON,"
+                            + " str_COMMENTAIRE, dt_REPONSE) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, NOW())")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, commandeId)
+                    .setParameter(3, g.getLgGROSSISTEID()).setParameter(4, StringUtils.left(refMessage, 40))
+                    .setParameter(5, StringUtils.left(l.code, 20))
+                    .setParameter(6, f == null ? null : f.getLgFAMILLEID()).setParameter(7, l.quantite)
+                    .setParameter(8, StringUtils.left(l.codeStatut, 10))
+                    .setParameter(9,
+                            StringUtils.left(CodeAvancementPharmaMl.libelle(l.codeStatut, l.libelleStatut), 100))
+                    .setParameter(10, StringUtils.left((l.dateLivraison + " " + l.heureLivraison).trim(), 20))
+                    .setParameter(11, StringUtils.left(l.commentaire, 255)).executeUpdate();
+        }
+        JSONObject r = avancement(em, commandeId);
+        ArchivePharmaMl.journal("SUIVI", g.getStrLIBELLE(), "AVANCEMENT",
+                "commande " + commandeId + " | " + r.optString("libelle")
+                        + (r.optString("dateLivraison").isEmpty() ? ""
+                                : " | livraison prevue " + r.optString("dateLivraison"))
+                        + " | " + lignes.size() + " ligne(s)");
+        return r.put("success", true);
+    }
+
+    private TFamille famillePourCode(String code, String grossisteId) {
+        TFamilleGrossiste fg = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(code, grossisteId);
+        return fg != null ? fg.getLgFAMILLEID() : findTFamilleByCodeCipOrEan(code);
+    }
+
+    /** Suivi depose au depot : rattache a la demande en attente, sinon a la commande par sa reference. */
+    @SuppressWarnings("unchecked")
+    private JSONObject appliquerSuiviDiffere(TGrossiste g, PharmaMlMessages.Enveloppe env, String xml, String archive,
+            boolean noterOrpheline) {
+        JSONObject r = new JSONObject().put("refMessage", env.refMessage).put("enReponseA", env.enReponseA);
+        String refCde = "";
+        try {
+            Object[] lu = PharmaMlMessages.lireSuiviCommande(xml);
+            refCde = lu == null ? "" : (String) lu[0];
+        } catch (Exception e) {
+            /* illisible : traite comme non rattache */
+        }
+        List<Object[]> a = em.createNativeQuery("SELECT lg_ID, lg_SOURCE_ID FROM t_pharmaml_attente WHERE"
+                + " lg_GROSSISTE_ID = ?1 AND str_SOURCE = ?2 AND str_STATUT = ?3 AND (str_REF_MESSAGE = ?4 OR str_REF_CDE = ?5)"
+                + " ORDER BY dt_ENVOI DESC").setParameter(1, g.getLgGROSSISTEID()).setParameter(2, SOURCE_SUIVI)
+                .setParameter(3, EN_ATTENTE).setParameter(4, StringUtils.defaultString(env.enReponseA))
+                .setParameter(5, refCde).setMaxResults(1).getResultList();
+        String commandeId = a.isEmpty() ? null : (String) a.get(0)[1];
+        if (commandeId == null && !refCde.isEmpty()) {
+            List<Object> c = em
+                    .createNativeQuery("SELECT lg_SOURCE_ID FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = ?1"
+                            + " AND str_SOURCE = ?2 AND str_REF_CDE = ?3 ORDER BY dt_ENVOI DESC")
+                    .setParameter(1, g.getLgGROSSISTEID()).setParameter(2, SOURCE_COMMANDE).setParameter(3, refCde)
+                    .setMaxResults(1).getResultList();
+            commandeId = c.isEmpty() ? null : (String) c.get(0);
+        }
+        if (commandeId == null || em.find(TOrder.class, commandeId) == null) {
+            if (noterOrpheline) {
+                em.createNativeQuery(
+                        "INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, str_REF_MESSAGE,"
+                                + " str_STATUT, str_DETAIL, dt_ENVOI, dt_REPONSE) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW(), NOW())")
+                        .setParameter(1, UUID.randomUUID().toString()).setParameter(2, g.getLgGROSSISTEID())
+                        .setParameter(3, SOURCE_SUIVI).setParameter(4, env.enReponseA).setParameter(5, ORPHELINE)
+                        .setParameter(6,
+                                StringUtils.left("Suivi de commande non rattaché, archivé : " + archive + ".xml", 500))
+                        .executeUpdate();
+            }
+            return r.put("statut", ORPHELINE);
+        }
+        JSONObject res = appliquerSuivi(g, commandeId, xml, env.refMessage);
+        if (!a.isEmpty()) {
+            em.createNativeQuery("UPDATE t_pharmaml_attente SET str_STATUT = ?1, str_DETAIL = ?2, dt_REPONSE = NOW()"
+                    + " WHERE lg_ID = ?3").setParameter(1, TRAITEE)
+                    .setParameter(2, StringUtils.left(res.optString("libelle"), 500)).setParameter(3, a.get(0)[0])
+                    .executeUpdate();
+        }
+        return r.put("statut", TRAITEE).put("source", SOURCE_SUIVI).put("sourceId", commandeId).put("resultat", res);
+    }
+
+    /**
+     * Dernier avancement connu d'une commande : etat global (tableau 11), libelle, date de livraison prevue, lignes
+     * annulees, date de la reponse, lignes. Vide (etat "") si aucune reponse.
+     */
+    @SuppressWarnings("unchecked")
+    public static JSONObject avancement(javax.persistence.EntityManager em, String commandeId) {
+        JSONObject r = new JSONObject().put("etat", "").put("libelle", "").put("dateLivraison", "").put("annulees", 0)
+                .put("date", "").put("lignes", new JSONArray());
+        if (StringUtils.isBlank(commandeId)) {
+            return r;
+        }
+        List<Object[]> l = em
+                .createNativeQuery("SELECT a.str_CODE_STATUT, a.str_LIBELLE, IFNULL(a.str_DATE_LIVRAISON, ''),"
+                        + " IFNULL(a.str_COMMENTAIRE, ''), a.str_CODE_PRODUIT, IFNULL(f.str_NAME, ''), a.int_QTE,"
+                        + " DATE_FORMAT(a.dt_REPONSE, '%d/%m/%Y %H:%i') FROM t_pharmaml_avancement a"
+                        + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = a.lg_FAMILLE_ID WHERE a.lg_ORDER_ID = ?1"
+                        + " AND a.dt_REPONSE = (SELECT MAX(x.dt_REPONSE) FROM t_pharmaml_avancement x WHERE x.lg_ORDER_ID = ?1)"
+                        + " ORDER BY f.str_NAME")
+                .setParameter(1, commandeId).getResultList();
+        if (l.isEmpty()) {
+            return r;
+        }
+        List<String> etats = new ArrayList<>();
+        String dateLivraison = "";
+        int annulees = 0;
+        JSONArray lignes = new JSONArray();
+        for (Object[] x : l) {
+            String etat = CodeAvancementPharmaMl.etat((String) x[0]);
+            etats.add(etat);
+            if (CodeAvancementPharmaMl.ANNULEE.equals(etat)) {
+                annulees++;
+            } else if (!((String) x[2]).isEmpty()
+                    && (dateLivraison.isEmpty() || ((String) x[2]).compareTo(dateLivraison) > 0)) {
+                dateLivraison = (String) x[2];
+            }
+            lignes.put(new JSONObject().put("etat", etat).put("libelle", x[1]).put("dateLivraison", x[2])
+                    .put("commentaire", x[3]).put("code", x[4]).put("produit", x[5]).put("qte", x[6]));
+        }
+        String global = CodeAvancementPharmaMl.global(etats);
+        String libelle = CodeAvancementPharmaMl.AUTRE
+                .equals(global)
+                        ? (String) l.get(0)[1]
+                        : CodeAvancementPharmaMl
+                                .libelle(
+                                        global.equals(CodeAvancementPharmaMl.A_FAIRE) ? "1"
+                                                : global.equals(CodeAvancementPharmaMl.EN_COURS) ? "2"
+                                                        : global.equals(CodeAvancementPharmaMl.PREPAREE) ? "3" : "4",
+                                        "");
+        return r.put("etat", global).put("libelle", libelle).put("dateLivraison", dateLivraison)
+                .put("annulees", annulees).put("date", l.get(0)[7]).put("lignes", lignes);
+    }
+
+    @Override
+    public JSONObject avancementConnu(String commandeId) {
+        return avancement(em, commandeId).put("success", true);
+    }
+
+    // Retours du 08/10 (11) : bons de livraison valorises et alertes deposes au depot
+
+    @Override
+    public JSONObject blvsCommande(String commandeId) {
+        return BlvPharmaMl.blvsCommande(em, commandeId);
+    }
+
+    @Override
+    public JSONObject blv(String blvId, String commandeId) {
+        return BlvPharmaMl.detail(em, blvId, commandeId);
+    }
+
+    @Override
+    public JSONObject alertes(boolean nonLuesSeulement) {
+        return BlvPharmaMl.alertes(em, nonLuesSeulement);
+    }
+
+    @Override
+    public JSONObject alerteLue(String alerteId, TUser user) {
+        return BlvPharmaMl.marquerLue(em, alerteId, nomUtilisateur(user));
     }
 
     // ------------------------------------------------------------------

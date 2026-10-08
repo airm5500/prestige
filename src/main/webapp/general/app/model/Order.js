@@ -81,7 +81,13 @@ Ext.define('testextjs.model.Order', {
         {name: 'dt_ENVOI_PHARMAML', type: 'string'},
         {name: 'str_ENVOI_PHARMAML_DETAIL', type: 'string'},
         /* retours du 08/10 (7) : equivalents proposes a decider */
-        {name: 'int_PROPOSITIONS', type: 'int'}
+        {name: 'int_PROPOSITIONS', type: 'int'},
+        /* retours du 08/10 (10) : avancement chez le grossiste (tableau 11) */
+        {name: 'str_AVANCEMENT', type: 'string'},
+        {name: 'str_AVANCEMENT_LIBELLE', type: 'string'},
+        {name: 'dt_LIVRAISON_PREVUE', type: 'string'},
+        {name: 'dt_AVANCEMENT', type: 'string'},
+        {name: 'int_AVANCEMENT_ANNULEES', type: 'int'}
 
     ]
 });

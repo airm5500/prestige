@@ -212,6 +212,275 @@ public final class PharmaMlMessages {
     }
 
     /**
+     * Retours du 08/10 (10) : demande d'etat d'une commande (specification v4.8 § 3.1.2, REQ_ETAT_COMMANDE). La
+     * reference est celle de la commande envoyee (Ref_Cde_Client) ; une ligne par produit encore commande.
+     */
+    public static String etatCommande(String version, Partenaires p, String reference, String refCdeClient,
+            List<Ligne> lignes) {
+        StringBuilder c = new StringBuilder("        <REQ_ETAT_COMMANDE Ref_Cde_Client=\"")
+                .append(esc(tronque(refCdeClient, 20))).append("\">\n");
+        int i = 1;
+        for (Ligne l : lignes) {
+            c.append("          <LIGNE Num_Ligne=\"").append(pad4(i++)).append("\" Type_Codification=\"")
+                    .append(l.typeCodification).append("\" Code_Produit=\"").append(esc(l.code)).append("\"");
+            String d = tronque(l.designation == null ? "" : l.designation.trim(), 50);
+            if (!d.isEmpty()) {
+                c.append(" Designation=\"").append(esc(d)).append("\"");
+            }
+            c.append("/>\n");
+        }
+        c.append("        </REQ_ETAT_COMMANDE>\n");
+        return enveloppe(V1.equals(version) ? V1 : V3, p, reference, c.toString());
+    }
+
+    /** Une ligne de suivi de commande (SUIVI_COMMANDE, § 3.2.2). */
+    public static class Suivi {
+
+        public String code = "", designation = "", codeStatut = "", libelleStatut = "", dateLivraison = "",
+                heureLivraison = "", commentaire = "";
+        public int quantite;
+    }
+
+    /** Lecture tolerante d'un SUIVI_COMMANDE : refCdeClient + lignes ; null si le message n'en contient pas. */
+    public static Object[] lireSuiviCommande(String xml) throws Exception {
+        Document d = lireXml(xml);
+        Element suivi = null;
+        for (Element e : descendants(d.getDocumentElement())) {
+            if (nom(e).equals("SUIVI_COMMANDE")) {
+                suivi = e;
+                break;
+            }
+        }
+        if (suivi == null) {
+            return null;
+        }
+        String ref = suivi.getAttribute("Ref_Cde_Client");
+        List<Suivi> lignes = new ArrayList<>();
+        for (Element e : descendants(suivi)) {
+            if (!nom(e).startsWith("LIGNE")) {
+                continue;
+            }
+            Suivi s = new Suivi();
+            s.code = e.getAttribute("Code_Produit").trim();
+            s.designation = e.getAttribute("Designation").trim();
+            Integer q = entier(e.getAttribute("Quantite"));
+            s.quantite = q == null ? 0 : q;
+            s.codeStatut = e.getAttribute("Code_Statut").trim();
+            s.libelleStatut = e.getAttribute("Libelle_Statut").trim();
+            s.dateLivraison = StringUtils.defaultIfBlank(e.getAttribute("Date_Livraison"), "").trim();
+            s.heureLivraison = StringUtils.defaultIfBlank(e.getAttribute("Heure_Livraison"), "").trim();
+            s.commentaire = e.getAttribute("Commentaire").trim();
+            lignes.add(s);
+        }
+        return new Object[] { ref == null ? "" : ref.trim(), lignes };
+    }
+
+    /** Une ligne de livraison d'un bon de livraison valorise (BON_LIVRAISON, § 3.2.4.4). */
+    public static class LigneBlv {
+
+        public String code = "", designation = "", refCdeClient = "", commentaire = "", naturePrix = "";
+        public int numLigne, quantiteCommandee, quantiteLivree, quantiteFacturee;
+        /** prix unitaire net (NETHT, sinon PHAHT), arrondi a l'unite ; null si absent */
+        public Long prix;
+        public java.math.BigDecimal tauxTva;
+    }
+
+    /** Bon de livraison valorise (§ 3.2.4) : entete, valorisation cumulee et lignes. */
+    public static class Blv {
+
+        public String refDocument = "", refLivraison = "", dateLivraison = "", refFacture = "", dateFacture = "",
+                refCdeClient = "", societeLivraison = "", tournee = "", commentaire = "";
+        public Long montantHt, montantTaxes, montantTtc;
+        public List<LigneBlv> lignes = new ArrayList<>();
+    }
+
+    /** Lecture tolerante d'un BON_LIVRAISON ; null si le message n'en contient pas. */
+    public static Blv lireBonLivraison(String xml) throws Exception {
+        Element bon = premier(lireXml(xml).getDocumentElement(), "BON_LIVRAISON");
+        if (bon == null) {
+            return null;
+        }
+        Blv b = new Blv();
+        b.refDocument = bon.getAttribute("Ref_Document").trim();
+        b.refCdeClient = bon.getAttribute("Ref_Cde_Client").trim();
+        b.commentaire = bon.getAttribute("Commentaire").trim();
+        Element infos = premier(bon, "INFOS_LIVRAISON");
+        if (infos != null) {
+            for (Element e : descendants(infos)) {
+                if (b.societeLivraison.isEmpty() && e.hasAttribute("Societe")) {
+                    b.societeLivraison = e.getAttribute("Societe").trim();
+                }
+                if (b.tournee.isEmpty() && e.hasAttribute("Reference")) {
+                    b.tournee = e.getAttribute("Reference").trim();
+                }
+            }
+        }
+        for (Element e : descendants(bon)) {
+            String n = nom(e);
+            if ("VALOR".equals(n)) {
+                if (b.refFacture.isEmpty()) {
+                    b.refFacture = e.getAttribute("Ref_Facture").trim();
+                    b.dateFacture = e.getAttribute("Date").trim();
+                }
+                Element cumul = premier(e, "CUMUL");
+                if (cumul != null) {
+                    b.montantHt = somme(b.montantHt, montant(cumul.getAttribute("Montant_HT")));
+                    b.montantTaxes = somme(b.montantTaxes, montant(cumul.getAttribute("Montant_Total_Taxes")));
+                    b.montantTtc = somme(b.montantTtc, montant(cumul.getAttribute("Montant_TTC")));
+                }
+            } else if ("LIVRAISON".equals(n)) {
+                if (b.refLivraison.isEmpty()) {
+                    b.refLivraison = e.getAttribute("Ref_Livraison").trim();
+                    b.dateLivraison = e.getAttribute("Date").trim();
+                }
+                for (Element l : descendants(e)) {
+                    if (!"LIGNE".equals(nom(l)) || !l.hasAttribute("Quantite_livree")) {
+                        continue;
+                    }
+                    b.lignes.add(ligneBlv(l, b.lignes.size() + 1));
+                }
+            }
+        }
+        return b;
+    }
+
+    private static LigneBlv ligneBlv(Element l, int rang) {
+        LigneBlv x = new LigneBlv();
+        Integer num = entier(l.getAttribute("Num_Ligne"));
+        x.numLigne = num == null ? rang : num;
+        x.refCdeClient = l.getAttribute("Ref_Cde_Client").trim();
+        x.commentaire = l.getAttribute("Commentaire").trim();
+        Integer q = entier(l.getAttribute("Quantite_commandee"));
+        x.quantiteCommandee = q == null ? 0 : q;
+        q = entier(l.getAttribute("Quantite_livree"));
+        x.quantiteLivree = q == null ? 0 : q;
+        q = entier(l.getAttribute("Quantite_facturee"));
+        x.quantiteFacturee = q == null ? x.quantiteLivree : q;
+        Long netht = null, phaht = null;
+        for (Element e : descendants(l)) {
+            String n = nom(e);
+            if (StringUtils.isBlank(x.code) && e.hasAttribute("Code_Produit")) {
+                x.code = e.getAttribute("Code_Produit").trim();
+                x.designation = e.getAttribute("Designation").trim();
+            } else if ("PRIX".equals(n) && !"INDISPONIBILITE".equals(nom(e.getParentNode()))) {
+                String nature = e.getAttribute("Nature").trim();
+                if ("NETHT".equals(nature)) {
+                    netht = montant(e.getAttribute("Valeur"));
+                } else if ("PHAHT".equals(nature)) {
+                    phaht = montant(e.getAttribute("Valeur"));
+                }
+            } else if ("TAXE_LV".equals(n) && x.tauxTva == null) {
+                try {
+                    x.tauxTva = new java.math.BigDecimal(e.getAttribute("Taux").trim());
+                } catch (NumberFormatException ex) {
+                    x.tauxTva = null;
+                }
+            }
+        }
+        x.prix = netht != null ? netht : phaht;
+        x.naturePrix = netht != null ? "NETHT" : phaht != null ? "PHAHT" : "";
+        if (StringUtils.isBlank(x.code) && l.hasAttribute("Code_Produit")) {
+            x.code = l.getAttribute("Code_Produit").trim();
+            x.designation = l.getAttribute("Designation").trim();
+        }
+        return x;
+    }
+
+    /** Un produit vise par une alerte (lots concernes, vide = tous les lots). */
+    public static class ProduitAlerte {
+
+        public String code = "", designation = "", fabricant = "";
+        public List<String> lots = new ArrayList<>();
+    }
+
+    /** Information reglementaire urgente ou alerte commerciale (§ 3.2.6 et 3.2.7). */
+    public static class Alerte {
+
+        public String type = "", numero = "", motif = "", designation = "", commentaireInstructions = "",
+                commentaireAnnexe = "", dateLimiteReprise = "", clause = "";
+        public boolean arretImmediat, renvoi;
+        public List<ProduitAlerte> produits = new ArrayList<>();
+    }
+
+    /** Lecture tolerante d'une ALERTE_REGLEMENTAIRE ou ALERTE_COMMERCIALE ; null si absente. */
+    public static Alerte lireAlerte(String xml) throws Exception {
+        Element racine = lireXml(xml).getDocumentElement();
+        Element a = premier(racine, "ALERTE_REGLEMENTAIRE");
+        Alerte x = new Alerte();
+        x.type = "REGLEMENTAIRE";
+        if (a == null) {
+            a = premier(racine, "ALERTE_COMMERCIALE");
+            x.type = "COMMERCIALE";
+        }
+        if (a == null) {
+            return null;
+        }
+        x.numero = a.getAttribute("Numero_Alerte").trim();
+        x.motif = a.getAttribute("Motif").trim();
+        x.designation = a.getAttribute("Designation_globale").trim();
+        x.arretImmediat = "true".equalsIgnoreCase(a.getAttribute("Arret_immediat").trim())
+                || "1".equals(a.getAttribute("Arret_immediat").trim());
+        x.commentaireInstructions = a.getAttribute("Commentaire_Instructions").trim();
+        x.commentaireAnnexe = a.getAttribute("Commentaire_Annexe").trim();
+        x.clause = a.getAttribute("Clause").trim();
+        for (Element f : descendants(a)) {
+            if (!"EMETTEUR_FABRICANT".equals(nom(f))) {
+                continue;
+            }
+            String fabricant = f.getAttribute("Nom").trim();
+            Element instr = premier(f, "INSTRUCTIONS");
+            if (instr != null) {
+                x.renvoi |= "true".equalsIgnoreCase(instr.getAttribute("Renvoi").trim())
+                        || "1".equals(instr.getAttribute("Renvoi").trim());
+                if (x.dateLimiteReprise.isEmpty()) {
+                    x.dateLimiteReprise = instr.getAttribute("Date_limite_Reprise").trim();
+                }
+            }
+            for (Element p : descendants(f)) {
+                if (!"PRODUIT".equals(nom(p))) {
+                    continue;
+                }
+                ProduitAlerte pa = new ProduitAlerte();
+                pa.code = p.getAttribute("Code_Produit").trim();
+                pa.designation = p.getAttribute("Designation").trim();
+                pa.fabricant = fabricant;
+                for (Element lot : descendants(p)) {
+                    if ("LOT".equals(nom(lot)) && StringUtils.isNotBlank(lot.getAttribute("Numero_Lot"))) {
+                        pa.lots.add(lot.getAttribute("Numero_Lot").trim());
+                    }
+                }
+                x.produits.add(pa);
+            }
+        }
+        return x;
+    }
+
+    private static Element premier(Element racine, String nom) {
+        for (Element e : descendants(racine)) {
+            if (nom.equals(nom(e))) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    /** Montant decimal (3 decimales au plus) arrondi a l'unite ; null si absent ou illisible. */
+    static Long montant(String s) {
+        if (StringUtils.isBlank(s)) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(s.trim()).setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
+        } catch (ArithmeticException | NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Long somme(Long a, Long b) {
+        return b == null ? a : a == null ? b : a + b;
+    }
+
+    /**
      * Message de cinematique (specification v4.8 § 4.1) : demande de VIDAGE du depot ou ACQUITTEMENT d'un message recu,
      * Nature_Action REQ_RECEPTION (ou REQ_EMISSION pour acquitter une reponse immediate), EN_REPONSE_A si renseigne.
      */

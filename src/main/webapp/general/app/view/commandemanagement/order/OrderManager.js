@@ -95,10 +95,21 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     }
                 },
                 {
+                    /* retours du 08/10 (10) : avancement chez le grossiste (tableau 11) */
+                    header: 'Avancement',
+                    dataIndex: 'str_AVANCEMENT',
+                    itemId: 'colAvancement',
+                    width: 160,
+                    renderer: function (v, meta, r) {
+                        return testextjs.view.commandemanagement.order.EnvoiPharmaMl.renduAvancement(v, meta, r);
+                    }
+                },
+                {
                     header: 'Nbre.Ligne',
                     dataIndex: 'int_LINE',
+                    /* retours du 08/10 (10) : largeurs fixes pour les chiffres (colonnes PharmaML et Avancement) */
+                    width: 84,
                     align: 'right',
-                    flex: 0.5,
                     renderer: function (value) {
                         return '<div style="font-weight: bold; color: green;">' + value + '</div>';
                     }
@@ -107,15 +118,15 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 {
                     header: 'Nbre.Produits',
                     dataIndex: 'int_NBRE_PRODUIT',
+                    width: 104,
                     align: 'right',
-                    flex: 0.5
                 },
                 {
                     header: 'P.ACHAT',
                     dataIndex: 'PRIX_ACHAT_TOTAL',
+                    width: 92,
                     renderer: amountformat,
                     align: 'right',
-                    flex: 0.5,
                      renderer: function (value) {
                          return '<span style="color:blue; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';            
                     }
@@ -123,8 +134,8 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 {
                     header: 'P.VENTE',
                     dataIndex: 'PRIX_VENTE_TOTAL',
+                    width: 92,
                     align: 'right',
-                    flex: 0.5,
                      renderer: function (value) {
                          return '<span style="color:red; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';            
                     }
@@ -373,6 +384,14 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         this.callParent();
         /* retours du 08/10 (7) : pastille « n a decider » -> equivalents proposes de cette commande */
         this.on('cellclick', function (view, td, ci, rec, tr, ri, e) {
+            if (e && e.getTarget && e.getTarget('[data-demander-avancement]')) {
+                e.preventDefault();
+                var liste = this;
+                testextjs.view.commandemanagement.order.EnvoiPharmaMl.demanderAvancement(rec.get('lg_ORDER_ID'), rec.get('str_REF_ORDER'), function () {
+                    liste.getStore().reload();
+                });
+                return false;
+            }
             if (e && e.getTarget && e.getTarget('[data-a-decider]')) {
                 testextjs.view.commandemanagement.order.EnvoiPharmaMl.ouvrirPropositions(rec.get('str_REF_ORDER'));
                 return false;
