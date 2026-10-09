@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Retours du 09/10 (4) : articles dormants (API v1/articles-dormants/pdf) : produits en stock non vendus depuis leur
+     derniere entree, plus ancienne que le nombre de jours choisi. Memes lignes que l'ecran (source de donnees en memoire). -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="articles_dormants" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_TOTAUX" class="java.lang.String"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="rayon" class="java.lang.String"/>
+    <field name="grossiste" class="java.lang.String"/>
+    <field name="derniereEntree" class="java.lang.String"/>
+    <field name="qteEntree" class="java.lang.Integer"/>
+    <field name="jours" class="java.lang.Integer"/>
+    <field name="derniereVente" class="java.lang.String"/>
+    <field name="stock" class="java.lang.Integer"/>
+    <field name="prixAchat" class="java.lang.Integer"/>
+    <field name="prixVente" class="java.lang.Integer"/>
+    <field name="valeurStock" class="java.lang.Long"/>
+    <title>
+        <band height="70">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="30" width="802" height="16"/><textElement textAlignment="Center"><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="50" width="802" height="14"/><textElement textAlignment="Center"><font size="8"/></textElement><textFieldExpression><![CDATA[$P{P_TOTAUX}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="2" y="0" width="52" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="56" y="0" width="184" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Désignation]]></text></staticText>
+                <staticText><reportElement x="242" y="0" width="78" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Rayon]]></text></staticText>
+                <staticText><reportElement x="322" y="0" width="78" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Grossiste]]></text></staticText>
+                <staticText><reportElement x="402" y="0" width="54" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Dern. entrée]]></text></staticText>
+                <staticText><reportElement x="458" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Qté entrée]]></text></staticText>
+                <staticText><reportElement x="500" y="0" width="34" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Jours]]></text></staticText>
+                <staticText><reportElement x="536" y="0" width="54" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Dern. vente]]></text></staticText>
+                <staticText><reportElement x="592" y="0" width="40" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Stock]]></text></staticText>
+                <staticText><reportElement x="634" y="0" width="50" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[P. achat]]></text></staticText>
+                <staticText><reportElement x="686" y="0" width="50" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[P. vente]]></text></staticText>
+                <staticText><reportElement x="738" y="0" width="62" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><text><![CDATA[Valeur stock]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="14">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="13" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="2" y="0" width="52" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true"><reportElement stretchType="RelativeToTallestObject" x="56" y="0" width="184" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true"><reportElement stretchType="RelativeToTallestObject" x="242" y="0" width="78" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{rayon}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="true"><reportElement stretchType="RelativeToTallestObject" x="322" y="0" width="78" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{grossiste}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="402" y="0" width="54" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{derniereEntree}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="458" y="0" width="40" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{qteEntree}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="500" y="0" width="34" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{jours}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="536" y="0" width="54" height="12"/><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{derniereVente}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="592" y="0" width="40" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="634" y="0" width="50" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{prixAchat}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="686" y="0" width="50" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{prixVente}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true" isStretchWithOverflow="false"><reportElement stretchType="RelativeToTallestObject" x="738" y="0" width="62" height="12"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{valeurStock}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucun article dormant pour ces critères.]]></text></staticText></band>
+    </noData>
+</jasperReport>

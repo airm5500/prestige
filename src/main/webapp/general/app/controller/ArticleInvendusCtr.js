@@ -10,11 +10,11 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
 
         {
             ref: 'unitesGrid',
-            selector: 'stockmort gridpanel'
+            selector: 'stockmort #grilleInvendus'
         },
         {
             ref: 'pagingtoolbar',
-            selector: 'stockmort gridpanel pagingtoolbar'
+            selector: 'stockmort #grilleInvendus pagingtoolbar'
         }
 
         , {
@@ -69,7 +69,7 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
             'stockmort #btnCreateInventaire': {
                 click: this.onCreateInventaire
             },
-            'stockmort gridpanel pagingtoolbar': {
+            'stockmort #grilleInvendus pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
             'stockmort #rechercher': {
@@ -97,7 +97,7 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
             'stockmort #stockFiltre': {
                 select: this.onFilterSelect
             },
-            'stockmort gridpanel': {
+            'stockmort #grilleInvendus': {
                 viewready: this.doInitStore
             }, 'stockmort #suggestion': {
                 click: this.onSuggere

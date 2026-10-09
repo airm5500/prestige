@@ -11,6 +11,7 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
     maxHeight: 800,
     cls: 'custompanel',
     layout: 'fit',
+    requires: ['testextjs.view.produits.ArticlesDormants'],
     initComponent: function () {
 
         var filtreStock = new Ext.data.Store({
@@ -145,7 +146,12 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
 
         });
         var me = this;
+        /* Retours du 09/10 (4) : deux onglets ; le premier est l'ecran existant (memes filtres, memes identifiants) */
         Ext.applyIf(me, {
+            items: [{
+            xtype: 'tabpanel', itemId: 'ongletsInvendus', plain: true, border: false,
+            items: [{
+            title: 'Articles invendus', itemId: 'ongletInvendus', layout: 'fit', border: false,
             dockedItems: [
                 {
                     xtype: 'toolbar',
@@ -334,6 +340,7 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
             items: [
                 {
                     xtype: 'gridpanel',
+                    itemId: 'grilleInvendus',
                     store: data,
                     viewConfig: {
                         forceFit: true,
@@ -409,7 +416,8 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                     }
                 }
             ]
-
+            }, {xtype: 'articlesdormants', itemId: 'ongletDormants'}]
+            }]
         });
 
         me.callParent(arguments);
