@@ -41,3 +41,30 @@
         return morte(this) ? false : findRecord.apply(this, arguments);
     };
 })();
+
+/*
+ * Retours du 08/10 (controle de saisie) : dans une fenetre, la touche Tab sur le dernier champ ramene au premier (et
+ * Maj+Tab l'inverse). ExtJS 4.2 appelait element.focus(false, true) : les navigateurs actuels refusent ces arguments
+ * (« The provided value is not of type 'FocusOptions' ») et la navigation au clavier s'arretait. Meme comportement,
+ * sans les arguments.
+ */
+(function () {
+    if (!window.Ext || !Ext.Component || !Ext.util || !Ext.util.Floating) {
+        return;
+    }
+    var origine = Ext.util.Floating.prototype.onKeyDown;
+    var corrige = function (e) {
+        var me = this;
+        if (e.getKey() === Ext.EventObject.TAB && me.el) {
+            var arriere = e.shiftKey, champs = me.el.query(':focusable'), premier = champs[0], dernier = champs[champs.length - 1];
+            if (premier && dernier && e.target === (arriere ? premier : dernier)) {
+                e.stopEvent();
+                (arriere ? dernier : premier).focus();
+            }
+        }
+    };
+    Ext.util.Floating.prototype.onKeyDown = corrige;
+    if (Ext.Component.prototype.onKeyDown === origine) {
+        Ext.Component.prototype.onKeyDown = corrige;
+    }
+})();
