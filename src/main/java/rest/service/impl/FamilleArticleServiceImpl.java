@@ -170,9 +170,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
         List<Predicate> predicates = new ArrayList<>();
         TEmplacement emp = u.getLgEMPLACEMENTID();
-        Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        // Bornes sur la colonne brute (et non DATE(colonne)) pour que l'index sur dt_UPDATED serve
+        predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                (Date) java.sql.Timestamp.valueOf(dtStart.atStartOfDay())));
+        predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                (Date) java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay())));
         predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
         predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
         predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -252,9 +254,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                     cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE))));
             predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
                     .get(TFamillearticle_.lgFAMILLEARTICLEID), familleArticleStatDTO.getFamilleId()));
-            Predicate btw = cb.equal(cb.function("YEAR", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                    periode.getYear());
-            predicates.add(btw);
+            // Annee de la periode en intervalle sur la colonne brute (et non YEAR(colonne)) pour l'index
+            predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).atStartOfDay())));
+            predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).plusYears(1).atStartOfDay())));
             predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
             predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
             predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -675,9 +679,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                     cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE))));
             predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
                     .get(TZoneGeographique_.lgZONEGEOID), familleArticleStatDTO.getFamilleId()));
-            Predicate btw = cb.equal(cb.function("YEAR", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                    periode.getYear());
-            predicates.add(btw);
+            // Annee de la periode en intervalle sur la colonne brute (et non YEAR(colonne)) pour l'index
+            predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).atStartOfDay())));
+            predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).plusYears(1).atStartOfDay())));
             predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
             predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
             predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -721,9 +727,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                     cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE))));
             predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
                     .get(TGrossiste_.lgGROSSISTEID), familleArticleStatDTO.getFamilleId()));
-            Predicate btw = cb.equal(cb.function("YEAR", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                    periode.getYear());
-            predicates.add(btw);
+            // Annee de la periode en intervalle sur la colonne brute (et non YEAR(colonne)) pour l'index
+            predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).atStartOfDay())));
+            predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).plusYears(1).atStartOfDay())));
             predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
             predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
             predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -806,9 +814,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                     cb.sumAsLong(root.get(TPreenregistrementDetail_.intQUANTITY))));
             predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
                     .get(TFamillearticle_.lgFAMILLEARTICLEID), familleArticleStatDTO.getFamilleId()));
-            Predicate btw = cb.equal(cb.function("YEAR", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                    periode.getYear());
-            predicates.add(btw);
+            // Annee de la periode en intervalle sur la colonne brute (et non YEAR(colonne)) pour l'index
+            predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).atStartOfDay())));
+            predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                    (Date) java.sql.Timestamp.valueOf(periode.withDayOfYear(1).plusYears(1).atStartOfDay())));
             predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
             predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
             predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
