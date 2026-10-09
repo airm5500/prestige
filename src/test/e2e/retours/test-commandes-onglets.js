@@ -57,10 +57,10 @@ const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALER
     await p.waitForFunction(() => /Alertes\s*\d/.test(Ext.ComponentQuery.query('commandesencours')[0].down('#cec-alertes').getEl().dom.textContent), null, { timeout: 20000 });
     let e = await etat();
     const nonLues = q("SELECT COUNT(*) FROM t_pharmaml_alerte WHERE dt_LU IS NULL"), aDecider = q("SELECT COUNT(*) FROM t_pharmaml_remplacement WHERE str_STATUT = 'PROPOSE'");
-    ok('Menu « Commande en cours » : 5 onglets, « Commandes en cours » actif, la liste des commandes affichée',
-      e && e.boutons.map((x) => x.t.replace(/\s*\d+$/, '')).join('|') === 'Commandes en cours|Ruptures|Substitutions|Alertes|Tableau de bord' && e.boutons[0].presse && e.actif === 'i_order_manager', JSON.stringify(e));
-    ok('Pastilles : alertes non lues et substitutions à décider = base', e.boutons[3].t === 'Alertes ' + nonLues
-      && (aDecider === '0' ? e.boutons[2].t === 'Substitutions' : e.boutons[2].t === 'Substitutions ' + aDecider), JSON.stringify(e.boutons) + ' base=' + nonLues + '/' + aDecider);
+    ok('Menu « Commande en cours » : 6 onglets, « Commandes en cours » actif, la liste des commandes affichée',
+      e && e.boutons.map((x) => x.t.replace(/\s*\d+$/, '')).join('|') === 'Commandes en cours|Ruptures|Risque de rupture|Substitutions|Alertes|Tableau de bord' && e.boutons[0].presse && e.actif === 'i_order_manager', JSON.stringify(e));
+    ok('Pastilles : alertes non lues et substitutions à décider = base', e.boutons[4].t === 'Alertes ' + nonLues
+      && (aDecider === '0' ? e.boutons[3].t === 'Substitutions' : e.boutons[3].t === 'Substitutions ' + aDecider), JSON.stringify(e.boutons) + ' base=' + nonLues + '/' + aDecider);
     ok('L\'onglet actif se distingue des autres (fond foncé)', e.boutons[0].fond === 'rgb(31, 59, 90)' && e.boutons.slice(1).every((x) => x.fond !== 'rgb(31, 59, 90)'), JSON.stringify(e.boutons.map((x) => x.fond)));
     ok('Mise en page : écran à la taille du panneau central, onglets entiers, pas de défilement horizontal',
       Math.abs(e.hub.l - e.centre.l) <= 2 && e.hub.h >= e.centre.h - 2 && e.boutons.every((x) => !x.coupe) && !e.defilementH, JSON.stringify(e));
@@ -87,7 +87,7 @@ const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALER
     await p.waitForTimeout(900);
     e = await etat();
     const memeEcran = await p.evaluate(() => Ext.ComponentQuery.query('rupturepharma').length === 1 && !!Ext.ComponentQuery.query('commandesencours')[0]);
-    ok('Bandeau « Voir les alertes » : onglet Alertes du même écran (pas de changement de menu)', memeEcran && e.ongletPml === 'ongletAlertes' && e.boutons[3].presse, JSON.stringify(e));
+    ok('Bandeau « Voir les alertes » : onglet Alertes du même écran (pas de changement de menu)', memeEcran && e.ongletPml === 'ongletAlertes' && e.boutons[4].presse, JSON.stringify(e));
     await p.waitForFunction((alr) => { const st = Ext.ComponentQuery.query('commandesencours')[0].ecranPml.down('#grilleAlertes').getStore(); return st.findExact('numero', alr) >= 0; }, ALR, { timeout: 20000 });
     await p.evaluate((alr) => { const g = Ext.ComponentQuery.query('commandesencours')[0].ecranPml.down('#grilleAlertes'), st = g.getStore();
       g.getView().getNode(st.getAt(st.findExact('numero', alr))).querySelector('[data-alerte-lue]').id = 'e2e-lue'; }, ALR);
@@ -95,7 +95,7 @@ const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALER
     const attenduApres = String(Number(nonLues) - 1);
     await p.waitForFunction((n) => { const t = Ext.ComponentQuery.query('commandesencours')[0].down('#cec-alertes').getEl().dom.textContent.trim(); return n === '0' ? t === 'Alertes' : t === 'Alertes ' + n; }, attenduApres, { timeout: 20000 }).catch(() => {});
     e = await etat();
-    ok('Alerte lue : pastille de l\'onglet Alertes mise à jour', (attenduApres === '0' ? e.boutons[3].t === 'Alertes' : e.boutons[3].t === 'Alertes ' + attenduApres) && q("SELECT dt_LU IS NOT NULL FROM t_pharmaml_alerte WHERE lg_ID = '" + ALR + "'") === '1', JSON.stringify(e.boutons[3]));
+    ok('Alerte lue : pastille de l\'onglet Alertes mise à jour', (attenduApres === '0' ? e.boutons[4].t === 'Alertes' : e.boutons[4].t === 'Alertes ' + attenduApres) && q("SELECT dt_LU IS NOT NULL FROM t_pharmaml_alerte WHERE lg_ID = '" + ALR + "'") === '1', JSON.stringify(e.boutons[4]));
 
     /* redirection (retour d'une commande) : meme ecran a onglets */
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('i_order_manager', {}));

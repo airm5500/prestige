@@ -96,10 +96,9 @@ public class PharmaMlResource {
         if (utilisateur() == null) {
             return refuse();
         }
-        return Response
-                .ok(new JSONObject().put("success", true).put("substitutions", droit(P_CEC_SUBSTITUTIONS))
-                        .put("alertes", droit(P_CEC_ALERTES)).put("tableauBord", droit(P_CEC_TABLEAU_BORD)).toString())
-                .build();
+        return Response.ok(new JSONObject().put("success", true).put("substitutions", droit(P_CEC_SUBSTITUTIONS))
+                .put("alertes", droit(P_CEC_ALERTES)).put("tableauBord", droit(P_CEC_TABLEAU_BORD))
+                .put("risqueRupture", droit("P_CEC_RISQUE_RUPTURE")).toString()).build();
     }
 
     private Response refuse() {

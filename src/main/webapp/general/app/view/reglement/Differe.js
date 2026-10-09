@@ -574,6 +574,22 @@ Ext.define('testextjs.view.reglement.Differe', {
         me.add(me.ongletSolde());
     },
 
+    /* Retours du 09/10 (1) : releve de l'onglet Solde en PDF ou Excel (API v1/reglement/releve/pdf|excel) */
+    editerSolde: function (format) {
+        var g = this.down('#grilleSolde'), du = g.down('#soldeDu'), au = g.down('#soldeAu'), c = g.down('#soldeClient');
+        if (!du.isValid() || !au.isValid()) {
+            return;
+        }
+        if (du.getValue() && au.getValue() && du.getValue() > au.getValue()) {
+            Ext.MessageBox.alert('Solde des différés', 'La date de début est après la date de fin.');
+            return;
+        }
+        window.open('../api/v1/reglement/releve/' + format + '?' + Ext.Object.toQueryString({
+            dtStart: du.getSubmitValue() || '', dtEnd: au.getSubmitValue() || '', clientId: c.getValue() || '',
+            clientNom: c.getValue() ? c.getRawValue() : ''
+        }));
+    },
+
     ongletSolde: function () {
         var me = this, f = function (v) {
             return String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -626,7 +642,15 @@ Ext.define('testextjs.view.reglement.Differe', {
                                         charger();
                                     }
                                 }}},
-                        {text: 'Rechercher', iconCls: 'searchicon', handler: charger}]},
+                        {text: 'Rechercher', iconCls: 'searchicon', handler: charger},
+                        /* retours du 09/10 (1) : impression et export du releve, memes criteres que l'ecran */
+                        '->',
+                        {text: 'Exporter Excel', itemId: 'soldeExcel', cls: 'btn-primary', iconCls: 'export_excel_icon', handler: function () {
+                                me.editerSolde('excel');
+                            }},
+                        {text: 'Imprimer (PDF)', itemId: 'soldePdf', cls: 'btn-primary', iconCls: 'printable', handler: function () {
+                                me.editerSolde('pdf');
+                            }}]},
                 {xtype: 'toolbar', dock: 'top', items: [{xtype: 'component', itemId: 'soldeResume', html: ''}]}],
             columns: [
                 {text: 'Date et heure', dataIndex: 'date', width: 130},

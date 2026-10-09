@@ -3007,6 +3007,14 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .cec-hub .cec-onglets .x-btn.cec-onglet.x-btn-pressed .x-btn-inner { color: #fff !important; }
 .cec-hub .cec-onglets .x-btn.cec-onglet:not(.x-btn-pressed):hover { background: #e4effa !important; }
 
+/* Retours du 09/10 (3) : onglet Risque de rupture (compteurs cliquables, pastilles de statut) */
+.rr-bandeau { background: #f7f9fb; border-bottom: 1px solid #e3e8ee; }
+.rr-filtres { display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-filtre { display: inline-block; cursor: pointer; border: 1px solid; border-radius: 14px; padding: 2px 10px; font-size: 12px; font-weight: 600; user-select: none; }
+.rr-filtre:hover { filter: brightness(0.95); }
+.rr-regle { font-size: 11px; color: #5b6573; margin-top: 6px; }
+.rr-pastille { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
 /* Retours du 08/10 (13) : retours fournisseurs par PharmaML */
 #btn_retour_pml.btn-commander-pml { background: #17795f !important; border-color: #17795f !important; background-image: none !important; }
 #btn_retour_pml.btn-commander-pml .x-btn-inner { color: #fff !important; font-weight: 600; }

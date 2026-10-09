@@ -4,7 +4,8 @@
  *  - releve d'octobre : solde au debut = ventes - reglements d'avant ; une ligne par operation (date et heure,
  *    debit / credit, solde apres l'operation), ligne « Solde fin Octobre 2026 » ; solde final = somme des restes dus ;
  *  - filtre « État » de la liste : non reglee / partielle / reglee / non soldes / tous, coherents avec les restes ;
- *  - par l'ecran : onglet SOLDE, client choisi, lignes et resume ; aucune erreur JavaScript.
+ *  - par l'ecran : onglet SOLDE, client choisi, lignes et resume ; aucune erreur JavaScript ;
+ *  - retours du 09/10 (1) : impression PDF (jrxml releve_differes) et export Excel du releve, memes chiffres.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -97,6 +98,25 @@ function reglement(id, quand, montant) {
     ok('Écran : onglet SOLDE, colonnes date et heure / débit / crédit / solde, ligne de fin de mois, résumé',
       ecran.entetes === 'Date et heure|Opération|Client|Débit|Crédit|Solde' && ecran.mois === 1 && /Solde au début : 4 000/.test(ecran.resume) && /Solde à la fin : 10 000/.test(ecran.resume), JSON.stringify(ecran));
     await p.screenshot({ path: SORTIE + '/differes-solde.png' });
+
+    /* ------------------------------------------------ impression et export (retours du 09/10 (1)) */
+    const [popup] = await Promise.all([p.waitForEvent('popup', { timeout: 20000 }),
+      p.evaluate(() => Ext.ComponentQuery.query('delayed #grilleSolde #soldePdf')[0].btnEl.dom.click())]);
+    const urlPdf = popup.url(); await popup.close();
+    ok('Bouton « Imprimer (PDF) » : ouvre le relevé avec la période et le client de l\'écran', /releve\/pdf\?/.test(urlPdf) && /dtStart=2026-10-01/.test(urlPdf) && /dtEnd=2026-10-31/.test(urlPdf) && urlPdf.includes('clientId=' + CLIENT), urlPdf);
+    const pdf = await p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, urlPdf);
+    require('fs').writeFileSync(SORTIE + '/releve-differes.pdf', Buffer.from(pdf.b));
+    const texte = pdf.s === 200 && /pdf/.test(pdf.t) ? execFileSync('pdftotext', ['-layout', SORTIE + '/releve-differes.pdf', '-'], { encoding: 'utf8' }) : '';
+    ok('PDF : titre et période, client, lignes (ventes, règlement, fin de mois), totaux = écran',
+      /RELEVÉ DES DIFFÉRÉS DU 01\/10\/2026 AU 31\/10\/2026/.test(texte) && /ZZDIFFERE Essai/.test(texte) && /E2E-B/.test(texte) && /REG-R2/.test(texte)
+      && /Solde fin Octobre 2026/.test(texte) && /Solde au début : 4 000/.test(texte) && /Solde à la fin : 10 000/.test(texte), texte.slice(0, 600));
+    /* un telechargement ne navigue pas la fenetre ouverte : on releve l'adresse demandee par le bouton */
+    const urlX = await p.evaluate(() => { const o = window.open, vus = []; window.open = (u) => { vus.push(u); return null; };
+      try { Ext.ComponentQuery.query('delayed #grilleSolde #soldeExcel')[0].btnEl.dom.click(); } finally { window.open = o; } return vus[0] || ''; });
+    const xls = await p.evaluate(async (u) => { const r = await fetch(u); const b = new Uint8Array(await r.arrayBuffer()); return { s: r.status, d: r.headers.get('content-disposition'), n: b.length, txt: Array.from(b).map((c) => (c >= 32 && c < 127 ? String.fromCharCode(c) : ' ')).join('') }; }, urlX);
+    ok('Export Excel : fichier .xls avec les opérations du relevé', xls.s === 200 && /releve_differes_2026-10-01_2026-10-31\.xls/.test(xls.d) && /E2E-B/.test(xls.txt) && /REG-R2/.test(xls.txt), JSON.stringify({ s: xls.s, d: xls.d, n: xls.n }));
+    const inverse = await p.evaluate(async () => { const r = await fetch('../api/v1/reglement/releve/pdf?dtStart=2026-10-31&dtEnd=2026-10-01'); return { s: r.status, t: await r.text() }; });
+    ok('Impression avec dates inversées : message, pas de fichier ni d\'erreur serveur', inverse.s === 200 && /pas pu être imprimé/.test(inverse.t), inverse.s);
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
     ok('Déroulé sans exception', false, e.stack);

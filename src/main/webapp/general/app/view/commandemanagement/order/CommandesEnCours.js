@@ -2,7 +2,7 @@
 
 /*
  * Retours du 08/10 (12) : « tout en un » — l'ecran Commandes en cours reunit la liste des commandes et le suivi
- * PharmaML en onglets : Commandes en cours | Ruptures | Substitutions | Alertes | Tableau de bord.
+ * PharmaML en onglets : Commandes en cours | Ruptures | Risque de rupture | Substitutions | Alertes | Tableau de bord.
  * La liste est l'ecran existant (i_order_manager) sans changement ; les quatre autres onglets sont ceux de l'ecran
  * « Liste des ruptures » (rupturepharma, toujours accessible par son menu), cree au premier clic, sa propre barre
  * d'onglets masquee. Les pastilles donnent le nombre d'alertes non lues et de substitutions a decider.
@@ -10,7 +10,8 @@
 Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
     extend: 'Ext.panel.Panel',
     xtype: 'commandesencours',
-    requires: ['testextjs.view.commandemanagement.order.OrderManager', 'testextjs.view.pharmaml.Rupturepharma'],
+    requires: ['testextjs.view.commandemanagement.order.OrderManager', 'testextjs.view.pharmaml.Rupturepharma',
+        'testextjs.view.commandemanagement.order.RisqueRupture'],
     layout: 'card',
     border: false,
     header: false,
@@ -24,6 +25,8 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
     ONGLETS: [
         {cle: 'commandes', texte: 'Commandes en cours'},
         {cle: 'ruptures', texte: 'Ruptures', onglet: 'ongletRuptures'},
+        /* retours du 09/10 (3) : couverture du stock face au delai de livraison */
+        {cle: 'risque', texte: 'Risque de rupture'},
         {cle: 'substitutions', texte: 'Substitutions', onglet: 'ongletSubstitutions', pastille: 'aDecider'},
         {cle: 'alertes', texte: 'Alertes', onglet: 'ongletAlertes', pastille: 'alertesNonLues'},
         {cle: 'tableau', texte: 'Tableau de bord', onglet: 'ongletTableauBord'}
@@ -56,7 +59,7 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
 
     /* Retours du 09/10 (3) : un droit par onglet Substitutions, Alertes, Tableau de bord ; sans le droit, l'onglet
      * n'apparait pas (le serveur refuse aussi ses donnees). */
-    DROITS: {substitutions: 'substitutions', alertes: 'alertes', tableau: 'tableauBord'},
+    DROITS: {substitutions: 'substitutions', alertes: 'alertes', tableau: 'tableauBord', risque: 'risqueRupture'},
 
     chargerDroits: function () {
         var me = this;
@@ -136,6 +139,15 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
             me.getLayout().setActiveItem(me.liste);
             me.liste.chargerAlertesPml && me.liste.chargerAlertesPml();
             return me.liste;
+        }
+        if (cle === 'risque') {
+            if (!me.ecranRisque) {
+                me.ecranRisque = Ext.create('testextjs.view.commandemanagement.order.RisqueRupture');
+                me.habiller(me.ecranRisque);
+                me.add(me.ecranRisque);
+            }
+            me.getLayout().setActiveItem(me.ecranRisque);
+            return me.ecranRisque;
         }
         var e = me.pml();
         me.getLayout().setActiveItem(e);
