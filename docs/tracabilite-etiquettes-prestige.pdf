@@ -1,0 +1,995 @@
+%PDF-1.4
+%
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R] /Count 13 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 6016 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (1) Tj ET
+0.08 0.25 0.43 rg 0 728 595 76 re f
+BT /F2 21 Tf 1 1 1 rg 48 776 Td (Traabilit des tiquettes dans Prestige) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 700.0 Td (Document de cadrage fonctionnel et technique Date : 8 octobre 2026 Statut : proposition ) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 687.8 Td (valider avec les pharmaciens, responsables stock et quipes techniques.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 662.5999999999999 Td (1. Objet) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 644.5999999999999 m 547 644.5999999999999 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 633.6 Td (Ce document dveloppe la recommandation suivante :) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 610.4 Td (Prestige possde dj un module dtiquettes et plusieurs moteurs de codes-barres, mais) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 596.4 Td (il faut renforcer la liaison explicite tiquettelotmouvementvente pour fournir une) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 582.4 Td (traabilit complte, contrlable et exploitable lors des ventes, inventaires,) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 568.4 Td (transferts, premptions et rappels de lots.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 544.4 Td (Lobjectif nest pas seulement dimprimer un code-barres. Une tiquette devient rellement traable) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 532.2 Td (lorsque le systme peut rpondre, de faon fiable, aux questions suivantes :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 514.9999999999998 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 514.9999999999998 Td (quel produit cette tiquette identifie-t-elle ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 501.19999999999976 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 501.19999999999976 Td ( quel lot et  quelle date de premption se rapporte-t-elle ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 487.39999999999975 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 487.39999999999975 Td (o se trouve actuellement le stock correspondant ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 473.59999999999974 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 473.59999999999974 Td (de quelle rception provient-il ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 459.7999999999997 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 459.7999999999997 Td (quels mouvements a-t-il subis ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 445.9999999999997 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 445.9999999999997 Td (quelle vente a consomm le lot ou lunit ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 432.1999999999997 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 432.1999999999997 Td (qui a imprim, rimprim, scann, dplac ou annul ltiquette ?) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 418.3999999999997 Td (8.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 418.3999999999997 Td (que reste-t-il  isoler lors dun rappel ?) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 396.5999999999997 Td (2. tat actuel de Prestige) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 378.5999999999997 m 547 378.5999999999997 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 361.5999999999997 Td (2.1 Capacits disponibles) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 342.1 Td (Prestige possde dj plusieurs lments utiles :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 324.8999999999997 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 324.8999999999997 Td (une entit TEtiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 311.0999999999997 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 311.0999999999997 Td (un cran de gestion des tiquettes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 297.29999999999967 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 297.29999999999967 Td (une API de consultation et de suppression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 283.49999999999966 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 283.49999999999966 Td (des impressions unitaires et massives ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 269.69999999999965 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 269.69999999999965 Td (des gnrateurs Code 39, Code 128 et DataMatrix ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 255.89999999999964 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 255.89999999999964 Td (une gestion des produits, emplacements, lots et premptions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 242.09999999999962 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 242.09999999999962 Td (des mouvements de stock, ventes, rceptions, retours et inventaires.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 226.3 Td (L'entit actuelle rattache directement une tiquette  :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 209.09999999999962 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 209.09999999999962 Td (un produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 195.2999999999996 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 195.2999999999996 Td (un type d'tiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 181.4999999999996 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 181.4999999999996 Td (un emplacement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 167.6999999999996 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 167.6999999999996 Td (un code ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 153.89999999999958 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 153.89999999999958 Td (une quantit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 140.09999999999957 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 140.09999999999957 Td (une date de premption.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 118.29999999999956 Td (2.2 Limites du modle actuel) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 98.8 Td (La structure actuelle ne dmontre pas une relation explicite et obligatoire entre :) Tj ET
+0.95 0.97 0.98 rg 48 59.099999999999554 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 73.59999999999955 Td (tiquette ? Lot ? Rception ? Mouvement ? Vente) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 6163 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (2) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Les principales limites  traiter sont :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 766.8 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 766.8 Td (absence de rfrence explicite au lot dans TEtiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 753.0 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 753.0 Td (date de premption porte directement par l'tiquette, avec un risque de divergence par rapport au) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 741.2 Td (lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 727.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 727.4000000000001 Td (absence d'identifiant de travail d'impression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 713.6000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 713.6000000000001 Td (absence de statut dtaill de l'tiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 699.8000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 699.8000000000002 Td (absence d'historique des impressions et rimpressions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 686.0000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 686.0000000000002 Td (absence de relation dmontre entre le code scann  la vente et le lot dcrment ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 672.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 672.2000000000003 Td (absence de srialisation unitaire optionnelle ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 658.4000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 658.4000000000003 Td (absence de journal uniforme couvrant rception, transfert, vente, retour, rappel et destruction ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 644.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 644.6000000000004 Td (risque de duplication d'un code interne sans contrle d'unicit mtier.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 622.8000000000004 Td (3. Niveaux de traabilit) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 604.8000000000004 m 547 604.8000000000004 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 593.8 Td (Prestige doit proposer des niveaux clairement distincts. L'officine choisit le niveau adapt  son) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 581.6 Td (activit et  ses obligations.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 556.4000000000003 Td (3.1 Niveau 0  Code produit uniquement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 536.9 Td (Le code identifie seulement la rfrence produit :) Tj ET
+0.95 0.97 0.98 rg 48 497.2000000000003 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 511.7000000000003 Td (CIP / EAN ? Produit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 487.2 Td (Toutes les botes d'un mme produit sont interchangeables pour le systme.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 468.0 Td (Avantages :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 450.8000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 450.8000000000003 Td (fonctionnement rapide ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 437.0000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 437.0000000000003 Td (aucune rtiquette obligatoire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 423.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 423.2000000000003 Td (compatible avec le code du fabricant ou du grossiste.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 407.4 Td (Limites :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 390.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 390.2000000000003 Td (pas de lot exact  la vente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 376.40000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 376.40000000000026 Td (FEFO guid uniquement visuellement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 362.60000000000025 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 362.60000000000025 Td (rappel de lot manuel ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 348.80000000000024 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 348.80000000000024 Td (inventaire non valoris par lot.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 327.0000000000002 Td (3.2 Niveau 1  Traabilit par lot, recommand) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 307.5 Td (Le code interne identifie :) Tj ET
+0.95 0.97 0.98 rg 48 267.80000000000024 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 282.30000000000024 Td (Produit + Lot + Premption + Prix applicable) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 257.8 Td (Toutes les units du mme lot peuvent porter le mme code, mais chaque scan dcrmente le lot) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 245.6 Td (correspondant.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 226.4 Td (Fonctions rendues possibles :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 209.20000000000027 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 209.20000000000027 Td (sortie FEFO ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 195.40000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 195.40000000000026 Td (blocage d'un lot prim ou rappel ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 181.60000000000025 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 181.60000000000025 Td (inventaire par lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 167.80000000000024 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 167.80000000000024 Td (transfert conservant le lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 154.00000000000023 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 154.00000000000023 Td (valorisation du risque de premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 140.20000000000022 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 140.20000000000022 Td (recherche des ventes alimentes par un lot.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 124.4 Td (Ce niveau offre le meilleur rapport entre scurit et simplicit pour la majorit des officines.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 99.2000000000002 Td (3.3 Niveau 2  Srialisation unitaire) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 79.7 Td (Chaque bote possde un identifiant unique :) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 5695 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (3) Tj ET
+0.95 0.97 0.98 rg 48 763.5 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 778 Td (Produit + Lot + Numro de srie unique) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 753.5 Td (Deux botes du mme lot ne possdent pas le mme code.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 734.3 Td (Fonctions supplmentaires :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 717.0999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 717.0999999999999 Td (parcours complet d'une unit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 703.3 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 703.3 Td (dtection de double vente ou double scan ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 689.5 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 689.5 Td (gestion des produits sensibles ou coteux ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 675.7 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 675.7 Td (rappel unitaire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 661.9000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 661.9000000000001 Td (preuve prcise de rception, transfert et sortie.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 646.1 Td (Contraintes :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 628.9000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 628.9000000000001 Td (impression et scan de chaque unit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 615.1000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 615.1000000000001 Td (volume de donnes suprieur ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 601.3000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 601.3000000000002 Td (procdures plus exigeantes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 587.5000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 587.5000000000002 Td (risque de ralentissement au comptoir si l'ergonomie est mauvaise.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 571.7 Td (La srialisation doit donc rester optionnelle, activable par produit, famille ou rglementation.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 546.5000000000002 Td (4. Principes fonctionnels) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 528.5000000000002 m 547 528.5000000000002 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 511.5000000000002 Td (4.1 Une seule source de vrit pour le lot) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 492.0 Td (La date de premption et le numro de lot doivent tre ports par l'entit lot. L'tiquette ne doit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 479.8 Td (pas possder une copie indpendante modifiable.) Tj ET
+0.95 0.97 0.98 rg 48 440.10000000000025 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 454.60000000000025 Td (tiquette ? lot_id ? numro de lot, premption, produit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 430.1 Td (L'tiquette peut conserver un instantan imprim pour l'audit, mais les dcisions de stock doivent) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 417.9 Td (utiliser le lot rfrenc.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 392.7000000000003 Td (4.2 Un code stable et non rutilisable) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 373.2 Td (Une valeur de code-barres dj attribue ne doit jamais tre raffecte  un autre produit, lot ou) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 361.0 Td (numro de srie, mme aprs annulation.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 335.8000000000003 Td (4.3 Toute rimpression doit tre trace) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 316.3 Td (Une rimpression peut tre lgitime, mais elle augmente le risque de double tiquette. Le systme doit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 304.1 Td (enregistrer :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 286.9000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 286.9000000000003 Td (l'tiquette d'origine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 273.1000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 273.1000000000003 Td (l'utilisateur ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 259.3000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 259.3000000000003 Td (la date ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 245.50000000000028 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 245.50000000000028 Td (le motif ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 231.70000000000027 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 231.70000000000027 Td (le nombre d'exemplaires ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 217.90000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 217.90000000000026 Td (l'imprimante ou le poste ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 204.10000000000025 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 204.10000000000025 Td (l'annulation ventuelle des anciens exemplaires.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 182.30000000000024 Td (4.4 Une vente doit consommer un lot dtermin) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 162.8 Td (En mode lot, une ligne de vente doit rfrencer le lot effectivement scann. Une quantit globale) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 150.6 Td (produit ne suffit plus.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 125.40000000000026 Td (4.5 Le FEFO doit guider sans bloquer abusivement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 105.9 Td (Lorsque plusieurs lots sont disponibles, Prestige propose celui qui prime en premier. Si le vendeur) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 93.7 Td (scanne un autre lot, le comportement doit tre paramtrable :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 76.50000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 76.50000000000026 Td (simple information ;) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 5265 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (4) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (avertissement avec confirmation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (blocage avec privilge de drogation.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 756.4 Td (Toute drogation doit conserver son motif et son utilisateur.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 731.2 Td (5. Modle de donnes cible) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 713.2 m 547 713.2 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 702.2 Td (Les noms sont indicatifs et doivent tre aligns sur les conventions SQL du projet.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 677.0 Td (5.1 Table traceability_label) Tj ET
+0.95 0.97 0.98 rg 48 448.0 499 215.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 651.5 Td (CREATE TABLE traceability_label \() Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 641.0 Td (    id                    VARCHAR\(40\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 630.5 Td (    barcode_value         VARCHAR\(160\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 620.0 Td (    product_id            VARCHAR\(40\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 609.5 Td (    lot_id                VARCHAR\(40\)  NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 599.0 Td (    serial_id             VARCHAR\(40\)  NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 588.5 Td (    label_mode            VARCHAR\(20\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 578.0 Td (    status                VARCHAR\(20\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 567.5 Td (    printed_price         DECIMAL\(15,2\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 557.0 Td (    printed_expiry_date   DATE NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 546.5 Td (    print_count           INT NOT NULL DEFAULT 0,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 536.0 Td (    created_at            DATETIME NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 525.5 Td (    created_by            VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 515.0 Td (    invalidated_at        DATETIME NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 504.5 Td (    invalidated_by        VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 494.0 Td (    invalidation_reason   VARCHAR\(255\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 483.5 Td (    PRIMARY KEY \(id\),) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 473.0 Td (    UNIQUE KEY uk_traceability_barcode \(barcode_value\)) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 462.5 Td (\);) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 438.0 Td (Valeurs proposes pour label_mode :) Tj ET
+0.95 0.97 0.98 rg 48 377.3 499 47.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 412.8 Td (PRODUCT) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 402.3 Td (LOT) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 391.8 Td (SERIAL) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 367.3 Td (Valeurs proposes pour status :) Tj ET
+0.95 0.97 0.98 rg 48 264.6 499 89.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 342.1 Td (ACTIVE) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 331.6 Td (CONSUMED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 321.1 Td (INVALIDATED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 310.6 Td (LOST) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 300.1 Td (DAMAGED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 289.6 Td (RECALLED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 279.1 Td (QUARANTINED) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 248.60000000000002 Td (5.2 Table traceability_serial) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 229.1 Td (Cette table n'est utilise que pour les produits srialiss.) Tj ET
+0.95 0.97 0.98 rg 48 63.400000000000034 499 152.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 203.90000000000003 Td (CREATE TABLE traceability_serial \() Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 193.40000000000003 Td (    id                  VARCHAR\(40\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 182.90000000000003 Td (    product_id          VARCHAR\(40\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 172.40000000000003 Td (    lot_id              VARCHAR\(40\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 161.90000000000003 Td (    serial_number       VARCHAR\(160\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 151.40000000000003 Td (    current_location_id VARCHAR\(40\)  NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 140.90000000000003 Td (    status              VARCHAR\(20\)  NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 130.40000000000003 Td (    received_at         DATETIME NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 119.90000000000003 Td (    sold_at             DATETIME NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 109.40000000000003 Td (    sale_id             VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 98.90000000000003 Td (    PRIMARY KEY \(id\),) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 88.40000000000003 Td (    UNIQUE KEY uk_traceability_serial \(serial_number\)) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 77.90000000000003 Td (\);) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 5875 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (5) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 778 Td (5.3 Table traceability_event) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 758.5 Td (Le journal doit tre append-only : une correction produit un nouvel vnement, elle n'efface pas) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 746.3 Td (l'vnement prcdent.) Tj ET
+0.95 0.97 0.98 rg 48 486.0999999999999 499 247.0 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 721.0999999999999 Td (CREATE TABLE traceability_event \() Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 710.5999999999999 Td (    id                VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 700.0999999999999 Td (    event_type        VARCHAR\(30\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 689.5999999999999 Td (    label_id          VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 679.0999999999999 Td (    product_id        VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 668.5999999999999 Td (    lot_id            VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 658.0999999999999 Td (    serial_id         VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 647.5999999999999 Td (    quantity          INT NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 637.0999999999999 Td (    source_location_id VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 626.5999999999999 Td (    target_location_id VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 616.0999999999999 Td (    business_type     VARCHAR\(30\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 605.5999999999999 Td (    business_id       VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 595.0999999999999 Td (    user_id           VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 584.5999999999999 Td (    device_id         VARCHAR\(120\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 574.0999999999999 Td (    reason            VARCHAR\(255\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 563.5999999999999 Td (    occurred_at       DATETIME NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 553.0999999999999 Td (    recorded_at       DATETIME NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 542.5999999999999 Td (    PRIMARY KEY \(id\),) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 532.0999999999999 Td (    KEY idx_traceability_lot_date \(lot_id, occurred_at\),) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 521.5999999999999 Td (    KEY idx_traceability_business \(business_type, business_id\),) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 511.0999999999999 Td (    KEY idx_traceability_label \(label_id\)) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 500.5999999999999 Td (\);) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 476.1 Td (Types d'vnements proposs :) Tj ET
+0.95 0.97 0.98 rg 48 268.3999999999999 499 194.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 450.8999999999999 Td (RECEIVED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 440.3999999999999 Td (LABEL_PRINTED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 429.8999999999999 Td (LABEL_REPRINTED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 419.3999999999999 Td (MOVED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 408.8999999999999 Td (TRANSFERRED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 398.3999999999999 Td (RESERVED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 387.8999999999999 Td (SOLD) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 377.3999999999999 Td (SALE_CANCELLED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 366.8999999999999 Td (RETURNED_BY_CUSTOMER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 356.3999999999999 Td (RETURNED_TO_SUPPLIER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 345.8999999999999 Td (COUNTED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 335.3999999999999 Td (ADJUSTED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 324.8999999999999 Td (QUARANTINED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 314.3999999999999 Td (RECALLED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 303.8999999999999 Td (RELEASED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 293.3999999999999 Td (DESTROYED) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 282.8999999999999 Td (LABEL_INVALIDATED) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 252.39999999999992 Td (5.4 Table traceability_print_job) Tj ET
+0.95 0.97 0.98 rg 48 75.89999999999992 499 163.0 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 226.89999999999992 Td (CREATE TABLE traceability_print_job \() Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 216.39999999999992 Td (    id                VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 205.89999999999992 Td (    product_id        VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 195.39999999999992 Td (    lot_id            VARCHAR\(40\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 184.89999999999992 Td (    requested_count   INT NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 174.39999999999992 Td (    printed_count     INT NOT NULL DEFAULT 0,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 163.89999999999992 Td (    status            VARCHAR\(20\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 153.39999999999992 Td (    printer_name      VARCHAR\(160\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 142.89999999999992 Td (    requested_by      VARCHAR\(40\) NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 132.39999999999992 Td (    requested_at      DATETIME NOT NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 121.89999999999992 Td (    completed_at      DATETIME NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 111.39999999999992 Td (    error_message     VARCHAR\(500\) NULL,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 100.89999999999992 Td (    PRIMARY KEY \(id\)) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 90.39999999999992 Td (\);) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 5093 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (6) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Cette table empche une impression massive non contrle et permet de reprendre un travail interrompu) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 771.8 Td (sans gnrer de codes concurrents.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 746.5999999999999 Td (6. Contenu d'une tiquette) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 728.5999999999999 m 547 728.5999999999999 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 711.5999999999999 Td (6.1 Donnes lisibles) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 692.1 Td (Une tiquette lot devrait afficher au minimum :) Tj ET
+0.95 0.97 0.98 rg 48 610.3999999999999 499 68.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 666.8999999999999 Td (Nom court du produit) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 656.3999999999999 Td (Dosage / prsentation) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 645.8999999999999 Td (Prix public) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 635.3999999999999 Td (Lot) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 624.8999999999999 Td (Date de premption) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 594.3999999999999 Td (6.2 Donnes encodes) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 574.9 Td (Deux stratgies sont possibles.) Tj ET
+BT /F2 10 Tf 0.05 0.55 0.65 rg 48 549.6999999999998 Td (Identifiant opaque recommand) Tj ET
+0.95 0.97 0.98 rg 48 511.1999999999998 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 525.6999999999998 Td (Code-barres ? identifiant interne unique) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 501.2 Td (Exemple :) Tj ET
+0.95 0.97 0.98 rg 48 461.49999999999983 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 475.99999999999983 Td (PL26-8F4K-92MQ-7X) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 451.5 Td (Le serveur rsout cet identifiant vers le produit et le lot.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 432.3 Td (Avantages : code court, stable et difficile  interprter ou modifier manuellement.) Tj ET
+BT /F2 10 Tf 0.05 0.55 0.65 rg 48 407.09999999999985 Td (Donnes structures dans le code) Tj ET
+0.95 0.97 0.98 rg 48 368.59999999999985 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 383.09999999999985 Td (Produit|Lot|Premption|Prix) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 358.6 Td (Inconvnients : code plus long, modification difficile, exposition des donnes et contrle de) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 346.4 Td (format plus complexe.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 327.2 Td (Pour Prestige, l'identifiant opaque est prfrable. Les informations dtailles restent dans la base) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 315.0 Td (et peuvent voluer sans rimpression, sauf lorsque la rglementation impose de les afficher en clair.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 289.7999999999999 Td (6.3 Symbologie) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 272.2999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 272.2999999999999 Td (Code 128 : compact, adapt aux identifiants alphanumriques internes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 258.4999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 258.4999999999999 Td (DataMatrix : forte densit et bonne rsistance, utile sur de petites tiquettes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 244.69999999999987 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 244.69999999999987 Td (QR Code : lecture mobile facile, mais parfois trop volumineux ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 230.89999999999986 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 230.89999999999986 Td (EAN-13 :  conserver comme code produit officiel, insuffisant seul pour le lot.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 215.1 Td (Prestige sait dj gnrer Code 39, Code 128 et DataMatrix. La cible recommande est Code 128 par) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 202.9 Td (dfaut, avec DataMatrix pour les petites surfaces ou les usages rglements.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 177.69999999999987 Td (7. Parcours mtier cible) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 159.69999999999987 m 547 159.69999999999987 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 142.69999999999987 Td (7.1 Rception) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 125.19999999999987 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 125.19999999999987 Td (ouvrir le bon de livraison ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 111.39999999999988 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 111.39999999999988 Td (slectionner le produit reu ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 97.59999999999988 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 97.59999999999988 Td (saisir ou scanner le numro de lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 83.79999999999988 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 83.79999999999988 Td (saisir la date de premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 69.99999999999989 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 69.99999999999989 Td (contrler la quantit et le prix ;) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Length 7014 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (7) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (rechercher un lot existant identique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (crer ou complter le lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 758.4000000000001 Td (8.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 758.4000000000001 Td (choisir le mode d'tiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 744.6000000000001 Td (9.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 744.6000000000001 Td (gnrer le travail d'impression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 730.8000000000002 Td (10.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 730.8000000000002 Td (imprimer et contrler un exemplaire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 717.0000000000002 Td (11.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 717.0000000000002 Td (confirmer la quantit rellement imprime ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 703.2000000000003 Td (12.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 703.2000000000003 Td (journaliser rception et impression.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 687.4 Td (Contrles obligatoires :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 670.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 670.2000000000003 Td (date de premption postrieure  la date de rception ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 656.4000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 656.4000000000003 Td (produit cohrent avec le bon ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 642.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 642.6000000000004 Td (code de lot non vide en mode lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 628.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 628.8000000000004 Td (absence de code-barres dj utilis ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 615.0000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 615.0000000000005 Td (nombre d'tiquettes cohrent avec la quantit reue ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 601.2000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 601.2000000000005 Td (autorisation explicite pour une rimpression.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 579.4000000000005 Td (7.2 Vente) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 561.9000000000005 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 561.9000000000005 Td (scanner l'tiquette ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 548.1000000000006 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 548.1000000000006 Td (rsoudre produit, lot et ventuelle srie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 534.3000000000006 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 534.3000000000006 Td (vrifier que l'tiquette est active ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 520.5000000000007 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 520.5000000000007 Td (vrifier que le lot n'est ni prim, ni rappel, ni en quarantaine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 506.70000000000067 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 506.70000000000067 Td (contrler l'emplacement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 492.90000000000066 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 492.90000000000066 Td (ajouter le produit  la vente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 479.10000000000065 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 479.10000000000065 Td (rserver temporairement la quantit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 465.30000000000064 Td (8.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 465.30000000000064 Td ( la clture, consommer le lot et crer l'vnement SOLD ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 451.5000000000006 Td (9.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 451.5000000000006 Td (en cas d'annulation, restaurer le lot et crer SALE_CANCELLED.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 429.7000000000006 Td (7.3 Inventaire) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 410.2 Td (Le scan doit prsenter :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 393.0000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 393.0000000000006 Td (produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 379.2000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 379.2000000000006 Td (lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 365.4000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 365.4000000000006 Td (premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 351.6000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 351.6000000000006 Td (quantit thorique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 337.8000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 337.8000000000006 Td (quantit compte ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 324.00000000000057 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 324.00000000000057 Td (diffrence ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 310.20000000000056 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 310.20000000000056 Td (valeur de l'cart.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 294.4 Td (Une tiquette inconnue doit tre place dans une file de correction, jamais rattache silencieusement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 282.2 Td ( un produit approchant.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 257.00000000000057 Td (7.4 Transfert) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 237.5 Td (Un transfert doit conserver :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 220.30000000000058 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 220.30000000000058 Td (produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 206.50000000000057 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 206.50000000000057 Td (lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 192.70000000000056 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 192.70000000000056 Td (srie ventuelle ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 178.90000000000055 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 178.90000000000055 Td (quantit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 165.10000000000053 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 165.10000000000053 Td (origine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 151.30000000000052 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 151.30000000000052 Td (destination ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 137.5000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 137.5000000000005 Td (utilisateur ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 123.70000000000051 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 123.70000000000051 Td (date d'expdition et de rception.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 107.9 Td (La rception du transfert confirme ce qui a rellement t reu et signale les carts.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 82.70000000000051 Td (7.5 Retour client) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 18 0 R >>
+endobj
+20 0 obj
+<< /Length 5316 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (8) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Avant de rintgrer une bote :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 766.8 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 766.8 Td (vrifier le code ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 753.0 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 753.0 Td (vrifier qu'elle a t vendue par l'officine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 739.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 739.2 Td (vrifier son statut ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 725.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 725.4000000000001 Td (appliquer les rgles sanitaires de retour ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 711.6000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 711.6000000000001 Td (rintgrer le lot uniquement si la remise en stock est autorise.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 689.8000000000002 Td (7.6 Rappel de lot) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 670.3 Td (Le workflow doit permettre de :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 653.1000000000001 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 653.1000000000001 Td (rechercher le lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 639.3000000000002 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 639.3000000000002 Td (bloquer immdiatement toute vente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 625.5000000000002 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 625.5000000000002 Td (calculer la quantit reue, vendue, transfre, retourne et restante ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 611.7000000000003 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 611.7000000000003 Td (identifier les emplacements concerns ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 597.9000000000003 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 597.9000000000003 Td (crer une tche d'isolement physique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 584.1000000000004 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 584.1000000000004 Td (imprimer la liste des units ou quantits attendues ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 570.3000000000004 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 570.3000000000004 Td (enregistrer la mise en quarantaine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 556.5000000000005 Td (8.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 556.5000000000005 Td (documenter le retour ou la destruction ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 542.7000000000005 Td (9.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 542.7000000000005 Td (clturer le rappel avec un compte rendu.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 520.9000000000005 Td (8. API cible) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 502.90000000000055 m 547 502.90000000000055 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 485.90000000000055 Td (Rsoudre un scan) Tj ET
+0.95 0.97 0.98 rg 48 445.90000000000055 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 460.40000000000055 Td (GET /api/v1/tracabilite/etiquettes/{barcode}) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 435.9 Td (Rponse indicative :) Tj ET
+0.95 0.97 0.98 rg 48 280.70000000000056 499 142.0 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 410.70000000000056 Td ({) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 400.20000000000056 Td (  "success": true,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 389.70000000000056 Td (  "labelId": "...",) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 379.20000000000056 Td (  "mode": "LOT",) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 368.70000000000056 Td (  "status": "ACTIVE",) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 358.20000000000056 Td (  "product": { "id": "...", "cip": "...", "name": "..." },) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 347.70000000000056 Td (  "lot": { "id": "...", "number": "LOT-001", "expiryDate": "2028-08-31" },) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 337.20000000000056 Td (  "location": { "id": "1", "name": "RAYON" },) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 326.70000000000056 Td (  "availableQuantity": 18,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 316.20000000000056 Td (  "saleAllowed": true,) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 305.70000000000056 Td (  "warnings": []) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 295.20000000000056 Td (}) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 264.70000000000056 Td (Crer un travail d'impression) Tj ET
+0.95 0.97 0.98 rg 48 224.70000000000056 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 239.20000000000056 Td (POST /api/v1/tracabilite/impressions) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 208.70000000000056 Td (Confirmer l'impression) Tj ET
+0.95 0.97 0.98 rg 48 168.70000000000056 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 183.20000000000056 Td (POST /api/v1/tracabilite/impressions/{id}/confirmer) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 152.70000000000056 Td (Rimprimer) Tj ET
+0.95 0.97 0.98 rg 48 112.70000000000056 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 127.20000000000056 Td (POST /api/v1/tracabilite/etiquettes/{id}/reimprimer) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 102.7 Td (Le motif doit tre obligatoire.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 77.50000000000055 Td (Historique d'un lot) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 20 0 R >>
+endobj
+22 0 obj
+<< /Length 4812 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (9) Tj ET
+0.95 0.97 0.98 rg 48 763.5 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 778 Td (GET /api/v1/tracabilite/lots/{id}/evenements) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 747.5 Td (Dclarer un rappel) Tj ET
+0.95 0.97 0.98 rg 48 707.5 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 722.0 Td (POST /api/v1/tracabilite/rappels) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 691.5 Td (Mettre en quarantaine) Tj ET
+0.95 0.97 0.98 rg 48 651.5 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 666.0 Td (POST /api/v1/tracabilite/lots/{id}/quarantaine) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 635.5 Td (9. Rgles de scurit) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 617.5 m 547 617.5 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 600.5 Td (9.1 Privilges distincts) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 581.0 Td (Prvoir au minimum :) Tj ET
+0.95 0.97 0.98 rg 48 457.29999999999995 499 110.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 555.8 Td (TRACABILITE_CONSULTER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 545.3 Td (ETIQUETTE_IMPRIMER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 534.8 Td (ETIQUETTE_REIMPRIMER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 524.3 Td (ETIQUETTE_INVALIDER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 513.8 Td (LOT_CORRIGER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 503.29999999999995 Td (LOT_DEROGER_FEFO) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 492.79999999999995 Td (LOT_METTRE_QUARANTAINE) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 482.29999999999995 Td (LOT_RAPPEL_GERER) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 471.79999999999995 Td (TRACABILITE_EXPORTER) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 441.29999999999995 Td (9.2 Journal non modifiable) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 421.8 Td (Les vnements de traabilit ne doivent pas tre supprimables depuis l'interface mtier. Une) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 409.6 Td (correction ajoute un vnement compensatoire.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 384.4 Td (9.3 Protection contre les doublons) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 366.9 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 366.9 Td (unicit du code-barres ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 353.09999999999997 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 353.09999999999997 Td (unicit du numro de srie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 339.29999999999995 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 339.29999999999995 Td (idempotence des scans mobiles synchroniss ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 325.49999999999994 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 325.49999999999994 Td (verrou ou contrle optimiste lors de la consommation du dernier stock ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 311.69999999999993 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 311.69999999999993 Td (rejet d'une seconde vente d'une srie dj consomme.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 289.8999999999999 Td (9.4 Donnes minimales) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 270.4 Td (Le code ne doit pas contenir de donne patient. La liaison ventuelle entre une vente et un patient) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 258.2 Td (reste protge par les droits du dossier client.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 232.99999999999994 Td (10. Fonctionnement hors connexion) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 214.99999999999994 m 547 214.99999999999994 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 204.0 Td (Une tiquette doit rester utilisable pendant une coupure, mais sans compromettre la cohrence.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 184.8 Td (Le poste conserve localement :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 167.59999999999997 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 167.59999999999997 Td (les codes utiles ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 153.79999999999995 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 153.79999999999995 Td (le produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 139.99999999999994 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 139.99999999999994 Td (le lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 126.19999999999993 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 126.19999999999993 Td (le statut connu ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 112.39999999999993 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 112.39999999999993 Td (la premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 98.59999999999994 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 98.59999999999994 Td (le stock connu ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 84.79999999999994 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 84.79999999999994 Td (la dernire date de synchronisation.) Tj ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 22 0 R >>
+endobj
+24 0 obj
+<< /Length 5608 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (10) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Chaque scan produit un vnement local unique :) Tj ET
+0.95 0.97 0.98 rg 48 744.3 499 26.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 758.8 Td (device_id + local_event_id) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 734.3 Td (Au retour du rseau, le serveur :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 717.0999999999999 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 717.0999999999999 Td (dduplique l'vnement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 703.3 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 703.3 Td (vrifie le statut courant ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 689.5 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 689.5 Td (applique l'opration si elle reste valide ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 675.7 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 675.7 Td (cre une anomalie si une autre vente a consomm le mme numro de srie ou le dernier stock ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 661.9000000000001 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 661.9000000000001 Td (ne supprime jamais silencieusement un conflit.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 646.1 Td (Pour la srialisation unitaire, une srie ne peut tre consomme hors ligne que par un seul poste) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 633.9 Td (propritaire ou aprs rservation pralable, afin d'viter la double vente.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 608.7 Td (11. Compatibilit avec l'existant) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 590.7 m 547 590.7 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 573.7 Td (11.1 Ne pas casser les tiquettes actuelles) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 554.2 Td (La lecture doit accepter :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 537.0 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 537.0 Td (les codes produit historiques ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 523.2 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 523.2 Td (les nouvelles tiquettes lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 509.40000000000003 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 509.40000000000003 Td (les nouvelles sries unitaires.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 493.6 Td (Le rsolveur suit cet ordre :) Tj ET
+0.95 0.97 0.98 rg 48 432.90000000000003 499 47.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 468.40000000000003 Td (code traabilit interne) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 457.90000000000003 Td (? code CIP/EAN produit) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 447.40000000000003 Td (? recherche manuelle contrle) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 416.90000000000003 Td (11.2 Migration progressive) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 397.4 Td (Il n'est pas ncessaire de rtiqueter immdiatement tout le stock.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 378.2 Td (Proposition :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 361.00000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 361.00000000000006 Td (les anciens produits restent en mode produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 347.20000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 347.20000000000005 Td (les nouvelles rceptions passent progressivement en mode lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 333.40000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 333.40000000000003 Td (les produits sensibles peuvent passer en mode srie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 319.6 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 319.6 Td (un inventaire convertit au besoin l'ancien stock en lots identifis.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 297.8 Td (11.3 Conservation de TEtiquette) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 278.3 Td (Deux options :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 261.1 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 261.1 Td (enrichir t_etiquette avec les nouvelles relations et contraintes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 247.3 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 247.3 Td (conserver t_etiquette pour l'historique et crer un nouveau module traceability_*.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 231.5 Td (La seconde option est plus sre si les anciens tats et JSP dpendent fortement de la table existante.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 219.3 Td (Une faade commune peut prsenter les deux modles  l'cran.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 194.10000000000002 Td (12. Indicateurs de pilotage) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 176.10000000000002 m 547 176.10000000000002 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 165.1 Td (Le tableau de bord doit suivre :) Tj ET
+0.08 0.25 0.43 rg 48 129.90000000000003 499 22 re f
+BT /F2 8.2 Tf 1 1 1 rg 48 143.9 Td (Indicateur  |  Objectif) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 126.9 Td (Indicateur : Part du stock rattache  un lot  Objectif : Mesurer la couverture de traabilit) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 112.5 Td (Indicateur : Part des ventes avec lot exact  Objectif : Vrifier l'usage rel au comptoir) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 98.1 Td (Indicateur : Lots sans premption  Objectif : Identifier les donnes incompltes) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 83.7 Td (Indicateur : Drogations FEFO  Objectif : Dtecter les carts de rangement ou de procdure) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 69.3 Td (Indicateur : Rimpressions  Objectif : Dtecter erreurs et risques de double tiquette) Tj ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 24 0 R >>
+endobj
+26 0 obj
+<< /Length 7393 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (11) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 785.0 Td (Indicateur : Scans inconnus  Objectif : Mesurer la qualit des donnes et quipements) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 770.6 Td (Indicateur : carts d'inventaire par lot  Objectif : Fiabiliser le stock) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 756.2 Td (Indicateur : Temps de traitement d'un rappel  Objectif : Mesurer la capacit de raction) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 741.8 Td (Indicateur : Quantit rappele retrouve  Objectif : Mesurer l'efficacit de la traabilit) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 727.4 Td (Indicateur : vnements hors ligne en conflit  Objectif : Contrler la synchronisation) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 703.0000000000001 Td (13. Tests indispensables) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 685.0000000000001 m 547 685.0000000000001 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 668.0000000000001 Td (Tests unitaires) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 650.5000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 650.5000000000001 Td (gnration d'un code unique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 636.7000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 636.7000000000002 Td (rsolution produit/lot/srie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 622.9000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 622.9000000000002 Td (blocage d'un code invalid ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 609.1000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 609.1000000000003 Td (contrle de premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 595.3000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 595.3000000000003 Td (ordre FEFO ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 581.5000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 581.5000000000003 Td (calcul de stock par lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 567.7000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 567.7000000000004 Td (idempotence d'un vnement.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 545.9000000000004 Td (Tests d'intgration) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 528.4000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 528.4000000000004 Td (rception puis impression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 514.6000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 514.6000000000005 Td (vente puis annulation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 500.80000000000047 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 500.80000000000047 Td (transfert puis rception ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 487.00000000000045 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 487.00000000000045 Td (retour client ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 473.20000000000044 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 473.20000000000044 Td (rappel de lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 459.40000000000043 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 459.40000000000043 Td (rimpression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 445.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 445.6000000000004 Td (inventaire et ajustement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 431.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 431.8000000000004 Td (concurrence sur le dernier exemplaire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 418.0000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 418.0000000000004 Td (synchronisation aprs coupure.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 396.2000000000004 Td (Tests terrain) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 378.7000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 378.7000000000004 Td (lecteurs de codes-barres utiliss dans les officines ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 364.9000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 364.9000000000004 Td (imprimantes thermiques ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 351.10000000000036 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 351.10000000000036 Td (tailles et qualit des tiquettes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 337.30000000000035 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 337.30000000000035 Td (vitesse au comptoir ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 323.50000000000034 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 323.50000000000034 Td (lisibilit aprs stockage ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 309.70000000000033 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 309.70000000000033 Td (comportement sans Internet ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 295.9000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 295.9000000000003 Td (formation d'un nouvel utilisateur.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 274.1000000000003 Td (14. Critres d'acceptation) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 256.1000000000003 m 547 256.1000000000003 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 245.1 Td (Le module peut tre considr comme prt lorsque :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 227.90000000000032 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 227.90000000000032 Td (un lot reu peut tre tiquet sans ressaisie du produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 214.1000000000003 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 214.1000000000003 Td (le scan retrouve sans ambigut le produit et le lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 200.3000000000003 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 200.3000000000003 Td (une vente dcrmente le bon lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 186.50000000000028 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 186.50000000000028 Td (un lot prim, rappel ou en quarantaine est bloqu ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 172.70000000000027 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 172.70000000000027 Td (une annulation rtablit correctement le stock ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 158.90000000000026 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 158.90000000000026 Td (un transfert conserve la traabilit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 145.10000000000025 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 145.10000000000025 Td (une rimpression est autorise, motive et audite ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 131.30000000000024 Td (8.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 131.30000000000024 Td (l'historique complet d'un lot est exportable ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 117.50000000000024 Td (9.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 117.50000000000024 Td (un rappel produit une liste des quantits et emplacements concerns ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 103.70000000000024 Td (10.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 103.70000000000024 Td (le scan au comptoir ne dgrade pas perceptiblement le temps de vente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 89.90000000000025 Td (11.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 89.90000000000025 Td (l'ancien code produit continue de fonctionner ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 76.10000000000025 Td (12.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 76.10000000000025 Td (les droits empchent une correction non autorise.) Tj ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 26 0 R >>
+endobj
+28 0 obj
+<< /Length 6508 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (12) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 778 Td (15. Feuille de route propose) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 760 m 547 760 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 743 Td (Phase 1  Cadrage et fiabilisation du lot) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 725.5 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 725.5 Td (confirmer les usages avec trois  cinq officines ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 711.7 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 711.7 Td (auditer t_lot, t_etiquette, ventes et mouvements ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 697.9000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 697.9000000000001 Td (dfinir les modes produit, lot et srie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 684.1000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 684.1000000000001 Td (imposer une source de vrit pour la premption ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 670.3000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 670.3000000000002 Td (formaliser les privilges et vnements.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 648.5000000000002 Td (Phase 2  tiquette lot) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 631.0000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 631.0000000000002 Td (ajouter les nouvelles tables ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 617.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 617.2000000000003 Td (dvelopper le rsolveur de scan ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 603.4000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 603.4000000000003 Td (intgrer rception et impression ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 589.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 589.6000000000004 Td (rattacher la vente au lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 575.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 575.8000000000004 Td (ajouter le contrle FEFO ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 562.0000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 562.0000000000005 Td (conserver la compatibilit avec les codes historiques.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 540.2000000000005 Td (Phase 3  Inventaire, transfert et rappel) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 522.7000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 522.7000000000005 Td (inventaire par lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 508.9000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 508.9000000000005 Td (transferts traables ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 495.1000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 495.1000000000005 Td (quarantaine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 481.30000000000047 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 481.30000000000047 Td (rappel ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 467.50000000000045 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 467.50000000000045 Td (rapports et exports ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 453.70000000000044 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 453.70000000000044 Td (tableau de bord de qualit.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 431.90000000000043 Td (Phase 4  Hors ligne et srialisation) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 414.40000000000043 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 414.40000000000043 Td (vnements idempotents ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 400.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 400.6000000000004 Td (synchronisation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 386.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 386.8000000000004 Td (gestion des conflits ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 373.0000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 373.0000000000004 Td (srialisation pour les produits slectionns ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 359.2000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 359.2000000000004 Td (validation terrain des performances.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 337.4000000000004 Td (16. Risques et mesures de rduction) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 319.4000000000004 m 547 319.4000000000004 l S
+0.08 0.25 0.43 rg 48 292.4000000000004 499 22 re f
+BT /F2 8.2 Tf 1 1 1 rg 48 306.4 Td (Risque  |  Mesure) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 289.4 Td (Risque : Ralentissement de la vente  Mesure : Scan unique, rponse locale rapide et tests P95) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 275.0 Td (Risque : Trop d'tiquettes  imprimer  Mesure : Mode lot par dfaut, srie seulement si ncessaire) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 260.6 Td (Risque : Double tiquette  Mesure : Code unique, journal de rimpression et invalidation) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 246.2 Td (Risque : Mauvais lot en rayon  Mesure : Guidage FEFO et inventaire cibl) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 231.8 Td (Risque : Divergence lot/tiquette  Mesure : Lot comme source de vrit) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 217.4 Td (Risque : Rupture de compatibilit  Mesure : Rsolveur acceptant anciens et nouveaux codes) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 203.0 Td (Risque : Conflit hors ligne  Mesure : Identifiants idempotents et rsolution explicite) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 188.6 Td (Risque : Adoption faible  Mesure : Paramtrage progressif et formation par parcours) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 174.2 Td (Risque : Fuite de donnes patient  Mesure : Aucune donne patient encode dans l'tiquette) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 149.80000000000038 Td (17. Dcision recommande) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 131.80000000000038 m 547 131.80000000000038 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 120.8 Td (Prestige ne doit pas viser immdiatement une srialisation obligatoire de toutes les botes. La cible) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 108.6 Td (prioritaire doit tre la traabilit par lot, car elle apporte l'essentiel de la valeur :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 91.40000000000038 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 91.40000000000038 Td (FEFO ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 77.60000000000038 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 77.60000000000038 Td (gestion des premptions ;) Tj ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 28 0 R >>
+endobj
+30 0 obj
+<< /Length 1559 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (13) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (rappel de lot ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (inventaire fiable ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 758.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 758.4000000000001 Td (transferts contrls ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 744.6000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 744.6000000000001 Td (historique des mouvements.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 728.8 Td (La srialisation unitaire doit rester disponible pour les produits ou pays qui la justifient.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 709.6 Td (La premire livraison utile est donc :) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 686.4 Td ( la rception, Prestige cre ou slectionne le lot, gnre une tiquette interne) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 672.4 Td (unique par lot, puis chaque scan de vente consomme explicitement ce lot et alimente un) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 658.4 Td (journal de traabilit non modifiable.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 634.4 Td (Cette volution valorise les briques dj prsentes sans imposer une rcriture complte du stock, des) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 622.2 Td (ventes ou des impressions.) Tj ET
+endstream
+endobj
+31 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 30 0 R >>
+endobj
+xref
+0 32
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000205 00000 n 
+0000000302 00000 n 
+0000000404 00000 n 
+0000000499 00000 n 
+0000006567 00000 n 
+0000006713 00000 n 
+0000012928 00000 n 
+0000013074 00000 n 
+0000018822 00000 n 
+0000018970 00000 n 
+0000024288 00000 n 
+0000024436 00000 n 
+0000030364 00000 n 
+0000030512 00000 n 
+0000035658 00000 n 
+0000035806 00000 n 
+0000042873 00000 n 
+0000043021 00000 n 
+0000048390 00000 n 
+0000048538 00000 n 
+0000053403 00000 n 
+0000053551 00000 n 
+0000059212 00000 n 
+0000059360 00000 n 
+0000066806 00000 n 
+0000066954 00000 n 
+0000073515 00000 n 
+0000073663 00000 n 
+0000075275 00000 n 
+trailer
+<< /Size 32 /Root 1 0 R /Info << /Title (Tracabilite des etiquettes dans Prestige) /Author (Equipe Prestige) >> >>
+startxref
+75423
+%%EOF
