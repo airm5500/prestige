@@ -149,6 +149,8 @@ public class SalesServiceImpl implements SalesService {
     @Resource
     private SessionContext sessionContext;
     @EJB
+    private FideliteService fideliteService;
+    @EJB
     private LogService logService;
     @EJB
     private MvtProduitService mvtProduitService;
@@ -2689,6 +2691,7 @@ public class SalesServiceImpl implements SalesService {
                     clotureVenteParams.getPartTP(), clotureVenteParams.getMontantPaye(), clotureVenteParams.getMarge(),
                     isDiff, clotureVenteParams.getTypeRegleId());
             addReglement(tp, mvtTransaction, clotureVenteParams);
+            payerEnPoints(tp, clotureVenteParams, tUser);
 
             carnetAsDepotService.create(tp, mvtTransaction, this.getTiersPayant());
 
@@ -2701,6 +2704,9 @@ public class SalesServiceImpl implements SalesService {
             }
             json.put("success", true).put("copy", tp.getCopy()).put("msg", "Opération effectuée avec success")
                     .put("ref", tp.getLgPREENREGISTREMENTID());
+        } catch (FideliteService.PaiementPointsRefuse e) {
+            annulerClotureIncomplete();
+            json.put("success", false).put("msg", e.getMessage());
         } catch (Exception e) {
             annulerClotureIncomplete();
             LOG.log(Level.SEVERE, String.format("Erreur a la closture de la vente %s,%s,%s date :: %s",
@@ -2946,6 +2952,7 @@ public class SalesServiceImpl implements SalesService {
                     clotureVenteParams.getMontantPaye(), clotureVenteParams.getMarge(), tp.getIntACCOUNT(),
                     clotureVenteParams.getData());
             addReglement(tp, mt, clotureVenteParams);
+            payerEnPoints(tp, clotureVenteParams, tUser);
 
             this.mvtProduitService.updateVenteStock(tp, lstTPreenregistrementDetail);
             tp.setCompletionDate(new Date());
@@ -2954,6 +2961,9 @@ public class SalesServiceImpl implements SalesService {
 
             json.put("success", true).put("msg", "Opération effectuée avec success").put("copy", tp.getCopy())
                     .put("ref", tp.getLgPREENREGISTREMENTID());
+        } catch (FideliteService.PaiementPointsRefuse e) {
+            annulerClotureIncomplete();
+            json.put("success", false).put("msg", e.getMessage()).put("codeError", 0);
         } catch (Exception e) {
             annulerClotureIncomplete();
             LOG.info(String.format("***************   Erreur a la closture de la vente %s,:: %s ***************",
@@ -2970,6 +2980,34 @@ public class SalesServiceImpl implements SalesService {
             }
         }
         return json;
+    }
+
+    /**
+     * Montant paye avec des points de fidelite : reglement « Points fidelite » seul (montant paye) ou en complement
+     * d'un autre mode (montant de ce reglement). 0 sinon.
+     */
+    static long montantPoints(ClotureVenteParams p) {
+        if (p.getReglements() != null) {
+            for (VenteReglementDTO r : p.getReglements()) {
+                if (FideliteService.TYPE_REGLEMENT.equals(r.getTypeReglement())) {
+                    return Math.max(0, r.getMontant());
+                }
+            }
+        }
+        if (FideliteService.TYPE_REGLEMENT.equals(p.getTypeRegleId())) {
+            return Math.max(0, p.getMontantPaye() == null ? 0 : p.getMontantPaye());
+        }
+        return 0;
+    }
+
+    /** Debit des points du client dans la transaction de la cloture (refus : la vente n'est pas enregistree). */
+    private void payerEnPoints(TPreenregistrement tp, ClotureVenteParams p, TUser u) {
+        long montant = montantPoints(p);
+        if (montant > 0) {
+            String client = tp.getClient() != null ? tp.getClient().getLgCLIENTID() : p.getClientId();
+            fideliteService.payerVente(client, tp.getLgPREENREGISTREMENTID(),
+                    StringUtils.defaultIfBlank(tp.getStrREFTICKET(), tp.getStrREF()), montant, u.getLgUSERID());
+        }
     }
 
     private static int valeur(Integer v) {
@@ -3716,6 +3754,11 @@ public class SalesServiceImpl implements SalesService {
     @Override
     public JSONObject clotureVenteDepot(ClotureVenteParams clotureVenteParams) throws JSONException {
         JSONObject json = new JSONObject();
+        if (montantPoints(clotureVenteParams) > 0) {
+            /* les ventes en depot ne debitent pas de points : mode refuse plutot qu'une vente payee sans debit */
+            return json.put("success", false).put("msg",
+                    "Le paiement en points fidélité n'est pas possible pour une vente en dépôt.");
+        }
         EntityManager emg = this.getEm();
         try {
             final TUser tUser = clotureVenteParams.getUserId();
@@ -3816,6 +3859,11 @@ public class SalesServiceImpl implements SalesService {
     @Override
     public JSONObject clotureVenteDepotAgree(ClotureVenteParams clotureVenteParams) throws JSONException {
         JSONObject json = new JSONObject();
+        if (montantPoints(clotureVenteParams) > 0) {
+            /* les ventes en depot ne debitent pas de points : mode refuse plutot qu'une vente payee sans debit */
+            return json.put("success", false).put("msg",
+                    "Le paiement en points fidélité n'est pas possible pour une vente en dépôt.");
+        }
         EntityManager emg = this.getEm();
         try {
             final TUser tUser = clotureVenteParams.getUserId();

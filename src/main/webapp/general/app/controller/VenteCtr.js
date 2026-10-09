@@ -2730,6 +2730,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
                 }
                 me.getMontantRecu().setReadOnly(true);
+                if (value === me.MODE_POINTS_FIDELITE) {
+                    me.verifierPointsFidelite();
+                }
             } else {
                 me.getMontantRecu().setValue(0);
                 me.getMontantRecu().setReadOnly(false);
@@ -3357,6 +3360,40 @@ Ext.define('testextjs.controller.VenteCtr', {
         // modification, client deja associe) : il n'y a plus rien a associer.
         btn.setVisible(typeVente === '1' && typeRegle === '1' && !me.extraModeReglementId && !me.client);
     },
+    /* Retours du 09/10 (6) : mode de reglement « Points fidelite » (le serveur debite les points a la cloture) */
+    MODE_POINTS_FIDELITE: '20',
+    /*
+     * Points du client de la vente : prevenir le caissier tout de suite s'ils ne suffisent pas (le paiement serait
+     * refuse a la cloture). Lecture seule.
+     */
+    verifierPointsFidelite: function () {
+        const me = this, client = me.getClient();
+        if (Ext.isEmpty(client)) {
+            return; /* le choix du client est ouvert : verification apres le choix */
+        }
+        const clientId = client.get ? (client.get('lgCLIENTID') || client.get('id')) : null;
+        if (!clientId) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/fidelite/paiement', method: 'GET', params: {client: clientId},
+            success: function (r) {
+                const o = Ext.decode(r.responseText, true) || {};
+                const net = me.getNetAmountToPay() ? me.getNetAmountToPay().montantNet : 0;
+                const fmt = function (v) {
+                    return Ext.util.Format.number(v || 0, '0,000');
+                };
+                me.pointsFidelite = o;
+                if (!o.success || !o.utilisable) {
+                    Ext.MessageBox.alert('Points fidélité', Ext.String.htmlEncode(o.msg || 'Le client ne peut pas payer avec ses points.'));
+                } else if (o.montantMax < net) {
+                    Ext.MessageBox.alert('Points fidélité', 'Le client a <b>' + fmt(o.solde) + '</b> point(s), soit <b>' + fmt(o.montantMax) + '</b> FCFA,'
+                            + ' pour un net de <b>' + fmt(net) + '</b> FCFA.<br>Pour payer le reste autrement : choisissez « Espèces », saisissez le montant'
+                            + ' reçu, puis « Points fidélité » comme second mode pour <b>' + fmt(o.montantMax) + '</b> FCFA au plus.');
+                }
+            }
+        });
+    },
     updateClientStandard: function (record) {
         const me = this;
         me._pendingModeNeedsClient = false; // un client est choisi : plus de rollback
@@ -3406,6 +3443,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     // Retour contextuel : encaissement si un second mode de
                     // règlement est engagé, sinon champ produit (historique)
                     me.focusAfterClientAction();
+                    if (me._appliedTypeReglement === me.MODE_POINTS_FIDELITE) {
+                        me.verifierPointsFidelite();
+                    }
 
                 } else {
 

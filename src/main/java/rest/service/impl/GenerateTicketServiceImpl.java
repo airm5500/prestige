@@ -2013,7 +2013,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ticket.setDiffere(montant + ticket.getDiffere());
                 break;
             default:
-                if (util.MobileMoney.est(typeReglement)) {
+                /* mobile money cree par l'officine, ou points fidelite : une ligne a son nom */
+                if (util.MobileMoney.est(typeReglement) || FideliteService.TYPE_REGLEMENT.equals(typeReglement)) {
                     TicketZDTO.AutreMobile autre = ticket.autreMobile(typeReglement, b.getTypeReglement().getStrNAME());
                     autre.setVente(autre.getVente() + montant);
                 }
@@ -2147,8 +2148,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 ticket.setDiffere(b.getMontantRestant() + ticket.getDiffere());
                 break;
             default:
-                // Mode mobile money cree par l'officine : meme traitement que les operateurs historiques.
-                if (util.MobileMoney.est(b.getReglement().getLgTYPEREGLEMENTID())
+                // Mode mobile money cree par l'officine (ou points fidelite) : une ligne a son nom.
+                if ((util.MobileMoney.est(b.getReglement().getLgTYPEREGLEMENTID())
+                        || FideliteService.TYPE_REGLEMENT.equals(b.getReglement().getLgTYPEREGLEMENTID()))
                         && !applyVenteReglementDetails(ticket, b, reglementsParVente)) {
                     TicketZDTO.AutreMobile autre = ticket.autreMobile(b.getReglement().getLgTYPEREGLEMENTID(),
                             b.getReglement().getStrNAME());

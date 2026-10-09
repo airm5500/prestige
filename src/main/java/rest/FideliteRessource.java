@@ -94,6 +94,22 @@ public class FideliteRessource {
                 droit(P_FIDELITE_PARAMETRER)));
     }
 
+    /**
+     * Caisse : points du client de la vente et montant payable avec (mode « Points fidelite »). Ouvert a tout
+     * utilisateur connecte (le caissier n'a pas forcement l'ecran Fidelite) ; ne donne que le solde de ce client.
+     */
+    @GET
+    @Path("paiement")
+    public Response paiement(@QueryParam("client") String client) {
+        if (utilisateur() == null) {
+            return json(echec(Constant.DECONNECTED_MESSAGE));
+        }
+        if (StringUtils.isBlank(client)) {
+            return json(echec("Choisissez d'abord le client de la vente."));
+        }
+        return json(service.pourPaiement(client.trim()));
+    }
+
     @GET
     @Path("parametres")
     public Response parametres() {

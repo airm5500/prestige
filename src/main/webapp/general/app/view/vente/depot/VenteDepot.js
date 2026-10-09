@@ -34,7 +34,11 @@ Ext.define('testextjs.view.vente.depot.VenteDepot', {
                     root: 'data',
                     totalProperty: 'total'
                 }
-            }
+            },
+            /* pas de paiement en points fidelite pour une vente en depot */
+            filters: [{filterFn: function (r) {
+                        return r.get('lgTYPEREGLEMENTID') !== '20';
+                    }}]
         });
         var depotstore = new Ext.data.Store({
             idProperty: 'lgEMPLACEMENTID',

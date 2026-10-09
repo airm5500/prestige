@@ -218,6 +218,8 @@ public class CaisseServiceImpl implements CaisseService {
             LongAdder montantCaisse = new LongAdder();
             LongAdder montantFondCaisse = new LongAdder();
             LongAdder montantMobileMoney = new LongAdder();
+            /* paiement en points de fidelite : ni especes ni mobile, ligne a part */
+            LongAdder montantPointsFidelite = new LongAdder();
 
             // Un mouvement mobile money (operateur historique ou mode cree par l'officine) va dans le
             // meme cumul « Paiement.Mobile ».
@@ -330,6 +332,13 @@ public class CaisseServiceImpl implements CaisseService {
                 default:
                     if (util.MobileMoney.est(k)) {
                         v.forEach(mobileMoney);
+                    } else if (FideliteService.TYPE_REGLEMENT.equals(k)) {
+                        v.forEach(b -> {
+                            montantPointsFidelite.add(b.getMontant());
+                            if (b.getMontant() < 0) {
+                                montantAnnulation.add(b.getMontant());
+                            }
+                        });
                     }
                     break;
                 }
@@ -369,6 +378,9 @@ public class CaisseServiceImpl implements CaisseService {
             }
             if (montantTotalMobileMoney != 0) {
                 os.add(new SumCaisseDTO(montantTotalMobileMoney, "Paiement.Mobile"));
+            }
+            if (montantPointsFidelite.intValue() != 0) {
+                os.add(new SumCaisseDTO(montantPointsFidelite.intValue(), "Points.Fidélité"));
             }
             os.add(new SumCaisseDTO(montantTotalEspec, "Espèce"));
             if (montantTotalAnnulation != 0) {
