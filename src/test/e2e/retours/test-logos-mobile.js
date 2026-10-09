@@ -1,5 +1,7 @@
 /* Logos des operateurs sur les tuiles de « SELECTION RAPIDE MOBILE MONEY » (fenetre client de la caisse).
-   Chaque tuile porte l'image resources/images/modes/<LIBELLE>.png, chargee ; sans fichier, la tuile garde son texte. */
+   Chaque tuile porte l'image resources/images/modes/<LIBELLE>.png, chargee ; sans fichier, la tuile garde son texte.
+   Depuis le 18/09 les modes historiques (Especes, Cheques, Carte, Virement, Differe) ont aussi leur logo.
+   Utilisateur : E2E_LOGIN, sinon KGA3 s'il existe sur le banc, sinon admin (mot de passe e2etest). */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
 const res = [];
@@ -7,6 +9,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+const SORTIE = process.env.SORTIE || '/tmp';
 
 // un client par defaut sur un mode de chaque operateur mobile, pour que les tuiles existent ; retabli a la fin
 const sauve = q("SELECT lg_MODE_REGLEMENT_ID, IFNULL(lg_CLIENT_DEFAUT_ID,'') FROM t_mode_reglement WHERE lg_TYPE_REGLEMENT_ID IN ('7','10','19','8','9') AND str_STATUT='enable'")
@@ -26,7 +30,7 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('doventemanager', {}));
@@ -42,7 +46,7 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
     ok('les cinq logos sont charges et visibles', images.filter(i => /ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src)).every(i => i.chargee && i.visible), JSON.stringify(images));
     const inconnues = images.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src));
     ok('un operateur sans logo garde une tuile sans image cassee', inconnues.every(i => !i.visible), JSON.stringify(inconnues));
-    await p.screenshot({ path: '/tmp/lot-u/tuiles.png' });
+    await p.screenshot({ path: SORTIE + '/tuiles.png' });
     await p.evaluate(() => { const w = Ext.ComponentQuery.query('window[title]').filter(x => /CLIENT/i.test(x.title || ''))[0]; if (w) { w.close(); } });
 
     /* ---- liste deroulante des modes : logo devant chaque operateur, logo dans le champ une fois choisi */
@@ -51,13 +55,14 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
     await p.waitForTimeout(800);
     const liste = await p.evaluate(() => Array.from(document.querySelectorAll('.x-boundlist-item img[src*="images/modes/"]')).map(i => ({ src: i.getAttribute('src').split('/').pop(), chargee: i.complete && i.naturalWidth > 0, visible: i.style.visibility !== 'hidden' })));
     ok('la liste deroulante des modes porte le logo devant chaque operateur', ['ORANGE.png', 'WAVE.png', 'DJAMO.png', 'MOOV.png', 'MTN.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste).slice(0, 300));
-    ok('un mode sans logo (Especes, Cheques...) n affiche pas d image cassee', liste.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src)).every(i => !i.visible), JSON.stringify(liste.filter(i => !/ORANGE|WAVE|DJAMO|MOOV|MTN/.test(i.src))));
+    ok('aucune image cassee dans la liste : chaque logo est charge, ou masque s il n existe pas', liste.every(i => (i.chargee && i.visible) || !i.visible), JSON.stringify(liste.filter(i => !i.chargee)));
+    ok('les modes historiques portent leur logo (Especes, Cheques, Carte, Virement, Differe)', ['ESPECES.png', 'CHEQUES.png', 'CARTEBANCAIRE.png', 'VIREMENT.png', 'DIFFERE.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste.map(i => i.src)));
     await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.collapse(); c.setValue('10'); });
     await p.waitForFunction(() => /WAVE\.png/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
     ok('le champ du mode choisi (WAVE) affiche son logo', true);
     await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.setValue('1'); });
-    await p.waitForFunction(() => !/images\/modes/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
-    ok('Especes : plus de logo dans le champ', true);
+    await p.waitForFunction(() => /ESPECES\.png/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
+    ok('Especes : le champ affiche le logo des especes', true);
 
     /* ---- bouton « Associer un autre paiement mobile » : logo du second mode choisi, generique sinon */
     await p.evaluate(() => testextjs.app.getController('VenteCtr').poserLogoBoutonExtra('MTN'));

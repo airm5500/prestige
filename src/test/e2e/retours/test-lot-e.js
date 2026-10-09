@@ -7,9 +7,8 @@
  * - « Mensuelle » a cote d'« Annuelle » ;
  * - le bouton existant rend un vrai .xlsx.
  *
- * Le banc n'a ni vente_reglement, ni mouvement de caisse, ni billetage : le test pose son propre
- * jeu d'essai autour de ventes reelles, aux montants CHOISIS, de sorte que chaque total attendu se
- * calcule a la main. Tout est retire a la fin.
+ * Le test pose son propre jeu d'essai (ses ventes, reglements, mouvements de caisse et billetages),
+ * aux montants CHOISIS, de sorte que chaque total attendu se calcule a la main. Tout est retire a la fin.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync, execSync } = require('child_process');
@@ -37,17 +36,28 @@ const JOURS = [
   { rang: 1, especes: 4000, mobiles: [[WAVE, 1500]], cheque: 0, billetage: 6000 }
 ];
 
-function ventes(n) {
-  return q("SELECT p.lg_PREENREGISTREMENT_ID FROM t_preenregistrement p WHERE p.str_STATUT='is_Closed'"
-    + " AND p.b_IS_CANCEL=0 AND p.imported=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5'"
-    + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
-    + " LIMIT " + n).split('\n').filter(Boolean);
+/* Banc : E2E_LOGIN, sinon KGA3 s'il existe, sinon admin (mot de passe e2etest). */
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+
+/* Les ventes du jeu d'essai sont creees par le test (et non prises parmi les ventes reelles, dont la date etait
+   modifiee et qui portent deja leur mouvement de caisse sur un autre banc). */
+function ventes(n, dates, user) {
+  const ids = [];
+  for (let i = 0; i < n; i++) {
+    const id = MARQUE + '-V' + i;
+    exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, lg_USER_ID, int_PRICE, int_PRICE_REMISE,"
+      + " int_CUST_PART, str_STATUT, dt_CREATED, dt_UPDATED, str_TYPE_VENTE, lg_TYPE_VENTE_ID, b_IS_CANCEL, imported)"
+      + " VALUES ('" + id + "', '" + id + "', 'E2E-E" + i + "', '" + user + "', 0, 0, 0, 'is_Closed', '" + dates[i] + " 10:00:00', '"
+      + dates[i] + " 10:00:00', 'VNO', '1', 0, 0)");
+    ids.push(id);
+  }
+  return ids;
 }
 
 function poserJeuDEssai(dates) {
-  const ids = ventes(JOURS.length);
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + LOGIN + "'");
+  const ids = ventes(JOURS.length, dates, user);
   if (ids.length < JOURS.length) { return 0; }
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
   JOURS.forEach(function (jour, i) {
     const venteId = ids[i];
     const date = dates[i];
@@ -69,8 +79,7 @@ function poserJeuDEssai(dates) {
       + "lg_EMPLACEMENT_ID,lg_USER_ID,montant,vente_id,montantRestant,montantNet,montantTva,montantCredit)"
       + " VALUES ('" + MARQUE + '-M-' + i + "',1,'" + date + " 10:00:00','" + date + "','" + venteId + "','"
       + MARQUE + "',1,'1','1','" + user + "',0,'" + venteId + "',0," + total + ",0,0);");
-    exec("UPDATE t_preenregistrement SET dt_UPDATED='" + date + " 10:00:00' WHERE lg_PREENREGISTREMENT_ID='"
-      + venteId + "';");
+    exec("UPDATE t_preenregistrement SET int_PRICE=" + total + " WHERE lg_PREENREGISTREMENT_ID='" + venteId + "';");
     if (i === 0) {
       MOUVEMENTS_J1.forEach(function (m, k) {
         exec("INSERT INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
@@ -90,7 +99,8 @@ function poserJeuDEssai(dates) {
 function retirerJeuDEssai() {
   exec("DELETE FROM vente_reglement WHERE id LIKE '" + MARQUE + "-%';"
     + "DELETE FROM mvttransaction WHERE reference='" + MARQUE + "';"
-    + "DELETE FROM t_billetage WHERE lg_BILLETAGE_ID LIKE '" + MARQUE + "-B-%';");
+    + "DELETE FROM t_billetage WHERE lg_BILLETAGE_ID LIKE '" + MARQUE + "-B-%';"
+    + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-V%';");
 }
 
 (async () => {
@@ -106,7 +116,7 @@ function retirerJeuDEssai() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

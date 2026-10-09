@@ -18,6 +18,13 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
 const NOM = 'WYZALLC';
+/* banc : utilisateur et produit d'essai (E2E_LOGIN ; KGA3 s'il existe, sinon admin ; produit 0000498 s'il existe,
+   sinon un produit actif en stock) */
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+const CODE_PRODUIT = q("SELECT COALESCE((SELECT int_CIP FROM t_famille WHERE int_CIP = '0000498' AND str_STATUT = 'enable' LIMIT 1),"
+  + " (SELECT f.int_CIP FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
+  + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND f.int_CIP REGEXP '^[0-9]{7}$' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0"
+  + " ORDER BY f.int_CIP LIMIT 1))");
 function nettoyer() {
   exec("DELETE FROM t_mode_reglement WHERE str_NAME='" + NOM + "';"
      + "DELETE FROM t_type_reglement WHERE str_NAME='" + NOM + "';");
@@ -29,7 +36,7 @@ function nettoyer() {
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -93,7 +100,7 @@ function nettoyer() {
   // 3) parcours reel : un produit dans le panier
   const comboInput = await p.evaluate(() => '#' + Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #produit')[0].inputEl.id);
   await p.click(comboInput);
-  await p.keyboard.type('0000498', { delay: 50 });
+  await p.keyboard.type(CODE_PRODUIT, { delay: 50 });
   await p.waitForSelector('.x-boundlist-item', { timeout: 20000 });
   await p.click('.x-boundlist-item');
   await p.waitForTimeout(800);

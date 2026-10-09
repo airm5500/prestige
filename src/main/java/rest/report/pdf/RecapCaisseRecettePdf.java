@@ -40,7 +40,7 @@ public final class RecapCaisseRecettePdf {
             "Pts fidélité", "Crédit", "Net", "Clients", "Mouv. caisse", "Regl TP", "Regl DIFF", "Billetage", "Écart",
             "Solde" };
 
-    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 7f, 7f, 8f, 6f, 8f, 8f, 8f, 8f, 8f, 9f };
+    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 6f, 7f, 8f, 6f, 9.5f, 8f, 8f, 8f, 8f, 9f };
 
     private RecapCaisseRecettePdf() {
     }
