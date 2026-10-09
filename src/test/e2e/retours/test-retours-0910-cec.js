@@ -189,7 +189,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Données d\'essai retirées, droits et grossiste remis',
       q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '" + CMD + "'") === '0'
       && q("SELECT COUNT(*) FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID IN ('" + SUGG + "', '" + SUGG2 + "')") === '0'
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE rp.lg_ROLE_ID = '" + ROLE + "' AND pr.str_NAME LIKE 'P_CEC_%'") === '3'
+      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE rp.lg_ROLE_ID = '" + ROLE + "' AND pr.str_NAME IN ('P_CEC_SUBSTITUTIONS', 'P_CEC_ALERTES', 'P_CEC_TABLEAU_BORD')") === '3'
       && q("SELECT IFNULL(str_URL_PHARMAML, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'") === sauve);
     const n = res.filter((x) => x.c).length;
     console.log('\n' + n + '/' + res.length + ' OK');
