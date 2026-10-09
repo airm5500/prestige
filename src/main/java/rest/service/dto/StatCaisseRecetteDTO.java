@@ -33,6 +33,8 @@ public class StatCaisseRecetteDTO {
     private long montantCb;
     private long montantCheque;
     private long montantVirement;
+    /** Retours du 09/10 (6) : paye avec des points de fidelite (pas de l'argent encaisse : hors solde). */
+    private long montantPointsFidelite;
     private long montantBilletage;
     private long nbreClient;
     private long montantSolde;
@@ -255,5 +257,13 @@ public class StatCaisseRecetteDTO {
     public void ajouterDetailMobile(String libelle, long montant) {
         detailMobile.merge(libelle, montant, Long::sum);
         this.montantMobile += montant;
+    }
+
+    public long getMontantPointsFidelite() {
+        return montantPointsFidelite;
+    }
+
+    public void setMontantPointsFidelite(long montantPointsFidelite) {
+        this.montantPointsFidelite = montantPointsFidelite;
     }
 }

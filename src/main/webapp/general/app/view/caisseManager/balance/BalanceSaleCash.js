@@ -29,6 +29,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 {name: 'panierMoyen', type: 'int'}, {name: 'montantEsp', type: 'int'},
                 {name: 'montantCB', type: 'int'}, {name: 'montantCheque', type: 'int'},
                 {name: 'montantVirement', type: 'int'}, {name: 'montantMobilePayment', type: 'int'},
+                {name: 'montantPointsFidelite', type: 'int'},
                 {name: 'montantTp', type: 'int'}, {name: 'montantDiff', type: 'int'},
                 {name: 'ecart', type: 'int', useNull: true},
                 {name: 'ecartPourcentage', type: 'float', useNull: true},
@@ -95,7 +96,8 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                         {name: 'montantMobilePayment',
                             type: 'number'
 
-                        }
+                        },
+                        {name: 'montantPointsFidelite', type: 'number'}
                     ],
             autoLoad: false,
             pageSize: 2,
@@ -234,6 +236,18 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                             fieldStyle: "color:blue;font-weight:800;",
                             value: 0
 
+                        },
+                        {
+                            xtype: 'displayfield',
+                            flex: 0.7,
+                            fieldLabel: 'PTS FIDELITE',
+                            labelWidth: 100,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            },
+                            itemId: 'montantPointsFidelite',
+                            fieldStyle: "color:blue;font-weight:800;",
+                            value: 0
                         },
 
                         {
@@ -481,6 +495,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                         montant('Carte.Banc', 'montantCB', 0.8),
                         montant('Diff&eacute;r&eacute;', 'montantDiff', 0.8),
                         montant('P.Mobile', 'montantMobilePayment', 0.8),
+                        montant('Pts fid&eacute;lit&eacute;', 'montantPointsFidelite', 0.8),
                         montant('Tiers payant', 'montantTp', 0.8)
                     ],
                     selModel: {selType: 'cellmodel'},
@@ -524,7 +539,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 '<div class="vb-titre">Balance vente / caisse</div>',
                 '<table class="vb-table">',
                 '<tr><th></th><th>Ventes</th><th>Brut TTC</th><th>Remise</th><th>Net TTC</th><th>%</th><th>Panier</th>',
-                '<th>Esp&egrave;ces</th><th>Ch&egrave;ques</th><th>Carte</th><th>Diff&eacute;r&eacute;</th><th>Mobile</th><th>Tiers payant</th></tr>',
+                '<th>Esp&egrave;ces</th><th>Ch&egrave;ques</th><th>Carte</th><th>Diff&eacute;r&eacute;</th><th>Mobile</th><th>Pts fid&eacute;lit&eacute;</th><th>Tiers payant</th></tr>',
                 '<tpl for="lignes">',
                 '<tr><td class="vb-lib">{[this.type(values.typeVente)]}</td><td class="vb-n">{[this.n(values.nbreVente)]}</td>',
                 '<td class="vb-n">{[this.n(values.montantTTC)]}</td><td class="vb-n">{[this.n(values.montantRemise)]}</td>',
@@ -532,6 +547,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 '<td class="vb-n">{[this.n(values.panierMoyen)]}</td><td class="vb-n">{[this.n(values.montantEsp)]}</td>',
                 '<td class="vb-n">{[this.n(values.montantCheque)]}</td><td class="vb-n">{[this.n(values.montantCB)]}</td>',
                 '<td class="vb-n">{[this.n(values.montantDiff)]}</td><td class="vb-n">{[this.n(values.montantMobilePayment)]}</td>',
+                '<td class="vb-n">{[this.n(values.montantPointsFidelite)]}</td>',
                 '<td class="vb-n">{[this.n(values.montantTp)]}</td></tr>',
                 '</tpl>',
                 '<tr class="vb-total"><td class="vb-lib">TOTAL</td><td class="vb-n">{[this.n(values.resume.nbreVente)]}</td>',
@@ -540,6 +556,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
                 '<td class="vb-n">{[this.n(values.resume.panierMoyen)]}</td><td class="vb-n">{[this.n(values.resume.montantEsp)]}</td>',
                 '<td class="vb-n">{[this.n(values.resume.montantCheque)]}</td><td class="vb-n">{[this.n(values.resume.montantCB)]}</td>',
                 '<td class="vb-n">{[this.n(values.resume.montantDiff)]}</td><td class="vb-n">{[this.n(values.resume.montantMobilePayment)]}</td>',
+                '<td class="vb-n">{[this.n(values.resume.montantPointsFidelite)]}</td>',
                 '<td class="vb-n">{[this.n(values.resume.montantTp)]}</td></tr>',
                 '</table>',
                 '</div>',

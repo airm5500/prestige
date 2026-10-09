@@ -84,9 +84,9 @@ public final class EditionBalance {
                 { "Marge", "marge" }, { "Fonds de caisse", "fondCaisse" }, { "Règlements différés", "montantRegDiff" },
                 { "Règlements tiers payant", "montantRegleTp" }, { "Entrées", "montantEntre" },
                 { "Sorties", "montantSortie" }, { "Espèces", "montantEsp" }, { "Mobile", "montantMobilePayment" },
-                { "Chèques", "montantCheque" }, { "Virements", "montantVirement" }, { "Carte bancaire", "montantCB" },
-                { "Tiers payant", "montantTp" }, { "Panier moyen", "panierMoyen" },
-                { "Nombre de ventes", "nbreVente" } };
+                { "Points fidélité", "montantPointsFidelite" }, { "Chèques", "montantCheque" },
+                { "Virements", "montantVirement" }, { "Carte bancaire", "montantCB" }, { "Tiers payant", "montantTp" },
+                { "Panier moyen", "panierMoyen" }, { "Nombre de ventes", "nbreVente" } };
         // Retours du 12/09 : le resume sur deux colonnes (libelle, montant | libelle, montant) pour occuper la page
         List<String[]> elements = new ArrayList<>(java.util.Arrays.asList(kpis));
         elements.add(new String[] { "Ratio V/A", null });

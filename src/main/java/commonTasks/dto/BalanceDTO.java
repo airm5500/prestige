@@ -34,6 +34,8 @@ public class BalanceDTO implements Serializable {
     private long montantDiff;
     private long nbreVente;
     private long montantMobilePayment;
+    /** Retours du 09/10 (6) : part payee avec des points de fidelite (mode « Points fidelite »). */
+    private long montantPointsFidelite;
     private TypeTransaction typeTransaction;
     private long montantVirement;
     private long montantAchat;
@@ -348,4 +350,11 @@ public class BalanceDTO implements Serializable {
     public BalanceDTO() {
     }
 
+    public long getMontantPointsFidelite() {
+        return montantPointsFidelite;
+    }
+
+    public void setMontantPointsFidelite(long montantPointsFidelite) {
+        this.montantPointsFidelite = montantPointsFidelite;
+    }
 }

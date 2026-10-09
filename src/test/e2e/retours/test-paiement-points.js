@@ -168,6 +168,32 @@ function nettoyer() {
     const z = await api('POST', '../api/v1/caisse/fetch-tickez', { dtStart: jour, dtEnd: jour, hrStart: '00:00', hrEnd: '23:59', userId: '', description: '' });
     ok('Ticket Z : ligne « Points fidélité »', /Points fid.lit/.test(JSON.stringify(z)), JSON.stringify(z).slice(0, 200));
 
+    /* colonnes « Points fidelite » des etats (avant l'annulation de A) */
+    const enPoints = cA.montant + 300;
+    const bal = await api('GET', '../api/v1/balance/balancesalecash?dtStart=' + jour + '&dtEnd=' + jour);
+    const resumeBal = bal.metaData || (bal.data && bal.data.summary) || {};
+    ok('Balance vente-caisse : colonne « Points fidélité » = ' + enPoints + ' FCFA', resumeBal.montantPointsFidelite === enPoints
+      && (bal.data || []).some((b) => b.montantPointsFidelite === enPoints), JSON.stringify(resumeBal).slice(0, 300));
+    const rec = await api('GET', '../api/v1/stats-recette-caisse/data?dtStart=' + jour + '&dtEnd=' + jour);
+    const totalRec = (rec.data || []).reduce((t, l) => t + (l.montantPointsFidelite || 0), 0);
+    ok('Recettes : colonne « Points fidélité » = ' + enPoints + ' FCFA, hors solde', totalRec === enPoints, JSON.stringify((rec.data || [])[0] || rec).slice(0, 300));
+    const para = await api('GET', '../api/v2/caisse/balanceparas?dtStart=' + jour + '&dtEnd=' + jour);
+    ok('Balance parapharmacie : champ « Points fidélité » présent', para && JSON.stringify(para).indexOf('montantPointsFidelite') >= 0, JSON.stringify(para).slice(0, 200));
+    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('caisserecetterecap', 'Recettes', ''));
+    await p.waitForFunction(() => Ext.ComponentQuery.query('caisserecetterecap').length > 0, null, { timeout: 20000 });
+    await p.waitForTimeout(1500);
+    const colRec = await p.evaluate(() => Ext.ComponentQuery.query('caisserecetterecap gridcolumn').some((c) => c.dataIndex === 'montantPointsFidelite' && /fid/.test(c.text)));
+    ok('Écran des recettes : colonne « Pts fidélité »', colRec);
+    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('balancesalecahs', 'Balance', ''));
+    await p.waitForFunction(() => Ext.ComponentQuery.query('balancesalecahs').length > 0, null, { timeout: 20000 });
+    await p.waitForTimeout(1500);
+    const colBal = await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs gridcolumn').some((c) => c.dataIndex === 'montantPointsFidelite')
+      && !!Ext.ComponentQuery.query('balancesalecahs #montantPointsFidelite')[0]);
+    ok('Écran de la balance : colonne et total « Pts fidélité »', colBal);
+    const logo = await p.evaluate(() => new Promise((r) => { const i = new Image(); i.onload = () => r(i.naturalWidth); i.onerror = () => r(0);
+      i.src = 'resources/images/modes/' + 'Points fidélité'.normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png'; }));
+    ok('Logo du mode « Points fidélité » (POINTSFIDELITE.png) chargé', logo === 128, String(logo));
+
     /* annulation de la vente A : points rendus */
     const avantAnn = solde();
     const ann = await api('GET', '../api/v1/vente/annulation/' + vA);

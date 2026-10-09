@@ -3178,7 +3178,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const enAvant = c.typeReglementId === modeEnAvant;
                     // Logo de l'operateur (resources/images/modes/<LIBELLE>.png) a gauche du libelle ; sans fichier,
                     // l'image ne s'affiche pas et la tuile garde son texte seul.
-                    const logo = 'resources/images/modes/' + String(c.modeLibelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png';
+                    const logo = 'resources/images/modes/' + String(c.modeLibelle || '').normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, '') + '.png';
                     return {
                         xtype: 'button',
                         margin: '0 6 6 0',
@@ -7838,7 +7838,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         const generique = 'resources/images/icons/fam/paiement-mobile.png';
-        const nom = String(libelle || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const nom = String(libelle || '').normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, '');
         if (!nom) {
             bouton.setIcon(generique);
             return;

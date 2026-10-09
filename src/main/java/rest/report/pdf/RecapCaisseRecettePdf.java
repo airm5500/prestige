@@ -36,10 +36,11 @@ public final class RecapCaisseRecettePdf {
     private static final Logger LOG = Logger.getLogger(RecapCaisseRecettePdf.class.getName());
 
     /** Colonnes de l'etat ; l'ecart suit le billetage, le solde ferme la ligne. */
-    private static final String[] COLONNES = { "Date", "Comptant", "Mobile", "Carte", "Chèque", "Virement", "Crédit",
-            "Net", "Clients", "Mouv. caisse", "Regl TP", "Regl DIFF", "Billetage", "Écart", "Solde" };
+    private static final String[] COLONNES = { "Date", "Comptant", "Mobile", "Carte", "Chèque", "Virement",
+            "Pts fidélité", "Crédit", "Net", "Clients", "Mouv. caisse", "Regl TP", "Regl DIFF", "Billetage", "Écart",
+            "Solde" };
 
-    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 7f, 8f, 6f, 8f, 8f, 8f, 8f, 8f, 9f };
+    private static final float[] LARGEURS = { 9f, 8f, 8f, 7f, 7f, 7f, 7f, 7f, 8f, 6f, 8f, 8f, 8f, 8f, 8f, 9f };
 
     private RecapCaisseRecettePdf() {
     }
@@ -97,6 +98,7 @@ public final class RecapCaisseRecettePdf {
                 table.addCell(cellule(montant(ligne.getMontantCb()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantCheque()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantVirement()), cellule, true));
+                table.addCell(cellule(montant(ligne.getMontantPointsFidelite()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantCredit()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantNet()), cellule, true));
                 table.addCell(cellule(montant(ligne.getNbreClient()), cellule, true));
@@ -143,6 +145,7 @@ public final class RecapCaisseRecettePdf {
             table.addCell(total(montant(totaux.cb), entetes, true));
             table.addCell(total(montant(totaux.cheque), entetes, true));
             table.addCell(total(montant(totaux.virement), entetes, true));
+            table.addCell(total(montant(totaux.pointsFidelite), entetes, true));
             table.addCell(total(montant(totaux.credit), entetes, true));
             table.addCell(total(montant(totaux.net), entetes, true));
             table.addCell(total(montant(totaux.clients), entetes, true));
@@ -220,6 +223,7 @@ public final class RecapCaisseRecettePdf {
         private long cb;
         private long cheque;
         private long virement;
+        private long pointsFidelite;
         private long credit;
         private long net;
         private long clients;
@@ -236,6 +240,7 @@ public final class RecapCaisseRecettePdf {
             cb += l.getMontantCb();
             cheque += l.getMontantCheque();
             virement += l.getMontantVirement();
+            pointsFidelite += l.getMontantPointsFidelite();
             credit += l.getMontantCredit();
             net += l.getMontantNet();
             clients += l.getNbreClient();

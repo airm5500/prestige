@@ -334,6 +334,8 @@ public class ListCaisseServiceImpl implements ListCaisseService {
                     // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
                     if (util.MobileMoney.est(reglement.getTypeReglementId())) {
                         o.setMobile(o.getMobile() + montant);
+                    } else if (FideliteService.TYPE_REGLEMENT.equals(reglement.getTypeReglementId())) {
+                        o.setPointsFidelite(o.getPointsFidelite() + montant);
                     }
                     break;
                 }

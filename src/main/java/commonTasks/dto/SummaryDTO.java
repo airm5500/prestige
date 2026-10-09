@@ -17,7 +17,7 @@ public class SummaryDTO implements Serializable {
     long montantTTC = 0, montantNet = 0, montantRemise = 0, pourcentage = 0, panierMoyen = 0, montantEsp = 0,
             montantCheque = 0, montantVirement = 0, montantCB = 0, montantTp = 0, montantDiff = 0, nbreVente = 0,
             fondCaisse = 0, montantRegDiff = 0, montantMobilePayment = 0, montantRegleTp = 0, montantEntre = 0,
-            montantAchat = 0, montantSortie = 0, marge = 0, montantTva = 0, montantHT = 0;
+            montantAchat = 0, montantSortie = 0, marge = 0, montantTva = 0, montantHT = 0, montantPointsFidelite = 0;
     double ratioVA = 0.0, rationAV = 0.0;
 
     public long getMontantTTC() {
@@ -233,4 +233,12 @@ public class SummaryDTO implements Serializable {
                 + ", rationAV=" + rationAV + '}';
     }
 
+    /** Retours du 09/10 (6) : part payee avec des points de fidelite. */
+    public long getMontantPointsFidelite() {
+        return montantPointsFidelite;
+    }
+
+    public void setMontantPointsFidelite(long montantPointsFidelite) {
+        this.montantPointsFidelite = montantPointsFidelite;
+    }
 }

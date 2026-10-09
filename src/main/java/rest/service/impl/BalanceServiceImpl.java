@@ -783,6 +783,7 @@ public class BalanceServiceImpl implements BalanceService {
         long fondCaisse = 0;
         long montantRegDiff = 0;
         long montantMobilePayment = 0;
+        long montantPointsFidelite = 0;
         long montantRegleTp = 0;
         long montantEntre = 0;
         long montantSortie = 0;
@@ -802,6 +803,7 @@ public class BalanceServiceImpl implements BalanceService {
             montantDiff += balance.getMontantDiff();
             nbreVente += balance.getNbreVente();
             montantMobilePayment += balance.getMontantMobilePayment();
+            montantPointsFidelite += balance.getMontantPointsFidelite();
             marge += balance.getMarge();
             montantTva += balance.getMontantTva();
 
@@ -863,6 +865,7 @@ public class BalanceServiceImpl implements BalanceService {
         summary.setNbreVente(nbreVente);
         summary.setMontantTTC(montantTTC);
         summary.setMontantMobilePayment(montantMobilePayment);
+        summary.setMontantPointsFidelite(montantPointsFidelite);
         summary.setPanierMoyen(panierMoyen);
         summary.setRatioVA(ratioVA);
         summary.setRationAV(rationAV);
@@ -1605,6 +1608,7 @@ public class BalanceServiceImpl implements BalanceService {
         long montantDjamo = 0;
         // Modes mobile money crees par l'officine (sans colonne propre) : comptes dans le total mobile.
         long montantAutresMobile = 0;
+        long montantPointsFidelite = 0;
 
         long totalModeReglement = 0;
 
@@ -1679,6 +1683,8 @@ public class BalanceServiceImpl implements BalanceService {
             default:
                 if (util.MobileMoney.est(modeReglement)) {
                     montantAutresMobile += amount;
+                } else if (FideliteService.TYPE_REGLEMENT.equals(modeReglement)) {
+                    montantPointsFidelite += amount;
                 }
                 break;
 
@@ -1715,6 +1721,7 @@ public class BalanceServiceImpl implements BalanceService {
         balance.setMontantDjamo(montantDjamo);
         balance.setMontantOrange(montantOrange);
         balance.setMontantMtn(montantMtn);
+        balance.setMontantPointsFidelite(montantPointsFidelite);
         balance.setMontantMobilePayment(balance.getMontantOrange() + balance.getMontantMoov() + balance.getMontantMtn()
                 + balance.getMontantWave() + balance.getMontantDjamo() + montantAutresMobile);
         balance.setTotalModeReglement(totalModeReglement);
@@ -1773,6 +1780,7 @@ public class BalanceServiceImpl implements BalanceService {
         total.setMontantCheque(total.getMontantCheque() + current.getMontantCheque());
         total.setMontantCB(total.getMontantCB() + current.getMontantCB());
         total.setMontantMobilePayment(total.getMontantMobilePayment() + current.getMontantMobilePayment());
+        total.setMontantPointsFidelite(total.getMontantPointsFidelite() + current.getMontantPointsFidelite());
         total.setMontantTp(total.getMontantTp() + current.getMontantTp());
         // ... ajoutez d'autres champs du résumé si nécessaire
     }
@@ -1851,6 +1859,7 @@ public class BalanceServiceImpl implements BalanceService {
             parameters.put("P_MONTANT_CB", summary.getMontantCB());
             parameters.put("P_MONTANT_VIREMENT", summary.getMontantVirement());
             parameters.put("P_MOBILE_PAYMENT", summary.getMontantMobilePayment());
+            parameters.put("P_POINTS_FIDELITE", summary.getMontantPointsFidelite());
 
             String reportPath = reportDirectory + reportFileName;
             InputStream reportStream = new FileInputStream(reportPath);
@@ -1880,6 +1889,7 @@ public class BalanceServiceImpl implements BalanceService {
             summary.setMontantCheque(metaDataJson.optLong("montantCheque"));
             summary.setMontantCB(metaDataJson.optLong("montantCB"));
             summary.setMontantMobilePayment(metaDataJson.optLong("montantMobilePayment"));
+            summary.setMontantPointsFidelite(metaDataJson.optLong("montantPointsFidelite"));
             summary.setMontantHT(metaDataJson.optLong("montantHT"));
             summary.setMontantTva(metaDataJson.optLong("montantTva"));
             summary.setMontantRemise(metaDataJson.optLong("montantRemise"));

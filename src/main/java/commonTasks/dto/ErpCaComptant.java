@@ -17,6 +17,8 @@ public class ErpCaComptant implements Serializable {
     private long totChq, remiseSurCA;
     private String mvtDate, mode;
     private long montantCredit;
+    /** Retours du 09/10 (6) : part payee avec des points de fidelite. */
+    private long totPointsFidelite;
 
     public long getTotEsp() {
         return totEsp;
@@ -98,4 +100,11 @@ public class ErpCaComptant implements Serializable {
         this.montantCredit = montantCredit;
     }
 
+    public long getTotPointsFidelite() {
+        return totPointsFidelite;
+    }
+
+    public void setTotPointsFidelite(long totPointsFidelite) {
+        this.totPointsFidelite = totPointsFidelite;
+    }
 }

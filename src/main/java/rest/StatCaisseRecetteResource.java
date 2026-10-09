@@ -116,11 +116,12 @@ public class StatCaisseRecetteResource {
                 .texte("Date", l -> l.date).nombre("Comptant", l -> l.nombre(l.espece))
                 .nombre("Mobile", l -> l.nombre(l.mobile)).nombre("Carte bancaire", l -> l.nombre(l.cb))
                 .nombre("Chèque", l -> l.nombre(l.cheque)).nombre("Virement", l -> l.nombre(l.virement))
-                .nombre("Crédit", l -> l.nombre(l.credit)).nombre("Remise", l -> l.nombre(l.remise))
-                .nombre("Net", l -> l.nombre(l.net)).nombre("Nbre clients", l -> l.nombre(l.clients))
-                .nombre("Mouv. caisse", l -> l.nombre(l.mouvements)).nombre("Regl TP", l -> l.nombre(l.reglementTp))
-                .nombre("Regl DIFF", l -> l.nombre(l.reglementDiff)).nombre("Billetage", l -> l.nombre(l.billetage))
-                .texte("Écart", l -> l.ecart).nombre("Solde", l -> l.nombre(l.solde))
+                .nombre("Pts fidélité", l -> l.nombre(l.pointsFidelite)).nombre("Crédit", l -> l.nombre(l.credit))
+                .nombre("Remise", l -> l.nombre(l.remise)).nombre("Net", l -> l.nombre(l.net))
+                .nombre("Nbre clients", l -> l.nombre(l.clients)).nombre("Mouv. caisse", l -> l.nombre(l.mouvements))
+                .nombre("Regl TP", l -> l.nombre(l.reglementTp)).nombre("Regl DIFF", l -> l.nombre(l.reglementDiff))
+                .nombre("Billetage", l -> l.nombre(l.billetage)).texte("Écart", l -> l.ecart)
+                .nombre("Solde", l -> l.nombre(l.solde))
                 .texte("Détail (mobile money, mouvements de caisse)", l -> l.detailMobile);
         try {
             byte[] contenu = classeur.construire(lignes);
@@ -144,6 +145,7 @@ public class StatCaisseRecetteResource {
         private long cb;
         private long cheque;
         private long virement;
+        private long pointsFidelite;
         private long credit;
         private long remise;
         private long net;
@@ -163,6 +165,7 @@ public class StatCaisseRecetteResource {
             l.cb = d.getMontantCb();
             l.cheque = d.getMontantCheque();
             l.virement = d.getMontantVirement();
+            l.pointsFidelite = d.getMontantPointsFidelite();
             l.credit = d.getMontantCredit();
             l.remise = d.getMontantRemise();
             l.net = d.getMontantNet();

@@ -1828,7 +1828,8 @@ public class CaisseServiceImpl implements CaisseService {
                     montantEntre = 0, montantTva = 0, montantTp = 0, _montantMobilePayment = 0;
             double ratioVA = 0.0;
             int montantTTC = 0, montantNet = 0, montantRemise = 0, panierMoyen = 0, montantEsp = 0, montantCheque = 0,
-                    MontantVirement = 0, montantCB = 0, montantDiff = 0, nbreVente = 0, montantMobilePayment = 0;
+                    MontantVirement = 0, montantCB = 0, montantDiff = 0, nbreVente = 0, montantMobilePayment = 0,
+                    montantPointsFidelite = 0;
 
             for (MvtTransaction mvt : venteVNO) {
                 int remise = remisePara(mvt.getPkey());
@@ -1866,6 +1867,14 @@ public class CaisseServiceImpl implements CaisseService {
                 case DateConverter.MODE_DJAMO:
                     montantMobilePayment += montantPara;
                     break;
+                default:
+                    /* mobile money cree par l'officine, ou points fidelite (Retours du 09/10 (6)) */
+                    if (util.MobileMoney.est(mvt.getReglement().getLgTYPEREGLEMENTID())) {
+                        montantMobilePayment += montantPara;
+                    } else if (FideliteService.TYPE_REGLEMENT.equals(mvt.getReglement().getLgTYPEREGLEMENTID())) {
+                        montantPointsFidelite += montantPara;
+                    }
+                    break;
                 }
 
             }
@@ -1894,6 +1903,7 @@ public class CaisseServiceImpl implements CaisseService {
             vno.setMontantRemise(montantRemise);
             vno.setMontantTp(0);
             vno.setMontantMobilePayment(montantMobilePayment);
+            vno.setMontantPointsFidelite(montantPointsFidelite);
             vno.setPanierMoyen(panierMoyen);
 
             int pourcentageVno = (int) Math.round((Double.valueOf(vno.getMontantNet()) * 100) / Math.abs(_montantNet));
@@ -1917,6 +1927,7 @@ public class CaisseServiceImpl implements CaisseService {
             summary.setMontantSortie(montantSortie);
             summary.setMontantVirement(_MontantVirement);
             summary.setMontantMobilePayment(_montantMobilePayment);
+            summary.setMontantPointsFidelite(montantPointsFidelite);
             summary.setMontantHT((_montantTTC - montantTva));
             summary.setMontantRegleTp(montantRegleTp);
             summary.setMontantRemise(_montantRemise);

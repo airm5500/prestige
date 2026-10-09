@@ -50,6 +50,10 @@ Ext.define('testextjs.controller.BalanceVenteCarnetCtr', {
             selector: 'balancesalecahsCarnet #montantMobilePayment'
         },
         {
+            ref: 'montantPointsFidelite',
+            selector: 'balancesalecahsCarnet #montantPointsFidelite'
+        },
+        {
             ref: 'montantRegDiff',
             selector: 'balancesalecahsCarnet #montantRegDiff'
         },
@@ -181,6 +185,7 @@ Ext.define('testextjs.controller.BalanceVenteCarnetCtr', {
         me.getMontantVirement().setValue(rec.montantVirement);
         me.getMarge().setValue(rec.marge);
         me.getMontantMobilePayment().setValue(rec.montantMobilePayment);
+        me.getMontantPointsFidelite().setValue(rec.montantPointsFidelite || 0);
 
     },
     oncheckUg: function () {

@@ -188,6 +188,8 @@ public class Balance {
         parameters.put("P_TOTAL_CHEQUES", DateConverter.amountFormat(summary.getMontantCheque(), ' '));
         parameters.put("P_TOTAL_CARTEBANCAIRE", DateConverter.amountFormat(summary.getMontantCB(), ' '));
         parameters.put("P_TOTAL_MOBILE", DateConverter.amountFormat(summary.getMontantMobilePayment(), ' '));
+        /* Retours du 09/10 (6) : disponible pour les modeles de balance qui l'affichent (parametre ignore sinon) */
+        parameters.put("P_TOTAL_POINTS_FIDELITE", DateConverter.amountFormat(summary.getMontantPointsFidelite(), ' '));
         parameters.put("P_TOTAL_TIERSPAYANT", DateConverter.amountFormat(summary.getMontantTp(), ' '));
         parameters.put("P_TOTAL_AVOIR", DateConverter.amountFormat(summary.getMontantDiff(), ' '));
         parameters.put("P_TOTAL_PERCENT", totalP + "");

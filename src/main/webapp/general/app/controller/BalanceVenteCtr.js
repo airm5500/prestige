@@ -30,6 +30,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         {ref: 'ratioVA', selector: 'balancesalecahs #ratioVA'},
         {ref: 'fondCaisse', selector: 'balancesalecahs #fondCaisse'},
         {ref: 'montantMobilePayment', selector: 'balancesalecahs #montantMobilePayment'},
+        {ref: 'montantPointsFidelite', selector: 'balancesalecahs #montantPointsFidelite'},
         {ref: 'montantRegDiff', selector: 'balancesalecahs #montantRegDiff'},
         {ref: 'montantRegleTp', selector: 'balancesalecahs #montantRegleTp'},
         {ref: 'montantSortie', selector: 'balancesalecahs #montantSortie'},
@@ -719,6 +720,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         poser('getMontantVirement', rec.montantVirement);
         poser('getMarge', rec.marge);
         poser('getMontantMobilePayment', rec.montantMobilePayment);
+        poser('getMontantPointsFidelite', rec.montantPointsFidelite);
     },
 
     oncheckUg: function () {

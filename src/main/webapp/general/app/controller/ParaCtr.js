@@ -43,6 +43,10 @@ Ext.define('testextjs.controller.ParaCtr', {
             ref: 'montantMobilePayment',
             selector: 'balancepara #montantMobilePayment'
         },
+        {
+            ref: 'montantPointsFidelite',
+            selector: 'balancepara #montantPointsFidelite'
+        },
         
         
         {
@@ -147,6 +151,7 @@ Ext.define('testextjs.controller.ParaCtr', {
         me.getMontantVirement().setValue(rec.montantVirement);
         me.getMontantNet().setValue(rec.montantNet);
         me.getMontantMobilePayment().setValue(rec.montantMobilePayment);
+        me.getMontantPointsFidelite().setValue(rec.montantPointsFidelite || 0);
 
     },
     oncheckUg: function () {

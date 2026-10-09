@@ -19,6 +19,8 @@ public class VisualisationCaisseDTO {
     private int cheque;
     private int differe;
     private int virement;
+    /** Retours du 09/10 (6) : part payee avec des points de fidelite. */
+    private int pointsFidelite;
     private String typeMouvement;
     private String reference;
     private String operateur;
@@ -273,4 +275,11 @@ public class VisualisationCaisseDTO {
         this.virement = virement;
     }
 
+    public int getPointsFidelite() {
+        return pointsFidelite;
+    }
+
+    public void setPointsFidelite(int pointsFidelite) {
+        this.pointsFidelite = pointsFidelite;
+    }
 }

@@ -95,6 +95,10 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                     type: 'number'
                 },
                 {
+                    name: 'montantPointsFidelite',
+                    type: 'number'
+                },
+                {
                     name: 'montantBilletage',
                     type: 'number'
                 },
@@ -435,6 +439,23 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                         {
                             header: 'Virement',
                             dataIndex: 'montantVirement',
+                            flex: 1,
+                            summaryType: "sum",
+                            xtype: 'numbercolumn',
+                            format: '0,000.',
+                            align: 'right',
+                            summaryRenderer: function (value) {
+                                if (value > 0) {
+                                    return "<b><span style='color:blue;'>" + Ext.util.Format.number(value, '0,000') + "</span></b>";
+                                } else {
+                                    return '';
+                                }
+                            }
+                        },
+                        {
+                            header: 'Pts fid&eacute;lit&eacute;',
+                            tooltip: 'Pay&eacute; avec des points de fid&eacute;lit&eacute; (pas de l\'argent encaiss&eacute;)',
+                            dataIndex: 'montantPointsFidelite',
                             flex: 1,
                             summaryType: "sum",
                             xtype: 'numbercolumn',

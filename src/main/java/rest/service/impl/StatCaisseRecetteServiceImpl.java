@@ -412,6 +412,8 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                     // Mode mobile money cree par l'officine : compte dans le total mobile ET dans le sous-detail.
                     if (util.MobileMoney.est(name)) {
                         caisseRecette.ajouterDetailMobile(libelleMode(type), montant);
+                    } else if (FideliteService.TYPE_REGLEMENT.equals(name)) {
+                        caisseRecette.setMontantPointsFidelite(montant);
                     }
                     break;
                 }
@@ -513,6 +515,7 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                         o.setMontantReglementDiff(o.getMontantReglementDiff() + e.getMontantReglementDiff());
                         o.setMontantReglementFacture(o.getMontantReglementFacture() + e.getMontantReglementFacture());
                         o.setMontantVirement(o.getMontantVirement() + e.getMontantVirement());
+                        o.setMontantPointsFidelite(o.getMontantPointsFidelite() + e.getMontantPointsFidelite());
                         o.setNbreClient(o.getNbreClient() + e.getNbreClient());
                         o.setMontantRemise(o.getMontantRemise() + e.getMontantRemise());
                         o.setMontantHt(o.getMontantTtc() - o.getMontantTva());

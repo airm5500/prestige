@@ -1012,7 +1012,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     listConfig: {
                                                         getInnerTpl: function () {
                                                             return '<div style="display:flex;align-items:center;gap:8px;">'
-                                                                    + '<img src="resources/images/modes/{[String(values.strNAME || \'\').toUpperCase().replace(/[^A-Z0-9]/g, \'\')]}.png" alt="" '
+                                                                    + '<img src="resources/images/modes/{[String(values.strNAME || \'\').normalize(\'NFD\').toUpperCase().replace(/[^A-Z0-9]/g, \'\')]}.png" alt="" '
                                                                     + 'onerror="this.style.visibility=\'hidden\'" style="width:22px;height:22px;border-radius:50%;"/>'
                                                                     + '<span>{strNAME}</span></div>';
                                                         }
@@ -1023,7 +1023,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                 return;
                                                             }
                                                             var rec = combo.findRecordByValue(combo.getValue());
-                                                            var nom = rec ? String(rec.get('strNAME') || '').toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+                                                            var nom = rec ? String(rec.get('strNAME') || '').normalize('NFD').toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
                                                             // le theme de la caisse pose des fonds en !important : le logo doit l'etre aussi
                                                             var poser = function (proprietes) {
                                                                 if (combo.isDestroyed || !combo.inputEl) {

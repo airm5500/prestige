@@ -74,7 +74,8 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCashCarnet', {
                         {name: 'montantMobilePayment',
                             type: 'number'
 
-                        }
+                        },
+                        {name: 'montantPointsFidelite', type: 'number'}
                     ],
             autoLoad: false,
             pageSize: 2,
@@ -241,6 +242,18 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCashCarnet', {
                             fieldStyle: "color:blue;font-weight:800;",
                             value: 0
 
+                        },
+                        {
+                            xtype: 'displayfield',
+                            flex: 0.7,
+                            fieldLabel: 'PTS FIDELITE',
+                            labelWidth: 100,
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            },
+                            itemId: 'montantPointsFidelite',
+                            fieldStyle: "color:blue;font-weight:800;",
+                            value: 0
                         },
 
                         {
@@ -454,6 +467,14 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCashCarnet', {
                         {
                             header: 'P.Mobile',
                             dataIndex: 'montantMobilePayment',
+                            xtype: 'numbercolumn',
+                            format: '0,000.',
+                            align: 'right',
+                            flex: 1
+                        },
+                        {
+                            header: 'Pts fid&eacute;lit&eacute;',
+                            dataIndex: 'montantPointsFidelite',
                             xtype: 'numbercolumn',
                             format: '0,000.',
                             align: 'right',
