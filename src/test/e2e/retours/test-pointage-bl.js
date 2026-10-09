@@ -105,7 +105,9 @@ function nettoyer() {
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('pointagebl')[0]; e.down('#ongletsPointage').setActiveTab(e.down('#ongletRapprochement')); });
     const input = await p.evaluate(() => Ext.ComponentQuery.query('pointagebl #fichierReleve')[0].fileInputEl.dom.id);
     await p.setInputFiles('#' + input, path.join(__dirname, 'fixtures', 'releve-e2e-pointage.pdf'));
-    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pointagebl')[0]; return e.releveCourant || Ext.MessageBox.isVisible(); }, null, { timeout: 60000 });
+    /* fin de lecture : releve affiche, ou message d'erreur (pas le message d'attente « Lecture du releve... ») */
+    await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pointagebl')[0];
+      return e.releveCourant || (Ext.MessageBox.isVisible() && !/Lecture du relevé/.test(Ext.MessageBox.msg.getEl().dom.textContent)); }, null, { timeout: 60000 });
     const rel = await p.evaluate(() => { const e = Ext.ComponentQuery.query('pointagebl')[0]; return e.releveCourant ? { c: e.releveCourant.compteurs, t: e.releveCourant.totaux, lignes: e.releveCourant.data.filter((x) => /9001|E2E/.test(x.numero + x.pieceReference)).map((x) => x.statut + ':' + (x.numero || x.pieceReference) + ':' + x.ecart) } : { msg: Ext.MessageBox.msg.getEl().dom.textContent }; });
     await p.screenshot({ path: SORTIE + '/pointage-releve.png' });
     const vu = (rel.lignes || []).join(' | ');

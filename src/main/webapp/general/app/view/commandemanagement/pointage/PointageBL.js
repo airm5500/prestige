@@ -25,8 +25,9 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
 
     initComponent: function () {
         var me = this, enc = Ext.String.htmlEncode;
+        /* le format d'ExtJS ne groupe pas les milliers d'un nombre negatif : signe ajoute a part */
         var nombre = function (v) {
-            return v === null || v === undefined || v === '' ? '' : Ext.util.Format.number(v, '0,000');
+            return v === null || v === undefined || v === '' ? '' : (v < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(v), '0,000');
         };
         var montant = function (v) {
             return v === null || v === undefined || v === '' ? '' : '<span style="' + (v < 0 ? 'color:#b42318' : '') + '">' + nombre(v) + '</span>';
@@ -74,7 +75,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                 }}},
                         {xtype: 'datefield', itemId: 'du', fieldLabel: 'Du', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: debutMois},
                         {xtype: 'datefield', itemId: 'au', fieldLabel: 'Au', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date()},
-                        {xtype: 'combobox', itemId: 'etat', width: 130, editable: false, queryMode: 'local', value: 'TOUS',
+                        {xtype: 'combobox', itemId: 'etat', width: 160, editable: false, queryMode: 'local', value: 'TOUS',
                             store: [['TOUS', 'Toutes les pièces'], ['NON_POINTES', 'Non pointées'], ['POINTES', 'Pointées']],
                             listeners: {select: function () {
                                     me.charger();
@@ -196,14 +197,14 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                 return '<span class="pb-pastille" data-statut="' + enc(v) + '" data-qtip="' + enc(s.info) + '" style="color:' + s.couleur + ';background:' + s.fond + '">' + enc(s.texte) + '</span>';
                                             }},
                                         {text: 'Type', dataIndex: 'type', width: 70},
-                                        {text: 'N° relevé', dataIndex: 'numero', width: 140},
+                                        {text: 'N° relevé', dataIndex: 'numero', width: 130},
                                         {text: 'Séq.', dataIndex: 'sequence', width: 70},
                                         {text: 'Date', dataIndex: 'date', width: 95},
-                                        {text: 'Montant relevé', dataIndex: 'montantReleve', width: 125, align: 'right', renderer: montant},
+                                        {text: 'Montant relevé', dataIndex: 'montantReleve', width: 145, align: 'right', renderer: montant},
                                         {text: 'Pièce Prestige', dataIndex: 'pieceReference', flex: 1, minWidth: 150, renderer: function (v, m, r) {
                                                 return v ? enc((me.TYPES[r.get('pieceType')] || '') + ' ' + v) : '';
                                             }},
-                                        {text: 'Montant Prestige', dataIndex: 'montantPrestige', width: 135, align: 'right', renderer: montant},
+                                        {text: 'Montant Prestige', dataIndex: 'montantPrestige', width: 158, align: 'right', renderer: montant},
                                         {text: 'Écart', dataIndex: 'ecart', width: 100, align: 'right', renderer: function (v) {
                                                 return v ? '<b style="color:#b42318">' + nombre(v) + '</b>' : '';
                                             }}
@@ -247,7 +248,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
 
     majTotauxPointage: function (o, succes) {
         var b = this.down('#totauxPointage'), n = function (v) {
-            return Ext.util.Format.number(v || 0, '0,000');
+            return (v < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(v || 0), '0,000');
         };
         if (!b) {
             return;
@@ -364,7 +365,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
 
     filtrerReleve: function () {
         var me = this, o = me.releveCourant, enc = Ext.String.htmlEncode, n = function (v) {
-            return Ext.util.Format.number(v || 0, '0,000');
+            return (v < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(v || 0), '0,000');
         };
         if (!o) {
             return;
