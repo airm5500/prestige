@@ -81,7 +81,9 @@ const nbCaisse = () => Number(q("SELECT COUNT(*) FROM t_mvt_caisse WHERE str_NUM
   const regler = (corps, tout) => p.evaluate(async ([c, t]) => { const r = await fetch('/prestige/api/v1/reglement/' + (t ? 'reglementdiffere-all' : 'reglementdiffere'),
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) }); return r.json(); }, [corps, !!tout]);
   const partiel = (client, lignes, montant, type) => ({ montantRecu: montant, montantRemis: 0, montantPaye: montant, clientId: client, typeRegleId: type || '1', nom: '', banque: '', lieux: '',
-    totalRecap: lignes.reduce((s, k) => s + reste(k), 0), natureVenteId: aujourdhui, commentaire: JSON.stringify(lignes.map((k) => 'e2e-rgd-' + k)) });
+    totalRecap: lignes.reduce((s, k) => s + reste(k), 0), natureVenteId: aujourdhui, commentaire: JSON.stringify(lignes.map((k) => 'e2e-rgd-' + k)),
+    /* comme l'ecran : restes vus au moment de l'ouverture */
+    restesAttendus: JSON.stringify(Object.fromEntries(lignes.map((k) => ['e2e-rgd-' + k, reste(k)]))) });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
@@ -145,6 +147,11 @@ const nbCaisse = () => Number(q("SELECT COUNT(*) FROM t_mvt_caisse WHERE str_NUM
       userVendeurId: q("SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY)"), compteClientId: aujourdhui, natureVenteId: aujourdhui }, true);
     const soldes = 8000 - reste('A1') - reste('A2');
     ok('6. Règlement total : la caisse encaisse exactement ce qui est retiré des dettes', r6.success !== true || encaisse() === soldes, JSON.stringify(r6) + ', encaissé ' + encaisse() + ', retiré des dettes ' + soldes);
+    reinitialiser();
+    const r6b = await regler({ montantRecu: 10000, montantRemis: 0, montantPaye: 10000, clientId: CA, typeRegleId: '1', nom: '', totalRecap: 8000, banque: '', lieux: '',
+      userVendeurId: q("SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY)"), compteClientId: aujourdhui, natureVenteId: aujourdhui }, true);
+    ok('6b. Règlement total avec le total affiché exact (8 000) et 10 000 reçus : 8 000 encaissés, dettes soldées',
+      r6b.success === true && encaisse() === 8000 && reste('A1') === 0 && reste('A2') === 0, JSON.stringify(r6b) + ', encaissé ' + encaisse() + ', restes ' + reste('A1') + '/' + reste('A2'));
     reinitialiser();
 
     /* 7. mobile money */

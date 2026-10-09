@@ -23,6 +23,7 @@ import dal.TEmplacement_;
 import dal.TModeReglement;
 import dal.TMotifReglement;
 import dal.TMvtCaisse;
+import dal.TPreenregistrement;
 import dal.TPreenregistrementCompteClient;
 import dal.TPreenregistrementCompteClient_;
 import dal.TPreenregistrement_;
@@ -655,13 +656,33 @@ public class ReglementServiceImpl implements ReglementService {
                 return json.put("success", false).put("msg", "Votre caisse est fermée");
             }
             TCompteClient compteClient = getByClientId(p.getClientId());
-            List<TPreenregistrementCompteClient> listPreEnreg = getPreenregistrementCompteClients(p.getUserVendeurId(),
-                    p.getCompteClientId(), compteClient.getLgCOMPTECLIENTID());
-            if (listPreEnreg.isEmpty()) {
-                return json.put("success", false).put("msg", "La liste des ventes est vide");
+            String emplacement = p.getUserId().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            /* retours du 09/10 (1) : memes ventes que la liste de l'ecran (non annulees, de l'emplacement), lues sous
+             * verrou ; la caisse encaisse exactement ce qui est retire des dettes, verifie contre le total affiche */
+            List<TPreenregistrementCompteClient> listPreEnreg = verrouiller(getPreenregistrementCompteClients(
+                    p.getUserVendeurId(), p.getCompteClientId(), compteClient.getLgCOMPTECLIENTID()).stream()
+                    .filter(a -> !Boolean.TRUE.equals(a.getLgPREENREGISTREMENTID().getBISCANCEL())
+                            && a.getLgUSERID() != null && a.getLgUSERID().getLgEMPLACEMENTID() != null
+                            && emplacement.equals(a.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID()))
+                    .collect(Collectors.toList()));
+            listPreEnreg.removeIf(a -> a.getIntPRICERESTE() == null || a.getIntPRICERESTE() <= 0);
+            ReglementDiffereControle.Resultat controle = ReglementDiffereControle.total(lignesControle(listPreEnreg),
+                    p.getClientId(), p.getTotalRecap(), p.getMontantRecu() == null ? 0 : p.getMontantRecu());
+            if (!controle.valide()) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", controle.erreur);
             }
+            p.setMontantPaye(controle.encaisse);
+            p.setMontantRecu(p.getMontantRecu() == null ? controle.encaisse : p.getMontantRecu());
+            p.setMontantRemis(Math.max(0, p.getMontantRecu() - controle.encaisse));
+            p.setTotalRecap(controle.encaisse);
             TTypeMvtCaisse typeMvt = getEmg().find(TTypeMvtCaisse.class, Constant.KEY_PARAM_MVT_REGLEMENT_DIFFERES);
-            TModeReglement modeReglement = findModeReglement(p.getTypeRegleId());
+            TModeReglement modeReglement = findModeReglement(StringUtils.defaultString(p.getTypeRegleId()).trim());
+            /* un differe ne se regle pas « en differe » ; un mode inconnu ne devient pas des especes */
+            if (modeReglement == null || "4".equals(StringUtils.trim(p.getTypeRegleId()))) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", "Mode de règlement non accepté pour un règlement de différé.");
+            }
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
             TDossierReglement dossierReglement = createDossierReglements(p.getClientId(), p.getUserId(),
@@ -679,13 +700,7 @@ public class ReglementServiceImpl implements ReglementService {
                     CategoryTransaction.CREDIT, TypeTransaction.ENTREE, modeReglement.getLgTYPEREGLEMENTID(), typeMvt,
                     getEmg(), p.getMontantPaye(), 0, 0, caisse.getStrREFTICKET(),
                     compteClient.getLgCLIENTID().getLgCLIENTID(), p.getTotalRecap() - p.getMontantPaye());
-            listPreEnreg.forEach(a -> {
-                createDossierReglementDetail(a.getLgPREENREGISTREMENTCOMPTECLIENTID(), dossierReglement,
-                        a.getIntPRICERESTE());
-                a.setIntPRICERESTE(0);
-                a.setDtUPDATED(now);
-                getEmg().merge(a);
-            });
+            appliquer(controle, listPreEnreg, dossierReglement, now);
             logService.updateItem(p.getUserId(), caisse.getLgMVTCAISSEID(), description, TypeLog.MVT_DE_CAISSE, caisse);
             createNotification(description, TypeNotification.MVT_DE_CAISSE, p.getUserId(),
                     buildDonneesMapDiffere(p.getUserId(), dossierReglement.getDblAMOUNT()), caisse.getLgMVTCAISSEID());
@@ -718,8 +733,38 @@ public class ReglementServiceImpl implements ReglementService {
             if (array.isEmpty()) {
                 return json.put("success", false).put("msg", "Veuillez sélectionner au moins un dossier");
             }
+            /* retours du 09/10 (1) : ventes choisies lues sous verrou et controlees avant toute ecriture
+             * (appartenance au client, restes vus a l'ecran, montant <= du) */
+            List<String> ids = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                if (!ids.contains(array.getString(i))) {
+                    ids.add(array.getString(i));
+                }
+            }
+            List<TPreenregistrementCompteClient> choisies = new ArrayList<>();
+            for (String id : ids.stream().sorted().collect(Collectors.toList())) {
+                choisies.add(getEmg().find(TPreenregistrementCompteClient.class, id,
+                        javax.persistence.LockModeType.PESSIMISTIC_WRITE));
+            }
+            Map<String, TPreenregistrementCompteClient> parId = new HashMap<>();
+            choisies.stream().filter(Objects::nonNull)
+                    .forEach(t -> parId.put(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), t));
+            List<TPreenregistrementCompteClient> ordonnees = new ArrayList<>();
+            ids.forEach(id -> ordonnees.add(parId.get(id)));
+            ReglementDiffereControle.Resultat controle = ReglementDiffereControle.partiel(lignesControle(ordonnees),
+                    p.getClientId(), restesAttendus(p.getRestesAttendus()),
+                    p.getMontantPaye() == null ? 0 : p.getMontantPaye());
+            if (!controle.valide()) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", controle.erreur);
+            }
             TTypeMvtCaisse typeMvt = getEmg().find(TTypeMvtCaisse.class, Constant.KEY_PARAM_MVT_REGLEMENT_DIFFERES);
-            TModeReglement modeReglement = findModeReglement(p.getTypeRegleId());
+            TModeReglement modeReglement = findModeReglement(StringUtils.defaultString(p.getTypeRegleId()).trim());
+            /* un differe ne se regle pas « en differe » ; un mode inconnu ne devient pas des especes */
+            if (modeReglement == null || "4".equals(StringUtils.trim(p.getTypeRegleId()))) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", "Mode de règlement non accepté pour un règlement de différé.");
+            }
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
             TDossierReglement dossierReglement = createDossierReglements(p.getClientId(), p.getUserId(),
@@ -737,7 +782,7 @@ public class ReglementServiceImpl implements ReglementService {
                     CategoryTransaction.CREDIT, TypeTransaction.ENTREE, modeReglement.getLgTYPEREGLEMENTID(), typeMvt,
                     getEmg(), p.getMontantPaye(), 0, 0, caisse.getStrREFTICKET(),
                     compteClient.getLgCLIENTID().getLgCLIENTID(), p.getTotalRecap() - p.getMontantPaye());
-            distributePayment(array, dossierReglement, p.getMontantPaye(), now);
+            appliquer(controle, ordonnees, dossierReglement, now);
             logService.updateItem(p.getUserId(), caisse.getLgMVTCAISSEID(), description, TypeLog.MVT_DE_CAISSE, caisse);
             createNotification(description, TypeNotification.MVT_DE_CAISSE, p.getUserId(),
                     buildDonneesMapDiffere(p.getUserId(), dossierReglement.getDblAMOUNT()), caisse.getLgMVTCAISSEID());
@@ -752,6 +797,63 @@ public class ReglementServiceImpl implements ReglementService {
             LOG.log(Level.SEVERE, null, e);
             sessionContext.setRollbackOnly();
             return new JSONObject().put("success", false).put("msg", "Une erreur est survenue lors du règlement");
+        }
+    }
+
+    /** Lignes relues sous verrou (deux encaissements simultanes ne lisent pas le meme reste). */
+    private List<TPreenregistrementCompteClient> verrouiller(List<TPreenregistrementCompteClient> lignes) {
+        List<TPreenregistrementCompteClient> triees = new ArrayList<>(lignes);
+        triees.sort(Comparator.comparing(TPreenregistrementCompteClient::getLgPREENREGISTREMENTCOMPTECLIENTID));
+        for (TPreenregistrementCompteClient t : triees) {
+            getEmg().refresh(t, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        }
+        return new ArrayList<>(lignes);
+    }
+
+    private static List<ReglementDiffereControle.Ligne> lignesControle(List<TPreenregistrementCompteClient> lignes) {
+        List<ReglementDiffereControle.Ligne> l = new ArrayList<>();
+        for (TPreenregistrementCompteClient t : lignes) {
+            if (t == null) {
+                l.add(null);
+                continue;
+            }
+            String client = t.getLgCOMPTECLIENTID() == null || t.getLgCOMPTECLIENTID().getLgCLIENTID() == null ? null
+                    : t.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID();
+            TPreenregistrement v = t.getLgPREENREGISTREMENTID();
+            l.add(new ReglementDiffereControle.Ligne(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), client,
+                    t.getStrSTATUT(), v == null || Boolean.TRUE.equals(v.getBISCANCEL()),
+                    t.getIntPRICERESTE() == null ? 0 : t.getIntPRICERESTE()));
+        }
+        return l;
+    }
+
+    /** {"id": reste vu a l'ecran, ...} ; null si l'ecran ne l'envoie pas (pas de controle de fraicheur). */
+    private static Map<String, Integer> restesAttendus(String json) {
+        if (StringUtils.isBlank(json)) {
+            return null;
+        }
+        try {
+            JSONObject o = new JSONObject(json);
+            Map<String, Integer> m = new HashMap<>();
+            for (String k : o.keySet()) {
+                m.put(k, o.getInt(k));
+            }
+            return m;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void appliquer(ReglementDiffereControle.Resultat controle, List<TPreenregistrementCompteClient> lignes,
+            TDossierReglement dossierReglement, Date now) {
+        Map<String, TPreenregistrementCompteClient> parId = new HashMap<>();
+        lignes.forEach(t -> parId.put(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), t));
+        for (ReglementDiffereControle.Affectation a : controle.affectations) {
+            TPreenregistrementCompteClient tp = parId.get(a.id);
+            createDossierReglementDetail(a.id, dossierReglement, a.montant);
+            tp.setIntPRICERESTE(a.nouveauReste);
+            tp.setDtUPDATED(now);
+            getEmg().merge(tp);
         }
     }
 

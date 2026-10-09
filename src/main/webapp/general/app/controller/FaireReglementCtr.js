@@ -201,7 +201,8 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
         let me = this;
         let value = field.getValue().trim();
         let nature = me.getNature().getValue();
-        if (value === '1' || value === '7' || value === '8' || value === '8') {
+        /* especes et mobile money (ORANGE, MOOV, MTN, WAVE, DJAMO) : montant recu saisi */
+        if (value === '1' || value === '7' || value === '8' || value === '9' || value === '10' || value === '19') {
             me.getMontantRecu().enable();
             me.getMontantRecu().setReadOnly(false);
             me.getCbContainer().hide();
@@ -262,7 +263,10 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
     updateCombox: function (x) {
         var me = this;
         me.getTypeReglement().getStore().load(function (records, operation, success) {
-            me.getTypeReglement().setValue('1');
+            /* retours du 09/10 (1) : ne pas ecraser un mode deja choisi (mobile money repasse en especes) */
+            if (!me.getTypeReglement().getValue()) {
+                me.getTypeReglement().setValue('1');
+            }
         });
 
         if (x) {
@@ -301,6 +305,12 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
 
     doSearch: function () {
         var me = this;
+        /* retours du 09/10 (1) : la selection appartient au client affiche ; elle est videe a chaque recherche
+         * (sinon les ventes cochees d'un autre client etaient reglees) */
+        me.selected = [];
+        if (me.getGridReglement()) {
+            me.getGridReglement().getSelectionModel().deselectAll(true);
+        }
         if (me.getClient().getValue()) {
             me.getGridReglement().getStore().load({
                 params: {
@@ -377,8 +387,20 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
         });
     },
 
+    restesSelectionnes: function () {
+        var g = this.getGridReglement(), r = {};
+        Ext.each(g ? g.getSelectionModel().getSelection() : [], function (x) {
+            r[x.get('id')] = x.get('montantRegle');
+        });
+        return r;
+    },
+
     doReglement: function () {
         var me = this;
+        /* retours du 09/10 (1) : un seul envoi a la fois (double clic, Entree + clic) */
+        if (me.reglementEnCours) {
+            return;
+        }
         var nature = me.getNature().getValue();
         var mode = me.getTypeReglement().getValue();
         var clientId = me.getClient().getValue();
@@ -416,6 +438,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
 
                 var dtStart = me.getDtStart().getSubmitValue(),
                         dtEnd = me.getDtEnd().getSubmitValue();
+                me.reglementEnCours = true;
                 var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                 Ext.Ajax.request({
                     method: 'POST',
@@ -438,6 +461,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
                     success: function (response, options) {
                         var result = Ext.JSON.decode(response.responseText, true);
                         progress.hide();
+                        me.reglementEnCours = false;
                         if (result.success) {
 
                             Ext.MessageBox.show({
@@ -472,6 +496,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
                     },
                     failure: function (response, options) {
                         progress.hide();
+                        me.reglementEnCours = false;
                          Ext.MessageBox.alert('Error Message', response.responseText);
                       
                     }
@@ -481,6 +506,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
 
         } else {
             if (montantRecu > 0) {
+                me.reglementEnCours = true;
                 var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                 Ext.Ajax.request({
                     method: 'POST',
@@ -497,11 +523,14 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
                         "lieux": lieux,
                         "totalRecap": totalRecap,
                         "natureVenteId": dateReglement,
-                        "commentaire": JSON.stringify(me.getSelected())
+                        "commentaire": JSON.stringify(me.getSelected()),
+                        /* restes vus a l'ecran : le serveur refuse si une vente a ete reglee ailleurs entre-temps */
+                        "restesAttendus": JSON.stringify(me.restesSelectionnes())
                     }),
                     success: function (response, options) {
                         var result = Ext.JSON.decode(response.responseText, true);
                         progress.hide();
+                        me.reglementEnCours = false;
                         if (result.success) {
 
                             Ext.MessageBox.show({
@@ -536,6 +565,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
                     },
                     failure: function (response, options) {
                         progress.hide();
+                        me.reglementEnCours = false;
                         Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
                     }
 

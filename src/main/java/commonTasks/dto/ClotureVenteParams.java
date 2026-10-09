@@ -24,6 +24,16 @@ public class ClotureVenteParams implements Serializable {
     Integer montantRecu = 0, montantRemis = 0, totalRecap = 0, montantPaye, partTP = 0, marge = 0;
     private TUser userId;
     private String venteId;
+    /** Reglement des differes : restes vus a l'ecran, {"id": reste} (controle de fraicheur, retours du 09/10). */
+    private String restesAttendus;
+
+    public String getRestesAttendus() {
+        return restesAttendus;
+    }
+
+    public void setRestesAttendus(String restesAttendus) {
+        this.restesAttendus = restesAttendus;
+    }
     private boolean sansBon;
     private String typeVenteId, natureVenteId;
     private TiersPayantParams compteTp, compteTpNouveau;
