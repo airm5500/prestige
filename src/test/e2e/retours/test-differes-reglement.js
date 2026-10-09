@@ -151,7 +151,7 @@ const nbCaisse = () => Number(q("SELECT COUNT(*) FROM t_mvt_caisse WHERE str_NUM
     const types = { 7: ['ORANGE', '10'], 9: ['MTN', '9'], 8: ['MOOV', '8'], 10: ['WAVE', '11'] };
     for (const t of Object.keys(types)) {
       const r7 = await regler(partiel(CB, ['B1'], 500, t));
-      const d = q("SELECT d.lg_DOSSIER_REGLEMENT_ID FROM t_dossier_reglement d WHERE d.str_ORGANISME_ID = '" + CB + "' ORDER BY d.dt_CREATED DESC LIMIT 1");
+      const d = String(r7.ref || '').replace(/[^\w-]/g, ''); // dossier rendu par le serveur (deux reglements peuvent tomber dans la meme seconde)
       const modes = q("SELECT CONCAT_WS('|', (SELECT lg_MODE_REGLEMENT_ID FROM t_reglement WHERE str_REF_RESSOURCE = '" + d + "'), (SELECT lg_MODE_REGLEMENT_ID FROM t_mvt_caisse WHERE str_NUM_PIECE_COMPTABLE = '" + d + "'),"
         + " (SELECT typeReglementId FROM mvttransaction WHERE pkey = '" + d + "'))");
       ok('7. Mobile money ' + types[t][0] + ' : mode conservé (règlement, caisse, mouvement), pas espèces', r7.success === true && modes === types[t][1] + '|' + types[t][1] + '|' + t, JSON.stringify(r7) + ' modes ' + modes);
