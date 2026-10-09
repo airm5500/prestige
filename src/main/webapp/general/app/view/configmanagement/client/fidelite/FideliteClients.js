@@ -21,7 +21,8 @@ Ext.define('testextjs.view.configmanagement.client.fidelite.FideliteClients', {
         ANNULATION: {texte: 'Vente annulée / modifiée', couleur: '#b42318'},
         EXPIRATION: {texte: 'Expiration', couleur: '#8a94a0'},
         UTILISATION: {texte: 'Utilisation', couleur: '#1f5f9e'},
-        AJUSTEMENT: {texte: 'Ajustement', couleur: '#b26a00'}
+        AJUSTEMENT: {texte: 'Ajustement', couleur: '#b26a00'},
+        RESTITUTION: {texte: 'Points rendus (vente annulée)', couleur: '#17795f'}
     },
 
     initComponent: function () {

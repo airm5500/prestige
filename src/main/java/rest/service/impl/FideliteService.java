@@ -34,8 +34,10 @@ import rest.service.impl.FideliteCalcul.Reste;
 public class FideliteService {
 
     static final String ID = "FIDELITE";
+    /** Type de reglement « Points fidelite » (t_type_reglement). */
+    public static final String TYPE_REGLEMENT = "20";
     static final String GAIN = "GAIN", ANNULATION = "ANNULATION", EXPIRATION = "EXPIRATION",
-            UTILISATION = "UTILISATION", AJUSTEMENT = "AJUSTEMENT";
+            UTILISATION = "UTILISATION", AJUSTEMENT = "AJUSTEMENT", RESTITUTION = "RESTITUTION";
     /** Ventes traitees par synchronisation (la suite au passage suivant). */
     static final int LOT = 5000;
     private static final DateTimeFormatter JJ_MM_AAAA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -199,6 +201,14 @@ public class FideliteService {
                 .setParameter(5, exp).setParameter(6, assurance ? 1 : 0)
                 .setParameter(7, debut == null ? null : java.sql.Date.valueOf(debut)).setParameter(8, userId)
                 .setParameter(9, ID).executeUpdate();
+        /* mode de reglement « Points fidelite » propose a la caisse seulement quand la fidelite est activee */
+        String statut = actif ? "enable" : "disable";
+        em.createNativeQuery(
+                "UPDATE t_type_reglement SET str_STATUT = ?1, dt_UPDATED = NOW()" + " WHERE lg_TYPE_REGLEMENT_ID = ?2")
+                .setParameter(1, statut).setParameter(2, TYPE_REGLEMENT).executeUpdate();
+        em.createNativeQuery(
+                "UPDATE t_mode_reglement SET str_STATUT = ?1, dt_UPDATED = NOW()" + " WHERE lg_TYPE_REGLEMENT_ID = ?2")
+                .setParameter(1, statut).setParameter(2, TYPE_REGLEMENT).executeUpdate();
         return lireParametres().put("msg", "Paramètres enregistrés.");
     }
 
@@ -310,7 +320,9 @@ public class FideliteService {
                 + " (SELECT COALESCE(SUM(d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)), 0)"
                 + "   FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                 + "   WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND (f.lg_FAMILLEARTICLE_ID IS NULL"
-                + "   OR f.lg_FAMILLEARTICLE_ID NOT IN (SELECT e.lg_FAMILLEARTICLE_ID FROM t_fidelite_exclusion e)))"
+                + "   OR f.lg_FAMILLEARTICLE_ID NOT IN (SELECT e.lg_FAMILLEARTICLE_ID FROM t_fidelite_exclusion e))),"
+                + " (SELECT COALESCE(SUM(u.int_VALEUR), 0) FROM t_fidelite_mouvement u"
+                + "   WHERE u.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND u.str_TYPE = 'UTILISATION')"
                 + " FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID"
                 + " WHERE p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL, 0) = 0 AND p.int_PRICE > 0"
                 + " AND p.str_TYPE_VENTE IN ('VNO'" + (p.assurance ? ", 'VO'" : "") + ") AND p.dt_UPDATED >= ?1"
@@ -324,7 +336,8 @@ public class FideliteService {
                 continue;
             }
             String client = texte(v[1]);
-            long base = FideliteCalcul.base(grand(v[2]), grand(v[6]), grand(v[5]));
+            /* la part payee avec des points ne rapporte pas de points */
+            long base = FideliteCalcul.base(grand(v[2]), grand(v[6]), grand(v[5]) + grand(v[7]));
             Palier pal = FideliteCalcul.palier(paliers, acquis12Mois(client, quand));
             double coef = pal == null ? 1.0 : pal.coefficient;
             int points = FideliteCalcul.points(base, p.montantPoint, coef);
@@ -351,11 +364,28 @@ public class FideliteService {
                     .setParameter(1, texte(g[0])).executeUpdate();
             annulations++;
         }
-        /* 3. expiration des points restants (gains et ajustements positifs) */
+        /* 2 bis. restitution : points donnes en paiement d'une vente annulee (ou modifiee) */
+        int restitutions = 0;
+        for (Object[] u : (List<Object[]>) em.createNativeQuery("SELECT m.lg_CLIENT_ID, -m.int_POINTS,"
+                + " m.lg_PREENREGISTREMENT_ID, m.str_REFERENCE, m.int_VALEUR"
+                + " FROM t_fidelite_mouvement m JOIN t_preenregistrement p"
+                + "   ON p.lg_PREENREGISTREMENT_ID = m.lg_PREENREGISTREMENT_ID"
+                + " WHERE m.str_TYPE = 'UTILISATION' AND m.int_POINTS < 0 AND (COALESCE(p.b_IS_CANCEL, 0) = 1"
+                + "   OR p.str_STATUT <> 'is_Closed')" + " AND NOT EXISTS (SELECT 1 FROM t_fidelite_mouvement r"
+                + "   WHERE r.lg_PREENREGISTREMENT_ID = m.lg_PREENREGISTREMENT_ID AND r.str_TYPE = 'RESTITUTION')")
+                .getResultList()) {
+            int pts = entier(u[1]);
+            LocalDate exp = p.expirationMois > 0 ? LocalDate.now().plusMonths(p.expirationMois) : null;
+            inserer(texte(u[0]), RESTITUTION, pts, pts, null, null, texte(u[2]), texte(u[3]),
+                    "Points rendus : vente payée en points annulée ou modifiée", u[4] == null ? null : entier(u[4]),
+                    LocalDateTime.now(), exp, null);
+            restitutions++;
+        }
+        /* 3. expiration des points restants (gains, ajustements positifs et restitutions) */
         for (Object[] g : (List<Object[]>) em.createNativeQuery("SELECT lg_MOUVEMENT_ID, lg_CLIENT_ID, int_RESTANTS,"
                 + " lg_PREENREGISTREMENT_ID, str_REFERENCE, dt_EXPIRATION FROM t_fidelite_mouvement"
-                + " WHERE str_TYPE IN ('GAIN', 'AJUSTEMENT') AND int_RESTANTS > 0 AND dt_EXPIRATION < CURDATE()")
-                .getResultList()) {
+                + " WHERE str_TYPE IN ('GAIN', 'AJUSTEMENT', 'RESTITUTION') AND int_RESTANTS > 0"
+                + " AND dt_EXPIRATION < CURDATE()").getResultList()) {
             LocalDate fin = jour(g[5]);
             inserer(texte(g[1]), EXPIRATION, -entier(g[2]), 0, null, null, texte(g[3]),
                     StringUtils.defaultIfBlank(texte(g[4]), texte(g[0])), "Points expirés", null,
@@ -366,8 +396,8 @@ public class FideliteService {
         }
         em.createNativeQuery("UPDATE t_fidelite_parametre SET dt_SYNCHRO = NOW() WHERE lg_PARAMETRE_ID = ?1")
                 .setParameter(1, ID).executeUpdate();
-        return r.put("actif", true).put("gains", gains).put("annulations", annulations).put("expirations", expirations)
-                .put("suite", ventes.size() >= LOT);
+        return r.put("actif", true).put("gains", gains).put("annulations", annulations)
+                .put("restitutions", restitutions).put("expirations", expirations).put("suite", ventes.size() >= LOT);
     }
 
     // ------------------------------------------------------------------ consultation
@@ -520,6 +550,74 @@ public class FideliteService {
                 LocalDateTime.now(), null, userId);
         return compte(client).put("msg", points + " point(s) utilisé(s), soit " + valeur + " FCFA.")
                 .put("valeurUtilisee", valeur);
+    }
+
+    /** Refus du paiement en points : la vente n'est pas enregistree (transaction annulee). */
+    @javax.ejb.ApplicationException(rollback = true)
+    public static class PaiementPointsRefuse extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public PaiementPointsRefuse(String message) {
+            super(message);
+        }
+    }
+
+    /** Points necessaires pour payer ce montant (arrondi au point superieur). */
+    static int pointsPour(long montant, int valeurPoint) {
+        return valeurPoint <= 0 ? 0 : (int) ((montant + valeurPoint - 1) / valeurPoint);
+    }
+
+    /**
+     * Ce que le client peut payer avec ses points a la caisse (ecran de vente) : apres mise a jour du registre.
+     */
+    public JSONObject pourPaiement(String client) {
+        synchroniser();
+        Parametres p = parametres(false);
+        long s = client == null ? 0 : solde(client);
+        boolean utilisable = p.actif && p.valeurPoint > 0 && s > 0 && s >= p.seuil;
+        return new JSONObject().put("success", true).put("actif", p.actif).put("solde", s)
+                .put("valeurPoint", p.valeurPoint).put("seuil", p.seuil).put("utilisable", utilisable)
+                .put("montantMax", utilisable ? FideliteCalcul.valeur(s, p.valeurPoint) : 0)
+                .put("msg", !p.actif ? "La fidélité n'est pas activée." : s < Math.max(1, p.seuil) ? "Le client a " + s
+                        + " point(s) : il en faut " + Math.max(1, p.seuil) + " pour payer avec ses points." : "");
+    }
+
+    /**
+     * Paiement d'une vente avec des points (mode de reglement « Points fidelite ») : appele dans la transaction de la
+     * cloture ; refus = exception, la vente n'est pas enregistree. Rend les points utilises.
+     */
+    public int payerVente(String client, String venteId, String reference, long montant, String userId) {
+        if (montant <= 0) {
+            return 0;
+        }
+        Parametres p = parametres(true);
+        if (!p.actif || p.valeurPoint <= 0) {
+            throw new PaiementPointsRefuse("Paiement en points impossible : la fidélité n'est pas activée.");
+        }
+        if (client == null || !clientExiste(client)) {
+            throw new PaiementPointsRefuse("Paiement en points : choisissez d'abord le client de la vente.");
+        }
+        long s = solde(client);
+        int points = pointsPour(montant, p.valeurPoint);
+        if (s < Math.max(1, p.seuil)) {
+            throw new PaiementPointsRefuse("Paiement en points refusé : le client a " + s + " point(s), il en faut "
+                    + Math.max(1, p.seuil) + " pour les utiliser.");
+        }
+        if (points > s) {
+            throw new PaiementPointsRefuse("Paiement en points refusé : " + montant + " FCFA demandent " + points
+                    + " point(s), le client n'en a que " + s + " (" + FideliteCalcul.valeur(s, p.valeurPoint)
+                    + " FCFA).");
+        }
+        List<?> deja = em.createNativeQuery("SELECT 1 FROM t_fidelite_mouvement WHERE lg_PREENREGISTREMENT_ID = ?1"
+                + " AND str_TYPE = 'UTILISATION'").setParameter(1, venteId).getResultList();
+        if (!deja.isEmpty()) {
+            throw new PaiementPointsRefuse("Cette vente a déjà été payée en points.");
+        }
+        retirer(client, points);
+        inserer(client, UTILISATION, -points, 0, null, null, venteId, reference, "Paiement de la vente en points",
+                (int) montant, LocalDateTime.now(), null, userId);
+        return points;
     }
 
     /** Ajustement manuel (geste commercial, correction) : motif obligatoire. */
