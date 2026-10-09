@@ -55,7 +55,8 @@ public class PointageBLService {
             return new JSONObject().put("type", type).put("id", id).put("cle", type + ":" + id)
                     .put("reference", StringUtils.defaultString(reference))
                     .put("referenceAvoir", StringUtils.defaultString(referenceAvoir))
-                    .put("sequence", StringUtils.defaultString(sequence)).put("statut", StringUtils.defaultString(statut))
+                    .put("sequence", StringUtils.defaultString(sequence))
+                    .put("statut", StringUtils.defaultString(statut))
                     .put("date", date == null ? "" : date.format(JJ_MM_AAAA))
                     .put("montantHt", TYPE_BL.equals(type) ? montantHt : -Math.abs(montantHt))
                     .put("pointable", !TYPE_RECEPTION.equals(type)).put("pointe", pointeLe != null)
@@ -191,28 +192,32 @@ public class PointageBLService {
                     nonPointes++;
                 }
             }
-            if ("POINTES".equals(etat) && !pointe || "NON_POINTES".equals(etat) && (pointe || TYPE_RECEPTION.equals(p.type))) {
+            if ("POINTES".equals(etat) && !pointe
+                    || "NON_POINTES".equals(etat) && (pointe || TYPE_RECEPTION.equals(p.type))) {
                 continue;
             }
             data.put(p.json());
         }
-        return new JSONObject().put("success", true).put("data", data).put("total", data.length())
-                .put("totalBl", bl).put("totalAvoirs", avoirs).put("net", bl + avoirs).put("pointes", pointes)
+        return new JSONObject().put("success", true).put("data", data).put("total", data.length()).put("totalBl", bl)
+                .put("totalAvoirs", avoirs).put("net", bl + avoirs).put("pointes", pointes)
                 .put("nonPointes", nonPointes);
     }
 
     /** Pointer ou depointer un BL ou un avoir (retour). */
     public JSONObject pointer(String type, String id, boolean pointe, String userId) {
-        String table = TYPE_BL.equals(type) ? "t_bon_livraison" : TYPE_RETOUR.equals(type) ? "t_retour_fournisseur" : null;
+        String table = TYPE_BL.equals(type) ? "t_bon_livraison"
+                : TYPE_RETOUR.equals(type) ? "t_retour_fournisseur" : null;
         String cle = TYPE_BL.equals(type) ? "lg_BON_LIVRAISON_ID" : "lg_RETOUR_FRS_ID";
         if (table == null || StringUtils.isBlank(id)) {
             return new JSONObject().put("success", false).put("msg", "Pièce inconnue.");
         }
         int n = pointe
-                ? em.createNativeQuery("UPDATE " + table + " SET dt_POINTAGE = NOW(), lg_POINTAGE_USER = ?1 WHERE " + cle
-                        + " = ?2").setParameter(1, userId).setParameter(2, id).executeUpdate()
-                : em.createNativeQuery("UPDATE " + table + " SET dt_POINTAGE = NULL, lg_POINTAGE_USER = NULL WHERE " + cle
-                        + " = ?1").setParameter(1, id).executeUpdate();
+                ? em.createNativeQuery(
+                        "UPDATE " + table + " SET dt_POINTAGE = NOW(), lg_POINTAGE_USER = ?1 WHERE " + cle + " = ?2")
+                        .setParameter(1, userId).setParameter(2, id).executeUpdate()
+                : em.createNativeQuery(
+                        "UPDATE " + table + " SET dt_POINTAGE = NULL, lg_POINTAGE_USER = NULL WHERE " + cle + " = ?1")
+                        .setParameter(1, id).executeUpdate();
         return new JSONObject().put("success", n == 1).put("msg", n == 1 ? "" : "Pièce introuvable.");
     }
 
@@ -220,8 +225,8 @@ public class PointageBLService {
     public JSONObject sequence(String blId, String sequence) {
         String s = StringUtils.trimToNull(sequence);
         if (s != null && !s.matches("[A-Za-z0-9 ./-]{1,20}")) {
-            return new JSONObject().put("success", false)
-                    .put("msg", "N° de séquence : 20 caractères au plus (chiffres, lettres, - / .).");
+            return new JSONObject().put("success", false).put("msg",
+                    "N° de séquence : 20 caractères au plus (chiffres, lettres, - / .).");
         }
         int n = em.createNativeQuery("UPDATE t_bon_livraison SET str_SEQ_CLIENT = ?1 WHERE lg_BON_LIVRAISON_ID = ?2")
                 .setParameter(1, s).setParameter(2, blId).executeUpdate();
@@ -232,8 +237,8 @@ public class PointageBLService {
     public JSONObject referenceAvoir(String retourId, String reference) {
         String s = StringUtils.trimToNull(reference);
         if (s != null && !s.matches("[A-Za-z0-9 ./-]{1,40}")) {
-            return new JSONObject().put("success", false)
-                    .put("msg", "Référence d'avoir : 40 caractères au plus (chiffres, lettres, - / .).");
+            return new JSONObject().put("success", false).put("msg",
+                    "Référence d'avoir : 40 caractères au plus (chiffres, lettres, - / .).");
         }
         int n = em.createNativeQuery("UPDATE t_retour_fournisseur SET str_REF_AVOIR = ?1 WHERE lg_RETOUR_FRS_ID = ?2")
                 .setParameter(1, s).setParameter(2, retourId).executeUpdate();
@@ -242,7 +247,8 @@ public class PointageBLService {
 
     private long tolerance() {
         try {
-            List<?> l = em.createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_POINTAGE_BL_TOLERANCE'")
+            List<?> l = em
+                    .createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_POINTAGE_BL_TOLERANCE'")
                     .getResultList();
             return l.isEmpty() ? 1 : Math.max(0, Long.parseLong(String.valueOf(l.get(0)).trim()));
         } catch (RuntimeException e) {
@@ -261,7 +267,8 @@ public class PointageBLService {
         }
         LocalDate debut = lignes.stream().map(l -> l.date).min(LocalDate::compareTo).get();
         LocalDate finR = lignes.stream().map(l -> l.date).max(LocalDate::compareTo).get();
-        List<PieceVue> vues = pieces(grossisteId, emplacement, debut.minusDays(MARGE_JOURS), finR.plusDays(MARGE_JOURS));
+        List<PieceVue> vues = pieces(grossisteId, emplacement, debut.minusDays(MARGE_JOURS),
+                finR.plusDays(MARGE_JOURS));
         List<Piece> pieces = new ArrayList<>();
         java.util.Map<String, PieceVue> parCle = new java.util.HashMap<>();
         vues.forEach(v -> {
@@ -271,8 +278,8 @@ public class PointageBLService {
         List<Resultat> resultats = new ArrayList<>();
         for (Resultat r : RapprochementBL.rapprocher(lignes, pieces, tolerance())) {
             /* une piece Prestige hors de la periode du releve n'est pas « absente du releve » */
-            if (r.statut == Statut.ABSENT_RELEVE && (r.piece.date == null || r.piece.date.isBefore(debut)
-                    || r.piece.date.isAfter(finR))) {
+            if (r.statut == Statut.ABSENT_RELEVE
+                    && (r.piece.date == null || r.piece.date.isBefore(debut) || r.piece.date.isAfter(finR))) {
                 continue;
             }
             resultats.add(r);
@@ -360,10 +367,11 @@ public class PointageBLService {
                 .put("du", date(h[3]) == null ? "" : date(h[3]).format(JJ_MM_AAAA))
                 .put("au", date(h[4]) == null ? "" : date(h[4]).format(JJ_MM_AAAA)).put("lignes", nombre(h[5]))
                 .put("importeLe", StringUtils.defaultString(quand(h[8]))).put("compteurs", compteurs)
-                .put("totaux", new JSONObject().put("releveBl", relBl).put("releveAvoirs", relAv)
-                        .put("releveNet", relBl + relAv).put("prestigeBl", prestigeBl)
-                        .put("prestigeAvoirs", prestigeAvoirs).put("prestigeNet", prestigeBl + prestigeAvoirs)
-                        .put("ecartNet", relBl + relAv - prestigeBl - prestigeAvoirs))
+                .put("totaux",
+                        new JSONObject().put("releveBl", relBl).put("releveAvoirs", relAv)
+                                .put("releveNet", relBl + relAv).put("prestigeBl", prestigeBl)
+                                .put("prestigeAvoirs", prestigeAvoirs).put("prestigeNet", prestigeBl + prestigeAvoirs)
+                                .put("ecartNet", relBl + relAv - prestigeBl - prestigeAvoirs))
                 .put("data", data).put("total", data.length());
     }
 
@@ -385,17 +393,19 @@ public class PointageBLService {
 
     /** Pointe d'un coup les BL et retours rapproches de ce releve (non encore pointes). */
     public JSONObject pointerRapproches(String releveId, String userId) {
-        int bl = em.createNativeQuery("UPDATE t_bon_livraison b JOIN t_releve_grossiste_ligne l"
-                + " ON l.lg_PIECE_ID = b.lg_BON_LIVRAISON_ID AND l.str_PIECE_TYPE = 'BL'"
-                + " SET b.dt_POINTAGE = NOW(), b.lg_POINTAGE_USER = ?1"
-                + " WHERE l.lg_RELEVE_ID = ?2 AND l.str_STATUT = 'RAPPROCHE' AND b.dt_POINTAGE IS NULL")
+        int bl = em
+                .createNativeQuery("UPDATE t_bon_livraison b JOIN t_releve_grossiste_ligne l"
+                        + " ON l.lg_PIECE_ID = b.lg_BON_LIVRAISON_ID AND l.str_PIECE_TYPE = 'BL'"
+                        + " SET b.dt_POINTAGE = NOW(), b.lg_POINTAGE_USER = ?1"
+                        + " WHERE l.lg_RELEVE_ID = ?2 AND l.str_STATUT = 'RAPPROCHE' AND b.dt_POINTAGE IS NULL")
                 .setParameter(1, userId).setParameter(2, releveId).executeUpdate();
-        int av = em.createNativeQuery("UPDATE t_retour_fournisseur rf JOIN t_releve_grossiste_ligne l"
-                + " ON l.lg_PIECE_ID = rf.lg_RETOUR_FRS_ID AND l.str_PIECE_TYPE = 'RETOUR'"
-                + " SET rf.dt_POINTAGE = NOW(), rf.lg_POINTAGE_USER = ?1"
-                + " WHERE l.lg_RELEVE_ID = ?2 AND l.str_STATUT = 'RAPPROCHE' AND rf.dt_POINTAGE IS NULL")
+        int av = em
+                .createNativeQuery("UPDATE t_retour_fournisseur rf JOIN t_releve_grossiste_ligne l"
+                        + " ON l.lg_PIECE_ID = rf.lg_RETOUR_FRS_ID AND l.str_PIECE_TYPE = 'RETOUR'"
+                        + " SET rf.dt_POINTAGE = NOW(), rf.lg_POINTAGE_USER = ?1"
+                        + " WHERE l.lg_RELEVE_ID = ?2 AND l.str_STATUT = 'RAPPROCHE' AND rf.dt_POINTAGE IS NULL")
                 .setParameter(1, userId).setParameter(2, releveId).executeUpdate();
-        return new JSONObject().put("success", true).put("bl", bl).put("avoirs", av)
-                .put("msg", bl + " BL et " + av + " avoir(s) pointé(s).");
+        return new JSONObject().put("success", true).put("bl", bl).put("avoirs", av).put("msg",
+                bl + " BL et " + av + " avoir(s) pointé(s).");
     }
 }

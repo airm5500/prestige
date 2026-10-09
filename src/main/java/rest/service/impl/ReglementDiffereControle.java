@@ -10,8 +10,8 @@ import java.util.Objects;
  *
  * <ul>
  * <li>chaque vente designee appartient au client regle, est cloturee, non annulee, et doit encore quelque chose ;</li>
- * <li>les restes vus a l'ecran ({@code attendus}) sont toujours ceux de la base : sinon la vente a ete reglee
- * ailleurs entre-temps (deuxieme fenetre, double clic) et le reglement est refuse ;</li>
+ * <li>les restes vus a l'ecran ({@code attendus}) sont toujours ceux de la base : sinon la vente a ete reglee ailleurs
+ * entre-temps (deuxieme fenetre, double clic) et le reglement est refuse ;</li>
  * <li>le montant est positif et ne depasse pas ce qui reste du (pas de trop-percu encaisse sans affectation) ;</li>
  * <li>reglement total : la caisse encaisse exactement la somme des restes, verifiee contre le total affiche.</li>
  * </ul>

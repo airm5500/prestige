@@ -176,8 +176,9 @@ public class PointageBLRessource {
                 return Response.ok(echec("Le relevé doit être un fichier PDF.").toString()).build();
             }
             TUser u = utilisateur();
-            return Response.ok(service.importer(grossiste, emplacement(u), nom, pdf.getInputStream(), u.getLgUSERID())
-                    .toString()).build();
+            return Response.ok(
+                    service.importer(grossiste, emplacement(u), nom, pdf.getInputStream(), u.getLgUSERID()).toString())
+                    .build();
         } catch (org.apache.commons.fileupload.FileUploadBase.SizeLimitExceededException
                 | org.apache.commons.fileupload.FileUploadBase.FileSizeLimitExceededException e) {
             return Response.ok(echec("Le fichier dépasse 10 Mo.").toString()).build();

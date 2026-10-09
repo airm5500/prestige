@@ -657,14 +657,17 @@ public class ReglementServiceImpl implements ReglementService {
             }
             TCompteClient compteClient = getByClientId(p.getClientId());
             String emplacement = p.getUserId().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            /* retours du 09/10 (1) : memes ventes que la liste de l'ecran (non annulees, de l'emplacement), lues sous
-             * verrou ; la caisse encaisse exactement ce qui est retire des dettes, verifie contre le total affiche */
+            /*
+             * retours du 09/10 (1) : memes ventes que la liste de l'ecran (non annulees, de l'emplacement), lues sous
+             * verrou ; la caisse encaisse exactement ce qui est retire des dettes, verifie contre le total affiche
+             */
             List<TPreenregistrementCompteClient> listPreEnreg = verrouiller(getPreenregistrementCompteClients(
-                    p.getUserVendeurId(), p.getCompteClientId(), compteClient.getLgCOMPTECLIENTID()).stream()
-                    .filter(a -> !Boolean.TRUE.equals(a.getLgPREENREGISTREMENTID().getBISCANCEL())
-                            && a.getLgUSERID() != null && a.getLgUSERID().getLgEMPLACEMENTID() != null
-                            && emplacement.equals(a.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID()))
-                    .collect(Collectors.toList()));
+                    p.getUserVendeurId(), p.getCompteClientId(), compteClient.getLgCOMPTECLIENTID())
+                            .stream()
+                            .filter(a -> !Boolean.TRUE.equals(a.getLgPREENREGISTREMENTID().getBISCANCEL())
+                                    && a.getLgUSERID() != null && a.getLgUSERID().getLgEMPLACEMENTID() != null
+                                    && emplacement.equals(a.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID()))
+                            .collect(Collectors.toList()));
             listPreEnreg.removeIf(a -> a.getIntPRICERESTE() == null || a.getIntPRICERESTE() <= 0);
             ReglementDiffereControle.Resultat controle = ReglementDiffereControle.total(lignesControle(listPreEnreg),
                     p.getClientId(), p.getTotalRecap(), p.getMontantRecu() == null ? 0 : p.getMontantRecu());
@@ -681,7 +684,8 @@ public class ReglementServiceImpl implements ReglementService {
             /* un differe ne se regle pas « en differe » ; un mode inconnu ne devient pas des especes */
             if (modeReglement == null || "4".equals(StringUtils.trim(p.getTypeRegleId()))) {
                 sessionContext.setRollbackOnly();
-                return json.put("success", false).put("msg", "Mode de règlement non accepté pour un règlement de différé.");
+                return json.put("success", false).put("msg",
+                        "Mode de règlement non accepté pour un règlement de différé.");
             }
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
@@ -733,8 +737,10 @@ public class ReglementServiceImpl implements ReglementService {
             if (array.isEmpty()) {
                 return json.put("success", false).put("msg", "Veuillez sélectionner au moins un dossier");
             }
-            /* retours du 09/10 (1) : ventes choisies lues sous verrou et controlees avant toute ecriture
-             * (appartenance au client, restes vus a l'ecran, montant <= du) */
+            /*
+             * retours du 09/10 (1) : ventes choisies lues sous verrou et controlees avant toute ecriture (appartenance
+             * au client, restes vus a l'ecran, montant <= du)
+             */
             List<String> ids = new ArrayList<>();
             for (int i = 0; i < array.length(); i++) {
                 if (!ids.contains(array.getString(i))) {
@@ -763,7 +769,8 @@ public class ReglementServiceImpl implements ReglementService {
             /* un differe ne se regle pas « en differe » ; un mode inconnu ne devient pas des especes */
             if (modeReglement == null || "4".equals(StringUtils.trim(p.getTypeRegleId()))) {
                 sessionContext.setRollbackOnly();
-                return json.put("success", false).put("msg", "Mode de règlement non accepté pour un règlement de différé.");
+                return json.put("success", false).put("msg",
+                        "Mode de règlement non accepté pour un règlement de différé.");
             }
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
@@ -820,8 +827,8 @@ public class ReglementServiceImpl implements ReglementService {
             String client = t.getLgCOMPTECLIENTID() == null || t.getLgCOMPTECLIENTID().getLgCLIENTID() == null ? null
                     : t.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID();
             TPreenregistrement v = t.getLgPREENREGISTREMENTID();
-            l.add(new ReglementDiffereControle.Ligne(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), client,
-                    t.getStrSTATUT(), v == null || Boolean.TRUE.equals(v.getBISCANCEL()),
+            l.add(new ReglementDiffereControle.Ligne(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), client, t.getStrSTATUT(),
+                    v == null || Boolean.TRUE.equals(v.getBISCANCEL()),
                     t.getIntPRICERESTE() == null ? 0 : t.getIntPRICERESTE()));
         }
         return l;

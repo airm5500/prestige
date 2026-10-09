@@ -24,14 +24,18 @@ import org.junit.jupiter.api.Test;
 import rest.service.impl.RapprochementBL.Piece;
 import rest.service.impl.RapprochementBL.Resultat;
 
-/** Releve grossiste en PDF (format du 09/10 : Type | Numero BL / Seq client | Date BL | Montant HT) et rapprochement. */
+/**
+ * Releve grossiste en PDF (format du 09/10 : Type | Numero BL / Seq client | Date BL | Montant HT) et rapprochement.
+ */
 class ReleveGrossisteTest {
 
     private static final String[][] RELEVE = { { "BL", "BKE 754695 / 48", "25/09/26", "12 491" },
             { "BL", "BKE 755523 / 49", "28/09/26", "65 343" }, { "AV/BL", "GNA 793187 1 / 57", "15/09/26", "-20 323" },
             { "BL", "GNA 803308 / 58", "24/09/26", "15 759" }, { "AV/BL", "VRI 683562 1 / 399", "14/09/26", "-730" },
-            { "AV/BL", "VRI 683562 2 / 403", "17/09/26", "-45 610" }, { "BL", "VRI 684842 / 395", "13/09/26", "1 471 576" },
-            { "AV/BL", "VRI 684842 1 / 402", "17/09/26", "-562 561" }, { "AV/BL", "YOP 36074 2 / 1009", "12/09/26", "-6 934" },
+            { "AV/BL", "VRI 683562 2 / 403", "17/09/26", "-45 610" },
+            { "BL", "VRI 684842 / 395", "13/09/26", "1 471 576" },
+            { "AV/BL", "VRI 684842 1 / 402", "17/09/26", "-562 561" },
+            { "AV/BL", "YOP 36074 2 / 1009", "12/09/26", "-6 934" },
             { "BL", "YOP 80157 / 1028", "23/09/26", "6 731" } };
 
     private static byte[] pdf() throws Exception {

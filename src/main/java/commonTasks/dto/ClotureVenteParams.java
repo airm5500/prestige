@@ -34,6 +34,7 @@ public class ClotureVenteParams implements Serializable {
     public void setRestesAttendus(String restesAttendus) {
         this.restesAttendus = restesAttendus;
     }
+
     private boolean sansBon;
     private String typeVenteId, natureVenteId;
     private TiersPayantParams compteTp, compteTpNouveau;

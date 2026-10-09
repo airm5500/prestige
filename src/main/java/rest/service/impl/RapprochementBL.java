@@ -159,8 +159,8 @@ public final class RapprochementBL {
     }
 
     /**
-     * Avoir : 1 si la reference d'avoir saisie designe cette ligne (BL + indice), -1 si elle en designe une autre, 0
-     * si elle n'est pas saisie (ou pour un BL).
+     * Avoir : 1 si la reference d'avoir saisie designe cette ligne (BL + indice), -1 si elle en designe une autre, 0 si
+     * elle n'est pas saisie (ou pour un BL).
      */
     private static int referenceAvoir(ReleveGrossiste.Ligne l, Piece p) {
         if (l.type != ReleveGrossiste.Type.AVOIR || p.referenceAvoir == null || p.referenceAvoir.trim().isEmpty()) {
@@ -173,10 +173,10 @@ public final class RapprochementBL {
     /** Deux pieces Prestige de meme numero : reference d'avoir, puis sequence, puis montant le plus proche. */
     private static Piece meilleure(ReleveGrossiste.Ligne l, Piece a, Piece b) {
         if (l.type == ReleveGrossiste.Type.AVOIR) {
-            boolean ra = a.referenceAvoir != null && a.referenceAvoir.replaceAll("\\s", "")
-                    .endsWith(l.numeroBl + l.indiceAvoir);
-            boolean rb = b.referenceAvoir != null && b.referenceAvoir.replaceAll("\\s", "")
-                    .endsWith(l.numeroBl + l.indiceAvoir);
+            boolean ra = a.referenceAvoir != null
+                    && a.referenceAvoir.replaceAll("\\s", "").endsWith(l.numeroBl + l.indiceAvoir);
+            boolean rb = b.referenceAvoir != null
+                    && b.referenceAvoir.replaceAll("\\s", "").endsWith(l.numeroBl + l.indiceAvoir);
             if (ra != rb) {
                 return ra ? a : b;
             }

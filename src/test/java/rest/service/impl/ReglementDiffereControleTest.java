@@ -35,8 +35,8 @@ class ReglementDiffereControleTest {
     void resteChangeDepuisLEcranRefuse() {
         Ligne apres = new Ligne("B1", "B", "is_Closed", false, 3000);
         assertFalse(ReglementDiffereControle.partiel(List.of(apres), "B", Map.of("B1", 4000), 1000).valide());
-        assertFalse(ReglementDiffereControle.partiel(List.of(new Ligne("B1", "B", "is_Closed", false, 0)), "B", null, 10)
-                .valide());
+        assertFalse(ReglementDiffereControle
+                .partiel(List.of(new Ligne("B1", "B", "is_Closed", false, 0)), "B", null, 10).valide());
     }
 
     @Test
@@ -58,10 +58,10 @@ class ReglementDiffereControleTest {
 
     @Test
     void venteAnnuleeOuInexistanteRefusee() {
-        assertFalse(ReglementDiffereControle.partiel(List.of(new Ligne("A1", "A", "is_Closed", true, 5000)), "A", null, 100)
-                .valide());
-        assertFalse(ReglementDiffereControle.partiel(List.of(new Ligne("A1", "A", "is_Process", false, 5000)), "A", null,
-                100).valide());
+        assertFalse(ReglementDiffereControle
+                .partiel(List.of(new Ligne("A1", "A", "is_Closed", true, 5000)), "A", null, 100).valide());
+        assertFalse(ReglementDiffereControle
+                .partiel(List.of(new Ligne("A1", "A", "is_Process", false, 5000)), "A", null, 100).valide());
         assertFalse(ReglementDiffereControle.partiel(Arrays.asList((Ligne) null), "A", null, 100).valide());
     }
 
