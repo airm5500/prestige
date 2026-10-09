@@ -959,6 +959,9 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/application_go|arrow|go\.png|transform/i, 'act-transformer'],
     [/folder_wrench|wrench|cog|config/i, 'act-reglage'],
     [/book\.png|valid|accept|tick|check|coches/i, 'act-valider'],
+    // retours du 09/10 : factures (verrouillee, certification FNE)
+    [/lock|verrou/i, 'act-verrou'],
+    [/certi/i, 'act-certifier'],
     [/download|telecharg/i, 'act-telecharger'],
     [/table_refresh|calendar/i, 'act-date'],
     [/detail|view|eye|loupe|search|zoom|information|info|grid\.png|paste_plain/i, 'act-voir'],
@@ -1061,6 +1064,32 @@ window.PrestigeAffichage.habillerStyleVente = function (ecran) {
                             return false;
                         }
                     });
+                    return;
+                }
+                /*
+                 * Retours du 09/10 : icone sans image ni classe fixe, dont la classe est rendue par getClass selon la
+                 * ligne (factures : « lock », « printable », « excel », « word ») : la classe rendue est convertie au
+                 * trait par les memes regles ; une icone masquee (x-hide-display) le reste.
+                 */
+                if (!image && !item.iconCls && Ext.isFunction(item.getClass) && !item.traitParClasse) {
+                    var rendue = item.getClass;
+                    item.traitParClasse = true;
+                    item.getClass = function () {
+                        var cls = rendue.apply(this, arguments) || '';
+                        if (/x-hide-display/.test(cls) || /act-ico/.test(cls)) {
+                            return cls;
+                        }
+                        var trait = parInfoBulle;
+                        if (!trait) {
+                            Ext.each(window.PrestigeAffichage.ICONES_TRAIT, function (regle) {
+                                if (regle[0].test(cls)) {
+                                    trait = regle[1];
+                                    return false;
+                                }
+                            });
+                        }
+                        return trait ? 'act-ico ' + trait : cls;
+                    };
                     return;
                 }
                 if (!image) {

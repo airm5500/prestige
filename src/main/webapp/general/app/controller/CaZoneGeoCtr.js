@@ -576,8 +576,10 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             align: 'center',
             menuDisabled: true,
             sortable: false,
+            /* colonne ajoutee au chargement, apres l'habillage de l'ecran : dessin au trait si l'ecran est au theme */
             items: [{
-                    icon: 'resources/images/icons/fam/application_view_list.png',
+                    icon: grilleVisee.hasCls('theme-grille') ? null : 'resources/images/icons/fam/application_view_list.png',
+                    iconCls: grilleVisee.hasCls('theme-grille') ? 'act-ico act-voir' : undefined,
                     tooltip: 'Voir les produits pris en compte dans cette ligne',
                     altText: 'Voir les produits de cette ligne',
                     handler: function (grille, ligne) {
