@@ -51,6 +51,36 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
         });
         me.callParent(arguments);
         me.on('afterrender', me.majPastilles, me);
+        me.on('afterrender', me.chargerDroits, me);
+    },
+
+    /* Retours du 09/10 (3) : un droit par onglet Substitutions, Alertes, Tableau de bord ; sans le droit, l'onglet
+     * n'apparait pas (le serveur refuse aussi ses donnees). */
+    DROITS: {substitutions: 'substitutions', alertes: 'alertes', tableau: 'tableauBord'},
+
+    chargerDroits: function () {
+        var me = this;
+        Ext.Ajax.request({
+            url: '../api/v1/pharma/droits', method: 'GET',
+            success: function (r) {
+                var d = Ext.decode(r.responseText, true);
+                if (me.isDestroyed || !d || !d.success) {
+                    return;
+                }
+                me.droits = d;
+                Ext.Object.each(me.DROITS, function (cle, droit) {
+                    var b = me.down('#cec-' + cle);
+                    if (b) {
+                        b.setVisible(!!d[droit]);
+                    }
+                });
+            }
+        });
+    },
+
+    autorise: function (cle) {
+        var droit = this.DROITS[cle];
+        return !droit || !this.droits || !!this.droits[droit];
     },
 
     /* meme presentation que lorsque chaque ecran est ouvert seul */
@@ -92,7 +122,7 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
         var me = this, o = Ext.Array.findBy(me.ONGLETS, function (x) {
             return x.cle === cle;
         });
-        if (!o) {
+        if (!o || !this.autorise(cle)) {
             return null;
         }
         /* un seul onglet actif, y compris quand on arrive par un raccourci (bandeau, pastille) */

@@ -266,20 +266,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 },
 
                                 int_ACHAT,
-                                int_VENTE,
-                                /* retours du 08/10 (8) : passer la commande par PharmaML, action principale en haut a droite */
-                                {xtype: 'component', flex: 1},
-                                {
-                                    xtype: 'button',
-                                    text: 'Commander par PharmaML',
-                                    id: 'btn_cmd_envoyer_pml',
-                                    cls: 'btn-primary btn-commander-pml',
-                                    margin: '5 0 0 0',
-                                    hidden: true,
-                                    handler: function () {
-                                        ecranCommande().envoyerPharmaMl();
-                                    }
-                                }]
+                                int_VENTE]
                         }]
                 }
                 ,
@@ -898,6 +885,17 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('COMMANDE', e.getNameintern(), e.getOdatasource() && e.getOdatasource().str_REF_ORDER);
                             }},
                         '->',
+                        /* retours du 08/10 (8) puis du 09/10 (2) : passer la commande par PharmaML, en bas a cote des
+                         * autres boutons ; visible seulement si le grossiste a un lien PharmaML (etatBoutonPharmaMl) */
+                        {
+                            text: 'Commander par PharmaML',
+                            id: 'btn_cmd_envoyer_pml',
+                            cls: 'btn-primary btn-commander-pml',
+                            hidden: true,
+                            handler: function () {
+                                ecranCommande().envoyerPharmaMl();
+                            }
+                        },
                         {
                             text: 'CREER BON DE LIVRAISON',
                             id: 'btn_creerbl',

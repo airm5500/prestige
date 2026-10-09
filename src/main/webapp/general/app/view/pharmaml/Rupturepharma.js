@@ -385,6 +385,18 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                 me.ouvrirOnglet(o);
             }
         });
+        /* retours du 09/10 (3) : onglets Substitutions, Alertes et Tableau de bord soumis a un droit */
+        me.on('afterrender', function () {
+            Ext.Ajax.request({
+                url: '../api/v1/pharma/droits', method: 'GET',
+                success: function (r) {
+                    var d = Ext.decode(r.responseText, true);
+                    if (!me.isDestroyed && d && d.success) {
+                        me.appliquerDroits(d);
+                    }
+                }
+            });
+        });
         var demandee = testextjs.view.pharmaml.Rupturepharma.referenceDemandee;
         if (demandee) {
             testextjs.view.pharmaml.Rupturepharma.referenceDemandee = null;
@@ -591,9 +603,31 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
         };
     },
 
+    /* onglet -> droit renvoye par v1/pharma/droits */
+    DROITS_ONGLETS: {ongletSubstitutions: 'substitutions', ongletAlertes: 'alertes', ongletTableauBord: 'tableauBord'},
+
+    appliquerDroits: function (d) {
+        var me = this, onglets = me.down('#ongletsRuptures');
+        me.droits = d;
+        Ext.Object.each(me.DROITS_ONGLETS, function (itemId, cle) {
+            var t = me.down('#' + itemId);
+            if (t && !d[cle]) {
+                if (onglets && onglets.getActiveTab() === t) {
+                    onglets.setActiveTab(me.down('#ongletRuptures'));
+                }
+                t.tab.hide();
+            }
+        });
+    },
+
+    autorise: function (itemId) {
+        var cle = this.DROITS_ONGLETS[itemId];
+        return !cle || !this.droits || !!this.droits[cle];
+    },
+
     ouvrirOnglet: function (itemId) {
         var onglets = this.down('#ongletsRuptures'), t = this.down('#' + itemId);
-        if (onglets && t) {
+        if (onglets && t && this.autorise(itemId)) {
             onglets.setActiveTab(t);
         }
     },

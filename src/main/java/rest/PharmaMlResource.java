@@ -72,6 +72,36 @@ public class PharmaMlResource {
 
     // Retours du 08/10 (7) : suivi des substitutions
 
+    /* Retours du 09/10 (3) : droits des onglets Substitutions, Alertes et Tableau de bord (Commandes en cours) */
+    static final String P_CEC_SUBSTITUTIONS = "P_CEC_SUBSTITUTIONS";
+    static final String P_CEC_ALERTES = "P_CEC_ALERTES";
+    static final String P_CEC_TABLEAU_BORD = "P_CEC_TABLEAU_BORD";
+
+    @SuppressWarnings("unchecked")
+    private boolean droit(String nom) {
+        HttpSession s = servletRequest.getSession(false);
+        return s != null && util.CommonUtils.hasAuthorityByName(
+                (java.util.List<dal.TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), nom);
+    }
+
+    private Response interdit() {
+        return Response.ok(new JSONObject().put("success", false).put("interdit", true)
+                .put("msg", "Vous n'avez pas le droit d'accéder à cet onglet.").toString()).build();
+    }
+
+    /** Onglets du hub autorises pour l'utilisateur connecte (les Ruptures suivent le menu, sans droit propre). */
+    @GET
+    @Path("droits")
+    public Response droits() {
+        if (utilisateur() == null) {
+            return refuse();
+        }
+        return Response
+                .ok(new JSONObject().put("success", true).put("substitutions", droit(P_CEC_SUBSTITUTIONS))
+                        .put("alertes", droit(P_CEC_ALERTES)).put("tableauBord", droit(P_CEC_TABLEAU_BORD)).toString())
+                .build();
+    }
+
     private Response refuse() {
         return Response.ok(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
                 .build();
@@ -151,7 +181,19 @@ public class PharmaMlResource {
         if (utilisateur() == null) {
             return refuse();
         }
-        return Response.ok(pharmaMlService.tableauBord().toString()).build();
+        JSONObject t = pharmaMlService.tableauBord();
+        if (!droit(P_CEC_TABLEAU_BORD)) {
+            JSONObject c = new JSONObject().put("success", true);
+            if (droit(P_CEC_SUBSTITUTIONS)) {
+                c.put("aDecider", t.opt("aDecider"));
+            }
+            if (droit(P_CEC_ALERTES)) {
+                c.put("alertesNonLues", t.opt("alertesNonLues")).put("alertesReglementaires",
+                        t.opt("alertesReglementaires"));
+            }
+            return Response.ok(c.toString()).build();
+        }
+        return Response.ok(t.toString()).build();
     }
 
     /** Informations reglementaires urgentes et alertes commerciales recues. */
@@ -160,6 +202,9 @@ public class PharmaMlResource {
     public Response alertes(@QueryParam("nonLues") boolean nonLues) {
         if (utilisateur() == null) {
             return refuse();
+        }
+        if (!droit(P_CEC_ALERTES)) {
+            return interdit();
         }
         return Response.ok(pharmaMlService.alertes(nonLues).toString()).build();
     }
@@ -171,6 +216,9 @@ public class PharmaMlResource {
         if (u == null) {
             return refuse();
         }
+        if (!droit(P_CEC_ALERTES)) {
+            return interdit();
+        }
         return Response.ok(pharmaMlService.alerteLue(id, u).toString()).build();
     }
 
@@ -180,6 +228,9 @@ public class PharmaMlResource {
             @QueryParam("du") String du, @QueryParam("au") String au, @QueryParam("query") String query) {
         if (utilisateur() == null) {
             return refuse();
+        }
+        if (!droit(P_CEC_SUBSTITUTIONS)) {
+            return interdit();
         }
         String st = statut == null ? "" : statut.trim().toUpperCase();
         if (!st.isEmpty()
@@ -229,6 +280,9 @@ public class PharmaMlResource {
         if (utilisateur() == null) {
             return refuse();
         }
+        if (!droit(P_CEC_SUBSTITUTIONS)) {
+            return interdit();
+        }
         return Response.ok(pharmaMlService.choixMemorises().toString()).build();
     }
 
@@ -238,6 +292,9 @@ public class PharmaMlResource {
         TUser u = utilisateur();
         if (u == null) {
             return refuse();
+        }
+        if (!droit(P_CEC_SUBSTITUTIONS)) {
+            return interdit();
         }
         return Response.ok(pharmaMlService.supprimerChoixMemorise(famille, code, u).toString()).build();
     }

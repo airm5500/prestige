@@ -312,41 +312,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                         new testextjs.view.commandemanagement.bonlivraison.ImportXLS();
                     }
                 }, '-',
-                {
-                    text: 'VÉRIFIER L\'IMPORT',
-                    tooltip: 'Vérification du fichier importé',
-                    iconCls: 'importicon',
-                    scope: this,
-                    menu: [
-                        {
-                            text: 'V&eacute;rifier le fichier FACTURE 1',
-                            iconCls: 'printable',
-                            handler: function () {
-                                new testextjs.view.commandemanagement.order.action.importOrder({
-                                    odatasource: 'TABLE_ORDER',
-                                    parentview: this,
-                                    mode: "checkimportfile",
-                                    titre: "V&eacute;rifier les lignes du fichier qui ne sont pas import&eacute;es",
-                                    type: 'format1'
-                                });
-                            }
-                        },
-                        {
-                            text: 'V&eacute;rifier le fichier FACTURE 2',
-                            iconCls: 'importicon',
-                            handler: function () {
-                                new testextjs.view.commandemanagement.order.action.importOrder({
-                                    odatasource: 'TABLE_ORDER',
-                                    parentview: this,
-                                    mode: "checkimportfile",
-                                    titre: "V&eacute;rifier les lignes du fichier qui ne sont pas import&eacute;es",
-                                    type: 'format2'
-                                });
-                            }
-                        }
-                    ]
-                },
-
+                /* Retours du 09/10 (3) : bouton « VÉRIFIER L'IMPORT » (vérification du fichier importé) retiré */
                 {
                     text: 'FUSIONNER DES COMMANDES',
                     iconCls: 'fusionicon',
@@ -363,16 +329,6 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             + 'Elles sont aussi récupérées automatiquement toutes les 5 minutes.',
                     scope: this,
                     handler: this.reponsesPharmaML
-                },
-
-                '-', {
-                    text: 'Verifier l\'importation',
-                    tooltip: 'Verifier l\'importation',
-                    id: 'btn_checkimport',
-                    iconCls: 'check_icon',
-                    scope: this,
-                    hidden: true,
-                    handler: this.onbtncheckimport
                 }
             ],
             bbar: {

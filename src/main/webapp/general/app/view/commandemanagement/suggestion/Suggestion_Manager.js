@@ -587,7 +587,16 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 pageSize: itemsPerPage,
                 store: store_suggestion,
                 displayInfo: true,
-                plugins: new Ext.ux.ProgressBarPager()
+                plugins: new Ext.ux.ProgressBarPager(),
+                /* Retours du 09/10 (2) : passation PharmaML aussi en bas de l'ecran, sur la suggestion cochee */
+                items: ['-', {
+                        text: 'Commander par PharmaML',
+                        id: 'btn_sugglist_commander_pml',
+                        cls: 'btn-primary btn-commander-pml',
+                        tooltip: 'Envoyer la suggestion cochée au grossiste par PharmaML (aperçu et confirmation avant envoi)',
+                        scope: this,
+                        handler: this.onCommanderPharmaMlBas
+                    }]
             }
         });
 
@@ -1077,6 +1086,20 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             params: {
                 query: val.value
             }
+        });
+    },
+
+    /* Retours du 09/10 (2) : bouton du bas ; une suggestion cochee a la fois, chaque envoi etant confirme */
+    onCommanderPharmaMlBas: function () {
+        var me = this;
+        if (suggCheckedIds.length !== 1) {
+            Ext.MessageBox.alert('Commander par PharmaML', suggCheckedIds.length === 0
+                    ? 'Cochez la suggestion à commander.'
+                    : suggCheckedIds.length + ' suggestions sont cochées : cochez-en une seule, chaque envoi est confirmé séparément.');
+            return;
+        }
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.commanderSuggestion(suggCheckedIds[0], function () {
+            me.getStore().reload();
         });
     },
 
