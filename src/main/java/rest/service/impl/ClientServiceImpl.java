@@ -2159,6 +2159,8 @@ public class ClientServiceImpl implements ClientService {
                             .createQuery("SELECT o.lgCOMPTECLIENTID.lgCOMPTECLIENTID, SUM(o.intPRICERESTE)"
                                     + " FROM TPreenregistrementCompteClient o"
                                     + " WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID IN ?1"
+                                    /* retours du 09/10 (1) : memes ventes que le releve et la liste des differes */
+                                    + " AND o.strSTATUT = 'is_Closed' AND o.lgPREENREGISTREMENTID.bISCANCEL = false"
                                     + " GROUP BY o.lgCOMPTECLIENTID.lgCOMPTECLIENTID")
                             .setParameter(1, compteIds).getResultList()) {
                         differeParCompte.put(String.valueOf(r[0]), r[1] != null ? ((Number) r[1]).longValue() : 0L);

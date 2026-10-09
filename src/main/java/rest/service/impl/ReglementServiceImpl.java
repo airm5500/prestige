@@ -1027,7 +1027,7 @@ public class ReglementServiceImpl implements ReglementService {
         }
         try {
             Query query = em.createNativeQuery(
-                    "SELECT cl.lg_CLIENT_ID AS clientId,CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME) AS clientFullName, COALESCE(SUM(o.int_PRICE_RESTE) ,0) AS solde  FROM t_client cl  JOIN t_compte_client cp ON cl.lg_CLIENT_ID=cp.lg_CLIENT_ID LEFT JOIN t_preenregistrement_compte_client o ON o.lg_COMPTE_CLIENT_ID=cp.lg_COMPTE_CLIENT_ID  JOIN t_preenregistrement p  ON p.lg_PREENREGISTREMENT_ID=o.lg_PREENREGISTREMENT_ID WHERE p.b_IS_CANCEL =FALSE AND  p.int_PRICE >0 AND cl.lg_CLIENT_ID IN(?1) GROUP BY cl.lg_CLIENT_ID,clientFullName",
+                    "SELECT cl.lg_CLIENT_ID AS clientId,CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME) AS clientFullName, COALESCE(SUM(o.int_PRICE_RESTE) ,0) AS solde  FROM t_client cl  JOIN t_compte_client cp ON cl.lg_CLIENT_ID=cp.lg_CLIENT_ID LEFT JOIN t_preenregistrement_compte_client o ON o.lg_COMPTE_CLIENT_ID=cp.lg_COMPTE_CLIENT_ID  JOIN t_preenregistrement p  ON p.lg_PREENREGISTREMENT_ID=o.lg_PREENREGISTREMENT_ID WHERE p.b_IS_CANCEL =FALSE AND  p.int_PRICE >0 AND o.str_STATUT = 'is_Closed' AND cl.lg_CLIENT_ID IN(?1) GROUP BY cl.lg_CLIENT_ID,clientFullName",
                     Tuple.class).setParameter(1, ids);
 
             List<Tuple> results = query.getResultList();

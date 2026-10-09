@@ -2562,11 +2562,6 @@ public class SalesServiceImpl implements SalesService {
                     json.put("msg", "Désolé la vente a été facturée");
                     return json;
                 }
-                // l'annulation automatique de la vente originale est attribuée à l'utilisateur
-                // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
-                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
-                // Point 6 : mouchard des ventes modifiées, écart produit par produit
-                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
             }
             tp.setChecked(Boolean.TRUE);
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
@@ -2646,10 +2641,17 @@ public class SalesServiceImpl implements SalesService {
 
             }
 
+            /* retours du 09/10 (1) : origine annulee seulement apres les controles (voir la vente au comptant) */
+            if (tp.getCopy()) {
+                TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
+                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
+                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
+            }
             if (clotureVenteParams.getTypeRegleId().equals(REGL_DIFF)) {
                 isDiff = true;
-                updateDiffere(clotureVenteParams, tp, compteClient);
             }
+            /* differe ou non : la ligne de dette copiee lors d'une modification est mise a jour ou neutralisee */
+            updateDiffere(clotureVenteParams, tp, compteClient);
             TTypeVente oTTypeVente = typeVenteFromId(clotureVenteParams.getTypeVenteId());
             TReglement tReglement = createTReglement(tUser, modeReglement, "", tp.getLgPREENREGISTREMENTID(),
                     clotureVenteParams.getBanque(), clotureVenteParams.getLieux(), clotureVenteParams.getCommentaire(),
@@ -2826,14 +2828,6 @@ public class SalesServiceImpl implements SalesService {
             // La vente quitte l'attente : son verrou de rappel n'a plus de raison d'etre
             tp.setStrRAPPELPAR(null);
             tp.setDtRAPPELLE(null);
-            if (tp.getCopy()) {
-                TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
-                // l'annulation automatique de la vente originale est attribuée à l'utilisateur
-                // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
-                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
-                // Point 6 : mouchard des ventes modifiées, écart produit par produit
-                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
-            }
             String old = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
             if (!old.equals(clotureVenteParams.getTypeVenteId())) {
                 json.put("success", false);
@@ -2900,6 +2894,18 @@ public class SalesServiceImpl implements SalesService {
                 tp.setClient(client);
             }
 
+            /*
+             * Retours du 09/10 (1) : la vente d'origine n'est annulee qu'une fois tous les controles passes (avant, une
+             * cloture refusee laissait l'origine annulee et la copie en cours).
+             */
+            if (tp.getCopy()) {
+                TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
+                // l'annulation automatique de la vente originale est attribuée à l'utilisateur
+                // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
+                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
+                // Point 6 : mouchard des ventes modifiées, écart produit par produit
+                venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
+            }
             updateDiffere(clotureVenteParams, tp, compteClient);
             TReglement tReglement = createTReglement(clotureVenteParams.getUserId(), modeReglement, "",
                     tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getBanque(), clotureVenteParams.getLieux(),
@@ -2966,19 +2972,48 @@ public class SalesServiceImpl implements SalesService {
         return json;
     }
 
+    private static int valeur(Integer v) {
+        return v == null ? 0 : v;
+    }
+
     private void updateDiffere(ClotureVenteParams clotureVenteParams, TPreenregistrement tp,
             TCompteClient compteClient) {
+        Optional<TPreenregistrementCompteClient> copie = findOptionalCmt(tp);
         if (clotureVenteParams.getTypeRegleId().equals(REGL_DIFF)) {
-            findOptionalCmt(tp).ifPresentOrElse(ctp -> {
-
-                ctp.setIntPRICE(tp.getIntCUSTPART() == 0 ? tp.getIntPRICE() - tp.getIntPRICEREMISE()
-                        : tp.getIntCUSTPART() - tp.getIntPRICEREMISE());
-                ctp.setIntPRICERESTE(ctp.getIntPRICE() - clotureVenteParams.getMontantPaye());
+            copie.ifPresentOrElse(ctp -> {
+                int prix = tp.getIntCUSTPART() == 0 ? tp.getIntPRICE() - tp.getIntPRICEREMISE()
+                        : tp.getIntCUSTPART() - tp.getIntPRICEREMISE();
+                /*
+                 * Retours du 09/10 (1), vente differee modifiee : ce qui avait deja ete regle sur la vente d'origine
+                 * (prix - reste de la ligne copiee) reste acquis au client qui l'a paye ; le client choisi a la cloture
+                 * porte la dette (avant, elle restait sur l'ancien client).
+                 */
+                boolean memeClient = compteClient == null || ctp.getLgCOMPTECLIENTID() == null || Objects
+                        .equals(ctp.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID(), compteClient.getLgCOMPTECLIENTID());
+                int dejaRegle = !memeClient || STATUT_IS_CLOSED.equals(ctp.getStrSTATUT()) ? 0
+                        : Math.max(0, valeur(ctp.getIntPRICE()) - valeur(ctp.getIntPRICERESTE()));
+                int paye = clotureVenteParams.getMontantPaye() == null ? 0 : clotureVenteParams.getMontantPaye();
+                ctp.setIntPRICE(prix);
+                ctp.setIntPRICERESTE(Math.max(0, prix - paye - dejaRegle));
+                if (compteClient != null) {
+                    ctp.setLgCOMPTECLIENTID(compteClient);
+                }
                 ctp.setStrSTATUT(STATUT_IS_CLOSED);
                 em.merge(ctp);
 
             }, () -> addDiffere(compteClient, tp, clotureVenteParams.getMontantPaye(), clotureVenteParams.getUserId()));
 
+        } else {
+            /*
+             * Retours du 09/10 (1) : la vente modifiee n'est plus reglee en differe : la ligne de dette copiee lors de
+             * la modification ne doit plus compter dans le solde du client.
+             */
+            copie.filter(ctp -> STATUT_IS_PROGRESS.equals(ctp.getStrSTATUT())).ifPresent(ctp -> {
+                ctp.setIntPRICE(0);
+                ctp.setIntPRICERESTE(0);
+                ctp.setStrSTATUT(STATUT_DELETE);
+                em.merge(ctp);
+            });
         }
     }
 
