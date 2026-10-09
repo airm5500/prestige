@@ -1,7 +1,5 @@
 package rest.service.impl;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -256,15 +254,189 @@ public class PointageBLService {
         }
     }
 
-    /** Import du releve PDF : lecture, rapprochement, conservation ; rend le resultat. */
-    public JSONObject importer(String grossisteId, String emplacement, String fichier, InputStream pdf, String userId)
-            throws IOException {
-        List<ReleveGrossiste.Ligne> lignes = ReleveGrossiste.lire(ReleveGrossistePdf.texte(pdf));
-        if (lignes.isEmpty()) {
-            return new JSONObject().put("success", false).put("msg", "Aucune ligne de BL ou d'avoir lue dans ce PDF."
-                    + " Le relevé doit être un PDF texte (pas une image scannée), colonnes Type, Numéro BL / Séq client,"
-                    + " Date BL, Montant HT.");
+    /** Lecture du releve : modele du grossiste s'il existe, sinon format standard. */
+    static final String LECTURE_MODELE = "MODELE", LECTURE_STANDARD = "STANDARD";
+    /** Lignes du releve montrees a l'ecran de reconnaissance des colonnes. */
+    static final int APERCU_MAX = 400;
+
+    /** Modele de releve memorise pour ce grossiste, null sinon. */
+    ReleveModele.Modele modele(String grossisteId) {
+        List<?> l = em.createNativeQuery("SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = ?1")
+                .setParameter(1, grossisteId).getResultList();
+        if (l.isEmpty() || l.get(0) == null) {
+            return null;
         }
+        try {
+            return ReleveModele.Modele.lire(String.valueOf(l.get(0)));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Etat du reglage des colonnes pour ce grossiste. */
+    @SuppressWarnings("unchecked")
+    public JSONObject infoModele(String grossisteId) {
+        List<Object[]> l = em.createNativeQuery("SELECT m.dt_UPDATED, CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME)"
+                + " FROM t_releve_modele m LEFT JOIN t_user u ON u.lg_USER_ID = m.lg_USER_ID WHERE m.lg_GROSSISTE_ID = ?1")
+                .setParameter(1, grossisteId).getResultList();
+        JSONObject o = new JSONObject().put("success", true).put("memorise", !l.isEmpty());
+        if (!l.isEmpty()) {
+            o.put("majLe", StringUtils.defaultString(quand(l.get(0)[0]))).put("majPar",
+                    StringUtils.defaultString(texte(l.get(0)[1])).trim());
+        }
+        return o;
+    }
+
+    /** Oublie le reglage du grossiste : ses releves sont de nouveau lus au format standard. */
+    public JSONObject oublierModele(String grossisteId) {
+        int n = em.createNativeQuery("DELETE FROM t_releve_modele WHERE lg_GROSSISTE_ID = ?1")
+                .setParameter(1, grossisteId).executeUpdate();
+        return new JSONObject().put("success", true).put("msg",
+                n == 0 ? "Aucun réglage mémorisé pour ce grossiste." : "Réglage oublié : format standard.");
+    }
+
+    /**
+     * Import du releve PDF : lecture (modele du grossiste, sinon format standard), rapprochement, conservation. Si rien
+     * n'est lu, l'ecran propose de designer les colonnes ({@code reconnaissance}).
+     */
+    public JSONObject importer(String grossisteId, String emplacement, String fichier,
+            List<ReleveModele.LigneBrute> brutes, String texte, String userId) {
+        String lecture = LECTURE_MODELE;
+        ReleveModele.Modele m = modele(grossisteId);
+        List<ReleveGrossiste.Ligne> lignes = m == null ? new ArrayList<>() : ReleveModele.lire(brutes, m);
+        if (lignes.isEmpty()) {
+            lecture = LECTURE_STANDARD;
+            lignes = ReleveGrossiste.lire(texte);
+        }
+        if (lignes.isEmpty()) {
+            boolean texteVide = brutes.stream().allMatch(l -> l.cellules.isEmpty());
+            return new JSONObject().put("success", false).put("reconnaissance", !texteVide).put("msg", texteVide
+                    ? "Aucun texte dans ce PDF : c'est sans doute une image scannée. Demandez le relevé en PDF au grossiste."
+                    : (m == null ? "Ce relevé n'est pas au format standard."
+                            : "Le réglage mémorisé pour ce grossiste ne lit plus ce relevé (présentation changée ?).")
+                            + " Désignez les colonnes du relevé : le réglage sera mémorisé pour ce grossiste.");
+        }
+        return enregistrer(grossisteId, emplacement, fichier, lignes, userId).put("lecture", lecture);
+    }
+
+    /** Lignes du releve rangees en colonnes, en-tetes, et colonnes proposees (reglage memorise ou devine). */
+    public JSONObject apercu(String grossisteId, List<ReleveModele.LigneBrute> brutes) {
+        List<ReleveModele.Colonne> cols = ReleveModele.colonnes(brutes);
+        String[] entetes = ReleveModele.entetes(brutes, cols);
+        ReleveModele.Modele m = modele(grossisteId);
+        /* reglage memorise propose s'il lit ce releve, sinon colonnes devinees */
+        java.util.Map<ReleveModele.Champ, Integer> choix = m == null || ReleveModele.lire(brutes, m).isEmpty()
+                ? new java.util.EnumMap<>(ReleveModele.Champ.class) : ReleveModele.rangs(m, cols);
+        if (choix.isEmpty()) {
+            choix = ReleveModele.deviner(brutes, cols);
+        }
+        JSONArray colonnes = new JSONArray();
+        for (int i = 0; i < cols.size(); i++) {
+            colonnes.put(new JSONObject().put("rang", i).put("entete", entetes[i]));
+        }
+        JSONArray lignes = new JSONArray();
+        for (ReleveModele.LigneBrute l : brutes) {
+            if (lignes.length() >= APERCU_MAX) {
+                break;
+            }
+            if (!l.cellules.isEmpty()) {
+                lignes.put(new JSONObject().put("n", lignes.length()).put("page", l.page).put("valeurs",
+                        new JSONArray(java.util.Arrays.asList(ReleveModele.ranger(l, cols)))));
+            }
+        }
+        JSONObject champs = new JSONObject();
+        choix.forEach((k, v) -> champs.put(k.name(), v));
+        JSONArray disponibles = new JSONArray();
+        for (ReleveModele.Champ c : ReleveModele.Champ.values()) {
+            disponibles.put(new JSONObject().put("champ", c.name()).put("libelle", c.libelle));
+        }
+        return new JSONObject().put("success", true).put("colonnes", colonnes).put("lignes", lignes)
+                .put("tronque", brutes.size() > APERCU_MAX).put("champs", champs).put("disponibles", disponibles)
+                .put("marqueursAvoir", m == null ? "AV" : m.marqueursAvoir).put("memorise", m != null);
+    }
+
+    /** Choix de colonnes envoye par l'ecran : { "NUMERO": 1, "DATE": 0, ... }. */
+    static java.util.Map<ReleveModele.Champ, Integer> choix(JSONObject champs, int nbColonnes) {
+        java.util.Map<ReleveModele.Champ, Integer> r = new java.util.EnumMap<>(ReleveModele.Champ.class);
+        if (champs == null) {
+            return r;
+        }
+        for (ReleveModele.Champ c : ReleveModele.Champ.values()) {
+            int i = champs.optInt(c.name(), -1);
+            if (i >= 0 && i < nbColonnes) {
+                r.put(c, i);
+            }
+        }
+        return r;
+    }
+
+    private static final class Lecture {
+
+        final List<ReleveGrossiste.Ligne> lignes = new ArrayList<>();
+        final JSONArray reconnues = new JSONArray();
+        String erreur;
+    }
+
+    private static Lecture lire(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs) {
+        Lecture r = new Lecture();
+        List<ReleveModele.Colonne> cols = ReleveModele.colonnes(brutes);
+        java.util.Map<ReleveModele.Champ, Integer> choix = choix(champs, cols.size());
+        ReleveModele.Modele m = ReleveModele.modele(choix, cols, marqueurs);
+        r.erreur = m.incomplet();
+        if (r.erreur != null) {
+            return r;
+        }
+        int n = 0;
+        for (ReleveModele.LigneBrute l : brutes) {
+            if (l.cellules.isEmpty()) {
+                continue;
+            }
+            ReleveGrossiste.Ligne x = ReleveModele.ligne(ReleveModele.ranger(l, cols), choix, m.marqueursAvoir);
+            if (x != null) {
+                r.lignes.add(x);
+                if (n < APERCU_MAX) {
+                    r.reconnues.put(new JSONObject().put("n", n).put("type", x.type.name()).put("numero", x.numero)
+                            .put("sequence", x.sequence).put("date", x.date.format(JJ_MM_AAAA))
+                            .put("montantHt", x.montantHt));
+                }
+            }
+            n++;
+        }
+        return r;
+    }
+
+    /** Essai des colonnes choisies : lignes reconnues et totaux, sans rien enregistrer. */
+    public JSONObject essayer(List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs) {
+        Lecture r = lire(brutes, champs, marqueurs);
+        long[] t = RapprochementBL.totaux(r.lignes, java.util.Collections.emptyList());
+        return new JSONObject().put("success", true).put("msg", StringUtils.defaultString(r.erreur))
+                .put("reconnues", r.reconnues).put("nombre", r.lignes.size()).put("totalBl", t[0])
+                .put("totalAvoirs", t[1]);
+    }
+
+    /** Applique les colonnes choisies, memorise le reglage du grossiste et rapproche le releve. */
+    public JSONObject appliquerModele(String grossisteId, String emplacement, String fichier,
+            List<ReleveModele.LigneBrute> brutes, JSONObject champs, String marqueurs, String userId) {
+        Lecture r = lire(brutes, champs, marqueurs);
+        if (r.erreur != null) {
+            return new JSONObject().put("success", false).put("msg", r.erreur);
+        }
+        if (r.lignes.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Aucune ligne reconnue avec ces colonnes : vérifiez la colonne de la date, du N° BL et du montant.");
+        }
+        List<ReleveModele.Colonne> cols = ReleveModele.colonnes(brutes);
+        String json = ReleveModele.modele(choix(champs, cols.size()), cols, marqueurs).json().toString();
+        em.createNativeQuery("INSERT INTO t_releve_modele (lg_GROSSISTE_ID, str_MODELE, dt_UPDATED, lg_USER_ID)"
+                + " VALUES (?1, ?2, NOW(), ?3) ON DUPLICATE KEY UPDATE str_MODELE = VALUES(str_MODELE),"
+                + " dt_UPDATED = NOW(), lg_USER_ID = VALUES(lg_USER_ID)").setParameter(1, grossisteId)
+                .setParameter(2, json).setParameter(3, userId).executeUpdate();
+        return enregistrer(grossisteId, emplacement, fichier, r.lignes, userId).put("lecture", LECTURE_MODELE);
+    }
+
+    /** Rapprochement des lignes lues et conservation du releve. */
+    JSONObject enregistrer(String grossisteId, String emplacement, String fichier, List<ReleveGrossiste.Ligne> lignes,
+            String userId) {
         LocalDate debut = lignes.stream().map(l -> l.date).min(LocalDate::compareTo).get();
         LocalDate finR = lignes.stream().map(l -> l.date).max(LocalDate::compareTo).get();
         List<PieceVue> vues = pieces(grossisteId, emplacement, debut.minusDays(MARGE_JOURS),

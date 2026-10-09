@@ -9,6 +9,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -24,6 +25,8 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import rest.service.impl.PointageBLService;
+import rest.service.impl.ReleveGrossistePdf;
+import rest.service.impl.ReleveModele;
 import toolkits.parameters.commonparameter;
 import util.CommonUtils;
 import util.Constant;
@@ -175,10 +178,13 @@ public class PointageBLRessource {
             if (!nom.toLowerCase().endsWith(".pdf")) {
                 return Response.ok(echec("Le relevé doit être un fichier PDF.").toString()).build();
             }
+            byte[] octets = pdf.get();
+            List<ReleveModele.LigneBrute> brutes = ReleveGrossistePdf.lignes(new java.io.ByteArrayInputStream(octets));
+            String texte = ReleveGrossistePdf.texte(new java.io.ByteArrayInputStream(octets));
             TUser u = utilisateur();
-            return Response.ok(
-                    service.importer(grossiste, emplacement(u), nom, pdf.getInputStream(), u.getLgUSERID()).toString())
-                    .build();
+            String jeton = garder(new Import(grossiste, nom, brutes, texte));
+            return Response.ok(service.importer(grossiste, emplacement(u), nom, brutes, texte, u.getLgUSERID())
+                    .put("jeton", jeton).toString()).build();
         } catch (org.apache.commons.fileupload.FileUploadBase.SizeLimitExceededException
                 | org.apache.commons.fileupload.FileUploadBase.FileSizeLimitExceededException e) {
             return Response.ok(echec("Le fichier dépasse 10 Mo.").toString()).build();
@@ -215,5 +221,138 @@ public class PointageBLRessource {
             return json(r);
         }
         return json(service.pointerRapproches(id, utilisateur().getLgUSERID()));
+    }
+
+    /**
+     * Releve importe garde en session (lignes lues du PDF, pas le fichier) le temps de designer ses colonnes : pas de
+     * nouvel envoi du PDF. Les trois derniers imports de la session sont gardes.
+     */
+    static final class Import implements java.io.Serializable {
+
+        private static final long serialVersionUID = 1L;
+        final String grossiste, fichier, texte;
+        final java.util.ArrayList<ReleveModele.LigneBrute> brutes;
+
+        Import(String grossiste, String fichier, List<ReleveModele.LigneBrute> brutes, String texte) {
+            this.grossiste = grossiste;
+            this.fichier = fichier;
+            this.brutes = new java.util.ArrayList<>(brutes);
+            this.texte = texte;
+        }
+    }
+
+    static final String IMPORTS = "pointageBL.imports";
+
+    @SuppressWarnings("unchecked")
+    private String garder(Import i) {
+        HttpSession s = servletRequest.getSession(false);
+        java.util.LinkedHashMap<String, Import> m = (java.util.LinkedHashMap<String, Import>) s.getAttribute(IMPORTS);
+        if (m == null) {
+            m = new java.util.LinkedHashMap<>();
+        }
+        while (m.size() >= 3) {
+            m.remove(m.keySet().iterator().next());
+        }
+        String jeton = java.util.UUID.randomUUID().toString();
+        m.put(jeton, i);
+        s.setAttribute(IMPORTS, m);
+        return jeton;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Import importGarde(String jeton) {
+        HttpSession s = servletRequest.getSession(false);
+        java.util.Map<String, Import> m = s == null ? null : (java.util.Map<String, Import>) s.getAttribute(IMPORTS);
+        return m == null || jeton == null ? null : m.get(jeton);
+    }
+
+    private static final String IMPORT_PERIME = "Relevé à réimporter (session expirée ou relevé remplacé).";
+
+    /** Colonnes du releve importe, en-tetes et colonnes proposees. */
+    @GET
+    @Path("releve/apercu")
+    public Response apercu(@QueryParam("jeton") String jeton) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        Import i = importGarde(jeton);
+        if (i == null) {
+            return json(echec(IMPORT_PERIME));
+        }
+        return json(service.apercu(i.grossiste, i.brutes).put("fichier", i.fichier));
+    }
+
+    private static JSONObject corps(String body) {
+        try {
+            return new JSONObject(StringUtils.defaultIfBlank(body, "{}"));
+        } catch (RuntimeException e) {
+            return new JSONObject();
+        }
+    }
+
+    private static String marqueurs(JSONObject o) {
+        String m = StringUtils.trimToEmpty(o.optString("marqueursAvoir", "AV"));
+        return StringUtils.left(m.replaceAll("[^A-Za-z0-9/ ,;-]", ""), 60);
+    }
+
+    /** Essai des colonnes choisies (rien n'est enregistre). */
+    @POST
+    @Path("releve/essai")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response essai(String body) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject o = corps(body);
+        Import i = importGarde(o.optString("jeton", null));
+        if (i == null) {
+            return json(echec(IMPORT_PERIME));
+        }
+        return json(service.essayer(i.brutes, o.optJSONObject("champs"), marqueurs(o)));
+    }
+
+    /** Applique les colonnes choisies, memorise le reglage du grossiste et rapproche le releve. */
+    @POST
+    @Path("releve/modele")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response appliquerModele(String body) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject o = corps(body);
+        Import i = importGarde(o.optString("jeton", null));
+        if (i == null) {
+            return json(echec(IMPORT_PERIME));
+        }
+        TUser u = utilisateur();
+        return json(service.appliquerModele(i.grossiste, emplacement(u), i.fichier, i.brutes, o.optJSONObject("champs"),
+                marqueurs(o), u.getLgUSERID()).put("jeton", o.optString("jeton")));
+    }
+
+    @GET
+    @Path("modele")
+    public Response modele(@QueryParam("grossiste") String grossiste) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        return json(service.infoModele(StringUtils.defaultString(grossiste)));
+    }
+
+    /** Oublie le reglage des colonnes du grossiste (retour au format standard). */
+    @DELETE
+    @Path("modele")
+    public Response oublierModele(@QueryParam("grossiste") String grossiste) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        if (StringUtils.isBlank(grossiste)) {
+            return json(echec("Choisissez un grossiste."));
+        }
+        return json(service.oublierModele(grossiste.trim()));
     }
 }

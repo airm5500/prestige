@@ -3037,3 +3037,12 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .retour-pml-statut.erreur { color: #b42318; background: #fde7e6; }
 .retour-pml-detail { color: #4b5866; }
 .retour-pml-prevu { color: #4b5866; font-size: 11px; }
+
+/* Pointage BL : reconnaissance des colonnes d'un releve grossiste */
+.pb-reconnaissance .pb-reconnue .x-grid-cell { background: #eaf7f1; }
+.pb-reconnaissance .pb-ignoree .x-grid-cell { color: #8a94a0; }
+.pb-reconnaissance .x-column-header-inner { white-space: normal; line-height: 15px; }
+.pb-champ { color: #17795f; }
+.pb-lu { color: #17795f; font-weight: 600; }
+.pb-discret { color: #8a94a0; font-weight: normal; }
+.pb-champ-requis .x-form-item-label { font-weight: 600; }

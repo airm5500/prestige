@@ -22,6 +22,16 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         {cle: 'ABSENT_RELEVE', texte: 'Absents du relevé', couleur: '#1f5f9e', fond: '#e4effa', info: 'Dans Prestige, pas sur le relevé : à réclamer ou à vérifier auprès du grossiste'}
     ],
     TYPES: {BL: 'BL', RETOUR: 'Avoir (retour)', RECEPTION: 'Avoir (manquants à la réception)'},
+    /* champs du releve a designer (ReleveModele.Champ) */
+    CHAMPS: [
+        {champ: 'NUMERO', libelle: 'N° BL *', requis: true},
+        {champ: 'DATE', libelle: 'Date *', requis: true},
+        {champ: 'MONTANT', libelle: 'Montant HT (avoirs négatifs)'},
+        {champ: 'TYPE', libelle: 'Type (BL / avoir)'},
+        {champ: 'SEQUENCE', libelle: 'N° séquence'},
+        {champ: 'MONTANT_BL', libelle: 'ou Montant BL (débit)'},
+        {champ: 'MONTANT_AVOIR', libelle: 'et Montant avoir (crédit)'}
+    ],
 
     initComponent: function () {
         var me = this, enc = Ext.String.htmlEncode;
@@ -151,7 +161,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                     ]
                                 }]
                         }, {
-                            title: 'Rapprochement avec le relevé', itemId: 'ongletRapprochement', layout: 'fit', border: false,
+                            title: 'Rapprochement avec le relevé', itemId: 'ongletRapprochement', layout: 'card', border: false,
                             dockedItems: [{
                                     xtype: 'toolbar', dock: 'top', itemId: 'barreReleve',
                                     items: [
@@ -168,6 +178,16 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                             queryMode: 'local', editable: false, emptyText: 'Relevés déjà importés', listeners: {select: function (c, r) {
                                                     me.chargerReleve(r[0].get('id'));
                                                 }}},
+                                        {text: 'Régler les colonnes', itemId: 'reglerColonnes', disabled: true,
+                                            tooltip: 'Désigner les colonnes du relevé importé (chaque grossiste présente son relevé à sa manière) ; le réglage est mémorisé pour ce grossiste',
+                                            handler: function () {
+                                                me.ouvrirReconnaissance('');
+                                            }},
+                                        {xtype: 'tbtext', itemId: 'etatModele', text: ''},
+                                        {text: 'Revenir au format standard', itemId: 'oublierModele', hidden: true,
+                                            tooltip: 'Oublier le réglage des colonnes mémorisé pour ce grossiste', handler: function () {
+                                                me.oublierModele();
+                                            }},
                                         '->',
                                         {text: 'Pointer les pièces rapprochées', itemId: 'pointerRapproches', cls: 'btn-primary', disabled: true,
                                             tooltip: 'Coche « Pointé » sur les BL et avoirs rapprochés de ce relevé (non encore pointés)', handler: function () {
@@ -176,7 +196,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                     ]
                                 }, {
                                     xtype: 'container', dock: 'top', itemId: 'bandeauReleve', cls: 'pb-bandeau', padding: '6 8',
-                                    html: 'Importez le relevé PDF du grossiste (colonnes Type, Numéro BL / Séq client, Date BL, Montant HT).',
+                                    html: 'Importez le relevé PDF du grossiste. Un relevé présenté autrement que le format standard'
+                                            + ' (Type, Numéro BL / Séq client, Date BL, Montant HT) se règle une fois : désignez ses colonnes, le réglage est mémorisé pour ce grossiste.',
                                     listeners: {afterrender: function (c) {
                                             c.getEl().on('click', function (e) {
                                                 var t = e.getTarget('.pb-filtre');
@@ -209,6 +230,39 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                 return v ? '<b style="color:#b42318">' + nombre(v) + '</b>' : '';
                                             }}
                                     ]
+                                }, {
+                                    xtype: 'panel', itemId: 'reconnaissance', layout: 'fit', border: false, cls: 'pb-reconnaissance',
+                                    dockedItems: [{
+                                            xtype: 'container', dock: 'top', itemId: 'recoInfo', cls: 'pb-bandeau', padding: '6 8', html: ''
+                                        }, {
+                                            xtype: 'container', dock: 'top', itemId: 'recoChamps', layout: 'column', padding: '4 8 2 8',
+                                            defaults: {columnWidth: 0.25, labelWidth: 135, padding: '0 10 4 0'},
+                                            items: Ext.Array.map(me.CHAMPS, function (c) {
+                                                return {xtype: 'combobox', itemId: 'champ-' + c.champ, fieldLabel: c.libelle, queryMode: 'local', editable: false,
+                                                    valueField: 'rang', displayField: 'libelle', value: -1, cls: c.requis ? 'pb-champ-requis' : '',
+                                                    store: Ext.create('Ext.data.Store', {fields: ['rang', 'libelle']}),
+                                                    listeners: {select: function () {
+                                                            me.majEntetesApercu();
+                                                            me.essayerBuffer();
+                                                        }}};
+                                            }).concat([{xtype: 'textfield', itemId: 'marqueursAvoir', fieldLabel: 'Texte d\'un avoir (colonne Type)', value: 'AV',
+                                                    maxLength: 60, enforceMaxLength: true, maskRe: /[A-Za-z0-9\/ ,;-]/,
+                                                    listeners: {change: function () {
+                                                            me.essayerBuffer();
+                                                        }}}])
+                                        }, {
+                                            xtype: 'toolbar', dock: 'bottom', items: ['->',
+                                                {text: 'Annuler', itemId: 'annulerReconnaissance', handler: function () {
+                                                        me.down('#ongletRapprochement').getLayout().setActiveItem(0);
+                                                    }},
+                                                {text: 'Appliquer et mémoriser pour ce grossiste', itemId: 'appliquerModele', cls: 'btn-primary', handler: function () {
+                                                        me.appliquerModele();
+                                                    }}]
+                                        }],
+                                    items: [{xtype: 'grid', itemId: 'grilleApercu', columnLines: true, store: Ext.create('Ext.data.Store', {fields: ['n']}), columns: [],
+                                            viewConfig: {getRowClass: function (r) {
+                                                    return r.get('lu') ? 'pb-reconnue' : 'pb-ignoree';
+                                                }}}]
                                 }]
                         }]
                 }]
@@ -230,7 +284,12 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         me.lignesReleve.removeAll();
         me.releveCourant = null;
         me.down('#pointerRapproches').disable();
-        me.down('#bandeauReleve').update('Importez le relevé PDF du grossiste (colonnes Type, Numéro BL / Séq client, Date BL, Montant HT).');
+        me.down('#bandeauReleve').update('Importez le relevé PDF du grossiste. Un relevé présenté autrement que le format standard'
+                + ' (Type, Numéro BL / Séq client, Date BL, Montant HT) se règle une fois : désignez ses colonnes, le réglage est mémorisé pour ce grossiste.');
+        me.jeton = null;
+        me.down('#reglerColonnes').disable();
+        me.down('#ongletRapprochement').getLayout().setActiveItem(0);
+        me.majEtatModele();
     },
 
     charger: function () {
@@ -318,12 +377,23 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
             url: '../api/v1/pointage-bl/releve', waitMsg: 'Lecture du relevé...',
             success: function (form, action) {
                 me.down('#fichierReleve').reset();
+                me.jeton = action.result.jeton;
+                me.down('#reglerColonnes').setDisabled(!me.jeton);
+                me.down('#ongletRapprochement').getLayout().setActiveItem(0);
                 me.afficherReleve(action.result);
                 me.releves.load({params: {grossiste: g}});
+                me.majEtatModele(action.result.lecture);
             },
             failure: function (form, action) {
                 me.down('#fichierReleve').reset();
                 var o = action.result || {};
+                if (o.reconnaissance && o.jeton) {
+                    /* releve presente autrement : l'operateur designe les colonnes (pas de fenetre) */
+                    me.jeton = o.jeton;
+                    me.down('#reglerColonnes').setDisabled(false);
+                    me.ouvrirReconnaissance(o.msg);
+                    return;
+                }
                 Ext.MessageBox.alert('Relevé du grossiste', Ext.String.htmlEncode(o.msg || 'Le relevé n\'a pas pu être importé.'));
             }
         });
@@ -385,6 +455,196 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                 + '<div class="pb-totaux">Relevé : BL <b>' + n(t.releveBl) + '</b>, avoirs <b>' + n(t.releveAvoirs) + '</b>, net <b>' + n(t.releveNet) + '</b>'
                 + ' &nbsp;|&nbsp; Prestige : BL <b>' + n(t.prestigeBl) + '</b>, avoirs <b>' + n(t.prestigeAvoirs) + '</b>, net <b>' + n(t.prestigeNet) + '</b>'
                 + ' &nbsp;|&nbsp; Écart net : <b style="color:' + (t.ecartNet ? '#b42318' : '#17795f') + '">' + n(t.ecartNet) + '</b></div>');
+    },
+
+    /* ------------------------------------------------ reglage des colonnes du releve (par grossiste) */
+
+    majEtatModele: function (lecture) {
+        var me = this, g = me.down('#grossiste').getValue(), etat = me.down('#etatModele');
+        if (!g) {
+            etat.setText('');
+            me.down('#oublierModele').hide();
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/pointage-bl/modele', method: 'GET', params: {grossiste: g},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                var lu = lecture === 'MODELE' ? 'Relevé lu avec le réglage mémorisé' : lecture === 'STANDARD' ? 'Relevé lu au format standard' : '';
+                etat.setText(Ext.String.htmlEncode(lu || (o.memorise ? 'Réglage des colonnes mémorisé' : ''))
+                        + (o.memorise && o.majLe ? ' <span class="pb-discret">(réglé le ' + Ext.String.htmlEncode(o.majLe) + ')</span>' : ''));
+                me.down('#oublierModele').setVisible(!!o.memorise);
+            }
+        });
+    },
+
+    ouvrirReconnaissance: function (msg) {
+        var me = this;
+        if (!me.jeton) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/pointage-bl/releve/apercu', method: 'GET', params: {jeton: me.jeton},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    Ext.MessageBox.alert('Relevé du grossiste', Ext.String.htmlEncode(o.msg || 'Relevé à réimporter.'));
+                    return;
+                }
+                me.apercu = o;
+                me.messageReco = msg || '';
+                me.construireApercu(o);
+                me.down('#ongletRapprochement').getLayout().setActiveItem(1);
+                me.essayer();
+            }
+        });
+    },
+
+    construireApercu: function (o) {
+        var me = this, cols = o.colonnes || [], fields = ['n', 'lu', 'resume'], data = [];
+        var choix = [{rang: -1, libelle: '(aucune)'}].concat(Ext.Array.map(cols, function (c) {
+            return {rang: c.rang, libelle: 'C' + (c.rang + 1) + (c.entete ? ' · ' + c.entete : '')};
+        }));
+        Ext.Array.each(me.CHAMPS, function (c) {
+            var combo = me.down('#champ-' + c.champ), v = o.champs ? o.champs[c.champ] : undefined;
+            combo.getStore().loadData(choix);
+            combo.setValue(v === undefined || v === null ? -1 : v);
+        });
+        me.down('#marqueursAvoir').suspendEvents();
+        me.down('#marqueursAvoir').setValue(o.marqueursAvoir || 'AV');
+        me.down('#marqueursAvoir').resumeEvents();
+        Ext.Array.each(cols, function (c) {
+            fields.push('c' + c.rang);
+        });
+        Ext.Array.each(o.lignes || [], function (l) {
+            var x = {n: l.n, lu: false, resume: ''};
+            Ext.Array.each(l.valeurs, function (v, i) {
+                x['c' + i] = v;
+            });
+            data.push(x);
+        });
+        var store = Ext.create('Ext.data.Store', {fields: fields, data: data});
+        var colonnes = [{text: 'Lu', dataIndex: 'resume', width: 230, renderer: function (v, m, r) {
+                    return r.get('lu') ? '<span class="pb-lu">' + Ext.String.htmlEncode(v) + '</span>' : '<span class="pb-discret">ignorée</span>';
+                }}].concat(Ext.Array.map(cols, function (c) {
+            return {itemId: 'apercu-c' + c.rang, dataIndex: 'c' + c.rang, minWidth: 90, flex: 1, sortable: false, menuDisabled: true,
+                tooltip: Ext.String.htmlEncode('C' + (c.rang + 1) + (c.entete ? ' · ' + c.entete : '')), renderer: Ext.String.htmlEncode};
+        }));
+        me.down('#grilleApercu').reconfigure(store, colonnes);
+        me.majEntetesApercu();
+    },
+
+    /* en-tete de chaque colonne : numero, en-tete du releve et champ designe */
+    majEntetesApercu: function () {
+        var me = this, o = me.apercu, enc = Ext.String.htmlEncode;
+        if (!o) {
+            return;
+        }
+        Ext.Array.each(o.colonnes || [], function (c) {
+            var col = me.down('#grilleApercu').down('#apercu-c' + c.rang), champs = [];
+            Ext.Array.each(me.CHAMPS, function (ch) {
+                if (me.down('#champ-' + ch.champ).getValue() === c.rang) {
+                    champs.push(ch.libelle.replace(/^(ou|et) /, '').replace(' *', ''));
+                }
+            });
+            if (col) {
+                col.setText('C' + (c.rang + 1) + (c.entete ? ' · ' + enc(c.entete) : '')
+                        + (champs.length ? '<br><b class="pb-champ">' + enc(champs.join(' + ')) + '</b>' : '<br><span class="pb-discret">—</span>'));
+            }
+        });
+    },
+
+    choixColonnes: function () {
+        var me = this, champs = {};
+        Ext.Array.each(me.CHAMPS, function (c) {
+            var v = me.down('#champ-' + c.champ).getValue();
+            if (v !== null && v !== undefined && v >= 0) {
+                champs[c.champ] = v;
+            }
+        });
+        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue()};
+    },
+
+    essayerBuffer: function () {
+        var me = this;
+        if (!me.essaiDiffere) {
+            me.essaiDiffere = Ext.Function.createBuffered(me.essayer, 250, me);
+        }
+        me.essaiDiffere();
+    },
+
+    essayer: function () {
+        var me = this, n = function (v) {
+            return (v < 0 ? '-' : '') + Ext.util.Format.number(Math.abs(v || 0), '0,000');
+        };
+        Ext.Ajax.request({
+            url: '../api/v1/pointage-bl/releve/essai', method: 'POST', jsonData: me.choixColonnes(),
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {}, parN = {}, store = me.down('#grilleApercu').getStore(), enc = Ext.String.htmlEncode;
+                if (o.success === false) {
+                    me.down('#recoInfo').update('<b style="color:#b42318">' + enc(o.msg || 'Relevé à réimporter.') + '</b>');
+                    return;
+                }
+                Ext.Array.each(o.reconnues || [], function (x) {
+                    parN[x.n] = x;
+                });
+                store.suspendEvents();
+                store.each(function (rec) {
+                    var x = parN[rec.get('n')];
+                    rec.set('lu', !!x);
+                    rec.set('resume', x ? (x.type === 'AVOIR' ? 'Avoir ' : 'BL ') + x.numero + (x.sequence ? ' / ' + x.sequence : '') + ' · ' + x.date + ' · ' + n(x.montantHt) : '');
+                    rec.commit(true);
+                });
+                store.resumeEvents();
+                me.down('#grilleApercu').getView().refresh();
+                me.lignesLues = o.nombre || 0;
+                me.down('#recoInfo').update((me.messageReco ? '<div class="pb-entete">' + enc(me.messageReco) + '</div>' : '')
+                        + '<div>Fichier <b>' + enc(me.apercu.fichier || '') + '</b> — désignez la colonne de chaque champ (N° BL, date et un montant au moins).'
+                        + ' Les lignes lues sont en vert, les en-têtes et totaux sont ignorés.</div>'
+                        + (o.msg ? '<div><b style="color:#b26a00">' + enc(o.msg) + '</b></div>'
+                                : '<div class="pb-totaux"><b>' + o.nombre + '</b> ligne(s) lue(s) : BL <b>' + n(o.totalBl) + '</b>, avoirs <b>' + n(o.totalAvoirs) + '</b>'
+                                + (me.apercu.tronque ? ' (aperçu limité aux 400 premières lignes)' : '') + '</div>'));
+                me.down('#appliquerModele').setDisabled(!!o.msg || !o.nombre);
+            }
+        });
+    },
+
+    appliquerModele: function () {
+        var me = this, g = me.down('#grossiste').getValue();
+        Ext.Ajax.request({
+            url: '../api/v1/pointage-bl/releve/modele', method: 'POST', jsonData: me.choixColonnes(),
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    me.down('#recoInfo').update('<b style="color:#b42318">' + Ext.String.htmlEncode(o.msg || 'Réglage impossible.') + '</b>');
+                    return;
+                }
+                me.down('#ongletRapprochement').getLayout().setActiveItem(0);
+                me.afficherReleve(o);
+                if (g) {
+                    me.releves.load({params: {grossiste: g}});
+                }
+                me.majEtatModele('MODELE');
+            }
+        });
+    },
+
+    oublierModele: function () {
+        var me = this, g = me.down('#grossiste').getValue();
+        if (!g) {
+            return;
+        }
+        Ext.MessageBox.confirm('Relevé du grossiste', 'Oublier le réglage des colonnes de ce grossiste ? Ses relevés seront de nouveau lus au format standard.', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/pointage-bl/modele?grossiste=' + encodeURIComponent(g), method: 'DELETE',
+                success: function () {
+                    me.majEtatModele();
+                }
+            });
+        });
     },
 
     pointerRapproches: function () {
