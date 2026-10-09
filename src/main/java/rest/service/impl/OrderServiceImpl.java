@@ -150,8 +150,21 @@ public class OrderServiceImpl implements OrderService {
         if (blvId != null) {
             BlvPharmaMl.marquerUtilise(getEmg(), blvId, order.getLgORDERID(), oBonLivraison.getLgBONLIVRAISONID());
         }
+        /* retours du 09/10 (5) : N° de sequence client, facultatif ; ignore s'il est mal forme (jamais bloquant) */
+        String sequence = StringUtils.trimToNull(params.getSequence());
+        String remarque = "";
+        if (sequence != null) {
+            if (sequence.matches("[A-Za-z0-9 ./-]{1,20}")) {
+                getEmg().flush();
+                getEmg().createNativeQuery(
+                        "UPDATE t_bon_livraison SET str_SEQ_CLIENT = ?1 WHERE lg_BON_LIVRAISON_ID = ?2")
+                        .setParameter(1, sequence).setParameter(2, oBonLivraison.getLgBONLIVRAISONID()).executeUpdate();
+            } else {
+                remarque = " (N° de séquence ignoré : 20 caractères au plus, chiffres et lettres)";
+            }
+        }
         return json.put("success", true).put("count", count).put("nb", count2).put("data", new JSONArray(erro))
-                .put("msg", "Opération effectuée avec success");
+                .put("msg", "Opération effectuée avec success" + remarque);
     }
 
     private TBonLivraisonDetail createBLDetail(TBonLivraison oTBonLivraison, TGrossiste oTGrossiste, TFamille oTFamille,

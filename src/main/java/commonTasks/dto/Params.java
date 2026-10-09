@@ -113,6 +113,17 @@ public class Params implements Serializable {
         this.refParent = refParent;
     }
 
+    /** Creation d'un BL : N° de sequence client imprime sur le BL, facultatif (retours du 09/10). */
+    private String sequence;
+
+    public String getSequence() {
+        return sequence;
+    }
+
+    public void setSequence(String sequence) {
+        this.sequence = sequence;
+    }
+
     public String getRefTwo() {
         return refTwo;
     }

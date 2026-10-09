@@ -90,6 +90,17 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                             allowBlank: false,
                             id: 'str_REF_LIVRAISON'
                         },
+                        /* retours du 09/10 (5) : N° de sequence client imprime sur le BL, facultatif (pointage) */
+                        {
+                            fieldLabel: 'N° SÉQUENCE:',
+                            emptyText: 'Facultatif (ex. 48)',
+                            name: 'str_SEQ_CLIENT',
+                            id: 'str_SEQ_CLIENT',
+                            allowBlank: true,
+                            maxLength: 20,
+                            enforceMaxLength: true,
+                            maskRe: /[A-Za-z0-9 .\/-]/
+                        },
                         {
                             xtype: 'datefield',
                             fieldLabel: 'Date BL',
@@ -288,7 +299,8 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                 dtStart: Othirdvalue_param,
                 value: Ofourthvalue_param,
                 valueTwo: Ofifthvalue_param,
-                refTwo: Ext.getCmp('cmbBlvPml') ? (Ext.getCmp('cmbBlvPml').getValue() || null) : null
+                refTwo: Ext.getCmp('cmbBlvPml') ? (Ext.getCmp('cmbBlvPml').getValue() || null) : null,
+                sequence: Ext.getCmp('str_SEQ_CLIENT') ? (Ext.String.trim(Ext.getCmp('str_SEQ_CLIENT').getValue() || '') || null) : null
 
             }),
             success: function (response)

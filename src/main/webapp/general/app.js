@@ -402,6 +402,7 @@ Ext.application({
         'testextjs.view.vente.VentesModifieesManager',
         'testextjs.view.produits.GestionSurstock',
         'testextjs.view.produits.ArticlesDormants',
+        'testextjs.view.commandemanagement.pointage.PointageBL',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',
         'testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenneManager',
