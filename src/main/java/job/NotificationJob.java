@@ -59,10 +59,27 @@ public class NotificationJob {
     public String findHeureEnvoiSmsRecap() {
         try {
             TParameters parameters = em.find(TParameters.class, Constant.KEY_HEURE_ENVOI_SMS_RECAP_ACTIVITE);
-            return parameters.getStrVALUE();
+            return heuresValides(parameters.getStrVALUE(), "18,19");
         } catch (Exception e) {
             return "18,19";
         }
+    }
+
+    /**
+     * Heures d'envoi « 0,18,19 » : une valeur vide ou mal formee (« 25 », « 18h ») empechait le demarrage de toute
+     * l'application (timer refuse) ; elle est remplacee par la valeur par defaut.
+     */
+    static String heuresValides(String valeur, String defaut) {
+        String v = valeur == null ? "" : valeur.replace(" ", "");
+        if (!v.matches("\\d{1,2}(,\\d{1,2})*")) {
+            return defaut;
+        }
+        for (String h : v.split(",")) {
+            if (Integer.parseInt(h) > 23) {
+                return defaut;
+            }
+        }
+        return v;
     }
 
     @Timeout
