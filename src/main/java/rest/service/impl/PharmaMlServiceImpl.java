@@ -1814,27 +1814,33 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     @SuppressWarnings("unchecked")
     public JSONObject substitutions(String statut, String grossisteId, java.time.LocalDate du, java.time.LocalDate au,
             String recherche) {
+        /*
+         * parametres numerotes sans trou (Hibernate refuse ?1, ?2, ?4) ; « ALL » (liste des grossistes) = tous ;
+         * recherche bornee (saisie collee de plusieurs milliers de caracteres)
+         */
+        List<Object> valeurs = new ArrayList<>();
+        valeurs.add(du);
+        valeurs.add(au);
         StringBuilder sql = new StringBuilder(SQL_SUBSTITUTIONS).append(" WHERE DATE(r.dt_CREATED) BETWEEN ?1 AND ?2");
         if (StringUtils.isNotBlank(statut)) {
-            sql.append(" AND r.str_STATUT = ?3");
+            valeurs.add(statut);
+            sql.append(" AND r.str_STATUT = ?").append(valeurs.size());
         }
-        if (StringUtils.isNotBlank(grossisteId)) {
-            sql.append(" AND r.lg_GROSSISTE_ID = ?4");
+        if (StringUtils.isNotBlank(grossisteId) && !"ALL".equalsIgnoreCase(grossisteId.trim())) {
+            valeurs.add(grossisteId.trim());
+            sql.append(" AND r.lg_GROSSISTE_ID = ?").append(valeurs.size());
         }
         if (StringUtils.isNotBlank(recherche)) {
-            sql.append(" AND (r.str_REF_CDE LIKE ?5 OR fo.str_NAME LIKE ?5 OR fo.int_CIP LIKE ?5"
-                    + " OR r.str_DESIGNATION LIKE ?5 OR r.str_CODE_REMPLACANT LIKE ?5)");
+            valeurs.add("%" + StringUtils.left(recherche.trim(), 100) + "%");
+            String n = "?" + valeurs.size();
+            sql.append(" AND (r.str_REF_CDE LIKE ").append(n).append(" OR fo.str_NAME LIKE ").append(n)
+                    .append(" OR fo.int_CIP LIKE ").append(n).append(" OR r.str_DESIGNATION LIKE ").append(n)
+                    .append(" OR r.str_CODE_REMPLACANT LIKE ").append(n).append(")");
         }
         sql.append(" ORDER BY r.dt_CREATED DESC");
-        javax.persistence.Query q = em.createNativeQuery(sql.toString()).setParameter(1, du).setParameter(2, au);
-        if (StringUtils.isNotBlank(statut)) {
-            q.setParameter(3, statut);
-        }
-        if (StringUtils.isNotBlank(grossisteId)) {
-            q.setParameter(4, grossisteId);
-        }
-        if (StringUtils.isNotBlank(recherche)) {
-            q.setParameter(5, "%" + recherche.trim() + "%");
+        javax.persistence.Query q = em.createNativeQuery(sql.toString());
+        for (int k = 0; k < valeurs.size(); k++) {
+            q.setParameter(k + 1, valeurs.get(k));
         }
         JSONArray a = new JSONArray();
         for (Object[] l : (List<Object[]>) q.setMaxResults(1000).getResultList()) {

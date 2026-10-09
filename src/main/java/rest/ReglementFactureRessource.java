@@ -876,6 +876,8 @@ public class ReglementFactureRessource {
             if (StringUtils.isNotEmpty(query)) {
                 search = query;
             }
+            /* controle de saisie : recherche collee de plusieurs milliers de caracteres -> erreur 500 ; bornee */
+            search = StringUtils.left(search, 50);
             odm.initEntityManager();
             StatisticsFamilleArticle familleArticle = new StatisticsFamilleArticle(odm);
             // Les criteres de montant, de type et de groupe (point 10) sont appliques ICI, avant la
@@ -1029,7 +1031,8 @@ public class ReglementFactureRessource {
             String dtEnd = StringUtils.isNotEmpty(dtEndParam) ? dtEndParam
                     : date.formatterMysqlShort.format(new Date());
             String tiersPayantId = StringUtils.isNotEmpty(lgTiersPayantId) ? lgTiersPayantId : "%%";
-            String search = StringUtils.isNotEmpty(searchValue) ? searchValue : "%%";
+            /* meme borne que la liste (procedures stockees : 100 caracteres, joker compris) */
+            String search = StringUtils.left(StringUtils.isNotEmpty(searchValue) ? searchValue : "%%", 50);
             odm.initEntityManager();
             rest.service.filtre.FiltresRecapOrganisme filtres = new rest.service.filtre.FiltresRecapOrganisme(
                     operateurMontant, valeurMontant, typeTiersPayant, groupeTiersPayant);
