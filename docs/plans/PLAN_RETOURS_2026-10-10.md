@@ -239,6 +239,16 @@ Tests : unitaires du calcul (existants + nouveaux paramètres), e2e : générati
 | 5 — Modules existants | retour fournisseur, rappels, fidélité, ordonnances, analyse article, fiche article | Q1, Q8 |
 | 6 — Nouveaux | analyse de caisse, étiquettes 2D, RH, journal | Q5, Q6, Q9, Q10, Q11 |
 
+## Avancement (10/10)
+| Lot | État |
+|---|---|
+| 1 à 5 | faits, testés, poussés |
+| 6 — analyse de caisse | fait (écarts : négatif = manquant ; onglet Analyse) |
+| 6 — étiquettes 2D | fait (GS1 en QR code et DataMatrix ; lecture à la vente derrière `KEY_VENTE_LECTURE_GS1`, défaut 0) |
+| 6 — RH | fait côté Prestige (employé créé depuis un utilisateur, fiche sans fenêtre, équipes, éditions PDF) ; **reste** la présence QR + GPS dans `prestige_vente_app` : accès en écriture au dépôt de l'application à donner |
+| 6 — journal | fait (poste nommé, IP, application, ventes / préventes / ajustements avant → après / suppressions de facture, filtre poste, alertes, export, purge paramétrable) |
+| 6 — notice WhatsApp Web | faite (`docs/notices/NOTICE_WHATSAPP_WEB.md`) |
+
 ## Méthode de test (aucune régression)
 1. Chaque défaut est d'abord **reproduit par un test qui échoue**, puis corrigé.
 2. Chaque calcul a son **test unitaire** ; chaque écran son **test e2e** qui passe par l'écran et retire ses données.
