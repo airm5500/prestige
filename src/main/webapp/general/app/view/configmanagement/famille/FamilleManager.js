@@ -1185,10 +1185,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             if (o.grossiste) {
                 det.push(esc(o.grossiste));
             }
-            reperes += ligne('Derni\u00e8re entr\u00e9e',
-                    esc(o.derniereEntree) + (det.length ? ' <em>' + det.join(' \u00b7 ') + '</em>' : ''));
+            // Retours du 10/10 : date de mise en stock, puis la date du BL en petit.
+            if (o.dateBl) {
+                det.push('BL du ' + esc(o.dateBl));
+            }
+            reperes += ligne('Dern. entr\u00e9e',
+                    '<span data-qtip="Date de mise en stock (validation du BL)">' + esc(o.derniereEntree) + '</span>'
+                    + (det.length ? ' <em>' + det.join(' \u00b7 ') + '</em>' : ''));
         } else {
-            reperes += ligne('Derni\u00e8re entr\u00e9e', '<em>aucune entr\u00e9e enregistr\u00e9e</em>');
+            reperes += ligne('Dern. entr\u00e9e', '<em>aucune entr\u00e9e en stock</em>');
         }
 
         // Retour des tests du 12/09 : la classe et la TVA figurent toujours, meme absentes de la fiche.

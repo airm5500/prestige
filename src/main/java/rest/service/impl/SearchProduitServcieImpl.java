@@ -198,7 +198,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             Query qa = em.createNativeQuery("SELECT YEAR(bl.dt_DATE_LIVRAISON), MONTH(bl.dt_DATE_LIVRAISON), "
                     + "SUM(bld.int_QTE_RECUE) FROM t_bon_livraison_detail bld "
                     + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
-                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.dt_DATE_LIVRAISON >= ?2 GROUP BY 1, 2");
+                    // retours du 10/10 : BL entres en stock seulement (ni en cours de saisie, ni supprimes)
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed' AND bl.dt_DATE_LIVRAISON >= ?2 "
+                    + "GROUP BY 1, 2");
             qa.setParameter(1, produitId);
             qa.setParameter(2, depuis);
             java.util.Map<String, Long> achatsParMois = new java.util.HashMap<>();
@@ -237,13 +239,19 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                 o.put("joursSansVente", (System.currentTimeMillis() - d.getTime()) / 86400000L);
             }
 
-            // --- derniere entree : date, quantite recue, grossiste ---
-            Query qe = em.createNativeQuery("SELECT bl.dt_DATE_LIVRAISON, bld.int_QTE_RECUE, g.str_LIBELLE "
-                    + "FROM t_bon_livraison_detail bld "
+            // --- derniere entree : date de mise en stock, date du BL, quantite recue, grossiste ---
+            // Retours du 10/10 : la date affichee etait celle du BL (dt_DATE_LIVRAISON), BL non entres en stock
+            // compris. C'est maintenant la date de MISE EN STOCK, et seulement pour un BL entre en stock : celle du
+            // mouvement « entree en stock » de la ligne (jamais modifie ensuite), a defaut la date de cloture du BL.
+            // La date du BL suit, en second.
+            Query qe = em.createNativeQuery("SELECT x.entree, x.dateBl, x.qte, x.grossiste FROM ("
+                    + "SELECT IFNULL((SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.pkey = bld.lg_BON_LIVRAISON_DETAIL "
+                    + "AND h.typeMvt = '01'), bl.dt_UPDATED) AS entree, bl.dt_DATE_LIVRAISON AS dateBl, "
+                    + "bld.int_QTE_RECUE AS qte, g.str_LIBELLE AS grossiste " + "FROM t_bon_livraison_detail bld "
                     + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
                     + "LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = bld.lg_GROSSISTE_ID "
-                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.dt_DATE_LIVRAISON IS NOT NULL "
-                    + "ORDER BY bl.dt_DATE_LIVRAISON DESC");
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed') x "
+                    + "WHERE x.entree IS NOT NULL ORDER BY x.entree DESC");
             qe.setParameter(1, produitId);
             qe.setMaxResults(1);
             List<Object[]> entrees = qe.getResultList();
@@ -253,8 +261,11 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     o.put("derniereEntree",
                             new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format((java.util.Date) e[0]));
                 }
-                o.put("qteEntree", e[1] != null ? ((Number) e[1]).intValue() : 0);
-                o.put("grossiste", e[2] != null ? e[2].toString() : "");
+                if (e[1] != null) {
+                    o.put("dateBl", new java.text.SimpleDateFormat("dd/MM/yyyy").format((java.util.Date) e[1]));
+                }
+                o.put("qteEntree", e[2] != null ? ((Number) e[2]).intValue() : 0);
+                o.put("grossiste", e[3] != null ? e[3].toString() : "");
             }
 
             // --- lots dont la peremption approche ---
@@ -1110,34 +1121,26 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         return null;
     }
 
+    /**
+     * Date de mise en stock la plus recente (jj/mm/aaaa hh:mm), BL entres en stock seulement : date du mouvement «
+     * entree en stock » de la ligne, a defaut date de cloture du BL. Meme regle que l'apercu (retours du 10/10).
+     */
     private String dateEntree(String lgFAMILLEID) {
-        String date = "";
         try {
-
-            CriteriaBuilder cb = em.getCriteriaBuilder();
-            CriteriaQuery<String> cq = cb.createQuery(String.class);
-
-            Root<TBonLivraisonDetail> root = cq.from(TBonLivraisonDetail.class);
-            Join<TBonLivraisonDetail, TBonLivraison> j = root.join("lgBONLIVRAISONID", JoinType.INNER);
-            Join<TBonLivraisonDetail, TFamille> jf = root.join("lgFAMILLEID", JoinType.INNER);
-
-            Predicate predicate = cb.conjunction();
-            predicate = cb.and(predicate, cb.equal(j.get(TBonLivraison_.strSTATUT), Constant.STATUT_IS_CLOSED));
-            predicate = cb.and(predicate, cb.equal(jf.get(TFamille_.lgFAMILLEID), lgFAMILLEID));
-            cq.select(cb.function("DATE_FORMAT", String.class, j.get(TBonLivraison_.dtUPDATED),
-                    cb.literal("%d/%m/%Y %H:%i"))).orderBy(cb.desc(j.get(TBonLivraison_.dtUPDATED)));
-
-            cq.where(predicate);
-            Query q = em.createQuery(cq);
-            q.setFirstResult(0);
+            Query q = em.createNativeQuery("SELECT DATE_FORMAT(x.entree, '%d/%m/%Y %H:%i') FROM ("
+                    + "SELECT IFNULL((SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.pkey = bld.lg_BON_LIVRAISON_DETAIL "
+                    + "AND h.typeMvt = '01'), bl.dt_UPDATED) AS entree FROM t_bon_livraison_detail bld "
+                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed') x "
+                    + "WHERE x.entree IS NOT NULL ORDER BY x.entree DESC");
+            q.setParameter(1, lgFAMILLEID);
             q.setMaxResults(1);
-            date = (String) q.getSingleResult();
-
+            List<?> r = q.getResultList();
+            return r.isEmpty() || r.get(0) == null ? "" : r.get(0).toString();
         } catch (Exception e) {
-            // e.printStackTrace();
-
+            LOG.log(Level.FINE, "dateEntree", e);
+            return "";
         }
-        return date;
     }
 
     /**
