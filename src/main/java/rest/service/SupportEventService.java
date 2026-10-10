@@ -53,6 +53,12 @@ public interface SupportEventService {
     String readLogContent(String eventId);
 
     /**
+     * Fichier de detail complet d'un evenement (verifie : sous le dossier logs du support), ou null s'il n'existe pas.
+     * Sert au telechargement du log entier (photographie des threads d'un blocage), sans limite de taille d'affichage.
+     */
+    java.nio.file.Path fichierLog(String eventId);
+
+    /**
      * Contexte metier a joindre a un evenement, deduit de l'adresse appelee : pour la vente, la reference de la vente
      * concernee, son etat et qui la tenait. {@code null} quand rien n'est reconnu.
      */

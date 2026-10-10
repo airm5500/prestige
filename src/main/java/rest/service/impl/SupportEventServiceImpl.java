@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -76,22 +77,10 @@ public class SupportEventServiceImpl implements SupportEventService {
             String signature = buildSignature(dto);
             ApplicationEvent event = findBySignature(signature);
             if (event != null) {
-                event.setOccurrences(event.getOccurrences() + 1);
-                event.setLastSeenAt(LocalDateTime.now());
-                if (StringUtils.isNotBlank(utilisateur)) {
-                    event.setUtilisateur(StringUtils.abbreviate(utilisateur, 255));
-                }
+                event = compter(event, utilisateur);
             } else {
-                event = buildEvent(dto, signature, utilisateur);
-                em.persist(event);
-                try {
-                    em.flush();
-                } catch (Exception e) {
-                    // Doublon concurrent sur l'index unique de signature : un autre
-                    // appel a deja cree l'evenement. La transaction courante est alors
-                    // condamnee, on ne peut plus y toucher ; on sort sans bruit
-                    // (l'increment de cette occurrence est perdu, sans consequence).
-                    LOG.log(Level.FINE, "record: signature dupliquee, evenement ignore", e);
+                event = insererOuCompter(buildEvent(dto, signature, utilisateur));
+                if (event == null) {
                     return;
                 }
             }
@@ -162,6 +151,22 @@ public class SupportEventServiceImpl implements SupportEventService {
             params.put("terme", "%" + recherche.trim().toLowerCase() + "%");
         }
         return params;
+    }
+
+    @Override
+    public Path fichierLog(String eventId) {
+        ApplicationEvent event = eventId == null ? null : em.find(ApplicationEvent.class, eventId);
+        if (event == null || StringUtils.isBlank(event.getLogRef())) {
+            return null;
+        }
+        try {
+            Path base = getStorageBase().resolve("logs").toRealPath();
+            Path file = Paths.get(event.getLogRef()).toRealPath();
+            // Securite : le fichier doit etre SOUS le dossier logs du support (pas de lecture arbitraire).
+            return file.startsWith(base) && Files.isRegularFile(file) ? file : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -325,9 +330,7 @@ public class SupportEventServiceImpl implements SupportEventService {
                  * une seule fois - or c'est justement le nombre, et l'heure de la derniere fois, qui disent si le
                  * probleme s'aggrave et a quel moment de la journee il frappe.
                  */
-                connu.setOccurrences(connu.getOccurrences() + 1);
-                connu.setLastSeenAt(LocalDateTime.now());
-                em.merge(connu);
+                connu = compter(connu, null);
                 addOccurrence(connu);
                 return;
             }
@@ -348,20 +351,8 @@ public class SupportEventServiceImpl implements SupportEventService {
             event.setOccurrences(1);
             event.setLastSeenAt(LocalDateTime.now());
             event.setLogRef(writeLogFile(event.getId(), dto, "WATCHDOG"));
-            em.persist(event);
-            /*
-             * Deux incidents identiques peuvent tomber en meme temps (deux threads HTTP, ou une surveillance qui
-             * repasse pendant qu'un incident s'ecrit) : la lecture ci-dessus n'a alors rien trouve dans les deux, et
-             * les deux insertions se presentent avec la MEME signature. Sans ce flush, la violation de l'index unique
-             * ne se produisait qu'au COMMIT, donc apres la sortie de la methode - hors de portee du catch : elle
-             * ressortait en « Duplicate entry ... for key uk_application_event_signature » dans le journal du serveur,
-             * alors qu'il ne s'agit que d'un doublon sans consequence. On force donc l'ecriture ici pour la voir, et on
-             * sort sans bruit : l'autre appel a deja enregistre l'incident.
-             */
-            try {
-                em.flush();
-            } catch (Exception doublon) {
-                LOG.log(Level.FINE, "recordServerIncident: signature dupliquee, incident deja enregistre", doublon);
+            event = insererOuCompter(event);
+            if (event == null) {
                 return;
             }
             addOccurrence(event);
@@ -628,6 +619,51 @@ public class SupportEventServiceImpl implements SupportEventService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "recordMaintenance " + action, e);
         }
+    }
+
+    /**
+     * Retours du 10/10 (journal de l'officine : « Duplicate entry ... for key uk_application_event_signature ») : deux
+     * erreurs identiques enregistrees au meme instant ne trouvaient ni l'une ni l'autre l'evenement et l'inseraient
+     * toutes les deux ; la seconde echouait sur l'index unique et Hibernate l'ecrivait en ERREUR dans le journal du
+     * serveur, alors qu'il ne s'agit que d'une occurrence de plus (et elle etait perdue). L'insertion se fait donc en
+     * une seule instruction de la base : nouvelle signature, l'evenement est cree ; signature deja la (meme a la
+     * milliseconde pres), son compteur augmente. Plus aucun message d'erreur, aucune occurrence perdue.
+     *
+     * @return l'evenement tel qu'il est en base (cree ou compte), ou null s'il est introuvable
+     */
+    private ApplicationEvent insererOuCompter(ApplicationEvent ev) {
+        LocalDateTime maintenant = LocalDateTime.now();
+        em.createNativeQuery(
+                "INSERT INTO t_application_event (id, created_at, modified_at, status, last_seen_at, module,"
+                        + " type, niveau, signature, message_court, occurrences, utilisateur, url_ou_ecran, payload_json,"
+                        + " stack_extrait, log_ref, ticket_id) VALUES (?1, ?2, ?2, 'ENABLE', ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10,"
+                        + " ?11, ?12, NULL) ON DUPLICATE KEY UPDATE occurrences = occurrences + 1, last_seen_at = VALUES(last_seen_at),"
+                        + " modified_at = VALUES(modified_at), utilisateur = IFNULL(NULLIF(VALUES(utilisateur), ''), utilisateur)")
+                .setParameter(1, ev.getId()).setParameter(2, Timestamp.valueOf(maintenant))
+                .setParameter(3, ev.getModule()).setParameter(4, ev.getType()).setParameter(5, ev.getNiveau())
+                .setParameter(6, ev.getSignature()).setParameter(7, ev.getMessageCourt())
+                .setParameter(8, ev.getUtilisateur()).setParameter(9, ev.getUrlOuEcran())
+                .setParameter(10, ev.getPayloadJson()).setParameter(11, ev.getStackExtrait())
+                .setParameter(12, ev.getLogRef()).executeUpdate();
+        ApplicationEvent enBase = findBySignature(ev.getSignature());
+        if (enBase != null) {
+            em.refresh(enBase);
+        }
+        return enBase;
+    }
+
+    /**
+     * Une occurrence de plus d'un evenement connu, comptee PAR LA BASE (occurrences = occurrences + 1) : lue puis
+     * reecrite par l'application, deux erreurs simultanees lisaient le meme compte et l'une des deux etait perdue.
+     */
+    private ApplicationEvent compter(ApplicationEvent event, String utilisateur) {
+        em.createNativeQuery("UPDATE t_application_event SET occurrences = occurrences + 1, last_seen_at = ?1,"
+                + " modified_at = ?1, utilisateur = IFNULL(NULLIF(?2, ''), utilisateur) WHERE id = ?3")
+                .setParameter(1, Timestamp.valueOf(LocalDateTime.now()))
+                .setParameter(2, StringUtils.abbreviate(StringUtils.defaultString(utilisateur), 255))
+                .setParameter(3, event.getId()).executeUpdate();
+        em.refresh(event);
+        return event;
     }
 
     private ApplicationEvent findBySignature(String signature) {

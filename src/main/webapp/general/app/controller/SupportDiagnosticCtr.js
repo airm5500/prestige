@@ -427,6 +427,15 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
                 handler: function () {
                     me.onVoirLog(data.id);
                 }
+            }, {
+                /* retours du 10/10 : le fichier entier (photographie complete des threads d'un blocage) */
+                xtype: 'button',
+                text: 'Télécharger le log complet',
+                itemId: 'telechargerLog',
+                iconCls: 'icon-grid',
+                handler: function () {
+                    window.open('../api/v1/support/events/' + encodeURIComponent(data.id) + '/log');
+                }
             });
         }
         if (data.niveau === 'ERROR' || data.niveau === 'FATAL') {

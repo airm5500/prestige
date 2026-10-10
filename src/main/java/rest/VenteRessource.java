@@ -49,18 +49,22 @@ public class VenteRessource {
     SalesService salesService;
     @EJB
     GenerateTicketService generateTicketService;
+    @EJB
+    private rest.service.impl.SuiviImpressionTicket suiviImpressionTicket;
 
     @POST
     @Path("ticket/vno")
     public Response getTicket(ClotureVenteParams clotureVenteParams) throws JSONException {
-        JSONObject json = generateTicketService.lunchPrinterForTicket(clotureVenteParams);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vno", "",
+                () -> generateTicketService.lunchPrinterForTicket(clotureVenteParams));
         return Response.ok().entity(json).build();
     }
 
     @POST
     @Path("ticket/vo")
     public Response getTicketVo(ClotureVenteParams clotureVenteParams) throws JSONException {
-        JSONObject json = generateTicketService.lunchPrinterForTicketVo(clotureVenteParams);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vo", "",
+                () -> generateTicketService.lunchPrinterForTicketVo(clotureVenteParams));
         return Response.ok().entity(json).build();
     }
 

@@ -64,6 +64,12 @@ L'écran parcourt cette « liste » d'un élément vide et dessine un bloc tiers
 
 Ce n'est pas une deuxième panne : c'est la **même vente sans client** (2.1), affichée sans garde-fou.
 
+> **Constat en officine (10/10).** Les deux requêtes de contrôle ne renvoient **aucune** vente, et le client YEO ALI est complet en base : fiche, compte, compte tiers payant à 100 %, et ses trois ventes du 08/10 portent bien leur ligne de tiers payant. En officine, la course s'est donc terminée chaque fois dans le bon ordre : le rattachement est passé **après** le détachement. La base n'a gardé aucune trace du défaut.
+>
+> Ce que la caissière a vu est **l'état intermédiaire** : pendant la fenêtre où le client était détaché (quelques centaines de millisecondes, ou plusieurs secondes quand le serveur était ralenti par l'impression des tickets), l'écran a relu la vente sans client et affiché « TPundefined ». La phrase « client marqué SANS CLIENT en base » décrit les 16 essais sur 30 du banc, pas la base de l'officine.
+>
+> La correction du lot A couvre les deux cas : il n'y a plus de détachement anticipé, donc plus d'état intermédiaire, et l'écran ne peut plus afficher « undefined ».
+
 ### 2.3 Chemin aggravant
 
 À la clôture d'une vente Prescription sans client, le parcours ordonnance (client puis médecin) propose de choisir un client **comptant**. Sur une vente Carnet, cela rattache un client sans compte de tiers payant, et l'écran retombe dans le cas 2.2.

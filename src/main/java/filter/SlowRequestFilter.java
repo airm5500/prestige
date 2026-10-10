@@ -41,7 +41,7 @@ public class SlowRequestFilter implements Filter {
         public final long debutMs;
         public final String nomThread;
 
-        private RequeteEnCours(String methode, String uri, long debutMs, String nomThread) {
+        RequeteEnCours(String methode, String uri, long debutMs, String nomThread) {
             this.methode = methode;
             this.uri = uri;
             this.debutMs = debutMs;

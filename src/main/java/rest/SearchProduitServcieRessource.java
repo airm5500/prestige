@@ -52,8 +52,11 @@ public class SearchProduitServcieRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        // sans page demandee (limit absent ou nul) et sans produit precis, la liste rendait TOUT le catalogue (2 Mo,
+        // plus de 5 s) : on rend une page de 100 ; la fiche d'un article (produitId seul) est inchangee
+        int page = limit <= 0 && org.apache.commons.lang3.StringUtils.isBlank(produitId) ? 100 : limit;
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
-                zoneGeoId, stockOperator, stockValue, tvaId, limit, start);
+                zoneGeoId, stockOperator, stockValue, tvaId, page, Math.max(0, start));
         return Response.ok().entity(jsono.toString()).build();
     }
 

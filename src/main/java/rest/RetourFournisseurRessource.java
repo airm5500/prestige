@@ -124,6 +124,13 @@ public class RetourFournisseurRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
             @QueryParam(value = "limite") Integer limite) {
         String debut = defaultDate(dtStart), fin = defaultDate(dtEnd);
+        try {
+            java.time.LocalDate.parse(debut);
+            java.time.LocalDate.parse(fin);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Date invalide (attendu AAAA-MM-JJ)").toString()).build();
+        }
         if (debut.compareTo(fin) > 0) {
             return Response.status(Response.Status.BAD_REQUEST).entity(new org.json.JSONObject().put("success", false)
                     .put("msg", "La date de début doit précéder la date de fin").toString()).build();

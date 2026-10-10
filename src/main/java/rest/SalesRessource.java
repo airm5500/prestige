@@ -60,6 +60,18 @@ public class SalesRessource {
     SmsService smsService;
     @EJB
     private job.SupportClotureMonitor supportClotureMonitor;
+    @EJB
+    private rest.service.impl.SuiviImpressionTicket suiviImpressionTicket;
+
+    /** Utilisateur de la session (nom de connexion seulement), pour le signalement d'un ticket lent. */
+    private String login(TUser tu) {
+        TUser u = tu;
+        if (u == null) {
+            HttpSession hs = servletRequest.getSession(false);
+            u = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        }
+        return u == null ? "" : u.getStrLOGIN();
+    }
 
     @POST
     @Path("ticket/vno")
@@ -69,14 +81,16 @@ public class SalesRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
         clotureVenteParams.setUserId(tu);
-        JSONObject json = generateTicketService.lunchPrinterForTicket(clotureVenteParams);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vno", login(tu),
+                () -> generateTicketService.lunchPrinterForTicket(clotureVenteParams));
         return Response.ok().entity(json.toString()).build();
     }
 
     @POST
     @Path("ticket/vno/{id}")
     public Response getTicketById(@PathParam("id") String id) throws JSONException {
-        JSONObject json = generateTicketService.lunchPrinterForTicket(id);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vno (réimpression)", login(null),
+                () -> generateTicketService.lunchPrinterForTicket(id));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -106,14 +120,16 @@ public class SalesRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
         clotureVenteParams.setUserId(tu);
-        JSONObject json = generateTicketService.lunchPrinterForTicketVo(clotureVenteParams);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vo", login(tu),
+                () -> generateTicketService.lunchPrinterForTicketVo(clotureVenteParams));
         return Response.ok().entity(json.toString()).build();
     }
 
     @POST
     @Path("ticket/vo/{id}")
     public Response getTicketVo(@PathParam("id") String id) throws JSONException {
-        JSONObject json = generateTicketService.lunchPrinterForTicketVo(id);
+        JSONObject json = suiviImpressionTicket.mesurer("vente/ticket/vo (réimpression)", login(null),
+                () -> generateTicketService.lunchPrinterForTicketVo(id));
         return Response.ok().entity(json.toString()).build();
     }
 

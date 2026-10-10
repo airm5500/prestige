@@ -214,7 +214,9 @@ public class LotServiceImpl implements LotService {
                 .lgGrossisteId(t.get("str_LIBELLE", String.class)).intNumLot(t.get("int_NUM_LOT", String.class))
                 .strRefLivraison(t.get("str_REF_LIVRAISON", String.class)).intNumber(t.get("int_NUMBER", Integer.class))
                 .intNumberGratuit(t.get("int_NUMBER_GRATUIT", Integer.class))
-                .dtSortieUsine(t.get("dt_SORTIE_USINE", Timestamp.class).toLocalDateTime().format(formatter))
+                // date de sortie d'usine facultative (lot saisi sans) : elle faisait echouer toute la liste
+                .dtSortieUsine(Objects.nonNull(t.get("dt_SORTIE_USINE", Timestamp.class))
+                        ? t.get("dt_SORTIE_USINE", Timestamp.class).toLocalDateTime().format(formatter) : null)
                 .dtPeremption(dtPeremption)
                 // .dtCreated(t.get("dt_CREATED", Timestamp.class).toLocalDateTime().format(formatter))
                 // .dtUpdated(t.get("dt_UPDATED", Timestamp.class).toLocalDateTime().format(formatter))

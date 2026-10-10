@@ -108,9 +108,12 @@ public class SupportEventRessource {
             // disparu, la lecture rend l'extrait conserve en base, et l'export garde donc de quoi analyser.
             if (erreur && detailsLus < 150) {
                 detailsLus++;
+                // retours du 10/10 : la photographie des threads d'un blocage etait coupee a 4 000 caracteres ; elle
+                // garde ici tout ce qu'une cellule Excel peut contenir (son debut porte les threads fautifs), le
+                // fichier entier se telecharge depuis le detail de l'evenement
                 detail = StringUtils.abbreviate(
                         StringUtils.defaultString(supportEventService.readLogContent(e.getId())).replace("\r", ""),
-                        4000);
+                        "BLOCAGE".equals(e.getModule()) ? 32000 : 4000);
             }
             lignes.add(new String[] { e.getCreatedAt() != null ? e.getCreatedAt().format(format) : "",
                     e.getLastSeenAt() != null ? e.getLastSeenAt().format(format) : "",
@@ -125,6 +128,25 @@ public class SupportEventRessource {
         byte[] bytes = reportExcelExportService.createSimpleExcelReport("Journal du support", entetes, lignes);
         return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"journal_support_"
                 + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + ".xls\"")
+                .build();
+    }
+
+    /** Fichier de detail complet d'un evenement, a telecharger (photographie des threads entiere d'un blocage). */
+    @GET
+    @Path("{id}/log")
+    @Produces("text/plain; charset=UTF-8")
+    public Response telechargerLog(@PathParam("id") String id) {
+        if (currentUser() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity(Constant.DECONNECTED_MESSAGE).build();
+        }
+        java.nio.file.Path fichier = supportEventService.fichierLog(id);
+        if (fichier == null) {
+            return Response.status(Response.Status.NOT_FOUND).entity(
+                    "Fichier de détail introuvable sur le serveur (purgé, ou écrit par une installation précédente).")
+                    .build();
+        }
+        return Response.ok(fichier.toFile()).header("Content-Disposition",
+                "attachment; filename=\"" + fichier.getFileName().toString().replaceAll("[^A-Za-z0-9._-]", "_") + "\"")
                 .build();
     }
 

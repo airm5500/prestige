@@ -1671,9 +1671,14 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     public PrintService findPrintService() {
-
-        return PrintServiceLookup.lookupDefaultPrintService();
-
+        long t0 = System.nanoTime();
+        try {
+            PrintService trouvee = PrintServiceLookup.lookupDefaultPrintService();
+            MesureImpression.imprimante(trouvee != null ? trouvee.getName() : "aucune imprimante par défaut");
+            return trouvee;
+        } finally {
+            MesureImpression.etape(MesureImpression.RECHERCHE_IMPRIMANTE, t0);
+        }
     }
 
     public TImprimante findImprimanteByName() {

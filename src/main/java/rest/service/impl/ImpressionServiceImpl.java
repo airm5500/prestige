@@ -348,8 +348,13 @@ public class ImpressionServiceImpl implements Printable {
     }
 
     public void printTicketVente(int copies) throws PrinterException {
-
-        PrinterJob printerjob = findPrinterJob();
+        long t0 = System.nanoTime();
+        PrinterJob printerjob;
+        try {
+            printerjob = findPrinterJob();
+        } finally {
+            MesureImpression.etape(MesureImpression.PREPARATION_TRAVAIL, t0);
+        }
         TImprimante oImprimante = this.getOTImprimante();
         if (oImprimante != null) {
             intBegin = oImprimante.getIntBEGIN();
@@ -373,9 +378,12 @@ public class ImpressionServiceImpl implements Printable {
             printRequestAttributeSet.add(Chromaticity.COLOR); // insiste sur la netteté de la couleur du texte
 
             printerjob.setPrintable(this, pageFormat);
-
-            printerjob.print(printRequestAttributeSet);
-
+            long t1 = System.nanoTime();
+            try {
+                printerjob.print(printRequestAttributeSet);
+            } finally {
+                MesureImpression.etape(MesureImpression.ENVOI_SPOULEUR, t1);
+            }
         }
 
     }
