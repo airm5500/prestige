@@ -293,6 +293,38 @@ function nettoyer() {
     ok('Connexions : filtre par utilisateur (aucune pour l\'utilisateur d\'essai, seulement admin pour admin)', sesU1.length === 0 && sesAdmin.length > 0 && sesAdmin.every((l) => l === 'admin'),
       sesU1.length + ' / ' + JSON.stringify(sesAdmin.slice(0, 3)));
     await filtre('');
+
+    /* ------------------------------------------------ editions PDF (jrxml) des onglets (retours du 10/10) */
+    await p.evaluate(() => { window.__ouverts = []; window.open = function (u) { window.__ouverts.push(u); return null; }; });
+    const edition = async (onglet, sel) => {
+      await p.evaluate((o) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; const t = r.down('#' + o); if (t) { r.setActiveTab(t); } }, onglet);
+      await p.waitForTimeout(800);
+      await p.evaluate((x) => { const c = Ext.ComponentQuery.query('rhmanager ' + x)[0]; (c.btnEl || c.getEl()).dom.setAttribute('data-e2e', 'pdf'); }, sel);
+      await p.click('[data-e2e=pdf]');
+      await p.evaluate(() => document.querySelectorAll('[data-e2e=pdf]').forEach((n) => n.removeAttribute('data-e2e')));
+      const url = await p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]);
+      const o = await p.evaluate(async (u) => { const r = await fetch(u); return { type: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, url);
+      require('fs').writeFileSync('/tmp/e2e-rh.pdf', Buffer.from(o.b));
+      return { url, type: o.type, texte: /pdf/.test(o.type) ? require('child_process').execFileSync('pdftotext', ['-layout', '/tmp/e2e-rh.pdf', '-'], { encoding: 'utf8' }) : '' };
+    };
+    await p.evaluate((d) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.lundi = Ext.Date.parse(d, 'Y-m-d'); }, SEM);
+    const ePlanning = await edition('ongletPlanning', '#pdfPlanning');
+    ok('Planning : PDF de la semaine affichée (jrxml), employés et cases', /PLANNING DE LA SEMAINE/.test(ePlanning.texte) && /Du 02\/11\/2026 au 08\/11\/2026/.test(ePlanning.texte)
+      && /ZZRH Awa/.test(ePlanning.texte) && /Travail 08:00-17:00/.test(ePlanning.texte), ePlanning.url + ' ' + ePlanning.texte.slice(0, 300));
+    await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.mois = new Date(2026, 10, 1); });
+    const eAbs = await edition('ongletAbsences', '#pdfAbsences');
+    ok('Congés et absences : PDF du mois avec les demandes', /CONGÉS ET ABSENCES/.test(eAbs.texte) && /ZZRH Awa/.test(eAbs.texte) && /Congé/.test(eAbs.texte), eAbs.url);
+    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #rechercheEmploye')[0].setValue('ZZRH'); });
+    const eEmp = await edition('ongletEmployes', '#pdfEmployes');
+    ok('Employés : PDF de la recherche affichée', /EMPLOYÉS \(2\)/.test(eEmp.texte) && /E2E-RH-1/.test(eEmp.texte) && /E2E-RH-2/.test(eEmp.texte), eEmp.url + ' ' + eEmp.texte.slice(0, 200));
+    const eSes = await edition('ongletConnexions', '#pdfConnexions');
+    ok('Connexions : PDF de la période', /CONNEXIONS/.test(eSes.texte) && /admin/.test(eSes.texte), eSes.url);
+    const ePres = await edition('ongletPresence', '#pdfPresence');
+    ok('Présence du jour : PDF', /PRÉSENCE DU JOUR/.test(ePres.texte), ePres.url);
+    const eLots = await edition('ongletPointages', '#pdfImports');
+    ok('Imports de pointage : PDF', /IMPORTS DE POINTAGE/.test(eLots.texte), eLots.url);
+    const eTel = await edition('ongletMobile', '#pdfTelephones');
+    ok('Téléphones de pointage : PDF', /TÉLÉPHONES DE POINTAGE/.test(eTel.texte), eTel.url);
     /* la session de CET essai (d'autres essais peuvent se connecter en meme temps avec le meme compte) */
     const sesHttp = (await p.context().cookies()).find((c) => c.name === 'JSESSIONID').value.split('.')[0];
     await p.evaluate(async () => { await fetch('../api/v1/user/logout', { method: 'POST' }); });

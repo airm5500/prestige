@@ -174,6 +174,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                     toggleHandler: function (b, actif) {
                         me.afficherEquipes(actif);
                     }},
+{text: 'Imprimer', itemId: 'pdfPlanning', iconCls: 'printable', tooltip: 'Imprimer le planning de la semaine affichée (PDF)', handler: function () {
+                        me.imprimerOnglet('planning', {semaine: me.iso(me.lundi)});
+                    }},
                 {text: 'Copier la semaine précédente', itemId: 'btnCopier', tooltip: 'Recopier le planning de la semaine précédente', handler: function () {
                         me.copierSemaine();
                     }}
@@ -347,6 +350,11 @@ Ext.define('testextjs.view.rh.RhManager', {
         });
     },
 
+    /** Retours du 10/10 : edition PDF (jrxml) d'un onglet, memes criteres que l'ecran, ouverte dans un nouvel onglet. */
+    imprimerOnglet: function (onglet, params) {
+        window.open('../api/v1/rh/edition/' + onglet + '/pdf?' + Ext.Object.toQueryString(params || {}), '_blank');
+    },
+
     chargerPlanning: function () {
         var me = this, g = me.down('#ongletPlanning');
         me.appel('GET', '../api/v1/rh/planning?semaine=' + me.iso(me.lundi), null, function (r) {
@@ -456,7 +464,10 @@ Ext.define('testextjs.view.rh.RhManager', {
                             me.chargerAbsences();
                         }}},
                 '->',
-                {text: 'Nouvelle demande', itemId: 'btnNouvelleAbsence', handler: function () {
+{text: 'Imprimer', itemId: 'pdfAbsences', iconCls: 'printable', tooltip: 'Imprimer les congés et absences du mois (PDF)', handler: function () {
+                        me.imprimerOnglet('absences', {du: me.iso(me.mois), au: me.iso(Ext.Date.getLastDateOfMonth(me.mois)), statut: me.down('#filtreStatut').getValue() || ''});
+                    }},
+                {text: 'Nouvelle demande', itemId: 'btnNouvelleAbsence', tooltip: 'Saisir une demande de congé ou une absence', handler: function () {
                         me.editerAbsence(null);
                     }}
             ],
@@ -644,6 +655,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                         store.load();
                     }},
                 '->',
+{text: 'Imprimer', itemId: 'pdfEmployes', iconCls: 'printable', tooltip: 'Imprimer la liste des employés affichée (PDF)', handler: function () {
+                        me.imprimerOnglet('employes', {query: me.down('#rechercheEmploye').getValue() || '', inactifs: !!me.down('#inactifs').getValue()});
+                    }},
                 {text: 'Nouvel employé', itemId: 'btnNouvelEmploye', tooltip: 'Créer un employé à partir d\'un utilisateur existant', handler: function () {
                         me.editerEmploye(null);
                     }}
@@ -800,6 +814,11 @@ Ext.define('testextjs.view.rh.RhManager', {
                         }}},
                 {text: 'Rechercher', itemId: 'sesRechercher', tooltip: 'Afficher les connexions de la période', handler: function () {
                         store.load();
+                    }},
+                '->',
+                {text: 'Imprimer', itemId: 'pdfConnexions', iconCls: 'printable', tooltip: 'Imprimer les connexions affichées (PDF)', handler: function () {
+                        var s0 = me.down('#ongletConnexions');
+                        me.imprimerOnglet('connexions', {du: me.iso(s0.down('#sesDu').getValue()), au: me.iso(s0.down('#sesAu').getValue()), userId: s0.down('#sesUtilisateur').getValue() || ''});
                     }}
             ],
             columns: [
@@ -837,6 +856,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                     items: [{xtype: 'component', itemId: 'zoneQr', cls: 'rh-qr', html: '<div class="rh-qr-attente">Chargement…</div>'}]
                 }, {
                     xtype: 'grid', itemId: 'grilleTerminaux', flex: 1, title: 'Téléphones enregistrés', store: store,
+                    tools: [{type: 'print', itemId: 'pdfTelephones', tooltip: 'Imprimer la liste des téléphones (PDF)', handler: function () {
+                                me.imprimerOnglet('telephones', {});
+                            }}],
                     viewConfig: {emptyText: 'Aucun téléphone ne s\'est encore connecté.', deferEmptyText: false},
                     tbar: [{xtype: 'component', flex: 1, html: '<span class="rh-aide">Page à ouvrir sur le téléphone : <b>' + me.esc(adresse)
                                     + '</b> (HTTPS conseillé pour la caméra et la position)</span>'},
@@ -984,6 +1006,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                         me.chargerPresence();
                     }},
                 '->',
+{text: 'Imprimer', itemId: 'pdfPresence', iconCls: 'printable', tooltip: 'Imprimer la présence du jour (PDF)', handler: function () {
+                        me.imprimerOnglet('presence', {jour: me.iso(me.down('#jourPresence').getValue())});
+                    }},
                 {text: 'Pointage manuel', itemId: 'btnPointageManuel', handler: function () {
                         me.pointageManuel();
                     }}
@@ -1118,6 +1143,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                         {text: 'Motif', dataIndex: 'motif', flex: 1}
                     ]},
                 {xtype: 'grid', itemId: 'grilleLots', store: lots, height: 150, title: 'Historique des imports',
+                    tools: [{type: 'print', itemId: 'pdfImports', tooltip: 'Imprimer l\'historique des imports (PDF)', handler: function () {
+                                me.imprimerOnglet('imports', {});
+                            }}],
                     viewConfig: {emptyText: 'Aucun import.', deferEmptyText: false},
                     columns: [
                         {text: 'Date', dataIndex: 'date', width: 130},

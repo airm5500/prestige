@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Retours du 10/10 (section 9) : edition PDF des onglets Ressources humaines (planning, conges et absences,
+     employes, connexions, presence du jour, imports de pointage, telephones). Modele commun : 9 colonnes au plus,
+     titres en parametres (P_T1..P_T9), lignes de texte (c1..c9) preparees par l'API v1/rh/edition/(onglet)/pdf. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rh_liste" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_SOUS_TITRE" class="java.lang.String"/>
+    <parameter name="P_T1" class="java.lang.String"/>
+    <parameter name="P_T2" class="java.lang.String"/>
+    <parameter name="P_T3" class="java.lang.String"/>
+    <parameter name="P_T4" class="java.lang.String"/>
+    <parameter name="P_T5" class="java.lang.String"/>
+    <parameter name="P_T6" class="java.lang.String"/>
+    <parameter name="P_T7" class="java.lang.String"/>
+    <parameter name="P_T8" class="java.lang.String"/>
+    <parameter name="P_T9" class="java.lang.String"/>
+    <field name="c1" class="java.lang.String"/>
+    <field name="c2" class="java.lang.String"/>
+    <field name="c3" class="java.lang.String"/>
+    <field name="c4" class="java.lang.String"/>
+    <field name="c5" class="java.lang.String"/>
+    <field name="c6" class="java.lang.String"/>
+    <field name="c7" class="java.lang.String"/>
+    <field name="c8" class="java.lang.String"/>
+    <field name="c9" class="java.lang.String"/>
+    <title>
+        <band height="62">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="30" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="47" width="802" height="12"/><textElement textAlignment="Center"><font size="8"/></textElement><textFieldExpression><![CDATA[$P{P_SOUS_TITRE}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <textField isBlankWhenNull="true"><reportElement x="2" y="0" width="148" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T1}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="152" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T2}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="234" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T3}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="315" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T4}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="396" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T5}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="478" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T6}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="560" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T7}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="641" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T8}]]></textFieldExpression></textField>
+                <textField isBlankWhenNull="true"><reportElement x="722" y="0" width="80" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_T9}]]></textFieldExpression></textField>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="14" splitType="Prevent">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="2" y="1" width="148" height="12"/><textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{c1}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="152" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c2}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="234" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c3}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="315" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c4}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="396" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c5}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="478" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c6}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="560" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c7}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="641" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c8}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement stretchType="RelativeToTallestObject" x="722" y="1" width="80" height="12"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{c9}]]></textFieldExpression></textField>
+            <line><reportElement positionType="Float" x="0" y="13" width="802" height="1" forecolor="#E0E0E0"/></line>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <summary>
+        <band height="24"><textField><reportElement x="0" y="6" width="802" height="14"><printWhenExpression><![CDATA[$V{REPORT_COUNT} == 0]]></printWhenExpression></reportElement><textElement textAlignment="Center"><font size="9"/></textElement><textFieldExpression><![CDATA["Aucune ligne pour ces critères."]]></textFieldExpression></textField></band>
+    </summary>
+</jasperReport>

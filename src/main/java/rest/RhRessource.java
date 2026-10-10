@@ -506,4 +506,198 @@ public class RhRessource {
         Response r = controle();
         return r != null ? r : ok(mobile.revoquerTousLesJetons());
     }
+
+    /* ---------------------------------------------------------------- editions PDF des onglets (retours du 10/10) */
+
+    private static String hm(int minutes) {
+        return minutes <= 0 ? "" : String.format("%d h %02d", minutes / 60, minutes % 60);
+    }
+
+    private static String jj(String iso) {
+        LocalDate d = date(iso, null);
+        return d == null ? StringUtils.defaultString(iso) : d.format(FR);
+    }
+
+    private static final java.util.Map<String, String> LIBELLES = java.util.Map.ofEntries(
+            java.util.Map.entry("TRAVAIL", "Travail"), java.util.Map.entry("GARDE", "Garde"),
+            java.util.Map.entry("REPOS", "Repos"), java.util.Map.entry("CONGE", "Congé"),
+            java.util.Map.entry("MALADIE", "Maladie"), java.util.Map.entry("AUTRE", "Autre"),
+            java.util.Map.entry("DEMANDE", "Demandée"), java.util.Map.entry("VALIDE", "Validée"),
+            java.util.Map.entry("REFUSE", "Refusée"), java.util.Map.entry("ACTIF", "Actif"),
+            java.util.Map.entry("INACTIF", "Inactif"), java.util.Map.entry("MATIN", "matin"),
+            java.util.Map.entry("APRES_MIDI", "après-midi"), java.util.Map.entry("DECONNEXION", "déconnexion"),
+            java.util.Map.entry("NOUVELLE_CONNEXION", "nouvelle connexion"));
+
+    private static String l(String code) {
+        return LIBELLES.getOrDefault(StringUtils.defaultString(code), StringUtils.defaultString(code));
+    }
+
+    /**
+     * Edition PDF (modele rh_liste.jrxml) d'un onglet, memes criteres que l'ecran : planning (semaine), absences (du,
+     * au, statut), employes (query, inactifs), connexions (du, au, userId), presence (jour), imports (lots de
+     * pointage), telephones (terminaux mobiles).
+     */
+    @GET
+    @Path("edition/{onglet}/pdf")
+    @Produces("application/pdf")
+    public Response editionOnglet(@PathParam("onglet") String onglet, @QueryParam("semaine") String semaine,
+            @QueryParam("du") String du, @QueryParam("au") String au, @QueryParam("statut") String statut,
+            @QueryParam("query") String query, @DefaultValue("false") @QueryParam("inactifs") boolean inactifs,
+            @QueryParam("userId") String userId, @QueryParam("jour") String jour) {
+        if (controle() != null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        String titre, sousTitre = "";
+        String[] t;
+        java.util.List<rest.report.LigneEdition> lignes = new java.util.ArrayList<>();
+        switch (StringUtils.defaultString(onglet)) {
+        case "planning": {
+            JSONObject pl = service.planning(date(semaine, LocalDate.now()));
+            JSONArray jours = pl.getJSONArray("jours");
+            titre = "PLANNING DE LA SEMAINE";
+            sousTitre = "Du " + jj(jours.getString(0)) + " au " + jj(jours.getString(6));
+            String[] noms = { "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim" };
+            t = new String[] { "Employé", "", "", "", "", "", "", "", "Heures" };
+            for (int i = 0; i < 7; i++) {
+                t[i + 1] = noms[i] + " " + jj(jours.getString(i)).substring(0, 5);
+            }
+            JSONArray d = pl.getJSONArray("data");
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                String[] c = new String[9];
+                c[0] = r.optString("employe")
+                        + (r.optString("poste").isEmpty() ? "" : " (" + r.optString("poste") + ")");
+                for (int i = 0; i < 7; i++) {
+                    JSONObject j = r.optJSONObject("j" + i);
+                    String abs = r.optString("a" + i, "");
+                    String txt = j == null ? "" : l(j.optString("type")) + ("REPOS".equals(j.optString("type")) ? ""
+                            : " " + j.optString("debut") + "-" + j.optString("fin"));
+                    c[i + 1] = (txt + (abs.isEmpty() ? "" : (txt.isEmpty() ? "" : " / ") + l(abs.split(" ")[0])))
+                            .trim();
+                }
+                c[8] = hm(r.optInt("minutes"));
+                lignes.add(new rest.report.LigneEdition(c));
+            }
+            break;
+        }
+        case "absences": {
+            LocalDate[] p = periode(du, au);
+            JSONArray d = service.absences(p[0], p[1], null, StringUtils.trimToNull(statut)).getJSONArray("data");
+            titre = "CONGÉS ET ABSENCES";
+            sousTitre = "Du " + p[0].format(FR) + " au " + p[1].format(FR)
+                    + (StringUtils.isBlank(statut) ? "" : " · " + l(statut.trim().toUpperCase()));
+            t = new String[] { "Employé", "Type", "Du", "Au", "Jours", "Motif", "Statut", "Demandé par", "Décidé par" };
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                lignes.add(new rest.report.LigneEdition(r.optString("employe"), l(r.optString("type")),
+                        jj(r.optString("debut")) + (r.optString("demiJournee").isEmpty() ? ""
+                                : " (" + l(r.optString("demiJournee")) + ")"),
+                        jj(r.optString("fin")), String.valueOf(r.opt("jours")).replace('.', ','), r.optString("motif"),
+                        l(r.optString("statut")), r.optString("demandePar"), r.optString("decidePar")));
+            }
+            break;
+        }
+        case "employes": {
+            JSONArray d = service.employes(query, inactifs).getJSONArray("data");
+            titre = "EMPLOYÉS";
+            sousTitre = (StringUtils.isBlank(query) ? "Tous" : "Recherche « " + query.trim() + " »")
+                    + (inactifs ? ", inactifs compris" : ", actifs");
+            t = new String[] { "Employé", "Matricule", "Poste", "Badge", "Téléphone", "Entrée", "Sortie", "Utilisateur",
+                    "Statut" };
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                lignes.add(new rest.report.LigneEdition((r.optString("nom") + " " + r.optString("prenoms")).trim(),
+                        r.optString("matricule"), r.optString("poste"), r.optString("badge"), r.optString("telephone"),
+                        jj(r.optString("dtEntree")), jj(r.optString("dtSortie")), r.optString("login"),
+                        l(r.optString("statut"))));
+            }
+            break;
+        }
+        case "connexions": {
+            LocalDate a = date(au, LocalDate.now()), b = date(du, a.minusDays(6));
+            JSONArray d = service.sessions(b, a, userId).getJSONArray("data");
+            titre = "CONNEXIONS";
+            sousTitre = "Du " + b.format(FR) + " au " + a.format(FR)
+                    + (StringUtils.isBlank(userId) ? "" : " · un utilisateur");
+            t = new String[] { "Utilisateur", "Identifiant", "Connexion", "Déconnexion", "Durée", "Fin par", "Poste",
+                    "Adresse", "" };
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                lignes.add(new rest.report.LigneEdition(r.optString("utilisateur"), r.optString("login"),
+                        horodatage(r.optString("debut")),
+                        r.optBoolean("ouverte") ? "en cours" : horodatage(r.optString("fin")), hm(r.optInt("minutes")),
+                        l(r.optString("finPar")), r.optString("poste"), r.optString("ip"), ""));
+            }
+            break;
+        }
+        case "presence": {
+            LocalDate j = date(jour, LocalDate.now());
+            titre = "PRÉSENCE DU JOUR";
+            sousTitre = j.format(FR);
+            t = new String[] { "Employé", "Matricule", "Prévu", "Entrée", "Sortie", "Présence", "Retard (min)",
+                    "Absence", "Anomalies" };
+            for (commonTasks.dto.RhPresenceDTO r : pointages.presences(j, j, null)) {
+                lignes.add(new rest.report.LigneEdition(r.getEmploye(), r.getMatricule(), r.getPrevuTexte(),
+                        r.getEntree(), r.getSortie(), r.getPresenceTexte(),
+                        r.getRetard() > 0 ? String.valueOf(r.getRetard()) : "", r.getAbsence(), r.getAnomalies()));
+            }
+            break;
+        }
+        case "imports": {
+            JSONArray d = pointages.lots(100).getJSONArray("data");
+            titre = "IMPORTS DE POINTAGE";
+            sousTitre = "100 derniers imports";
+            t = new String[] { "Fichier", "Date", "Pointeuse", "Lues", "Retenues", "Rejetées", "Déjà connues", "Par",
+                    "" };
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                lignes.add(new rest.report.LigneEdition(r.optString("fichier"), horodatage(r.optString("date")),
+                        r.optString("marque"), String.valueOf(r.optInt("lues")), String.valueOf(r.optInt("retenues")),
+                        String.valueOf(r.optInt("rejetees")), String.valueOf(r.optInt("dejaConnues")),
+                        r.optString("par"), ""));
+            }
+            break;
+        }
+        case "telephones": {
+            JSONArray d = mobile.terminaux().getJSONArray("data");
+            titre = "TÉLÉPHONES DE POINTAGE";
+            t = new String[] { "Utilisateur", "Identifiant", "Appareil", "Statut", "Enregistré le", "Dernière activité",
+                    "Adresse", "", "" };
+            for (int k = 0; k < d.length(); k++) {
+                JSONObject r = d.getJSONObject(k);
+                lignes.add(new rest.report.LigneEdition(r.optString("utilisateur"), r.optString("login"),
+                        r.optString("appareil"), r.optString("statut"), horodatage(r.optString("creeLe")),
+                        horodatage(r.optString("derniereActivite")), r.optString("adresse"), "", ""));
+            }
+            break;
+        }
+        default:
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        java.util.Map<String, Object> parametres = reportUtil.officineData(utilisateur());
+        parametres.put("P_H_CLT_INFOS", titre + " (" + lignes.size() + ")");
+        parametres.put("P_SOUS_TITRE", sousTitre);
+        for (int i = 0; i < 9; i++) {
+            parametres.put("P_T" + (i + 1), i < t.length ? t[i] : "");
+        }
+        String url = reportUtil.buildReport(parametres, "rh_liste", lignes, "rh_" + onglet);
+        java.io.File fichier = reportUtil.editionEcrite(url)
+                ? new java.io.File(reportUtil.getReportDirectory(url.substring(url.lastIndexOf('/') + 1))) : null;
+        if (fichier == null || !fichier.exists()) {
+            return Response.ok(
+                    "<html><head><meta charset=\"UTF-8\"></head><body style=\"font-family:Arial;padding:30px;\">"
+                            + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
+                    "text/html;charset=UTF-8").build();
+        }
+        return Response.ok(fichier, "application/pdf")
+                .header("Content-Disposition", "inline; filename=rh_" + onglet + ".pdf").build();
+    }
+
+    /** « 2026-10-10T08:15:00 » ou « 2026-10-10 08:15 » -> « 10/10/2026 08:15 ». */
+    private static String horodatage(String v) {
+        if (v == null || v.length() < 10) {
+            return StringUtils.defaultString(v);
+        }
+        return jj(v.substring(0, 10)) + (v.length() >= 16 ? " " + v.substring(11, 16) : "");
+    }
 }
