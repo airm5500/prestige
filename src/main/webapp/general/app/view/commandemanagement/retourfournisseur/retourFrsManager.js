@@ -272,7 +272,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     queryMode: 'remote',
                     minChars: 2,
                     flex: 1,
-                    emptyText: 'Sectionner grossiste...',
+                    emptyText: 'Sélectionner grossiste...',
                     listeners: {
                         select: function (cmp) {
                             Me.onRechClick();

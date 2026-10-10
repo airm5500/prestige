@@ -145,7 +145,9 @@ Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
                                 return '<span style="color:#b42318">' + enc(v) + '</span>';
                             }}
                     ],
-                    bbar: {xtype: 'pagingtoolbar', store: me.store, displayInfo: true}
+                    bbar: {xtype: 'pagingtoolbar', store: me.store, displayInfo: true,
+                        /* retours du 10/10 : 25 / 50 / 100 lignes */
+                        items: ['-', window.PrestigeAffichage.choixLignes(me.store)]}
                 }]
         });
         me.callParent(arguments);

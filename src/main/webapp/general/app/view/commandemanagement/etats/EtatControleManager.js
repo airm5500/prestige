@@ -494,7 +494,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     queryMode: 'remote',
                     flex: 1,
                     pageSize: 999,
-                    emptyText: 'Sectionner grossiste...',
+                    emptyText: 'Sélectionner grossiste...',
                     listeners: {
                         select: function (cmp) {
                             Me.onRechClick();
@@ -548,6 +548,14 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         }
                     }
                 },
+                /* retours du 10/10 : « Rechercher » juste apres le champ de recherche */
+                {
+                    text: 'Rechercher',
+                    tooltip: 'Rechercher',
+                    iconCls: 'searchicon',
+                    scope: this,
+                    handler: this.onRechClick
+                },
                 /* Point 17 : filtre sur le statut du controle et sur la presence d'ecarts. Ni
                  * l'un ni l'autre n'est stocke en base - le statut est calcule a partir des
                  * lignes du bon, l'ecart se lit en comparant le comptage a la quantite recue -,
@@ -598,13 +606,6 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             Me.onRechClick();
                         }
                     }
-                },
-                {
-                    text: 'rechercher',
-                    tooltip: 'rechercher',
-                    iconCls: 'searchicon',
-                    scope: this,
-                    handler: this.onRechClick
                 }, '-',
                 {
                     text: 'Imprimer',
@@ -614,15 +615,15 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     handler: this.onPrintClick
                 }, '-',
                 {
-                    text: 'Exporter en excel',
-                    tooltip: 'Exporter en excel',
+                    text: 'Excel',
+                    tooltip: 'Exporter la liste en Excel',
                     icon: 'resources/images/icons/fam/excel_icon.png',
                     scope: this,
                     handler: this.onExportToExcel
                 }, '-',
 
                 {
-                    text: 'INVENTAIRE DE LA SELECTION',
+                    text: 'Inventaire',
                     tooltip: 'Créer un inventaire des produits contenus dans les bons cochés',
                     icon: 'resources/images/icons/fam/table_refresh.png',
                     scope: this,

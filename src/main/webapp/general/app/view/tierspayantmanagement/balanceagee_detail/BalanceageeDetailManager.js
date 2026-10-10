@@ -288,7 +288,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                     width: 300,
                     pageSize: 10,
                     enableKeyEvents: true,
-                    emptyText: 'Sectionner tiers payant...',
+                    emptyText: 'Sélectionner tiers payant...',
                     listConfig: {
                         loadingText: 'Recherche...',
                         emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',

@@ -2985,8 +2985,8 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .alerte-pml-lue { opacity: .65; }
 .pml-tuiles { display: flex; flex-wrap: wrap; gap: 10px; }
 .pml-tuile { flex: 1 1 170px; min-width: 160px; padding: 10px 12px; border-radius: 8px; background: #f6f8fa; border: 1px solid #e3e8ee; border-left: 4px solid #9aa7b5; }
-.pml-tuile.ok { border-left-color: #17795f; }
-.pml-tuile.info { border-left-color: #1f5f9e; }
+.pml-tuile.ok { border-left-color: #17795f; background: #f1faf6; } /* retours du 10/10 : couleurs douces */
+.pml-tuile.info { border-left-color: #1f5f9e; background: #f1f6fd; }
 .pml-tuile.alerte { border-left-color: #d08a00; background: #fffaf0; }
 .pml-tuile.critique { border-left-color: #b42318; background: #fff5f4; }
 .pml-tuile.cliquable { cursor: pointer; }
@@ -3050,3 +3050,6 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Retours du 10/10 (3) : barre du bas de la suggestion ouverte, marges des boutons reduites */
 .sugg-barre-bas .x-btn .x-btn-inner { padding-left: 4px !important; padding-right: 4px !important; }
 .sugg-barre-bas .x-toolbar-item { margin-right: 4px; }
+/* Retours du 10/10 : contenu d'une suggestion plus compact (marges horizontales et verticales reduites) */
+.sugg-compacte .x-grid-cell-inner { padding: 2px 4px !important; }
+.sugg-compacte .x-column-header-inner { padding: 4px 4px !important; }

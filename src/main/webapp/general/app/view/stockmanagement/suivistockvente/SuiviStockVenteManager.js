@@ -555,7 +555,7 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManage
                     typeAhead: true,
                     queryMode: "remote",
                     flex: 1,
-                    emptyText: "Sectionner zone geographique...",
+                    emptyText: "Sélectionner zone geographique...",
                     listeners: {
                         select: function (cmp) {
                             lg_ZONE_GEO_ID = cmp.getValue();
@@ -576,7 +576,7 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManage
                     typeAhead: true,
                     queryMode: "remote",
                     flex: 1,
-                    emptyText: "Sectionner fabriquant...",
+                    emptyText: "Sélectionner fabriquant...",
                     listeners: {
                         select: function (cmp) {
                             lg_FABRIQUANT_ID = cmp.getValue();

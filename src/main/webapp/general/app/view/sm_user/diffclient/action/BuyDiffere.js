@@ -226,7 +226,7 @@ Ext.define('testextjs.view.sm_user.diffclient.action.BuyDiffere', {
                                             typeAhead: true,
                                             queryMode: 'remote',
                                             // flex: 1,
-                                            emptyText: 'Sectionner client...',
+                                            emptyText: 'Sélectionner client...',
                                             listeners: {
                                                 select: function (cmp) {
                                                     var value = cmp.getValue();

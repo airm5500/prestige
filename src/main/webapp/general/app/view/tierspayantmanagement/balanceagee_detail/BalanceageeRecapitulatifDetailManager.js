@@ -228,7 +228,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
                     width: 350,
                     minChars: 2,
                     enableKeyEvents: true,
-                    emptyText: 'Sectionner tiers payant...',
+                    emptyText: 'Sélectionner tiers payant...',
                     listConfig: {
                         loadingText: 'Recherche...',
                         emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
@@ -280,7 +280,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
                     typeAhead: true,
                     queryMode: 'remote',
 //                    flex: 1,
-                    emptyText: 'Sectionner client...',
+                    emptyText: 'Sélectionner client...',
                     listeners: {
                         select: function (cmp) {
                             var value = cmp.getValue();

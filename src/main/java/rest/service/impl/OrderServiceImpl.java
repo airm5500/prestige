@@ -109,6 +109,8 @@ public class OrderServiceImpl implements OrderService {
             return json.put("success", false).put("msg", "Echec: La commande n'existe pas");
         }
         TGrossiste grossiste = order.getLgGROSSISTEID();
+        // Retours du 10/10 : reference du BL enregistree en majuscules (espaces de bord retires).
+        params.setRef(params.getRef() == null ? null : params.getRef().trim().toUpperCase(java.util.Locale.FRENCH));
         if (isRefBLExistForGrossiste(params.getRef(), grossiste.getLgGROSSISTEID())) {
             return json.put("success", false).put("msg", "Cette référence a déjà été utilisé pour ce grossiste");
         }
@@ -2623,6 +2625,7 @@ public class OrderServiceImpl implements OrderService {
             Object[] agg = (Object[]) getEmg().createQuery(
                     "SELECT COUNT(DISTINCT bld.lgBONLIVRAISONID.lgBONLIVRAISONID), COALESCE(SUM(bld.intQTERECUE),0) "
                             + "FROM TBonLivraisonDetail bld WHERE bld.lgFAMILLEID.lgFAMILLEID = :id "
+                            + "AND bld.lgBONLIVRAISONID.strSTATUT = 'is_Closed' "
                             + "AND bld.lgBONLIVRAISONID.dtUPDATED >= :start AND bld.lgBONLIVRAISONID.dtUPDATED < :end")
                     .setParameter("id", produitId)
                     .setParameter("start", startD, javax.persistence.TemporalType.TIMESTAMP)
@@ -2635,6 +2638,7 @@ public class OrderServiceImpl implements OrderService {
             Object s3 = getEmg()
                     .createQuery("SELECT COALESCE(SUM(bld.intQTERECUE),0) FROM TBonLivraisonDetail bld "
                             + "WHERE bld.lgFAMILLEID.lgFAMILLEID = :id "
+                            + "AND bld.lgBONLIVRAISONID.strSTATUT = 'is_Closed' "
                             + "AND bld.lgBONLIVRAISONID.dtUPDATED >= :start AND bld.lgBONLIVRAISONID.dtUPDATED < :end")
                     .setParameter("id", produitId)
                     .setParameter("start", start3D, javax.persistence.TemporalType.TIMESTAMP)
@@ -2645,10 +2649,16 @@ public class OrderServiceImpl implements OrderService {
             // Derniere entree (date + quantite recue)
             String derniereDate = "";
             long derniereQte = 0;
-            List<Object[]> last = getEmg()
-                    .createQuery("SELECT bld.lgBONLIVRAISONID.dtUPDATED, bld.intQTERECUE FROM TBonLivraisonDetail bld "
-                            + "WHERE bld.lgFAMILLEID.lgFAMILLEID = :id ORDER BY bld.lgBONLIVRAISONID.dtUPDATED DESC")
-                    .setParameter("id", produitId).setMaxResults(1).getResultList();
+            // Retours du 10/10 : BL entres en stock seulement ; date de mise en stock (mouvement d'entree de la
+            // ligne, a defaut cloture du BL), comme la « Dern. entrée » de la fiche article.
+            List<Object[]> last = getEmg().createNativeQuery("SELECT x.entree, x.qte FROM ("
+                    + "SELECT IFNULL((SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.pkey = bld.lg_BON_LIVRAISON_DETAIL "
+                    + "AND h.typeMvt = '01'), bl.dt_UPDATED) AS entree, bld.int_QTE_RECUE AS qte "
+                    + "FROM t_bon_livraison_detail bld "
+                    + "INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID "
+                    + "WHERE bld.lg_FAMILLE_ID = ?1 AND bl.str_STATUT = 'is_Closed') x "
+                    + "WHERE x.entree IS NOT NULL ORDER BY x.entree DESC").setParameter(1, produitId).setMaxResults(1)
+                    .getResultList();
             if (!last.isEmpty()) {
                 Object[] r = last.get(0);
                 if (r[0] != null) {

@@ -190,7 +190,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
                     typeAhead: true,
                     queryMode: 'remote',
                     flex: 1,
-                    emptyText: 'Sectionner tiers payant...',
+                    emptyText: 'Sélectionner tiers payant...',
                     listeners: {
                         select: function (cmp) {
                             var value = cmp.getValue();

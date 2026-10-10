@@ -582,7 +582,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         bonLivraison.setIntMHT(bonEdit.getMontantHt());
         bonLivraison.setIntTVA(bonEdit.getTva());
         bonLivraison.setIntHTTC(bonEdit.getTva() + bonEdit.getMontantHt());
-        bonLivraison.setStrREFLIVRAISON(bonEdit.getReferenceBon());
+        bonLivraison.setStrREFLIVRAISON(bonEdit.getReferenceBon() == null ? null
+                : bonEdit.getReferenceBon().trim().toUpperCase(java.util.Locale.FRENCH)); // retours du 10/10
         mt.setGrossiste(grossiste);
         mt.setReference(bonLivraison.getStrREFLIVRAISON());
         mt.setMontant(bonLivraison.getIntHTTC());

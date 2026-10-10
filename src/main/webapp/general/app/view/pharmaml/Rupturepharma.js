@@ -197,7 +197,7 @@ Ext.define('testextjs.view.pharmaml.Rupturepharma', {
                             xtype: 'tbseparator'
                         },
                         {
-                            text: 'Fussionner les ruptures',
+                            text: 'Fusionner les ruptures',
                             iconCls: 'fusionicon',
                             itemId: 'fusion',
                             scope: this

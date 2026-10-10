@@ -767,7 +767,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     queryMode: 'remote',
                                     pageSize: itemsPerPage, //ajout la barre de pagination
                                     flex: 1,
-                                    emptyText: 'Sectionner zone geographique...',
+                                    emptyText: 'Sélectionner zone geographique...',
                                     listeners: {
                                         select: function (cmp) {
                                             var value = cmp.getValue();
@@ -806,7 +806,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     typeAhead: true,
                                     queryMode: 'remote',
                                     flex: 1,
-                                    emptyText: 'Sectionner grossiste...',
+                                    emptyText: 'Sélectionner grossiste...',
                                     listeners: {
                                         select: function (cmp) {
                                             var value = cmp.getValue();

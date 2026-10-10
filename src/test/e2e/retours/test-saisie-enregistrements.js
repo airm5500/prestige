@@ -80,7 +80,8 @@ function nettoyer() {
     ok('Client : date de naissance dans le futur jamais enregistrée', r.s < 500 && (refus(r) || futur === 'NULL'), resume(r) + ' / ' + futur);
     r = await client({ strFIRSTNAME: M + '<script>alert(1)</script>', strLASTNAME: "O'Brien" }); tous.push(r);
     const brut = q("SELECT str_FIRST_NAME FROM t_client WHERE str_FIRST_NAME LIKE '" + M + "<script>%' LIMIT 1");
-    ok('Client : balise et apostrophe enregistrées telles quelles (texte, pas de code)', r.s < 500 && (refus(r) || brut === M + '<script>alert(1)</script>'), resume(r) + ' / ' + brut);
+    /* retours du 10/10 : nom enregistre en majuscules */
+    ok('Client : balise et apostrophe enregistrées comme du texte (en majuscules), pas de code', r.s < 500 && (refus(r) || brut === M + '<SCRIPT>ALERT(1)</SCRIPT>'), resume(r) + ' / ' + brut);
     r = await client({ strFIRSTNAME: M + 'TYPE', strLASTNAME: M, lgTYPECLIENTID: 'type-inexistant' }); tous.push(r);
     ok('Client : type de client inexistant refusé proprement', refus(r), resume(r));
 

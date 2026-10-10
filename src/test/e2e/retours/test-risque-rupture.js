@@ -71,7 +71,7 @@ function attendu(id) {
   try {
     await connexion();
     const o1 = await onglets();
-    ok('Onglet « Risque de rupture » présent, après « Ruptures »', o1 === 'Commandes en cours|Ruptures|Risque de rupture|Substitutions|Alertes|Tableau de bord', o1);
+    ok('Onglet « Risque de rupture » présent, après « Ruptures de commande »', o1 === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Alertes|Tableau de bord', o1);
     const id = await p.evaluate(() => Ext.ComponentQuery.query('commandesencours')[0].down('#cec-risque').getEl().dom.id);
     await p.click('#' + id);
     await charge();
@@ -157,6 +157,13 @@ function attendu(id) {
       return { coupes, boutons, ong, defil: document.body.scrollWidth > document.body.clientWidth + 1 }; });
     ok('Mise en page : onglets, en-têtes et boutons entiers, pas de défilement horizontal', !mp.coupes.length && !mp.boutons.length && !mp.ong.length && !mp.defil, JSON.stringify(mp));
 
+    /* retours du 10/10 : nombre de lignes 25 / 50 / 100 */
+    const choix = await p.evaluate(() => { const c = Ext.ComponentQuery.query('risquerupture #choixLignes')[0]; return c ? c.getStore().collect('n') : null; });
+    await p.evaluate(() => { const r = Ext.ComponentQuery.query('risquerupture')[0], c = r.down('#choixLignes'); c.setValue(25); c.fireEvent('select', c); });
+    await p.waitForFunction(() => { const r = Ext.ComponentQuery.query('risquerupture')[0]; return !r.store.isLoading(); }, null, { timeout: 120000 });
+    const page = await p.evaluate(() => { const r = Ext.ComponentQuery.query('risquerupture')[0]; return { n: r.store.getCount(), total: r.store.getTotalCount(), taille: r.store.pageSize, page: r.store.currentPage }; });
+    ok('Nombre de lignes : choix 25 / 50 / 100 ; à 25, la page compte 25 lignes (ou le total)', JSON.stringify(choix) === '[25,50,100]' && page.taille === 25 && page.page === 1 && page.n === Math.min(25, page.total), JSON.stringify({ choix, page }));
+
     /* sans le droit */
     droit = q("SELECT CONCAT(rp.lg_ROLE_PRIVILEGE, '|', rp.lg_ROLE_ID, '|', rp.lg_PRIVILEGE_ID) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
       + " WHERE rp.lg_ROLE_ID = '" + ROLE + "' AND pr.str_NAME = 'P_CEC_RISQUE_RUPTURE' LIMIT 1").split('|');
@@ -165,7 +172,7 @@ function attendu(id) {
     await connexion();
     const o2 = await onglets();
     const refus = await p.evaluate(async () => (await fetch('/prestige/api/v1/risque-rupture')).json());
-    ok('Sans le droit : onglet absent et données refusées par le serveur', o2 === 'Commandes en cours|Ruptures|Substitutions|Alertes|Tableau de bord' && refus.success === false && refus.interdit === true, o2 + ' ' + JSON.stringify(refus));
+    ok('Sans le droit : onglet absent et données refusées par le serveur', o2 === 'Commandes en cours|Ruptures de commande|Substitutions|Alertes|Tableau de bord' && refus.success === false && refus.interdit === true, o2 + ' ' + JSON.stringify(refus));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);

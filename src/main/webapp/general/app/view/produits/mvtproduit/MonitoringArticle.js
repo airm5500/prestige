@@ -192,7 +192,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             pageSize: null,
                             queryMode: "remote",
                             flex: 1,
-                            emptyText: "Sectionner zone geographique..."
+                            emptyText: "Sélectionner zone geographique..."
 
                         }, "-", {
                             xtype: "combobox",
@@ -205,7 +205,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             pageSize: null,
                             queryMode: "remote",
                             flex: 1,
-                            emptyText: "Sectionner fabriquant..."
+                            emptyText: "Sélectionner fabriquant..."
 
                         },
 

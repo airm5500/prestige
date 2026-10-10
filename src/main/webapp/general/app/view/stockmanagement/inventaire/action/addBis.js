@@ -205,7 +205,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             displayField: 'str_LIBELLE',
                             typeAhead: true,
                             queryMode: 'remote',
-                            emptyText: 'Sectionner une famille article...',
+                            emptyText: 'Sélectionner une famille article...',
                             listeners: {
                                 select: function (cmp) {
                                     var value = cmp.getValue();
@@ -235,7 +235,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             pageSize: itemsPerPage, //ajout la barre de pagination
                             typeAhead: true,
                             queryMode: 'remote',
-                            emptyText: 'Sectionner un emplacement...',
+                            emptyText: 'Sélectionner un emplacement...',
                             listeners: {
                                 select: function (cmp) {
                                     var value = cmp.getValue();
@@ -266,7 +266,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             hidden: true,
                             typeAhead: true,
                             queryMode: 'remote',
-                            emptyText: 'Sectionner un grossiste...',
+                            emptyText: 'Sélectionner un grossiste...',
                             listeners: {
                                 select: function (cmp) {
                                     var value = cmp.getValue();

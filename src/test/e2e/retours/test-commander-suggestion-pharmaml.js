@@ -141,6 +141,12 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     });
     ok('Disponibilité, DCI et Colisage : même fond que la ligne (vert « en suggestion »)', /#73C774/.test(fonds.libelle) && fonds.colDispo === fonds.libelle
         && fonds.colEquivalentDci === fonds.libelle && fonds.colis === fonds.libelle, JSON.stringify(fonds));
+    const compact = await p.evaluate(() => {
+      const g = Ext.getCmp('gridpanelSuggestionID'), cel = g.getView().getEl().dom.querySelector('.x-grid-cell-inner'), cs = getComputedStyle(cel);
+      const qtips = [...g.getView().getEl().dom.querySelectorAll('td[data-qtip]')].map((x) => x.getAttribute('data-qtip'));
+      return { cls: g.hasCls('sugg-compacte'), haut: parseFloat(cs.paddingTop), gauche: parseFloat(cs.paddingLeft), libelle: qtips.some((x) => /^LIBELLE : /.test(x)), prix: qtips.some((x) => /^PRIX\.VENTE : /.test(x)) };
+    });
+    ok('Suggestion : marges réduites (2 px / 4 px) et infobulle « COLONNE : valeur » sur les données', compact.cls && compact.haut <= 2 && compact.gauche <= 4 && compact.libelle && compact.prix, JSON.stringify(compact));
     ok('Suggestion ouverte : « Commander par PharmaML » dans la barre du bas', await p.evaluate(() => { const t = Ext.getCmp('btn_sugg_commander_pml').up('toolbar'); return !!t && t.dock === 'bottom'; }));
     await p.click('#btn_sugg_commander_pml');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envoyer la suggestion/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 20000 });

@@ -846,7 +846,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                                     typeAhead: true,
                                     queryMode: 'remote',
                                     flex: 1,
-                                    emptyText: 'Sectionner fournisseur...',
+                                    emptyText: 'Sélectionner fournisseur...',
                                     listeners: {
                                         select: function (cmp) {
                                             lg_GROSSISTE_ORDER_ID = cmp.getValue();

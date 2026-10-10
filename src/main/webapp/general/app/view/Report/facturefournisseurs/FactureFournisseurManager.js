@@ -2,8 +2,8 @@
 
 Ext.define('testextjs.view.Report.facturefournisseurs.FactureFournisseurManager', {
     extend: 'Ext.panel.Panel',
-    xtype: 'RuptureStockManager',
-    id: 'RuptureStockID',
+    xtype: 'facturefournisseurmanager', // retours du 10/10 : portait le nom de l'ecran des ruptures (conflit)
+    id: 'FactureFournisseurID',
     requires: [
         'testextjs.view.Report.facturefournisseurs.FacturesGrid',
         'testextjs.store.Statistics.Grossistes'

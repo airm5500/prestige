@@ -24,7 +24,7 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
 
     ONGLETS: [
         {cle: 'commandes', texte: 'Commandes en cours'},
-        {cle: 'ruptures', texte: 'Ruptures', onglet: 'ongletRuptures'},
+        {cle: 'ruptures', texte: 'Ruptures de commande', onglet: 'ongletRuptures'},
         /* retours du 09/10 (3) : couverture du stock face au delai de livraison */
         {cle: 'risque', texte: 'Risque de rupture'},
         {cle: 'substitutions', texte: 'Substitutions', onglet: 'ongletSubstitutions', pastille: 'aDecider'},
@@ -42,6 +42,8 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
             items: [me.liste],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsCec', cls: 'cec-onglets',
+                    /* retours du 10/10 : onglets centres */
+                    layout: {type: 'hbox', pack: 'center'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {
                             xtype: 'button', itemId: 'cec-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'cec-onglets-' + me.id,

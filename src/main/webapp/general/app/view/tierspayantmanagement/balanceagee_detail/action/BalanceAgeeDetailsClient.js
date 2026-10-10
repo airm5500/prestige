@@ -320,7 +320,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.action.Balan
                             queryMode: 'remote',
                             enableKeyEvents: true,
                             flex: 0.6,
-                            emptyText: 'Sectionner client...',
+                            emptyText: 'Sélectionner client...',
                             listConfig: {
                                 loadingText: 'Recherche...',
                                 emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',

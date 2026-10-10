@@ -286,7 +286,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     items: [{
                             xtype: 'gridpanel',
                             id: 'gridpanelSuggestionID',
-                            cls: 'my-grid-header',
+                            /* retours du 10/10 : marges des cellules reduites (sugg-compacte) */
+                            cls: 'my-grid-header sugg-compacte',
                             plugins: [this.cellEditing],
                             store: store_details_sugg,
                             listeners: {
@@ -1049,7 +1050,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 // Moyenne d'achat 3 mois = quantites RECUES (achats) des 3 derniers mois fermes / 3 (backend)
                 var moyAchat3 = Math.round((Number(d.moyenneAchat3Mois) || 0) * 100) / 100;
                 var html = '<b style="color:blue;">' + Ext.String.htmlEncode(nom) + '</b> &nbsp;|&nbsp; '
-                        + abr('Date dern. entrée', 'Date de la dernière entrée') + ' : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
+                        + abr('Dern.Entrée', 'Date de la dernière mise en stock') + ' : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
                         + '(qté <span style="color:red;font-weight:bold;">' + (d.derniereEntreeQte || 0) + '</span>) &nbsp;|&nbsp; '
                         + abr('Fréq.achat (' + moisCourt + ')', 'Fréquence d\'achat (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.frequenceAchatMois || 0) + '</span> &nbsp;|&nbsp; '
                         + abr('Qté entrée (' + moisCourt + ')', 'Quantité totale entrée (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.qteEntreeMois || 0) + '</span> &nbsp;|&nbsp; '
@@ -1243,15 +1244,27 @@ onRemoveClick: function (grid, rowIndex) {
         return '';
     },
     
-    columnRenderer: function (v, m, r) {
+    columnRenderer: function (v, m, r, ligne, col, store, vue) {
         const st = Me_Window.manageColor(r);
         m.style = st;
+        Me_Window.infobulle(m, v, col, vue);
         return v;
     },
+
+    /** Retours du 10/10 : infobulle « COLONNE : valeur » sur les donnees (la valeur reste lisible sans elargir). */
+    infobulle: function (m, v, col, vue) {
+        if (v === null || v === undefined || v === '' || !m || m.tdAttr) {
+            return;
+        }
+        var c = vue && vue.getGridColumns ? vue.getGridColumns()[col] : null, enc = Ext.String.htmlEncode,
+                titre = c && c.text ? String(c.text).replace(/<[^>]*>/g, '') : '';
+        m.tdAttr = 'data-qtip="' + enc(enc((titre ? titre + ' : ' : '') + v)) + '"';
+    },
     
-    numberColumnRenderer: function (v, m, r) {
+    numberColumnRenderer: function (v, m, r, ligne, col, store, vue) {
         const st = Me_Window.manageColor(r);
         m.style = st;
+        Me_Window.infobulle(m, amountformat(v), col, vue);
         return amountformat(v);
     }
 });

@@ -813,7 +813,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // Analyse posologie (Posos) : ajoute a la demande de l'officine du 22/09.
     'pososmanager',
     // preventes et devis (demande de l'officine du 30/09, style du menu Vente)
-    'preenregistrementmanager', 'devismanager'
+    'preenregistrementmanager', 'devismanager',
+    // retours du 10/10 : liste des lots, statistiques des ruptures, activite par operateur
+    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager'
 ];
 
 /**
@@ -862,7 +864,9 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 06/10 : contenu d'une suggestion
     'suggerercdemanager',
     // retours du 06/10 (4) : balance vente / caisse
-    'balancesalecahs'
+    'balancesalecahs',
+    // retours du 10/10 : liste des lots, statistiques des ruptures, activite par operateur
+    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager'
 ];
 /**
  * FENETRES au nouveau style (retours du 06/10) : toute fenetre ouverte depuis l'un de ces ecrans (detail, modification,
@@ -1445,3 +1449,25 @@ Ext.onReady(function () {
         }
     }
 });
+
+/**
+ * Retours du 10/10 : choix du nombre de lignes par page (25 / 50 / 100 par defaut), a placer dans une barre de
+ * pagination : items: [PrestigeAffichage.choixLignes(store)]. Le choix recharge la premiere page.
+ */
+window.PrestigeAffichage.choixLignes = function (store, valeurs) {
+    'use strict';
+    valeurs = valeurs || [25, 50, 100];
+    return {
+        xtype: 'combo', itemId: 'choixLignes', width: 118, labelWidth: 42, fieldLabel: 'Lignes', editable: false,
+        queryMode: 'local', forceSelection: true, value: store.pageSize, displayField: 'n', valueField: 'n',
+        store: Ext.create('Ext.data.Store', {fields: [{name: 'n', type: 'int'}], data: Ext.Array.map(valeurs, function (n) {
+                return {n: n};
+            })}),
+        listeners: {
+            select: function (c) {
+                store.pageSize = c.getValue();
+                store.loadPage(1);
+            }
+        }
+    };
+};

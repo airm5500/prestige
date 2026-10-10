@@ -317,6 +317,7 @@ public class ClientRessource {
     @Path("add/lambda")
     public Response add(ClientLambdaDTO clientLambda) {
         /* Controle de saisie (07/10) : nom vide, texte trop long ou type inconnu refuses avec un message. */
+        Majuscules.appliquer(clientLambda); // retours du 10/10
         String refus = clientService.controleClientRapide(clientLambda);
         if (refus != null) {
             return Response.ok().entity(ResultFactory.getFailResult(refus)).build();
@@ -403,7 +404,7 @@ public class ClientRessource {
     @Path("add/carnet")
     public Response addclientCarnet(ClientDTO client) throws JSONException {
 
-        JSONObject json = clientService.updateCreateClientCarnet(client);
+        JSONObject json = clientService.updateCreateClientCarnet(Majuscules.appliquer(client));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -411,7 +412,7 @@ public class ClientRessource {
     @Path("add/assurance")
     public Response addclientAssurance(ClientDTO client) throws JSONException {
 
-        JSONObject json = clientService.updateOrCreateClientAssurance(client);
+        JSONObject json = clientService.updateOrCreateClientAssurance(Majuscules.appliquer(client));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -427,7 +428,7 @@ public class ClientRessource {
     @Path("ayant-droits/{id}")
     public Response addAyantDroits(@PathParam("id") String id, AyantDroitDTO ayantDroitDTO) throws JSONException {
         ayantDroitDTO.setLgCLIENTID(id);
-        JSONObject json = clientService.addAyantDroitToClient(ayantDroitDTO);
+        JSONObject json = clientService.addAyantDroitToClient(Majuscules.appliquer(ayantDroitDTO));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -460,7 +461,8 @@ public class ClientRessource {
             @PathParam("typetierspayantId") String typeTiersPayantId, @PathParam("taux") int taux)
             throws JSONException {
 
-        JSONObject json = clientService.addNewTiersPayantToClient(tiersPayantDTO, clientId, typeTiersPayantId, taux);
+        JSONObject json = clientService.addNewTiersPayantToClient(Majuscules.appliquer(tiersPayantDTO), clientId,
+                typeTiersPayantId, taux);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -469,7 +471,7 @@ public class ClientRessource {
     public Response updateClientInfos(ClientDTO clientDTO, @PathParam("clientId") String clientId)
             throws JSONException {
 
-        JSONObject json = clientService.updateClientInfos(clientDTO, clientId);
+        JSONObject json = clientService.updateClientInfos(Majuscules.appliquer(clientDTO), clientId);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -479,7 +481,7 @@ public class ClientRessource {
             throws JSONException {
 
         ayantDroitDTO.setLgAYANTSDROITSID(ayantDroitId);
-        JSONObject json = clientService.updateAyantDroitInfos(ayantDroitDTO);
+        JSONObject json = clientService.updateAyantDroitInfos(Majuscules.appliquer(ayantDroitDTO));
         return Response.ok().entity(json.toString()).build();
     }
 

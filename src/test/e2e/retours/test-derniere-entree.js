@@ -58,10 +58,11 @@ function bl(id, statut, dateBl, cloture, qte) {
       await p.evaluate(() => { const b = Ext.getCmp('apercu_fiche_article'); b.hide(); b.produitAffiche = null; b.update(''); });
       await p.waitForTimeout(400);
       await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P)).setAttribute('data-e2e', 'ligne'); }, P);
-      await p.locator('[data-e2e=ligne] td').filter({ visible: true }).nth(2).dblclick();
+      await p.locator('[data-e2e=ligne] td').filter({ visible: true }).nth(2).dblclick({ timeout: 90000 });
       await p.waitForFunction(() => { const b = Ext.getCmp('apercu_fiche_article'); return b.isVisible() && /entr/i.test(b.getEl().dom.textContent); }, null, { timeout: 20000 });
       return p.evaluate(() => Ext.getCmp('apercu_fiche_article').getEl().dom.textContent.replace(/\s+/g, ' '));
     };
+    const reappro = async () => JSON.parse(await p.evaluate(async (P) => (await fetch('../api/v1/commande/produit/reappro-infos/' + P)).text(), P));
     const info = async () => JSON.parse(await p.evaluate(async (P) => (await fetch('../api/v1/produit-search/fiche?produitId=' + P)).text(), P)).results[0].dt_LAST_ENTREE;
 
     let t = await apercu();
@@ -78,6 +79,8 @@ function bl(id, statut, dateBl, cloture, qte) {
     ok('À côté : 5 u., grossiste « ' + GNOM + ' », « BL du 01/09/2026 »', t.indexOf('03/09/2026 09:15 5 u. · ' + GNOM + ' · BL du 01/09/2026') >= 0, t.slice(0, 400));
     const achats = JSON.parse(await p.evaluate(async (P) => (await fetch('../api/v1/produit-search/apercu/' + P)).text(), P)).achatsTotal;
     ok('Achats de l\'aperçu : BL entrés en stock seulement (5 + 3 = 8, sans les 9 du BL non entré)', achats === 8 && /Achats\s*8/.test(t), 'achatsTotal=' + achats);
+    let ra = await reappro();
+    ok('Suggestion, info produit : Dern.Entrée 03/09/2026 09:15 (5), le BL non entré du mois ne compte pas dans les entrées du mois', ra.derniereEntreeDate === '03/09/2026 09:15' && ra.derniereEntreeQte === 5 && ra.qteEntreeMois === 0 && ra.frequenceAchatMois === 0, JSON.stringify(ra));
     ok('Info produit (fiche) : même date de dernière entrée', (await info()) === '03/09/2026 09:15', await info());
 
     /* sans mouvement (donnees anciennes) : date de cloture du BL */
@@ -90,6 +93,9 @@ function bl(id, statut, dateBl, cloture, qte) {
     exec("UPDATE t_bon_livraison SET str_STATUT = 'is_Closed', dt_UPDATED = '2026-10-06 11:30:00' WHERE lg_BON_LIVRAISON_ID = 'E2E-DE-B'");
     t = await apercu();
     ok('BL du 05/10 entré en stock le 06/10 : Dern. entrée 06/10/2026 11:30, 9 u., BL du 05/10/2026', /Dern\. entrée\s*06\/10\/2026 11:30 9 u\. · .* · BL du 05\/10\/2026/.test(t), t.slice(0, 400));
+    ra = await reappro();
+    ok('Suggestion, info produit : Dern.Entrée 06/10/2026 11:30 (9), entrées du mois 9 sur 1 BL', ra.derniereEntreeDate === '06/10/2026 11:30' && ra.derniereEntreeQte === 9 && ra.qteEntreeMois === 9 && ra.frequenceAchatMois === 1, JSON.stringify(ra));
+    ok('Suggestion : libellé « Dern.Entrée »', await p.evaluate(async () => /abr\('Dern\.Entrée'/.test(await (await fetch('app/view/sm_user/suggerercde/SuggerercdeManager.js?_=' + Date.now())).text())));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
     ok('Déroulement du test', false, e.stack || e);

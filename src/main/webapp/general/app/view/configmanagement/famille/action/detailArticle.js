@@ -1025,7 +1025,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     typeAhead: true,
                                     queryMode: 'remote',
                                     flex: 1,
-                                    emptyText: 'Sectionner fournisseur...',
+                                    emptyText: 'Sélectionner fournisseur...',
                                     listeners: {
                                         select: function (cmp) {
                                             lgGROSSISTEORDERID = cmp.getValue();

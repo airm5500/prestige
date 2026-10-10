@@ -206,7 +206,7 @@ Ext.define("testextjs.view.stockmanagement.suivistockvente.SuiviDetailStockVente
                     typeAhead: true,
                     queryMode: "remote",
                     flex: 1,
-                    emptyText: "Sectionner emplacement...",
+                    emptyText: "Sélectionner emplacement...",
                     listeners: {
                         select: function () {
                             Me.reloadGrid();

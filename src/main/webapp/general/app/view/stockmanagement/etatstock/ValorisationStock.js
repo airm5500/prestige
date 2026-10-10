@@ -241,7 +241,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.ValorisationStock', {
                         displayField: 'str_LIBELLE',
                         typeAhead: true,
                         queryMode: 'remote',
-                        emptyText: 'Sectionner une famille article...',
+                        emptyText: 'Sélectionner une famille article...',
                         listeners: {
                             select: function (cmp) {
                                 var value = cmp.getValue();
@@ -271,7 +271,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.ValorisationStock', {
                         typeAhead: true,
                         queryMode: 'remote',
                         flex: 1,
-                        emptyText: 'Sectionner un emplacement...',
+                        emptyText: 'Sélectionner un emplacement...',
                         listeners: {
                             select: function (cmp) {
                                 var value = cmp.getValue();
@@ -301,7 +301,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.ValorisationStock', {
                         typeAhead: true,
                         queryMode: 'remote',
                         flex: 1,
-                        emptyText: 'Sectionner un grossiste...',
+                        emptyText: 'Sélectionner un grossiste...',
                         listeners: {
                             select: function (cmp) {
                                 var value = cmp.getValue();

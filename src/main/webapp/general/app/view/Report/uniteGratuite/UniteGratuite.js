@@ -227,7 +227,7 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteGrid', {
                     minChars: 2,
                     flex: 1,
                     enableKeyEvents: true,
-                    emptyText: 'Sectionner un Grossiste...',
+                    emptyText: 'Sélectionner un Grossiste...',
                     listeners: {
                         keypress: function (field, e) {
 

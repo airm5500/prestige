@@ -246,7 +246,7 @@ Ext.define('testextjs.view.tierspayantmanagement.facturationtierspayant.Facturat
                     typeAhead: true,
                     queryMode: 'remote',
                     flex: 1,
-                    emptyText: 'Sectionner tiers payant...',
+                    emptyText: 'Sélectionner tiers payant...',
                     listeners: {
                         select: function (cmp) {
                             var value = cmp.getValue();
@@ -286,7 +286,7 @@ Ext.define('testextjs.view.tierspayantmanagement.facturationtierspayant.Facturat
                     typeAhead: true,
                     queryMode: 'remote',
                     flex: 1,
-                    emptyText: 'Sectionner client...',
+                    emptyText: 'Sélectionner client...',
                     listeners: {
                         select: function (cmp) {
                             var value = cmp.getValue();

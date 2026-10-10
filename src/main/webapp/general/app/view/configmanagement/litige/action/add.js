@@ -150,7 +150,7 @@ Ext.define('testextjs.view.configmanagement.litige.action.add', {
                     queryMode: 'local',
                     enableKeyEvents: true,
                     flex: 0.6,
-                    emptyText: 'Sectionner client...',
+                    emptyText: 'Sélectionner client...',
                     listConfig: {
                         loadingText: 'Recherche...',
                         emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
@@ -284,7 +284,7 @@ Ext.define('testextjs.view.configmanagement.litige.action.add', {
                     displayField: 'str_FULLNAME',
                     typeAhead: true,
                     queryMode: 'remote',
-                    emptyText: 'Sectionner tiers payant...',
+                    emptyText: 'Sélectionner tiers payant...',
                     listeners: {
                         select: function (cmp) {
                             var value = cmp.getValue();

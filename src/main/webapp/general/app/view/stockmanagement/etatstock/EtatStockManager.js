@@ -373,7 +373,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                     typeAhead: true,
                     queryMode: 'remote',
                     flex: 1,
-                    emptyText: 'Sectionner zone geographique...',
+                    emptyText: 'Sélectionner zone geographique...',
                     listeners: {
                         select: function (cmp) {
                             Me.onRechClick();
@@ -392,7 +392,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                     queryMode: 'remote',
                     pageSize: 999,
                     flex: 1,
-                    emptyText: 'Sectionner fournisseur...',
+                    emptyText: 'Sélectionner fournisseur...',
                     listeners: {
                         select: function (cmp) {
                             Me.onRechClick();

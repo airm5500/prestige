@@ -254,7 +254,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                     pageSize: 10,
                                     flex: 2,
                                     labelWidth: 90,
-                                    emptyText: 'Sectionner un emplacement...',
+                                    emptyText: 'Sélectionner un emplacement...',
                                     listeners: {
                                         select: function (cmp) {
 
@@ -290,7 +290,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                     flex: 2,
                                     labelWidth: 100,
                                     pageSize: 10,
-                                    emptyText: 'Sectionner un emplacement...',
+                                    emptyText: 'Sélectionner un emplacement...',
                                     listeners: {
                                         select: function (cmp) {
                                             var combostore = cmp.getStore();

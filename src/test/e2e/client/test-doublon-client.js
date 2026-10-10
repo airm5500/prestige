@@ -6,7 +6,8 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 220) + ']' : '')); }
 
-const CARNET = process.env.CARNET_ID || '16131133926037859341';
+const CARNET = process.env.CARNET_ID || execFileSync('mariadb', ['-sN', process.env.DB_TEST || 'capitale', '-e',
+  "SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE str_STATUT = 'enable' AND lg_TYPE_TIERS_PAYANT_ID = '2' ORDER BY str_NAME LIMIT 1"], { encoding: 'utf8' }).trim();
 const SUFFIXE = String(Date.now()).slice(-6);
 const NOM = 'KONANTEST' + SUFFIXE;
 const PRENOMS = 'ALIDATEST' + SUFFIXE;
@@ -15,7 +16,7 @@ const PRENOMS = 'ALIDATEST' + SUFFIXE;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1500, height: 900 } });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForTimeout(2500);
 

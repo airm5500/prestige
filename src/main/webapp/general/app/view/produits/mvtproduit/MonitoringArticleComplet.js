@@ -187,7 +187,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticleComplet', {
                             pageSize: null,
                             queryMode: "remote",
                             flex: 1,
-                            emptyText: "Sectionner zone geographique..."
+                            emptyText: "Sélectionner zone geographique..."
 
                         },
 

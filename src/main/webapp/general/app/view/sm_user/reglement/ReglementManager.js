@@ -288,7 +288,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     minChars: 2,
                     flex: 1,
                     enableKeyEvents: true,
-                    emptyText: 'Sectionner un tiers payant...',
+                    emptyText: 'Sélectionner un tiers payant...',
                     listeners: {
                         keypress: function (field, e) {
 
