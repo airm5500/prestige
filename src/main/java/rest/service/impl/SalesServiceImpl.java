@@ -4083,7 +4083,9 @@ public class SalesServiceImpl implements SalesService {
     @Override
     public JSONObject removeClientToVente(String venteId) throws JSONException {
         try {
-            TPreenregistrement op = getEm().find(TPreenregistrement.class, venteId);
+            /* retours du 10/10 : verrou de la vente, une autre operation sur son client attend la fin de celle-ci */
+            TPreenregistrement op = getEm().find(TPreenregistrement.class, venteId,
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (op == null) {
                 return new JSONObject().put("success", true);
             }
@@ -4143,7 +4145,30 @@ public class SalesServiceImpl implements SalesService {
     @Override
     public JSONObject mettreAjourDonneesClientVenteExistante(String venteId, SalesParams params) throws JSONException {
         try {
-            TPreenregistrement op = getEm().find(TPreenregistrement.class, venteId);
+            /*
+             * Retours du 10/10 (bug aleatoire « Cette vente n'a plus de client », « TPundefined ») : la vente est
+             * verrouillee le temps du rattachement (deux operations sur son client ne se melangent plus), et le
+             * rattachement REMPLACE client et lignes de tiers payant d'un coup : il ne depend plus d'un detachement
+             * envoye avant lui (ni doublon de ligne, ni ligne orpheline).
+             */
+            TPreenregistrement op = getEm().find(TPreenregistrement.class, venteId,
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            if (op == null) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Cette vente n'existe plus : actualisez l'écran de vente.");
+            }
+            if (!findClientById(params.getClientId()).isPresent()) {
+                return new JSONObject().put("success", false).put("msg", "Ce client n'existe plus.");
+            }
+            if (params.getTierspayants() == null || params.getTierspayants().isEmpty()
+                    || params.getTierspayants().get(0) == null
+                    || StringUtils.isBlank(params.getTierspayants().get(0).getCompteTp())) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Ce client n'a pas de compte tiers payant actif : il n'est pas rattaché.");
+            }
+            getTPreenregistrementCompteClientTiersPayent(venteId).forEach(c -> getEm().remove(c));
+            getEm().flush();
+            op.setAyantDroit(null);
             findClientById(params.getClientId()).ifPresent(c -> {
                 op.setStrFIRSTNAMECUSTOMER(c.getStrFIRSTNAME());
                 op.setStrLASTNAMECUSTOMER(c.getStrLASTNAME());
@@ -4162,7 +4187,9 @@ public class SalesServiceImpl implements SalesService {
             return new JSONObject().put("success", true);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return new JSONObject().put("success", false);
+            /* rien a moitie : la vente garde son client et ses lignes d'avant */
+            sessionContext.setRollbackOnly();
+            return new JSONObject().put("success", false).put("msg", "Le client n'a pas pu être rattaché à la vente.");
         }
     }
 

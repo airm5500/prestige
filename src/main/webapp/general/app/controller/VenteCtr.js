@@ -2215,6 +2215,9 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     autoComputeNetAssurance: function (onDone) {
         const me = this, vente = me.getCurrent();
+        if (me.quandClientRattache(Ext.bind(me.autoComputeNetAssurance, me, [onDone]))) {
+            return;
+        }
         const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if ((typeVente !== '2' && typeVente !== '3') || !vente) {
             return;
@@ -4084,7 +4087,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     loadClientAssurance: function (clientData, lgTYPEVENTEID, ayantDroit) {
         const me = this;
-        me.client = new testextjs.model.caisse.ClientAssurance(clientData);
+        /* vente sans client en base : pas de client fantome (champs vides, « undefined ») */
+        me.client = clientData ? new testextjs.model.caisse.ClientAssurance(clientData) : null;
+        me.getTpContainerForm().removeAll();
         me.showAssureContainer(lgTYPEVENTEID);
         // Le type de vente est passe explicitement : la combo type de vente est repositionnee par un
         // rappel ASYNCHRONE (updateComboxFields) et vaut encore « comptant » a cet instant du
@@ -4521,32 +4526,25 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.getVnoremise().setValue(null);
         }
     },
+    /*
+     * Retours du 10/10 (video bugVente) : sur une vente deja creee, la recherche envoyait « detacher le client » puis,
+     * sans attendre, « rattacher le client trouve » : les deux s'executaient en meme temps et, une fois sur deux, la
+     * vente restait SANS client en base alors que l'ecran l'affichait (« Cette vente n'a plus de client », puis
+     * « TPundefined / undefined% » au rappel). Le client en place n'est plus detache : il reste sur la vente et a
+     * l'ecran jusqu'a ce qu'un autre soit choisi ; le rattachement remplace alors client et tiers payant d'un coup.
+     */
     onClientSearchTextField: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
             const me = this;
-            let current = me.getCurrent();
             if (field.getValue() && field.getValue().trim() !== '') {
-                if (current) {
-                    Ext.Ajax.request({
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        url: '../api/v1/vente/retmoveClient/' + current.lgPREENREGISTREMENTID,
-                        success: function (response, options) {
-                        }
-                    });
-                    me.getMontantRecu().enable();
-                    me.getMontantRecu().setReadOnly(false);
-
+                if (!me.getCurrent()) {
+                    me.client = null;
+                    me.restetRemiseCmb(null);
+                    me.updateAssurerResetCmp();
+                    me.updateAyantDroitResetCmp();
+                    me.getTpContainerForm().removeAll();
                 }
-                me.client = null;
-                me.restetRemiseCmb(null);
-                me.updateAssurerResetCmp();
-                me.updateAyantDroitResetCmp();
-                let tpContainerForm = me.getTpContainerForm();
-                tpContainerForm.removeAll();
                 me.loadAssuranceClient(field.getValue());
-                field.setValue('');
-
             }
             field.setValue('');
         }
@@ -4746,14 +4744,50 @@ Ext.define('testextjs.controller.VenteCtr', {
             clientId: client.get('lgCLIENTID'),
             ayantDroitId: ayantDroitId
         };
+        const venteId = current.lgPREENREGISTREMENTID;
+        me.rattachementClient = (me.rattachementClient || 0) + 1;
+        const fin = function (o) {
+            me.rattachementClient = Math.max(0, (me.rattachementClient || 1) - 1);
+            const attente = me.apresRattachementClient || [];
+            me.apresRattachementClient = [];
+            if (!o || !o.success) {
+                /* rien n'a change en base : l'ecran reprend l'etat reel de la vente */
+                Ext.MessageBox.show({
+                    title: 'Client de la vente', width: 520, icon: Ext.MessageBox.WARNING, buttons: Ext.MessageBox.OK,
+                    msg: Ext.String.htmlEncode((o && o.msg) || 'Le client n\'a pas pu être rattaché à la vente (serveur injoignable).')
+                            + '<br>L\'écran reprend la vente telle qu\'elle est enregistrée.'
+                });
+                me.loadVenteData(venteId);
+                return;
+            }
+            if (!me.rattachementClient) {
+                attente.forEach(function (f) {
+                    f();
+                });
+            }
+        };
         Ext.Ajax.request({
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/client/' + current.lgPREENREGISTREMENTID,
+            url: '../api/v1/vente/client/' + venteId,
             params: Ext.JSON.encode(datas),
-            success: function (response, options) {
+            success: function (response) {
+                fin(Ext.JSON.decode(response.responseText, true));
+            },
+            failure: function () {
+                fin(null);
             }
         });
+    },
+
+    /** Le net a payer attend la fin d'un rattachement de client en cours (sinon il partirait sur l'ancien etat). */
+    quandClientRattache: function (f) {
+        const me = this;
+        if (me.rattachementClient) {
+            me.apresRattachementClient = (me.apresRattachementClient || []).concat([f]);
+            return true;
+        }
+        return false;
     },
 
     onSelectClientAssurance: function () {
@@ -4769,6 +4803,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.updateAyantDroitResetCmp();
             me.updateAssurerCmp();
             if (typeVenteId === '2') {
+                me.restetRemiseCmb(null);
                 me.updateAyantDroitCmp();
                 me.addTpCmp(tierspayants[0]);
                 me.buildBtnAddTierspayant();
@@ -5665,8 +5700,18 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     buildtierspayantContainer: function (typeVente) {
         var me = this, tpContainerForm = me.getTpContainerForm(), client = me.getClient();
-        var tierspayants = client.get('preenregistrementstp');
-        Ext.each(tierspayants, function (item) {
+        var tierspayants = client ? client.get('preenregistrementstp') : null;
+        /* retours du 10/10 : un tiers payant incomplet (vente sans client) donnait « TPundefined / undefined% » */
+        var complets = Ext.Array.filter(Ext.isArray(tierspayants) ? tierspayants : [], function (item) {
+            return item && typeof item === 'object' && item.compteTp && item.order !== undefined && item.taux !== undefined;
+        });
+        if (!complets.length && (!client || !client.get('lgCLIENTID'))) {
+            tpContainerForm.add({xtype: 'component', itemId: 'clientAbsent', margin: '4 0',
+                html: '<span class="vente-client-absent" style="color:#b42318;font-weight:bold">\u26A0 Client absent de cette vente : '
+                        + 'recherchez le client (nom puis Entrée) avant de continuer.</span>'});
+            return;
+        }
+        Ext.each(complets, function (item) {
             var cmp = me.buildCmp(item, typeVente);
             tpContainerForm.add(cmp);
         });
@@ -6862,6 +6907,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     showNetPaidAssurance: function () {
+        if (this.quandClientRattache(Ext.bind(this.showNetPaidAssurance, this, arguments))) {
+            return;
+        }
         const me = this;
         let sansBon = me.getVenteSansBon();
         let result = me.checkEmptyBonRef();
@@ -7483,6 +7531,21 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     ouvrirParcoursOrdonnance: function () {
         const me = this;
+        /*
+         * Retours du 10/10 : vente assurance ou carnet sans client, le parcours proposait un client COMPTANT (sans
+         * compte tiers payant), rattache a une vente a credit. On renvoie a la recherche du client assure.
+         */
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if ((typeVente === '2' || typeVente === '3') && !me.getClient()) {
+            Ext.MessageBox.show({
+                title: 'Vente ordonnancière', width: 520, icon: Ext.MessageBox.WARNING, buttons: Ext.MessageBox.OK,
+                msg: 'Cette vente à crédit n\'a pas de client : recherchez le client assuré (nom puis Entrée), puis terminez la vente.',
+                fn: function () {
+                    me.getClientSearchTextField().focus(true, 50);
+                }
+            });
+            return;
+        }
         const existant = me.getParcoursOrdonnance && me.getParcoursOrdonnance();
         if (existant) {
             existant.close();

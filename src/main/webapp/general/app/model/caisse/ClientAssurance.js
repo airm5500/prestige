@@ -44,7 +44,7 @@ Ext.define('testextjs.model.caisse.ClientAssurance', {
             name: 'tiersPayants',
             type: 'auto'
         },
-        {name: 'preenregistrementstp', auto: 'auto'}
+        {name: 'preenregistrementstp', type: 'auto', defaultValue: []} /* « auto: 'auto' » donnait '' par defaut : bloc « TPundefined » */
         , {
             name: 'ayantDroits',
             type: 'auto'
