@@ -3087,6 +3087,11 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .ca-repartition td.ca-bon { color: #17795f; }
 .ca-repartition td.ca-retard { color: #b42318; }
 .pml-tuile-detail { font-size: 11px; color: #5b6b7b; margin-top: 2px; }
+/* Retours du 10/10 (point 7) : tableau de bord des retours fournisseur */
+.rf-tableau td.rf-barre div { height: 10px; border-radius: 5px; background: #e8a49c; }
+.rf-tableau .rf-deux { display: flex; flex-wrap: wrap; gap: 18px; }
+.rf-tableau .rf-col { flex: 1 1 420px; min-width: 0; }
+.rf-tableau .rf-col .ac-table { width: 100%; }
 /* Retours du 10/10 (Q1) : ventes moyennes 90 jours dans l'apercu de la fiche article */
 .vp-ap-moyennes { margin-left: 12px; color: #3b4a5a; font-size: 12px; white-space: nowrap; cursor: help; }
 .vp-ap-moyennes b { color: #1f3b5a; }

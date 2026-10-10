@@ -181,7 +181,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/page_white_edit.png',
-                            tooltip: 'Modifier',
+                            tooltip: 'Modifier le retour (ajouter, retirer des produits)',
                             scope: this,
                             handler: this.onManageDetailsClick,
                             getClass: function (value, metadata, record) {
@@ -194,7 +194,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                         }, '-',
                         {
                             icon: 'resources/images/icons/fam/response-16.png',
-                            tooltip: 'Repondre',
+                            tooltip: 'Saisir la réponse du fournisseur (quantités acceptées en avoir)',
                             scope: this,
                             handler: this.Response,
                             getClass: function (value, metadata, record) {
@@ -210,11 +210,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
 
                             getClass: function (value, metadata, record) {
 
-                                if (record.get('BTNDELETE')) {
-                                    return 'unpaid';
-                                } else {
-                                    return 'lock';
-                                }
+                                /* retours du 10/10 : sans le droit de suppression, l'icone est masquee (plus de cadenas) */
+                                return record.get('BTNDELETE') ? 'unpaid' : 'x-hide-display';
                             }, getTip: function (v, meta, rec) {
 
                                 if (rec.get('BTNDELETE')) {
@@ -256,6 +253,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             tbar: [
                 {
                     text: 'NOUVEAU RETOUR',
+                    tooltip: 'Créer un retour fournisseur (à partir d\'un BL)',
                     scope: this,
                     handler: this.onAddClick,
                     cls: 'btn-primaryb'
@@ -273,6 +271,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     minChars: 2,
                     flex: 1,
                     emptyText: 'Sélectionner grossiste...',
+                    tooltip: 'Grossiste des retours à afficher',
                     listeners: {
                         select: function (cmp) {
                             Me.onRechClick();
@@ -283,6 +282,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                       {
                             xtype: 'combo',
                             emptyText: 'Filtre',
+                            tooltip: 'Retours avec ou sans réponse du fournisseur',
                             labelWidth: 1,
                             flex: 1,
                             editable: false,
@@ -339,6 +339,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     id: 'rechecher',
                     name: 'suggestion',
                     emptyText: 'Rech',
+                    tooltip: 'CIP, EAN ou nom du produit retourné (Entrée pour rechercher)',
                     listeners: {
                         'render': function (cmp) {
                             cmp.getEl().on('keypress', function (e) {
@@ -352,14 +353,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                 }, '',
                 {
                     text: 'rechercher',
-                    tooltip: 'rechercher',
+                    tooltip: 'Rechercher les retours (grossiste, filtre, période, produit)',
                     scope: this,
                     handler: this.onRechClick
                 }, '',
                 {
                     text: 'Imprimer',
                     iconCls: 'printable',
-                    tooltip: 'imprimer',
+                    tooltip: 'Imprimer la liste des retours affichés (PDF)',
                     scope: this,
                     handler: this.printLitToPDF
                 }, '',
@@ -632,12 +633,30 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
         });
 
     },
+    /*
+     * Retours du 10/10 (point 7, exception voulue a la regle « pas de fenetre ») : la reponse du fournisseur se saisit
+     * dans une fenetre modale au-dessus de la liste ; a la fermeture, la liste est rechargee avec les memes criteres.
+     */
     Response: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        console.log(rec);
-        var xtype = "reponseretourfournisseurmanager";
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Prise en compte de la r&eacute;ponse du retour fournisseur " + rec.get('str_REF_RETOUR_FRS'), rec.get('lg_RETOUR_FRS_ID'), rec.data);
-
+        var liste = this, rec = grid.getStore().getAt(rowIndex);
+        var vue = Ext.create('testextjs.view.commandemanagement.retourfournisseur.action.reponseretourfournisseur', {
+            nameintern: rec.get('lg_RETOUR_FRS_ID'), titre: '', odatasource: rec.data, header: false, frame: false
+        });
+        var w = Ext.create('Ext.window.Window', {
+            title: 'Réponse du fournisseur — retour ' + Ext.String.htmlEncode(rec.get('str_REF_RETOUR_FRS') || '')
+                    + (rec.get('str_GROSSISTE_LIBELLE') ? ' · ' + Ext.String.htmlEncode(rec.get('str_GROSSISTE_LIBELLE')) : ''),
+            itemId: 'fenReponseRetour', modal: true, layout: 'fit', items: [vue],
+            width: Math.min(1100, Ext.getBody().getViewSize().width - 40),
+            height: Math.min(640, Ext.getBody().getViewSize().height - 40),
+            listeners: {
+                close: function () {
+                    Me = liste; // la vue de reponse reprend la variable globale Me : la liste la recupere
+                    if (!liste.isDestroyed) {
+                        liste.onRechClick();
+                    }
+                }
+            }
+        });
+        w.show();
     }
-
 });

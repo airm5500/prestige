@@ -117,6 +117,23 @@ public class RetourFournisseurRessource {
                 .header("Content-Disposition", "attachment; filename=\"retours_fournisseur_produits.xls\"").build();
     }
 
+    /** Retours du 10/10 (point 7) : tableau de bord (par mois, produits les plus retournes, motifs). */
+    @GET
+    @Path("tableau-bord")
+    public Response tableauBord(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "limite") Integer limite) {
+        String debut = defaultDate(dtStart), fin = defaultDate(dtEnd);
+        if (debut.compareTo(fin) > 0) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin").toString()).build();
+        }
+        int n = limite == null || limite <= 0 ? 20 : Math.min(limite, 200);
+        return Response.ok()
+                .entity(retourFournisseurService.tableauBord(debut, fin, fourId, n).put("success", true).toString())
+                .build();
+    }
+
     @GET
     @Path("retours-items")
     public Response loadDetailsRetouFournisseurs(@QueryParam(value = "retourId") String retourId) {

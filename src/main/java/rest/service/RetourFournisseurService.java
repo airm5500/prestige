@@ -39,4 +39,7 @@ public interface RetourFournisseurService {
     void updateQuantiteReponse(UpdateRetourItemDTO retourItem);
 
     void finaliserRetourFournisseur(UpdateRetourDTO updateRetour);
+
+    /** Retours du 10/10 (point 7) : tableau de bord des retours clotures de la periode (grossiste facultatif). */
+    org.json.JSONObject tableauBord(String dtStart, String dtEnd, String fourId, int nbProduits);
 }

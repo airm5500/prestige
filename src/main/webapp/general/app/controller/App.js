@@ -218,6 +218,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'etatscontrolemanager' && Ext.ClassManager.getNameByAlias('widget.controleachats')) {
             return 'controleachats';
         }
+        /* retours du 10/10 (point 7) : les retours fournisseur s'ouvrent dans leur conteneur (liste + tableau de bord) */
+        if (xtype === 'retourfrsmanager' && Ext.ClassManager.getNameByAlias('widget.retoursfournisseur')) {
+            return 'retoursfournisseur';
+        }
         return xtype === 'i_order_manager' && Ext.ClassManager.getNameByAlias('widget.commandesencours') ? 'commandesencours' : xtype;
     },
 

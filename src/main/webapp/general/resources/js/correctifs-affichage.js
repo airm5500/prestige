@@ -769,7 +769,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'ugmanager', 'mouvementprixvente', 'produitscodegeo', 'rappelshabitude', 'whatsappcomptes', 'rhmanager', 'analysecommande',
     // commandes et approvisionnement
     'reservesuggestionsgrid', 'i_sugg_manager', 'suggerercdemanager',
-    'i_order_manager', 'ordermanagerlist', 'commandesencours', 'controleachats',
+    'i_order_manager', 'ordermanagerlist', 'commandesencours', 'controleachats', 'retoursfournisseur',
     'bonlivraisonmanager', 'retourfrsmanager', 'retourfournisseurmanagerlist',
     'bonlivraisondetail', 'pointagebl', 'fideliteclients',
     // stock

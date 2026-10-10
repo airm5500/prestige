@@ -424,6 +424,7 @@ Ext.application({
         'testextjs.view.commandemanagement.order.action.editgrossiste',
         'testextjs.view.commandemanagement.bonlivraison.action.editprice',
         'testextjs.view.commandemanagement.retourfournisseur.retourFrsManager',
+        'testextjs.view.commandemanagement.retourfournisseur.RetoursFournisseur',
         'testextjs.view.commandemanagement.retourfournisseur.action.add',
         'testextjs.model.RetourFournisseur',
         'testextjs.model.RetourFournisseurDetail',

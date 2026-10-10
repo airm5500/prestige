@@ -247,6 +247,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                         {
                             text: 'Enregistrer',
                             id: 'btn_save_reponseretour',
+                            tooltip: 'Valider la réponse : les quantités acceptées passent en avoir',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             handler: this.onbtnvalider
@@ -254,6 +255,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                         {
                             text: 'Retour',
                             id: 'btn_cancel_reponseretour',
+                            tooltip: 'Revenir à la liste des retours sans valider',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             handler: this.onbtncancel
@@ -303,6 +305,12 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
         });
     },
     onbtncancel: function () {
+        /* ouverte en fenetre depuis la liste (retours du 10/10, point 7) : on ferme la fenetre */
+        var f = Ext.getCmp('reponseRetourfournisseurID'), w = f ? f.up('window') : null;
+        if (w) {
+            w.close();
+            return;
+        }
 
         testextjs.app.getController('App').onLoadNewComponentWithDataSource("retourfrsmanager", "", "", "");
     },
