@@ -2669,6 +2669,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrTYPEVENTE(VENTE_ASSURANCE);
             tp.setStrSTATUTVENTE(statut);
+            appliquerNatureCloture(tp, clotureVenteParams.getNatureVenteId());
             tp.setIntPRICEOTHER(tp.getIntPRICE());
             if (!tp.getCopy()) {
                 tp.setDtUPDATED(new Date());
@@ -2925,6 +2926,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setBISAVOIR(isAvoir);
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
+            appliquerNatureCloture(tp, clotureVenteParams.getNatureVenteId());
             tp.setIntPRICEOTHER(tp.getIntPRICE());
             updateUgData(clotureVenteParams.getData(), tp);
             if (!tp.getCopy()) {
@@ -5739,6 +5741,28 @@ public class SalesServiceImpl implements SalesService {
         TPreenregistrementDetail dt = addPreenregistrementItem(op, tf, salesParams.getQte(), salesParams.getQteServie(),
                 salesParams.getQteUg(), salesParams.getItemPu());
         return Pair.of(op, dt);
+    }
+
+    /**
+     * Retours du 10/10 (10) : la nature de vente choisie a l'ecran (Prescription, Conseil...) est enregistree a la
+     * cloture. Elle ne l'etait qu'a l'ajout du premier produit : changee ensuite, la vente gardait l'ancienne et le
+     * filtre « nature » des ventes terminees ne la retrouvait pas. La nature « depot » reste reservee aux ventes en
+     * depot (jamais posee ni retiree ici) ; un identifiant inconnu est ignore.
+     */
+    void appliquerNatureCloture(TPreenregistrement tp, String natureVenteId) {
+        String id = StringUtils.trimToNull(natureVenteId);
+        if (id == null || Constant.KEY_NATURE_VENTE_DEPOT.equals(id)) {
+            return;
+        }
+        TNatureVente actuelle = tp.getLgNATUREVENTEID();
+        if (actuelle != null && (id.equals(actuelle.getLgNATUREVENTEID())
+                || Constant.KEY_NATURE_VENTE_DEPOT.equals(actuelle.getLgNATUREVENTEID()))) {
+            return;
+        }
+        TNatureVente nature = getEm().find(TNatureVente.class, id);
+        if (nature != null) {
+            tp.setLgNATUREVENTEID(nature);
+        }
     }
 
     private TNatureVente newNatureVenteFromId(String id) {

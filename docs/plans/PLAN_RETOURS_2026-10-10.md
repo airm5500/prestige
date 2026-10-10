@@ -258,8 +258,8 @@ Tests : unitaires du calcul (existants + nouveaux paramètres), e2e : générati
 | Q8 | emplacement de rangement / zone géographique / rayon |
 | Q9 | oui (négatif = manquant), sans régression |
 | Q10 | tout le lot journal |
-| Q11 | **en attente** |
-| Q12 | **en attente** |
+| Q11 | les deux : présence (QR code de la pharmacie + GPS) dans l'application, et exploitation du pointage des BL dans Prestige |
+| Q12 | vert pour ce qui s'ajoute, rouge doux pour ce qui se retranche |
 
 Ajouts : point 7 — dashboard retours avec analyse complète (produits les plus retournés, etc.) ; point 14 — bouton « Fiche client » **aussi à la vente** quand un client est choisi (standard, carnet ou assurance).
 
