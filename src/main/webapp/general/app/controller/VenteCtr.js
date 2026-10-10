@@ -964,6 +964,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.oncheckUg();
         me.checkSansBon();
         me.checkParamImpressionTicketCaisse();
+        me.checkParamLectureGs1();
 
     },
     /*
@@ -1261,9 +1262,12 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         if (!produitId) {
-            champ.setValue('');
+            /* retours du 10/10 (Q6) : apres l'ajout d'une etiquette GS1, son lot et sa peremption restent affiches */
+            const g = me.infoGs1Garde;
+            champ.setValue(g && Date.now() < g.jusque ? g.html : '');
             return;
         }
+        me.infoGs1Garde = null;
         me.peremptionDemandee = produitId;
         Ext.Ajax.request({
             method: 'GET',
@@ -1672,6 +1676,14 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
 
         if (e.getKey() !== e.ENTER) {
+            return;
+        }
+
+        // 0) retours du 10/10 (Q6) : etiquette GS1 scannee, si la lecture est activee (sinon rien ne change)
+        if (me.lectureGs1 && me.ressembleGs1(combo.getRawValue())) {
+            e.stopEvent();
+            combo.collapse();
+            me.lireGs1(combo);
             return;
         }
 
@@ -7723,6 +7735,72 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
             }
 
+        });
+    },
+
+    /**
+     * Retours du 10/10 (Q6) : lecture des etiquettes GS1 (QR / DataMatrix) au scan, si KEY_VENTE_LECTURE_GS1 = 1.
+     * Valeur relue a chaque ouverture de la vente (sans cache) ; 0 ou absente : rien ne change.
+     */
+    checkParamLectureGs1: function () {
+        const me = this;
+        me.lectureGs1 = false;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_VENTE_LECTURE_GS1',
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                me.lectureGs1 = r.success === true && String(r.data).trim() === '1';
+            }
+        });
+    },
+
+    /** Saisie qui ressemble a une etiquette GS1 : prefixe de lecteur 2D, forme entre parentheses, ou (01) + (17/10/240). */
+    ressembleGs1: function (brut) {
+        const v = String(brut || '').trim();
+        return /^\](d2|Q3|C1)/.test(v) || /^\((01|17|10|240)\)/.test(v) || /^01\d{14}(17|10|240)/.test(v) || /^17\d{6}(10|240)/.test(v)
+                || /^10[^\u001d|<]+(\u001d|<GS>|\|)240/.test(v);
+    },
+
+    /** Scan GS1 : produit trouve -> ajoute (qte 1) ; lot et peremption rappeles ; lot perime -> refuse. */
+    lireGs1: function (combo) {
+        const me = this, brut = combo.getRawValue();
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/vente/gs1', params: {code: brut},
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                const champ = me.getPeremptionProcheField();
+                const enc = Ext.String.htmlEncode;
+                const info = (r.lot ? 'lot ' + enc(r.lot) : '') + (r.peremption ? (r.lot ? ' - ' : '') + 'pér. ' + enc(r.peremption) : '');
+                if (!r.success) {
+                    Ext.MessageBox.alert('Étiquette GS1', enc(r.msg || 'Étiquette illisible.'), function () {
+                        combo.focus(true, 100);
+                    });
+                    return;
+                }
+                if (r.perime) {
+                    if (champ) {
+                        champ.setValue('<span class="peremption-clignote" style="color:#d40000;font-weight:bold">PÉRIMÉ : ' + info + '</span>');
+                    }
+                    Ext.MessageBox.alert('Étiquette GS1', 'Ce lot est périmé (' + info + ') : il n\'est pas ajouté à la vente.', function () {
+                        combo.clearValue();
+                        combo.focus(true, 100);
+                    });
+                    return;
+                }
+                const produit = r.data;
+                me.updateStockField(produit.intNUMBERAVAILABLE);
+                me.getVnoemplacementField().setValue(produit.strLIBELLEE);
+                const html = info ? '<span style="color:#0D47A1;font-weight:bold;">' + info + '</span>' : '';
+                me.infoGs1Garde = html ? {html: html, jusque: Date.now() + 15000} : null;
+                me.addProduitFromScan(Ext.create('testextjs.model.caisse.Produit', produit), 1);
+                if (champ && html) {
+                    me.peremptionDemandee = null;
+                    champ.setValue(html);
+                }
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Étiquette GS1', 'Le serveur n\'a pas répondu.');
+            }
         });
     },
 

@@ -232,6 +232,14 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                                             value: 1,
                                             allowBlank: false,
                                             regex: /[0-9.]/
+                                        },
+                                        /* retours du 10/10 (point 5) : code de l'etiquette, code-barres ou 2D GS1 */
+                                        {
+                                            xtype: 'combobox', fieldLabel: 'Code', name: 'code_ETIQUETTE', id: 'code_ETIQUETTE_MASSIF',
+                                            margin: '0 15 0 10', width: 400,
+                                            store: [['', 'Défaut (configuration)'], ['CODE128', 'Code-barres du CIP'],
+                                        ['QR', 'QR code GS1 (EAN, lot, péremption, CIP)'], ['DATAMATRIX', 'DataMatrix GS1 (EAN, lot, péremption, CIP)']],
+                                            queryMode: 'local', editable: false, forceSelection: true, value: ''
                                         }
                                     ]
                                 }
@@ -425,7 +433,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                 'Confirmer l\'impression de ces etiquettes',
                 function(btn) {
                     if (btn === 'yes') {
-                        var linkUrl = url_services_etiquette_moteur_massif + "?etiquettes=EN_PREPARATION&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
+                        var linkUrl = url_services_etiquette_moteur_massif + "?etiquettes=EN_PREPARATION&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue()
+                                + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_MASSIF').getValue() || '');
                         window.open(linkUrl);
                         Me.onbtnback();
                     }

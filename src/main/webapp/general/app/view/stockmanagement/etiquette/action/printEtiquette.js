@@ -89,6 +89,13 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.printEtiquette', {
                                     field.focus();
                                 }
                             }
+                        },
+                        /* retours du 10/10 (point 5) : code de l'etiquette, code-barres ou 2D GS1 */
+                        {
+                            xtype: 'combobox', fieldLabel: 'Code', name: 'code_ETIQUETTE', id: 'code_ETIQUETTE_LIGNE',
+                            store: [['', 'Défaut (configuration)'], ['CODE128', 'Code-barres du CIP'],
+                                        ['QR', 'QR code GS1 (EAN, lot, péremption, CIP)'], ['DATAMATRIX', 'DataMatrix GS1 (EAN, lot, péremption, CIP)']],
+                            queryMode: 'local', editable: false, forceSelection: true, value: ''
                         }
                     ]
                 }
@@ -143,7 +150,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.printEtiquette', {
         }
         
         if (form.isValid()) {
-            var linkUrl = url_services_etiquette_moteur + '?lg_ETIQUETTE_ID=' + encodeURIComponent(ref) + "&begin=" + Ext.getCmp('intQUANTITY').getValue();
+            var linkUrl = url_services_etiquette_moteur + '?lg_ETIQUETTE_ID=' + encodeURIComponent(ref) + "&begin=" + Ext.getCmp('intQUANTITY').getValue()
+                    + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_LIGNE').getValue() || '');
             window.open(linkUrl);
             win.close();
             Me_Workflow = Oview;

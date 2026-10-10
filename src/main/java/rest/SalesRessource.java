@@ -551,6 +551,45 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @EJB
+    private rest.service.impl.LectureGs1Service lectureGs1Service;
+
+    /**
+     * Retours du 10/10 (Q6) : scan d'une etiquette GS1 (QR / DataMatrix) a la vente, si KEY_VENTE_LECTURE_GS1 = 1. Rend
+     * le produit (meme forme que findone), le lot et la peremption lus ; « perime » si la date est passee.
+     */
+    @GET
+    @Path("gs1")
+    public Response lireGs1(@QueryParam("code") String code) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject o = new JSONObject().put("success", false).put("actif", lectureGs1Service.active());
+        if (!o.getBoolean("actif")) {
+            return Response.ok().entity(o.put("msg", "Lecture des étiquettes GS1 désactivée.").toString()).build();
+        }
+        if (!rest.report.pdf.Gs1.estGs1(code)) {
+            return Response.ok()
+                    .entity(o.put("gs1", false).put("msg", "Ce code n'est pas une étiquette GS1.").toString()).build();
+        }
+        rest.report.pdf.Gs1.Contenu c = rest.report.pdf.Gs1.lire(code);
+        rest.service.impl.LectureGs1Service.completer(o, c, java.time.LocalDate.now());
+        for (String cle : lectureGs1Service.codesProduit(c)) {
+            JSONObject p = salesService.findOneproduit(cle, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            if (p.optBoolean("success")) {
+                return Response.ok().entity(o.put("success", true).put("data", p.get("data")).toString()).build();
+            }
+        }
+        return Response.ok()
+                .entity(o.put("msg",
+                        "Aucun produit pour cette étiquette (CIP " + (c.cip == null ? "-" : c.cip) + ", EAN "
+                                + (c.gtin == null ? "-" : rest.report.pdf.Gs1.ean13(c.gtin)) + ").")
+                        .toString())
+                .build();
+    }
+
     @GET
     @Path("findone/{id}")
     public Response findByQuery(@PathParam("id") String id) throws JSONException {

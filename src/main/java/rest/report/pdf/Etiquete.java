@@ -63,8 +63,21 @@ public class Etiquete extends HttpServlet {
     @EJB
     private EtiquetteEditionService etiquetteEditionService;
 
+    /** Parametre : code des etiquettes par defaut (CODE128, QR ou DATAMATRIX). */
+    static final String KEY_CODE = "KEY_ETIQUETTE_CODE";
+    private static final ThreadLocal<String> codeDemande = new ThreadLocal<>();
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, Exception {
+        codeDemande.set(request.getParameter("code"));
+        try {
+            traiter(request, response);
+        } finally {
+            codeDemande.remove();
+        }
+    }
+
+    private void traiter(HttpServletRequest request, HttpServletResponse response) throws ServletException, Exception {
 
         String modele = request.getParameter("modele_ETIQUETTE");
         if (StringUtils.isBlank(modele)) {
@@ -140,6 +153,14 @@ public class Etiquete extends HttpServlet {
 
     private void ecrire(HttpServletResponse response, List<LabelSheetPdf.LabelData> labels, int startPosition,
             LabelSheetPdf.SheetFormat format) throws Exception {
+        /*
+         * retours du 10/10 (point 5) : code de l'etiquette, choisi a l'ecran (code=...) ou parametre KEY_ETIQUETTE_CODE
+         */
+        String type = LabelSheetPdf.typeCode(StringUtils.isNotBlank(codeDemande.get()) ? codeDemande.get()
+                : reportUtil.findParameterValue(KEY_CODE));
+        if (!LabelSheetPdf.CODE_BARRES.equals(type)) {
+            etiquetteEditionService.completerGs1(labels, type);
+        }
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", contentDisposition() + "; filename=\"etiquettes.pdf\"");
         LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format);
@@ -171,7 +192,11 @@ public class Etiquete extends HttpServlet {
                 String prix = conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA";
                 for (int i = 0; i < quantite; i++) {
                     labels.add(new LabelSheetPdf.LabelData(nomOfficine, grossiste, famille.getStrDESCRIPTION(),
-                            famille.getIntCIP(), prix, dateToday));
+                            famille.getIntCIP(), prix, dateToday).source(famille.getLgFAMILLEID(),
+                                    EtiquetteEditionService.ean(famille),
+                                    EtiquetteEditionService.jour(famille.getDtPEREMPTION()),
+                                    bonItem.getLgBONLIVRAISONID() == null ? null
+                                            : bonItem.getLgBONLIVRAISONID().getStrREFLIVRAISON()));
                 }
             }
         } catch (Exception e) {

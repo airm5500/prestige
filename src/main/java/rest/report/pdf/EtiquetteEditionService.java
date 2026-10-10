@@ -117,7 +117,10 @@ public class EtiquetteEditionService {
             int exemplaires = nombreExemplaires(etiquette.getIntNUMBER());
             for (int i = 0; i < exemplaires; i++) {
                 labels.add(new LabelSheetPdf.LabelData(nomOfficine, "", famille.getStrDESCRIPTION(),
-                        famille.getIntCIP(), prix, dateDuJour));
+                        famille.getIntCIP(), prix, dateDuJour).source(famille.getLgFAMILLEID(), ean(famille),
+                                jour(etiquette.getDtPEROMPTION() != null ? etiquette.getDtPEROMPTION()
+                                        : famille.getDtPEREMPTION()),
+                                null));
             }
         }
         return labels;
@@ -140,6 +143,51 @@ public class EtiquetteEditionService {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "nomOfficine", e);
             return "";
+        }
+    }
+
+    /** EAN de l'etiquette GS1 : code EAN du fabricant, sinon l'EAN du produit. */
+    public static String ean(TFamille f) {
+        return StringUtils.isNotBlank(f.getCodeEanFabriquant()) ? f.getCodeEanFabriquant().trim()
+                : StringUtils.trimToNull(f.getIntEAN13());
+    }
+
+    static java.time.LocalDate jour(Date d) {
+        return d == null ? null : new java.sql.Date(d.getTime()).toLocalDate();
+    }
+
+    /**
+     * Retours du 10/10 (point 5) : etiquettes 2D GS1 (QR ou DataMatrix). Pour chaque etiquette : lot et peremption du
+     * lot du BL (reference de livraison) s'il est connu, sinon le lot en stock le plus proche de peremption (FEFO),
+     * sinon la peremption connue du produit ; EAN du fabricant ; CIP.
+     */
+    @SuppressWarnings("unchecked")
+    public void completerGs1(List<LabelSheetPdf.LabelData> labels, String type) {
+        java.util.Map<String, Object[]> lots = new java.util.HashMap<>();
+        java.time.format.DateTimeFormatter jj = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        for (LabelSheetPdf.LabelData l : labels) {
+            if (l.getFamilleId() == null) {
+                continue;
+            }
+            String cle = l.getFamilleId() + "|" + StringUtils.defaultString(l.getRefLivraison());
+            Object[] lot = lots.computeIfAbsent(cle, k -> {
+                javax.persistence.Query q = em
+                        .createNativeQuery("SELECT int_NUM_LOT, dt_PEREMPTION FROM t_lot"
+                                + " WHERE lg_FAMILLE_ID = ?1 AND int_NUM_LOT IS NOT NULL AND int_NUM_LOT <> ''"
+                                + (l.getRefLivraison() != null ? " AND str_REF_LIVRAISON = ?2"
+                                        : " AND current_stock > 0")
+                                + " ORDER BY dt_PEREMPTION IS NULL, dt_PEREMPTION, dt_CREATED")
+                        .setParameter(1, l.getFamilleId());
+                if (l.getRefLivraison() != null) {
+                    q.setParameter(2, l.getRefLivraison());
+                }
+                List<Object[]> r = q.setMaxResults(1).getResultList();
+                return r.isEmpty() ? new Object[] { null, null } : r.get(0);
+            });
+            String numLot = lot[0] == null ? null : String.valueOf(lot[0]).trim();
+            java.time.LocalDate per = lot[1] instanceof Date ? jour((Date) lot[1]) : l.getPeremptionConnue();
+            String brute = Gs1.brute(l.getEan(), per, numLot, l.getCip());
+            l.code2D(type, brute.isEmpty() ? null : brute, numLot, per == null ? null : per.format(jj));
         }
     }
 }

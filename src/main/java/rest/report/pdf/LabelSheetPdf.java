@@ -63,6 +63,10 @@ public final class LabelSheetPdf {
         private final String prix;
         private final String date;
 
+        /** Retours du 10/10 (point 5) : code de l'etiquette (CODE128 = code-barres du CIP, QR ou DATAMATRIX GS1). */
+        private String code = CODE_BARRES;
+        private String gs1, lot, peremption;
+
         public LabelData(String officine, String grossiste, String designation, String cip, String prix, String date) {
             this.officine = officine;
             this.grossiste = grossiste;
@@ -71,6 +75,67 @@ public final class LabelSheetPdf {
             this.prix = prix;
             this.date = date;
         }
+
+        /**
+         * Etiquette 2D GS1 : code QR ou DATAMATRIX, chaine GS1 brute ({@link Gs1#brute}), lot et peremption affiches en
+         * clair. Sans chaine GS1, l'etiquette garde le code-barres du CIP.
+         */
+        public LabelData code2D(String type, String gs1Brute, String lotAffiche, String peremptionAffichee) {
+            this.code = QR.equals(type) || DATAMATRIX.equals(type) ? type : CODE_BARRES;
+            this.gs1 = gs1Brute;
+            this.lot = lotAffiche;
+            this.peremption = peremptionAffichee;
+            return this;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        /* source de l'etiquette 2D : produit, EAN, peremption connue, reference de livraison (lot du BL) */
+        private String familleId, ean, refLivraison;
+        private java.time.LocalDate peremptionConnue;
+
+        public LabelData source(String idFamille, String eanProduit, java.time.LocalDate peremptionProduit,
+                String refBonLivraison) {
+            this.familleId = idFamille;
+            this.ean = eanProduit;
+            this.peremptionConnue = peremptionProduit;
+            this.refLivraison = refBonLivraison;
+            return this;
+        }
+
+        public String getFamilleId() {
+            return familleId;
+        }
+
+        public String getEan() {
+            return ean;
+        }
+
+        public String getRefLivraison() {
+            return refLivraison;
+        }
+
+        public java.time.LocalDate getPeremptionConnue() {
+            return peremptionConnue;
+        }
+
+        public String getCip() {
+            return cip;
+        }
+
+        public String getGs1() {
+            return gs1;
+        }
+    }
+
+    public static final String CODE_BARRES = "CODE128", QR = "QR", DATAMATRIX = "DATAMATRIX";
+
+    /** Type de code demande (parametre ou ecran) : CODE128 par defaut, valeur inconnue = CODE128. */
+    public static String typeCode(String valeur) {
+        String v = valeur == null ? "" : valeur.trim().toUpperCase(Locale.ROOT);
+        return QR.equals(v) || DATAMATRIX.equals(v) ? v : CODE_BARRES;
     }
 
     /** Geometrie d'une planche : grille sur page A4, avec calage optionnel lu dans la configuration. */
@@ -332,6 +397,10 @@ public final class LabelSheetPdf {
 
     private static void drawLabel(PdfContentByte cb, LabelData data, float width, float height, BaseFont regular,
             BaseFont bold) {
+        if (!CODE_BARRES.equals(data.code) && StringUtils.isNotBlank(data.gs1)) {
+            drawLabel2D(cb, data, width, height, regular, bold);
+            return;
+        }
         float padX = mm(1.6f);
         float maxTextWidth = width - 2f * padX;
         float centerX = width / 2f;
@@ -364,6 +433,52 @@ public final class LabelSheetPdf {
         showCentered(cb, regular, 6f, "--", centerX, 5.5f);
         showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, bottomMaxWidth), width - bottomInset, 5.5f,
                 PdfContentByte.ALIGN_RIGHT);
+    }
+
+    /**
+     * Retours du 10/10 (point 5) : etiquette 2D GS1. Le code carre a gauche (QR ou DataMatrix), le texte a droite :
+     * officine, designation, CIP, lot et peremption, prix.
+     */
+    private static void drawLabel2D(PdfContentByte cb, LabelData data, float width, float height, BaseFont regular,
+            BaseFont bold) {
+        float marge = mm(1.2f);
+        float cote = Math.min(height - 2f * marge, width * 0.42f);
+        float x0 = marge, y0 = (height - cote) / 2f;
+        if (DATAMATRIX.equals(data.code)) {
+            boolean[][] m = Gs1DataMatrix.matrice(data.gs1);
+            /* zone de silence d'un module autour du symbole */
+            float module = cote / (m.length + 2);
+            for (int y = 0; y < m.length; y++) {
+                for (int x = 0; x < m[y].length; x++) {
+                    if (m[y][x]) {
+                        cb.rectangle(x0 + (x + 1) * module, y0 + cote - (y + 2) * module, module, module);
+                    }
+                }
+            }
+            cb.fill();
+        } else {
+            com.itextpdf.text.pdf.BarcodeQRCode qr = new com.itextpdf.text.pdf.BarcodeQRCode(data.gs1, 1, 1, null);
+            com.itextpdf.text.Rectangle r = qr.getBarcodeSize();
+            float module = cote / r.getWidth();
+            cb.saveState();
+            cb.concatCTM(1, 0, 0, 1, x0, y0);
+            qr.placeBarcode(cb, com.itextpdf.text.BaseColor.BLACK, module);
+            cb.restoreState();
+        }
+        float tx = x0 + cote + mm(0.8f), large = width - tx - marge;
+        float ligne = height / 6.2f;
+        float y = height - ligne;
+        showText(cb, bold, 5f, fit(bold, data.officine, 5f, large), tx, y, PdfContentByte.ALIGN_LEFT);
+        y -= ligne;
+        showText(cb, bold, 5.2f, fit(bold, data.designation, 5.2f, large), tx, y, PdfContentByte.ALIGN_LEFT);
+        y -= ligne;
+        showText(cb, regular, 5.5f, fit(regular, "CIP " + StringUtils.defaultString(data.cip), 5.5f, large), tx, y,
+                PdfContentByte.ALIGN_LEFT);
+        y -= ligne;
+        String lotPer = joinNonBlank(StringUtils.isBlank(data.lot) ? null : "Lot " + data.lot,
+                StringUtils.isBlank(data.peremption) ? null : "Pér. " + data.peremption);
+        showText(cb, regular, 5f, fit(regular, lotPer, 5f, large), tx, y, PdfContentByte.ALIGN_LEFT);
+        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, large), width - marge, 4.5f, PdfContentByte.ALIGN_RIGHT);
     }
 
     private static void showCentered(PdfContentByte cb, BaseFont font, float size, String text, float x, float y) {

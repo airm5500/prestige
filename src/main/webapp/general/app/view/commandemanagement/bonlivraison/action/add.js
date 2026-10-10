@@ -168,6 +168,15 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                     editable: false,
                                     forceSelection: true,
                                     value: ''
+                                },
+                                /* retours du 10/10 (point 5) : code de l'etiquette, code-barres ou 2D GS1 */
+                                {html: '<span class="ig-label">Code de l\'étiquette:</span>'},
+                                {
+                                    xtype: 'combobox', anchor: '100%', name: 'code_ETIQUETTE_BL', id: 'code_ETIQUETTE_BL',
+                                    store: [['', 'Défaut (configuration)'], ['CODE128', 'Code-barres du CIP'],
+                                        ['QR', 'QR code GS1 (EAN, lot, péremption, CIP)'], ['DATAMATRIX', 'DataMatrix GS1 (EAN, lot, péremption, CIP)']],
+                                    queryMode: 'local', editable: false, forceSelection: true, value: '',
+                                    tooltip: 'Code imprimé : code-barres du CIP, ou code 2D GS1 lisible à la vente'
                                 }
                             ]
                         }
@@ -717,7 +726,8 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                             fn: function (btn) {
                                                 if (btn === 'yes') {
                                                     var modeleEtiquette = Ext.getCmp('modele_ETIQUETTE_BL') ? (Ext.getCmp('modele_ETIQUETTE_BL').getValue() || '') : '';
-                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette);
+                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette)
+                                                            + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : '');
                                                     onPdfBLClick(linkUrl);
                                                     testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
                                                 } else {
