@@ -126,6 +126,25 @@ class EtiquetageProTest {
         assertEquals(0, LecteurTableau.lire("p.xlsx", octets, null, true).getLignes().size());
     }
 
+    @Test
+    void excelAncienFormatXls() throws Exception {
+        byte[] octets;
+        try (org.apache.poi.hssf.usermodel.HSSFWorkbook wb = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+                ByteArrayOutputStream o = new ByteArrayOutputStream()) {
+            Sheet s = wb.createSheet("Feuil1");
+            s.createRow(0).createCell(0).setCellValue("CIP");
+            s.getRow(0).createCell(1).setCellValue("Prix");
+            s.createRow(1).createCell(0).setCellValue(8476972d);
+            s.getRow(1).createCell(1).setCellValue(1500.5d);
+            wb.write(o);
+            octets = o.toByteArray();
+        }
+        Tableau t = LecteurTableau.lire("ancien.xls", octets, null, true);
+        assertEquals(Arrays.asList("CIP", "Prix"), t.getColonnes());
+        assertEquals("8476972", t.getLignes().get(0).get(0));
+        assertEquals("1500,5", t.getLignes().get(0).get(1));
+    }
+
     /* ---------------------------------------------------- correspondance */
 
     private static Tableau tableau() {

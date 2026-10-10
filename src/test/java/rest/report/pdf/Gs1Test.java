@@ -155,4 +155,21 @@ class Gs1Test {
         assertTrue(f.getWidthPoint(coupe, 6f) <= 20f && !coupe.isEmpty(), coupe); // jamais plus d'une ligne
         assertEquals("", LabelSheetPdf.abreger(f, "  ", 6f, 50f));
     }
+
+    /* Etiquetage Pro : mention libre sur l'etiquette code-barres standard */
+    @Test
+    void mentionToujoursLisibleSurLeCodeBarresStandard() throws Exception {
+        com.itextpdf.text.pdf.BaseFont f = com.itextpdf.text.pdf.BaseFont
+                .createFont(com.itextpdf.text.pdf.BaseFont.HELVETICA, com.itextpdf.text.pdf.BaseFont.WINANSI, false);
+        float large = 99f; // largeur utile d'une etiquette de 38 mm
+        assertEquals("LABOREX - 10/10/26 - R1",
+                LabelSheetPdf.ligneAvecMention(f, 6f, large, "LABOREX", "10/10/26", "R1"));
+        String l = LabelSheetPdf.ligneAvecMention(f, 6f, large, "LABOREX-CI YOPOUGON", "10/10/26",
+                "Rayon R1 / lot A12");
+        assertTrue(l.endsWith("Rayon R1 / lot A12"), l);
+        assertTrue(l.startsWith("LABOREX"), l);
+        assertTrue(f.getWidthPoint(l, 6f) <= large, l);
+        String sansGrossiste = LabelSheetPdf.ligneAvecMention(f, 6f, large, "", "10/10/26", "R2");
+        assertEquals("10/10/26 - R2", sansGrossiste);
+    }
 }

@@ -448,7 +448,7 @@ public final class LabelSheetPdf {
 
         String line2 = joinNonBlank(data.grossiste, data.date);
         if (data.mention != null) {
-            line2 = joinNonBlank(line2, data.mention);
+            line2 = ligneAvecMention(regular, 6f, maxTextWidth, data.grossiste, data.date, data.mention);
         }
         showCentered(cb, regular, 6f, fit(regular, line2, 6f, maxTextWidth), centerX, height - 15.5f);
 
@@ -548,6 +548,26 @@ public final class LabelSheetPdf {
             showText(cb, police, taille, fit(police, (String) l[2], taille, large), marge, y + taille * 0.25f,
                     PdfContentByte.ALIGN_LEFT);
         }
+    }
+
+    /**
+     * Etiquetage Pro, code-barres standard avec mention libre : « grossiste - date - mention » sur la 2e ligne. Si elle
+     * deborde, le grossiste est abrege, puis la date est retiree : la mention reste lisible.
+     */
+    static String ligneAvecMention(BaseFont police, float taille, float largeur, String grossiste, String date,
+            String mention) {
+        String complete = joinNonBlank(joinNonBlank(grossiste, date), mention);
+        if (police.getWidthPoint(complete, taille) <= largeur || StringUtils.isBlank(grossiste)) {
+            return police.getWidthPoint(complete, taille) <= largeur ? complete
+                    : fit(police, joinNonBlank(date, mention), taille, largeur);
+        }
+        for (String suite : new String[] { joinNonBlank(date, mention), mention }) {
+            float reste = largeur - police.getWidthPoint(" - " + suite, taille);
+            if (reste >= police.getWidthPoint("ABCDE.", taille)) {
+                return abreger(police, grossiste, taille, reste) + " - " + suite;
+            }
+        }
+        return fit(police, mention, taille, largeur);
     }
 
     /**
