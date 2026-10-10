@@ -24,6 +24,7 @@ const FACTURE_ESSAI = 'E2E-LOT-F-FACT';
 
 let tpDepot = null;
 
+let depotAvant = null;
 function poserJeuDEssai() {
   // une facture reelle, avec plusieurs bons detailles : c'est elle qui sera editee
   const ligne = q("SELECT f.lg_FACTURE_ID, f.tiersPayant, f.str_CODE_FACTURE FROM t_facture f"
@@ -31,6 +32,7 @@ function poserJeuDEssai() {
     + " AND f.tiersPayant IS NOT NULL LIMIT 1").split('\t');
   if (ligne.length < 3) { return null; }
   tpDepot = ligne[1];
+  depotAvant = q("SELECT IFNULL(is_depot, 0) FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "'");
   exec("UPDATE t_tiers_payant SET is_depot=1 WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "';");
   // une facture PROVISOIRE d'essai, la seule que le test supprimera
   exec("INSERT INTO t_facture (lg_FACTURE_ID,dt_DATE_FACTURE,dbl_MONTANT_CMDE,str_CODE_FACTURE,str_CODE_COMPTABLE,"
@@ -46,7 +48,7 @@ function poserJeuDEssai() {
 function retirerJeuDEssai() {
   exec("DELETE FROM t_facture WHERE lg_FACTURE_ID='" + FACTURE_ESSAI + "';");
   if (tpDepot) {
-    exec("UPDATE t_tiers_payant SET is_depot=0 WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "';");
+    exec("UPDATE t_tiers_payant SET is_depot=" + (depotAvant || 0) + " WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "';");
   }
 }
 
@@ -186,7 +188,8 @@ function retirerJeuDEssai() {
   retirerJeuDEssai();
   ok('jeu d essai entierement retire',
      q("SELECT COUNT(*) FROM t_facture WHERE str_CODE_FACTURE='" + FACTURE_ESSAI + "'") === '0'
-     && q("SELECT COUNT(*) FROM t_tiers_payant WHERE is_depot=1") === '0');
+     /* le banc a ses propres carnets depot : seul celui du test doit retrouver son etat */
+     && q("SELECT IFNULL(is_depot, 0) FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='" + tpDepot + "'") === String(depotAvant || 0));
   const echecs = res.filter(x => !x.c);
   console.log('\n' + (res.length - echecs.length) + '/' + res.length + ' OK');
   process.exit(echecs.length ? 1 : 0);

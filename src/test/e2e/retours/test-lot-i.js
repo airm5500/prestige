@@ -21,14 +21,33 @@ const valeurInitiale = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY='" + 
    pour que l'analyse CA par famille ait une evolution a montrer : +50,0 %. */
 const MOIS_DERNIER = q("SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-10 10:00:00')");
 const CE_MOIS = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-01 10:00:00')");
+/* produit de classe A du banc (au lieu de « PREPARATION MAGISTRALE », produit d'un autre banc) */
+const PRODUIT_A = q("SELECT str_DESCRIPTION FROM t_famille WHERE lg_CLASSE_ABC_ID='ABC_CLASSE_A' AND str_STATUT='enable' ORDER BY str_DESCRIPTION LIMIT 1") || 'PREPARATION MAGISTRALE';
 function purgerVentes() {
+  exec("CREATE TABLE IF NOT EXISTS e2e_li_famille (lg_FAMILLE_ID VARCHAR(40), lg_FAMILLEARTICLE_ID VARCHAR(40));"
+    + " UPDATE t_famille f JOIN e2e_li_famille z ON z.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.lg_FAMILLEARTICLE_ID = z.lg_FAMILLEARTICLE_ID;"
+    + " DROP TABLE e2e_li_famille; DELETE FROM t_famillearticle WHERE lg_FAMILLEARTICLE_ID = 'E2ELI-FAM';");
+  exec("DELETE FROM t_lot WHERE lg_LOT_ID = 'E2ELI-LOT'");
   exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE 'E2ELI-%'");
   exec("DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE 'E2ELI-%'");
 }
 function semerVentes() {
   purgerVentes();
   const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
-  const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND lg_FAMILLEARTICLE_ID IS NOT NULL ORDER BY str_NAME LIMIT 1");
+  /* la cloche a besoin d'au moins une notification : un lot qui perime dans deux mois (retire a la fin) */
+  exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)"
+    + " SELECT 'E2ELI-LOT', '" + USER + "', s.lg_FAMILLE_ID, 'E2ELI', 5, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 2 MONTH), 'enable', 5"
+    + " FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '1' AND s.int_NUMBER_AVAILABLE > 0 AND f.str_STATUT = 'enable' LIMIT 1");
+  /* Toutes les familles du banc ont des ventes recentes : une famille d'essai est creee et un produit sans vente
+     recente y est range le temps du test (famille d'origine sauvegardee, puis remise) ; l'evolution ne compte alors
+     que le jeu d'essai. */
+  const PRODUIT = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_FAMILLEARTICLE_ID IS NOT NULL"
+    + " AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+    + " WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND p.dt_UPDATED >= DATE_SUB(CURDATE(), INTERVAL 4 MONTH)) ORDER BY f.str_NAME LIMIT 1");
+  exec("INSERT INTO t_famillearticle (lg_FAMILLEARTICLE_ID, str_LIBELLE, str_CODE_FAMILLE, str_STATUT, dt_CREATED, dt_UPDATED)"
+    + " VALUES ('E2ELI-FAM', 'ZZ FAMILLE E2E LI', 'E2ELI', 'enable', NOW(), NOW());"
+    + " CREATE TABLE e2e_li_famille AS SELECT lg_FAMILLE_ID, lg_FAMILLEARTICLE_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + PRODUIT + "';"
+    + " UPDATE t_famille SET lg_FAMILLEARTICLE_ID = 'E2ELI-FAM' WHERE lg_FAMILLE_ID = '" + PRODUIT + "';");
   [['E2ELI-1', MOIS_DERNIER, 2000], ['E2ELI-2', CE_MOIS, 3000]].forEach(([id, quand, montant]) => {
     exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"
       + " int_PRICE_REMISE, str_STATUT, dt_CREATED, dt_UPDATED, lg_TYPE_VENTE_ID, lg_USER_VENDEUR_ID,"
@@ -55,7 +74,8 @@ semerVentes();
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
-  await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && document.querySelector('iframe'), null, { timeout: 60000 });
+  /* tableau de bord : ancien (iframe) ou nouveau (composant tableaubord, lot L8 du 06/10) */
+  await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && (document.querySelector('iframe') || Ext.ComponentQuery.query('tableaubord').length), null, { timeout: 60000 });
   await p.waitForTimeout(8000);
   const lire = (chemin) => p.evaluate(async (chemin) => {
     const r = await fetch(chemin, { credentials: 'same-origin' }); return { statut: r.status, corps: await r.text() };
@@ -78,13 +98,15 @@ semerVentes();
     ok('Le panier des ventes ratees, lui, ne recoit plus cet etat', !/has-notif/.test(cloche.panier || ''), cloche.panier);
 
     // ---------------------------------------------------------------- 3. tableau de bord
-    await p.evaluate(() => { window.__loads = 0; document.querySelector('iframe').addEventListener('load', () => window.__loads++); });
+    await p.evaluate(() => { window.__loads = 0; const f = document.querySelector('iframe');
+      if (f) { f.addEventListener('load', () => window.__loads++); } else { window.__tb = Ext.ComponentQuery.query('tableaubord')[0].getId(); } });
     for (let k = 0; k < 3; k++) {
       const c = await p.evaluate(() => { const nav = Ext.ComponentQuery.query('navigation')[0]; const r = nav.placeholder.el.dom.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 60 }; });
       await p.mouse.click(c.x, c.y); await p.waitForTimeout(1500);
       await p.mouse.click(1200, 500); await p.waitForTimeout(1500);
     }
-    const rechargements = await p.evaluate(() => window.__loads);
+    /* nouveau tableau de bord : « rechargement » = composant detruit puis recree */
+    const rechargements = await p.evaluate(() => window.__tb ? ((Ext.ComponentQuery.query('tableaubord')[0] || {}).id === window.__tb ? 0 : 1) : window.__loads);
     ok('Trois clics sur la barre de navigation : aucun rechargement du tableau de bord', rechargements === 0, rechargements);
     ok('La resynchronisation refuse de tourner pendant le glissement du volet',
       await p.evaluate(() => typeof PrestigeAffichage.resynchroniserMiseEnPage.regionFlottante === 'function'));
@@ -106,19 +128,19 @@ semerVentes();
     await p.waitForTimeout(1000);
     const champ = await p.evaluate(() => Ext.getCmp('rechecher').inputEl.id);
     await p.click('#' + champ);
-    await p.keyboard.type('PREPARATION MAGISTRALE');
+    await p.keyboard.type(PRODUIT_A);
     await p.keyboard.press('Enter');
     // La fiche article EST la grille (famillemanager etend gridpanel).
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('famillemanager')[0]; return g && g.getStore().getCount() > 0 && !g.getStore().isLoading(); }, null, { timeout: 30000 });
     await p.waitForTimeout(500);
-    const fiche = await p.evaluate(() => {
+    const fiche = await p.evaluate((nom) => {
       const g = Ext.ComponentQuery.query('famillemanager')[0];
-      const i = g.getStore().findBy(r => /PREPARATION MAGISTRALE/.test(r.get('str_DESCRIPTION')));
+      const i = g.getStore().findBy(r => r.get('str_DESCRIPTION') === nom);
       const rec = g.getStore().getAt(i);
       const html = g.getView().getNode(i).innerHTML;
       // Retour des tests du 09/09 (lot O) : la classe A est en VERT (B bleu, C rouge), en gras.
       return { classe: rec.get('classe'), designation: rec.get('str_DESCRIPTION'), vert: /\(A\)/.test(html) && /177a17/.test(html) && /font-weight:bold/.test(html) };
-    });
+    }, PRODUIT_A);
     ok('La ligne connait sa classe ABC', fiche.classe === 'A', JSON.stringify(fiche));
     ok('La designation est suivie de « (A) » en vert gras', fiche.vert, fiche.designation);
 

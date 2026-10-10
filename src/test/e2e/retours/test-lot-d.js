@@ -49,7 +49,8 @@ function poserJeuDEssai(jour) {
     + " WHERE DATE(p.dt_UPDATED)='" + jour + "' AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0"
     + " AND p.imported=0 AND p.int_PRICE>0 LIMIT 5").split('\n').filter(Boolean);
   ids.forEach(function (id, i) {
-    exec("INSERT INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
+    /* le mouvement peut deja exister (banc complet) : seul le manquant est pose */
+    exec("INSERT IGNORE INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
       + "lg_EMPLACEMENT_ID,lg_USER_ID,montant) VALUES ('" + MARQUE + '-' + i + "',1,NOW(),'" + jour + "','" + id
       + "','" + MARQUE + "',1,'1','1',(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'),0);");
   });
