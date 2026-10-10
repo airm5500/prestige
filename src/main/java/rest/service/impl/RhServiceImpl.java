@@ -139,6 +139,11 @@ public class RhServiceImpl implements RhService {
             return refus("Cet utilisateur est déjà lié à " + doublon.trim() + ".");
         }
         boolean nouveau = id == null;
+        /* retours du 10/10 : un employe se cree uniquement a partir d'un utilisateur existant */
+        if (nouveau
+                && (userId == null || premier("SELECT lg_USER_ID FROM t_user WHERE lg_USER_ID = ?1", userId) == null)) {
+            return refus("Un employé se crée à partir d'un utilisateur existant : choisissez l'utilisateur.");
+        }
         if (nouveau) {
             id = UUID.randomUUID().toString();
             em.createNativeQuery(
@@ -166,13 +171,17 @@ public class RhServiceImpl implements RhService {
     @SuppressWarnings("unchecked")
     public JSONObject utilisateursLibres(String employeId) {
         List<Object[]> r = em.createNativeQuery("SELECT u.lg_USER_ID, u.str_LOGIN,"
-                + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))) FROM t_user u"
+                + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))),"
+                + " u.str_FIRST_NAME, u.str_LAST_NAME, u.str_FUNCTION, u.str_PHONE FROM t_user u"
                 + " WHERE u.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID"
                 + " AND e.id <> ?1) ORDER BY u.str_LOGIN").setParameter(1, StringUtils.defaultString(employeId))
                 .getResultList();
         JSONArray a = new JSONArray();
         for (Object[] l : r) {
-            a.put(new JSONObject().put("id", l[0]).put("libelle", l[1] + (t(l[2]).isEmpty() ? "" : " — " + l[2])));
+            /* retours du 10/10 : la fiche employe se pre-remplit avec l'utilisateur choisi (comme le rattachement) */
+            a.put(new JSONObject().put("id", l[0]).put("libelle", l[1] + (t(l[2]).isEmpty() ? "" : " — " + l[2]))
+                    .put("login", t(l[1])).put("nom", t(l[3]).isEmpty() ? t(l[1]) : t(l[3])).put("prenoms", t(l[4]))
+                    .put("poste", t(l[5])).put("telephone", t(l[6])));
         }
         return ok().put("data", a);
     }

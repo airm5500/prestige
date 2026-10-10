@@ -481,7 +481,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                         store.load();
                     }},
                 '->',
-                {text: 'Nouvel employé', itemId: 'btnNouvelEmploye', handler: function () {
+                {text: 'Nouvel employé', itemId: 'btnNouvelEmploye', tooltip: 'Créer un employé à partir d\'un utilisateur existant', handler: function () {
                         me.editerEmploye(null);
                     }}
             ],
@@ -506,54 +506,100 @@ Ext.define('testextjs.view.rh.RhManager', {
                         return v === 'ACTIF' ? '<b style="color:#1e8449">Actif</b>' : '<span style="color:#7f8c8d">Inactif</span>';
                     }}
             ],
+            /* retours du 10/10 : fiche dans l'onglet (pas de fenetre), creation a partir d'un utilisateur existant */
+            dockedItems: [me.ficheEmploye()],
             listeners: {itemdblclick: function (v, r) {
                     me.editerEmploye(r);
                 }}
         };
     },
 
+    ficheEmploye: function () {
+        var me = this;
+        var utilisateurs = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'login', 'nom', 'prenoms', 'poste', 'telephone'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/utilisateurs-libres', reader: {type: 'json', root: 'data'}}});
+        return {
+            xtype: 'form', dock: 'right', itemId: 'ficheEmploye', width: 400, hidden: true, bodyPadding: 12, autoScroll: true,
+            cls: 'rh-fiche fen-section', title: 'Employé', border: true,
+            defaults: {anchor: '100%', labelWidth: 120, xtype: 'textfield'},
+            items: [
+                {xtype: 'hiddenfield', name: 'id'},
+                {xtype: 'combobox', name: 'userId', itemId: 'userEmploye', fieldLabel: 'Utilisateur', store: utilisateurs, queryMode: 'local',
+                    displayField: 'libelle', valueField: 'id', emptyText: 'Choisir l\'utilisateur', forceSelection: true, anyMatch: true,
+                    tooltip: 'Un employé se crée à partir d\'un utilisateur existant du logiciel',
+                    listeners: {select: function (c, recs) {
+                            var u = recs && recs[0], f = c.up('form');
+                            if (!u || f.getForm().findField('id').getValue()) {
+                                return;
+                            }
+                            /* nouvel employe : la fiche reprend l'utilisateur (comme le rattachement automatique) */
+                            Ext.Object.each({matricule: u.get('login'), nom: u.get('nom'), prenoms: u.get('prenoms'), poste: u.get('poste'),
+                                telephone: u.get('telephone')}, function (k, v) {
+                                var champ = f.getForm().findField(k);
+                                if (!champ.getValue()) {
+                                    champ.setValue(v);
+                                }
+                            });
+                        }}},
+                {name: 'matricule', fieldLabel: 'Matricule', allowBlank: false, emptyText: 'Ex. : EMP-012', maxLength: 30, enforceMaxLength: true},
+                {name: 'nom', fieldLabel: 'Nom', allowBlank: false, emptyText: 'Nom de famille', maxLength: 80, enforceMaxLength: true},
+                {name: 'prenoms', fieldLabel: 'Prénoms', emptyText: 'Prénoms', maxLength: 120, enforceMaxLength: true},
+                {name: 'poste', fieldLabel: 'Poste', emptyText: 'Ex. : caissière, préparateur', maxLength: 80, enforceMaxLength: true},
+                {name: 'badge', fieldLabel: 'Badge (pointeuse)', emptyText: 'Numéro du badge à la pointeuse', maxLength: 40, enforceMaxLength: true},
+                {name: 'telephone', fieldLabel: 'Téléphone', emptyText: 'Ex. : 07 08 09 10 11', maxLength: 30, enforceMaxLength: true},
+                {xtype: 'datefield', name: 'dtEntree', fieldLabel: 'Entrée', format: 'd/m/Y', emptyText: 'jj/mm/aaaa'},
+                {xtype: 'datefield', name: 'dtSortie', fieldLabel: 'Sortie', format: 'd/m/Y', emptyText: 'jj/mm/aaaa (si parti)'},
+                {xtype: 'combobox', name: 'statut', fieldLabel: 'Statut', editable: false, queryMode: 'local', displayField: 'l', valueField: 'v',
+                    value: 'ACTIF', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 'ACTIF', l: 'Actif'}, {v: 'INACTIF', l: 'Inactif'}]})}
+            ],
+            buttons: [{text: 'Fermer', itemId: 'btnFermerEmploye', cls: 'fen-btn', tooltip: 'Fermer la fiche sans enregistrer', handler: function () {
+                        me.down('#ficheEmploye').hide();
+                    }}, {text: 'Enregistrer', itemId: 'btnEnregistrerEmploye', cls: 'fen-btn fen-btn-principal', tooltip: 'Enregistrer l\'employé',
+                    handler: function () {
+                        me.enregistrerEmploye();
+                    }}]
+        };
+    },
+
     editerEmploye: function (rec) {
-        var me = this, d = rec ? rec.data : {};
-        var utilisateurs = Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], proxy: {type: 'ajax',
-                url: '../api/v1/rh/utilisateurs-libres?employeId=' + (d.id || ''), reader: {type: 'json', root: 'data'}}, autoLoad: true});
+        var me = this, d = rec ? rec.data : {}, f = me.down('#ficheEmploye'), u = f.down('#userEmploye');
         var date = function (s) {
             return s ? Ext.Date.parse(s, 'Y-m-d') : null;
         };
-        var win = Ext.create('Ext.window.Window', {
-            title: rec ? 'Employé ' + me.esc(d.nom) : 'Nouvel employé', modal: true, width: 460, bodyPadding: 12, itemId: 'fenetreEmploye',
-            items: [{xtype: 'form', border: false, defaults: {anchor: '100%', labelWidth: 120, xtype: 'textfield'}, items: [
-                        {name: 'matricule', fieldLabel: 'Matricule', allowBlank: false, value: d.matricule, emptyText: 'Ex. : EMP-012', maxLength: 30, enforceMaxLength: true},
-                        {name: 'nom', fieldLabel: 'Nom', allowBlank: false, value: d.nom, emptyText: 'Nom de famille', maxLength: 80, enforceMaxLength: true},
-                        {name: 'prenoms', fieldLabel: 'Prénoms', value: d.prenoms, emptyText: 'Prénoms', maxLength: 120, enforceMaxLength: true},
-                        {name: 'poste', fieldLabel: 'Poste', value: d.poste, emptyText: 'Ex. : caissière, préparateur', maxLength: 80, enforceMaxLength: true},
-                        {name: 'badge', fieldLabel: 'Badge (pointeuse)', value: d.badge, emptyText: 'Numéro du badge à la pointeuse', maxLength: 40, enforceMaxLength: true},
-                        {name: 'telephone', fieldLabel: 'Téléphone', value: d.telephone, emptyText: 'Ex. : 07 08 09 10 11', maxLength: 30, enforceMaxLength: true},
-                        {xtype: 'datefield', name: 'dtEntree', fieldLabel: 'Entrée', format: 'd/m/Y', value: date(d.dtEntree), emptyText: 'jj/mm/aaaa'},
-                        {xtype: 'datefield', name: 'dtSortie', fieldLabel: 'Sortie', format: 'd/m/Y', value: date(d.dtSortie), emptyText: 'jj/mm/aaaa (si parti)'},
-                        {xtype: 'combobox', name: 'userId', fieldLabel: 'Utilisateur lié', store: utilisateurs, queryMode: 'local', displayField: 'libelle',
-                            valueField: 'id', value: d.userId || null, emptyText: 'aucun (n\'utilise pas le logiciel)', forceSelection: true, anyMatch: true},
-                        {xtype: 'combobox', name: 'statut', fieldLabel: 'Statut', editable: false, queryMode: 'local', displayField: 'l', valueField: 'v',
-                            value: d.statut || 'ACTIF', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 'ACTIF', l: 'Actif'}, {v: 'INACTIF', l: 'Inactif'}]})}
-                    ]}],
-            buttons: [{text: 'Annuler', cls: 'fen-btn', handler: function () {
-                        win.close();
-                    }}, {text: 'Enregistrer', itemId: 'btnEnregistrerEmploye', cls: 'fen-btn fen-btn-principal', handler: function () {
-                        var f = win.down('form');
-                        if (!f.isValid()) {
-                            return;
-                        }
-                        var v = function (n) {
-                            return f.down('[name=' + n + ']').getValue();
-                        };
-                        me.appel('POST', '../api/v1/rh/employes', {id: d.id || null, matricule: v('matricule'), nom: v('nom'), prenoms: v('prenoms'),
-                            poste: v('poste'), badge: v('badge'), telephone: v('telephone'), dtEntree: v('dtEntree') ? me.iso(v('dtEntree')) : '',
-                            dtSortie: v('dtSortie') ? me.iso(v('dtSortie')) : '', userId: v('userId') || '', statut: v('statut')}, function () {
-                            win.close();
-                            me.down('#ongletEmployes').getStore().load();
-                        });
-                    }}]
+        f.getForm().reset();
+        f.setTitle(rec ? 'Employé ' + me.esc(d.nom) : 'Nouvel employé (à partir d\'un utilisateur)');
+        u.allowBlank = !!rec;
+        u.getStore().getProxy().extraParams = {employeId: d.id || ''};
+        u.getStore().load(function () {
+            if (d.userId) {
+                u.setValue(d.userId);
+            }
         });
-        win.show();
+        f.getForm().setValues({id: d.id || '', matricule: d.matricule || '', nom: d.nom || '', prenoms: d.prenoms || '', poste: d.poste || '',
+            badge: d.badge || '', telephone: d.telephone || '', dtEntree: date(d.dtEntree), dtSortie: date(d.dtSortie), statut: d.statut || 'ACTIF'});
+        f.show();
+        (rec ? f.getForm().findField('matricule') : u).focus(false, 100);
+    },
+
+    enregistrerEmploye: function () {
+        var me = this, f = me.down('#ficheEmploye');
+        if (!f.getForm().isValid()) {
+            return;
+        }
+        var v = function (n) {
+            return f.getForm().findField(n).getValue();
+        };
+        var id = v('id') || null;
+        if (!id && !v('userId')) {
+            Ext.MessageBox.alert('Ressources humaines', 'Un employé se crée à partir d\'un utilisateur existant : choisissez l\'utilisateur.');
+            return;
+        }
+        me.appel('POST', '../api/v1/rh/employes', {id: id, matricule: v('matricule'), nom: v('nom'), prenoms: v('prenoms'),
+            poste: v('poste'), badge: v('badge'), telephone: v('telephone'), dtEntree: v('dtEntree') ? me.iso(v('dtEntree')) : '',
+            dtSortie: v('dtSortie') ? me.iso(v('dtSortie')) : '', userId: v('userId') || '', statut: v('statut')}, function () {
+            f.hide();
+            me.down('#ongletEmployes').getStore().load();
+        });
     },
 
     /* ------------------------------------------------------------------ connexions */
@@ -566,7 +612,8 @@ Ext.define('testextjs.view.rh.RhManager', {
         });
         store.on('beforeload', function (s) {
             var g = me.down('#ongletConnexions');
-            s.getProxy().extraParams = {du: me.iso(g.down('#sesDu').getValue()), au: me.iso(g.down('#sesAu').getValue())};
+            s.getProxy().extraParams = {du: me.iso(g.down('#sesDu').getValue()), au: me.iso(g.down('#sesAu').getValue()),
+                userId: g.down('#sesUtilisateur').getValue() || ''};
         });
         var h = function (v) {
             return v ? me.fr(v.substring(0, 10)) + ' ' + v.substring(11, 16) : '';
@@ -577,7 +624,18 @@ Ext.define('testextjs.view.rh.RhManager', {
             tbar: [
                 {xtype: 'datefield', itemId: 'sesDu', fieldLabel: 'Du', labelWidth: 25, width: 145, format: 'd/m/Y', value: Ext.Date.add(new Date(), Ext.Date.DAY, -6)},
                 {xtype: 'datefield', itemId: 'sesAu', fieldLabel: 'Au', labelWidth: 25, width: 145, format: 'd/m/Y', value: new Date()},
-                {text: 'Rechercher', handler: function () {
+                /* retours du 10/10 : filtre par utilisateur */
+                {xtype: 'combobox', itemId: 'sesUtilisateur', width: 220, editable: false, queryMode: 'local', valueField: 'lgUSERID',
+                    displayField: 'fullName', emptyText: 'Tous les utilisateurs', tooltip: 'Connexions d\'un seul utilisateur',
+                    store: Ext.create('Ext.data.Store', {model: 'testextjs.model.caisse.User', autoLoad: true, pageSize: 999,
+                        proxy: {type: 'ajax', url: '../api/v1/common/users', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
+                        listeners: {load: function (st) {
+                                st.insert(0, {lgUSERID: '', fullName: 'Tous les utilisateurs'});
+                            }}}),
+                    listeners: {select: function () {
+                            store.load();
+                        }}},
+                {text: 'Rechercher', itemId: 'sesRechercher', tooltip: 'Afficher les connexions de la période', handler: function () {
                         store.load();
                     }}
             ],

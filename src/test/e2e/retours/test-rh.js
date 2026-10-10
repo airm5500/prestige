@@ -1,12 +1,14 @@
 /* RESSOURCES HUMAINES, socle (plan d'octobre, section 3, lot L11a).
  *
  * Par l'ecran « Ressources humaines » (menu RESSOURCES HUMAINES), jeu d'essai retire a la fin :
- *  - employes : creation par la fenetre ; matricule et badge uniques (refus motive) ; lien a un utilisateur unique ;
+ *  - employes (retours du 10/10) : fiche dans l'onglet (pas de fenetre), creation uniquement a partir d'un utilisateur
+ *    existant (fiche pre-remplie) ; matricule et badge uniques (refus motive) ; lien a un utilisateur unique ;
  *  - planning de la semaine : saisie d'une case (travail, pause), « lundi au vendredi », garde de nuit, repos, total
  *    des heures ; copie de la semaine precedente (cases deja saisies gardees ou remplacees) ;
  *  - conges et absences : demande, chevauchement refuse, validation, calendrier du mois, absence validee rappelee
  *    dans le planning ; cloche « Congés et absences à valider » ;
- *  - connexions : la connexion de l'essai est journalisee (poste, adresse) ; la deconnexion la clot ;
+ *  - connexions : la connexion de l'essai est journalisee (poste, adresse) ; filtre par utilisateur ; la deconnexion la clot ;
+ *  - calendrier des conges sur toute la largeur ;
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
@@ -20,7 +22,11 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
 const URL = 'http://localhost:8080/prestige';
 const SEM = '2026-11-02', PREC = '2026-10-26';
 
+/* deux utilisateurs d'essai, sans employe, pour la creation a partir d'un utilisateur (retours du 10/10) */
+const UE = ['E2E-RH-U1', 'E2E-RH-U2'];
 function nettoyer() {
+  exec("DELETE FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "');"
+    + "DELETE FROM t_user WHERE lg_USER_ID IN ('" + UE.join("','") + "');");
   exec("DELETE FROM t_planning WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
     + "DELETE FROM t_absence WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
     + "DELETE FROM t_employe WHERE matricule LIKE 'E2E-RH%';");
@@ -66,28 +72,58 @@ function nettoyer() {
       && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = 'admin'") === '0', sansEmploye);
     const resync = await post('../api/v1/rh/employes/synchroniser', {});
     ok('Rattachement relancé : aucun doublon', resync.success === true && resync.crees === 0, JSON.stringify(resync));
+    /* les utilisateurs d'essai arrivent apres le rattachement automatique : ils restent sans employe */
+    exec("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_PHONE, str_STATUT, lg_EMPLACEMENT_ID, str_TYPE, dt_CREATED)"
+      + " VALUES ('E2E-RH-U1', 'e2erhawa', 'ZZRH', 'Awa', 'Pharmacien assistant', '0707070701', 'enable', '1', 'CUSTOMER', NOW()),"
+      + " ('E2E-RH-U2', 'e2erhkoffi', 'ZZRH', 'Koffi', 'Vendeur', '0707070702', 'enable', '1', 'CUSTOMER', NOW())");
     await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.setActiveTab(r.down('#ongletEmployes')); });
     await p.waitForTimeout(1200);
+    const sansUtilisateur = await post('../api/v1/rh/employes', { matricule: 'E2E-RH-9', nom: 'ZZRH' });
+    ok('Création sans utilisateur refusée (un employé se crée à partir d\'un utilisateur)', sansUtilisateur.success === false
+      && /à partir d'un utilisateur existant/.test(sansUtilisateur.message) && q("SELECT COUNT(*) FROM t_employe WHERE matricule = 'E2E-RH-9'") === '0', sansUtilisateur.message);
     await clic('rhmanager #btnNouvelEmploye', 1500);
-    const placeholders = await p.evaluate(() => { const w = Ext.ComponentQuery.query('#fenetreEmploye')[0]; const f = w.query('textfield').filter((x) => x.isVisible() && x.editable !== false);
-      const r = { sans: f.filter((x) => !x.emptyText).map((x) => x.name), theme: w.hasCls('fen-theme') }; w.close(); return r; });
-    ok('Fenêtre « Nouvel employé » : nouveau design et texte d\'aide dans chaque champ', placeholders.theme && placeholders.sans.length === 0, JSON.stringify(placeholders));
-    const creer = async (v) => {
-      await clic('rhmanager #btnNouvelEmploye', 1500);
-      await remplir('#fenetreEmploye', v);
-      await clic('#fenetreEmploye #btnEnregistrerEmploye', 1500);
+    const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0], t = f.query('textfield').filter((x) => x.isVisible() && x.editable !== false && x.xtype !== 'hiddenfield');
+      return { visible: f.isVisible(), dansOnglet: f.up('#ongletEmployes') !== undefined && !f.up('window'), fenetres: Ext.ComponentQuery.query('window[modal=true]').filter((w) => w.isVisible()).length,
+        sans: t.filter((x) => !x.emptyText).map((x) => x.name), utilisateurObligatoire: f.down('#userEmploye').allowBlank === false }; });
+    ok('« Nouvel employé » : fiche dans l\'onglet (pas de fenêtre), utilisateur obligatoire, texte d\'aide dans chaque champ', fiche.visible && fiche.dansOnglet && fiche.fenetres === 0
+      && fiche.utilisateurObligatoire && fiche.sans.length === 0, JSON.stringify(fiche));
+    await clic('rhmanager #btnEnregistrerEmploye', 800);
+    ok('Sans utilisateur choisi : rien n\'est créé', q("SELECT COUNT(*) FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "')") === '0');
+    await fermerBoite();
+    const choisirUtilisateur = async (u) => {
+      await p.waitForFunction((u) => { const c = Ext.ComponentQuery.query('rhmanager #userEmploye')[0]; return !c.getStore().isLoading() && c.getStore().getById(u); }, u, { timeout: 15000 });
+      await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #userEmploye')[0].expand());
+      await p.evaluate((u) => { const c = Ext.ComponentQuery.query('rhmanager #userEmploye')[0]; c.getPicker().getNode(c.getStore().getById(u)).setAttribute('data-e2e', 'u'); }, u);
+      await p.click('[data-e2e=u]'); await p.waitForTimeout(300);
     };
-    await creer({ matricule: 'E2E-RH-1', nom: 'ZZRH', prenoms: 'Awa', poste: 'Pharmacien assistant', badge: 'E2E-B1' });
-    await creer({ matricule: 'E2E-RH-2', nom: 'ZZRH', prenoms: 'Koffi', poste: 'Vendeur' });
-    ok('Deux employés créés par la fenêtre', q("SELECT COUNT(*) FROM t_employe WHERE matricule LIKE 'E2E-RH%'") === '2');
-    await creer({ matricule: 'E2E-RH-1', nom: 'DOUBLON' });
-    const doublon = await boite(); await fermerBoite();
-    await p.evaluate(() => { const w = Ext.ComponentQuery.query('#fenetreEmploye')[0]; if (w) { w.close(); } });
-    ok('Matricule déjà porté : refus qui nomme l\'employé', /Matricule déjà porté par ZZRH Awa/.test(doublon), doublon);
-    const badge = await post('../api/v1/rh/employes', { matricule: 'E2E-RH-3', nom: 'ZZRH', badge: 'E2E-B1' });
-    ok('Badge déjà porté : refus', badge.success === false && /Badge déjà porté/.test(badge.message), badge.message);
+    await choisirUtilisateur(UE[0]);
+    const prerempli = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0].getForm().getValues());
+    ok('Utilisateur choisi : la fiche reprend son identifiant, son nom, son poste et son téléphone', prerempli.matricule === 'e2erhawa' && prerempli.nom === 'ZZRH'
+      && prerempli.prenoms === 'Awa' && prerempli.poste === 'Pharmacien assistant' && prerempli.telephone === '0707070701', JSON.stringify(prerempli));
+    const creer = async (u, v) => {
+      await clic('rhmanager #btnNouvelEmploye', 1200);
+      await choisirUtilisateur(u);
+      await remplir('rhmanager #ficheEmploye', v);
+      await clic('rhmanager #btnEnregistrerEmploye', 1500);
+    };
+    await creer(UE[0], { matricule: 'E2E-RH-1', badge: 'E2E-B1' });
+    await creer(UE[1], { matricule: 'E2E-RH-2' });
+    ok('Deux employés créés à partir de leur utilisateur, fiche refermée', q("SELECT GROUP_CONCAT(CONCAT(matricule, ':', lg_USER_ID, ':', nom, ' ', prenoms) ORDER BY matricule) FROM t_employe WHERE matricule LIKE 'E2E-RH%'")
+      === 'E2E-RH-1:E2E-RH-U1:ZZRH Awa,E2E-RH-2:E2E-RH-U2:ZZRH Koffi' && !(await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0].isVisible())));
     const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
     const e1 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-1'"), e2 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-2'");
+    /* modification dans la fiche : matricule deja porte */
+    await p.evaluate(() => { const g = Ext.ComponentQuery.query('rhmanager #ongletEmployes')[0]; g.down('#rechercheEmploye').setValue('ZZRH'); g.getStore().load(); });
+    await p.waitForTimeout(1500);
+    await p.evaluate((e) => { const g = Ext.ComponentQuery.query('rhmanager')[0]; g.editerEmploye(g.down('#ongletEmployes').getStore().findRecord('id', e)); }, e2);
+    await p.waitForTimeout(800);
+    await remplir('rhmanager #ficheEmploye', { matricule: 'E2E-RH-1' });
+    await clic('rhmanager #btnEnregistrerEmploye', 1500);
+    const doublon = await boite(); await fermerBoite();
+    ok('Matricule déjà porté : refus qui nomme l\'employé', /Matricule déjà porté par ZZRH Awa/.test(doublon), doublon);
+    await clic('rhmanager #btnFermerEmploye', 500);
+    const badge = await post('../api/v1/rh/employes', { id: e2, matricule: 'E2E-RH-2', nom: 'ZZRH', badge: 'E2E-B1', userId: UE[1] });
+    ok('Badge déjà porté : refus', badge.success === false && /Badge déjà porté/.test(badge.message), badge.message);
     const lienDeja = q("SELECT COUNT(*) FROM t_employe WHERE lg_USER_ID = '" + U + "'") !== '0';
     if (!lienDeja) {
       const l1 = await post('../api/v1/rh/employes', { id: e1, matricule: 'E2E-RH-1', nom: 'ZZRH', prenoms: 'Awa', badge: 'E2E-B1', userId: U });
@@ -164,6 +200,9 @@ function nettoyer() {
     await p.waitForTimeout(2000);
     const cal = await p.evaluate(() => { const c = Ext.ComponentQuery.query('rhmanager #calendrier')[0].getEl().dom; return { cases: c.querySelectorAll('td[data-abs]').length, titres: Array.from(c.querySelectorAll('td[data-abs]')).map((t) => t.title) }; });
     ok('Calendrier du mois : 4 jours de congé demandé + 1 demi-journée, hachurés « demandé »', cal.cases === 5 && cal.titres.every((t) => /demandé/.test(t)), JSON.stringify(cal));
+    const largeur = await p.evaluate(() => { const c = Ext.ComponentQuery.query('rhmanager #calendrier')[0], t = c.getEl().dom.querySelector('table.rh-cal');
+      return { table: t.getBoundingClientRect().width, zone: c.getEl().dom.clientWidth }; });
+    ok('Calendrier des congés : toute la largeur (plus de jours condensés)', largeur.table >= largeur.zone - 30, JSON.stringify(largeur));
     const valider = await p.evaluate(() => { const g = Ext.ComponentQuery.query('rhmanager #grilleAbsences')[0]; const i = g.getStore().findExact('type', 'CONGE');
       const td = g.getView().getNode(i).querySelector('.rh-act-valider'); if (td) { td.click(); return true; } return false; });
     await p.waitForTimeout(2000);
@@ -181,6 +220,16 @@ function nettoyer() {
     await p.waitForTimeout(2000);
     const lignesSes = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ongletConnexions')[0].getStore().getRange().map((r) => r.get('login') + '|' + r.get('ouverte')));
     ok('Onglet Connexions : la connexion de l\'essai « en cours »', lignesSes.indexOf('admin|true') >= 0, JSON.stringify(lignesSes.slice(0, 3)));
+    /* filtre par utilisateur : un utilisateur sans connexion, puis admin */
+    await p.evaluate(() => { const c = Ext.ComponentQuery.query('rhmanager #sesUtilisateur')[0]; return c.getStore().getCount(); });
+    await p.waitForFunction(() => Ext.ComponentQuery.query('rhmanager #sesUtilisateur')[0].getStore().getCount() > 1, null, { timeout: 15000 });
+    const filtre = async (u) => { await p.evaluate((u) => { const c = Ext.ComponentQuery.query('rhmanager #sesUtilisateur')[0]; c.setValue(u); }, u);
+      await clic('rhmanager #sesRechercher', 1500);
+      return p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ongletConnexions')[0].getStore().getRange().map((r) => r.get('login'))); };
+    const sesU1 = await filtre(UE[0]), sesAdmin = await filtre(U);
+    ok('Connexions : filtre par utilisateur (aucune pour l\'utilisateur d\'essai, seulement admin pour admin)', sesU1.length === 0 && sesAdmin.length > 0 && sesAdmin.every((l) => l === 'admin'),
+      sesU1.length + ' / ' + JSON.stringify(sesAdmin.slice(0, 3)));
+    await filtre('');
     /* la session de CET essai (d'autres essais peuvent se connecter en meme temps avec le meme compte) */
     const sesHttp = (await p.context().cookies()).find((c) => c.name === 'JSESSIONID').value.split('.')[0];
     await p.evaluate(async () => { await fetch('../api/v1/user/logout', { method: 'POST' }); });

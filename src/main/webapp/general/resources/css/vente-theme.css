@@ -2746,6 +2746,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .rh-cal th.rh-we { background: #5d7a99; }
 .rh-cal .rh-cal-nom { text-align: left; padding: 0 8px; min-width: 170px; white-space: nowrap; font-weight: 700; color: #1e3a5f; background: #f5f8fb; }
 .rh-cal th.rh-cal-nom { background: #1e3a5f; color: #fff; }
+/* Retours du 10/10 : le calendrier des conges occupe toute la largeur (jours repartis), sans descendre sous 24 px par jour */
+.rh-cal { width: calc(100% - 12px); min-width: calc(190px + 31 * 24px); table-layout: fixed; }
+.rh-cal th.rh-cal-nom { width: 190px; }
+.rh-cal .rh-cal-nom { overflow: hidden; text-overflow: ellipsis; }
 .rh-legende { margin: 2px 8px 8px; font-size: 11px; color: #34495e; }
 .rh-legende span { margin-right: 14px; } .rh-legende i { display: inline-block; width: 14px; height: 10px; margin-right: 4px; vertical-align: middle; border-radius: 2px; }
 .rh-act { display: inline-block; width: 18px; height: 16px; margin: 0 2px; cursor: pointer; font: normal normal normal 14px/1 FontAwesome; text-align: center; }

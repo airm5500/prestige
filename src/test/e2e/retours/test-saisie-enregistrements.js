@@ -39,6 +39,7 @@ function nettoyer() {
   /* RH */
   q("DELETE a FROM t_absence a JOIN t_employe e ON e.id = a.employe_id WHERE e.nom LIKE '" + M + "%'");
   q("DELETE FROM t_employe WHERE nom LIKE '" + M + "%'");
+  q("DELETE FROM t_user WHERE lg_USER_ID = 'E2E-SAISIE-U'");
   q("DELETE FROM t_preference_utilisateur WHERE str_CLE LIKE 'zzsaisie%'");
 }
 
@@ -109,7 +110,9 @@ function nettoyer() {
     ok('Article : prix d\'achat démesuré refusé proprement', refus(r) && !cree(cip), resume(r));
 
     /* ------------------------------------------------ RH : employe et absence */
-    const employe = (o) => json('POST', '../api/v1/rh/employes', Object.assign({ matricule: M + suffixe, nom: M, prenoms: 'Essai', statut: 'ACTIF', dtEntree: '2026-01-05' }, o));
+    /* retours du 10/10 : un employe se cree a partir d'un utilisateur existant (utilisateur d'essai, retire a la fin) */
+    q("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_FIRST_NAME, str_STATUT, lg_EMPLACEMENT_ID, str_TYPE, dt_CREATED) VALUES ('E2E-SAISIE-U', 'e2esaisie', '" + M + "', 'enable', '1', 'CUSTOMER', NOW())");
+    const employe = (o) => json('POST', '../api/v1/rh/employes', Object.assign({ matricule: M + suffixe, nom: M, prenoms: 'Essai', statut: 'ACTIF', dtEntree: '2026-01-05', userId: 'E2E-SAISIE-U' }, o));
     r = await employe({ nom: '' }); tous.push(r);
     ok('Employé : nom vide refusé', refus(r), resume(r));
     r = await employe({ nom: LONG }); tous.push(r);
