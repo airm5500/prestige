@@ -40,9 +40,19 @@ const decoder = (pdf) => {
   execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', '/tmp/e2e-gs1.pdf', '/tmp/e2e-gs1']);
   const png = fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).map((f) => '/tmp/' + f)[0];
   const sortie = execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nr = zxingcpp.read_barcodes(Image.open(sys.argv[1]))\n'
-    + 'print(json.dumps([{"format": str(x.format), "type": str(x.content_type), "texte": x.text, "id": x.symbology_identifier} for x in r]))', png], { encoding: 'utf8' });
+    + 'print(json.dumps([{"format": str(x.format), "type": str(x.content_type), "texte": x.text, "id": x.symbology_identifier,'
+    + ' "xMin": min(x.position.top_left.x, x.position.bottom_left.x) * 72 / 600, "xMax": max(x.position.top_right.x, x.position.bottom_right.x) * 72 / 600} for x in r]))', png], { encoding: 'utf8' });
   fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).forEach((f) => fs.unlinkSync('/tmp/' + f));
-  return JSON.parse(sortie);
+  const codes = JSON.parse(sortie);
+  if (process.env.E2E_APERCU) {
+    /* apercu de la premiere etiquette (dossier donne par E2E_APERCU), pour validation visuelle */
+    execFileSync('pdftoppm', ['-r', '400', '-png', '-f', '1', '-l', '1', '-x', '0', '-y', '0', '-W', '1100', '-H', '650', '/tmp/e2e-gs1.pdf', process.env.E2E_APERCU + '/etiquette-' + (decoder.n = (decoder.n || 0) + 1)]);
+  }
+  /* mots de la page avec leur position (points), pour verifier la disposition */
+  const bbox = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', '/tmp/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
+  codes.mots = [...bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
+    .map((m) => ({ xMin: +m[1], yMin: +m[2], xMax: +m[3], yMax: +m[4], t: m[5].replace(/&amp;/g, '&') }));
+  return codes;
 };
 
 (async () => {
@@ -100,7 +110,8 @@ const decoder = (pdf) => {
       const url = await p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]);
       await p.evaluate(() => { Ext.ComponentQuery.query('window').forEach((w) => { if (w.isVisible() && w.down('#code_ETIQUETTE_LIGNE')) { w.close(); } }); });
       const pdf = await p.evaluate(async (u) => Array.from(new Uint8Array(await (await fetch(u)).arrayBuffer())), url);
-      return { url, codes: decoder(pdf) };
+      const codes = decoder(pdf);
+      return { url, codes, mots: codes.mots };
     };
     const gtin = '0' + EAN, attendu = `(01)${gtin}(17)270331(10)${NUMLOT}(240)${CIP}`;
     const dm = await imprimer('DATAMATRIX');
@@ -108,6 +119,21 @@ const decoder = (pdf) => {
       && /code=DATAMATRIX/.test(dm.url), JSON.stringify(dm));
     const qr = await imprimer('QR');
     ok('QR code : contenu GS1 (EAN, péremption, lot, CIP)', qr.codes.some((c) => /QR/.test(c.format) && c.texte.replace('\u001d', '|').replace('<GS>', '|') === `01${gtin}17270331` + `10${NUMLOT}|240${CIP}`), JSON.stringify(qr.codes));
+    /* disposition (precision du 10/10) : CIP, prix, grossiste en colonne a gauche ; le code carre a droite, lisible */
+    const PRIX = q(`SELECT int_PRICE FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`), GROS = q(`SELECT IFNULL(g.str_LIBELLE, '') FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID WHERE f.lg_FAMILLE_ID = '${FID}'`);
+    const disposition = (r, format) => {
+      const code = r.codes.find((c) => format.test(c.format));
+      const gauche = r.mots.filter((m) => code && m.xMax <= code.xMin + 0.5);
+      const texte = gauche.map((m) => m.t).join(' ');
+      const prixLu = texte.replace(/\s/g, '').indexOf(Number(PRIX).toLocaleString('fr-FR').replace(/\s/g, '').replace(/\u202f/g, '')) >= 0 || texte.replace(/\s/g, '').indexOf(PRIX) >= 0;
+      const lignes = [...new Set(gauche.map((m) => Math.round(m.yMin)))];
+      return { ok: !!code && texte.indexOf('CIP ' + CIP) >= 0 && prixLu && (GROS === '' || texte.indexOf(GROS.split(' ')[0]) >= 0)
+        && r.mots.every((m) => m.xMax <= code.xMin + 0.5) && lignes.length === (GROS === '' ? 2 : 3) && code.xMax - code.xMin >= 40,
+        texte, lignes: lignes.length, code: code && [Math.round(code.xMin), Math.round(code.xMax)], grossiste: GROS };
+    };
+    const dispoDm = disposition(dm, /Data ?Matrix/), dispoQr = disposition(qr, /QR/);
+    ok('DataMatrix : CIP, prix, grossiste en colonne à gauche ; le code à droite, assez grand (≥ 14 mm), lu par le lecteur', dispoDm.ok, JSON.stringify(dispoDm));
+    ok('QR code : même disposition, code lu par le lecteur', dispoQr.ok, JSON.stringify(dispoQr));
     const defaut = await imprimer('');
     ok('Défaut (KEY_ETIQUETTE_CODE = CODE128) : code-barres du CIP, aucun code 2D, comme avant', defaut.codes.length >= 1 && defaut.codes.every((c) => /Code ?128/.test(c.format) && c.texte === CIP),
       JSON.stringify(defaut.codes));

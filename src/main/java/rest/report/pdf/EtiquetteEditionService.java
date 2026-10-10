@@ -117,10 +117,13 @@ public class EtiquetteEditionService {
             int exemplaires = nombreExemplaires(etiquette.getIntNUMBER());
             for (int i = 0; i < exemplaires; i++) {
                 labels.add(new LabelSheetPdf.LabelData(nomOfficine, "", famille.getStrDESCRIPTION(),
-                        famille.getIntCIP(), prix, dateDuJour).source(famille.getLgFAMILLEID(), ean(famille),
-                                jour(etiquette.getDtPEROMPTION() != null ? etiquette.getDtPEROMPTION()
-                                        : famille.getDtPEREMPTION()),
-                                null));
+                        famille.getIntCIP(), prix, dateDuJour)
+                                .source(famille.getLgFAMILLEID(), ean(famille),
+                                        jour(etiquette.getDtPEROMPTION() != null ? etiquette.getDtPEROMPTION()
+                                                : famille.getDtPEREMPTION()),
+                                        null)
+                                .grossisteProduit(famille.getLgGROSSISTEID() == null ? null
+                                        : famille.getLgGROSSISTEID().getStrLIBELLE()));
             }
         }
         return labels;

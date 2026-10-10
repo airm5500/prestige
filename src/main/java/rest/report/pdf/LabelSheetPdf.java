@@ -92,6 +92,22 @@ public final class LabelSheetPdf {
             return code;
         }
 
+        /**
+         * Retours du 10/10 : grossiste habituel du produit, affiche sur l'etiquette 2D quand l'edition n'en donne pas
+         * (etiquettes hors BL). L'etiquette classique n'est pas touchee.
+         */
+        private String grossisteProduit;
+
+        public LabelData grossisteProduit(String nom) {
+            this.grossisteProduit = nom;
+            return this;
+        }
+
+        String grossiste2D() {
+            return StringUtils.isNotBlank(grossiste) ? grossiste.trim()
+                    : StringUtils.isNotBlank(grossisteProduit) ? grossisteProduit.trim() : null;
+        }
+
         /* source de l'etiquette 2D : produit, EAN, peremption connue, reference de livraison (lot du BL) */
         private String familleId, ean, refLivraison;
         private java.time.LocalDate peremptionConnue;
@@ -436,14 +452,15 @@ public final class LabelSheetPdf {
     }
 
     /**
-     * Retours du 10/10 (point 5) : etiquette 2D GS1. Le code carre a gauche (QR ou DataMatrix), le texte a droite :
-     * officine, designation, CIP, lot et peremption, prix.
+     * Retours du 10/10 (point 5) : etiquette 2D GS1 (QR code ou DataMatrix, au choix a l'impression). A gauche, en
+     * colonne : le CIP, le prix, le grossiste s'il est connu ; a droite, le code carre, le plus grand possible pour
+     * rester lisible. Le lot et la peremption sont dans le code.
      */
     private static void drawLabel2D(PdfContentByte cb, LabelData data, float width, float height, BaseFont regular,
             BaseFont bold) {
         float marge = mm(1.2f);
-        float cote = Math.min(height - 2f * marge, width * 0.42f);
-        float x0 = marge, y0 = (height - cote) / 2f;
+        float cote = Math.min(height - 2f * marge, width * 0.5f);
+        float x0 = width - marge - cote, y0 = (height - cote) / 2f;
         if (DATAMATRIX.equals(data.code)) {
             boolean[][] m = Gs1DataMatrix.matrice(data.gs1);
             /* zone de silence d'un module autour du symbole */
@@ -465,20 +482,36 @@ public final class LabelSheetPdf {
             qr.placeBarcode(cb, com.itextpdf.text.BaseColor.BLACK, module);
             cb.restoreState();
         }
-        float tx = x0 + cote + mm(0.8f), large = width - tx - marge;
-        float ligne = height / 6.2f;
-        float y = height - ligne;
-        showText(cb, bold, 5f, fit(bold, data.officine, 5f, large), tx, y, PdfContentByte.ALIGN_LEFT);
-        y -= ligne;
-        showText(cb, bold, 5.2f, fit(bold, data.designation, 5.2f, large), tx, y, PdfContentByte.ALIGN_LEFT);
-        y -= ligne;
-        showText(cb, regular, 5.5f, fit(regular, "CIP " + StringUtils.defaultString(data.cip), 5.5f, large), tx, y,
-                PdfContentByte.ALIGN_LEFT);
-        y -= ligne;
-        String lotPer = joinNonBlank(StringUtils.isBlank(data.lot) ? null : "Lot " + data.lot,
-                StringUtils.isBlank(data.peremption) ? null : "Pér. " + data.peremption);
-        showText(cb, regular, 5f, fit(regular, lotPer, 5f, large), tx, y, PdfContentByte.ALIGN_LEFT);
-        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, large), width - marge, 4.5f, PdfContentByte.ALIGN_RIGHT);
+        /* colonne de gauche : CIP, prix, grossiste, centres verticalement ; la taille baisse si le texte deborde */
+        float large = x0 - mm(1f) - marge;
+        java.util.List<Object[]> lignes = new java.util.ArrayList<>();
+        lignes.add(new Object[] { bold, 7f, "CIP " + StringUtils.defaultString(data.cip) });
+        lignes.add(new Object[] { bold, 10f, StringUtils.defaultString(data.prix) });
+        if (data.grossiste2D() != null) {
+            lignes.add(new Object[] { regular, 6f, data.grossiste2D() });
+        }
+        float total = 0;
+        for (Object[] l : lignes) {
+            l[1] = tailleAjustee((BaseFont) l[0], (String) l[2], (Float) l[1], large);
+            total += (Float) l[1] * 1.35f;
+        }
+        float y = (height + total) / 2f;
+        for (Object[] l : lignes) {
+            y -= (Float) l[1] * 1.35f;
+            BaseFont police = (BaseFont) l[0];
+            float taille = (Float) l[1];
+            showText(cb, police, taille, fit(police, (String) l[2], taille, large), marge, y + taille * 0.25f,
+                    PdfContentByte.ALIGN_LEFT);
+        }
+    }
+
+    /** Taille de police qui fait tenir le texte dans la largeur (4 pt au moins ; au-dela, le texte est coupe). */
+    static float tailleAjustee(BaseFont police, String texte, float taille, float largeur) {
+        float t = taille;
+        while (t > 4f && StringUtils.isNotBlank(texte) && police.getWidthPoint(texte.trim(), t) > largeur) {
+            t -= 0.25f;
+        }
+        return t;
     }
 
     private static void showCentered(PdfContentByte cb, BaseFont font, float size, String text, float x, float y) {
