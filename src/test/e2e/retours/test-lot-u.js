@@ -171,12 +171,15 @@ function poserLots(ps) {
     // le meme parcours que l'utilisateur : le bouton « basculer » d'une ligne de la liste des emplacements
     await p.evaluate(() => { Ext.getCmp('basculID').up('window').close(); });
     await p.waitForTimeout(500);
-    const parLigne = await p.evaluate(() => {
+    /* la premiere ligne d'un emplacement qui a des produits (sur le banc, la premiere ligne de la liste peut etre vide) */
+    const zonesPleines = q("SELECT GROUP_CONCAT(DISTINCT lg_ZONE_GEO_ID) FROM t_famille WHERE str_STATUT='enable' AND lg_ZONE_GEO_ID IS NOT NULL").split(',');
+    const parLigne = await p.evaluate((pleines) => {
       const g = Ext.getCmp('zonegeographiquegridID');
-      const rec = g.getStore().getAt(0);
-      Ext.ComponentQuery.query('zonegeographiquemanager')[0].onbasculer2(g.getView(), 0);
+      const i = Math.max(0, g.getStore().findBy((r) => pleines.indexOf(r.get('lg_ZONE_GEO_ID')) >= 0));
+      const rec = g.getStore().getAt(i);
+      Ext.ComponentQuery.query('zonegeographiquemanager')[0].onbasculer2(g.getView(), i);
       return { lib: rec.get('str_LIBELLEE'), code: rec.get('str_CODE') };
-    });
+    }, zonesPleines);
     await p.waitForFunction(() => { const g = Ext.getCmp('basculID'); return g && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
     const enTete = await p.evaluate(() => ({ origine: Ext.getCmp('origineEmp').getValue(), combo: Ext.getCmp('zoneID').getRawValue() }));
     ok('Point 7 : depuis le bouton « basculer » d une ligne, l origine (libelle et code) est en tete et dans la liste', enTete.origine === parLigne.lib + ' (' + parLigne.code + ')' && enTete.combo === parLigne.lib, JSON.stringify(enTete) + ' ' + JSON.stringify(parLigne));
@@ -204,14 +207,18 @@ function poserLots(ps) {
     const apresPage = await p.evaluate(() => ({ compte: Ext.getCmp('compteCoches').text, coches: Ext.getCmp('basculID').getStore().getRange().filter(r => r.get('isChecked')).length, lignes: Ext.getCmp('basculID').getStore().getCount() }));
     ok('Point 7 : « Cocher la page » coche toute la page et le compteur suit', apresPage.coches === apresPage.lignes && apresPage.compte === apresPage.lignes + (apresPage.lignes > 1 ? ' produits cochés' : ' produit coché'), JSON.stringify(apresPage));
     if (fenetre.total > fenetre.lignes) {
-      await p.evaluate(() => Ext.getCmp('basculID').getStore().loadPage(2));
-      await p.waitForTimeout(2500);
+      /* par la barre de pagination, comme l'utilisateur (elle pose l'emplacement avant de changer de page) */
+      await p.evaluate(() => { Ext.getCmp('basculID').down('pagingtoolbar').moveNext(); });
+      await p.waitForFunction(() => !Ext.getCmp('basculID').getStore().isLoading(), null, { timeout: 30000 });
+      await p.waitForTimeout(800);
       const page2 = await p.evaluate(() => ({ compte: Ext.getCmp('compteCoches').text, coches: Ext.getCmp('basculID').getStore().getRange().filter(r => r.get('isChecked')).length, cochePage: Ext.getCmp('cocherPage').getValue() }));
       ok('Point 7 : page suivante : rien de coche, la case de page est retombee, le compteur garde les coches de la page 1', page2.coches === 0 && page2.cochePage === false && page2.compte === apresPage.lignes + ' produits cochés', JSON.stringify(page2));
-      await p.evaluate(() => Ext.getCmp('basculID').getStore().loadPage(1));
-      await p.waitForTimeout(2500);
+      /* par la barre de pagination, comme l'utilisateur (elle pose l'emplacement avant de changer de page) */
+      await p.evaluate(() => { Ext.getCmp('basculID').down('pagingtoolbar').movePrevious(); });
+      await p.waitForFunction(() => !Ext.getCmp('basculID').getStore().isLoading(), null, { timeout: 30000 });
+      await p.waitForTimeout(800);
       const retour = await p.evaluate(() => Ext.getCmp('basculID').getStore().getRange().filter(r => r.get('isChecked')).length);
-      ok('Point 7 : retour page 1 : les coches sont memorisees', retour === apresPage.lignes, retour);
+      ok('Point 7 : retour page 1 : les coches sont memorisees', retour === apresPage.lignes, String(retour) + ' / ' + apresPage.lignes);
     }
     await p.evaluate(() => { Ext.getCmp('basculID').up('window').close(); });
 
