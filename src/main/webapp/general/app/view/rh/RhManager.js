@@ -169,10 +169,10 @@ Ext.define('testextjs.view.rh.RhManager', {
                     }},
                 {xtype: 'tbtext', itemId: 'titreSemaine', text: ''},
                 '->',
-                /* retours du 10/10 : equipes et programme commun (panneau a droite, pas de fenetre) */
-                {text: 'Équipes', itemId: 'btnEquipes', enableToggle: true, tooltip: 'Constituer des équipes et leur appliquer un programme commun',
-                    toggleHandler: function (b, actif) {
-                        me.afficherEquipes(actif);
+                /* retours du 10/10 : equipes et programme commun, en fenetre modale (menu RH) */
+                {text: 'Équipes', itemId: 'btnEquipes', tooltip: 'Constituer des équipes et leur appliquer un programme commun',
+                    handler: function () {
+                        me.afficherEquipes(true);
                     }},
 {text: 'Imprimer', itemId: 'pdfPlanning', iconCls: 'printable', tooltip: 'Imprimer le planning de la semaine affichée (PDF)', handler: function () {
                         me.imprimerOnglet('planning', {semaine: me.iso(me.lundi)});
@@ -181,7 +181,6 @@ Ext.define('testextjs.view.rh.RhManager', {
                         me.copierSemaine();
                     }}
             ],
-            dockedItems: [me.panneauEquipes()],
             listeners: {
                 cellclick: function (v, td, col, rec) {
                     var c = v.getGridColumns()[col];
@@ -203,7 +202,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         var equipes = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'membres', 'programme'], proxy: {type: 'memory'}});
         var types = Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: '(rien)'}, {v: 'TRAVAIL', l: 'Travail'}, {v: 'GARDE', l: 'Garde'}, {v: 'REPOS', l: 'Repos'}]});
         return {
-            xtype: 'panel', dock: 'right', itemId: 'panneauEquipes', width: 470, hidden: true, title: 'Équipes', bodyPadding: 8, autoScroll: true,
+            xtype: 'panel', itemId: 'panneauEquipes', border: false, bodyPadding: 8, autoScroll: true,
             cls: 'rh-equipes fen-section', layout: {type: 'vbox', align: 'stretch'},
             tbar: [
                 {xtype: 'combobox', itemId: 'equipeChoisie', flex: 1, editable: false, queryMode: 'local', store: equipes, valueField: 'id', displayField: 'nom',
@@ -252,9 +251,40 @@ Ext.define('testextjs.view.rh.RhManager', {
         };
     },
 
+    /**
+     * Retours du 10/10 : les editions du menu RH s'ouvrent en fenetre modale, au-dessus de l'ecran. Une fenetre par
+     * usage, creee a la premiere ouverture puis reutilisee (fermer = cacher), detruite avec l'ecran.
+     */
+    fenetreRh: function (cle, titre, contenu, largeur, hauteur) {
+        var me = this;
+        me.fenetres = me.fenetres || {};
+        var w = me.fenetres[cle];
+        if (!w || w.isDestroyed) {
+            var haut = Ext.getBody().getViewSize().height - 40;
+            w = me.fenetres[cle] = Ext.create('Ext.window.Window', {itemId: cle, title: titre, modal: true, width: largeur,
+                height: hauteur ? Math.min(hauteur, haut) : undefined, maxHeight: haut, layout: 'fit', closeAction: 'hide',
+                cls: 'fen-rh', items: [contenu]});
+            me.on('destroy', function () {
+                if (!w.isDestroyed) {
+                    w.destroy();
+                }
+            });
+        }
+        return w;
+    },
+
+    equipesCmp: function () {
+        return this.fenetreRh('fenetreEquipes', 'Équipes', this.panneauEquipes(), 540, 680).down('#panneauEquipes');
+    },
+
+    ficheEmployeCmp: function () {
+        return this.fenetreRh('fenetreEmploye', 'Employé', this.ficheEmploye(), 460).down('#ficheEmploye');
+    },
+
     afficherEquipes: function (actif) {
-        var me = this, p = me.down('#panneauEquipes');
-        p.setVisible(actif);
+        var me = this, p = me.equipesCmp();
+        p.up('window').setTitle('Équipes');
+        p.up('window')[actif ? 'show' : 'hide']();
         if (actif) {
             p.down('#equipeMembres').getStore().load({params: {inactifs: false}});
             me.chargerEquipes();
@@ -262,7 +292,7 @@ Ext.define('testextjs.view.rh.RhManager', {
     },
 
     chargerEquipes: function (choisir) {
-        var me = this, p = me.down('#panneauEquipes');
+        var me = this, p = me.equipesCmp();
         me.appel('GET', '../api/v1/rh/equipes', null, function (r) {
             var st = p.down('#equipeChoisie').getStore();
             st.loadData(r.data || []);
@@ -275,7 +305,7 @@ Ext.define('testextjs.view.rh.RhManager', {
     },
 
     afficherEquipe: function (rec) {
-        var me = this, p = me.down('#panneauEquipes'), d = rec ? rec.data : {membres: [], programme: []};
+        var me = this, p = me.equipesCmp(), d = rec ? rec.data : {membres: [], programme: []};
         me.equipeCourante = rec ? rec.get('id') : null;
         if (!rec) {
             p.down('#equipeChoisie').clearValue();
@@ -309,7 +339,7 @@ Ext.define('testextjs.view.rh.RhManager', {
     },
 
     enregistrerEquipe: function () {
-        var me = this, p = me.down('#panneauEquipes');
+        var me = this, p = me.equipesCmp();
         var membres = Ext.Array.map(p.down('#equipeMembres').getSelectionModel().getSelection(), function (r) {
             return r.get('id');
         });
@@ -318,13 +348,13 @@ Ext.define('testextjs.view.rh.RhManager', {
             programme.push({jour: r.get('jour'), type: r.get('type') || '', debut: r.get('debut') || '', fin: r.get('fin') || '', pause: r.get('pause') || 0});
         });
         me.appel('POST', '../api/v1/rh/equipes', {id: me.equipeCourante || null, nom: p.down('#equipeNom').getValue(), membres: membres, programme: programme}, function (r) {
-            p.setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || 'Équipe enregistrée.') + '</span>');
+            p.up('window').setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || 'Équipe enregistrée.') + '</span>');
             me.chargerEquipes(r.id);
         });
     },
 
     supprimerEquipe: function () {
-        var me = this, p = me.down('#panneauEquipes');
+        var me = this, p = me.equipesCmp();
         if (!me.equipeCourante) {
             return;
         }
@@ -338,14 +368,14 @@ Ext.define('testextjs.view.rh.RhManager', {
     },
 
     appliquerEquipe: function () {
-        var me = this, p = me.down('#panneauEquipes');
+        var me = this, p = me.equipesCmp();
         if (!me.equipeCourante) {
             Ext.MessageBox.alert('Équipes', 'Enregistrez ou choisissez d\'abord une équipe.');
             return;
         }
         me.appel('POST', '../api/v1/rh/equipes/' + encodeURIComponent(me.equipeCourante) + '/appliquer?semaine=' + me.iso(me.lundi)
                 + '&remplacer=' + !!p.down('#equipeRemplacer').getValue(), null, function (r) {
-            p.setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || '') + '</span>');
+            p.up('window').setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || '') + '</span>');
             me.chargerPlanning();
         });
     },
@@ -683,8 +713,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                         return v === 'ACTIF' ? '<b style="color:#1e8449">Actif</b>' : '<span style="color:#7f8c8d">Inactif</span>';
                     }}
             ],
-            /* retours du 10/10 : fiche dans l'onglet (pas de fenetre), creation a partir d'un utilisateur existant */
-            dockedItems: [me.ficheEmploye()],
+            /* retours du 10/10 : creation a partir d'un utilisateur existant ; fiche en fenetre modale (menu RH) */
             listeners: {itemdblclick: function (v, r) {
                     me.editerEmploye(r);
                 }}
@@ -696,8 +725,8 @@ Ext.define('testextjs.view.rh.RhManager', {
         var utilisateurs = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'login', 'nom', 'prenoms', 'poste', 'telephone'],
             proxy: {type: 'ajax', url: '../api/v1/rh/utilisateurs-libres', reader: {type: 'json', root: 'data'}}});
         return {
-            xtype: 'form', dock: 'right', itemId: 'ficheEmploye', width: 400, hidden: true, bodyPadding: 12, autoScroll: true,
-            cls: 'rh-fiche fen-section', title: 'Employé', border: true,
+            xtype: 'form', itemId: 'ficheEmploye', bodyPadding: 12, autoScroll: true, border: false,
+            cls: 'rh-fiche fen-section',
             defaults: {anchor: '100%', labelWidth: 120, xtype: 'textfield'},
             items: [
                 {xtype: 'hiddenfield', name: 'id'},
@@ -730,7 +759,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                     value: 'ACTIF', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 'ACTIF', l: 'Actif'}, {v: 'INACTIF', l: 'Inactif'}]})}
             ],
             buttons: [{text: 'Fermer', itemId: 'btnFermerEmploye', cls: 'fen-btn', tooltip: 'Fermer la fiche sans enregistrer', handler: function () {
-                        me.down('#ficheEmploye').hide();
+                        me.ficheEmployeCmp().up('window').hide();
                     }}, {text: 'Enregistrer', itemId: 'btnEnregistrerEmploye', cls: 'fen-btn fen-btn-principal', tooltip: 'Enregistrer l\'employé',
                     handler: function () {
                         me.enregistrerEmploye();
@@ -739,12 +768,12 @@ Ext.define('testextjs.view.rh.RhManager', {
     },
 
     editerEmploye: function (rec) {
-        var me = this, d = rec ? rec.data : {}, f = me.down('#ficheEmploye'), u = f.down('#userEmploye');
+        var me = this, d = rec ? rec.data : {}, f = me.ficheEmployeCmp(), u = f.down('#userEmploye');
         var date = function (s) {
             return s ? Ext.Date.parse(s, 'Y-m-d') : null;
         };
         f.getForm().reset();
-        f.setTitle(rec ? 'Employé ' + me.esc(d.nom) : 'Nouvel employé (à partir d\'un utilisateur)');
+        f.up('window').setTitle(rec ? 'Employé ' + me.esc(d.nom) : 'Nouvel employé (à partir d\'un utilisateur)');
         u.allowBlank = !!rec;
         u.getStore().getProxy().extraParams = {employeId: d.id || ''};
         u.getStore().load(function () {
@@ -754,12 +783,12 @@ Ext.define('testextjs.view.rh.RhManager', {
         });
         f.getForm().setValues({id: d.id || '', matricule: d.matricule || '', nom: d.nom || '', prenoms: d.prenoms || '', poste: d.poste || '',
             badge: d.badge || '', telephone: d.telephone || '', dtEntree: date(d.dtEntree), dtSortie: date(d.dtSortie), statut: d.statut || 'ACTIF'});
-        f.show();
-        (rec ? f.getForm().findField('matricule') : u).focus(false, 100);
+        f.up('window').show();
+        (rec ? f.getForm().findField('matricule') : u).focus(false, 200);
     },
 
     enregistrerEmploye: function () {
-        var me = this, f = me.down('#ficheEmploye');
+        var me = this, f = me.ficheEmployeCmp();
         if (!f.getForm().isValid()) {
             return;
         }
@@ -774,7 +803,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         me.appel('POST', '../api/v1/rh/employes', {id: id, matricule: v('matricule'), nom: v('nom'), prenoms: v('prenoms'),
             poste: v('poste'), badge: v('badge'), telephone: v('telephone'), dtEntree: v('dtEntree') ? me.iso(v('dtEntree')) : '',
             dtSortie: v('dtSortie') ? me.iso(v('dtSortie')) : '', userId: v('userId') || '', statut: v('statut')}, function () {
-            f.hide();
+            f.up('window').hide();
             me.down('#ongletEmployes').getStore().load();
         });
     },

@@ -87,34 +87,38 @@ function nettoyer() {
     ok('Création sans utilisateur refusée (un employé se crée à partir d\'un utilisateur)', sansUtilisateur.success === false
       && /à partir d'un utilisateur existant/.test(sansUtilisateur.message) && q("SELECT COUNT(*) FROM t_employe WHERE matricule = 'E2E-RH-9'") === '0', sansUtilisateur.message);
     await clic('rhmanager #btnNouvelEmploye', 1500);
-    const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0], t = f.query('textfield').filter((x) => x.isVisible() && x.editable !== false && x.xtype !== 'hiddenfield');
-      return { visible: f.isVisible(), dansOnglet: f.up('#ongletEmployes') !== undefined && !f.up('window'), fenetres: Ext.ComponentQuery.query('window[modal=true]').filter((w) => w.isVisible()).length,
+    const fiche = await p.evaluate(() => { const f = Ext.ComponentQuery.query('#fenetreEmploye #ficheEmploye')[0], t = f.query('textfield').filter((x) => x.isVisible() && x.editable !== false && x.xtype !== 'hiddenfield');
+      const w = f.up('window');
+      return { visible: f.isVisible(true), modale: !!w && w.modal === true && w.isVisible(), fenetres: Ext.ComponentQuery.query('window[modal=true]').filter((x) => x.isVisible()).length,
         sans: t.filter((x) => !x.emptyText).map((x) => x.name), utilisateurObligatoire: f.down('#userEmploye').allowBlank === false }; });
-    ok('« Nouvel employé » : fiche dans l\'onglet (pas de fenêtre), utilisateur obligatoire, texte d\'aide dans chaque champ', fiche.visible && fiche.dansOnglet && fiche.fenetres === 0
+    ok('« Nouvel employé » : fiche en fenêtre modale au-dessus de l\'écran RH, utilisateur obligatoire, texte d\'aide dans chaque champ', fiche.visible && fiche.modale && fiche.fenetres === 1
       && fiche.utilisateurObligatoire && fiche.sans.length === 0, JSON.stringify(fiche));
-    await clic('rhmanager #btnEnregistrerEmploye', 800);
+    await clic('#fenetreEmploye #btnEnregistrerEmploye', 800);
     ok('Sans utilisateur choisi : rien n\'est créé', q("SELECT COUNT(*) FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "')") === '0');
     await fermerBoite();
     const choisirUtilisateur = async (u) => {
-      await p.waitForFunction((u) => { const c = Ext.ComponentQuery.query('rhmanager #userEmploye')[0]; return !c.getStore().isLoading() && c.getStore().getById(u); }, u, { timeout: 15000 });
-      await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #userEmploye')[0].expand());
-      await p.evaluate((u) => { const c = Ext.ComponentQuery.query('rhmanager #userEmploye')[0]; c.getPicker().getNode(c.getStore().getById(u)).setAttribute('data-e2e', 'u'); }, u);
+      await p.waitForFunction((u) => { const c = Ext.ComponentQuery.query('#fenetreEmploye #userEmploye')[0]; return !c.getStore().isLoading() && c.getStore().getById(u); }, u, { timeout: 15000 });
+      await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEmploye #userEmploye')[0].expand());
+      await p.evaluate((u) => { const c = Ext.ComponentQuery.query('#fenetreEmploye #userEmploye')[0]; c.getPicker().getNode(c.getStore().getById(u)).setAttribute('data-e2e', 'u'); }, u);
       await p.click('[data-e2e=u]'); await p.waitForTimeout(300);
     };
     await choisirUtilisateur(UE[0]);
-    const prerempli = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0].getForm().getValues());
+    const prerempli = await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEmploye #ficheEmploye')[0].getForm().getValues());
     ok('Utilisateur choisi : la fiche reprend son identifiant, son nom, son poste et son téléphone', prerempli.matricule === 'e2erhawa' && prerempli.nom === 'ZZRH'
       && prerempli.prenoms === 'Awa' && prerempli.poste === 'Pharmacien assistant' && prerempli.telephone === '0707070701', JSON.stringify(prerempli));
     const creer = async (u, v) => {
+      if (await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEmploye')[0].isVisible())) {
+        await clic('#fenetreEmploye #btnFermerEmploye', 400);
+      }
       await clic('rhmanager #btnNouvelEmploye', 1200);
       await choisirUtilisateur(u);
-      await remplir('rhmanager #ficheEmploye', v);
-      await clic('rhmanager #btnEnregistrerEmploye', 1500);
+      await remplir('#fenetreEmploye #ficheEmploye', v);
+      await clic('#fenetreEmploye #btnEnregistrerEmploye', 1500);
     };
     await creer(UE[0], { matricule: 'E2E-RH-1', badge: 'E2E-B1' });
     await creer(UE[1], { matricule: 'E2E-RH-2' });
     ok('Deux employés créés à partir de leur utilisateur, fiche refermée', q("SELECT GROUP_CONCAT(CONCAT(matricule, ':', lg_USER_ID, ':', nom, ' ', prenoms) ORDER BY matricule) FROM t_employe WHERE matricule LIKE 'E2E-RH%'")
-      === 'E2E-RH-1:E2E-RH-U1:ZZRH Awa,E2E-RH-2:E2E-RH-U2:ZZRH Koffi' && !(await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ficheEmploye')[0].isVisible())));
+      === 'E2E-RH-1:E2E-RH-U1:ZZRH Awa,E2E-RH-2:E2E-RH-U2:ZZRH Koffi' && !(await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEmploye')[0].isVisible())));
     const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
     const e1 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-1'"), e2 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-2'");
     /* modification dans la fiche : matricule deja porte */
@@ -122,11 +126,11 @@ function nettoyer() {
     await p.waitForTimeout(1500);
     await p.evaluate((e) => { const g = Ext.ComponentQuery.query('rhmanager')[0]; g.editerEmploye(g.down('#ongletEmployes').getStore().findRecord('id', e)); }, e2);
     await p.waitForTimeout(800);
-    await remplir('rhmanager #ficheEmploye', { matricule: 'E2E-RH-1' });
-    await clic('rhmanager #btnEnregistrerEmploye', 1500);
+    await remplir('#fenetreEmploye #ficheEmploye', { matricule: 'E2E-RH-1' });
+    await clic('#fenetreEmploye #btnEnregistrerEmploye', 1500);
     const doublon = await boite(); await fermerBoite();
     ok('Matricule déjà porté : refus qui nomme l\'employé', /Matricule déjà porté par ZZRH Awa/.test(doublon), doublon);
-    await clic('rhmanager #btnFermerEmploye', 500);
+    await clic('#fenetreEmploye #btnFermerEmploye', 500);
     const badge = await post('../api/v1/rh/employes', { id: e2, matricule: 'E2E-RH-2', nom: 'ZZRH', badge: 'E2E-B1', userId: UE[1] });
     ok('Badge déjà porté : refus', badge.success === false && /Badge déjà porté/.test(badge.message), badge.message);
     const lienDeja = q("SELECT COUNT(*) FROM t_employe WHERE lg_USER_ID = '" + U + "'") !== '0';
@@ -193,57 +197,60 @@ function nettoyer() {
     await p.evaluate((d) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.lundi = Ext.Date.parse(d, 'Y-m-d'); r.chargerPlanning(); }, EQ);
     await p.waitForTimeout(1200);
     await clic('rhmanager #btnEquipes', 1500);
-    const panneau = await p.evaluate(() => { const x = Ext.ComponentQuery.query('rhmanager #panneauEquipes')[0];
-      return { visible: x.isVisible(), dansOnglet: !!x.up('#ongletPlanning'), fenetres: Ext.ComponentQuery.query('window[modal=true]').filter((w) => w.isVisible()).length }; });
-    ok('« Équipes » : panneau dans l\'onglet Planning (pas de fenêtre)', panneau.visible && panneau.dansOnglet && panneau.fenetres === 0, JSON.stringify(panneau));
-    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('rhmanager #equipeMembres')[0]; return !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 15000 });
+    const panneau = await p.evaluate(() => { const x = Ext.ComponentQuery.query('#fenetreEquipes #panneauEquipes')[0], w = x.up('window'), r = w.getEl().dom.getBoundingClientRect();
+      return { visible: x.isVisible(true), modale: w.modal === true && w.isVisible(), dedans: r.top >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth };
+    });
+    ok('« Équipes » : fenêtre modale au-dessus de l\'écran RH, entière dans l\'écran', panneau.visible && panneau.modale && panneau.dedans, JSON.stringify(panneau));
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('#fenetreEquipes #equipeMembres')[0]; return !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 15000 });
     const membres = async (ids) => {
-      await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeMembres')[0].getSelectionModel().deselectAll(); });
+      await p.evaluate(() => { Ext.ComponentQuery.query('#fenetreEquipes #equipeMembres')[0].getSelectionModel().deselectAll(); });
       for (const id of ids) {
-        await p.evaluate((i) => { const g = Ext.ComponentQuery.query('rhmanager #equipeMembres')[0]; g.getView().focusRow(g.getStore().findExact('id', i));
+        await p.evaluate((i) => { const g = Ext.ComponentQuery.query('#fenetreEquipes #equipeMembres')[0]; g.getView().focusRow(g.getStore().findExact('id', i));
           g.getView().getNode(g.getStore().findExact('id', i)).setAttribute('data-e2e', 'membre'); }, id);
         await p.click('[data-e2e=membre] .x-grid-row-checker');
         await p.evaluate(() => document.querySelectorAll('[data-e2e=membre]').forEach((n) => n.removeAttribute('data-e2e')));
       }
     };
-    const programme = (lignes) => p.evaluate((l) => { const st = Ext.ComponentQuery.query('rhmanager #equipeProgramme')[0].getStore();
+    const programme = (lignes) => p.evaluate((l) => { const st = Ext.ComponentQuery.query('#fenetreEquipes #equipeProgramme')[0].getStore();
       l.forEach((x) => { const r = st.findRecord('jour', x[0]); r.set({ type: x[1], debut: x[2] || '', fin: x[3] || '', pause: x[4] || 0 }); }); }, lignes);
-    await clic('rhmanager #btnNouvelleEquipe', 500);
-    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeNom')[0].setValue('ZZ Équipe E2E matin'); });
+    await clic('#fenetreEquipes #btnNouvelleEquipe', 500);
+    await p.evaluate(() => { Ext.ComponentQuery.query('#fenetreEquipes #equipeNom')[0].setValue('ZZ Équipe E2E matin'); });
     await membres([e1, e2]);
     await programme([[1, 'TRAVAIL', '08:00', '16:00', 30], [2, 'TRAVAIL', '08:00', '16:00', 30], [3, 'TRAVAIL', '08:00', '16:00', 30], [4, 'TRAVAIL', '08:00', '16:00', 30],
       [5, 'TRAVAIL', '08:00', '16:00', 30], [6, 'GARDE', '20:00', '08:00', 0], [7, 'TRAVAIL', '09:00', '09:00', 0]]);
-    await clic('rhmanager #btnEnregistrerEquipe', 1500);
+    await clic('#fenetreEquipes #btnEnregistrerEquipe', 1500);
     const invalide = await boite(); await fermerBoite();
     ok('Programme invalide (dimanche 09:00-09:00) : refus qui nomme le jour, rien n\'est créé', /dimanche : Le début et la fin sont identiques/.test(invalide)
       && q("SELECT COUNT(*) FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%'") === '0', invalide);
     await programme([[7, 'REPOS']]);
-    await clic('rhmanager #btnEnregistrerEquipe', 2000);
+    await clic('#fenetreEquipes #btnEnregistrerEquipe', 2000);
     const eq = q("SELECT id FROM t_equipe WHERE nom = 'ZZ Équipe E2E matin'");
     ok('Équipe enregistrée : 2 membres, 7 jours de programme', eq && q("SELECT COUNT(*) FROM t_equipe_membre WHERE equipe_id = '" + eq + "'") === '2'
       && q("SELECT GROUP_CONCAT(CONCAT(jour_semaine, type, IFNULL(TIME_FORMAT(debut, '%H%i'), '-'), IFNULL(TIME_FORMAT(fin, '%H%i'), '-'), pause_minutes) ORDER BY jour_semaine) FROM t_equipe_programme WHERE equipe_id = '" + eq + "'")
         === '1TRAVAIL0800160030,2TRAVAIL0800160030,3TRAVAIL0800160030,4TRAVAIL0800160030,5TRAVAIL0800160030,6GARDE200008000,7REPOS--0');
     /* une case deja saisie, gardee sans « remplacer » */
     await post('../api/v1/rh/planning', [{ employeId: e1, jour: EQ, type: 'REPOS' }]);
-    await clic('rhmanager #btnAppliquerEquipe', 2000);
-    const titre1 = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #panneauEquipes')[0].title);
+    await clic('#fenetreEquipes #btnAppliquerEquipe', 2000);
+    const titre1 = await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEquipes')[0].title);
     ok('Appliquer à la semaine : 13 cases écrites, la case déjà saisie gardée', /13 case\(s\) écrite\(s\), 1 case\(s\) déjà saisie\(s\) gardée/.test(titre1)
       && q("SELECT type FROM t_planning WHERE employe_id = '" + e1 + "' AND jour = '" + EQ + "'") === 'REPOS'
       && q("SELECT COUNT(*) FROM t_planning WHERE jour BETWEEN '2026-11-16' AND '2026-11-22' AND employe_id IN ('" + e1 + "','" + e2 + "')") === '14', titre1);
     ok('Planning de la semaine rechargé : garde du samedi affichée', await p.evaluate((e) => { const s = Ext.ComponentQuery.query('rhmanager #ongletPlanning')[0].getStore();
       const r = s.getAt(s.findExact('employeId', e)); return !!r && r.get('j5') && r.get('j5').type === 'GARDE'; }, e2));
-    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeRemplacer')[0].setValue(true); });
-    await clic('rhmanager #btnAppliquerEquipe', 2000);
+    await p.evaluate(() => { Ext.ComponentQuery.query('#fenetreEquipes #equipeRemplacer')[0].setValue(true); });
+    await clic('#fenetreEquipes #btnAppliquerEquipe', 2000);
     ok('Avec « remplacer » : la case saisie prend le programme', q("SELECT CONCAT(type, TIME_FORMAT(debut, '%H:%i')) FROM t_planning WHERE employe_id = '" + e1 + "' AND jour = '" + EQ + "'") === 'TRAVAIL08:00');
     /* un employe dans une seule equipe */
-    await clic('rhmanager #btnNouvelleEquipe', 500);
-    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeNom')[0].setValue('ZZ Équipe E2E soir'); });
+    await clic('#fenetreEquipes #btnNouvelleEquipe', 500);
+    await p.evaluate(() => { Ext.ComponentQuery.query('#fenetreEquipes #equipeNom')[0].setValue('ZZ Équipe E2E soir'); });
     await membres([e1]);
     await programme([[1, 'TRAVAIL', '14:00', '22:00', 30]]);
-    await clic('rhmanager #btnEnregistrerEquipe', 2000);
+    await clic('#fenetreEquipes #btnEnregistrerEquipe', 2000);
     ok('Un employé ne fait partie que d\'une équipe : il rejoint la nouvelle et quitte l\'ancienne', q("SELECT e.nom FROM t_equipe_membre m JOIN t_equipe e ON e.id = m.equipe_id WHERE m.employe_id = '" + e1 + "'") === 'ZZ Équipe E2E soir'
       && q("SELECT COUNT(*) FROM t_equipe_membre WHERE equipe_id = '" + eq + "'") === '1');
-    await clic('rhmanager #btnEquipes', 500);
+    await p.evaluate(() => { Ext.ComponentQuery.query('#fenetreEquipes')[0].down('tool[type=close]').getEl().dom.setAttribute('data-e2e', 'fermerEq'); });
+    await p.click('[data-e2e=fermerEq]'); await p.waitForTimeout(400);
+    ok('Fermer la fenêtre « Équipes » (croix) : retour à l\'écran RH', !(await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEquipes')[0].isVisible())));
 
     /* ------------------------------------------------ conges et absences */
     await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.mois = new Date(2026, 10, 1); r.setActiveTab(r.down('#ongletAbsences')); });
