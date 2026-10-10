@@ -3,12 +3,28 @@
  * (ligne decon qteFinale=204 en base au 20/08/2026), la grille "Detail de l'article" doit
  * afficher Stock=99 le 20/08 et une chaine 18 -> 11 -> 99 -> 92 coherente.
  *
- * Prerequis : WAR corrige deploye en local, base de TEST, produit detail 8835833D trouvable
- * dans la recherche, et le scenario du 204 injecte au prealable
- * (voir reproduction_204_suivi_mvt.sql). Login KGA3 / e2etest utilise ici — a adapter.
- * Execution : npm install playwright-core && node ui-suivi-mvt-article.js
+ * Autonome : le scenario du 204 (reproduction_204_suivi_mvt.sql) est pose sur un produit detail du banc (CIP unique),
+ * a des dates libres (aout 2038, aucun mouvement reel), puis retire a la fin. Base de TEST uniquement.
  */
 const { chromium } = require('playwright-core');
+const { execFileSync } = require('child_process');
+const sql = (x) => execFileSync('mariadb', [process.env.DB_TEST || 'capitale', '-sN'], { input: x, encoding: 'utf8' }).trim();
+const AN = 2038;
+const [FID, CIP] = sql("SELECT CONCAT(f.lg_FAMILLE_ID,'|',f.int_CIP) FROM t_famille f WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=1"
+  + " AND f.lg_FAMILLE_PARENT_ID <> '' AND f.int_CIP <> '' AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP=f.int_CIP)=1"
+  + " ORDER BY f.str_NAME LIMIT 1").split('|');
+function retirer() { sql("DELETE FROM hmvtproduit WHERE uuid LIKE 'E2E-204-%';"); }
+function poser() {
+    retirer();
+    const usr = "(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "')";
+    const ligne = (id, quand, jour, debut, fin, qte, type) => "('E2E-204-" + id + "', b'1', '" + AN + "-08-" + quand + "', '" + AN + "-08-" + jour
+        + "', 'E2E204', 100, 200, " + debut + ", " + fin + ", " + qte + ", 0, '1', '" + FID + "', " + usr + ", '" + type + "', 0)";
+    sql("INSERT INTO hmvtproduit (uuid, checked, createdAt, mvtdate, pkey, prixAchat, prixUn, qteDebut, qteFinale, qteMvt, valeurTva,"
+        + " lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt, ug) VALUES "
+        + [ligne('19-V1', '19 10:00:00', '19', 18, 11, 7, '02'), ligne('20-V1', '20 09:12:33', '20', 11, 4, 7, '02'),
+           ligne('20-D1', '20 18:42:07', '20', 104, 204, 100, '05'), ligne('20-V2', '20 18:42:07', '20', 4, 99, 5, '02'),
+           ligne('21-V1', '21 11:05:00', '21', 99, 92, 7, '02')].join(', ') + ';');
+}
 const results = [];
 function ok(name, cond, detail) {
     results.push({ name, pass: !!cond });
@@ -16,6 +32,7 @@ function ok(name, cond, detail) {
 }
 
 (async () => {
+    poser();
     const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
@@ -36,12 +53,12 @@ function ok(name, cond, detail) {
     ok('ecran suivi mouvement article ouvert', true);
 
     // periode + produit, puis recherche (comme l'utilisateur)
-    await page.evaluate(() => {
-        Ext.ComponentQuery.query('monitoringproduct #dtStart')[0].setValue(new Date(2026, 7, 19));
-        Ext.ComponentQuery.query('monitoringproduct #dtEnd')[0].setValue(new Date(2026, 7, 21));
-        Ext.ComponentQuery.query('monitoringproduct #query')[0].setValue('8835833D');
+    await page.evaluate(({ AN, cip }) => {
+        Ext.ComponentQuery.query('monitoringproduct #dtStart')[0].setValue(new Date(AN, 7, 19));
+        Ext.ComponentQuery.query('monitoringproduct #dtEnd')[0].setValue(new Date(AN, 7, 21));
+        Ext.ComponentQuery.query('monitoringproduct #query')[0].setValue(cip);
         testextjs.app.getController('MvtArticleCtr').doSearch();
-    });
+    }, { AN, cip: CIP });
     const rowOk = await page.waitForFunction(() => {
         const g = Ext.ComponentQuery.query('monitoringproduct gridpanel')[0];
         return g && g.getStore().getCount() > 0;
@@ -49,16 +66,16 @@ function ok(name, cond, detail) {
     ok('produit trouve dans la grille principale', rowOk);
 
     // ouvrir la fiche detail de l'article (fenetre "Detail de l'article")
-    const cible = await page.evaluate(() => {
+    const cible = await page.evaluate((fid) => {
         const ctr = testextjs.app.getController('MvtArticleCtr');
         const st = Ext.ComponentQuery.query('monitoringproduct gridpanel')[0].getStore();
         let rec = null;
-        st.each(r => { if (r.get('produitId') === '050404522400544') { rec = r; return false; } });
+        st.each(r => { if (r.get('produitId') === fid) { rec = r; return false; } });
         if (!rec) { rec = st.getAt(0); }
         ctr.produitId = rec.get('produitId');
         ctr.buildDetail(rec);
         return rec.get('produitName');
-    });
+    }, FID);
     console.log('   fiche ouverte sur : ' + cible);
     const jours = await page.waitForFunction(() => {
         // la fiche est un Ext.window.Window (titre "Détail de l'article ...") ; lire le store de sa grille
@@ -80,16 +97,16 @@ function ok(name, cond, detail) {
 
     ok('fiche detail chargee (3 journees)', !!jours, jours ? JSON.stringify(jours) : 'store vide');
     if (jours) {
-        const j20 = jours.find(j => j.date === '20/08/2026');
+        const j20 = jours.find(j => j.date === '20/08/' + AN);
         ok('20/08 affiche Stock=99 (204 en base neutralise)', j20 && j20.stock === 99 && j20.init === 11
                 && j20.vente === 12 && j20.decon === 100, JSON.stringify(j20));
-        const j21 = jours.find(j => j.date === '21/08/2026');
+        const j21 = jours.find(j => j.date === '21/08/' + AN);
         ok('21/08 chaine coherente (init=99, stock=92)', j21 && j21.init === 99 && j21.stock === 92, JSON.stringify(j21));
     }
 
-    await page.screenshot({ path: __dirname + '/ui-suivi-mvt.png' });
-    await browser.close();
+        await browser.close();
+    retirer();
     const failed = results.filter(r => !r.pass);
     console.log('\n== ' + (results.length - failed.length) + '/' + results.length + ' assertions OK');
     process.exit(failed.length ? 1 : 0);
-})().catch(e => { console.error('ERREUR SCRIPT: ' + e); process.exit(2); });
+})().catch(e => { console.error('ERREUR SCRIPT: ' + e); retirer(); process.exit(2); });
