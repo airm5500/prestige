@@ -109,4 +109,16 @@ class Gs1Test {
         assertEquals(LabelSheetPdf.CODE_BARRES, LabelSheetPdf.typeCode(null));
         assertEquals(LabelSheetPdf.CODE_BARRES, LabelSheetPdf.typeCode("autre"));
     }
+
+    @Test
+    void codeDEtiquetteCinqCaracteresSansConfusion() {
+        java.util.Random r = new java.util.Random(7);
+        java.util.Set<String> vus = new java.util.HashSet<>();
+        for (int i = 0; i < 2000; i++) {
+            String c = EtiquetteEditionService.tirerCode(r);
+            assertTrue(c.matches("[A-HJ-NP-Z2-9]{5}"), c); // ni 0 / O, ni 1 / I
+            vus.add(c);
+        }
+        assertTrue(vus.size() > 1990, "tirages varies : " + vus.size());
+    }
 }

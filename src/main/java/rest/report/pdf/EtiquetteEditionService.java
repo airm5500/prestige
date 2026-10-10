@@ -191,6 +191,41 @@ public class EtiquetteEditionService {
             java.time.LocalDate per = lot[1] instanceof Date ? jour((Date) lot[1]) : l.getPeremptionConnue();
             String brute = Gs1.brute(l.getEan(), per, numLot, l.getCip());
             l.code2D(type, brute.isEmpty() ? null : brute, numLot, per == null ? null : per.format(jj));
+            if (!LabelSheetPdf.CODE_BARRES.equals(l.getCode())) {
+                l.codeUnique(attribuerCodeUnique(l.getFamilleId()));
+            }
         }
+    }
+
+    /** Alphabet du code d'etiquette : sans 0 / O ni 1 / I, que l'on confond a la lecture. */
+    static final String ALPHABET_CODE = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final java.security.SecureRandom HASARD = new java.security.SecureRandom();
+
+    static String tirerCode(java.util.Random hasard) {
+        StringBuilder b = new StringBuilder(5);
+        for (int i = 0; i < 5; i++) {
+            b.append(ALPHABET_CODE.charAt(hasard.nextInt(ALPHABET_CODE.length())));
+        }
+        return b.toString();
+    }
+
+    /**
+     * Retours du 10/10 : code de 5 caracteres propre a une etiquette, jamais reproduit. Le code est inscrit au registre
+     * (cle primaire) : s'il est deja pris, un autre est tire. Sans code libre apres 50 tirages, l'etiquette part sans
+     * code plutot qu'avec un doublon.
+     */
+    String attribuerCodeUnique(String familleId) {
+        for (int essai = 0; essai < 50; essai++) {
+            String code = tirerCode(HASARD);
+            int n = em
+                    .createNativeQuery("INSERT IGNORE INTO t_etiquette_code (code, lg_FAMILLE_ID, dt_CREATED)"
+                            + " VALUES (?1, ?2, NOW())")
+                    .setParameter(1, code).setParameter(2, familleId).executeUpdate();
+            if (n == 1) {
+                return code;
+            }
+        }
+        LOG.log(Level.SEVERE, "Aucun code d'etiquette libre apres 50 tirages");
+        return null;
     }
 }

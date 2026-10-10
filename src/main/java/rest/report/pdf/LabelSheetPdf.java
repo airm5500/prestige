@@ -97,6 +97,17 @@ public final class LabelSheetPdf {
          * (etiquettes hors BL). L'etiquette classique n'est pas touchee.
          */
         private String grossisteProduit;
+        /** Retours du 10/10 : code de 5 caracteres propre a l'etiquette (jamais reproduit), sous le grossiste. */
+        private String codeUnique;
+
+        public LabelData codeUnique(String code) {
+            this.codeUnique = code;
+            return this;
+        }
+
+        public String getCodeUnique() {
+            return codeUnique;
+        }
 
         public LabelData grossisteProduit(String nom) {
             this.grossisteProduit = nom;
@@ -452,15 +463,25 @@ public final class LabelSheetPdf {
     }
 
     /**
-     * Retours du 10/10 (point 5) : etiquette 2D GS1 (QR code ou DataMatrix, au choix a l'impression). A gauche, en
-     * colonne : le CIP, le prix, le grossiste s'il est connu ; a droite, le code carre, le plus grand possible pour
-     * rester lisible. Le lot et la peremption sont dans le code.
+     * Retours du 10/10 (point 5) : etiquette 2D GS1 (QR code ou DataMatrix, au choix a l'impression). En haut, sur
+     * toute la largeur : le nom de la pharmacie. Dessous, a gauche en colonne : le CIP, le prix, le grossiste s'il est
+     * connu, le code propre a l'etiquette (5 caracteres) ; a droite, le code carre, le plus grand possible pour rester
+     * lisible. Le lot et la peremption sont dans le code.
      */
     private static void drawLabel2D(PdfContentByte cb, LabelData data, float width, float height, BaseFont regular,
             BaseFont bold) {
         float marge = mm(1.2f);
-        float cote = Math.min(height - 2f * marge, width * 0.5f);
-        float x0 = width - marge - cote, y0 = (height - cote) / 2f;
+        /* nom de la pharmacie en haut, centre, la taille baisse s'il est long */
+        float tailleNom = 0f, hautNom = 0f;
+        if (StringUtils.isNotBlank(data.officine)) {
+            tailleNom = tailleAjustee(bold, data.officine, 6.5f, width - 2f * marge);
+            hautNom = tailleNom * 1.3f;
+            showText(cb, bold, tailleNom, fit(bold, data.officine, tailleNom, width - 2f * marge), width / 2f,
+                    height - marge - tailleNom * 0.95f, PdfContentByte.ALIGN_CENTER);
+        }
+        float zone = height - marge - hautNom - marge;
+        float cote = Math.min(zone, width * 0.5f);
+        float x0 = width - marge - cote, y0 = marge + (zone - cote) / 2f;
         if (DATAMATRIX.equals(data.code)) {
             boolean[][] m = Gs1DataMatrix.matrice(data.gs1);
             /* zone de silence d'un module autour du symbole */
@@ -482,20 +503,23 @@ public final class LabelSheetPdf {
             qr.placeBarcode(cb, com.itextpdf.text.BaseColor.BLACK, module);
             cb.restoreState();
         }
-        /* colonne de gauche : CIP, prix, grossiste, centres verticalement ; la taille baisse si le texte deborde */
+        /* colonne de gauche, sous le nom : CIP, prix, grossiste, code de l'etiquette, centres dans la zone */
         float large = x0 - mm(1f) - marge;
         java.util.List<Object[]> lignes = new java.util.ArrayList<>();
-        lignes.add(new Object[] { bold, 7f, "CIP " + StringUtils.defaultString(data.cip) });
+        lignes.add(new Object[] { bold, 7f, StringUtils.defaultString(data.cip) });
         lignes.add(new Object[] { bold, 10f, StringUtils.defaultString(data.prix) });
         if (data.grossiste2D() != null) {
             lignes.add(new Object[] { regular, 6f, data.grossiste2D() });
+        }
+        if (StringUtils.isNotBlank(data.codeUnique)) {
+            lignes.add(new Object[] { bold, 6.5f, data.codeUnique });
         }
         float total = 0;
         for (Object[] l : lignes) {
             l[1] = tailleAjustee((BaseFont) l[0], (String) l[2], (Float) l[1], large);
             total += (Float) l[1] * 1.35f;
         }
-        float y = (height + total) / 2f;
+        float y = marge + (zone + total) / 2f;
         for (Object[] l : lignes) {
             y -= (Float) l[1] * 1.35f;
             BaseFont police = (BaseFont) l[0];

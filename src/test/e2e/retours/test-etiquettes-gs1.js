@@ -41,7 +41,7 @@ const decoder = (pdf) => {
   const png = fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).map((f) => '/tmp/' + f)[0];
   const sortie = execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nr = zxingcpp.read_barcodes(Image.open(sys.argv[1]))\n'
     + 'print(json.dumps([{"format": str(x.format), "type": str(x.content_type), "texte": x.text, "id": x.symbology_identifier,'
-    + ' "xMin": min(x.position.top_left.x, x.position.bottom_left.x) * 72 / 600, "xMax": max(x.position.top_right.x, x.position.bottom_right.x) * 72 / 600} for x in r]))', png], { encoding: 'utf8' });
+    + ' "xMin": min(x.position.top_left.x, x.position.bottom_left.x) * 72 / 600, "xMax": max(x.position.top_right.x, x.position.bottom_right.x) * 72 / 600, "yMin": min(x.position.top_left.y, x.position.top_right.y) * 72 / 600} for x in r]))', png], { encoding: 'utf8' });
   fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).forEach((f) => fs.unlinkSync('/tmp/' + f));
   const codes = JSON.parse(sortie);
   if (process.env.E2E_APERCU) {
@@ -119,21 +119,28 @@ const decoder = (pdf) => {
       && /code=DATAMATRIX/.test(dm.url), JSON.stringify(dm));
     const qr = await imprimer('QR');
     ok('QR code : contenu GS1 (EAN, péremption, lot, CIP)', qr.codes.some((c) => /QR/.test(c.format) && c.texte.replace('\u001d', '|').replace('<GS>', '|') === `01${gtin}17270331` + `10${NUMLOT}|240${CIP}`), JSON.stringify(qr.codes));
-    /* disposition (precision du 10/10) : CIP, prix, grossiste en colonne a gauche ; le code carre a droite, lisible */
+    /* disposition (precisions du 10/10) : nom de la pharmacie en haut ; dessous, a gauche en colonne : CIP (sans « CIP »),
+       prix, grossiste, code propre a l'etiquette (5 caracteres, jamais reproduit) ; le code carre a droite, lisible */
     const PRIX = q(`SELECT int_PRICE FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`), GROS = q(`SELECT IFNULL(g.str_LIBELLE, '') FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID WHERE f.lg_FAMILLE_ID = '${FID}'`);
+    const OFFICINE = q("SELECT IFNULL(str_NOM_ABREGE, '') FROM t_officine LIMIT 1");
     const disposition = (r, format) => {
       const code = r.codes.find((c) => format.test(c.format));
-      const gauche = r.mots.filter((m) => code && m.xMax <= code.xMin + 0.5);
+      const haut = r.mots.filter((m) => code && m.yMax <= code.yMin + 0.5);
+      const gauche = r.mots.filter((m) => code && m.yMin > code.yMin - 0.5 && m.xMax <= code.xMin + 0.5);
       const texte = gauche.map((m) => m.t).join(' ');
-      const prixLu = texte.replace(/\s/g, '').indexOf(Number(PRIX).toLocaleString('fr-FR').replace(/\s/g, '').replace(/\u202f/g, '')) >= 0 || texte.replace(/\s/g, '').indexOf(PRIX) >= 0;
+      const prixLu = texte.replace(/\s/g, '').indexOf(PRIX) >= 0;
       const lignes = [...new Set(gauche.map((m) => Math.round(m.yMin)))];
-      return { ok: !!code && texte.indexOf('CIP ' + CIP) >= 0 && prixLu && (GROS === '' || texte.indexOf(GROS.split(' ')[0]) >= 0)
-        && r.mots.every((m) => m.xMax <= code.xMin + 0.5) && lignes.length === (GROS === '' ? 2 : 3) && code.xMax - code.xMin >= 40,
-        texte, lignes: lignes.length, code: code && [Math.round(code.xMin), Math.round(code.xMax)], grossiste: GROS };
+      const codeEtiquette = (gauche.map((m) => m.t).find((t) => /^[A-HJ-NP-Z2-9]{5}$/.test(t)) || '');
+      return { ok: !!code && haut.map((m) => m.t).join(' ') === OFFICINE && texte.indexOf(CIP) >= 0 && texte.indexOf('CIP ' + CIP) < 0 && prixLu
+        && (GROS === '' || texte.indexOf(GROS.split(' ')[0]) >= 0) && !!codeEtiquette
+        && r.mots.every((m) => m.yMax <= code.yMin + 0.5 || m.xMax <= code.xMin + 0.5) && lignes.length === (GROS === '' ? 3 : 4) && code.xMax - code.xMin >= 34,
+        haut: haut.map((m) => m.t).join(' '), texte, lignes: lignes.length, codeEtiquette, code: code && [Math.round(code.xMin), Math.round(code.xMax), Math.round(code.yMin)], officine: OFFICINE };
     };
     const dispoDm = disposition(dm, /Data ?Matrix/), dispoQr = disposition(qr, /QR/);
-    ok('DataMatrix : CIP, prix, grossiste en colonne à gauche ; le code à droite, assez grand (≥ 14 mm), lu par le lecteur', dispoDm.ok, JSON.stringify(dispoDm));
+    ok('DataMatrix : nom de la pharmacie en haut ; CIP, prix, grossiste, code de l\'étiquette en colonne à gauche ; code à droite, lu par le lecteur', dispoDm.ok, JSON.stringify(dispoDm));
     ok('QR code : même disposition, code lu par le lecteur', dispoQr.ok, JSON.stringify(dispoQr));
+    ok('Code de l\'étiquette : différent d\'une étiquette à l\'autre, inscrit au registre (jamais redonné)', dispoDm.codeEtiquette && dispoQr.codeEtiquette && dispoDm.codeEtiquette !== dispoQr.codeEtiquette
+      && q(`SELECT COUNT(*) FROM t_etiquette_code WHERE code IN ('${dispoDm.codeEtiquette}', '${dispoQr.codeEtiquette}') AND lg_FAMILLE_ID = '${FID}'`) === '2', dispoDm.codeEtiquette + ' / ' + dispoQr.codeEtiquette);
     const defaut = await imprimer('');
     ok('Défaut (KEY_ETIQUETTE_CODE = CODE128) : code-barres du CIP, aucun code 2D, comme avant', defaut.codes.length >= 1 && defaut.codes.every((c) => /Code ?128/.test(c.format) && c.texte === CIP),
       JSON.stringify(defaut.codes));
