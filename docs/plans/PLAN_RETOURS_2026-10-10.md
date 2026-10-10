@@ -245,6 +245,24 @@ Tests : unitaires du calcul (existants + nouveaux paramètres), e2e : générati
 3. Avant chaque commit : **toute** la suite — tests unitaires (1 254 aujourd'hui), tests e2e du banc, test de style (232 contrôles), test de saisie.
 4. Résultats donnés à chaque étape.
 
+## Réponses du 10/10 (décisions)
+| N° | Décision |
+|---|---|
+| Q1 | 90 jours glissants |
+| Q2 | oui : Dern. entrée = date de mise en stock, date du BL à côté |
+| Q3 | toutes les pages du résultat affiché (liste filtrée) |
+| Q4 | « Appliquer le recommandé » sur la suggestion **ou** la commande en cours choisie ; ligne recommandée à 0 = **supprimée** (aucune suggestion avec quantité 0) |
+| Q5 | GS1 |
+| Q6 | lecture du code à la vente **faite**, derrière un paramètre 0/1 (défaut 0) ; testée active et inactive, sans régression |
+| Q7 | délai de saisie = date d'entrée (saisie) − date du BL du grossiste ; > seuil = mauvais, ≤ seuil = bon ; seuil paramétrable (défaut 1 jour) |
+| Q8 | emplacement de rangement / zone géographique / rayon |
+| Q9 | oui (négatif = manquant), sans régression |
+| Q10 | tout le lot journal |
+| Q11 | **en attente** |
+| Q12 | **en attente** |
+
+Ajouts : point 7 — dashboard retours avec analyse complète (produits les plus retournés, etc.) ; point 14 — bouton « Fiche client » **aussi à la vente** quand un client est choisi (standard, carnet ou assurance).
+
 ## Récapitulatif des questions
 | N° | Question | Ma proposition |
 |---|---|---|
