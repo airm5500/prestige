@@ -627,15 +627,15 @@ Ext.define('testextjs.view.caisseManager.RecapRecetteCaisse', {
                             }
                         },
                         {
-                            /* Point 16 : ecart entre le comptant et le billetage.
-                               Rouge quand le comptant est INFERIEUR au billetage, vert quand il est superieur,
+                            /* Point 16 : ecart de caisse = billetage - comptant (retours du 10/10, Q9 : regle unique
+                               « negatif = manquant »). Rouge quand il manque de l'argent en caisse, vert en surplus,
                                tiret quand aucun billetage n'a ete saisi : il n'y a alors rien a comparer, et
                                afficher l'oppose du comptant ferait croire a un manquant. */
                             header: 'Écart',
                             dataIndex: 'montantEcart',
                             flex: 1,
                             align: 'right',
-                            tooltip: 'Comptant moins billetage',
+                            tooltip: 'Billetage moins comptant : négatif = manquant en caisse, positif = surplus',
                             renderer: function (valeur, meta, enregistrement) {
                                 if (!enregistrement.get('billetageSaisi')) {
                                     return "<span style='color:#7f8c8d;'>-</span>";

@@ -206,8 +206,9 @@ public class StatCaisseRecetteDTO {
     }
 
     /**
-     * Ecart entre le comptant et le billetage de la journee : positif quand la caisse contient plus que le comptant
-     * attendu, negatif quand elle contient moins.
+     * Ecart de caisse de la journee = billetage (especes comptees) - comptant attendu. Retours du 10/10 (Q9) : regle
+     * unique de tous les ecrans de caisse, <b>negatif = manquant en caisse</b>, positif = surplus (meme sens que la
+     * Gestion de caisse : billetage - attendu).
      *
      * <p>
      * L'ecart n'a de sens que si un billetage a ete saisi : sans billetage il n'y a rien a comparer, et afficher
@@ -216,7 +217,7 @@ public class StatCaisseRecetteDTO {
      * </p>
      */
     public long getMontantEcart() {
-        return montantEspece - montantBilletage;
+        return montantBilletage - montantEspece;
     }
 
     /** Vrai si un billetage a ete saisi pour la journee : sans lui, l'ecart ne se calcule pas. */

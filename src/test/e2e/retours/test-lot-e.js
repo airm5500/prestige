@@ -1,7 +1,8 @@
 /* Lot E - point 16 : recapitulatif caisse / recette.
  *
  * - detail des paiements mobiles sur UNE ligne, au pied de chaque journee ;
- * - colonne Ecart : rouge si comptant < billetage, vert si comptant > billetage, tiret sans billetage ;
+ * - colonne Ecart (retours du 10/10, Q9 : regle unique « negatif = manquant ») : billetage - comptant ; rouge si
+ *   negatif (manquant en caisse), vert si positif (surplus), tiret sans billetage ;
  * - lignes mobile money au pied de chaque journee sur la vue, le PDF et le classeur Excel ;
  * - solde = comptant + mobile + reglement tiers payant + reglement differe ;
  * - « Mensuelle » a cote d'« Annuelle » ;
@@ -23,8 +24,8 @@ const MARQUE = 'E2E-LOT-E';
 const TMP = '/tmp/lot-e';
 
 /* Deux journees, montants choisis :
-   J1 : especes 10 000, ORANGE 3 000, MTN 2 000, cheque 1 000 ; billetage 9 000 -> ecart +1 000 (vert)
-   J2 : especes  4 000, WAVE   1 500                          ; billetage 6 000 -> ecart -2 000 (rouge)
+   J1 : especes 10 000, ORANGE 3 000, MTN 2 000, cheque 1 000 ; billetage 9 000 -> ecart -1 000 (manquant, rouge)
+   J2 : especes  4 000, WAVE   1 500                          ; billetage 6 000 -> ecart +2 000 (surplus, vert)
    Solde attendu = especes + mobile (aucun reglement TP ni differe pose).
    Retours des tests 4 : J1 porte aussi une entree de caisse de 3 000 et une sortie de 500 (mouvements de caisse) :
    le solde de J1 vaut 15 000 + 3 000 - 500 = 17 500, et la journee porte une rubrique « Mouvements de caisse ». */
@@ -145,7 +146,7 @@ function retirerJeuDEssai() {
   ok('journee 1 : la somme du detail vaut le montant mobile',
      Object.values(l1.detailMobile || {}).reduce((t, v) => t + v, 0) === l1.montantMobile);
   ok('journee 1 : billetage = 9 000', l1.montantBilletage === 9000);
-  ok('journee 1 : ecart = +1 000 (comptant superieur au billetage)', l1.montantEcart === 1000, l1.montantEcart);
+  ok('journee 1 : ecart = -1 000 (billetage inferieur au comptant : manquant)', l1.montantEcart === -1000, l1.montantEcart);
   ok('journee 1 : le billetage est signale comme saisi', l1.billetageSaisi === true);
   // solde = comptant + mobile + reglement TP + reglement differe ; le cheque n'y entre PAS
   ok('journee 1 : entree de caisse 3 000 et sortie 500 lues', l1.montantEntre === 3000 && l1.montantSortie === 500,
@@ -156,7 +157,7 @@ function retirerJeuDEssai() {
 
   ok('journee 2 : comptant = 4 000', l2.montantEspece === 4000, JSON.stringify(l2));
   ok('journee 2 : mobile = 1 500', l2.montantMobile === 1500);
-  ok('journee 2 : ecart = -2 000 (comptant inferieur au billetage)', l2.montantEcart === -2000, l2.montantEcart);
+  ok('journee 2 : ecart = +2 000 (billetage superieur au comptant : surplus)', l2.montantEcart === 2000, l2.montantEcart);
   ok('journee 2 : solde = 5 500 (aucun mouvement de caisse)', l2.montantSolde === 5500 && !l2.montantEntre && !l2.montantSortie, l2.montantSolde);
 
   /* ------------------------------------------------- regroupement mensuel */

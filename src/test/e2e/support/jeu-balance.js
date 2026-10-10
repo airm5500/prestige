@@ -39,7 +39,7 @@ function retirerJeuDEssai() {
 
 function poserJeuDEssai() {
   retirerJeuDEssai();
-  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const CAISSE = q("SELECT lg_CAISSE_ID FROM t_caisse LIMIT 1");
   const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND lg_FAMILLEARTICLE_ID IS NOT NULL ORDER BY str_NAME LIMIT 1");
   VENTES.forEach(function (v, i) {

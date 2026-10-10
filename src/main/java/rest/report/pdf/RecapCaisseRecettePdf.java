@@ -107,7 +107,8 @@ public final class RecapCaisseRecettePdf {
                 table.addCell(cellule(montant(ligne.getMontantReglementFacture()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantReglementDiff()), cellule, true));
                 table.addCell(cellule(montant(ligne.getMontantBilletage()), cellule, true));
-                // Ecart : rouge quand le comptant est INFERIEUR au billetage, vert quand il est superieur,
+                // Ecart = billetage - comptant (retours du 10/10, Q9 : negatif = manquant) : rouge quand il manque
+                // de l'argent en caisse, vert en surplus,
                 // tiret quand aucun billetage n'a ete saisi - il n'y a alors rien a comparer.
                 if (!ligne.isBilletageSaisi()) {
                     table.addCell(cellule("-", cellule, true));

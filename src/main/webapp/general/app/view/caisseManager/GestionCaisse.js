@@ -254,6 +254,8 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                         {
                             header: 'Mt Ecart',
                             dataIndex: 'ecart',
+                            /* retours du 10/10 (Q9) : regle unique de tous les ecrans de caisse */
+                            tooltip: 'Billetage moins attendu : négatif = manquant en caisse, positif = surplus',
                             xtype: 'numbercolumn',
                             format: '0,000.',
                             align: 'right',
