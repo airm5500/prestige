@@ -231,15 +231,18 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
         var fait = 0;
         var fin = function () {
             fait++;
+            if (me.isDestroyed) {
+                return;
+            }
             if (fait === 2 && rappel) {
                 rappel();
             }
         };
-        Ext.Ajax.request({method: 'GET', url: '../api/v1/ordonnance-client/parametres', success: function (r) {
+        Ext.Ajax.request({method: 'GET', url: '../api/v1/ordonnance-client/parametres', success: function (r) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 me.parametres = (Ext.decode(r.responseText, true) || {}).data || [];
                 fin();
             }, failure: fin});
-        Ext.Ajax.request({method: 'GET', url: '../api/v1/ordonnance-client/terrains', success: function (r) {
+        Ext.Ajax.request({method: 'GET', url: '../api/v1/ordonnance-client/terrains', success: function (r) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 me.terrains = (Ext.decode(r.responseText, true) || {}).data || [];
                 fin();
             }, failure: fin});
@@ -254,7 +257,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             Ext.Ajax.request({
                 method: 'GET',
                 url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(clientId) + '/dossier',
-                success: function (reponse) {
+                success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                     var r = Ext.decode(reponse.responseText, true) || {};
                     if (me.clientId !== clientId) {
                         return;
@@ -422,7 +425,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             method: 'POST',
             url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(me.clientId) + '/dossier',
             jsonData: {terrains: me.terrainsCoches || [], allergies: me.down('#fcAllergies').getValue() || ''},
-            success: function (reponse) {
+            success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 var r = Ext.decode(reponse.responseText, true) || {};
                 me.dire(r.message || 'Le dossier n\'a pas pu être enregistré.', r.success !== true);
             }
@@ -476,7 +479,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             method: 'GET',
             url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(me.clientId) + '/mesures',
             params: {parametreId: id},
-            success: function (reponse) {
+            success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 var r = Ext.decode(reponse.responseText, true) || {};
                 if (me.parametreId === id) {
                     me.mesures = r.data || [];
@@ -691,7 +694,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             method: 'POST',
             url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(me.clientId) + '/mesures',
             jsonData: corps,
-            success: function (reponse) {
+            success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 var r = Ext.decode(reponse.responseText, true) || {};
                 me.dire(r.message || 'La mesure n\'a pas pu être enregistrée.', r.success !== true);
                 if (r.success === true) {
@@ -713,7 +716,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             Ext.Ajax.request({
                 method: 'POST',
                 url: '../api/v1/ordonnance-client/mesures/' + encodeURIComponent(id) + '/retirer',
-                success: function (reponse) {
+                success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                     var r = Ext.decode(reponse.responseText, true) || {};
                     me.dire(r.message, r.success !== true);
                     me.ouvrir(me.clientId);
@@ -732,7 +735,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(clientId) + '/consommation',
             params: {dtStart: Ext.Date.format(Ext.Date.add(fin, Ext.Date.MONTH, -12), 'Y-m-d'),
                 dtEnd: Ext.Date.format(fin, 'Y-m-d')},
-            success: function (reponse) {
+            success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
                 if (me.clientId !== clientId) {
                     return;
                 }

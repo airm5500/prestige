@@ -191,6 +191,19 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             o.put("conso", conso);
             o.put("consoTotal", totalConso);
 
+            // --- retours du 10/10 (Q1) : ventes moyennes sur les 90 derniers jours glissants (meme perimetre) ---
+            Query qm = em.createNativeQuery("SELECT COALESCE(SUM(d.int_QUANTITY), 0) FROM t_preenregistrement p "
+                    + "INNER JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "
+                    + "WHERE d.lg_FAMILLE_ID = ?1 AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 "
+                    + "AND p.lg_TYPE_VENTE_ID <> '5' AND d.int_QUANTITY > 0 AND p.str_STATUT = 'is_Closed' "
+                    + "AND p.dt_UPDATED >= ?2");
+            qm.setParameter(1, produitId);
+            qm.setParameter(2, java.sql.Timestamp.valueOf(java.time.LocalDate.now()
+                    .minusDays(rest.service.impl.stat.MoyennesVente.JOURS - 1L).atStartOfDay()));
+            Object total90 = qm.getSingleResult();
+            o.put("moyennes",
+                    rest.service.impl.stat.MoyennesVente.json(total90 == null ? 0L : ((Number) total90).longValue()));
+
             // --- achats du produit sur la meme periode ---
             // Quantites REELLEMENT RECUES, regroupees par mois de livraison : c'est ce qui
             // est entre en stock, donc la seule grandeur comparable aux sorties. Une

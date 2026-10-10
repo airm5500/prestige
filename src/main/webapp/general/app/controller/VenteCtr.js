@@ -201,7 +201,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         'testextjs.view.vente.user.AddCarnet',
         'testextjs.view.vente.user.Medecin',
         'testextjs.view.vente.user.OrdonnanceParcours',
-        'testextjs.view.vente.ReglementGrid'
+        'testextjs.view.vente.ReglementGrid',
+        'testextjs.view.serviceclient.ordonnance.FenetreFicheClient'
     ],
     config: {
         current: null,
@@ -655,6 +656,21 @@ Ext.define('testextjs.controller.VenteCtr', {
     ],
     init: function () {
         const me = this;
+        /*
+         * Retours du 10/10 (14) : bouton « Fiche client » visible des qu'un client (standard, carnet, assurance) est sur la
+         * vente. Le client est pose ou retire a de nombreux endroits : la propriete le signale elle-meme au bouton.
+         */
+        let clientVente = me.client;
+        Object.defineProperty(me, 'client', {
+            configurable: true, enumerable: true,
+            get: function () {
+                return clientVente;
+            },
+            set: function (v) {
+                clientVente = v;
+                me.majBoutonFicheClient();
+            }
+        });
         // Recalcul de la hauteur de la grille au redimensionnement de la
         // fenêtre (portable <-> écran externe). Bufferisé, sans effet hors
         // vente comptant plein écran.
@@ -819,6 +835,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.onBtnAddClientCarnteClick
                     }, 'doventemanager #contenu [xtype=toolbar] #netBtn': {
                         click: this.onNetBtnClick
+                    },
+                    'doventemanager #contenu [xtype=toolbar] #btnFicheClient': {
+                        click: this.onFicheClientClick,
+                        render: this.majBoutonFicheClient
                     },
 
                     'medecin #btnCancelMedecin': {
@@ -3394,6 +3414,22 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
     },
+    /** Retours du 10/10 (14) : le bouton suit le client de la vente. */
+    majBoutonFicheClient: function () {
+        const b = Ext.ComponentQuery.query('doventemanager #btnFicheClient')[0], c = this.client;
+        if (b && !b.isDestroyed) {
+            b.setVisible(!!(c && c.get && c.get('lgCLIENTID')));
+        }
+    },
+
+    onFicheClientClick: function () {
+        const c = this.client;
+        if (c && c.get && c.get('lgCLIENTID')) {
+            testextjs.view.serviceclient.ordonnance.FenetreFicheClient.ouvrir(c.get('lgCLIENTID'),
+                    Ext.String.trim((c.get('strFIRSTNAME') || '') + ' ' + (c.get('strLASTNAME') || '')));
+        }
+    },
+
     updateClientStandard: function (record) {
         const me = this;
         me._pendingModeNeedsClient = false; // un client est choisi : plus de rollback

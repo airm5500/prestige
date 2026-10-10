@@ -16,7 +16,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
      * porte par le conteneur a onglets ClientTabPanel */
     xtype: 'clientgestion',
     id: 'clientmanagerID',
-    requires: [
+    requires: ['testextjs.view.serviceclient.ordonnance.FenetreFicheClient',
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.window.Window',
@@ -397,6 +397,19 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             tooltip: 'Suivi de consommation par m&eacute;dicament',
                             scope: this,
                             handler: this.onConsommationClick
+                        }]
+                },
+                /* retours du 10/10 (14) : fiche client des ordonnances, en fenetre */
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/user_comment.png',
+                            tooltip: 'Fiche client (allergies, mesures, consommation)',
+                            scope: this,
+                            handler: this.onFicheClientClick
                         }]
                 }
             ],
@@ -808,6 +821,12 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             titre: "Detail du client : [" + rec.get('str_FIRST_LAST_NAME') + "]"
         });
     },
+    onFicheClientClick: function (grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.serviceclient.ordonnance.FenetreFicheClient.ouvrir(rec.get('lg_CLIENT_ID'),
+                Ext.String.trim((rec.get('str_FIRST_NAME') || '') + ' ' + (rec.get('str_LAST_NAME') || '')));
+    },
+
     onConsommationClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
 

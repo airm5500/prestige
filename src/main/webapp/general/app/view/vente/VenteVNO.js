@@ -1250,6 +1250,16 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     cls: 'btn-primarya'
                                                 },
                                                 {
+                                                    /* retours du 10/10 (14) : fiche client (ordonnances) du client de la vente, en fenetre */
+                                                    text: 'FICHE CLIENT',
+                                                    itemId: 'btnFicheClient',
+                                                    hidden: true,
+                                                    iconCls: 'cartclient',
+                                                    height: 38,
+                                                    cls: 'btn-primarya',
+                                                    tooltip: 'Fiche du client de la vente : allergies, terrains, mesures, consommation'
+                                                },
+                                                {
                                                     text: 'AFFICHER NET A PAYER',
                                                     itemId: 'netBtn',
                                                     iconCls: 'afficheur_caisse',

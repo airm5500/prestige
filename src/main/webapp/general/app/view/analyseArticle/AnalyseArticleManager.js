@@ -67,6 +67,7 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
             items: [{
                     xtype: 'tabpanel',
                     itemId: 'ongletsAnalyse',
+                    tabBar: {items: me.actionsOnglets()},
                     /* retours du 10/10 : « Suivi équivalence » est dans Commandes en cours (entre Alertes et Tableau de bord) */
                     items: [me.ongletMatrice(), me.ongletPaires()]
                 }]
@@ -84,19 +85,24 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
 
     /* Retours du 07/10 : la barre unique debordait a 1366 px (« Créer un inventaire » coupe) : deux lignes, la
        periode et l'analyse en haut, les seuils et les actions en dessous. */
+    /*
+     * Retours du 10/10 : la periode et les criteres (marge elevee, rotation) sur la premiere ligne, avant « Analyser » ;
+     * « Créer un inventaire », « Exporter Excel » et « Imprimer » a droite, sur la ligne des onglets (actionsOnglets).
+     */
     barreOutils: function () {
-        var me = this;
-        var items = me.elementsBarre(), ligne1 = [], ligne2 = [], seuils = false;
-        Ext.each(items, function (it) {
-            if (it === '-') {
-                seuils = true; // tout ce qui suit le separateur (seuils, actions) passe en 2e ligne...
-            } else if (it.itemId === 'analyser') {
-                ligne1.push(it); // ...sauf « Analyser », qui suit la periode
-            } else {
-                (seuils ? ligne2 : ligne1).push(it);
+        var me = this, ligne = [];
+        Ext.each(me.elementsBarre(), function (it) {
+            if (it === '->') {
+                return false; // les actions suivent : elles vont sur la ligne des onglets
             }
+            ligne.push(it);
         });
-        return [{xtype: 'toolbar', dock: 'top', items: ligne1}, {xtype: 'toolbar', dock: 'top', items: ligne2}];
+        return [{xtype: 'toolbar', dock: 'top', itemId: 'barreCriteres', items: ligne}];
+    },
+
+    actionsOnglets: function () {
+        var items = this.elementsBarre(), i = items.indexOf('->');
+        return [{xtype: 'tbfill'}].concat(items.slice(i + 1));
     },
 
     elementsBarre: function () {

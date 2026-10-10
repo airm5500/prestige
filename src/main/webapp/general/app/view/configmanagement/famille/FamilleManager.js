@@ -1239,6 +1239,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 + '<div class="vp-ap-conso">'
                 + '<div class="vp-ap-tete"><span class="vp-ap-nom">' + esc(o.nom) + '</span>'
                 + '<span class="vp-ap-cip">' + esc(o.cip) + '</span>'
+                /* retours du 10/10 (Q1) : ventes moyennes sur les 90 derniers jours glissants */
+                + (o.moyennes ? '<span class="vp-ap-moyennes" data-qtip="' + esc('Ventes des 90 derniers jours : ' + o.moyennes.total
+                        + ' — par jour = total ÷ 90, par semaine = total × 7 ÷ 90, par mois = total ÷ 3') + '">Moy. 90 j : <b>'
+                        + String(o.moyennes.jour).replace('.', ',') + '</b>/j · <b>' + String(o.moyennes.semaine).replace('.', ',')
+                        + '</b>/sem · <b>' + String(o.moyennes.mois).replace('.', ',') + '</b>/mois</span>' : '')
                 + '<span class="vp-ap-legende">'
                 + '<span class="vp-ap-leg conso"><i></i>Sorties <b>' + amountformat(o.consoTotal || 0) + '</b></span>'
                 + '<span class="vp-ap-leg achats"><i></i>Achats <b>' + amountformat(o.achatsTotal || 0) + '</b></span>'
