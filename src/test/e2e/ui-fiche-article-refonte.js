@@ -14,6 +14,28 @@
  * Execution : node ui-fiche-article-refonte.js
  */
 const { chromium } = require('playwright-core');
+const { execFileSync } = require('child_process');
+const sql = (x) => execFileSync('mariadb', [process.env.DB_TEST || 'capitale', '-sN'], { input: x, encoding: 'utf8' }).trim();
+/* Jeu d'essai (autonome) : un produit du banc vendu et entre par BL (recherche par son CIP), un lot d'essai date pour
+   la peremption de l'apercu (les lots du banc n'ont pas de date) ; la presentation des actions par defaut (4 icones +
+   menu « ... ») le temps du test, la configuration du banc remise a la fin. */
+const [FID, CIP] = sql("SELECT CONCAT(f.lg_FAMILLE_ID,'|',f.int_CIP) FROM t_famille f WHERE f.str_STATUT='enable' AND f.int_CIP <> ''"
+  + " AND EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND p.str_STATUT='is_Closed')"
+  + " AND EXISTS (SELECT 1 FROM t_bon_livraison_detail bd JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID=bd.lg_BON_LIVRAISON_ID WHERE bd.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND bl.str_STATUT='is_Closed')"
+  + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 1").split('|');
+const CONFIG = sql("SELECT CONCAT(IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY='FICHE_ARTICLE_NB_ICONES'), ''), '|', IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY='FICHE_ARTICLE_ORDRE_ACTIONS'), ''))").split('|');
+function poser() {
+    sql("DELETE FROM t_lot WHERE lg_LOT_ID='E2E-FA-LOT';"
+        + " INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)"
+        + " SELECT 'E2E-FA-LOT', lg_USER_ID, '" + FID + "', 'E2EFA', 3, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 4 MONTH), 'enable', 3 FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
+        + " UPDATE t_parameters SET str_VALUE='4' WHERE str_KEY='FICHE_ARTICLE_NB_ICONES';"
+        + " UPDATE t_parameters SET str_VALUE='' WHERE str_KEY='FICHE_ARTICLE_ORDRE_ACTIONS';");
+}
+function retirer() {
+    sql("DELETE FROM t_lot WHERE lg_LOT_ID='E2E-FA-LOT';"
+        + " UPDATE t_parameters SET str_VALUE='" + CONFIG[0] + "' WHERE str_KEY='FICHE_ARTICLE_NB_ICONES';"
+        + " UPDATE t_parameters SET str_VALUE='" + CONFIG[1] + "' WHERE str_KEY='FICHE_ARTICLE_ORDRE_ACTIONS';");
+}
 const results = [];
 function ok(name, cond, detail) {
     results.push({ name, pass: !!cond });
@@ -21,6 +43,7 @@ function ok(name, cond, detail) {
 }
 
 (async () => {
+    poser();
     const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
     const erreursJs = [];
@@ -62,6 +85,7 @@ function ok(name, cond, detail) {
         ['CIP', 'Designation', 'P.Vente', 'P.Achat', 'Seuil', 'Qte.Reap', 'Emplacement'].every(h => entetes.indexOf(h) >= 0),
         entetes.join(' | '));
     const nbActions = cols.filter(c => c.xtype === 'actioncolumn').length;
+    /* presentation par defaut posee par le test (le banc affiche toutes les actions en icones) */
     ok('4 icones d action + 1 menu = 5 colonnes d action (au lieu de 11)', nbActions === 5, 'trouve ' + nbActions);
 
     // ---------- filtres ----------
@@ -81,16 +105,16 @@ function ok(name, cond, detail) {
         (filtres[0] || []).join(',').indexOf('#stock_operator') < 0);
 
     // ---------- recherche d un article ----------
-    await page.evaluate(() => {
-        Ext.getCmp('rechecher').setValue('OZEMPIC');
+    await page.evaluate((cip) => {
+        Ext.getCmp('rechecher').setValue(cip);
         Ext.ComponentQuery.query('famillemanager')[0].onRechClick();
-    });
+    }, CIP);
     const lignes = await page.waitForFunction(() => {
         const g = Ext.ComponentQuery.query('famillemanager')[0];
         return g && g.getStore().getCount() > 0;
     }, null, { timeout: 40000 }).then(() => true).catch(() => false);
     ok('recherche : la grille se remplit', lignes);
-    if (!lignes) { console.log('ARRET : aucune ligne, la suite depend de la grille'); await browser.close(); process.exit(1); }
+    if (!lignes) { console.log('ARRET : aucune ligne, la suite depend de la grille'); await browser.close(); retirer(); process.exit(1); }
     await page.waitForTimeout(1200);
 
     // ---------- apercu : simple clic vs double clic ----------
@@ -119,7 +143,7 @@ function ok(name, cond, detail) {
             legendes: (h.match(/vp-ap-leg /g) || []).length,
             lignesLot: (h.match(/<li /g) || []).length,
             aVente: h.indexOf('re vente') >= 0,
-            aEntree: h.indexOf('re entr') >= 0,
+            aEntree: /Dern(i\u00e8re|ière|\.) entr/.test(h) && h.indexOf('aucune entr') < 0,
             puces: (h.match(/vp-ap-puce/g) || []).length,
             focus: document.activeElement ? document.activeElement.id : ''
         };
@@ -251,8 +275,9 @@ function ok(name, cond, detail) {
     ok('aucune erreur JavaScript pendant le parcours', erreursJs.length === 0, erreursJs.join(' || '));
 
     await browser.close();
+    retirer();
     const echecs = results.filter(r => !r.pass);
     console.log('\n===== ' + (results.length - echecs.length) + '/' + results.length + ' PASS =====');
     if (echecs.length) { console.log('ECHECS : ' + echecs.map(r => r.name).join(' ; ')); }
     process.exit(echecs.length ? 1 : 0);
-})().catch(e => { console.error('ERREUR FATALE', e); process.exit(2); });
+})().catch(e => { console.error('ERREUR FATALE', e); retirer(); process.exit(2); });
