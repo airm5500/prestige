@@ -85,6 +85,9 @@ public class TPreenregistrementDetail implements Serializable {
     private Boolean boolACCOUNT = true;
     @Column(name = "int_UG")
     private Integer intUG = 0;
+    /** Retours du 10/10 (lecture GS1, mode B) : lots des boites scannees, un par boite, separes par « | ». */
+    @Column(name = "str_LOTS_SCANNES", length = 500)
+    private String strLOTSSCANNES;
     @Column(name = "montantTva")
     private Integer montantTva = 0;
     @Column(name = "valeurTva")
@@ -383,4 +386,51 @@ public class TPreenregistrementDetail implements Serializable {
 
     }
 
+    public String getStrLOTSSCANNES() {
+        return strLOTSSCANNES;
+    }
+
+    public void setStrLOTSSCANNES(String strLOTSSCANNES) {
+        this.strLOTSSCANNES = strLOTSSCANNES;
+    }
+
+    /** Ajoute le lot d'une boite scannee (nettoye, 30 caracteres au plus) ; ignore au-dela de 500 caracteres. */
+    public void noterLotScanne(String lot) {
+        String l = lotsScannesNettoye(lot);
+        if (l == null) {
+            return;
+        }
+        String valeur = strLOTSSCANNES == null || strLOTSSCANNES.isEmpty() ? l : strLOTSSCANNES + "|" + l;
+        if (valeur.length() <= 500) {
+            strLOTSSCANNES = valeur;
+        }
+    }
+
+    static String lotsScannesNettoye(String lot) {
+        if (lot == null) {
+            return null;
+        }
+        String l = lot.replace("|", "").trim();
+        if (l.isEmpty()) {
+            return null;
+        }
+        return l.length() > 30 ? l.substring(0, 30) : l;
+    }
+
+    /** Les lots scannes a sortir pour la quantite vendue : les {@code quantite} premiers. */
+    public static java.util.List<String> lotsASortir(String lotsScannes, int quantite) {
+        java.util.List<String> l = new java.util.ArrayList<>();
+        if (lotsScannes == null || quantite <= 0) {
+            return l;
+        }
+        for (String x : lotsScannes.split("\\|")) {
+            if (l.size() >= quantite) {
+                break;
+            }
+            if (!x.trim().isEmpty()) {
+                l.add(x.trim());
+            }
+        }
+        return l;
+    }
 }

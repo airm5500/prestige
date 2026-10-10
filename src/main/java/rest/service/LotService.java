@@ -22,6 +22,12 @@ public interface LotService {
 
     void pickLot(String produitId, int quantitVendue);
 
+    /**
+     * Retours du 10/10 (lecture GS1, mode B) : sortie de la vente en commencant par les lots des boites scannees (un
+     * par boite, s'ils ont encore du stock et ne sont pas perimes), le reste comme {@link #pickLot(String, int)}.
+     */
+    void pickLot(String produitId, int quantitVendue, java.util.List<String> lotsScannes);
+
     void addLot(AddLot addLot);
 
     /**

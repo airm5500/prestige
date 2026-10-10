@@ -335,7 +335,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             updateStock(familleStock, tp, it);
             emg.merge(familleStock);
             emg.merge(it);
-            lotService.pickLot(tFamille.getLgFAMILLEID(), it.getIntQUANTITY());
+            /* retours du 10/10 (lecture GS1, mode B) : les lots des boites scannees d'abord */
+            lotService.pickLot(tFamille.getLgFAMILLEID(), it.getIntQUANTITY(),
+                    TPreenregistrementDetail.lotsASortir(it.getStrLOTSSCANNES(), it.getIntQUANTITY()));
             if (isDetail && stockParent != null) {
                 this.suggestionService.makeSuggestionAuto(stockParent, otFamilleParent);
             } else {

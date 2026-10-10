@@ -32,6 +32,34 @@ public class LectureGs1Service {
         return "1".equals(StringUtils.trim(parametreService.getValue(PARAM, "0")));
     }
 
+    public static final String PARAM_CONTROLE = "KEY_VENTE_CONTROLE_LOT_GS1";
+
+    /**
+     * Retours du 10/10 : que faire quand la boite scannee n'est pas du lot que Prestige sort. A = avertir seulement
+     * (defaut, et toute valeur inconnue) ; B = avertir et sortir le lot scanne ; C = bloquer l'ajout.
+     */
+    public String modeControle() {
+        return mode(parametreService.getValue(PARAM_CONTROLE, "A"));
+    }
+
+    static String mode(String valeur) {
+        String v = StringUtils.upperCase(StringUtils.trimToEmpty(valeur));
+        return "B".equals(v) || "C".equals(v) ? v : "A";
+    }
+
+    /** Le lot existe pour ce produit, avec du stock, et n'est pas perime (il peut donc etre sorti). */
+    public boolean lotEnStock(String produitId, String lot) {
+        if (StringUtils.isAnyBlank(produitId, lot)) {
+            return false;
+        }
+        Number n = (Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_lot WHERE lg_FAMILLE_ID = ?1"
+                        + " AND UPPER(int_NUM_LOT) = UPPER(?2) AND current_stock > 0"
+                        + " AND (dt_PEREMPTION IS NULL OR dt_PEREMPTION > NOW())")
+                .setParameter(1, produitId).setParameter(2, lot.trim()).getSingleResult();
+        return n != null && n.intValue() > 0;
+    }
+
     /**
      * Codes a essayer pour retrouver le produit, dans l'ordre : CIP, EAN-13, CIP du produit dont c'est l'EAN fabricant.
      */

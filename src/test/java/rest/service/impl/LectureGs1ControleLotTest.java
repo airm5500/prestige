@@ -53,4 +53,15 @@ class LectureGs1ControleLotTest {
         assertEquals("INCONNU", controle(lu(null, null), new Object[] { "31/01/2027", "LOT-A1", "5" }));
         assertEquals("INCONNU", controle(lu("LOT-A1", null), null));
     }
+
+    @Test
+    void modeDeControle() {
+        assertEquals("A", LectureGs1Service.mode(null));
+        assertEquals("A", LectureGs1Service.mode(""));
+        assertEquals("A", LectureGs1Service.mode("a"));
+        assertEquals("B", LectureGs1Service.mode(" b "));
+        assertEquals("C", LectureGs1Service.mode("C"));
+        assertEquals("A", LectureGs1Service.mode("X")); // valeur inconnue : avertir seulement (aucun blocage)
+        assertEquals("A", LectureGs1Service.mode("1"));
+    }
 }

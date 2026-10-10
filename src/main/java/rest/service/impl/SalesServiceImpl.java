@@ -151,6 +151,8 @@ public class SalesServiceImpl implements SalesService {
     @EJB
     private FideliteService fideliteService;
     @EJB
+    private LectureGs1Service lectureGs1Service;
+    @EJB
     private LogService logService;
     @EJB
     private MvtProduitService mvtProduitService;
@@ -1535,6 +1537,7 @@ public class SalesServiceImpl implements SalesService {
                 if (tpd.getBoolACCOUNT()) {
                     tp.setIntACCOUNT(tp.getIntPRICE());
                 }
+                noterLotScanne(tpd, params);
 
                 emg.merge(tpd);
                 afficheurProduit(tpd.getLgFAMILLEID().getStrNAME(), tpd.getIntQUANTITY(), tpd.getIntPRICEUNITAIR(),
@@ -1550,6 +1553,7 @@ public class SalesServiceImpl implements SalesService {
                 }
                 TPreenregistrementDetail dp = addPreenregistrementItem(tp, famille, params.getQte(),
                         params.getQteServie(), params.getQteUg(), params.getItemPu());
+                noterLotScanne(dp, params);
 
                 emg.persist(dp);
                 afficheurProduit(dp.getLgFAMILLEID().getStrNAME(), dp.getIntQUANTITY(), dp.getIntPRICEUNITAIR(),
@@ -5753,7 +5757,19 @@ public class SalesServiceImpl implements SalesService {
 
         TPreenregistrementDetail dt = addPreenregistrementItem(op, tf, salesParams.getQte(), salesParams.getQteServie(),
                 salesParams.getQteUg(), salesParams.getItemPu());
+        noterLotScanne(dt, salesParams);
         return Pair.of(op, dt);
+    }
+
+    /**
+     * Retours du 10/10 (lecture GS1) : en mode B, le lot de la boite scannee est note sur la ligne et sera sorti a la
+     * cloture. Dans les autres modes (et sans scan), rien n'est note : Prestige sort le lot le plus proche.
+     */
+    private void noterLotScanne(TPreenregistrementDetail dt, SalesParams params) {
+        if (dt != null && StringUtils.isNotBlank(params.getLotScanne())
+                && "B".equals(lectureGs1Service.modeControle())) {
+            dt.noterLotScanne(params.getLotScanne());
+        }
     }
 
     /**

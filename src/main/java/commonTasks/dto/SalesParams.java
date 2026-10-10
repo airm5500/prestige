@@ -34,6 +34,8 @@ public class SalesParams implements Serializable {
     private String venteId;
     private String itemId;
     private Integer itemPu;
+    /** Retours du 10/10 (lecture GS1, mode B) : lot de la boite scannee, a sortir a la cloture. */
+    private String lotScanne;
     private Integer remiseDepot = 0;
     private boolean devis;
     private boolean depot;
@@ -166,6 +168,14 @@ public class SalesParams implements Serializable {
 
     public void setItemId(String itemId) {
         this.itemId = itemId;
+    }
+
+    public String getLotScanne() {
+        return lotScanne;
+    }
+
+    public void setLotScanne(String lotScanne) {
+        this.lotScanne = lotScanne;
     }
 
     public Integer getItemPu() {

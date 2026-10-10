@@ -6994,7 +6994,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     "remiseId": remiseId,
                     "venteId": venteId,
                     "userVendeurId": user,
-                    "prevente": isPrevente
+                    "prevente": isPrevente,
+                    /* retours du 10/10 (lecture GS1, mode B) : lot de la boite scannee, sorti a la cloture */
+                    "lotScanne": me.prendreLotScanne(record.get('lgFAMILLEID'))
                 };
             } else {
                 let ayantDroit = me.getAyantDroit(), ayantDroitId = null;
@@ -7016,12 +7018,21 @@ Ext.define('testextjs.controller.VenteCtr', {
                     "tierspayants": tierspayants,
                     "clientId": clientId,
                     "ayantDroitId": ayantDroitId,
-                    "prevente": isPrevente
+                    "prevente": isPrevente,
+                    /* retours du 10/10 (lecture GS1, mode B) : lot de la boite scannee, sorti a la cloture */
+                    "lotScanne": me.prendreLotScanne(record.get('lgFAMILLEID'))
                 };
             }
 
         }
         return params;
+    },
+
+    /** Lot scanne en attente d'ajout (mode B), pour ce produit seulement ; remis a vide une fois lu. */
+    prendreLotScanne: function (produitId) {
+        const l = this.lotScannePourAjout;
+        this.lotScannePourAjout = null;
+        return l && l.produitId === produitId ? l.lot : null;
     },
     addVenteAssuarnce: function (data, url, field, comboxProduit) {
         const me = this;
@@ -7791,13 +7802,34 @@ Ext.define('testextjs.controller.VenteCtr', {
                     return;
                 }
                 const produit = r.data;
+                /* retours du 10/10 : controle de la boite prise en rayon contre le lot que Prestige sort ; que faire si
+                   le lot differe : parametre KEY_VENTE_CONTROLE_LOT_GS1 (A avertir, B sortir le lot scanne, C bloquer) */
+                const mode = r.modeControle === 'B' || r.modeControle === 'C' ? r.modeControle : 'A';
+                const prevu = (r.lotPrevu ? 'lot ' + enc(r.lotPrevu) : '') + (r.peremptionPrevue ? (r.lotPrevu ? ' - ' : '') + 'pér. ' + enc(r.peremptionPrevue) : '');
+                if (r.controle === 'DIFFERENT' && mode === 'C') {
+                    me.dernierControleGs1 = 'BLOQUE';
+                    me.lotScannePourAjout = null;
+                    if (champ) {
+                        champ.setValue('<span class="gs1-controle gs1-bloque" style="color:#c62828;font-weight:bold;">\u26D4 Boîte refusée : '
+                                + info + ' ; prenez la boîte du ' + prevu + '</span>');
+                    }
+                    Ext.MessageBox.alert('Étiquette GS1', 'Ce n\'est pas la boîte à sortir : ' + info + '.<br>Prenez la boîte du <b>' + prevu
+                            + '</b> et scannez-la. Le produit n\'est pas ajouté.', function () {
+                        combo.clearValue();
+                        combo.focus(true, 100);
+                    });
+                    return;
+                }
                 me.updateStockField(produit.intNUMBERAVAILABLE);
                 me.getVnoemplacementField().setValue(produit.strLIBELLEE);
-                /* retours du 10/10 : controle de la boite prise en rayon contre le lot que Prestige sort */
-                const prevu = (r.lotPrevu ? 'lot ' + enc(r.lotPrevu) : '') + (r.peremptionPrevue ? (r.lotPrevu ? ' - ' : '') + 'pér. ' + enc(r.peremptionPrevue) : '');
+                me.lotScannePourAjout = mode === 'B' && r.lotEnStock && r.lot ? {lot: r.lot, produitId: produit.lgFAMILLEID} : null;
                 let html = info ? '<span style="color:#0D47A1;font-weight:bold;">' + info + '</span>' : '';
                 if (r.controle === 'CONFORME') {
                     html = '<span class="gs1-controle gs1-conforme" style="color:#1b7f3b;font-weight:bold;">\u2714 Lot conforme : ' + info + '</span>';
+                } else if (r.controle === 'DIFFERENT' && mode === 'B') {
+                    html = '<span class="gs1-controle gs1-different peremption-clignote" style="color:#c62828;font-weight:bold;">\u26A0 Lot différent : boîte scannée '
+                            + info + (r.lotEnStock ? ' ; la vente sortira ce lot (au lieu du ' + prevu + ')'
+                                    : ', inconnu du stock ; Prestige sortira le ' + prevu) + '</span>';
                 } else if (r.controle === 'DIFFERENT') {
                     html = '<span class="gs1-controle gs1-different peremption-clignote" style="color:#c62828;font-weight:bold;">\u26A0 Lot différent : boîte scannée '
                             + info + ' ; Prestige sort ' + prevu + '</span>';

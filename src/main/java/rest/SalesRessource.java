@@ -583,6 +583,9 @@ public class SalesRessource {
                 JSONObject produit = p.getJSONObject("data");
                 rest.service.impl.LectureGs1Service.controlerLot(o, c,
                         searchProduitServcie.peremptionProche(produit.optString("lgFAMILLEID", null)));
+                /* que faire si le lot differe (parametre A / B / C) ; B : le lot scanne peut-il etre sorti ? */
+                o.put("modeControle", lectureGs1Service.modeControle()).put("lotEnStock",
+                        lectureGs1Service.lotEnStock(produit.optString("lgFAMILLEID", null), c.lot));
                 return Response.ok().entity(o.put("success", true).put("data", produit).toString()).build();
             }
         }

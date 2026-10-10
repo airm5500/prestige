@@ -249,6 +249,32 @@ public class LotServiceImpl implements LotService {
         }
     }
 
+    @Override
+    public void pickLot(String produitId, int quantiteVendue, List<String> lotsScannes) {
+        if (quantiteVendue <= 0 || lotsScannes == null || lotsScannes.isEmpty()) {
+            pickLot(produitId, quantiteVendue);
+            return;
+        }
+        int reste = quantiteVendue;
+        for (String numero : lotsScannes) {
+            if (reste == 0) {
+                break;
+            }
+            List<TLot> lot = em
+                    .createQuery("SELECT t FROM TLot t WHERE t.currentStock > 0 AND t.lgFAMILLEID.lgFAMILLEID = ?1"
+                            + " AND UPPER(t.intNUMLOT) = ?2 AND (t.dtPEREMPTION IS NULL OR t.dtPEREMPTION > ?3)"
+                            + " ORDER BY t.dtPEREMPTION ASC", TLot.class)
+                    .setParameter(1, produitId).setParameter(2, numero.trim().toUpperCase())
+                    .setParameter(3, java.sql.Timestamp.valueOf(LocalDateTime.now()), TemporalType.TIMESTAMP)
+                    .setMaxResults(1).getResultList();
+            /* lot inconnu ou epuise : cette boite est sortie comme les autres (lot le plus proche) */
+            reste -= 1 - decrementerLots(lot, 1);
+        }
+        if (reste > 0) {
+            pickLot(produitId, reste);
+        }
+    }
+
     private int decrementerLots(List<TLot> lots, int quantite) {
         int remaining = quantite;
         for (var lot : lots) {
