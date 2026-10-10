@@ -554,4 +554,161 @@ public class RhServiceImpl implements RhService {
     private static JSONObject refus(String m) {
         return new JSONObject().put("success", false).put("message", m).put("msg", m);
     }
+
+    /* ------------------------------------------------------------------ equipes (retours du 10/10) */
+
+    private static final String[] JOURS_SEMAINE = { "", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+            "dimanche" };
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject equipes() {
+        Map<String, JSONObject> m = new LinkedHashMap<>();
+        for (Object[] e : (List<Object[]>) em.createNativeQuery("SELECT id, nom FROM t_equipe ORDER BY nom")
+                .getResultList()) {
+            m.put((String) e[0], new JSONObject().put("id", e[0]).put("nom", e[1]).put("membres", new JSONArray())
+                    .put("programme", new JSONArray()));
+        }
+        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT m.equipe_id, e.id, e.matricule,"
+                + " TRIM(CONCAT(e.nom, ' ', COALESCE(e.prenoms,''))) FROM t_equipe_membre m JOIN t_employe e ON e.id = m.employe_id"
+                + " ORDER BY e.nom, e.prenoms").getResultList()) {
+            JSONObject q = m.get((String) r[0]);
+            if (q != null) {
+                q.getJSONArray("membres")
+                        .put(new JSONObject().put("id", r[1]).put("matricule", t(r[2])).put("nom", t(r[3])));
+            }
+        }
+        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT equipe_id, jour_semaine, type,"
+                + " TIME_FORMAT(debut, '%H:%i'), TIME_FORMAT(fin, '%H:%i'), pause_minutes FROM t_equipe_programme"
+                + " ORDER BY equipe_id, jour_semaine").getResultList()) {
+            JSONObject q = m.get((String) r[0]);
+            if (q != null) {
+                q.getJSONArray("programme").put(new JSONObject().put("jour", n(r[1])).put("type", t(r[2]))
+                        .put("debut", t(r[3])).put("fin", t(r[4])).put("pause", n(r[5])));
+            }
+        }
+        JSONArray a = new JSONArray();
+        m.values().forEach(a::put);
+        return ok().put("data", a);
+    }
+
+    @Override
+    public JSONObject enregistrerEquipe(JSONObject q) {
+        String id = StringUtils.trimToNull(q.optString("id", null));
+        String nom = StringUtils.trimToEmpty(q.optString("nom", ""));
+        if (nom.isEmpty() || nom.length() > 60) {
+            return refus("Nom de l'équipe : 1 à 60 caractères.");
+        }
+        String doublon = premier("SELECT id FROM t_equipe WHERE nom = ?1 AND id <> ?2", nom,
+                StringUtils.defaultString(id));
+        if (doublon != null) {
+            return refus("Une autre équipe s'appelle déjà « " + nom + " ».");
+        }
+        JSONArray programme = q.optJSONArray("programme");
+        java.util.Set<Integer> jours = new java.util.HashSet<>();
+        for (int i = 0; programme != null && i < programme.length(); i++) {
+            JSONObject c = programme.getJSONObject(i);
+            int j = c.optInt("jour", 0);
+            String type = StringUtils.upperCase(StringUtils.trimToEmpty(c.optString("type")));
+            if (j < 1 || j > 7 || !jours.add(j)) {
+                return refus("Programme : jour de la semaine invalide ou en double.");
+            }
+            if (type.isEmpty()) {
+                continue;
+            }
+            String erreur = RegleRh.controlerPlanning(type, c.optString("debut"), c.optString("fin"),
+                    c.optInt("pause", 0));
+            if (erreur != null) {
+                return refus("Programme du " + JOURS_SEMAINE[j] + " : " + erreur);
+            }
+        }
+        JSONArray membres = q.optJSONArray("membres");
+        for (int i = 0; membres != null && i < membres.length(); i++) {
+            if (premier("SELECT id FROM t_employe WHERE id = ?1 AND statut = 'ACTIF'", membres.optString(i)) == null) {
+                return refus("Membre introuvable ou inactif.");
+            }
+        }
+        boolean nouvelle = id == null;
+        if (nouvelle) {
+            id = UUID.randomUUID().toString();
+            em.createNativeQuery("INSERT INTO t_equipe (id, nom, created_at, updated_at) VALUES (?1, ?2, NOW(), NOW())")
+                    .setParameter(1, id).setParameter(2, nom).executeUpdate();
+        } else if (em.createNativeQuery("UPDATE t_equipe SET nom = ?1, updated_at = NOW() WHERE id = ?2")
+                .setParameter(1, nom).setParameter(2, id).executeUpdate() == 0) {
+            return refus("Équipe introuvable.");
+        }
+        em.createNativeQuery("DELETE FROM t_equipe_programme WHERE equipe_id = ?1").setParameter(1, id).executeUpdate();
+        for (int i = 0; programme != null && i < programme.length(); i++) {
+            JSONObject c = programme.getJSONObject(i);
+            String type = StringUtils.upperCase(StringUtils.trimToEmpty(c.optString("type")));
+            if (type.isEmpty()) {
+                continue;
+            }
+            boolean repos = "REPOS".equals(type);
+            LocalTime d = repos ? null : RegleRh.heure(c.optString("debut")),
+                    f = repos ? null : RegleRh.heure(c.optString("fin"));
+            em.createNativeQuery(
+                    "INSERT INTO t_equipe_programme (equipe_id, jour_semaine, type, debut, fin, pause_minutes)"
+                            + " VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
+                    .setParameter(1, id).setParameter(2, c.optInt("jour")).setParameter(3, type)
+                    .setParameter(4, d == null ? null : Time.valueOf(d))
+                    .setParameter(5, f == null ? null : Time.valueOf(f))
+                    .setParameter(6, repos ? 0 : c.optInt("pause", 0)).executeUpdate();
+        }
+        /* un employe n'est que dans une equipe : il quitte l'ancienne s'il rejoint celle-ci */
+        em.createNativeQuery("DELETE FROM t_equipe_membre WHERE equipe_id = ?1").setParameter(1, id).executeUpdate();
+        int deplaces = 0;
+        for (int i = 0; membres != null && i < membres.length(); i++) {
+            deplaces += em.createNativeQuery("DELETE FROM t_equipe_membre WHERE employe_id = ?1")
+                    .setParameter(1, membres.optString(i)).executeUpdate();
+            em.createNativeQuery("INSERT INTO t_equipe_membre (employe_id, equipe_id) VALUES (?1, ?2)")
+                    .setParameter(1, membres.optString(i)).setParameter(2, id).executeUpdate();
+        }
+        return ok().put("id", id).put("message", (nouvelle ? "Équipe créée" : "Équipe enregistrée")
+                + (deplaces > 0 ? " (" + deplaces + " membre(s) retiré(s) de leur ancienne équipe)" : "") + ".");
+    }
+
+    @Override
+    public JSONObject supprimerEquipe(String id) {
+        em.createNativeQuery("DELETE FROM t_equipe_membre WHERE equipe_id = ?1").setParameter(1, id).executeUpdate();
+        em.createNativeQuery("DELETE FROM t_equipe_programme WHERE equipe_id = ?1").setParameter(1, id).executeUpdate();
+        int n = em.createNativeQuery("DELETE FROM t_equipe WHERE id = ?1").setParameter(1, id).executeUpdate();
+        return n == 0 ? refus("Équipe introuvable.")
+                : ok().put("message", "Équipe supprimée (le planning déjà saisi est gardé).");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject appliquerEquipe(String id, LocalDate semaine, boolean remplacer, TUser operateur) {
+        String nom = premier("SELECT nom FROM t_equipe WHERE id = ?1", id);
+        if (nom == null) {
+            return refus("Équipe introuvable.");
+        }
+        List<Object[]> programme = em.createNativeQuery("SELECT jour_semaine, type, debut, fin, pause_minutes"
+                + " FROM t_equipe_programme WHERE equipe_id = ?1").setParameter(1, id).getResultList();
+        List<Object> membres = em
+                .createNativeQuery("SELECT m.employe_id FROM t_equipe_membre m JOIN t_employe e"
+                        + " ON e.id = m.employe_id WHERE m.equipe_id = ?1 AND e.statut = 'ACTIF'")
+                .setParameter(1, id).getResultList();
+        if (programme.isEmpty() || membres.isEmpty()) {
+            return refus("L'équipe « " + nom + " » n'a pas de " + (programme.isEmpty() ? "programme." : "membre."));
+        }
+        LocalDate lundi = RegleRh.lundi(semaine == null ? LocalDate.now() : semaine);
+        int ecrites = 0, gardees = 0;
+        for (Object e : membres) {
+            for (Object[] c : programme) {
+                LocalDate j = lundi.plusDays(n(c[0]) - 1);
+                if (!remplacer && premier("SELECT id FROM t_planning WHERE employe_id = ?1 AND jour = ?2", e,
+                        java.sql.Date.valueOf(j)) != null) {
+                    gardees++;
+                    continue;
+                }
+                ecrites += ecrireCase((String) e, j, (String) c[1], heure(c[2]), heure(c[3]), (int) n(c[4]),
+                        "Équipe " + nom, operateur);
+            }
+        }
+        return ok().put("ecrites", ecrites).put("gardees", gardees).put("message",
+                "Équipe « " + nom + " » : " + ecrites + " case(s) écrite(s)"
+                        + (gardees > 0 ? ", " + gardees + " case(s) déjà saisie(s) gardée(s)" : "") + ".");
+    }
 }

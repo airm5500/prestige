@@ -38,6 +38,21 @@ public interface RhService {
      */
     JSONObject copierSemaine(LocalDate source, LocalDate cible, boolean remplacer, TUser operateur);
 
+    /** Retours du 10/10 : equipes (membres et programme commun de la semaine). */
+    JSONObject equipes();
+
+    /**
+     * Cree ou modifie une equipe : {id?, nom, membres:[employeId], programme:[{jour 1..7, type, debut, fin, pause}]}.
+     */
+    JSONObject enregistrerEquipe(JSONObject equipe);
+
+    JSONObject supprimerEquipe(String id);
+
+    /**
+     * Applique le programme de l'equipe a ses membres sur la semaine du jour donne (cases deja saisies gardees ou non).
+     */
+    JSONObject appliquerEquipe(String id, LocalDate semaine, boolean remplacer, TUser operateur);
+
     /* absences */
     JSONObject absences(LocalDate du, LocalDate au, String employeId, String statut);
 

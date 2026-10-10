@@ -169,6 +169,39 @@ public class RhRessource {
         return ok(service.copierSemaine(date(source, c.minusDays(7)), c, remplacer, utilisateur()));
     }
 
+    /* ---------------------------------------------------------------- equipes (retours du 10/10) */
+
+    @GET
+    @Path("equipes")
+    public Response equipes() {
+        Response r = controle();
+        return r != null ? r : ok(service.equipes());
+    }
+
+    @POST
+    @Path("equipes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerEquipe(String c) {
+        Response r = controle();
+        return r != null ? r : ok(service.enregistrerEquipe(corps(c)));
+    }
+
+    @DELETE
+    @Path("equipes/{id}")
+    public Response supprimerEquipe(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : ok(service.supprimerEquipe(id));
+    }
+
+    @POST
+    @Path("equipes/{id}/appliquer")
+    public Response appliquerEquipe(@PathParam("id") String id, @QueryParam("semaine") String semaine,
+            @DefaultValue("false") @QueryParam("remplacer") boolean remplacer) {
+        Response r = controle();
+        return r != null ? r
+                : ok(service.appliquerEquipe(id, date(semaine, LocalDate.now()), remplacer, utilisateur()));
+    }
+
     /* ---------------------------------------------------------------- absences */
 
     @GET

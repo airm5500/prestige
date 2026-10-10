@@ -9,6 +9,8 @@
  *    dans le planning ; cloche « Congés et absences à valider » ;
  *  - connexions : la connexion de l'essai est journalisee (poste, adresse) ; filtre par utilisateur ; la deconnexion la clot ;
  *  - calendrier des conges sur toute la largeur ;
+ *  - equipes (retours du 10/10) : panneau dans l'onglet Planning, membres et programme commun, programme invalide
+ *    refuse, application a une semaine (cases deja saisies gardees ou remplacees), un employe dans une seule equipe ;
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
@@ -25,6 +27,9 @@ const SEM = '2026-11-02', PREC = '2026-10-26';
 /* deux utilisateurs d'essai, sans employe, pour la creation a partir d'un utilisateur (retours du 10/10) */
 const UE = ['E2E-RH-U1', 'E2E-RH-U2'];
 function nettoyer() {
+  exec("DELETE FROM t_equipe_membre WHERE equipe_id IN (SELECT id FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%');"
+    + "DELETE FROM t_equipe_programme WHERE equipe_id IN (SELECT id FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%');"
+    + "DELETE FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%';");
   exec("DELETE FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "');"
     + "DELETE FROM t_user WHERE lg_USER_ID IN ('" + UE.join("','") + "');");
   exec("DELETE FROM t_planning WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
@@ -182,6 +187,64 @@ function nettoyer() {
     const rempl = await post('../api/v1/rh/planning/copier?source=' + PREC + '&cible=' + SEM + '&remplacer=true');
     ok('Copier en remplaçant : la case saisie est écrasée', rempl.success && q("SELECT type FROM t_planning WHERE employe_id = '" + e1 + "' AND jour = '2026-11-02'") === 'TRAVAIL', rempl.message);
 
+    /* ------------------------------------------------ equipes (retours du 10/10) */
+    const EQ = '2026-11-16';
+    await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.setActiveTab(r.down('#ongletPlanning')); });
+    await p.evaluate((d) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.lundi = Ext.Date.parse(d, 'Y-m-d'); r.chargerPlanning(); }, EQ);
+    await p.waitForTimeout(1200);
+    await clic('rhmanager #btnEquipes', 1500);
+    const panneau = await p.evaluate(() => { const x = Ext.ComponentQuery.query('rhmanager #panneauEquipes')[0];
+      return { visible: x.isVisible(), dansOnglet: !!x.up('#ongletPlanning'), fenetres: Ext.ComponentQuery.query('window[modal=true]').filter((w) => w.isVisible()).length }; });
+    ok('« Équipes » : panneau dans l\'onglet Planning (pas de fenêtre)', panneau.visible && panneau.dansOnglet && panneau.fenetres === 0, JSON.stringify(panneau));
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('rhmanager #equipeMembres')[0]; return !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 15000 });
+    const membres = async (ids) => {
+      await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeMembres')[0].getSelectionModel().deselectAll(); });
+      for (const id of ids) {
+        await p.evaluate((i) => { const g = Ext.ComponentQuery.query('rhmanager #equipeMembres')[0]; g.getView().focusRow(g.getStore().findExact('id', i));
+          g.getView().getNode(g.getStore().findExact('id', i)).setAttribute('data-e2e', 'membre'); }, id);
+        await p.click('[data-e2e=membre] .x-grid-row-checker');
+        await p.evaluate(() => document.querySelectorAll('[data-e2e=membre]').forEach((n) => n.removeAttribute('data-e2e')));
+      }
+    };
+    const programme = (lignes) => p.evaluate((l) => { const st = Ext.ComponentQuery.query('rhmanager #equipeProgramme')[0].getStore();
+      l.forEach((x) => { const r = st.findRecord('jour', x[0]); r.set({ type: x[1], debut: x[2] || '', fin: x[3] || '', pause: x[4] || 0 }); }); }, lignes);
+    await clic('rhmanager #btnNouvelleEquipe', 500);
+    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeNom')[0].setValue('ZZ Équipe E2E matin'); });
+    await membres([e1, e2]);
+    await programme([[1, 'TRAVAIL', '08:00', '16:00', 30], [2, 'TRAVAIL', '08:00', '16:00', 30], [3, 'TRAVAIL', '08:00', '16:00', 30], [4, 'TRAVAIL', '08:00', '16:00', 30],
+      [5, 'TRAVAIL', '08:00', '16:00', 30], [6, 'GARDE', '20:00', '08:00', 0], [7, 'TRAVAIL', '09:00', '09:00', 0]]);
+    await clic('rhmanager #btnEnregistrerEquipe', 1500);
+    const invalide = await boite(); await fermerBoite();
+    ok('Programme invalide (dimanche 09:00-09:00) : refus qui nomme le jour, rien n\'est créé', /dimanche : Le début et la fin sont identiques/.test(invalide)
+      && q("SELECT COUNT(*) FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%'") === '0', invalide);
+    await programme([[7, 'REPOS']]);
+    await clic('rhmanager #btnEnregistrerEquipe', 2000);
+    const eq = q("SELECT id FROM t_equipe WHERE nom = 'ZZ Équipe E2E matin'");
+    ok('Équipe enregistrée : 2 membres, 7 jours de programme', eq && q("SELECT COUNT(*) FROM t_equipe_membre WHERE equipe_id = '" + eq + "'") === '2'
+      && q("SELECT GROUP_CONCAT(CONCAT(jour_semaine, type, IFNULL(TIME_FORMAT(debut, '%H%i'), '-'), IFNULL(TIME_FORMAT(fin, '%H%i'), '-'), pause_minutes) ORDER BY jour_semaine) FROM t_equipe_programme WHERE equipe_id = '" + eq + "'")
+        === '1TRAVAIL0800160030,2TRAVAIL0800160030,3TRAVAIL0800160030,4TRAVAIL0800160030,5TRAVAIL0800160030,6GARDE200008000,7REPOS--0');
+    /* une case deja saisie, gardee sans « remplacer » */
+    await post('../api/v1/rh/planning', [{ employeId: e1, jour: EQ, type: 'REPOS' }]);
+    await clic('rhmanager #btnAppliquerEquipe', 2000);
+    const titre1 = await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #panneauEquipes')[0].title);
+    ok('Appliquer à la semaine : 13 cases écrites, la case déjà saisie gardée', /13 case\(s\) écrite\(s\), 1 case\(s\) déjà saisie\(s\) gardée/.test(titre1)
+      && q("SELECT type FROM t_planning WHERE employe_id = '" + e1 + "' AND jour = '" + EQ + "'") === 'REPOS'
+      && q("SELECT COUNT(*) FROM t_planning WHERE jour BETWEEN '2026-11-16' AND '2026-11-22' AND employe_id IN ('" + e1 + "','" + e2 + "')") === '14', titre1);
+    ok('Planning de la semaine rechargé : garde du samedi affichée', await p.evaluate((e) => { const s = Ext.ComponentQuery.query('rhmanager #ongletPlanning')[0].getStore();
+      const r = s.getAt(s.findExact('employeId', e)); return !!r && r.get('j5') && r.get('j5').type === 'GARDE'; }, e2));
+    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeRemplacer')[0].setValue(true); });
+    await clic('rhmanager #btnAppliquerEquipe', 2000);
+    ok('Avec « remplacer » : la case saisie prend le programme', q("SELECT CONCAT(type, TIME_FORMAT(debut, '%H:%i')) FROM t_planning WHERE employe_id = '" + e1 + "' AND jour = '" + EQ + "'") === 'TRAVAIL08:00');
+    /* un employe dans une seule equipe */
+    await clic('rhmanager #btnNouvelleEquipe', 500);
+    await p.evaluate(() => { Ext.ComponentQuery.query('rhmanager #equipeNom')[0].setValue('ZZ Équipe E2E soir'); });
+    await membres([e1]);
+    await programme([[1, 'TRAVAIL', '14:00', '22:00', 30]]);
+    await clic('rhmanager #btnEnregistrerEquipe', 2000);
+    ok('Un employé ne fait partie que d\'une équipe : il rejoint la nouvelle et quitte l\'ancienne', q("SELECT e.nom FROM t_equipe_membre m JOIN t_equipe e ON e.id = m.equipe_id WHERE m.employe_id = '" + e1 + "'") === 'ZZ Équipe E2E soir'
+      && q("SELECT COUNT(*) FROM t_equipe_membre WHERE equipe_id = '" + eq + "'") === '1');
+    await clic('rhmanager #btnEquipes', 500);
+
     /* ------------------------------------------------ conges et absences */
     await p.evaluate(() => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.mois = new Date(2026, 10, 1); r.setActiveTab(r.down('#ongletAbsences')); });
     await p.waitForTimeout(2000);
@@ -242,7 +305,8 @@ function nettoyer() {
     await b.close();
     nettoyer();
     exec("DELETE s FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.debut >= '" + debutEssai + "'");
-    ok('Jeu d\'essai retiré (employés, planning, absences, connexions de l\'essai)', q("SELECT COUNT(*) FROM t_employe") === employesAvant);
+    ok('Jeu d\'essai retiré (employés, planning, absences, équipes, connexions de l\'essai)', q("SELECT COUNT(*) FROM t_employe") === employesAvant
+      && q("SELECT COUNT(*) FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%'") === '0');
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
     process.exit(ko ? 1 : 0);

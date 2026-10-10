@@ -169,10 +169,16 @@ Ext.define('testextjs.view.rh.RhManager', {
                     }},
                 {xtype: 'tbtext', itemId: 'titreSemaine', text: ''},
                 '->',
-                {text: 'Copier la semaine précédente', itemId: 'btnCopier', handler: function () {
+                /* retours du 10/10 : equipes et programme commun (panneau a droite, pas de fenetre) */
+                {text: 'Équipes', itemId: 'btnEquipes', enableToggle: true, tooltip: 'Constituer des équipes et leur appliquer un programme commun',
+                    toggleHandler: function (b, actif) {
+                        me.afficherEquipes(actif);
+                    }},
+                {text: 'Copier la semaine précédente', itemId: 'btnCopier', tooltip: 'Recopier le planning de la semaine précédente', handler: function () {
                         me.copierSemaine();
                     }}
             ],
+            dockedItems: [me.panneauEquipes()],
             listeners: {
                 cellclick: function (v, td, col, rec) {
                     var c = v.getGridColumns()[col];
@@ -182,6 +188,163 @@ Ext.define('testextjs.view.rh.RhManager', {
                 }
             }
         };
+    },
+
+    /* ------------------------------------------------------------------ equipes (retours du 10/10) */
+
+    panneauEquipes: function () {
+        var me = this;
+        var membres = Ext.create('Ext.data.Store', {fields: ['id', 'matricule', 'nom', 'prenoms', 'poste'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/employes', reader: {type: 'json', root: 'data'}}});
+        var programme = Ext.create('Ext.data.Store', {fields: [{name: 'jour', type: 'int'}, 'libelle', 'type', 'debut', 'fin', {name: 'pause', type: 'int'}]});
+        var equipes = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'membres', 'programme'], proxy: {type: 'memory'}});
+        var types = Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: '(rien)'}, {v: 'TRAVAIL', l: 'Travail'}, {v: 'GARDE', l: 'Garde'}, {v: 'REPOS', l: 'Repos'}]});
+        return {
+            xtype: 'panel', dock: 'right', itemId: 'panneauEquipes', width: 470, hidden: true, title: 'Équipes', bodyPadding: 8, autoScroll: true,
+            cls: 'rh-equipes fen-section', layout: {type: 'vbox', align: 'stretch'},
+            tbar: [
+                {xtype: 'combobox', itemId: 'equipeChoisie', flex: 1, editable: false, queryMode: 'local', store: equipes, valueField: 'id', displayField: 'nom',
+                    emptyText: 'Choisir une équipe…', tooltip: 'Équipe à modifier ou à appliquer', listeners: {select: function (c, r) {
+                            me.afficherEquipe(r[0]);
+                        }}},
+                {text: 'Nouvelle', itemId: 'btnNouvelleEquipe', tooltip: 'Créer une équipe', handler: function () {
+                        me.afficherEquipe(null);
+                    }},
+                {text: 'Supprimer', itemId: 'btnSupprimerEquipe', tooltip: 'Supprimer l\'équipe (le planning déjà saisi est gardé)', handler: function () {
+                        me.supprimerEquipe();
+                    }}
+            ],
+            items: [
+                {xtype: 'textfield', itemId: 'equipeNom', fieldLabel: 'Nom', labelWidth: 50, emptyText: 'Ex. : Équipe du matin', maxLength: 60, enforceMaxLength: true},
+                {xtype: 'grid', itemId: 'equipeMembres', title: 'Membres (un employé n\'est que dans une équipe)', height: 200, store: membres,
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: false}),
+                    columns: [{text: 'Employé', dataIndex: 'nom', flex: 1, renderer: function (v, m, r) {
+                                return me.esc(v + ' ' + (r.get('prenoms') || ''));
+                            }}, {text: 'Poste', dataIndex: 'poste', width: 120, renderer: me.esc}]},
+                {xtype: 'grid', itemId: 'equipeProgramme', title: 'Programme commun de la semaine (cliquer une case pour la modifier)', height: 250, margin: '8 0 0 0',
+                    store: programme, plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+                    columns: [
+                        {text: 'Jour', dataIndex: 'libelle', width: 80},
+                        {text: 'Type', dataIndex: 'type', width: 90, editor: {xtype: 'combobox', store: types, queryMode: 'local', valueField: 'v', displayField: 'l', editable: false},
+                            renderer: function (v) {
+                                var t = me.TYPES_PLANNING[v];
+                                return t ? '<b style="color:' + t[1] + '">' + t[0] + '</b>' : '<span style="color:#b0bec5">—</span>';
+                            }},
+                        {text: 'Début', dataIndex: 'debut', width: 70, editor: {xtype: 'textfield', emptyText: '08:00', maskRe: /[0-9:]/}},
+                        {text: 'Fin', dataIndex: 'fin', width: 70, editor: {xtype: 'textfield', emptyText: '17:00', maskRe: /[0-9:]/}},
+                        {text: 'Pause (min)', dataIndex: 'pause', flex: 1, editor: {xtype: 'numberfield', minValue: 0, maxValue: 600, allowDecimals: false}}
+                    ]},
+                {xtype: 'container', layout: 'hbox', margin: '8 0 0 0', items: [
+                        {xtype: 'button', text: 'Enregistrer l\'équipe', itemId: 'btnEnregistrerEquipe', cls: 'fen-btn fen-btn-principal', tooltip: 'Enregistrer le nom, les membres et le programme',
+                            handler: function () {
+                                me.enregistrerEquipe();
+                            }},
+                        {xtype: 'tbspacer', flex: 1},
+                        {xtype: 'checkbox', itemId: 'equipeRemplacer', boxLabel: 'remplacer les cases déjà saisies', margin: '0 8 0 0'},
+                        {xtype: 'button', text: 'Appliquer à la semaine', itemId: 'btnAppliquerEquipe', tooltip: 'Écrire le programme dans le planning de la semaine affichée, pour chaque membre',
+                            handler: function () {
+                                me.appliquerEquipe();
+                            }}]}
+            ]
+        };
+    },
+
+    afficherEquipes: function (actif) {
+        var me = this, p = me.down('#panneauEquipes');
+        p.setVisible(actif);
+        if (actif) {
+            p.down('#equipeMembres').getStore().load({params: {inactifs: false}});
+            me.chargerEquipes();
+        }
+    },
+
+    chargerEquipes: function (choisir) {
+        var me = this, p = me.down('#panneauEquipes');
+        me.appel('GET', '../api/v1/rh/equipes', null, function (r) {
+            var st = p.down('#equipeChoisie').getStore();
+            st.loadData(r.data || []);
+            var rec = choisir ? st.getById(choisir) : null;
+            if (rec) {
+                p.down('#equipeChoisie').setValue(choisir);
+            }
+            me.afficherEquipe(rec || null);
+        });
+    },
+
+    afficherEquipe: function (rec) {
+        var me = this, p = me.down('#panneauEquipes'), d = rec ? rec.data : {membres: [], programme: []};
+        me.equipeCourante = rec ? rec.get('id') : null;
+        if (!rec) {
+            p.down('#equipeChoisie').clearValue();
+        }
+        p.down('#equipeNom').setValue(d.nom || '');
+        var g = p.down('#equipeMembres'), sel = [];
+        var cocher = function () {
+            g.getStore().each(function (r) {
+                if (Ext.Array.some(d.membres || [], function (m) {
+                    return m.id === r.get('id');
+                })) {
+                    sel.push(r);
+                }
+            });
+            g.getSelectionModel().select(sel, false, true);
+        };
+        g.getSelectionModel().deselectAll(true);
+        if (g.getStore().isLoading()) {
+            g.getStore().on('load', cocher, me, {single: true});
+        } else {
+            cocher();
+        }
+        var lignes = [];
+        Ext.each(me.JOURS, function (j, i) {
+            var c = Ext.Array.findBy(d.programme || [], function (x) {
+                return x.jour === i + 1;
+            }) || {};
+            lignes.push({jour: i + 1, libelle: j, type: c.type || '', debut: c.debut || '', fin: c.fin || '', pause: c.pause || 0});
+        });
+        p.down('#equipeProgramme').getStore().loadData(lignes);
+    },
+
+    enregistrerEquipe: function () {
+        var me = this, p = me.down('#panneauEquipes');
+        var membres = Ext.Array.map(p.down('#equipeMembres').getSelectionModel().getSelection(), function (r) {
+            return r.get('id');
+        });
+        var programme = [];
+        p.down('#equipeProgramme').getStore().each(function (r) {
+            programme.push({jour: r.get('jour'), type: r.get('type') || '', debut: r.get('debut') || '', fin: r.get('fin') || '', pause: r.get('pause') || 0});
+        });
+        me.appel('POST', '../api/v1/rh/equipes', {id: me.equipeCourante || null, nom: p.down('#equipeNom').getValue(), membres: membres, programme: programme}, function (r) {
+            p.setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || 'Équipe enregistrée.') + '</span>');
+            me.chargerEquipes(r.id);
+        });
+    },
+
+    supprimerEquipe: function () {
+        var me = this, p = me.down('#panneauEquipes');
+        if (!me.equipeCourante) {
+            return;
+        }
+        Ext.MessageBox.confirm('Équipes', 'Supprimer l\'équipe « ' + me.esc(p.down('#equipeNom').getValue()) + ' » ? Le planning déjà saisi est gardé.', function (b) {
+            if (b === 'yes') {
+                me.appel('DELETE', '../api/v1/rh/equipes/' + encodeURIComponent(me.equipeCourante), null, function () {
+                    me.chargerEquipes();
+                });
+            }
+        });
+    },
+
+    appliquerEquipe: function () {
+        var me = this, p = me.down('#panneauEquipes');
+        if (!me.equipeCourante) {
+            Ext.MessageBox.alert('Équipes', 'Enregistrez ou choisissez d\'abord une équipe.');
+            return;
+        }
+        me.appel('POST', '../api/v1/rh/equipes/' + encodeURIComponent(me.equipeCourante) + '/appliquer?semaine=' + me.iso(me.lundi)
+                + '&remplacer=' + !!p.down('#equipeRemplacer').getValue(), null, function (r) {
+            p.setTitle('Équipes — <span style="color:#1e8449">' + me.esc(r.message || '') + '</span>');
+            me.chargerPlanning();
+        });
     },
 
     chargerPlanning: function () {
