@@ -73,12 +73,19 @@ const ECRANS = [
        emettre le meme evenement (capture et annule : aucune action n'est executee). */
     const COMPARES = ['ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
       'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
-      'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente'];
+      'facturesubrogatoireother', 'ventesrateesmanager', 'mouvementprixvente']
+      .filter((x) => !process.env.E2E_ECRANS || process.env.E2E_ECRANS.split(',').indexOf(x) >= 0);
     /* Posos s'ouvre vide (une analyse se lance a la demande) : pas de ligne a comparer, seul l'habillage est verifie. */
     const SANS_LIGNES = ['pososmanager', 'facturesubrogatoireother'];
     /* Ventes ratees : registre vide sur le banc, une ligne de test est posee (retiree en fin de test). */
     exec("INSERT INTO t_vente_ratee (lg_VENTE_RATEE_ID, str_DESIGNATION, str_DESIGNATION_NORM, int_QUANTITE, str_MOTIF, dt_CREATED, str_STATUT)"
       + " VALUES ('e2e-style-vr', 'ZZ PRODUIT STYLE E2E', 'zz produit style e2e', 1, 'Rupture', NOW(), 'enable')");
+    /* Mouvements de caisse : le journal liste les entrees / sorties / reglements tiers payant (3, 4, 5) ; le banc n'a que
+       des fonds de caisse (1). Une entree de caisse de test (1 F, aujourd'hui) est posee, retiree en fin de test. */
+    exec("CREATE TEMPORARY TABLE tmp_mc SELECT * FROM t_mvt_caisse WHERE lg_MODE_REGLEMENT_ID IS NOT NULL AND lg_USER_ID IS NOT NULL LIMIT 1;"
+      + " UPDATE tmp_mc SET lg_MVT_CAISSE_ID='e2e-style-mc', lg_TYPE_MVT_CAISSE_ID='5', int_AMOUNT=1, bool_CHECKED=1, str_STATUT='enable',"
+      + " str_COMMENTAIRE='ZZ STYLE E2E', dt_CREATED=NOW(), dt_UPDATED=NOW(), dt_DATE_MVT=NOW();"
+      + " INSERT INTO t_mvt_caisse SELECT * FROM tmp_mc;");
     const releve = (x, habille) => p.evaluate(async (a) => {
       /* « avant » : ni la liste historique ni le theme partout (retours du 07/10) */
       const liste = window.PrestigeAffichage.ECRANS_STYLE_VENTE, garde = liste.slice(), partout = window.PrestigeAffichage.THEME_PARTOUT;
@@ -100,8 +107,9 @@ const ECRANS = [
       const n = g.getView().getNode(0);
       const barres = c.query('toolbar').filter((t) => t.hasCls('mv-barre'));
       const sortie = { lignes: g.getStore().getCount(), theme: c.hasCls('theme-liste'), barres: barres.length, pages: !!c.down('#pagesNumerotees'),
-        images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')).length : -1,
-        traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length : -1,
+        /* une icone masquee (x-hide-display) peut garder sa place, invisible (vente-theme.css, retours du 08/10) : non comptee */
+        images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('x-hide-display') && getComputedStyle(i).visibility !== 'hidden' && !i.classList.contains('act-ico')).length : -1,
+        traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null && !i.classList.contains('x-hide-display') && getComputedStyle(i).visibility !== 'hidden').length : -1,
         deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)),
         barresPages: c.query('pagingtoolbar').length, icones: [],
         /* configuration des icones, meme sans ligne : info-bulle, fonction, masquage conditionnel ; et dessin au trait */
@@ -114,7 +122,8 @@ const ECRANS = [
            qui appelle directement son action (reimpression...) n'est PAS cliquee : sa fonction identique suffit. */
         g.query('actioncolumn').forEach((col) => Ext.util.Observable.capture(col, (nom, v, ri, ci, item) => { sortie.evenements.push(nom + (item && item.action ? ':' + item.action : '')); return false; }));
         for (const col of g.query('actioncolumn')) {
-          const cell = n.querySelector('.x-grid-cell-' + col.getItemId());
+          /* liste groupee (factures) : la ligne porte aussi une cellule vide d'en-tete de groupe ; on prend celle des icones */
+          const cell = [...n.querySelectorAll('.x-grid-cell-' + col.getItemId())].find((td) => td.querySelector('.x-action-col-icon'));
           for (let i = 0; cell && i < (col.items || []).length; i++) {
             const el = cell.querySelector('.x-action-col-' + i);
             if (!el || el.offsetParent === null || el.classList.contains('x-hide-display')) { continue; }
@@ -136,6 +145,7 @@ const ECRANS = [
     for (const x of COMPARES) {
       const avant = await releve(x, false);
       const apres = await releve(x, true);
+      if (process.env.E2E_DETAIL) { console.log('   DETAIL ' + x + ' ' + JSON.stringify({ avant: { images: avant.images, traits: avant.traits, lignes: avant.lignes, icones: avant.icones }, apres: { images: apres.images, traits: apres.traits, lignes: apres.lignes, icones: apres.icones } })); }
       await p.screenshot({ path: '/home/user/prestige/captures/style-' + x + '.png' });
       ok(x + ' : habillé (fond, barres, tableau, pagination numérotée), sans débordement', !avant.theme && apres.theme && apres.barres >= 1 && (apres.pages || apres.barresPages === 0) && !apres.deborde, JSON.stringify({ avant: [avant.theme, avant.barres], apres }));
       ok(x + ' : configuration des icônes identique (fonctions, info-bulles), toutes au trait', JSON.stringify(apres.config) === JSON.stringify(avant.config) && apres.nonTrait.length === 0, 'non au trait : ' + JSON.stringify(apres.nonTrait) + ' ; ' + JSON.stringify(avant.config).slice(0, 200));
@@ -154,6 +164,7 @@ const ECRANS = [
     }
     exec("DELETE FROM medecin WHERE id='e2e-style-medecin'");
     exec("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID='e2e-style-vr'");
+    exec("DELETE FROM t_mvt_caisse WHERE lg_MVT_CAISSE_ID='e2e-style-mc'");
     for (const id of crees) {
       exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + id + "'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "';");
     }
