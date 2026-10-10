@@ -10,7 +10,7 @@
 Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
     extend: 'Ext.panel.Panel',
     xtype: 'pointagebl',
-    title: 'Pointage BL / avoirs',
+    title: 'Pointer les BL / Avoirs',
     layout: 'fit',
     cls: 'pb-ecran',
     config: {nameintern: '', titre: '', data: null},
@@ -47,7 +47,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         });
         me.pieces = Ext.create('Ext.data.Store', {
             fields: ['type', 'id', 'cle', 'reference', 'referenceAvoir', 'sequence', 'statut', 'date', {name: 'montantHt', type: 'number'},
-                {name: 'pointable', type: 'boolean'}, {name: 'pointe', type: 'boolean'}, 'pointeLe', 'pointePar'],
+                {name: 'pointable', type: 'boolean'}, {name: 'pointe', type: 'boolean'}, 'pointeLe', 'pointePar', 'controle', {name: 'controleEcarts', type: 'int'}],
             proxy: {type: 'ajax', url: '../api/v1/pointage-bl', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
             listeners: {
                 beforeload: function (st) {
@@ -83,6 +83,22 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                             emptyText: 'Choisir le grossiste', maxLength: 100, listeners: {select: function () {
                                     me.chargerTout();
                                 }}},
+                        /* retours du 10/10 : groupe de grossistes (les pieces de tous ses grossistes) ; le grossiste est alors grise */
+                        {xtype: 'combobox', itemId: 'groupe', width: 175, editable: false, queryMode: 'local', valueField: 'id', displayField: 'libelle',
+                            emptyText: 'ou un groupe de grossistes', tooltip: 'Pièces de tous les grossistes du groupe (le relevé reste importé grossiste par grossiste)',
+                            store: Ext.create('Ext.data.Store', {fields: [{name: 'id', type: 'string'}, 'libelle'], autoLoad: true,
+                                proxy: {type: 'ajax', url: '../api/v1/common/groupefournisseurs', reader: {type: 'json', root: 'data'}},
+                                listeners: {load: function (st) {
+                                        st.insert(0, {id: '', libelle: 'Aucun groupe'});
+                                    }}}),
+                            listeners: {select: function (c) {
+                                    var g = me.down('#grossiste');
+                                    if (c.getValue()) {
+                                        g.clearValue();
+                                    }
+                                    g.setDisabled(!!c.getValue());
+                                    me.chargerTout();
+                                }}},
                         {xtype: 'datefield', itemId: 'du', fieldLabel: 'Du', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: debutMois},
                         {xtype: 'datefield', itemId: 'au', fieldLabel: 'Au', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d', value: new Date()},
                         {xtype: 'combobox', itemId: 'etat', width: 160, editable: false, queryMode: 'local', value: 'TOUS',
@@ -92,6 +108,15 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                 }}},
                         {text: 'Rechercher', itemId: 'rechercherPointage', cls: 'btn-primary', iconCls: 'searchicon', handler: function () {
                                 me.charger();
+                            }},
+                        '->',
+                        {text: 'Imprimer', itemId: 'imprimerPointage', iconCls: 'printable', tooltip: 'Édition PDF de la liste (mêmes critères)', handler: function () {
+                                var c = me.criteres();
+                                if (!c.grossiste && !c.groupe) {
+                                    Ext.MessageBox.alert('Pointer les BL / Avoirs', 'Choisissez un grossiste ou un groupe de grossistes.');
+                                    return;
+                                }
+                                window.open('../api/v1/pointage-bl/pdf?' + Ext.Object.toQueryString(c));
                             }}
                     ]
                 }],
@@ -155,6 +180,15 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                         {text: 'Statut', dataIndex: 'statut', flex: 1, minWidth: 140, renderer: function (v) {
                                                 return enc(v);
                                             }},
+                                        /* retours du 10/10 (Q11) : controle du BL fait dans l'application mobile */
+                                        {text: 'Contrôle (appli)', dataIndex: 'controle', width: 170, tooltip: 'Lignes contrôlées dans l\'application, écarts de quantité, qui et quand',
+                                            renderer: function (v, m, r) {
+                                                if (!v) {
+                                                    return '';
+                                                }
+                                                m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(v)) + '"';
+                                                return '<span style="color:' + (r.get('controleEcarts') > 0 ? '#b42318' : '#17795f') + '">' + Ext.String.htmlEncode(v) + '</span>';
+                                            }},
                                         {text: 'Pointé le / par', dataIndex: 'pointeLe', width: 200, renderer: function (v, m, r) {
                                                 return v ? enc(v + ' — ' + r.get('pointePar')) : '';
                                             }}
@@ -189,6 +223,12 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                 me.oublierModele();
                                             }},
                                         '->',
+                                        {text: 'Imprimer', itemId: 'imprimerReleve', iconCls: 'printable', disabled: true,
+                                            tooltip: 'Édition PDF du rapprochement de ce relevé', handler: function () {
+                                                if (me.releveCourant) {
+                                                    window.open('../api/v1/pointage-bl/releve/' + encodeURIComponent(me.releveCourant.id) + '/pdf');
+                                                }
+                                            }},
                                         {text: 'Pointer les pièces rapprochées', itemId: 'pointerRapproches', cls: 'btn-primary', disabled: true,
                                             tooltip: 'Coche « Pointé » sur les BL et avoirs rapprochés de ce relevé (non encore pointés)', handler: function () {
                                                 me.pointerRapproches();
@@ -273,7 +313,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
     criteres: function () {
         var me = this;
         return {grossiste: me.down('#grossiste').getValue() || '', du: me.down('#du').getSubmitValue() || '',
-            au: me.down('#au').getSubmitValue() || '', etat: me.down('#etat').getValue() || 'TOUS'};
+            au: me.down('#au').getSubmitValue() || '', etat: me.down('#etat').getValue() || 'TOUS', groupe: me.down('#groupe').getValue() || ''};
     },
 
     chargerTout: function () {
@@ -284,6 +324,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         me.lignesReleve.removeAll();
         me.releveCourant = null;
         me.down('#pointerRapproches').disable();
+        me.down('#imprimerReleve').disable();
         me.down('#bandeauReleve').update('Importez le relevé PDF du grossiste. Un relevé présenté autrement que le format standard'
                 + ' (Type, Numéro BL / Séq client, Date BL, Montant HT) se règle une fois : désignez ses colonnes, le réglage est mémorisé pour ce grossiste.');
         me.jeton = null;
@@ -294,8 +335,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
 
     charger: function () {
         var me = this;
-        if (!me.down('#grossiste').getValue()) {
-            me.down('#totauxPointage').update('Choisissez un grossiste.');
+        if (!me.down('#grossiste').getValue() && !me.down('#groupe').getValue()) {
+            me.down('#totauxPointage').update('Choisissez un grossiste ou un groupe de grossistes.');
             me.pieces.removeAll();
             return;
         }
@@ -418,6 +459,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         var me = this;
         me.releveCourant = o;
         me.down('#pointerRapproches').setDisabled(!(o.compteurs && o.compteurs.RAPPROCHE));
+        me.down('#imprimerReleve').setDisabled(!o.id);
         me.filtrerReleve();
     },
 

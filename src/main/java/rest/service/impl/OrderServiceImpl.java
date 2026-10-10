@@ -2732,11 +2732,20 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
+        addBonItemCheckedQuantity(addCheckedQuantity, null);
+    }
+
+    /** Retours du 10/10 (Q11) : en plus, qui a controle la ligne et quand (application mobile ou ecran). */
+    @Override
+    public void addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity, String userId) {
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, addCheckedQuantity.getId());
         bonLivraisonDetail.setChecked(true);
         bonLivraisonDetail.setCheckedQuantity(addCheckedQuantity.getCheckedQuantity());
         getEmg().merge(bonLivraisonDetail);
-
+        getEmg().flush();
+        getEmg().createNativeQuery("UPDATE t_bon_livraison_detail SET dt_CONTROLE = NOW(), lg_CONTROLE_USER = ?1"
+                + " WHERE lg_BON_LIVRAISON_DETAIL = ?2").setParameter(1, userId)
+                .setParameter(2, addCheckedQuantity.getId()).executeUpdate();
     }
 
     /** Retours du 08/10 : dernier envoi PharmaML de la commande (liste des commandes). */

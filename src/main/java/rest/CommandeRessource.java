@@ -397,7 +397,8 @@ public class CommandeRessource {
     @POST
     @Path("bon/items/checked-quantities")
     public Response addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
-        this.orderService.addBonItemCheckedQuantity(addCheckedQuantity);
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        this.orderService.addBonItemCheckedQuantity(addCheckedQuantity, tu == null ? null : tu.getLgUSERID());
         return Response.accepted().build();
     }
 

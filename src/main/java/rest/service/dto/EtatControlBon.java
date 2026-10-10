@@ -66,5 +66,10 @@ public class EtatControlBon {
     private String dateLivraison;
 
     private String checked;
+    /** Retours du 10/10 (Q11) : controle fait dans l'application mobile — resume, qui, quand, ecarts. */
+    private String controleResume;
+    private String controlePar;
+    private String controleLe;
+    private int controleEcarts;
 
 }

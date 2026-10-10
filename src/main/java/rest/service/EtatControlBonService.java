@@ -82,4 +82,14 @@ public interface EtatControlBonService {
     byte[] generate(String groupBy, String dtStart, String dtEnd, String grossisteId, Integer groupeId)
             throws IOException;
 
+    /** Retours du 10/10 : grossistes d'un groupe (filtre « groupe de grossistes »). */
+    String grossistesDuGroupe(String groupeId);
+
+    /** Seuil du delai de saisie des BL, en jours (defaut 1). */
+    int delaiSaisie();
+
+    JSONObject enregistrerDelaiSaisie(int jours);
+
+    /** Tableau de bord du controle des achats (Q7). */
+    JSONObject tableauBord(boolean fullAuth, String dtStart, String dtEnd, String grossisteId, String dateType);
 }

@@ -126,9 +126,23 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         }
         // Un bon dont la commande a disparu est ecarte plutot que de faire echouer tout l'ecran
         // (voir EtatControlBonBuilder.build).
-        return q.getResultList().stream().map(EtatControlBonBuilder::build).filter(Objects::nonNull)
+        List<EtatControlBon> bons = q.getResultList().stream().map(EtatControlBonBuilder::build)
+                .filter(Objects::nonNull)
                 .peek(e1 -> e1.setReturnFullBl((!DELETE.equals(e1.getStrSTATUT()) && e1.getIntHTTC() > 0) && fullAuth))
                 .collect(Collectors.toList());
+        /* retours du 10/10 (Q11) : qui a controle (application mobile), quand, combien d'ecarts */
+        Map<String, org.json.JSONObject> controles = rest.service.impl.controle.ControleBl.parBl(em,
+                bons.stream().map(EtatControlBon::getLgBONLIVRAISONID).collect(Collectors.toList()));
+        for (EtatControlBon b : bons) {
+            org.json.JSONObject c = controles.get(b.getLgBONLIVRAISONID());
+            if (c != null) {
+                b.setControleResume(rest.service.impl.controle.ControleBl.resume(c));
+                b.setControlePar(c.optString("par"));
+                b.setControleLe(c.optString("le"));
+                b.setControleEcarts(c.optInt("ecarts"));
+            }
+        }
+        return bons;
     }
 
     private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType) {
@@ -164,9 +178,15 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         predicates.add(cb.greaterThanOrEqualTo(root.get(dateAttr), startInclusive));
         predicates.add(cb.lessThan(root.get(dateAttr), endExclusive));
         if (StringUtils.isNotEmpty(grossisteId)) {
-            predicates.add(cb.equal(
-                    root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
-                    grossisteId));
+            /* retours du 10/10 : filtre par groupe de grossistes = liste d'identifiants separes par des virgules */
+            if (grossisteId.indexOf(',') >= 0) {
+                predicates.add(root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID)
+                        .get(TGrossiste_.lgGROSSISTEID).in(java.util.Arrays.asList(grossisteId.split(","))));
+            } else {
+                predicates.add(cb.equal(
+                        root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
+                        grossisteId));
+            }
         }
         if (StringUtils.isNotEmpty(search)) {
             search = search + "%";
@@ -677,5 +697,85 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         });
 
         return genericExcel;
+    }
+
+    /**
+     * Retours du 10/10 : grossistes d'un groupe, pour le filtre « groupe de grossistes » (identifiants separes par des
+     * virgules, toujours au moins une virgule pour etre lus comme une liste ; un groupe vide ne ramene rien).
+     */
+    @Override
+    public String grossistesDuGroupe(String groupeId) {
+        List<?> ids = em.createNativeQuery("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE groupeId = ?1")
+                .setParameter(1, groupeId).getResultList();
+        StringBuilder s = new StringBuilder();
+        for (Object o : ids) {
+            s.append(o).append(',');
+        }
+        return s.length() == 0 ? "-,-" : s.toString();
+    }
+
+    /** Parametre du delai de saisie des BL (jours) : au-dela, le BL est saisi en retard. */
+    static final String CLE_DELAI_SAISIE = "KEY_CONTROLE_ACHAT_DELAI_SAISIE_JOURS";
+
+    @Override
+    public int delaiSaisie() {
+        List<?> r = em.createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?1")
+                .setParameter(1, CLE_DELAI_SAISIE).getResultList();
+        try {
+            return r.isEmpty() || r.get(0) == null ? 1 : Math.max(0, Integer.parseInt(String.valueOf(r.get(0)).trim()));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
+    @Override
+    public JSONObject enregistrerDelaiSaisie(int jours) {
+        if (jours < 0 || jours > 60) {
+            return new JSONObject().put("success", false).put("msg", "Délai de saisie : entre 0 et 60 jours.");
+        }
+        int n = em.createNativeQuery("UPDATE t_parameters SET str_VALUE = ?1, dt_UPDATED = NOW() WHERE str_KEY = ?2")
+                .setParameter(1, String.valueOf(jours)).setParameter(2, CLE_DELAI_SAISIE).executeUpdate();
+        if (n == 0) {
+            em.createNativeQuery("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT,"
+                    + " dt_CREATED, dt_UPDATED) VALUES (?1, ?2, 'Controle des achats : delai de saisie des BL (jours)',"
+                    + " 'SYSTEME', 'enable', NOW(), NOW())").setParameter(1, CLE_DELAI_SAISIE)
+                    .setParameter(2, String.valueOf(jours)).executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("delai", jours);
+    }
+
+    /**
+     * Retours du 10/10 (Q7) : tableau de bord du controle des achats sur les BL de la periode (memes criteres que la
+     * liste). Delai de saisie = date de saisie du BL − date du BL du grossiste, en jours ; au plus le seuil = bon,
+     * au-dela = en retard. Controle = controle termine. Repartition par groupe de grossistes et par grossiste du
+     * groupe.
+     */
+    @Override
+    public JSONObject tableauBord(boolean fullAuth, String dtStart, String dtEnd, String grossisteId, String dateType) {
+        List<EtatControlBon> bons = list(fullAuth, null, dtStart, dtEnd, grossisteId, 0, 0, true, dateType);
+        int seuil = delaiSaisie();
+        Map<String, Integer> delais = new java.util.HashMap<>();
+        List<String> ids = bons.stream().map(EtatControlBon::getLgBONLIVRAISONID).collect(Collectors.toList());
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> paquet = ids.subList(i, Math.min(ids.size(), i + 500));
+            for (Object o : em
+                    .createNativeQuery("SELECT lg_BON_LIVRAISON_ID, DATEDIFF(dt_CREATED, dt_DATE_LIVRAISON)"
+                            + " FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID IN (?1)")
+                    .setParameter(1, paquet).getResultList()) {
+                Object[] r = (Object[]) o;
+                if (r[1] != null) {
+                    delais.put(String.valueOf(r[0]), ((Number) r[1]).intValue());
+                }
+            }
+        }
+        rest.service.impl.controle.TableauControleAchat t = new rest.service.impl.controle.TableauControleAchat(seuil);
+        for (EtatControlBon b : bons) {
+            commonTasks.dto.ErpFournisseur f = b.getFournisseur();
+            t.ajouter(f == null ? "" : f.getGroupeId(), f == null ? "" : f.getGroupeLibelle(),
+                    f == null ? "" : f.getFournisseurId(),
+                    f == null ? b.getFournisseurLibelle() : f.getFournisseurLibelle(), "TERMINE".equals(b.getChecked()),
+                    delais.get(b.getLgBONLIVRAISONID()), b.getIntHTTC());
+        }
+        return t.json().put("success", true).put("seuil", seuil);
     }
 }

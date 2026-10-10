@@ -214,6 +214,10 @@ Ext.define('testextjs.controller.App', {
      * substitutions, alertes, tableau de bord), d'ou qu'on l'ouvre (menu, tableau de bord, retour d'une commande).
      */
     ecranReel: function (xtype) {
+        /* retours du 10/10 : l'etat de controle des achats s'ouvre dans son conteneur a onglets (liste + tableau de bord) */
+        if (xtype === 'etatscontrolemanager' && Ext.ClassManager.getNameByAlias('widget.controleachats')) {
+            return 'controleachats';
+        }
         return xtype === 'i_order_manager' && Ext.ClassManager.getNameByAlias('widget.commandesencours') ? 'commandesencours' : xtype;
     },
 

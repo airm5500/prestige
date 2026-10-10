@@ -38,6 +38,15 @@ public class EtatControlBonResource {
     @EJB
     private rest.report.ReportUtil reportUtil;
 
+    /**
+     * Retours du 10/10 : un groupe de grossistes choisi remplace le grossiste (la liste des grossistes est alors grisee
+     * a l'ecran) ; le service recoit les grossistes du groupe.
+     */
+    private String cible(String grossisteId, String groupeId) {
+        return org.apache.commons.lang3.StringUtils.isNotBlank(groupeId) && !"ALL".equalsIgnoreCase(groupeId.trim())
+                ? etatControlBonService.grossistesDuGroupe(groupeId.trim()) : grossisteId;
+    }
+
     @GET
     @Path("list")
     public Response list(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
@@ -45,7 +54,9 @@ public class EtatControlBonResource {
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
             @QueryParam(value = "dateType") String dateType,
             @DefaultValue("") @QueryParam(value = "statutControle") String statutControle,
-            @DefaultValue("") @QueryParam(value = "ecart") String ecart) {
+            @DefaultValue("") @QueryParam(value = "ecart") String ecart,
+            @QueryParam(value = "groupeId") String groupeId) {
+        grossisteId = cible(grossisteId, groupeId);
         boolean returnFullBLLAuthority = Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest),
                 Parameter.ACTION_RETURN_FULL_BL);
 
@@ -67,7 +78,9 @@ public class EtatControlBonResource {
             @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType,
             @DefaultValue("") @QueryParam(value = "statutControle") String statutControle,
-            @DefaultValue("") @QueryParam(value = "ecart") String ecart) {
+            @DefaultValue("") @QueryParam(value = "ecart") String ecart,
+            @QueryParam(value = "groupeId") String groupeId) {
+        grossisteId = cible(grossisteId, groupeId);
         dal.TUser user = (dal.TUser) servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER);
         if (user == null) {
             return Response.ok().entity(new org.json.JSONObject().put("success", false)
@@ -242,11 +255,69 @@ public class EtatControlBonResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response exportToExecel(@QueryParam(value = "search") String search,
             @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType)
-            throws IOException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType,
+            @QueryParam(value = "groupeId") String groupeId) throws IOException {
 
         return this.exportExcelUtilService.exportToExecel(
-                etatControlBonService.generate(search, dtStart, dtEnd, grossisteId, dateType), "etat_control_");
+                etatControlBonService.generate(search, dtStart, dtEnd, cible(grossisteId, groupeId), dateType),
+                "etat_control_");
 
+    }
+
+    /**
+     * Retours du 10/10 (Q7) : tableau de bord du controle des achats (memes criteres de periode, grossiste et groupe
+     * que la liste).
+     */
+    @GET
+    @Path("tableau-bord")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response tableauBord(@QueryParam(value = "grossisteId") String grossisteId,
+            @QueryParam(value = "groupeId") String groupeId, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType) {
+        if (servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER) == null) {
+            return Response.ok(new org.json.JSONObject().put("success", false)
+                    .put("msg", util.Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        boolean fullAuth = Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest),
+                Parameter.ACTION_RETURN_FULL_BL);
+        return Response.ok(etatControlBonService
+                .tableauBord(fullAuth, dtStart, dtEnd, cible(grossisteId, groupeId), dateType)
+                .put("modifiable",
+                        Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest), PRIVILEGE_DELAI))
+                .toString()).build();
+    }
+
+    static final String PRIVILEGE_DELAI = "P_CONTROLE_ACHAT_PARAMETRER";
+
+    /** Retours du 10/10 (Q7) : seuil du delai de saisie (jours), modifiable par qui a le droit. */
+    @POST
+    @Path("tableau-bord/delai")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response delaiSaisie(String corps) {
+        if (servletRequest.getSession().getAttribute(util.Constant.AIRTIME_USER) == null) {
+            return Response.ok(new org.json.JSONObject().put("success", false)
+                    .put("msg", util.Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        if (!Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest), PRIVILEGE_DELAI)) {
+            return Response.ok(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Vous n'avez pas le droit de modifier le délai de saisie.").toString()).build();
+        }
+        org.json.JSONObject in;
+        try {
+            in = new org.json.JSONObject(corps == null || corps.trim().isEmpty() ? "{}" : corps);
+        } catch (RuntimeException e) {
+            return Response
+                    .ok(new org.json.JSONObject().put("success", false).put("msg", "Valeur illisible.").toString())
+                    .build();
+        }
+        Object v = in.opt("jours");
+        int jours;
+        try {
+            jours = Integer.parseInt(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return Response.ok(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Délai de saisie : nombre entier de jours attendu.").toString()).build();
+        }
+        return Response.ok(etatControlBonService.enregistrerDelaiSaisie(jours).toString()).build();
     }
 }

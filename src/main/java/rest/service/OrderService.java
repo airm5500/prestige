@@ -145,6 +145,9 @@ public interface OrderService {
 
     void addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity);
 
+    /** Retours du 10/10 (Q11) : enregistre aussi qui a controle la ligne et quand. */
+    void addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity, String userId);
+
     JSONObject cloneCommande(String orderId, TUser user) throws JSONException;
 
     JSONObject cloneSuggestionOrder(String suggestionId, TUser user) throws JSONException;

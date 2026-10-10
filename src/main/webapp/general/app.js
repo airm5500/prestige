@@ -418,6 +418,7 @@ Ext.application({
         'testextjs.model.RuptureFournisseur',
         'testextjs.view.commandemanagement.rupturefournisseur.RuptureFournisseurManager',
         'testextjs.view.commandemanagement.etats.EtatControleManager',
+        'testextjs.view.commandemanagement.etats.ControleAchats',
         'testextjs.model.EtatControle',
         'testextjs.view.configmanagement.grossiste.action.grossisteview',
         'testextjs.view.commandemanagement.order.action.editgrossiste',

@@ -43,7 +43,9 @@ function criteresControleAchat() {
         dtEnd: Ext.getCmp('datefin') ? Ext.getCmp('datefin').getSubmitValue() : '',
         dateType: lu('dateType'),
         statutControle: lu('filtreStatutControle'),
-        ecart: lu('filtreEcartControle')
+        ecart: lu('filtreEcartControle'),
+        /* retours du 10/10 : groupe de grossistes (remplace le grossiste, grise quand un groupe est choisi) */
+        groupeId: lu('lg_GROUPE_GROSSISTE_ID')
     };
 }
 
@@ -201,6 +203,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     name: 'checked',
                     type: 'string'
                 },
+                'controleResume', {name: 'controleEcarts', type: 'int'},
                 {
                     name: 'bonLivraisonDetails',
                     type: 'auto'
@@ -299,6 +302,20 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     align: 'center',
                     sortable: true,
                     renderer: this.controleStatutRenderer
+                },
+                /* retours du 10/10 (Q11) : controle fait dans l'application mobile — lignes, ecarts, qui et quand */
+                {
+                    header: 'Contrôle (appli)',
+                    dataIndex: 'controleResume',
+                    width: 150,
+                    sortable: false,
+                    renderer: function (v, m, r) {
+                        if (!v) {
+                            return '<span style="color:#9aa8b6">—</span>';
+                        }
+                        m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(v)) + '"';
+                        return '<span style="color:' + (r.get('controleEcarts') > 0 ? '#b42318' : '#17795f') + '">' + Ext.String.htmlEncode(v) + '</span>';
+                    }
                 },
                 {
                     xtype: 'actioncolumn',
@@ -502,6 +519,34 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     }
 
                 },
+                /* retours du 10/10 : filtre par groupe de grossistes ; s'il est choisi, la liste des grossistes est grisee */
+                {
+                    xtype: 'combobox',
+                    id: 'lg_GROUPE_GROSSISTE_ID',
+                    itemId: 'groupeGrossiste',
+                    width: 175,
+                    editable: false,
+                    queryMode: 'local',
+                    valueField: 'id',
+                    displayField: 'libelle',
+                    emptyText: 'Groupe de grossistes...',
+                    tooltip: 'Groupe de grossistes : remplace le choix du grossiste',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: [{name: 'id', type: 'string'}, 'libelle'], autoLoad: true,
+                        proxy: {type: 'ajax', url: '../api/v1/common/groupefournisseurs', reader: {type: 'json', root: 'data'}},
+                        listeners: {
+                            load: function (st) {
+                                st.insert(0, {id: '', libelle: 'Tous les groupes'});
+                            }
+                        }
+                    }),
+                    listeners: {
+                        select: function (cmp) {
+                            Me.appliquerGroupe(cmp.getValue());
+                            Me.onRechClick();
+                        }
+                    }
+                },
                 {
                     xtype: 'datefield',
                     id: 'datedebut',
@@ -661,22 +706,12 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 plugins: new Ext.ux.ProgressBarPager(), // same store GridPanel is using
                 listeners: {
                     beforechange: function (page, currentPage) {
+                        /* retours du 10/10 : tous les criteres de l'ecran a chaque page (statut, ecarts et groupe compris) */
                         let myProxy = this.store.getProxy();
-                        myProxy.params = {
-                            dtEnd: null,
-                            dtStart: null,
-                            search: '',
-                            grossisteId: ''
-                        };
-                        let lg_GROSSISTE_ID = "";
-                        if (Ext.getCmp('lg_GROSSISTE_ID').getValue()) {
-                            lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
-                        }
-                        myProxy.setExtraParam('dtStart', Ext.getCmp('datedebut').getSubmitValue());
-                        myProxy.setExtraParam('dtEnd', Ext.getCmp('datefin').getSubmitValue());
-                        myProxy.setExtraParam('search', Ext.getCmp('rechecher').getValue());
-                        myProxy.setExtraParam('grossisteId', lg_GROSSISTE_ID);
-                        myProxy.setExtraParam('dateType', Ext.getCmp('dateType').getValue());
+                        myProxy.params = {};
+                        Ext.Object.each(criteresControleAchat(), function (k, v) {
+                            myProxy.setExtraParam(k, v);
+                        });
                     }
 
                 }
@@ -855,10 +890,21 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         const dtStart = Ext.getCmp('datedebut').getSubmitValue();
 
         window.location = '../api/v1/etat-control-bon/export-excel?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur + '&fileType=excel'
-                + '&dateType=' + Ext.getCmp('dateType').getValue();
+                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + encodeURIComponent(valeur || '') + '&fileType=excel'
+                + '&dateType=' + Ext.getCmp('dateType').getValue() + '&groupeId=' + encodeURIComponent(criteresControleAchat().groupeId);
       
 
+    },
+
+    /** Retours du 10/10 : un groupe choisi grise (et vide) le choix du grossiste ; « Tous les groupes » le rend. */
+    appliquerGroupe: function (groupeId) {
+        var g = Ext.getCmp('lg_GROSSISTE_ID');
+        if (groupeId) {
+            g.clearValue();
+            g.setDisabled(true);
+        } else {
+            g.setDisabled(false);
+        }
     },
 
     onRechClick: function () {

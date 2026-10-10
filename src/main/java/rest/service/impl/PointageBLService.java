@@ -173,9 +173,26 @@ public class PointageBLService {
 
     /** Ecran de pointage : pieces de la periode, filtre pointees / non pointees, totaux. */
     public JSONObject liste(String grossisteId, String emplacement, LocalDate du, LocalDate au, String etat) {
-        List<PieceVue> toutes = pieces(grossisteId, emplacement, du, au);
+        return liste(java.util.Collections.singletonList(grossisteId), emplacement, du, au, etat);
+    }
+
+    /**
+     * Retours du 10/10 : pieces de plusieurs grossistes (filtre « groupe de grossistes »), dans l'ordre des dates.
+     */
+    public JSONObject liste(List<String> grossistes, String emplacement, LocalDate du, LocalDate au, String etat) {
+        List<PieceVue> toutes = new java.util.ArrayList<>();
+        for (String g : grossistes) {
+            toutes.addAll(pieces(g, emplacement, du, au));
+        }
+        if (grossistes.size() > 1) {
+            toutes.sort(java.util.Comparator.comparing((PieceVue p) -> p.date == null ? LocalDate.MIN : p.date)
+                    .thenComparing(p -> StringUtils.defaultString(p.reference)));
+        }
         JSONArray data = new JSONArray();
         long bl = 0, avoirs = 0, pointes = 0, nonPointes = 0;
+        /* retours du 10/10 (Q11) : controle des BL fait dans l'application mobile */
+        java.util.Map<String, JSONObject> controles = rest.service.impl.controle.ControleBl.parBl(em, toutes.stream()
+                .filter(p -> TYPE_BL.equals(p.type)).map(p -> p.id).collect(java.util.stream.Collectors.toList()));
         for (PieceVue p : toutes) {
             boolean pointe = p.pointeLe != null;
             if (TYPE_BL.equals(p.type)) {
@@ -194,7 +211,11 @@ public class PointageBLService {
                     || "NON_POINTES".equals(etat) && (pointe || TYPE_RECEPTION.equals(p.type))) {
                 continue;
             }
-            data.put(p.json());
+            JSONObject j = p.json();
+            JSONObject c = TYPE_BL.equals(p.type) ? controles.get(p.id) : null;
+            j.put("controle", rest.service.impl.controle.ControleBl.resume(c)).put("controleEcarts",
+                    c == null ? 0 : c.optInt("ecarts"));
+            data.put(j);
         }
         return new JSONObject().put("success", true).put("data", data).put("total", data.length()).put("totalBl", bl)
                 .put("totalAvoirs", avoirs).put("net", bl + avoirs).put("pointes", pointes)
@@ -579,5 +600,37 @@ public class PointageBLService {
                 .setParameter(1, userId).setParameter(2, releveId).executeUpdate();
         return new JSONObject().put("success", true).put("bl", bl).put("avoirs", av).put("msg",
                 bl + " BL et " + av + " avoir(s) pointé(s).");
+    }
+
+    /** Retours du 10/10 : grossistes d'un groupe (filtre « groupe de grossistes »). */
+    @SuppressWarnings("unchecked")
+    public List<String> grossistesDuGroupe(String groupeId) {
+        List<String> l = new java.util.ArrayList<>();
+        for (Object o : em
+                .createNativeQuery("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE groupeId = ?1 ORDER BY str_LIBELLE")
+                .setParameter(1, groupeId).getResultList()) {
+            l.add(String.valueOf(o));
+        }
+        return l;
+    }
+
+    /** Libelle d'un grossiste ou d'un groupe (en-tete des editions). */
+    public String libelle(String grossisteId, String groupeId) {
+        List<?> r = StringUtils.isNotBlank(grossisteId)
+                ? em.createNativeQuery("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1")
+                        .setParameter(1, grossisteId).getResultList()
+                : em.createNativeQuery("SELECT CONCAT('Groupe ', libelle) FROM groupefournisseur WHERE id = ?1")
+                        .setParameter(1, groupeId).getResultList();
+        return r.isEmpty() || r.get(0) == null ? "" : String.valueOf(r.get(0));
+    }
+
+    /** Nom abrege de l'officine (en-tete des editions). */
+    public String officine() {
+        try {
+            dal.TOfficine o = em.find(dal.TOfficine.class, "1");
+            return o == null || o.getStrNOMABREGE() == null ? "" : o.getStrNOMABREGE();
+        } catch (RuntimeException e) {
+            return "";
+        }
     }
 }

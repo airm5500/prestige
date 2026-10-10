@@ -3080,3 +3080,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .ac-puce-filtre, .ac-puce-eq { cursor: pointer; }
 .ac-puce-filtre.actif { background: #1f3b5a; color: #fff !important; }
 .ac-puce-eq:hover { text-decoration: underline; }
+/* Retours du 10/10 (Q7) : tableau de bord du controle des achats */
+.ca-repartition tr.ca-groupe td { font-weight: 700; background: #f3f6f9; }
+.ca-repartition tr.ca-grossiste td { color: #3b4a5a; }
+.ca-repartition .ca-retrait { padding-left: 18px; }
+.ca-repartition td.ca-bon { color: #17795f; }
+.ca-repartition td.ca-retard { color: #b42318; }
+.pml-tuile-detail { font-size: 11px; color: #5b6b7b; margin-top: 2px; }

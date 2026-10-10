@@ -94,22 +94,166 @@ public class PointageBLRessource {
 
     @GET
     public Response liste(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
-            @QueryParam("au") String au, @QueryParam("etat") String etat) {
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
         JSONObject r = refus();
         if (r != null) {
             return json(r);
         }
-        if (StringUtils.isBlank(grossiste)) {
-            return json(echec("Choisissez un grossiste."));
+        Object crit = criteres(grossiste, groupe, du, au);
+        if (crit instanceof JSONObject) {
+            return json((JSONObject) crit);
         }
-        LocalDate fin = jour(au, LocalDate.now()), debut = jour(du, fin.withDayOfMonth(1));
-        if (debut.isAfter(fin)) {
-            return json(echec("La date de début est après la date de fin."));
+        Criteres c = (Criteres) crit;
+        return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat));
+    }
+
+    /** Criteres communs a la liste et a son edition PDF. */
+    private static final class Criteres {
+        java.util.List<String> grossistes;
+        LocalDate debut, fin;
+    }
+
+    /**
+     * Retours du 10/10 : un grossiste, ou a defaut tous les grossistes d'un groupe. Rend un echec (JSONObject) ou les
+     * criteres.
+     */
+    private Object criteres(String grossiste, String groupe, String du, String au) {
+        Criteres c = new Criteres();
+        if (StringUtils.isNotBlank(grossiste)) {
+            c.grossistes = java.util.Collections.singletonList(grossiste.trim());
+        } else if (StringUtils.isNotBlank(groupe)) {
+            c.grossistes = service.grossistesDuGroupe(groupe.trim());
+            if (c.grossistes.isEmpty()) {
+                return echec("Ce groupe n'a aucun grossiste.");
+            }
+        } else {
+            return echec("Choisissez un grossiste ou un groupe de grossistes.");
         }
-        if (debut.plusYears(1).isBefore(fin)) {
-            return json(echec("Période trop longue : un an au plus."));
+        c.fin = jour(au, LocalDate.now());
+        c.debut = jour(du, c.fin.withDayOfMonth(1));
+        if (c.debut.isAfter(c.fin)) {
+            return echec("La date de début est après la date de fin.");
         }
-        return json(service.liste(grossiste.trim(), emplacement(utilisateur()), debut, fin, etat));
+        if (c.debut.plusYears(1).isBefore(c.fin)) {
+            return echec("Période trop longue : un an au plus.");
+        }
+        return c;
+    }
+
+    private static final java.time.format.DateTimeFormatter JJ = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy");
+
+    private String imprimePar() {
+        dal.TUser u = utilisateur();
+        return u == null ? "" : (u.getStrFIRSTNAME() + " " + u.getStrLASTNAME()).trim();
+    }
+
+    private static String montant(Object v) {
+        if (v == null || JSONObject.NULL.equals(v)) {
+            return "";
+        }
+        long n = ((Number) v).longValue();
+        return String.format(java.util.Locale.FRANCE, "%,d", n).replace('\u202f', ' ').replace('\u00a0', ' ');
+    }
+
+    /** Retours du 10/10 : edition PDF de la liste des pieces (pointees ou non), memes criteres que l'ecran. */
+    @GET
+    @Path("pdf")
+    @Produces("application/pdf")
+    public Response pdf(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
+        if (refus() != null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        Object crit = criteres(grossiste, groupe, du, au);
+        if (crit instanceof JSONObject) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(((JSONObject) crit).optString("msg"))
+                    .type("text/plain;charset=UTF-8").build();
+        }
+        Criteres c = (Criteres) crit;
+        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat);
+        java.util.List<String[]> lignes = new java.util.ArrayList<>();
+        org.json.JSONArray d = l.getJSONArray("data");
+        for (int i = 0; i < d.length(); i++) {
+            JSONObject p = d.getJSONObject(i);
+            String type = p.optString("type");
+            lignes.add(new String[] {
+                    "BL".equals(type) ? "BL"
+                            : "RETOUR".equals(type) ? "Avoir (retour)"
+                                    : "RECEPTION".equals(type) ? "Avoir (manquants)" : type,
+                    p.optString("reference"), p.optString("sequence"), p.optString("referenceAvoir"),
+                    p.optString("date"), montant(p.opt("montantHt")), p.optString("statut"),
+                    p.optBoolean("pointe") ? "Oui" : "Non",
+                    (p.optString("pointeLe") + " " + p.optString("pointePar")).trim() });
+        }
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = service.officine();
+        e.titre = "POINTAGE DES BL ET AVOIRS — " + service.libelle(grossiste, groupe);
+        e.sousTitre = "Du " + c.debut.format(JJ) + " au " + c.fin.format(JJ) + " · "
+                + ("POINTES".equals(etat) ? "pièces pointées"
+                        : "NON_POINTES".equals(etat) ? "pièces non pointées" : "toutes les pièces")
+                + " · BL " + montant(l.opt("totalBl")) + " · avoirs " + montant(l.opt("totalAvoirs")) + " · net "
+                + montant(l.opt("net")) + " · " + l.optInt("pointes") + " pointée(s), " + l.optInt("nonPointes")
+                + " non pointée(s)";
+        e.imprimePar = imprimePar();
+        e.entetes = new String[] { "Type", "N° BL", "N° séq.", "Réf. avoir", "Date", "Montant HT", "Statut", "Pointé",
+                "Pointé le / par" };
+        e.largeurs = new float[] { 6f, 11f, 7f, 11f, 8f, 10f, 14f, 6f, 17f };
+        e.droite = new boolean[] { false, false, false, false, false, true, false, false, false };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, lignes), "application/pdf")
+                .header("Content-Disposition", "inline; filename=pointage_bl.pdf").build();
+    }
+
+    /** Retours du 10/10 : edition PDF du rapprochement d'un releve avec les pieces de Prestige. */
+    @GET
+    @Path("releve/{id}/pdf")
+    @Produces("application/pdf")
+    public Response relevePdf(@PathParam("id") String id) {
+        if (refus() != null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject r = service.releve(id);
+        if (!r.optBoolean("success")) {
+            return Response.status(Response.Status.NOT_FOUND).entity(r.optString("msg"))
+                    .type("text/plain;charset=UTF-8").build();
+        }
+        java.util.List<String[]> lignes = new java.util.ArrayList<>();
+        org.json.JSONArray d = r.getJSONArray("data");
+        for (int i = 0; i < d.length(); i++) {
+            JSONObject l = d.getJSONObject(i);
+            lignes.add(new String[] { libelleStatut(l.optString("statut")), l.optString("type"), l.optString("numero"),
+                    l.optString("sequence"), l.optString("date"), montant(l.opt("montantReleve")),
+                    l.optString("pieceReference"), montant(l.opt("montantPrestige")), montant(l.opt("ecart")) });
+        }
+        JSONObject t = r.getJSONObject("totaux");
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = service.officine();
+        e.titre = "RAPPROCHEMENT DU RELEVÉ — " + r.optString("grossiste");
+        e.sousTitre = "Relevé " + r.optString("fichier") + " du " + r.optString("du") + " au " + r.optString("au")
+                + " · relevé net " + montant(t.opt("releveNet")) + " · Prestige net " + montant(t.opt("prestigeNet"))
+                + " · écart " + montant(t.opt("ecartNet"));
+        e.imprimePar = imprimePar();
+        e.entetes = new String[] { "Statut", "Type", "N° relevé", "Séq.", "Date", "Montant relevé", "Pièce Prestige",
+                "Montant Prestige", "Écart" };
+        e.largeurs = new float[] { 14f, 6f, 11f, 6f, 8f, 11f, 13f, 11f, 9f };
+        e.droite = new boolean[] { false, false, false, false, false, true, false, true, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, lignes), "application/pdf")
+                .header("Content-Disposition", "inline; filename=rapprochement_releve.pdf").build();
+    }
+
+    private static String libelleStatut(String s) {
+        switch (s == null ? "" : s) {
+        case "RAPPROCHE":
+            return "Rapproché";
+        case "ECART":
+            return "Écart de montant";
+        case "ABSENT_PRESTIGE":
+            return "Absent de Prestige";
+        case "ABSENT_RELEVE":
+            return "Absent du relevé";
+        default:
+            return s;
+        }
     }
 
     /** type = BL | RETOUR ; pointe = true / false. */
