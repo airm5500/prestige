@@ -6,9 +6,9 @@ import java.util.function.UnaryOperator;
 import rest.report.pdf.LabelSheetPdf;
 
 /**
- * Etiquetage Pro : choix d'impression. Type de code (code-barres standard, DataMatrix, QR code), planche (memes modeles
- * que Prestige, ou format libre : colonnes, lignes, dimensions et calage donnes a l'ecran), premiere position, nom de
- * la pharmacie, monnaie du prix et date imprimee par defaut. Rien n'est enregistre : ces choix valent pour
+ * Etiquettage Pro : choix d'impression. Type de code (code-barres standard, DataMatrix, QR code), planche (memes
+ * modeles que Prestige, ou format libre : colonnes, lignes, dimensions et calage donnes a l'ecran), premiere position,
+ * nom de la pharmacie, monnaie du prix et date imprimee par defaut. Rien n'est enregistre : ces choix valent pour
  * l'impression.
  */
 public final class OptionsImpression {

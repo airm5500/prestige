@@ -105,7 +105,7 @@ public final class LabelSheetPdf {
             return this;
         }
 
-        /** Etiquetage Pro : mention libre (rayon, commentaire...) ; absente, l'etiquette est dessinee comme avant. */
+        /** Etiquettage Pro : mention libre (rayon, commentaire...) ; absente, l'etiquette est dessinee comme avant. */
         private String mention;
 
         public LabelData mention(String texte) {
@@ -551,8 +551,8 @@ public final class LabelSheetPdf {
     }
 
     /**
-     * Etiquetage Pro, code-barres standard avec mention libre : « grossiste - date - mention » sur la 2e ligne. Si elle
-     * deborde, le grossiste est abrege, puis la date est retiree : la mention reste lisible.
+     * Etiquettage Pro, code-barres standard avec mention libre : « grossiste - date - mention » sur la 2e ligne. Si
+     * elle deborde, le grossiste est abrege, puis la date est retiree : la mention reste lisible.
      */
     static String ligneAvecMention(BaseFont police, float taille, float largeur, String grossiste, String date,
             String mention) {

@@ -13,7 +13,7 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * Etiquetage Pro autonome (hors Prestige) : registre local des codes d'etiquettes, jamais reproduits.
+ * Etiquettage Pro autonome (hors Prestige) : registre local des codes d'etiquettes, jamais reproduits.
  * <p>
  * Chaque installation a son prefixe de 2 caracteres (tire au premier lancement, ou choisi), en tete de tous ses codes :
  * deux postes de prefixes differents ne peuvent pas donner le meme code. Les codes font 5 caracteres (prefixe compris),

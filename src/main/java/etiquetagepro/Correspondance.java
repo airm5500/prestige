@@ -13,7 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Etiquetage Pro : correspondance entre les colonnes du fichier et les zones de l'etiquette (assistant d'importation).
+ * Etiquettage Pro : correspondance entre les colonnes du fichier et les zones de l'etiquette (assistant d'importation).
  * <p>
  * La source d'une zone est un modele : « {Titre de colonne} » prend la cellule de cette colonne, un texte sans
  * accolades est un texte fixe (le meme pour toutes les lignes, pour une zone absente du fichier), et les deux se

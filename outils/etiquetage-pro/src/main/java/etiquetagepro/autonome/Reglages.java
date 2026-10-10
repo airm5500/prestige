@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Etiquetage Pro autonome : reglages du poste (pharmacie, monnaie, planche, type de code, calage) et correspondances
+ * Etiquettage Pro autonome : reglages du poste (pharmacie, monnaie, planche, type de code, calage) et correspondances
  * retenues par forme de fichier. Dossier : propriete « etiquetagepro.dossier », sinon %APPDATA%\EtiquetagePro sous
  * Windows, sinon ~/.etiquetage-pro.
  */
@@ -59,7 +59,7 @@ final class Reglages {
         try {
             Files.createDirectories(dossier);
             try (OutputStream out = Files.newOutputStream(dossier.resolve(nom))) {
-                p.store(out, "Etiquetage Pro");
+                p.store(out, "Etiquettage Pro");
             }
         } catch (IOException e) {
             /* poste en lecture seule : les reglages ne seront pas retenus */

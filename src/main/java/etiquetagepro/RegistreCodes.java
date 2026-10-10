@@ -1,7 +1,7 @@
 package etiquetagepro;
 
 /**
- * Etiquetage Pro : source des codes propres aux etiquettes 2D (jamais reproduits). Dans Prestige, le registre de la
+ * Etiquettage Pro : source des codes propres aux etiquettes 2D (jamais reproduits). Dans Prestige, le registre de la
  * base (t_etiquette_code) ; dans l'application autonome, un registre local prefixe par installation.
  */
 public interface RegistreCodes {

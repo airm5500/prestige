@@ -1,6 +1,6 @@
-# Étiquetage Pro
+# Étiquettage Pro
 
-Étiquetage Pro sert à imprimer des étiquettes de produits venant d'un fichier (CSV ou Excel) ou saisis à l'écran, en trois types de code :
+Étiquettage Pro sert à imprimer des étiquettes de produits venant d'un fichier (CSV ou Excel) ou saisis à l'écran, en trois types de code :
 
 - code-barres standard (le CIP) ;
 - DataMatrix ;
@@ -10,10 +10,10 @@ DataMatrix et QR code suivent la norme GS1 et contiennent l'EAN, la péremption,
 
 Il existe sous deux formes :
 
-- le menu **GESTION DU STOCK › Étiquetage Pro** de Prestige ;
-- l'application autonome **EtiquetagePro.jar**, utilisable sur n'importe quel ordinateur, sans Prestige.
+- le menu **GESTION DU STOCK › Étiquettage Pro** de Prestige ;
+- l'application autonome **EtiquettagePro.jar**, utilisable sur n'importe quel ordinateur, sans Prestige.
 
-Étiquetage Pro ne fait qu'imprimer : rien n'est enregistré dans les fiches articles.
+Étiquettage Pro ne fait qu'imprimer : rien n'est enregistré dans les fiches articles.
 
 ## L'assistant en 4 étapes
 
@@ -29,6 +29,12 @@ L'assistant se déroule dans l'écran, sans fenêtre.
 Le séparateur et l'encodage (UTF-8 ou Windows) sont reconnus seuls. Pour un classeur Excel, on choisit la feuille. On indique aussi si la 1re ligne porte les titres des colonnes. L'aperçu affiche le fichier tel qu'il a été lu.
 
 **Saisir les produits à la main.** Ce choix va directement au tableau des produits (étape 3).
+
+**Panneau « Colonnes »** (à droite de l'aperçu). Il sert à savoir comment préparer un nouveau modèle de fichier avant de l'apporter :
+
+- **Colonnes du fichier en cours** : chaque colonne lue, un exemple tiré de la 1re ligne, et la zone de l'étiquette qui la reprend (« → CIP », « → Prix »…), ou « non utilisée ». Le tableau suit les changements faits à l'étape 2.
+- **Titres reconnus automatiquement** : pour chaque zone, les titres de colonne pris sans réglage, par exemple « Code produit » ou « CIP7 » pour le CIP, « Libellé » pour la désignation, « PV » pour le prix. Les accents et les majuscules ne comptent pas.
+- **Fichier modèle (CSV)** : il contient une colonne par zone et deux lignes d'exemple. Importé tel quel, chaque colonne va dans sa zone. Partez de ce modèle pour tester avant d'apporter un nouveau fichier.
 
 ### 2. Zones
 
@@ -97,9 +103,9 @@ Ce que l'étiquette affiche dépend du type de code :
 
 Le menu est protégé par le droit **P_SM_ETIQUETAGE_PRO**. Il a été donné aux rôles qui ont déjà la gestion des étiquettes, et à l'administrateur. Pour les autres rôles, on l'ajoute dans la gestion des rôles.
 
-## Application autonome : EtiquetagePro.jar
+## Application autonome : EtiquettagePro.jar
 
-- **Lancer** : double-clic sur `EtiquetagePro.jar`, ou `java -jar EtiquetagePro.jar`. Il faut Java 8 ou plus ; aucune installation, base de données ou connexion n'est nécessaire.
+- **Lancer** : double-clic sur `EtiquettagePro.jar`, ou `java -jar EtiquettagePro.jar`. Il faut Java 8 ou plus ; aucune installation, base de données ou connexion n'est nécessaire.
 - **Utilisation** : c'est le même assistant en 4 étapes. Le PDF est enregistré là où vous l'indiquez, puis ouvert pour l'impression.
 - **Codes uniques** : chaque poste a son **préfixe** de 2 caractères, affiché à l'étape 4 et tiré au premier lancement. Tous ses codes commencent par ce préfixe. Deux postes n'ont donc jamais le même code, à condition que leurs préfixes soient différents. Les codes donnés sont tenus dans un registre local, et un code n'est jamais redonné, même avec deux fenêtres ouvertes.
 - **Réglages du poste** : nom de la pharmacie, monnaie, planche, calage, type de code et correspondances des fichiers sont retenus d'une fois sur l'autre. Ils sont rangés dans :
@@ -113,7 +119,7 @@ Le menu est protégé par le droit **P_SM_ETIQUETAGE_PRO**. Il a été donné au
 
 ```
 mvn package                          # à la racine du projet (bibliothèques du WAR)
-outils/etiquetage-pro/construire.sh  # donne outils/etiquetage-pro/dist/EtiquetagePro.jar
+outils/etiquetage-pro/construire.sh  # donne outils/etiquetage-pro/dist/EtiquettagePro.jar
 outils/etiquetage-pro/tester.sh      # essai de la fenêtre sur un écran virtuel
 ```
 

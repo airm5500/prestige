@@ -117,8 +117,8 @@ function nettoyer() {
 
   try {
     ok('Précondition : un produit de Prestige à compléter (' + PCIP + ')', !!PCIP && !!PNOM);
-    ok('Migration : menu « Étiquetage Pro » dans GESTION DU STOCK, droit donné à l\'administrateur',
-      q("SELECT CONCAT(s.str_VALUE, '|', m.str_VALUE, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID=s.lg_MENU_ID WHERE s.str_COMPOSANT='etiquetagepro'") === 'Étiquetage Pro|GESTION DU STOCK|P_SM_ETIQUETAGE_PRO'
+    ok('Migration : menu « Étiquettage Pro » dans GESTION DU STOCK, droit donné à l\'administrateur',
+      q("SELECT CONCAT(s.str_VALUE, '|', m.str_VALUE, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID=s.lg_MENU_ID WHERE s.str_COMPOSANT='etiquetagepro'") === 'Étiquettage Pro|GESTION DU STOCK|P_SM_ETIQUETAGE_PRO'
       && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='admin' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
 
     /* ---------------------------------------------------------------- droit */
@@ -144,6 +144,12 @@ function nettoyer() {
       && z['Lot'][0] === '{N° lot}' && z['Péremption'][0] === '{Exp}' && z["Nombre d'étiquettes"][0] === '{Qté}' && z['Mention libre'][0] === '{Rayon}' && z['EAN'][0] === '',
       JSON.stringify(z));
     ok('Aperçu de la 1re ligne par zone', z['CIP'][2] === '1234567' && z['Prix'][2] === '1 500' && z['Mention libre'][2] === 'R1', JSON.stringify(z['CIP']) + JSON.stringify(z['Prix']));
+    const colonnes = () => p.evaluate(() => [...Ext.ComponentQuery.query('etiquetagepro #colonnes')[0].body.dom.querySelectorAll('table.etqp-col')].map((t) => [...t.rows].map((r) => [...r.cells].map((c) => c.textContent.trim()))));
+    let cols = await colonnes();
+    ok('Indication des colonnes du fichier : exemple et zone reprise (« Code produit » → CIP, « Rayon » → Mention libre)', cols.length === 2
+      && JSON.stringify(cols[0][1]) === JSON.stringify(['Code produit', '1234567', '→ CIP']) && cols[0][8][0] === 'Rayon' && cols[0][8][2] === '→ Mention libre', JSON.stringify(cols[0]));
+    ok('Titres reconnus par zone affichés (CIP *, « code produit », « libelle »…)', cols[1].length === 11 && cols[1][1][0] === 'CIP *' && /code produit/.test(cols[1][1][1])
+      && /libelle/.test(cols[1][2][1]), JSON.stringify(cols[1].slice(0, 3)));
     ok('CIP et désignation obligatoires par défaut, le CIP verrouillé', z['CIP'][1] && z['Désignation'][1] && !z['Prix'][1]
       && await p.evaluate(() => Ext.ComponentQuery.query('etiquetagepro')[0].zonesStore.findRecord('id', 'CIP').get('verrouillee')));
     await cliquer('#suivant');
@@ -244,6 +250,23 @@ function nettoyer() {
     z = await zones();
     ok('Même forme de fichier : correspondance reprise (zone ajoutée, modèle, obligatoires)', z['Emplacement'] && z['Emplacement'][0] === 'Rayon {Rayon}'
       && z['Mention libre'][0] === '{Emplacement} / lot {N° lot}' && !z['Désignation'][1] && /reprise/.test(await etat()), JSON.stringify(z) + ' ' + await etat());
+
+    /* fichier modele : telecharge depuis l'ecran, puis importe tel quel : chaque colonne va dans sa zone */
+    await ouvrir();
+    const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), cliquer('#fichierModele')]);
+    const modele = path.join(DOSSIER, 'modele.csv');
+    await dl.saveAs(modele);
+    const texteModele = fs.readFileSync(modele, 'utf8');
+    ok('Fichier modèle téléchargé (une colonne par zone, 2 lignes d\'exemple)', dl.suggestedFilename() === 'etiquettage-pro-modele.csv'
+      && texteModele.split(/\r?\n/)[0].replace(/^\ufeff/, '').split(';').length === 10, texteModele.split(/\r?\n/)[0]);
+    await importer(modele);
+    z = await zones();
+    cols = await colonnes();
+    ok('Modèle réimporté : toutes les zones prises d\'après les titres, aucune colonne inutilisée', Object.keys(z).every((k) => z[k][0] === '{' + k + '}')
+      && cols[0].slice(1).every((r) => r[2].startsWith('→')), JSON.stringify(z));
+    await cliquer('#suivant'); await cliquer('#suivant');
+    pr = await produits();
+    ok('Modèle → 2 produits sans erreur ni avertissement, 4 étiquettes', pr.length === 2 && pr.every((x) => x.e === '' && x.a === '') && pr[0].et + pr[1].et === 4, JSON.stringify(pr));
 
     await ouvrir();
     await importer(path.join(DOSSIER, 'produits.xlsx'));

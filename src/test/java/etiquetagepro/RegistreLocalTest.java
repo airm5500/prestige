@@ -15,7 +15,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Etiquetage Pro autonome : registre local des codes (prefixe d'installation, jamais reproduits). */
+/** Etiquettage Pro autonome : registre local des codes (prefixe d'installation, jamais reproduits). */
 class RegistreLocalTest {
 
     @TempDir

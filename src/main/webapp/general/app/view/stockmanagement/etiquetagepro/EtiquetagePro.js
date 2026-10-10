@@ -1,6 +1,6 @@
 /* global Ext */
 /*
- * Etiquetage Pro (retours du 10/10) : etiquettes de produits importes d'un fichier CSV / Excel ou saisis a l'ecran,
+ * Etiquettage Pro (retours du 10/10) : etiquettes de produits importes d'un fichier CSV / Excel ou saisis a l'ecran,
  * en code-barres standard, DataMatrix ou QR code, sur les planches de Prestige. Impression seule : rien n'est enregistre
  * dans les fiches articles.
  *
@@ -18,7 +18,7 @@
 Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     extend: 'Ext.panel.Panel',
     xtype: 'etiquetagepro',
-    title: 'Étiquetage Pro',
+    title: 'Étiquettage Pro',
     cls: 'etqp-ecran',
     layout: {type: 'vbox', align: 'stretch'},
     config: {nameintern: '', titre: '', data: null},
@@ -79,7 +79,9 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         if (!Ext.get('etqp-styles')) {
             Ext.util.CSS.createStyleSheet('.etqp-ligne-erreur .x-grid-cell{background-color:#fdecea !important}'
                     + '.etqp-aide{color:#5b6b7b}.etqp-info{padding:6px 10px;background:#eef4fb;border-radius:4px}'
-                    + '.etqp-etapes .x-btn-pressed{font-weight:bold}', 'etqp-styles');
+                    + '.etqp-etapes .x-btn-pressed{font-weight:bold}'
+                    + '.etqp-col{border-collapse:collapse;width:100%;font-size:12px}.etqp-col th,.etqp-col td{border:1px solid #d5dde6;padding:3px 5px;text-align:left;vertical-align:top}'
+                    + '.etqp-col th{background:#eef4fb}.etqp-col-titre{margin:4px 0}', 'etqp-styles');
         }
         me.callParent(arguments);
         me.etape = 0;
@@ -246,6 +248,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                 }
             });
             me.majFormat();
+            me.majColonnes();
         });
     },
 
@@ -277,7 +280,14 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                     ]},
                 {xtype: 'component', itemId: 'infoFichier', margin: '10 0', html: '<div class="etqp-aide">Importez un fichier CSV (séparateur ; , tabulation ou |) ou Excel (.xlsx, .xls). '
                             + 'Ses colonnes seront associées aux zones de l\'étiquette à l\'étape suivante. Vous pouvez aussi saisir les produits directement.</div>'},
-                {xtype: 'gridpanel', itemId: 'apercu', flex: 1, store: me.apercuStore, columns: [], title: 'Aperçu du fichier', columnLines: true}
+                {xtype: 'container', flex: 1, layout: {type: 'hbox', align: 'stretch'}, items: [
+                        {xtype: 'gridpanel', itemId: 'apercu', flex: 1, store: me.apercuStore, columns: [], title: 'Aperçu du fichier', columnLines: true},
+                        {xtype: 'panel', itemId: 'colonnes', title: 'Colonnes', width: 430, margin: '0 0 0 10', autoScroll: true, bodyPadding: 8,
+                            tbar: [{text: 'Télécharger un fichier modèle (CSV)', itemId: 'fichierModele', handler: function () {
+                                        me.telechargerModele();
+                                    }}],
+                            html: ''}
+                    ]}
             ]};
     },
 
@@ -285,6 +295,61 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
      * Envoi du fichier au serveur (FormData) : le fichier choisi est garde, pour relire une autre feuille ou sans titres
      * sans le redemander.
      */
+    /**
+     * Indication des colonnes (retours du 10/10) : colonnes du fichier en cours, avec un exemple et la zone qui les
+     * reprend ; titres reconnus automatiquement pour chaque zone. On sait ainsi comment preparer un nouveau modele.
+     */
+    majColonnes: function () {
+        var me = this, p = me.down('#colonnes'), enc = Ext.String.htmlEncode;
+        if (!p || !me.cfg) {
+            return;
+        }
+        var h = '';
+        if (me.tableau) {
+            var premiere = me.tableau.lignes.length ? me.tableau.lignes[0] : [];
+            h += '<div class="etqp-col-titre"><b>Colonnes du fichier en cours</b></div><table class="etqp-col">'
+                    + '<tr><th>Colonne</th><th>Exemple (1re ligne)</th><th>Zone</th></tr>';
+            me.tableau.colonnes.forEach(function (c, i) {
+                var zones = [];
+                me.zonesStore.each(function (z) {
+                    var source = String(z.get('source') || '');
+                    var refs = source.match(/\{[^{}]+\}/g) || [];
+                    if (refs.some(function (r) {
+                        return me.normaliser(r.slice(1, -1)) === me.normaliser(c);
+                    })) {
+                        zones.push(z.get('libelle'));
+                    }
+                });
+                h += '<tr><td><b>' + enc(c) + '</b></td><td>' + enc(premiere[i] || '') + '</td><td>'
+                        + (zones.length ? '<span style="color:#17795f">\u2192 ' + enc(zones.join(', ')) + '</span>'
+                                : '<span style="color:#8a94a0">non utilisée</span>') + '</td></tr>';
+            });
+            h += '</table>';
+        }
+        h += '<div class="etqp-col-titre" style="margin-top:10px"><b>Titres reconnus automatiquement</b> '
+                + '<span class="etqp-aide">(accents et majuscules indifférents ; * obligatoire par défaut)</span></div>'
+                + '<table class="etqp-col"><tr><th>Zone</th><th>Titres de colonne</th></tr>';
+        Ext.each(me.cfg.zones, function (z) {
+            h += '<tr><td><b>' + enc(z.libelle) + (z.obligatoire ? ' *' : '') + '</b></td><td>' + enc((z.titres || []).join(', ')) + '</td></tr>';
+        });
+        h += '</table>';
+        p.update(h);
+    },
+
+    telechargerModele: function () {
+        var me = this;
+        if (!me.cfg) {
+            return;
+        }
+        var lien = document.createElement('a');
+        lien.href = URL.createObjectURL(new Blob(['\ufeff' + me.cfg.modeleCsv], {type: 'text/csv;charset=utf-8'}));
+        lien.download = 'etiquettage-pro-modele.csv';
+        document.body.appendChild(lien);
+        lien.click();
+        document.body.removeChild(lien);
+        me.message('Fichier modèle téléchargé : chaque colonne est reconnue et va dans sa zone.');
+    },
+
     lireFichier: function (feuille) {
         var me = this, champ = me.down('#fichier'), dom = champ.fileInputEl && champ.fileInputEl.dom;
         if (dom && dom.files && dom.files.length) {
@@ -467,6 +532,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
             r.set('apercu', v[r.get('id')] || '');
         });
         me.zonesStore.commitChanges();
+        me.majColonnes();
     },
 
     correspondance: function () {

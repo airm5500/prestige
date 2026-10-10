@@ -47,7 +47,7 @@ import util.CommonUtils;
 import util.Constant;
 
 /**
- * Etiquetage Pro (menu GESTION DU STOCK) : etiquettes de produits importes d'un fichier CSV / Excel (assistant de
+ * Etiquettage Pro (menu GESTION DU STOCK) : etiquettes de produits importes d'un fichier CSV / Excel (assistant de
  * correspondance des zones) ou saisis a l'ecran, en code-barres standard, DataMatrix ou QR code, sur les planches de
  * Prestige. Impression seule : rien n'est enregistre dans les fiches articles. Droit P_SM_ETIQUETAGE_PRO.
  * <ul>
@@ -82,7 +82,7 @@ public class EtiquetageProRessource {
         }
         if (!CommonUtils.hasAuthorityByName((List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE),
                 DROIT)) {
-            return echec("Vous n'avez pas le droit d'utiliser Étiquetage Pro.").put("interdit", true);
+            return echec("Vous n'avez pas le droit d'utiliser Étiquettage Pro.").put("interdit", true);
         }
         return null;
     }
@@ -121,7 +121,8 @@ public class EtiquetageProRessource {
         JSONArray zones = new JSONArray();
         for (Zone z : Zone.values()) {
             zones.put(new JSONObject().put("id", z.name()).put("libelle", z.getLibelle())
-                    .put("obligatoire", z.isObligatoireParDefaut()).put("verrouillee", z.isToujoursObligatoire()));
+                    .put("obligatoire", z.isObligatoireParDefaut()).put("verrouillee", z.isToujoursObligatoire())
+                    .put("titres", new JSONArray(z.getTitres())));
         }
         String modele = StringUtils.defaultIfBlank(reportUtil.findParameterValue(LabelSheetPdf.KEY_MODELE),
                 LabelSheetPdf.MODELE_CARRE_38X21_2);
@@ -130,7 +131,8 @@ public class EtiquetageProRessource {
                 .put("code", LabelSheetPdf.typeCode(reportUtil.findParameterValue("KEY_ETIQUETTE_CODE")))
                 .put("reglages", reglages).put("zones", zones).put("monnaie", "CFA")
                 .put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yy")))
-                .put("maxEtiquettes", MoteurEtiquettes.MAX_ETIQUETTES).put("maxLignes", LecteurTableau.MAX_LIGNES));
+                .put("modeleCsv", Zone.fichierModele()).put("maxEtiquettes", MoteurEtiquettes.MAX_ETIQUETTES)
+                .put("maxLignes", LecteurTableau.MAX_LIGNES));
     }
 
     static String libelleModele(String m) {
@@ -196,7 +198,7 @@ public class EtiquetageProRessource {
         } catch (IOException e) {
             return Response.ok(echec(e.getMessage()).toString()).build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Etiquetage Pro : lecture du fichier", e);
+            LOG.log(Level.SEVERE, "Etiquettage Pro : lecture du fichier", e);
             return Response.ok(echec("Fichier illisible.").toString()).build();
         }
     }
@@ -246,7 +248,7 @@ public class EtiquetageProRessource {
             return json(lignesJson(lignes).put("success", true).put("inconnues",
                     new JSONArray(corr.referencesInconnues(t))));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Etiquetage Pro : appliquer", e);
+            LOG.log(Level.WARNING, "Etiquettage Pro : appliquer", e);
             return json(echec("Correspondance illisible."));
         }
     }
@@ -263,7 +265,7 @@ public class EtiquetageProRessource {
             JSONObject d = new JSONObject(corps);
             return json(lignesJson(lignes(d)).put("success", true));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Etiquetage Pro : controler", e);
+            LOG.log(Level.WARNING, "Etiquettage Pro : controler", e);
             return json(echec("Lignes illisibles."));
         }
     }
@@ -406,8 +408,8 @@ public class EtiquetageProRessource {
     }
 
     private Response page(String message) {
-        String html = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Étiquetage Pro</title></head>"
-                + "<body style=\"font-family:sans-serif;padding:24px\"><h3>Étiquetage Pro</h3><p>" + echapper(message)
+        String html = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Étiquettage Pro</title></head>"
+                + "<body style=\"font-family:sans-serif;padding:24px\"><h3>Étiquettage Pro</h3><p>" + echapper(message)
                 + "</p></body></html>";
         return Response.ok(html.getBytes(StandardCharsets.UTF_8), "text/html; charset=UTF-8").build();
     }
@@ -443,7 +445,7 @@ public class EtiquetageProRessource {
             if (c instanceof IllegalArgumentException) {
                 return page(c.getMessage());
             }
-            LOG.log(Level.SEVERE, "Etiquetage Pro : impression", e);
+            LOG.log(Level.SEVERE, "Etiquettage Pro : impression", e);
             return page("Impression impossible : " + e.getMessage());
         }
     }
@@ -464,7 +466,7 @@ public class EtiquetageProRessource {
             return Response.ok(o.toByteArray(), "application/pdf")
                     .header("Content-Disposition", disposition("etiquettes_test.pdf")).build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Etiquetage Pro : page de test", e);
+            LOG.log(Level.SEVERE, "Etiquettage Pro : page de test", e);
             return page("Page de test impossible : " + e.getMessage());
         }
     }

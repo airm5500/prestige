@@ -11,7 +11,7 @@ import rest.report.pdf.Gs1;
 import rest.report.pdf.LabelSheetPdf;
 
 /**
- * Etiquetage Pro : des lignes de produits aux etiquettes imprimees, avec le moteur de planches de Prestige
+ * Etiquettage Pro : des lignes de produits aux etiquettes imprimees, avec le moteur de planches de Prestige
  * ({@link LabelSheetPdf}) : memes formats, memes dessins (code-barres du CIP ; QR code ou DataMatrix GS1 avec le nom de
  * la pharmacie, le CIP, le prix, le grossiste et le code propre a l'etiquette). Une ligne en erreur n'est pas imprimee.
  * Rien n'est ecrit dans les fiches articles.

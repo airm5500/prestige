@@ -59,7 +59,7 @@ import javax.swing.table.DefaultTableModel;
 import rest.report.pdf.LabelSheetPdf;
 
 /**
- * Etiquetage Pro autonome : la fonction Etiquetage Pro de Prestige, sur n'importe quel ordinateur (Java 8 ou plus),
+ * Etiquettage Pro autonome : la fonction Etiquettage Pro de Prestige, sur n'importe quel ordinateur (Java 8 ou plus),
  * sans Prestige ni base de donnees. Meme assistant en 4 etapes : source (CSV, Excel ou saisie), zones (colonne, texte
  * fixe, modele, zones obligatoires, zones ajoutees), produits (tableau modifiable, controle), impression (code-barres
  * standard, DataMatrix, QR code ; planches de Prestige ou format libre ; page de test). Le PDF est enregistre puis
@@ -109,6 +109,7 @@ public final class EtiquetageProApp extends JFrame {
     final JCheckBox titres = new JCheckBox("1re ligne = titres des colonnes", true);
     final JComboBox<String> feuille = new JComboBox<>();
     final JLabel info = new JLabel(" ");
+    final javax.swing.JEditorPane colonnes = new javax.swing.JEditorPane();
     final DefaultTableModel apercu = new DefaultTableModel();
     final ZonesModele zonesModele = new ZonesModele();
     final JTable tableZones = new JTable(zonesModele);
@@ -154,13 +155,13 @@ public final class EtiquetageProApp extends JFrame {
                 f.setVisible(true);
             } catch (IOException e) {
                 javax.swing.JOptionPane.showMessageDialog(null, "Dossier des réglages inaccessible : " + e.getMessage(),
-                        "Étiquetage Pro", javax.swing.JOptionPane.ERROR_MESSAGE);
+                        "Étiquettage Pro", javax.swing.JOptionPane.ERROR_MESSAGE);
             }
         });
     }
 
     EtiquetageProApp(java.nio.file.Path dossier) throws IOException {
-        super("Étiquetage Pro");
+        super("Étiquettage Pro");
         this.reglages = new Reglages(dossier);
         this.registre = RegistreLocal.ouvrir(dossier);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -291,7 +292,21 @@ public final class EtiquetageProApp extends JFrame {
         p.add(h, BorderLayout.NORTH);
         JTable t = new JTable(apercu);
         t.setEnabled(false);
-        p.add(new JScrollPane(t), BorderLayout.CENTER);
+        /* indication des colonnes (retours du 10/10) : colonnes du fichier en cours et titres reconnus par zone */
+        JButton modeleCsv = bouton("Enregistrer un fichier modèle (CSV)…", "fichierModele");
+        modeleCsv.addActionListener(e -> enregistrerModele());
+        colonnes.setContentType("text/html");
+        colonnes.setEditable(false);
+        JPanel droite = new JPanel(new BorderLayout());
+        droite.setBorder(BorderFactory.createTitledBorder("Colonnes"));
+        droite.add(ligne(modeleCsv), BorderLayout.NORTH);
+        droite.add(new JScrollPane(colonnes), BorderLayout.CENTER);
+        droite.setPreferredSize(new Dimension(440, 300));
+        JPanel milieu = new JPanel(new BorderLayout(10, 0));
+        milieu.add(new JScrollPane(t), BorderLayout.CENTER);
+        milieu.add(droite, BorderLayout.EAST);
+        p.add(milieu, BorderLayout.CENTER);
+        majColonnes();
         return p;
     }
 
@@ -419,6 +434,71 @@ public final class EtiquetageProApp extends JFrame {
             zones.forEach(z -> z.apercu = "");
         }
         zonesModele.fireTableDataChanged();
+        majColonnes();
+    }
+
+    /** Colonnes du fichier en cours (exemple, zone qui la reprend) et titres reconnus automatiquement par zone. */
+    void majColonnes() {
+        StringBuilder h = new StringBuilder("<html><body style='font-family:sans-serif;font-size:10px'>");
+        String style = " style='border:1px solid #d5dde6;padding:2px 4px;text-align:left;vertical-align:top'";
+        if (tableau != null) {
+            List<String> premiere = tableau.getLignes().isEmpty() ? new ArrayList<>() : tableau.getLignes().get(0);
+            h.append("<b>Colonnes du fichier en cours</b><table cellspacing='0' width='100%'><tr><th").append(style).append(">Colonne</th><th")
+                    .append(style).append(">Exemple (1re ligne)</th><th").append(style).append(">Zone</th></tr>");
+            for (int i = 0; i < tableau.getColonnes().size(); i++) {
+                String c = tableau.getColonnes().get(i);
+                List<String> noms = zonesDeLaColonne(c);
+                h.append("<tr><td").append(style).append("><b>").append(echapper(c)).append("</b></td><td").append(style).append(">")
+                        .append(echapper(i < premiere.size() ? premiere.get(i) : "")).append("</td><td").append(style).append(">")
+                        .append(noms.isEmpty() ? "<font color='#8a94a0'>non utilisée</font>"
+                                : "<font color='#17795f'>→ " + echapper(String.join(", ", noms)) + "</font>")
+                        .append("</td></tr>");
+            }
+            h.append("</table><br>");
+        }
+        h.append("<b>Titres reconnus automatiquement</b> (accents et majuscules indifférents ; * obligatoire par défaut)")
+                .append("<table cellspacing='0' width='100%'><tr><th").append(style).append(">Zone</th><th").append(style)
+                .append(">Titres de colonne</th></tr>");
+        for (Zone z : Zone.values()) {
+            h.append("<tr><td").append(style).append("><b>").append(echapper(z.getLibelle())).append(z.isObligatoireParDefaut() ? " *" : "")
+                    .append("</b></td><td").append(style).append(">").append(echapper(String.join(", ", z.getTitres()))).append("</td></tr>");
+        }
+        colonnes.setText(h.append("</table></body></html>").toString());
+        colonnes.setCaretPosition(0);
+    }
+
+    /** Zones (et zones ajoutees) dont la source cite cette colonne. */
+    List<String> zonesDeLaColonne(String colonne) {
+        List<String> noms = new ArrayList<>();
+        java.util.regex.Matcher m;
+        for (LigneZone z : zones) {
+            m = java.util.regex.Pattern.compile("\\{([^{}]+)\\}").matcher(z.source == null ? "" : z.source);
+            while (m.find()) {
+                if (Correspondance.normaliser(m.group(1)).equals(Correspondance.normaliser(colonne))) {
+                    noms.add(z.nom);
+                    break;
+                }
+            }
+        }
+        return noms;
+    }
+
+    /** Fichier modele : une colonne par zone et deux lignes d'exemple, pour essayer l'import. */
+    void ecrireModele(File f) throws IOException {
+        Files.write(f.toPath(), ("\ufeff" + Zone.fichierModele()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private void enregistrerModele() {
+        JFileChooser c = new JFileChooser(reglages.get("dernierDossier", System.getProperty("user.home")));
+        c.setSelectedFile(new File(c.getCurrentDirectory(), "etiquettage-pro-modele.csv"));
+        if (c.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                ecrireModele(c.getSelectedFile());
+                message("Fichier modèle enregistré : importez-le pour voir chaque colonne aller dans sa zone.", false);
+            } catch (IOException e) {
+                message("Enregistrement impossible : " + e.getMessage(), true);
+            }
+        }
     }
 
     final class ZonesModele extends AbstractTableModel {

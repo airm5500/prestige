@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Etiquetage Pro : contenu d'un fichier importe (CSV ou Excel), tel que lu. Les colonnes portent les titres de la
+ * Etiquettage Pro : contenu d'un fichier importe (CSV ou Excel), tel que lu. Les colonnes portent les titres de la
  * premiere ligne (ou « Colonne 1 », « Colonne 2 »... si le fichier n'en a pas) ; chaque ligne a autant de cellules que
  * de colonnes (texte, jamais null).
  */

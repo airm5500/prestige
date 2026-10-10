@@ -156,7 +156,7 @@ class Gs1Test {
         assertEquals("", LabelSheetPdf.abreger(f, "  ", 6f, 50f));
     }
 
-    /* Etiquetage Pro : mention libre sur l'etiquette code-barres standard */
+    /* Etiquettage Pro : mention libre sur l'etiquette code-barres standard */
     @Test
     void mentionToujoursLisibleSurLeCodeBarresStandard() throws Exception {
         com.itextpdf.text.pdf.BaseFont f = com.itextpdf.text.pdf.BaseFont

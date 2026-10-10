@@ -27,7 +27,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 /**
- * Etiquetage Pro : lecture d'un fichier CSV ou Excel (.xlsx, .xls) en {@link Tableau}.
+ * Etiquettage Pro : lecture d'un fichier CSV ou Excel (.xlsx, .xls) en {@link Tableau}.
  * <ul>
  * <li>le format est reconnu au contenu (classeur Excel ou texte), pas seulement a l'extension ;</li>
  * <li>CSV : encodage UTF-8 (avec ou sans BOM), sinon Windows-1252 (export Excel francais) ; separateur reconnu parmi «

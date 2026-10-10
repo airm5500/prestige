@@ -14,7 +14,7 @@ import java.util.Set;
 import rest.report.pdf.Gs1;
 
 /**
- * Etiquetage Pro : une ligne de produit (fichier importe ou saisie), ses valeurs par zone et le resultat du controle.
+ * Etiquettage Pro : une ligne de produit (fichier importe ou saisie), ses valeurs par zone et le resultat du controle.
  * Une ligne en erreur n'est pas imprimee ; un avertissement n'empeche rien.
  */
 public final class LigneEtiquette {

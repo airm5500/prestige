@@ -132,6 +132,10 @@ public final class EssaiAutonome {
             });
             ok("CSV lu : aperçu 4 lignes, 8 colonnes, séparateur indiqué", edt(() -> a.apercu.getRowCount() == 4 && a.apercu.getColumnCount() == 8
                     && a.info.getText().contains("séparateur « ; », UTF-8") && a.suivant.isEnabled()), a.info.getText());
+            ok("Indication des colonnes : « Code produit » → CIP, « Rayon » → Mention libre ; titres reconnus affichés",
+                    edt(() -> a.colonnes.getText().contains("Code produit") && a.zonesDeLaColonne("Code produit").equals(java.util.Collections.singletonList("CIP"))
+                            && a.zonesDeLaColonne("Rayon").equals(java.util.Collections.singletonList("Mention libre"))
+                            && a.colonnes.getText().contains("Titres reconnus") && a.colonnes.getText().contains("code produit")), null);
             capture(a, "1-source-csv");
             edt(() -> {
                 a.allerA(1);
@@ -246,6 +250,16 @@ public final class EssaiAutonome {
                     && "PHARMACIE ESSAI".equals(b.officine.getText()) && b.modeleChoisi().equals(LabelSheetPdf.MODELE_PERSONNALISE)
                     && b.etat.getText().contains("correspondance reprise") && "{Emplacement} / lot {N° lot}".equals(b.zone(Zone.MENTION).source)
                     && !b.zone(Zone.DESIGNATION).obligatoire), edt(() -> b.etat.getText()));
+
+            /* ------------------------------------------------ fichier modele */
+            File modele = dossier.resolve("modele.csv").toFile();
+            edt(() -> {
+                b.ecrireModele(modele);
+                b.importer(modele, null);
+                return null;
+            });
+            ok("Fichier modèle : 10 colonnes, toutes prises par leur zone", edt(() -> b.tableau.getColonnes().size() == 10
+                    && b.tableau.getColonnes().stream().allMatch(c -> !b.zonesDeLaColonne(c).isEmpty())), edt(() -> b.tableau.getColonnes()));
 
             /* ------------------------------------------------------- Excel */
             edt(() -> {

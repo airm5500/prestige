@@ -1,6 +1,6 @@
 #!/bin/sh
-# Etiquetage Pro autonome : construit dist/EtiquetagePro.jar (un seul fichier, Java 8 ou plus, double-clic pour lancer).
-# Reprend le moteur d'Etiquetage Pro de Prestige (paquet etiquetagepro, planches et codes GS1 de rest.report.pdf) et ses
+# Etiquettage Pro autonome : construit dist/EtiquettagePro.jar (un seul fichier, Java 8 ou plus, double-clic pour lancer).
+# Reprend le moteur d'Etiquettage Pro de Prestige (paquet etiquetagepro, planches et codes GS1 de rest.report.pdf) et ses
 # bibliotheques (celles du WAR : lancer d'abord « mvn package » a la racine du projet, ou donner LIBS=dossier des .jar).
 set -e
 ICI=$(cd "$(dirname "$0")" && pwd)
@@ -31,6 +31,6 @@ cd "$TRAVAIL/classes"
 for f in $(echo "$CP" | tr ':' ' '); do
   unzip -qo "$f" -x 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/MANIFEST.MF' 'module-info.class' 'META-INF/versions/*' 2>/dev/null || true
 done
-printf 'Main-Class: etiquetagepro.autonome.EtiquetageProApp\nImplementation-Title: Etiquetage Pro\n' > "$TRAVAIL/manifeste.txt"
-"$JAR" cfm "$ICI/dist/EtiquetagePro.jar" "$TRAVAIL/manifeste.txt" -C "$TRAVAIL/classes" .
-echo "Construit : $ICI/dist/EtiquetagePro.jar ($(du -h "$ICI/dist/EtiquetagePro.jar" | cut -f1))"
+printf 'Main-Class: etiquetagepro.autonome.EtiquetageProApp\nImplementation-Title: Etiquettage Pro\n' > "$TRAVAIL/manifeste.txt"
+"$JAR" cfm "$ICI/dist/EtiquettagePro.jar" "$TRAVAIL/manifeste.txt" -C "$TRAVAIL/classes" .
+echo "Construit : $ICI/dist/EtiquettagePro.jar ($(du -h "$ICI/dist/EtiquettagePro.jar" | cut -f1))"

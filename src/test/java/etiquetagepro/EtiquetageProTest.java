@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import rest.report.pdf.Gs1;
 import rest.report.pdf.LabelSheetPdf;
 
-/** Etiquetage Pro : lecture des fichiers, correspondance des zones, controle des lignes, etiquettes et PDF. */
+/** Etiquettage Pro : lecture des fichiers, correspondance des zones, controle des lignes, etiquettes et PDF. */
 class EtiquetageProTest {
 
     private static String eanValide() {
@@ -168,6 +168,23 @@ class EtiquetageProTest {
         assertEquals("{Qté}", c.getSource(Zone.NOMBRE));
         assertEquals("{Rayon}", c.getSource(Zone.MENTION));
         assertNull(c.getSource(Zone.EAN));
+    }
+
+    @Test
+    void fichierModeleReconnuEntierement() throws Exception {
+        Tableau t = LecteurTableau.lire("modele.csv", Zone.fichierModele().getBytes(StandardCharsets.UTF_8), null,
+                true);
+        assertEquals(Zone.values().length, t.getColonnes().size());
+        assertEquals(2, t.getLignes().size());
+        Correspondance c = Correspondance.proposer(t);
+        for (Zone z : Zone.values()) {
+            assertEquals("{" + z.getLibelle() + "}", c.getSource(z), z.name());
+            assertTrue(z.reconnait(z.getLibelle()), z.name());
+        }
+        List<LigneEtiquette> l = c.appliquer(t, true);
+        assertTrue(l.get(0).imprimable() && l.get(1).imprimable(), l.get(0).getErreurs() + " " + l.get(1).getErreurs());
+        assertTrue(l.get(0).getAvertissements().isEmpty(), l.get(0).getAvertissements().toString());
+        assertEquals(4, MoteurEtiquettes.total(l));
     }
 
     @Test

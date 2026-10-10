@@ -139,13 +139,13 @@ public class EtiquetteEditionService {
         }
     }
 
-    /** Etiquetage Pro : nom de la pharmacie propose en tete des etiquettes. */
+    /** Etiquettage Pro : nom de la pharmacie propose en tete des etiquettes. */
     public String officine() {
         return nomOfficine();
     }
 
     /**
-     * Etiquetage Pro : planche PDF des lignes donnees (impression seule, rien n'est ecrit dans les fiches articles).
+     * Etiquettage Pro : planche PDF des lignes donnees (impression seule, rien n'est ecrit dans les fiches articles).
      * Les etiquettes 2D recoivent leur code unique du registre t_etiquette_code, comme les autres etiquettes.
      */
     public byte[] etiquetagePro(List<etiquetagepro.LigneEtiquette> lignes, etiquetagepro.OptionsImpression options,
@@ -173,7 +173,7 @@ public class EtiquetteEditionService {
     }
 
     /**
-     * Etiquetage Pro : produits de Prestige pour ces CIP (designation, prix, EAN, grossiste habituel), pour completer
+     * Etiquettage Pro : produits de Prestige pour ces CIP (designation, prix, EAN, grossiste habituel), pour completer
      * les lignes saisies ou importees. Lecture seule.
      */
     public org.json.JSONObject produitsParCip(java.util.Collection<String> cips) {
