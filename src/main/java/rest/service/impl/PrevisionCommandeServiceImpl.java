@@ -202,13 +202,10 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                     }
                 }
             }
-            for (Object[] r : lignes("SELECT od.lg_FAMILLE_ID, SUM(od.int_NUMBER) FROM t_order_detail od"
-                    + " JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed')"
-                    + " AND o.dt_UPDATED >= ?1 GROUP BY od.lg_FAMILLE_ID",
-                    Timestamp.valueOf(LocalDate.now().minusDays(JOURS_COMMANDE_EN_COURS).atStartOfDay()))) {
-                Produit p = produits.get(texte(r[0]));
+            for (Map.Entry<String, Integer> e : enCoursCommandes().entrySet()) {
+                Produit p = produits.get(e.getKey());
                 if (p != null) {
-                    p.enCours = Math.max(0, entier(r[1]));
+                    p.enCours = e.getValue();
                 }
             }
             Map<String, Integer> delais = new HashMap<>();
@@ -354,8 +351,49 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
     /* ------------------------------------------------------------------ lecture */
 
+    /** Quantites en commande (commandes en cours ou passees de moins de 45 jours), par produit. */
+    private Map<String, Integer> enCoursCommandes() {
+        Map<String, Integer> m = new HashMap<>();
+        for (Object[] r : lignes("SELECT od.lg_FAMILLE_ID, SUM(od.int_NUMBER) FROM t_order_detail od"
+                + " JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed')"
+                + " AND o.dt_UPDATED >= ?1 GROUP BY od.lg_FAMILLE_ID",
+                Timestamp.valueOf(LocalDate.now().minusDays(JOURS_COMMANDE_EN_COURS).atStartOfDay()))) {
+            m.put(texte(r[0]), Math.max(0, entier(r[1])));
+        }
+        return m;
+    }
+
+    /**
+     * Retours du 10/10 (2) : l'en-cours des commandes est relu a chaque consultation (il ne l'etait qu'au calcul de la
+     * nuit : une commande creee dans la journee n'apparaissait pas). Pour chaque produit dont l'en-cours a change, la
+     * quantite recommandee et la couverture sont recalculees avec la meme formule que le calcul complet, de sorte que
+     * colonnes, filtres et tris restent coherents.
+     */
+    void rafraichirEnCours(String emplacementId) {
+        Map<String, Integer> enCours = enCoursCommandes();
+        int couvertureVoulue = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
+        for (Object[] r : lignes("SELECT lg_FAMILLE_ID, prevu_mois, ecart_type_mois, stock, en_cours, equivalents,"
+                + " delai_jours FROM t_prevision_produit WHERE lg_EMPLACEMENT_ID = ?1", emplacementId)) {
+            String id = texte(r[0]);
+            int vu = entier(r[4]), reel = enCours.getOrDefault(id, 0);
+            if (vu == reel) {
+                continue;
+            }
+            double parJour = r[1] == null ? 0 : ((Number) r[1]).doubleValue() / 30.0;
+            double ecart = r[2] == null ? 0 : ((Number) r[2]).doubleValue();
+            int stock = entier(r[3]), equivalents = entier(r[5]), delai = entier(r[6]);
+            int recommande = Recommandation.quantite(parJour, ecart, delai, couvertureVoulue, stock, reel, equivalents);
+            int couverture = Recommandation.couverture(stock, reel, parJour);
+            em.createNativeQuery("UPDATE t_prevision_produit SET en_cours = ?1, recommande = ?2, couverture_jours = ?3"
+                    + " WHERE lg_FAMILLE_ID = ?4 AND lg_EMPLACEMENT_ID = ?5").setParameter(1, reel)
+                    .setParameter(2, recommande).setParameter(3, couverture < 0 ? null : Math.min(couverture, 99999))
+                    .setParameter(4, id).setParameter(5, emplacementId).executeUpdate();
+        }
+    }
+
     @Override
     public JSONObject tableau(String emplacementId) {
+        rafraichirEnCours(emplacementId);
         JSONObject o = new JSONObject().put("success", true);
         List<Object[]> c = lignes("SELECT DATE_FORMAT(fin, '%d/%m/%Y %H:%i'), produits, fiabilite_moyenne, origine"
                 + " FROM t_prevision_calcul WHERE lg_EMPLACEMENT_ID = ?1 AND fin IS NOT NULL ORDER BY id DESC LIMIT 1",
@@ -428,6 +466,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
     @Override
     public JSONObject previsions(String emplacementId, String filtre, String recherche, int start, int limit) {
+        rafraichirEnCours(emplacementId);
         AlertesLigne.Seuils s = seuils();
         StringBuilder where = new StringBuilder(" FROM t_prevision_produit p JOIN t_famille f"
                 + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1");
@@ -475,6 +514,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
     @Override
     public JSONObject produit(String emplacementId, String familleId) {
+        rafraichirEnCours(emplacementId);
         List<Object[]> r = lignes(COLONNES
                 + ", p.ecart_type_mois, p.erreurs FROM t_prevision_produit p JOIN t_famille f"
                 + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1 AND p.lg_FAMILLE_ID = ?2",
@@ -547,6 +587,7 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
     @Override
     public JSONObject analyser(String emplacementId, String type, String id) {
+        rafraichirEnCours(emplacementId);
         boolean commande = COMMANDE.equals(type);
         if (!commande && !SUGGESTION.equals(type)) {
             return new JSONObject().put("success", false).put("message", "Type inconnu : SUGGESTION ou COMMANDE.");

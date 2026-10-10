@@ -2,7 +2,9 @@
  *  10. Ventes terminees : vente commencee en « Prescription », cloturee en « Conseil » -> enregistree Conseil et
  *      retrouvee par le filtre nature = Conseil (avant : restait Prescription) ; la nature « depot » n'est jamais
  *      posee par une vente au comptant.
- * Tout ce que le test cree est retire (ventes, reglements, mouvements, stock remis).
+ *   2. Previsions : une commande en cours creee dans la journee change tout de suite l'en-cours, le recommande et
+ *      la couverture du produit (avant : seulement apres le calcul de la nuit) ; commande retiree : retour a l'etat.
+ * Tout ce que le test cree est retire (ventes, reglements, mouvements, commandes, stock remis).
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -14,12 +16,13 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + LOGIN + "'");
 const DEBUT = q("SELECT NOW() - INTERVAL 1 SECOND");
-const CAISSE = 'e2e-l1-caisse';
+const CAISSE = 'e2e-l1-caisse', CMD = 'E2E-L1-CMD';
 let produit = null, stockOrigine = null, caisseCreee = false;
 
 const ventesDuTest = () => q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTREMENT_ID, '''')), '''-''') FROM t_preenregistrement"
   + " WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'");
 function nettoyer() {
+  exec("DELETE FROM t_order_detail WHERE lg_ORDER_ID = '" + CMD + "'; DELETE FROM t_order WHERE lg_ORDER_ID = '" + CMD + "';");
   const v = ventesDuTest();
   exec("CREATE TEMPORARY TABLE e2e_l1_l AS SELECT lg_PREENREGISTREMENT_DETAIL_ID id FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "CREATE TEMPORARY TABLE e2e_l1_r AS SELECT lg_REGLEMENT_ID id FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ") AND lg_REGLEMENT_ID IS NOT NULL;"
@@ -99,6 +102,32 @@ function nettoyer() {
     const v3 = await nouvelleVente('2');
     const c3 = await cloturer(v3, '');
     ok('10. Sans nature à la clôture : celle du premier produit est gardée (Conseil)', c3.success === true && nature(v3) === '2', 'nature=' + nature(v3));
+
+    /* 2. en-cours des previsions en direct */
+    const cible = q("SELECT CONCAT_WS('|', p.lg_FAMILLE_ID, f.int_CIP, f.lg_GROSSISTE_ID, p.recommande) FROM t_prevision_produit p JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID"
+      + " WHERE p.lg_EMPLACEMENT_ID = '1' AND p.prevu_mois >= 10 AND p.recommande >= 10 AND p.en_cours = 0 AND f.int_CIP <> ''"
+      + " AND NOT EXISTS (SELECT 1 FROM t_order_detail od JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE od.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND o.str_STATUT IN ('is_Process','passed'))"
+      + " ORDER BY p.prevu_mois DESC LIMIT 1").split('|');
+    if (cible.length < 4) {
+      ok('2. Précondition : un produit prévu à commander, sans commande en cours', false, 'aucun produit dans la photo des prévisions');
+    } else {
+      const [fid, cip, gid, rec0] = cible;
+      const ligne = async () => ((await api('GET', '../api/v1/analyse-commande/previsions?query=' + cip + '&start=0&limit=20')).data || []).find((x) => x.id === fid || x.lgFAMILLEID === fid) || {};
+      const avant = await ligne();
+      ok('2. Précondition : produit sans en-cours, recommandé ' + rec0, avant.enCours === 0 && avant.recommande === Number(rec0), JSON.stringify(avant).slice(0, 200));
+      exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
+        + " VALUES ('" + CMD + "', '" + CMD + "', 1, '" + gid + "', '" + ADMIN + "', 'is_Process', NOW(), NOW(), 0, 0, 0);"
+        + "INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, str_STATUT, dt_CREATED, dt_UPDATED)"
+        + " VALUES ('" + CMD + "-1', '" + CMD + "', '" + fid + "', '" + gid + "', 7, 'is_Process', NOW(), NOW())");
+      const pendant = await ligne();
+      ok('2. Commande en cours de 7 créée : en-cours 7 et recommandé diminué de 7, sans recalcul', pendant.enCours === 7 && pendant.recommande === Number(rec0) - 7,
+        JSON.stringify({ enCours: pendant.enCours, recommande: pendant.recommande }));
+      const fiche = await api('GET', '../api/v1/analyse-commande/produit/' + fid);
+      ok('2. Fenêtre produit : même en-cours', JSON.stringify(fiche).indexOf('"enCours":7') >= 0, JSON.stringify(fiche).slice(0, 200));
+      exec("DELETE FROM t_order_detail WHERE lg_ORDER_ID = '" + CMD + "'; DELETE FROM t_order WHERE lg_ORDER_ID = '" + CMD + "';");
+      const apres = await ligne();
+      ok('2. Commande retirée : retour à l\'en-cours 0 et au recommandé initial', apres.enCours === 0 && apres.recommande === Number(rec0), JSON.stringify({ enCours: apres.enCours, recommande: apres.recommande }));
+    }
 
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

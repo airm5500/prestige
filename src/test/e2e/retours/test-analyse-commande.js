@@ -63,7 +63,7 @@ const SUG = 'e2e-l12-' + Date.now();
     const ilYa3 = Number(q("SELECT COALESCE(SUM(d.int_QUANTITY), 0) FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
       + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = '1' WHERE d.lg_FAMILLE_ID = '" + echant + "' AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
       + " AND p.dt_UPDATED >= DATE_FORMAT(CURDATE() - INTERVAL 3 MONTH, '%Y-%m-01') AND p.dt_UPDATED < DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m-01')"));
-    ok('Historique : ventes du mois dernier et d\'il y a 3 mois = ventes en base', hist[hist.length - 1] === moisDernier && hist[hist.length - 3] === ilYa3, JSON.stringify([hist.slice(-3), moisDernier, ilYa3]));
+    ok('Historique : ventes du mois dernier et d\'il y a 3 mois = ventes en base', hist[hist.length - 1] === moisDernier && (hist.length >= 3 ? hist[hist.length - 3] : 0) === ilYa3 /* serie depuis la 1re vente */, JSON.stringify([hist.slice(-3), moisDernier, ilYa3]));
     const stock = Number(q("SELECT GREATEST(COALESCE((SELECT SUM(int_NUMBER_AVAILABLE) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + echant + "' AND lg_EMPLACEMENT_ID = '1'), 0), 0)"
       + " + COALESCE((SELECT SUM(GREATEST(int_NUMBER, 0)) FROM t_type_stock_famille WHERE lg_FAMILLE_ID = '" + echant + "' AND lg_EMPLACEMENT_ID = '1' AND lg_TYPE_STOCK_ID = '2'), 0)"));
     ok('Stock pris en compte = rayon + réserve', Number(pr[1]) === stock, pr[1] + ' / ' + stock);
