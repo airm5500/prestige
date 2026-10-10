@@ -3,7 +3,8 @@
  *    zxing-cpp decode en (01) GTIN, (17) peremption, (10) lot, (240) CIP (DataMatrix : symbole GS1, FNC1, « ]d2 ») ;
  *    defaut (KEY_ETIQUETTE_CODE = CODE128) : le code-barres du CIP, comme avant ;
  *  - vente, KEY_VENTE_LECTURE_GS1 = 0 : le scan d'une etiquette GS1 ne passe pas par la lecture GS1, rien n'est ajoute
- *    (comportement d'avant) ; = 1 : le produit est ajoute (qte 1), lot et peremption rappeles ; lot perime refuse.
+ *    (comportement d'avant) ; = 1 : le produit est ajoute (qte 1) ; lot perime refuse ; le lot de la boite est compare
+ *    au lot que Prestige sort (le plus proche) : « Lot conforme » en vert, « Lot différent » en rouge (retours du 10/10).
  * Jeu d'essai (etiquette, lot, vente en cours, caisse si besoin) retire a la fin ; parametre remis a sa valeur.
  */
 const { chromium } = require('playwright-core');
@@ -136,6 +137,10 @@ const decoder = (pdf) => {
     ok('Paramètre à 0 : pas de lecture GS1, rien n\'est ajouté (comportement d\'avant)', appelsGs1.length === 0 && lignes() === 0, appelsGs1.length + ' / ' + msg0);
 
     q("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
+    /* retours du 10/10 : un lot plus proche (demain) est celui que Prestige sort ; la boite E2ELOT7 n'est donc pas la bonne */
+    const [aammjjProche, jjProche] = q("SELECT DATE_FORMAT(CURDATE() + INTERVAL 1 DAY, '%y%m%d|%d/%m/%Y')").split('|');
+    q(`INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)`
+      + ` VALUES ('${LOT}-PROCHE', '${ADMIN}', '${FID}', 'E2ELOT8', 3, NOW(), NOW(), CURDATE() + INTERVAL 1 DAY, 'enable', 3);`);
     await connexion();
     await ouvrirVente();
     await scanner(scan);
@@ -146,11 +151,23 @@ const decoder = (pdf) => {
     ok('Paramètre à 1 : le scan GS1 ajoute le produit (quantité 1)', appelsGs1.length === 1 && lignes() === 1
       && q(`SELECT d.int_QUANTITY FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE p.dt_CREATED >= '${DEBUT}' AND p.lg_USER_ID = '${ADMIN}' AND d.lg_FAMILLE_ID = '${FID}'`) === '1',
       appelsGs1.length + ' appel(s), ' + lignes() + ' ligne(s)');
-    ok('Lot et péremption de l\'étiquette rappelés', per === 'lot ' + NUMLOT + ' - pér. 31/03/2027', per);
+    const prevu = await p.evaluate(async (id) => (await fetch('../api/v1/vente/peremption-proche/' + id)).json(), FID);
+    ok('Précondition : Prestige sort le lot le plus proche (E2ELOT8, demain)', prevu.lot === 'E2ELOT8' && prevu.date === jjProche, JSON.stringify(prevu));
+    const couleur = () => p.evaluate(() => { const f = testextjs.app.getController('VenteCtr').getPeremptionProcheField(); const e = f && f.getEl().dom.querySelector('.gs1-controle');
+      return e ? getComputedStyle(e).color : ''; });
+    ok('Boîte d\'un autre lot : « Lot différent », lot scanné et lot que Prestige sort, en rouge (la vente continue)',
+      per === '⚠ Lot différent : boîte scannée lot ' + NUMLOT + ' - pér. 31/03/2027 ; Prestige sort lot E2ELOT8 - pér. ' + jjProche
+      && await couleur() === 'rgb(198, 40, 40)' && await p.evaluate(() => testextjs.app.getController('VenteCtr').dernierControleGs1) === 'DIFFERENT', per);
     await scanner(`01${gtin}17230101` + `10PERIME|240${CIP}`);
     const msgPerime = await p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : ''));
     await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
     ok('Lot périmé (01/01/2023) : refusé, non ajouté', /périmé/.test(msgPerime) && lignes() === 1, msgPerime);
+    /* la bonne boite (lot que Prestige sort) : conforme, en vert */
+    await scanner(`01${gtin}17${aammjjProche}` + `10E2ELOT8|240${CIP}`);
+    await p.waitForFunction(() => !Ext.Ajax.isLoading(), null, { timeout: 15000 }).catch(() => {});
+    await p.waitForTimeout(1000);
+    const perOk = await p.evaluate(() => String(testextjs.app.getController('VenteCtr').getPeremptionProcheField().getValue()).replace(/<[^>]+>/g, ''));
+    ok('Bonne boîte : « Lot conforme » en vert', perOk === '✔ Lot conforme : lot E2ELOT8 - pér. ' + jjProche && await couleur() === 'rgb(27, 127, 59)', perOk);
     /* un CIP saisi a la main garde le chemin habituel */
     ok('Saisie ordinaire non prise pour du GS1', await p.evaluate((c) => !testextjs.app.getController('VenteCtr').ressembleGs1(c), CIP));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

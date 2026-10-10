@@ -579,7 +579,11 @@ public class SalesRessource {
         for (String cle : lectureGs1Service.codesProduit(c)) {
             JSONObject p = salesService.findOneproduit(cle, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             if (p.optBoolean("success")) {
-                return Response.ok().entity(o.put("success", true).put("data", p.get("data")).toString()).build();
+                /* controle : lot de la boite scannee contre le lot que Prestige sort */
+                JSONObject produit = p.getJSONObject("data");
+                rest.service.impl.LectureGs1Service.controlerLot(o, c,
+                        searchProduitServcie.peremptionProche(produit.optString("lgFAMILLEID", null)));
+                return Response.ok().entity(o.put("success", true).put("data", produit).toString()).build();
             }
         }
         return Response.ok()

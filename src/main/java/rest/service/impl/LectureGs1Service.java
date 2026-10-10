@@ -63,4 +63,31 @@ public class LectureGs1Service {
                 .put("cip", StringUtils.defaultString(c.cip)).put("gtin", StringUtils.defaultString(c.gtin));
         return o;
     }
+
+    /**
+     * Retours du 10/10 : le but de la lecture est de CONTROLER que la boite prise en rayon est bien celle du lot que
+     * Prestige sort (le plus proche de la peremption, deja affiche a la vente). Compare le lot lu (sinon la peremption
+     * lue) au lot prevu {date jj/mm/aaaa, lot, quantite} :
+     * <ul>
+     * <li>CONFORME : meme lot (casse et espaces ignores), ou meme peremption quand l'un des lots manque ;</li>
+     * <li>DIFFERENT : autre lot, ou autre peremption ;</li>
+     * <li>INCONNU : rien a comparer (aucun lot en stock ni date, ou etiquette sans lot ni peremption).</li>
+     * </ul>
+     */
+    public static JSONObject controlerLot(JSONObject o, Gs1.Contenu c, Object[] prevu) {
+        String lotPrevu = prevu == null || prevu.length < 2 || prevu[1] == null ? "" : String.valueOf(prevu[1]).trim();
+        String datePrevue = prevu == null || prevu.length < 1 || prevu[0] == null ? ""
+                : String.valueOf(prevu[0]).trim();
+        String lotLu = c.lot == null ? "" : c.lot.trim();
+        String dateLue = c.peremption == null ? "" : c.peremption.format(JJ);
+        String controle;
+        if (!lotPrevu.isEmpty() && !lotLu.isEmpty()) {
+            controle = lotPrevu.replace(" ", "").equalsIgnoreCase(lotLu.replace(" ", "")) ? "CONFORME" : "DIFFERENT";
+        } else if (!datePrevue.isEmpty() && !dateLue.isEmpty()) {
+            controle = datePrevue.equals(dateLue) ? "CONFORME" : "DIFFERENT";
+        } else {
+            controle = "INCONNU";
+        }
+        return o.put("lotPrevu", lotPrevu).put("peremptionPrevue", datePrevue).put("controle", controle);
+    }
 }

@@ -7761,7 +7761,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                 || /^10[^\u001d|<]+(\u001d|<GS>|\|)240/.test(v);
     },
 
-    /** Scan GS1 : produit trouve -> ajoute (qte 1) ; lot et peremption rappeles ; lot perime -> refuse. */
+    /**
+     * Scan GS1 : produit trouve -> ajoute (qte 1) ; lot perime -> refuse. Le lot de la boite est compare au lot que
+     * Prestige sort (le plus proche) : conforme en vert, different en rouge (avertissement, la vente continue).
+     */
     lireGs1: function (combo) {
         const me = this, brut = combo.getRawValue();
         Ext.Ajax.request({
@@ -7790,8 +7793,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const produit = r.data;
                 me.updateStockField(produit.intNUMBERAVAILABLE);
                 me.getVnoemplacementField().setValue(produit.strLIBELLEE);
-                const html = info ? '<span style="color:#0D47A1;font-weight:bold;">' + info + '</span>' : '';
-                me.infoGs1Garde = html ? {html: html, jusque: Date.now() + 15000} : null;
+                /* retours du 10/10 : controle de la boite prise en rayon contre le lot que Prestige sort */
+                const prevu = (r.lotPrevu ? 'lot ' + enc(r.lotPrevu) : '') + (r.peremptionPrevue ? (r.lotPrevu ? ' - ' : '') + 'pér. ' + enc(r.peremptionPrevue) : '');
+                let html = info ? '<span style="color:#0D47A1;font-weight:bold;">' + info + '</span>' : '';
+                if (r.controle === 'CONFORME') {
+                    html = '<span class="gs1-controle gs1-conforme" style="color:#1b7f3b;font-weight:bold;">\u2714 Lot conforme : ' + info + '</span>';
+                } else if (r.controle === 'DIFFERENT') {
+                    html = '<span class="gs1-controle gs1-different peremption-clignote" style="color:#c62828;font-weight:bold;">\u26A0 Lot différent : boîte scannée '
+                            + info + ' ; Prestige sort ' + prevu + '</span>';
+                }
+                me.dernierControleGs1 = r.controle || null;
+                me.infoGs1Garde = html ? {html: html, jusque: Date.now() + (r.controle === 'DIFFERENT' ? 30000 : 15000)} : null;
                 me.addProduitFromScan(Ext.create('testextjs.model.caisse.Produit', produit), 1);
                 if (champ && html) {
                     me.peremptionDemandee = null;
