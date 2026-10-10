@@ -183,6 +183,22 @@ Ext.define('testextjs.view.vente.DetailVente', {
                                                     renderer: function (v) {
                                                         return Ext.util.Format.number(v, '0,000.');
                                                     }
+                                                },
+                                                /* retours du 10/10 : d'ou la vente a ete faite */
+                                                {
+                                                    fieldLabel: 'Poste',
+                                                    itemId: 'posteVente',
+                                                    flex: 1,
+                                                    hidden: !vente.poste && !vente.posteSaisie,
+                                                    value: Ext.String.htmlEncode(vente.poste || vente.posteSaisie || '')
+                                                            + (vente.ip ? ' <span style="color:#555;font-weight:normal">(' + Ext.String.htmlEncode(vente.ip) + ')</span>' : '')
+                                                },
+                                                {
+                                                    fieldLabel: 'Saisie sur',
+                                                    itemId: 'posteSaisieVente',
+                                                    flex: 1,
+                                                    hidden: !vente.posteSaisie || !vente.poste || vente.posteSaisie === vente.poste,
+                                                    value: Ext.String.htmlEncode(vente.posteSaisie || '')
                                                 }
                                             ]
                                         },

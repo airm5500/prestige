@@ -48,7 +48,8 @@ public final class VenteDTOBuilder extends CommonBuilder {
                 .reglement(VenteDTOBuilder.buildReglementDTO(mt))
                 .reglements(p.getVenteReglements().stream().map(VenteDTOBuilder::buildFromEntity)
                         .collect(Collectors.toList()))
-                .ayantDroit(VenteDTOBuilder.ayantDroit(p.getAyantDroit())).strTYPEVENTE(p.getStrTYPEVENTE()).build();
+                .ayantDroit(VenteDTOBuilder.ayantDroit(p.getAyantDroit())).strTYPEVENTE(p.getStrTYPEVENTE())
+                .posteSaisie(p.getStrPOSTESAISIE()).poste(p.getStrPOSTE()).ip(p.getStrIP()).build();
     }
 
     public static List<PreenregistrementCompteClientDTO> differes(Collection<TPreenregistrementCompteClient> pts) {

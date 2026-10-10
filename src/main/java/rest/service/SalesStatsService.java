@@ -197,6 +197,9 @@ public interface SalesStatsService {
 
     List<VenteDTO> getListTerminees(SalesStatsParams params);
 
+    /** Retours du 10/10 : postes connus des ventes des six derniers mois (saisie ou encaissement). */
+    JSONObject postesDesVentes();
+
     byte[] exportArticlesVendusRecapCsv(SalesStatsParams params) throws IOException;
 
     byte[] exportArticlesVendusRecapExcel(SalesStatsParams params) throws IOException;

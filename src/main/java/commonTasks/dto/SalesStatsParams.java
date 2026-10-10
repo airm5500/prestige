@@ -35,6 +35,8 @@ public class SalesStatsParams implements Serializable {
     private boolean onlyAvoir;
     private String avoirStatut;
     private String caissierId;
+    /** Retours du 10/10 : filtre « Ventes terminees » par poste (saisie ou encaissement) ou adresse IP. */
+    private String poste;
     private boolean modification;
     private boolean modificationClientTp;
     private int nbre;
@@ -313,6 +315,14 @@ public class SalesStatsParams implements Serializable {
 
     public String getCaissierId() {
         return caissierId;
+    }
+
+    public String getPoste() {
+        return poste;
+    }
+
+    public void setPoste(String poste) {
+        this.poste = poste;
     }
 
     public void setCaissierId(String caissierId) {

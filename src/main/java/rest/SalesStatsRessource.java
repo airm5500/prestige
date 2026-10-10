@@ -411,13 +411,15 @@ public class SalesStatsRessource {
             @QueryParam(value = "typeDepotId") String typeDepotId, @QueryParam(value = "depotId") String depotId,
             @QueryParam(value = "avoirStatut") String avoirStatut, @QueryParam(value = "caissierId") String caissierId,
             @QueryParam(value = "lgTypeVenteId") String lgTypeVenteId,
-            @QueryParam(value = "modeReglementId") String modeReglementId) throws JSONException {
+            @QueryParam(value = "modeReglementId") String modeReglementId, @QueryParam(value = "poste") String poste)
+            throws JSONException {
         SalesStatsParams body = buildParams(start, limit, query, dtStart, dtEnd, hStart, hEnd, sansBon, onlyAvoir,
                 typeVenteId, nature, depotOnly, typeDepotId, depotId);
         body.setAvoirStatut(avoirStatut);
         body.setCaissierId(caissierId);
         body.setLgTypeVenteId(lgTypeVenteId);
         body.setModeReglementId(modeReglementId);
+        body.setPoste(poste);
         JSONObject jsono = salesService.getVenteTerminees(body);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -445,13 +447,15 @@ public class SalesStatsRessource {
             @QueryParam(value = "depotId") String depotId, @QueryParam(value = "avoirStatut") String avoirStatut,
             @QueryParam(value = "caissierId") String caissierId,
             @QueryParam(value = "lgTypeVenteId") String lgTypeVenteId,
-            @QueryParam(value = "modeReglementId") String modeReglementId) throws Exception {
+            @QueryParam(value = "modeReglementId") String modeReglementId, @QueryParam(value = "poste") String poste)
+            throws Exception {
         SalesStatsParams body = buildParams(0, EXPORT_VENTES_MAX, query, dtStart, dtEnd, hStart, hEnd, sansBon,
                 onlyAvoir, typeVenteId, nature, depotOnly, typeDepotId, depotId);
         body.setAvoirStatut(avoirStatut);
         body.setCaissierId(caissierId);
         body.setLgTypeVenteId(lgTypeVenteId);
         body.setModeReglementId(modeReglementId);
+        body.setPoste(poste);
 
         List<commonTasks.dto.VenteDTO> ventes = salesService.getListTerminees(body);
         if (ventes.isEmpty()) {
@@ -1194,6 +1198,13 @@ public class SalesStatsRessource {
         String filename = "devis_" + (ref != null ? ref : venteId) + "_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + filename + "\"").build();
+    }
+
+    /** Retours du 10/10 : postes connus des ventes (filtre de « Ventes terminees »), du plus recent au plus ancien. */
+    @GET
+    @Path("postes")
+    public Response postes() {
+        return Response.ok().entity(salesService.postesDesVentes().toString()).build();
     }
 
     @GET

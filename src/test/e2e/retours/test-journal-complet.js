@@ -1,6 +1,8 @@
 /* FICHIER JOURNAL COMPLET (retours du 10/10, Q10 : tout le lot).
  *  - « Ce poste » : nom saisi une fois dans le journal, memorise par le navigateur, envoye avec chaque requete ;
- *  - vente cloturee et prevente : desormais journalisees, avec poste, adresse IP et application (navigateur) ;
+ *  - les ventes ne sont PAS journalisees (precision du 10/10) : chaque vente garde son poste de saisie, son poste et
+ *    son adresse IP d'encaissement ; « Ventes terminees » filtre par poste et le detail l'affiche ;
+ *  - ajustement (avant / apres) et suppression de facture journalises avec poste, adresse IP et application ;
  *  - colonnes Poste / Adresse IP / Application ; filtre par poste ;
  *  - alertes : annulations en serie (3 en 30 min) et operations hors horaires (avant 07:00 / apres 21:00) ;
  *  - export Excel : colonnes Poste, Adresse IP, Application, Avant / apres.
@@ -41,7 +43,7 @@ function nettoyer() {
     + "DELETE FROM t_ajustement_detail WHERE lg_AJUSTEMENT_ID IN (SELECT id FROM e2e_jrn_a);"
     + "DELETE FROM t_ajustement WHERE lg_AJUSTEMENT_ID IN (SELECT id FROM e2e_jrn_a); DROP TEMPORARY TABLE e2e_jrn_a;"
     + "DELETE FROM t_suggestion_order_details WHERE lg_FAMILLE_ID = '" + produit.id + "' AND dt_CREATED >= '" + DEBUT + "';"
-    + "DELETE FROM t_event_log WHERE lg_EVENT_LOG_ID LIKE '" + MARQUE + "%' OR (lg_USER_ID = '" + ADMIN + "' AND dt_CREATED >= '" + DEBUT + "' AND typeLog IN (" + ORD.VENTE + ", " + ORD.PREVENTE + ", " + ORD.AUTHENTIFICATION + ", " + ORD.AJUSTEMENT_DE_PRODUIT + ")) OR str_TYPE_LOG = '" + MARQUE + "-FACT';"
+    + "DELETE FROM t_event_log WHERE lg_EVENT_LOG_ID LIKE '" + MARQUE + "%' OR (lg_USER_ID = '" + ADMIN + "' AND dt_CREATED >= '" + DEBUT + "' AND typeLog IN (" + ORD.AUTHENTIFICATION + ", " + ORD.AJUSTEMENT_DE_PRODUIT + ")) OR str_TYPE_LOG = '" + MARQUE + "-FACT';"
     + "DELETE FROM t_facture WHERE lg_FACTURE_ID LIKE '" + MARQUE + "%';"
     + (stockOrigine ? "UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = " + stockOrigine[0] + ", int_NUMBER = " + stockOrigine[1] + " WHERE lg_FAMILLE_ID = '" + produit.id + "' AND lg_EMPLACEMENT_ID = '1';" : '')
     + (caisseCreee ? "DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "';" : ''));
@@ -63,7 +65,8 @@ const ORD = {};
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     const filtres = await api('GET', '../api/v1/common/log-filtres');
     (filtres.data || []).forEach((f) => { ORD[{ Vente: 'VENTE', 'Prévente': 'PREVENTE', 'Annulation de vente': 'ANNULATION_DE_VENTE', 'Ajustement de produit': 'AJUSTEMENT_DE_PRODUIT', Authentification: 'AUTHENTIFICATION', 'Suppression de facture': 'SUPPRESION_DE_FACTURE' }[f.strDESCRIPTION] || '_'] = f.order; });
-    ok('Types « Vente » et « Prévente » proposés dans le filtre du journal', ORD.VENTE !== undefined && ORD.PREVENTE !== undefined, JSON.stringify(ORD));
+    ok('Journal : pas de type « Vente » ni « Prévente » (les ventes ne sont pas journalisées)', ORD.VENTE === undefined && ORD.PREVENTE === undefined
+      && ORD.AJUSTEMENT_DE_PRODUIT !== undefined, JSON.stringify(ORD));
     nettoyer();
     stockOrigine = q("SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produit.id + "' AND lg_EMPLACEMENT_ID = '1'").split('|');
     q("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = 100, int_NUMBER = 100 WHERE lg_FAMILLE_ID = '" + produit.id + "' AND lg_EMPLACEMENT_ID = '1'");
@@ -89,7 +92,7 @@ const ORD = {};
     await p.click('[data-e2e=enr]');
     ok('« Ce poste » : nom mémorisé sur le poste', await p.evaluate(() => window.localStorage.getItem('prestige.poste')) === POSTE);
 
-    /* ------------------------------------------------ vente et prevente journalisees */
+    /* ------------------------------------------------ vente et prevente : poste garde sur la vente, rien au journal */
     const add = await api('POST', '../api/v1/vente/add/vno', { typeVenteId: '1', natureVenteId: '1', produitId: produit.id, itemPu: produit.pu, qte: 1, qteServie: 1,
       devis: false, prevente: false, remiseId: '', userVendeurId: ADMIN });
     const venteId = add.data && add.data.lgPREENREGISTREMENTID;
@@ -99,15 +102,43 @@ const ORD = {};
       montantRecu: montant, montantRemis: 0, montantPaye: montant, totalRecap: montant, partTP: 0, typeRegleId: '1', clientId: '', nom: '', commentaire: '', banque: '', lieux: '',
       marge: data.marge || 0, data, reglements: [{ typeReglement: '1', montant, montantAttentu: montant }] });
     const ref = q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'");
-    const jv = q("SELECT CONCAT_WS('|', remote_host, remote_addr IS NOT NULL, str_APPLICATION, str_DESCRIPTION) FROM t_event_log WHERE typeLog = " + ORD.VENTE + " AND str_TYPE_LOG = '" + ref + "'");
-    ok('Vente clôturée : journalisée avec le poste nommé, l\'adresse IP et l\'application', clo.success && jv.startsWith(POSTE + '|1|Chrome') && /Vente comptant N° .* clôturée, montant/.test(jv), JSON.stringify(clo).slice(0, 120) + ' / ' + jv);
+    const pv = q("SELECT CONCAT_WS('|', str_POSTE_SAISIE, str_POSTE, str_IP IS NOT NULL) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'");
+    const logsVente = () => q("SELECT COUNT(*) FROM t_event_log WHERE dt_CREATED >= '" + DEBUT + "' AND (str_TYPE_LOG IN ('" + ref + "', '" + venteId + "') OR str_DESCRIPTION LIKE '%" + ref + "%')");
+    ok('Vente clôturée : poste de saisie, poste et adresse IP d\'encaissement gardés sur la vente', clo.success && pv === POSTE + '|' + POSTE + '|1', JSON.stringify(clo).slice(0, 120) + ' / ' + pv);
+    ok('Vente clôturée : aucune ligne dans le journal', logsVente() === '0', logsVente());
     const pre = await api('POST', '../api/v1/vente/add/vno', { typeVenteId: '1', natureVenteId: '1', produitId: produit.id, itemPu: produit.pu, qte: 1, qteServie: 1,
       devis: false, prevente: true, remiseId: '', userVendeurId: ADMIN });
     const preId = pre.data && pre.data.lgPREENREGISTREMENTID;
     await api('PUT', '../api/v1/vente/terminerprevente/' + preId);
     const refPre = q("SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + preId + "'");
-    const jp = q("SELECT CONCAT_WS('|', remote_host, str_APPLICATION) FROM t_event_log WHERE typeLog = " + ORD.PREVENTE + " AND str_TYPE_LOG = '" + refPre + "'");
-    ok('Prévente : journalisée (poste, application)', jp.startsWith(POSTE + '|Chrome'), jp);
+    const jp = q("SELECT CONCAT_WS('|', str_POSTE_SAISIE, (SELECT COUNT(*) FROM t_event_log WHERE dt_CREATED >= '" + DEBUT + "' AND str_TYPE_LOG = '" + refPre + "')) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + preId + "'");
+    ok('Prévente : poste de saisie gardé, aucune ligne dans le journal', jp === POSTE + '|0', jp);
+
+    /* « Ventes terminees » : filtre par poste et detail (chemin de l'ecran) */
+    await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('ventemanager', {}));
+    await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('ventemanager')[0]; return v && v.down('#posteVente') && !v.down('gridpanel').getStore().isLoading(); }, null, { timeout: 60000 });
+    const filtrerPoste = async (texte) => {
+      await p.evaluate(() => { Ext.ComponentQuery.query('ventemanager #posteVente')[0].inputEl.dom.setAttribute('data-e2e', 'posteVente'); });
+      await p.click('[data-e2e=posteVente]'); await p.keyboard.press('Control+A'); await p.keyboard.type(texte); await p.keyboard.press('Enter');
+      await p.waitForTimeout(400);
+      await p.waitForFunction(() => !Ext.ComponentQuery.query('ventemanager gridpanel')[0].getStore().isLoading(), null, { timeout: 30000 });
+      return p.evaluate(() => { const st = Ext.ComponentQuery.query('ventemanager gridpanel')[0].getStore(); return { refs: st.getRange().map((r) => r.get('strREF')), poste: st.lastOptions && st.lastOptions.params && st.lastOptions.params.poste }; });
+    };
+    const postesConnus = await p.evaluate(() => new Promise((r) => { const st = Ext.ComponentQuery.query('ventemanager #posteVente')[0].getStore(); st.load({ callback: () => r(st.collect('poste')) }); }));
+    ok('Ventes terminées : le poste figure dans la liste des postes', postesConnus.indexOf(POSTE) >= 0, JSON.stringify(postesConnus).slice(0, 200));
+    const avecPoste = await filtrerPoste(POSTE);
+    ok('Ventes terminées : filtre par poste → la vente faite depuis ce poste', avecPoste.refs.indexOf(ref) >= 0 && avecPoste.poste === POSTE, JSON.stringify(avecPoste));
+    const autre = await filtrerPoste('E2E-POSTE-INCONNU');
+    ok('Ventes terminées : autre poste → la vente n\'apparaît pas', autre.refs.indexOf(ref) < 0, JSON.stringify(autre));
+    await filtrerPoste(POSTE);
+    await p.evaluate((r) => { const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0], i = g.getStore().findExact('strREF', r);
+      const ligne = g.getView().getNode(i); ligne.querySelector('img[data-qtip="Voir détail"]').setAttribute('data-e2e', 'detail'); }, ref);
+    await p.click('[data-e2e=detail]');
+    await p.waitForFunction(() => Ext.ComponentQuery.query('window').some((w) => w.isVisible() && w.down('#posteVente')), null, { timeout: 30000 });
+    const detail = await p.evaluate(() => { const w = Ext.ComponentQuery.query('window').find((x) => x.isVisible() && x.down('#posteVente'));
+      const f = w.down('#posteVente'); const t = { visible: f.isVisible(), texte: f.getEl().dom.textContent, saisieCachee: !w.down('#posteSaisieVente').isVisible() }; w.close(); return t; });
+    ok('Détail de la vente : « Poste » avec l\'adresse IP (saisie et encaissement sur le même poste)', detail.visible && detail.texte.indexOf(POSTE) >= 0 && /\(.+\)/.test(detail.texte) && detail.saisieCachee, JSON.stringify(detail));
+
 
     /* ajustement de stock (memes appels que l'ecran Ajustement) : l'avant / apres est conserve */
     const stockAvant = parseInt(q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produit.id + "' AND lg_EMPLACEMENT_ID = '1'"), 10);
@@ -127,6 +158,8 @@ const ORD = {};
       && jf.startsWith('Suppression de la facture N° ' + MARQUE + '-FACT, montant 12345 ') && jf.endsWith('|' + POSTE), jf);
 
     /* ------------------------------------------------ ecran : colonnes, filtre poste, alertes */
+    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('logfile', 'Fichier Journal', ''));
+    await p.waitForFunction(() => Ext.getCmp('logfileGrid') && Ext.getCmp('dt_log_start') && Ext.getCmp('cmbposte'), null, { timeout: 30000 });
     const chercher = async (du, au) => {
       await p.evaluate(([d, a2]) => { Ext.getCmp('dt_log_start').setValue(Ext.Date.parse(d, 'Y-m-d')); Ext.getCmp('dt_end_log').setValue(Ext.Date.parse(a2, 'Y-m-d')); }, [du, au]);
       await p.evaluate(() => { Ext.ComponentQuery.query('#logfileGrid button[text=Rechercher]')[0].btnEl.dom.setAttribute('data-e2e', 'rech'); });
@@ -137,8 +170,8 @@ const ORD = {};
     const aujourdhui = q('SELECT CURDATE()');
     await chercher(aujourdhui, aujourdhui);
     const colonnes = await p.evaluate(() => Ext.getCmp('logfileGrid').headerCt.getGridColumns().map((c) => c.text));
-    const lv = await p.evaluate((r) => { const s = Ext.getCmp('logfileGrid').getStore(), i = s.findBy((x) => x.get('strTYPELOG') === r); return i < 0 ? null : s.getAt(i).data; }, ref);
-    ok('Liste : colonnes Poste / Adresse IP / Application renseignées pour la vente', ['Poste', 'Adresse IP', 'Application'].every((c) => colonnes.indexOf(c) >= 0)
+    const lv = await p.evaluate((r) => { const s = Ext.getCmp('logfileGrid').getStore(), i = s.findBy((x) => x.get('strTYPELOG') === r); return i < 0 ? null : s.getAt(i).data; }, cip);
+    ok('Liste : colonnes Poste / Adresse IP / Application renseignées pour l\'ajustement', ['Poste', 'Adresse IP', 'Application'].every((c) => colonnes.indexOf(c) >= 0)
       && lv && lv.poste === POSTE && lv.ip && /Chrome/.test(lv.application), JSON.stringify(colonnes) + ' ' + JSON.stringify(lv));
     await p.evaluate(() => { Ext.getCmp('cmbposte').setValue('E2E-POSTE-ALERTE'); });
     await chercher('2025-06-10', '2025-06-10');

@@ -2914,6 +2914,24 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
     }
 
+    @Override
+    public JSONObject postesDesVentes() {
+        JSONArray data = new JSONArray();
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object> postes = getEntityManager().createNativeQuery("SELECT x.poste FROM ("
+                    + " SELECT str_POSTE poste, MAX(dt_UPDATED) d FROM t_preenregistrement"
+                    + " WHERE dt_UPDATED >= NOW() - INTERVAL 6 MONTH AND str_POSTE IS NOT NULL GROUP BY str_POSTE"
+                    + " UNION ALL SELECT str_POSTE_SAISIE, MAX(dt_UPDATED) FROM t_preenregistrement"
+                    + " WHERE dt_UPDATED >= NOW() - INTERVAL 6 MONTH AND str_POSTE_SAISIE IS NOT NULL GROUP BY str_POSTE_SAISIE"
+                    + ") x GROUP BY x.poste ORDER BY MAX(x.d) DESC LIMIT 200").getResultList();
+            postes.forEach(p -> data.put(new JSONObject().put("poste", String.valueOf(p))));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "postesDesVentes", e);
+        }
+        return new JSONObject().put("success", true).put("data", data);
+    }
+
     private List<Tuple> fetchTuples(SalesStatsParams params) {
         try {
             String sql = buildSqlQuery(params);
@@ -2986,6 +3004,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         if (StringUtils.isNotEmpty(params.getCaissierId())) {
             query.setParameter("caissierId", params.getCaissierId());
+        }
+        if (StringUtils.isNotBlank(params.getPoste())) {
+            query.setParameter("poste", params.getPoste().trim());
         }
     }
 
@@ -3211,6 +3232,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         if (StringUtils.isNotEmpty(params.getCaissierId())) {
             finalSql.append(" AND p.lg_USER_CAISSIER_ID=:caissierId ");
+        }
+        if (StringUtils.isNotBlank(params.getPoste())) {
+            finalSql.append(" AND (p.str_POSTE=:poste OR p.str_POSTE_SAISIE=:poste OR p.str_IP=:poste) ");
         }
         if (StringUtils.isNotEmpty(params.getProduitId())) {
             finalSql.append(" AND tpreenregi0_.lg_FAMILLE_ID=:produitId ");

@@ -53,8 +53,10 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
         }, {
             ref: 'caissierId',
             selector: 'ventemanager #caissierId'
-        }
-        , {
+        }, {
+            ref: 'posteVente',
+            selector: 'ventemanager #posteVente'
+        }, {
             ref: 'salesItem',
             selector: 'salesItem'
         }
@@ -84,6 +86,15 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             },
             'ventemanager #caissierId': {
                 select: this.doSearch
+            },
+            'ventemanager #posteVente': {
+                select: this.doSearch,
+                specialkey: this.onSpecialKey,
+                change: function (combo, valeur) {
+                    if (!valeur) {
+                        this.doSearch();
+                    }
+                }
             },
             'ventemanager #exporterExcel': {
                 click: this.onExporterExcel
@@ -380,7 +391,8 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             nature: me.getNature().getValue(),
             lgTypeVenteId: me.valeurFiltre(me.getLgTypeVenteId()),
             modeReglementId: me.valeurFiltre(me.getModeReglementId()),
-            caissierId: me.valeurFiltre(me.getCaissierId())
+            caissierId: me.valeurFiltre(me.getCaissierId()),
+            poste: me.getPosteVente() ? (Ext.String.trim(me.getPosteVente().getRawValue() || '') || null) : null
         };
     },
     doBeforechange: function (page, currentPage) {

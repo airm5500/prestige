@@ -145,6 +145,13 @@ public class TPreenregistrement implements Serializable {
     private boolean bWITHOUTBON;
     @Column(name = "int_PRICE_OTHER")
     private Integer intPRICEOTHER;
+    /** Retours du 10/10 : poste d'ou la vente a ete saisie (rempli a la creation), et poste / IP de l'encaissement. */
+    @Column(name = "str_POSTE_SAISIE", length = 100)
+    private String strPOSTESAISIE;
+    @Column(name = "str_POSTE", length = 100)
+    private String strPOSTE;
+    @Column(name = "str_IP", length = 64)
+    private String strIP;
     @JoinColumn(name = "lg_USER_CAISSIER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERCAISSIERID;
@@ -632,6 +639,49 @@ public class TPreenregistrement implements Serializable {
 
     public void setIntPRICEOTHER(Integer intPRICEOTHER) {
         this.intPRICEOTHER = intPRICEOTHER;
+    }
+
+    @javax.persistence.PrePersist
+    void completerPosteSaisie() {
+        if (strPOSTESAISIE == null) {
+            String poste = util.ContexteRequete.poste();
+            strPOSTESAISIE = poste != null && poste.length() > 100 ? poste.substring(0, 100) : poste;
+        }
+    }
+
+    /** Poste et adresse de la requete en cours (encaissement). Sans requete (traitement de fond) : rien ne change. */
+    public void marquerPosteEncaissement() {
+        String poste = util.ContexteRequete.poste(), ip = util.ContexteRequete.ip();
+        if (poste != null) {
+            strPOSTE = poste.length() > 100 ? poste.substring(0, 100) : poste;
+        }
+        if (ip != null) {
+            strIP = ip.length() > 64 ? ip.substring(0, 64) : ip;
+        }
+    }
+
+    public String getStrPOSTESAISIE() {
+        return strPOSTESAISIE;
+    }
+
+    public void setStrPOSTESAISIE(String strPOSTESAISIE) {
+        this.strPOSTESAISIE = strPOSTESAISIE;
+    }
+
+    public String getStrPOSTE() {
+        return strPOSTE;
+    }
+
+    public void setStrPOSTE(String strPOSTE) {
+        this.strPOSTE = strPOSTE;
+    }
+
+    public String getStrIP() {
+        return strIP;
+    }
+
+    public void setStrIP(String strIP) {
+        this.strIP = strIP;
     }
 
     public TUser getLgUSERCAISSIERID() {

@@ -121,6 +121,10 @@ public class VenteDTO {
     private final List<VenteTiersPayantItemDTO> assurances;
     private final TransactionDTO reglement;
     private final List<VenteItemDTO> items;
+    /** Retours du 10/10 : poste de saisie, poste et adresse IP de l'encaissement. */
+    private final String posteSaisie;
+    private final String poste;
+    private final String ip;
     @Builder.Default
     private List<VenteReglementReportDTO> reglements = new ArrayList<>();
 }

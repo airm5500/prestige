@@ -37,9 +37,7 @@ public enum TypeLog {
     // La colonne typeLog est persistee en ORDINAL : toute nouvelle valeur
     // s'ajoute OBLIGATOIREMENT en fin de liste.
     DESACTIVATION_UTILISATEUR("Désactivation d'utilisateur", true),
-    ACTIVATION_UTILISATEUR("Activation d'utilisateur", true),
-    /* retours du 10/10 (journal) : ventes et preventes tracees (en fin de liste : ORDINAL) */
-    VENTE("Vente", true), PREVENTE("Prévente", true);
+    ACTIVATION_UTILISATEUR("Activation d'utilisateur", true);
 
     private final String value;
     private final boolean checked;

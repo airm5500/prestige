@@ -243,6 +243,26 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             typeAhead: false,
                             queryMode: 'local',
                             emptyText: 'Toutes les caissières'
+                        }, '-',
+                        {
+                            /* retours du 10/10 : poste d'ou la vente a ete saisie ou encaissee (nom ou adresse IP) */
+                            xtype: 'combobox',
+                            itemId: 'posteVente',
+                            fieldLabel: 'Poste',
+                            labelWidth: 40,
+                            flex: 1,
+                            store: Ext.create('Ext.data.Store', {fields: ['poste'], autoLoad: true,
+                                proxy: {type: 'ajax', url: '../api/v1/ventestats/postes', reader: {type: 'json', root: 'data'}}}),
+                            valueField: 'poste',
+                            displayField: 'poste',
+                            queryMode: 'local',
+                            anyMatch: true,
+                            /* Entree sur un texte absent de la liste (adresse IP...) : on cherche ce texte, sans
+                               completer ni prendre d'office le premier poste propose */
+                            typeAhead: false,
+                            autoSelect: false,
+                            emptyText: 'Tous les postes',
+                            tooltip: 'Ventes saisies ou encaissées depuis ce poste'
                         }, '->',
                         {
                             text: 'Exporter en Excel',

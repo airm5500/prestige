@@ -415,7 +415,7 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                     xtype: 'toolbar', dock: 'top', itemId: 'barreJournal2',
                     items: [
                         {xtype: 'combobox', id: 'cmbposte', itemId: 'cmbposte', width: 230, emptyText: 'Tous les postes', store: postes,
-                            displayField: 'poste', valueField: 'poste', queryMode: 'local', typeAhead: true, anyMatch: true,
+                            displayField: 'poste', valueField: 'poste', queryMode: 'local', typeAhead: false, anyMatch: true, autoSelect: false,
                             tooltip: 'Opérations faites depuis ce poste (nom ou adresse IP)',
                             listeners: {select: rechercher, specialkey: function (f, e) {
                                     if (e.getKey() === e.ENTER) {
