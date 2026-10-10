@@ -27,6 +27,7 @@ import org.json.JSONArray;
 
 import org.json.JSONObject;
 import rest.service.UserService;
+import rest.service.attendance.AttendanceService;
 import rest.service.dto.AccountInfoDTO;
 import util.CommonUtils;
 import util.Constant;
@@ -41,6 +42,8 @@ public class AccountResource {
 
     @EJB
     private UserService userService;
+    @EJB
+    private AttendanceService attendanceService;
     @Inject
     HttpServletRequest request;
 
@@ -57,6 +60,7 @@ public class AccountResource {
         } else {
             String xtypeuser = "mainmenumanager";
             HttpSession hs = request.getSession(true);
+            attendanceService.login(tu.getLgUSERID(), hs.getId());
             json.put("str_LOGIN", tu.getStrLOGIN());
             json.put("str_USER_ID", tu.getLgUSERID());
             json.put("str_FIRST_NAME", tu.getStrFIRSTNAME());
@@ -118,6 +122,7 @@ public class AccountResource {
         JSONObject json = new JSONObject();
         HttpSession hs = request.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        attendanceService.logout(hs.getId());
         boolean invalide = userService.deConnexion(request, tu);
         json.put("success", invalide);
         return Response.ok().entity(json.toString()).build();
