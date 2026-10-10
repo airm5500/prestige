@@ -509,7 +509,9 @@ public final class LabelSheetPdf {
         lignes.add(new Object[] { bold, 7f, StringUtils.defaultString(data.cip) });
         lignes.add(new Object[] { bold, 10f, StringUtils.defaultString(data.prix) });
         if (data.grossiste2D() != null) {
-            lignes.add(new Object[] { regular, 6f, data.grossiste2D() });
+            /* toujours sur une ligne : la police descend jusqu'a 5 pt, puis le nom est abrege */
+            float t = Math.max(5f, tailleAjustee(regular, data.grossiste2D(), 6f, large));
+            lignes.add(new Object[] { regular, t, abreger(regular, data.grossiste2D(), t, large) });
         }
         if (StringUtils.isNotBlank(data.codeUnique)) {
             lignes.add(new Object[] { bold, 6.5f, data.codeUnique });
@@ -527,6 +529,35 @@ public final class LabelSheetPdf {
             showText(cb, police, taille, fit(police, (String) l[2], taille, large), marge, y + taille * 0.25f,
                     PdfContentByte.ALIGN_LEFT);
         }
+    }
+
+    /**
+     * Retours du 10/10 : un nom trop long pour sa ligne est abrege, jamais renvoye a la ligne. Le premier mot reste
+     * entier ; les suivants sont raccourcis en partant du dernier (3 lettres et un point : « YOPOUGON » -> « YOP. ») ;
+     * s'il ne tient toujours pas, les derniers mots sont retires (jamais de mot coupe au milieu), et seul un premier
+     * mot trop long pour la ligne entiere est coupe.
+     */
+    static String abreger(BaseFont police, String texte, float taille, float largeur) {
+        if (StringUtils.isBlank(texte)) {
+            return "";
+        }
+        String t = texte.trim().replaceAll("\\s+", " ");
+        if (police.getWidthPoint(t, taille) <= largeur) {
+            return t;
+        }
+        java.util.List<String> mots = new java.util.ArrayList<>(java.util.Arrays.asList(t.split(" ")));
+        for (int i = mots.size() - 1; i >= 1; i--) {
+            if (mots.get(i).length() > 4) {
+                mots.set(i, mots.get(i).substring(0, 3) + ".");
+                if (police.getWidthPoint(String.join(" ", mots), taille) <= largeur) {
+                    return String.join(" ", mots);
+                }
+            }
+        }
+        while (mots.size() > 1 && police.getWidthPoint(String.join(" ", mots), taille) > largeur) {
+            mots.remove(mots.size() - 1);
+        }
+        return fit(police, String.join(" ", mots), taille, largeur);
     }
 
     /** Taille de police qui fait tenir le texte dans la largeur (4 pt au moins ; au-dela, le texte est coupe). */

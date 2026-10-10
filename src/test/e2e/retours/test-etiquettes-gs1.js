@@ -25,6 +25,7 @@ const F = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.int_EAN13) FROM
 const [FID, CIP, EAN] = F;
 const PARAM = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
 let caisseCreee = false, stockOrigine = null;
+let nomGrossiste = null;
 
 const ventes = () => q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTREMENT_ID, '''')), '''-''') FROM t_preenregistrement WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'");
 function nettoyer() {
@@ -33,6 +34,7 @@ function nettoyer() {
     + `DELETE FROM t_etiquette WHERE lg_ETIQUETTE_ID = '${ET}'; DELETE FROM t_lot WHERE lg_LOT_ID LIKE '${LOT}%';`
     + `UPDATE t_parameters SET str_VALUE = '${PARAM}' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1';`
     + (caisseCreee ? `DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '${CAISSE}';` : '')
+    + (nomGrossiste ? `UPDATE t_grossiste SET str_LIBELLE = '${nomGrossiste[1].replace(/'/g, "''")}' WHERE lg_GROSSISTE_ID = '${nomGrossiste[0]}';` : '')
     + (stockOrigine ? `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${stockOrigine[0]}, int_NUMBER = ${stockOrigine[1]} WHERE lg_FAMILLE_ID = '${FID}' AND lg_EMPLACEMENT_ID = '1';` : ''));
 }
 const decoder = (pdf) => {
@@ -51,7 +53,7 @@ const decoder = (pdf) => {
   /* mots de la page avec leur position (points), pour verifier la disposition */
   const bbox = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', '/tmp/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
   codes.mots = [...bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
-    .map((m) => ({ xMin: +m[1], yMin: +m[2], xMax: +m[3], yMax: +m[4], t: m[5].replace(/&amp;/g, '&') }));
+    .map((m) => ({ xMin: +m[1], yMin: +m[2], xMax: +m[3], yMax: +m[4], t: m[5].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') }));
   return codes;
 };
 
@@ -141,6 +143,21 @@ const decoder = (pdf) => {
     ok('QR code : même disposition, code lu par le lecteur', dispoQr.ok, JSON.stringify(dispoQr));
     ok('Code de l\'étiquette : différent d\'une étiquette à l\'autre, inscrit au registre (jamais redonné)', dispoDm.codeEtiquette && dispoQr.codeEtiquette && dispoDm.codeEtiquette !== dispoQr.codeEtiquette
       && q(`SELECT COUNT(*) FROM t_etiquette_code WHERE code IN ('${dispoDm.codeEtiquette}', '${dispoQr.codeEtiquette}') AND lg_FAMILLE_ID = '${FID}'`) === '2', dispoDm.codeEtiquette + ' / ' + dispoQr.codeEtiquette);
+    /* grossiste au nom trop long : toujours une seule ligne, nom abrege (nom remis a la fin) */
+    const GID = q(`SELECT IFNULL(lg_GROSSISTE_ID, '') FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`);
+    if (GID) {
+      nomGrossiste = [GID, q(`SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = '${GID}'`)];
+      q(`UPDATE t_grossiste SET str_LIBELLE = 'LABOREX COTE D''IVOIRE AGENCE DE YOPOUGON NORD' WHERE lg_GROSSISTE_ID = '${GID}'`);
+      const long = await imprimer('DATAMATRIX');
+      q(`UPDATE t_grossiste SET str_LIBELLE = '${nomGrossiste[1].replace(/'/g, "''")}' WHERE lg_GROSSISTE_ID = '${GID}'`);
+      nomGrossiste = null;
+      const code = long.codes.find((c) => /Data ?Matrix/.test(c.format));
+      const gauche = long.mots.filter((m) => code && m.yMin > code.yMin - 0.5 && m.xMax <= code.xMin + 0.5);
+      const lignesG = [...new Set(gauche.map((m) => Math.round(m.yMin)))].sort((x, y) => x - y);
+      const ligneGrossiste = gauche.filter((m) => Math.round(m.yMin) === lignesG[2]).map((m) => m.t).join(' ');
+      ok('Grossiste au nom trop long : une seule ligne, nom abrégé (« LABOREX … »), rien sous le code', lignesG.length === 4 && /^LABOREX \S/.test(ligneGrossiste) && /\.$|\. /.test(ligneGrossiste) && !/ \S{1,2}$/.test(ligneGrossiste)
+        && long.mots.every((m) => m.yMax <= code.yMin + 0.5 || m.xMax <= code.xMin + 0.5), JSON.stringify({ lignes: lignesG.length, ligneGrossiste }));
+    }
     const defaut = await imprimer('');
     ok('Défaut (KEY_ETIQUETTE_CODE = CODE128) : code-barres du CIP, aucun code 2D, comme avant', defaut.codes.length >= 1 && defaut.codes.every((c) => /Code ?128/.test(c.format) && c.texte === CIP),
       JSON.stringify(defaut.codes));

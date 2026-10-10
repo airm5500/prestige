@@ -121,4 +121,38 @@ class Gs1Test {
         }
         assertTrue(vus.size() > 1990, "tirages varies : " + vus.size());
     }
+
+    @Test
+    void codeDEtiquetteLongueurCroissanteQuandLesCodesSEpuisent() {
+        assertEquals(32L * 32 * 32 * 32 * 32, EtiquetteEditionService.capacite(5));
+        assertEquals(5, EtiquetteEditionService.longueurPour(l -> 0));
+        /* 90 % des codes a 5 caracteres donnes : on passe a 6 */
+        assertEquals(6,
+                EtiquetteEditionService.longueurPour(l -> l == 5 ? EtiquetteEditionService.capacite(5) * 9 / 10 : 0));
+        assertEquals(7, EtiquetteEditionService.longueurPour(l -> l <= 6 ? EtiquetteEditionService.capacite(l) : 0));
+        assertEquals(8, EtiquetteEditionService.longueurPour(l -> EtiquetteEditionService.capacite(l)));
+        for (int l = 5; l <= 8; l++) {
+            assertTrue(
+                    EtiquetteEditionService.tirerCode(new java.util.Random(l), l).matches("[A-HJ-NP-Z2-9]{" + l + "}"));
+        }
+    }
+
+    @Test
+    void grossisteTropLongAbregeSurUneLigne() throws Exception {
+        com.itextpdf.text.pdf.BaseFont f = com.itextpdf.text.pdf.BaseFont
+                .createFont(com.itextpdf.text.pdf.BaseFont.HELVETICA, com.itextpdf.text.pdf.BaseFont.WINANSI, false);
+        assertEquals("LABOREX-CI YOP", LabelSheetPdf.abreger(f, "LABOREX-CI YOP", 6f, 200f)); // tient : inchange
+        String court = LabelSheetPdf.abreger(f, "LABOREX COTE D'IVOIRE YOPOUGON", 6f,
+                f.getWidthPoint("LABOREX COTE D'IVOIRE YOP.", 6f));
+        assertEquals("LABOREX COTE D'IVOIRE YOP.", court); // le dernier mot d'abord
+        /* plus court encore : le premier mot reste entier, les derniers mots sont retires, jamais coupes */
+        String tresCourt = LabelSheetPdf.abreger(f, "LABOREX COTE D'IVOIRE YOPOUGON", 6f,
+                f.getWidthPoint("LABOREX COTE D'I.", 6f));
+        assertEquals("LABOREX COTE D'I.", tresCourt);
+        assertEquals("LABOREX",
+                LabelSheetPdf.abreger(f, "LABOREX COTE D'IVOIRE YOPOUGON", 6f, f.getWidthPoint("LABOREX CO", 6f)));
+        String coupe = LabelSheetPdf.abreger(f, "LABOREX COTE D'IVOIRE YOPOUGON", 6f, 20f);
+        assertTrue(f.getWidthPoint(coupe, 6f) <= 20f && !coupe.isEmpty(), coupe); // jamais plus d'une ligne
+        assertEquals("", LabelSheetPdf.abreger(f, "  ", 6f, 50f));
+    }
 }

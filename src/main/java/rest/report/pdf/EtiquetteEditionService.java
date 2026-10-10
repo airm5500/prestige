@@ -167,6 +167,8 @@ public class EtiquetteEditionService {
     @SuppressWarnings("unchecked")
     public void completerGs1(List<LabelSheetPdf.LabelData> labels, String type) {
         java.util.Map<String, Object[]> lots = new java.util.HashMap<>();
+        /* longueur du code d'etiquette, lue une fois par impression */
+        int[] longueurCode = { 0 };
         java.time.format.DateTimeFormatter jj = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         for (LabelSheetPdf.LabelData l : labels) {
             if (l.getFamilleId() == null) {
@@ -192,7 +194,14 @@ public class EtiquetteEditionService {
             String brute = Gs1.brute(l.getEan(), per, numLot, l.getCip());
             l.code2D(type, brute.isEmpty() ? null : brute, numLot, per == null ? null : per.format(jj));
             if (!LabelSheetPdf.CODE_BARRES.equals(l.getCode())) {
-                l.codeUnique(attribuerCodeUnique(l.getFamilleId()));
+                if (longueurCode[0] == 0) {
+                    longueurCode[0] = longueurDuRegistre();
+                }
+                String code = attribuerCodeUnique(l.getFamilleId(), longueurCode[0]);
+                if (code != null) {
+                    longueurCode[0] = code.length();
+                }
+                l.codeUnique(code);
             }
         }
     }
@@ -202,30 +211,65 @@ public class EtiquetteEditionService {
     private static final java.security.SecureRandom HASARD = new java.security.SecureRandom();
 
     static String tirerCode(java.util.Random hasard) {
-        StringBuilder b = new StringBuilder(5);
-        for (int i = 0; i < 5; i++) {
+        return tirerCode(hasard, 5);
+    }
+
+    static String tirerCode(java.util.Random hasard, int longueur) {
+        StringBuilder b = new StringBuilder(longueur);
+        for (int i = 0; i < longueur; i++) {
             b.append(ALPHABET_CODE.charAt(hasard.nextInt(ALPHABET_CODE.length())));
         }
         return b.toString();
     }
 
+    /** Nombre de codes possibles a cette longueur (32 puissance longueur). */
+    static long capacite(int longueur) {
+        long c = 1;
+        for (int i = 0; i < longueur; i++) {
+            c *= ALPHABET_CODE.length();
+        }
+        return c;
+    }
+
     /**
-     * Retours du 10/10 : code de 5 caracteres propre a une etiquette, jamais reproduit. Le code est inscrit au registre
-     * (cle primaire) : s'il est deja pris, un autre est tire. Sans code libre apres 50 tirages, l'etiquette part sans
-     * code plutot qu'avec un doublon.
+     * Longueur a utiliser : 5 tant que moins de 90 % des codes a 5 caracteres sont pris, puis 6, 7, 8. Au-dela de 90 %,
+     * les tirages butent trop souvent sur un code deja donne.
      */
-    String attribuerCodeUnique(String familleId) {
-        for (int essai = 0; essai < 50; essai++) {
-            String code = tirerCode(HASARD);
-            int n = em
-                    .createNativeQuery("INSERT IGNORE INTO t_etiquette_code (code, lg_FAMILLE_ID, dt_CREATED)"
-                            + " VALUES (?1, ?2, NOW())")
-                    .setParameter(1, code).setParameter(2, familleId).executeUpdate();
-            if (n == 1) {
-                return code;
+    static int longueurPour(java.util.function.IntToLongFunction dejaDonnes) {
+        for (int l = 5; l < 8; l++) {
+            if (dejaDonnes.applyAsLong(l) < capacite(l) * 9 / 10) {
+                return l;
             }
         }
-        LOG.log(Level.SEVERE, "Aucun code d'etiquette libre apres 50 tirages");
+        return 8;
+    }
+
+    /**
+     * Retours du 10/10 : code propre a une etiquette, jamais reproduit. 5 caracteres, puis 6, 7 et 8 quand les codes
+     * d'une longueur s'epuisent. Le code est inscrit au registre (cle primaire) : s'il est deja pris, un autre est tire
+     * ; apres 50 tirages infructueux, on passe a la longueur suivante. Sans code libre, l'etiquette part sans code
+     * plutot qu'avec un doublon.
+     */
+    int longueurDuRegistre() {
+        return longueurPour(l -> ((Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_etiquette_code WHERE CHAR_LENGTH(code) = ?1")
+                .setParameter(1, l).getSingleResult()).longValue());
+    }
+
+    String attribuerCodeUnique(String familleId, int longueurDepart) {
+        for (int longueur = Math.max(5, longueurDepart); longueur <= 8; longueur++) {
+            for (int essai = 0; essai < 50; essai++) {
+                String code = tirerCode(HASARD, longueur);
+                int n = em
+                        .createNativeQuery("INSERT IGNORE INTO t_etiquette_code (code, lg_FAMILLE_ID, dt_CREATED)"
+                                + " VALUES (?1, ?2, NOW())")
+                        .setParameter(1, code).setParameter(2, familleId).executeUpdate();
+                if (n == 1) {
+                    return code;
+                }
+            }
+        }
+        LOG.log(Level.SEVERE, "Aucun code d'etiquette libre jusqu'a 8 caracteres");
         return null;
     }
 }
