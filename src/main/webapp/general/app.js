@@ -404,6 +404,7 @@ Ext.application({
         'testextjs.view.produits.ArticlesDormants',
         'testextjs.view.commandemanagement.pointage.PointageBL',
         'testextjs.view.configmanagement.client.fidelite.FideliteClients',
+        'testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',
         'testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenneManager',

@@ -105,6 +105,18 @@ public final class LabelSheetPdf {
             return this;
         }
 
+        /** Etiquetage Pro : mention libre (rayon, commentaire...) ; absente, l'etiquette est dessinee comme avant. */
+        private String mention;
+
+        public LabelData mention(String texte) {
+            this.mention = StringUtils.isBlank(texte) ? null : texte.trim();
+            return this;
+        }
+
+        public String getMention() {
+            return mention;
+        }
+
         public String getCodeUnique() {
             return codeUnique;
         }
@@ -435,6 +447,9 @@ public final class LabelSheetPdf {
         showCentered(cb, bold, 5.5f, fit(bold, data.officine, 5.5f, maxTextWidth), centerX, height - 8.5f);
 
         String line2 = joinNonBlank(data.grossiste, data.date);
+        if (data.mention != null) {
+            line2 = joinNonBlank(line2, data.mention);
+        }
         showCentered(cb, regular, 6f, fit(regular, line2, 6f, maxTextWidth), centerX, height - 15.5f);
 
         showCentered(cb, bold, 5.5f, fit(bold, data.designation, 5.5f, maxTextWidth), centerX, height - 22.5f);
@@ -512,6 +527,10 @@ public final class LabelSheetPdf {
             /* toujours sur une ligne : la police descend jusqu'a 5 pt, puis le nom est abrege */
             float t = Math.max(5f, tailleAjustee(regular, data.grossiste2D(), 6f, large));
             lignes.add(new Object[] { regular, t, abreger(regular, data.grossiste2D(), t, large) });
+        }
+        if (data.mention != null) {
+            float t = Math.max(4.5f, tailleAjustee(regular, data.mention, 5.5f, large));
+            lignes.add(new Object[] { regular, t, abreger(regular, data.mention, t, large) });
         }
         if (StringUtils.isNotBlank(data.codeUnique)) {
             lignes.add(new Object[] { bold, 6.5f, data.codeUnique });

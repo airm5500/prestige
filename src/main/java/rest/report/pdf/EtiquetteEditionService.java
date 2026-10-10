@@ -139,6 +139,77 @@ public class EtiquetteEditionService {
         }
     }
 
+    /** Etiquetage Pro : nom de la pharmacie propose en tete des etiquettes. */
+    public String officine() {
+        return nomOfficine();
+    }
+
+    /**
+     * Etiquetage Pro : planche PDF des lignes donnees (impression seule, rien n'est ecrit dans les fiches articles).
+     * Les etiquettes 2D recoivent leur code unique du registre t_etiquette_code, comme les autres etiquettes.
+     */
+    public byte[] etiquetagePro(List<etiquetagepro.LigneEtiquette> lignes, etiquetagepro.OptionsImpression options,
+            java.util.function.UnaryOperator<String> configuration) throws Exception {
+        java.util.Map<String, String> familles = new java.util.HashMap<>();
+        int[] longueur = { 0 };
+        etiquetagepro.RegistreCodes registre = cip -> {
+            if (longueur[0] == 0) {
+                longueur[0] = longueurDuRegistre();
+            }
+            String famille = familles.computeIfAbsent(StringUtils.defaultString(cip), c -> {
+                List<?> r = em.createNativeQuery("SELECT lg_FAMILLE_ID FROM t_famille WHERE int_CIP = ?1 LIMIT 1")
+                        .setParameter(1, c).getResultList();
+                return r.isEmpty() ? "" : String.valueOf(r.get(0));
+            });
+            String code = attribuerCodeUnique(famille.isEmpty() ? null : famille, longueur[0]);
+            if (code != null) {
+                longueur[0] = code.length();
+            }
+            return code;
+        };
+        java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream();
+        etiquetagepro.MoteurEtiquettes.pdf(sortie, lignes, options, registre, configuration);
+        return sortie.toByteArray();
+    }
+
+    /**
+     * Etiquetage Pro : produits de Prestige pour ces CIP (designation, prix, EAN, grossiste habituel), pour completer
+     * les lignes saisies ou importees. Lecture seule.
+     */
+    public org.json.JSONObject produitsParCip(java.util.Collection<String> cips) {
+        org.json.JSONObject resultat = new org.json.JSONObject();
+        java.util.List<String> liste = new ArrayList<>();
+        for (String c : cips) {
+            if (StringUtils.isNotBlank(c) && liste.size() < 5000) {
+                liste.add(c.trim());
+            }
+        }
+        if (liste.isEmpty()) {
+            return resultat;
+        }
+        List<TFamille> familles = em
+                .createQuery("SELECT f FROM TFamille f WHERE f.intCIP IN :cips ORDER BY f.strSTATUT", TFamille.class)
+                .setParameter("cips", liste).getResultList();
+        for (TFamille f : familles) {
+            if (resultat.has(f.getIntCIP()) && !"enable".equals(f.getStrSTATUT())) {
+                continue;
+            }
+            if (resultat.has(f.getIntCIP())
+                    && "enable".equals(resultat.getJSONObject(f.getIntCIP()).optString("statut"))) {
+                continue;
+            }
+            resultat.put(f.getIntCIP(),
+                    new org.json.JSONObject().put("designation", StringUtils.defaultString(f.getStrDESCRIPTION()))
+                            .put("prix", f.getIntPRICE() == null ? "" : String.valueOf(f.getIntPRICE()))
+                            .put("ean", StringUtils.defaultString(ean(f)))
+                            .put("grossiste",
+                                    f.getLgGROSSISTEID() == null ? ""
+                                            : StringUtils.defaultString(f.getLgGROSSISTEID().getStrLIBELLE()))
+                            .put("statut", StringUtils.defaultString(f.getStrSTATUT())));
+        }
+        return resultat;
+    }
+
     private String nomOfficine() {
         try {
             TOfficine officine = em.find(TOfficine.class, "1");
