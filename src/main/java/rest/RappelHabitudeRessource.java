@@ -154,7 +154,7 @@ public class RappelHabitudeRessource {
     @POST
     @Path("sms")
     public Response sms(String corps) {
-        return envoyer("SMS", corps);
+        return envoyer("SMS", null, corps);
     }
 
     /**
@@ -163,7 +163,7 @@ public class RappelHabitudeRessource {
      */
     @POST
     @Path("envoyer")
-    public Response envoyer(@QueryParam("canal") String canal, String corps) {
+    public Response envoyer(@QueryParam("canal") String canal, @QueryParam("modele") String modele, String corps) {
         Response r = controle();
         if (r != null) {
             return r;
@@ -172,7 +172,7 @@ public class RappelHabitudeRessource {
         if (!java.util.Arrays.asList("SMS", "WHATSAPP", "SMS_WHATSAPP").contains(c)) {
             return refus("Canal inconnu.");
         }
-        JSONObject o = service.preparerMessages(ids(corps), utilisateur(), c);
+        JSONObject o = service.preparerMessages(ids(corps), utilisateur(), c, modele);
         JSONArray n = o.optJSONArray("notifications");
         for (int i = 0; n != null && i < n.length(); i++) {
             if ("SMS".equals(c)) {
@@ -182,5 +182,126 @@ public class RappelHabitudeRessource {
             }
         }
         return reponse(o.put("canal", c));
+    }
+
+    /* ------------------------------------------------------------ retours du 10/10 (section 13) */
+
+    private static final java.time.format.DateTimeFormatter JJ = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy");
+    private static final java.util.Map<String, String> STATUTS = java.util.Map.of("A_PREPARER", "À préparer", "PREPARE",
+            "Préparé", "ECARTE", "Écarté", "ACHETE", "Racheté");
+
+    /** Analyse des rappels : periode de la date prevue (par defaut les 6 derniers mois). */
+    @GET
+    @Path("analyse")
+    public Response analyse(@QueryParam("dtStart") String du, @QueryParam("dtEnd") String au) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        LocalDate fin = date(au) == null ? LocalDate.now() : date(au);
+        LocalDate debut = date(du) == null ? fin.minusMonths(5).withDayOfMonth(1) : date(du);
+        if (debut.isAfter(fin)) {
+            return refus("La date de début doit précéder la date de fin.");
+        }
+        return reponse(service.analyse(debut, fin));
+    }
+
+    private List<String[]> lignesEdition(String statut, String query, String du, String au) {
+        TUser u = utilisateur();
+        List<String[]> lignes = new ArrayList<>();
+        for (RappelHabitudeDTO d : service.liste(statut, query, date(du), date(au),
+                u.getLgEMPLACEMENTID() == null ? null : u.getLgEMPLACEMENTID().getLgEMPLACEMENTID())) {
+            JSONObject j = d.toJson();
+            Object envoi = j.opt("envoi");
+            lignes.add(new String[] { jour(j.optString("prevu")), j.optString("client"), j.optString("telephone"),
+                    j.optString("cip"), j.optString("produit"), String.valueOf(j.optInt("stock")),
+                    j.optInt("frequence") + " j", jour(j.optString("dernierAchat")),
+                    STATUTS.getOrDefault(j.optString("statut"), j.optString("statut")),
+                    envoi instanceof Number ? new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm")
+                            .format(new java.util.Date(((Number) envoi).longValue())) : "" });
+        }
+        return lignes;
+    }
+
+    private static String jour(String iso) {
+        LocalDate d = date(iso);
+        return d == null ? "" : d.format(JJ);
+    }
+
+    private static final String[] ENTETES = { "Prévu le", "Client", "Téléphone", "CIP", "Produit", "Stock", "Fréquence",
+            "Dernier achat", "Statut", "Rappel envoyé" };
+
+    private String sousTitre(String statut, String query, String du, String au, int n) {
+        String s = StringUtils.isBlank(statut) ? "À préparer et préparés" : "TOUS".equalsIgnoreCase(statut)
+                ? "Tous les statuts" : STATUTS.getOrDefault(statut.toUpperCase(), statut);
+        if (date(du) != null || date(au) != null) {
+            s += " · prévus " + (date(du) == null ? "" : "du " + date(du).format(JJ) + " ")
+                    + (date(au) == null ? "" : "au " + date(au).format(JJ));
+        }
+        if (StringUtils.isNotBlank(query)) {
+            s += " · recherche « " + query.trim() + " »";
+        }
+        return s.trim() + " · " + n + " ligne(s)";
+    }
+
+    /** Impression de la liste affichee (memes criteres). */
+    @GET
+    @Path("pdf")
+    @Produces("application/pdf")
+    public Response pdf(@QueryParam("statut") String statut, @QueryParam("query") String query,
+            @QueryParam("dtStart") String du, @QueryParam("dtEnd") String au) {
+        Response r = controle();
+        if (r != null) {
+            return Response.status(Response.Status.FORBIDDEN).type(MediaType.APPLICATION_JSON).entity(r.getEntity())
+                    .build();
+        }
+        List<String[]> lignes = lignesEdition(statut, query, du, au);
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = service.nomOfficine();
+        e.titre = "RAPPELS DE TRAITEMENT";
+        e.sousTitre = sousTitre(statut, query, du, au, lignes.size());
+        TUser u = utilisateur();
+        e.imprimePar = (StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                + StringUtils.defaultString(u.getStrLASTNAME())).trim();
+        e.entetes = ENTETES;
+        e.largeurs = new float[] { 7f, 14f, 9f, 7f, 22f, 5f, 7f, 8f, 8f, 11f };
+        e.droite = new boolean[] { false, false, false, false, false, true, true, false, false, false };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, lignes), "application/pdf")
+                .header("Content-Disposition", "inline; filename=rappels_traitement.pdf").build();
+    }
+
+    /** Export CSV (separateur « ; », UTF-8 avec BOM pour Excel) de la liste affichee. */
+    @GET
+    @Path("csv")
+    @Produces("text/csv")
+    public Response csv(@QueryParam("statut") String statut, @QueryParam("query") String query,
+            @QueryParam("dtStart") String du, @QueryParam("dtEnd") String au) {
+        Response r = controle();
+        if (r != null) {
+            return Response.status(Response.Status.FORBIDDEN).type(MediaType.APPLICATION_JSON).entity(r.getEntity())
+                    .build();
+        }
+        StringBuilder sb = new StringBuilder("\uFEFF");
+        sb.append(csvLigne(ENTETES));
+        for (String[] l : lignesEdition(statut, query, du, au)) {
+            sb.append(csvLigne(l));
+        }
+        return Response.ok(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8), "text/csv; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=rappels_traitement.csv").build();
+    }
+
+    static String csvLigne(String[] valeurs) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < valeurs.length; i++) {
+            String v = valeurs[i] == null ? "" : valeurs[i];
+            /* formule interdite (injection dans le tableur) et separateurs echappes */
+            if (!v.isEmpty() && "=+-@".indexOf(v.charAt(0)) >= 0 && !v.matches("-?\\d+([.,]\\d+)?")) {
+                v = "'" + v;
+            }
+            sb.append(i == 0 ? "" : ";").append(v.contains(";") || v.contains("\"") || v.contains("\n")
+                    ? "\"" + v.replace("\"", "\"\"") + "\"" : v);
+        }
+        return sb.append("\r\n").toString();
     }
 }

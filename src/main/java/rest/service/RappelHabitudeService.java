@@ -48,6 +48,19 @@ public interface RappelHabitudeService {
      */
     JSONObject preparerMessages(List<String> ids, TUser operateur, String canal);
 
+    /**
+     * Retours du 10/10 (section 13) : idem avec le modele de message choisi (modele_message, actif et compatible avec
+     * le canal) ; null ou vide : le modele des rappels (MODELE_HABITUDE). Le canal et le modele sont gardes sur le
+     * rappel.
+     */
+    JSONObject preparerMessages(List<String> ids, TUser operateur, String canal, String modeleId);
+
+    /** Retours du 10/10 (section 13) : analyse des rappels dont la date prevue est dans la periode. */
+    JSONObject analyse(LocalDate du, LocalDate au);
+
+    /** Nom de l'officine (en-tete des editions). */
+    String nomOfficine();
+
     /** Tache quotidienne : actualise, puis prepare les SMS des nouvelles lignes si l'envoi automatique est actif. */
     List<String> rappelsAutomatiques(LocalDate jour);
 

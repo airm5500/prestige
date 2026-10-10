@@ -222,6 +222,12 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
     @Override
     @SuppressWarnings("unchecked")
     public JSONObject preparerMessages(List<String> ids, TUser operateur, String canal) {
+        return preparerMessages(ids, operateur, canal, null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject preparerMessages(List<String> ids, TUser operateur, String canal, String modeleId) {
         String c = StringUtils.defaultIfBlank(canal, "SMS").trim().toUpperCase();
         boolean whatsapp = c.contains("WHATSAPP");
         boolean sms = !"WHATSAPP".equals(c);
@@ -229,6 +235,20 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
         JSONArray refus = new JSONArray();
         if (ids == null || ids.isEmpty()) {
             return refus("Aucune ligne choisie.");
+        }
+        String idModele = StringUtils.trimToNull(modeleId);
+        String modele;
+        if (idModele == null) {
+            modele = modele();
+        } else {
+            ModeleMessage choisi = em.find(ModeleMessage.class, idModele);
+            if (choisi == null || !choisi.isActif()) {
+                return refus("Modèle de message introuvable ou désactivé.");
+            }
+            if ((sms && !choisi.convientAuCanal("SMS")) || (whatsapp && !choisi.convientAuCanal("WHATSAPP"))) {
+                return refus("Le modèle « " + choisi.getLibelle() + " » n'est pas prévu pour ce canal.");
+            }
+            modele = choisi.getContenu();
         }
         List<Object[]> lignes = lier(em.createNativeQuery("SELECT r.id, r.lg_CLIENT_ID, f.str_NAME, r.dt_PREVU"
                 + " FROM t_rappel_habitude r JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID" + " WHERE r.id IN ("
@@ -240,7 +260,6 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
         }
         TUser auteur = operateur != null ? operateur : auteurParDefaut();
         String[] officine = officine();
-        String modele = modele();
         CategorieNotification categorie = notificationService.getOneByName(TypeNotification.RAPPEL_HABITUDE);
         for (Map.Entry<String, List<Object[]>> e : parClient.entrySet()) {
             TClient client = em.find(TClient.class, e.getKey());
@@ -276,9 +295,10 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
             em.persist(n);
             List<String> idsClient = e.getValue().stream().map(l -> (String) l[0]).collect(Collectors.toList());
             lier(em.createNativeQuery(
-                    "UPDATE t_rappel_habitude SET lg_NOTIFICATION_ID = ?1, dt_ENVOI = ?2 WHERE id IN ("
-                            + marques(3, idsClient.size()) + ")")
-                    .setParameter(1, n.getId()).setParameter(2, new Date()), 3, idsClient).executeUpdate();
+                    "UPDATE t_rappel_habitude SET lg_NOTIFICATION_ID = ?1, dt_ENVOI = ?2, str_CANAL = ?3, lg_MODELE = ?4"
+                            + " WHERE id IN (" + marques(5, idsClient.size()) + ")")
+                    .setParameter(1, n.getId()).setParameter(2, new Date()).setParameter(3, c)
+                    .setParameter(4, idModele == null ? MODELE : idModele), 5, idsClient).executeUpdate();
             notifications.put(n.getId());
         }
         em.flush();
@@ -443,5 +463,24 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
 
     private static boolean vrai(Object v) {
         return v instanceof Boolean ? (Boolean) v : v instanceof Number && ((Number) v).intValue() != 0;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject analyse(LocalDate du, LocalDate au) {
+        rest.service.impl.rappel.AnalyseRappels a = new rest.service.impl.rappel.AnalyseRappels();
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT DATE_FORMAT(dt_PREVU, '%Y-%m'), str_STATUT,"
+                        + " dt_ENVOI IS NOT NULL, str_CANAL FROM t_rappel_habitude WHERE dt_PREVU BETWEEN ?1 AND ?2")
+                .setParameter(1, java.sql.Date.valueOf(du)).setParameter(2, java.sql.Date.valueOf(au))
+                .getResultList()) {
+            a.ajouter(String.valueOf(r[0]), (String) r[1], vrai(r[2]), (String) r[3]);
+        }
+        return a.json().put("success", true).put("debut", du.toString()).put("fin", au.toString());
+    }
+
+    @Override
+    public String nomOfficine() {
+        return officine()[0];
     }
 }

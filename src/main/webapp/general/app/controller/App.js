@@ -222,6 +222,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'retourfrsmanager' && Ext.ClassManager.getNameByAlias('widget.retoursfournisseur')) {
             return 'retoursfournisseur';
         }
+        /* retours du 10/10 (section 13) : les rappels de traitement s'ouvrent dans leur conteneur (liste + analyse) */
+        if (xtype === 'rappelshabitude' && Ext.ClassManager.getNameByAlias('widget.rappelstraitement')) {
+            return 'rappelstraitement';
+        }
         return xtype === 'i_order_manager' && Ext.ClassManager.getNameByAlias('widget.commandesencours') ? 'commandesencours' : xtype;
     },
 

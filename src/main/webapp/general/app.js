@@ -679,6 +679,7 @@ Ext.application({
         'testextjs.view.sm_user.mouvementprix.Mouvementprixvente',
         'testextjs.view.stockmanagement.codegeo.ProduitsCodeGeoManager',
         'testextjs.view.configmanagement.client.rappels.RappelsHabitudeManager',
+        'testextjs.view.configmanagement.client.rappels.RappelsTraitement',
         'testextjs.view.notification.WhatsAppComptes',
         'testextjs.view.rh.RhManager',
         'testextjs.view.commandemanagement.analyse.AnalyseCommande',

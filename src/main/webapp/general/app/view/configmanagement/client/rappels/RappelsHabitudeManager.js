@@ -95,7 +95,7 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsHabitudeManage
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'combobox', itemId: 'statut', width: 190, editable: false, queryMode: 'local', displayField: 'l',
-                            valueField: 'v', value: '',
+                            valueField: 'v', value: '', tooltip: 'Statut des rappels affichés',
                             store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
                                     {v: '', l: 'À préparer et préparés'}, {v: 'A_PREPARER', l: 'À préparer'},
                                     {v: 'PREPARE', l: 'Préparés'}, {v: 'ECARTE', l: 'Écartés'},
@@ -103,30 +103,62 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsHabitudeManage
                             listeners: {select: function () {
                                     me.rechercher();
                                 }}},
-                        {xtype: 'datefield', itemId: 'du', width: 120, emptyText: 'Prévu du', format: 'd/m/Y', submitFormat: 'Y-m-d'},
-                        {xtype: 'datefield', itemId: 'au', width: 120, emptyText: 'au', format: 'd/m/Y', submitFormat: 'Y-m-d'},
-                        {xtype: 'textfield', itemId: 'query', width: 200, emptyText: 'Client, téléphone, produit…', listeners: surEntree},
-                        {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon', handler: function () {
+                        {xtype: 'datefield', itemId: 'du', width: 120, emptyText: 'Prévu du', format: 'd/m/Y', submitFormat: 'Y-m-d',
+                            tooltip: 'Date prévue du prochain achat : à partir du'},
+                        {xtype: 'datefield', itemId: 'au', width: 120, emptyText: 'au', format: 'd/m/Y', submitFormat: 'Y-m-d',
+                            tooltip: 'Date prévue du prochain achat : jusqu\'au'},
+                        {xtype: 'textfield', itemId: 'query', width: 200, emptyText: 'Client, téléphone, produit…', listeners: surEntree,
+                            tooltip: 'Nom du client, téléphone, nom ou CIP du produit (Entrée pour rechercher)'},
+                        {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon', tooltip: 'Afficher les rappels selon les critères',
+                            handler: function () {
                                 me.rechercher();
                             }},
                         {text: 'Actualiser la liste', itemId: 'btnActualiser', iconCls: 'refresh',
                             tooltip: 'Recalcule les habitudes d\'achat et ajoute les traitements dont le prochain achat arrive',
                             handler: function () {
                                 me.actualiser();
+                            }},
+                        '->',
+                        /* retours du 10/10 (section 13) : impression et export de la liste affichee */
+                        {text: 'Imprimer', itemId: 'btnPdf', iconCls: 'printable', tooltip: 'Imprimer la liste affichée (PDF, mêmes critères)',
+                            handler: function () {
+                                me.editer('pdf');
+                            }},
+                        {text: 'Export CSV', itemId: 'btnCsv', iconCls: 'export_excel_icon', tooltip: 'Exporter la liste affichée en CSV (ouvrable dans Excel)',
+                            handler: function () {
+                                me.editer('csv');
                             }}
                     ]
                 }, {
                     xtype: 'toolbar', dock: 'top', items: [
-                        {text: 'Marquer préparé', itemId: 'btnPrepare', iconCls: 'checkicon', disabled: true, handler: function () {
+                        {text: 'Marquer préparé', itemId: 'btnPrepare', iconCls: 'checkicon', disabled: true,
+                            tooltip: 'Le traitement des lignes choisies est préparé (pilulier, mise de côté)', handler: function () {
                                 me.marquer('PREPARE');
                             }},
-                        {text: 'Écarter', itemId: 'btnEcarter', disabled: true, handler: function () {
+                        {text: 'Écarter', itemId: 'btnEcarter', disabled: true, tooltip: 'Ne pas préparer ni rappeler les lignes choisies',
+                            handler: function () {
                                 me.marquer('ECARTE');
                             }},
-                        {text: 'Remettre à préparer', itemId: 'btnRemettre', disabled: true, handler: function () {
+                        {text: 'Remettre à préparer', itemId: 'btnRemettre', disabled: true, tooltip: 'Remettre les lignes choisies dans la liste à préparer',
+                            handler: function () {
                                 me.marquer('A_PREPARER');
                             }},
                         '-',
+                        /* retours du 10/10 (section 13) : le message suit le modele choisi (Modèles de messages) */
+                        {xtype: 'combobox', itemId: 'modeleRappel', width: 260, editable: false, queryMode: 'local', valueField: 'id',
+                            displayField: 'libelle', emptyText: 'Modèle du message…',
+                            tooltip: 'Modèle du message de rappel (géré dans Modèles de messages) ; il doit convenir au canal choisi',
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'canal', 'contenu'], autoLoad: true,
+                                proxy: {type: 'ajax', url: '../api/v1/modeles-messages', reader: {type: 'json', root: 'data'}},
+                                listeners: {load: function (st) {
+                                        var c = me.down('#modeleRappel');
+                                        if (c && !c.getValue() && st.getCount()) {
+                                            c.setValue(st.getById(me.MODELE_DEFAUT) ? me.MODELE_DEFAUT : st.getAt(0).get('id'));
+                                        }
+                                    }}}),
+                            listConfig: {getInnerTpl: function () {
+                                    return '{libelle} <span style="color:#7f8c8d;font-size:10px">({canal})</span>';
+                                }}},
                         {text: 'Envoyer le rappel', itemId: 'btnSms', disabled: true,
                             tooltip: 'Un message par client ; consentement et numéro contrôlés',
                             menu: {items: [
@@ -235,6 +267,13 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsHabitudeManage
         });
     },
 
+    MODELE_DEFAUT: 'MODELE_HABITUDE',
+
+    /** Retours du 10/10 (section 13) : edition PDF ou CSV de la liste affichee, memes criteres. */
+    editer: function (format) {
+        window.open('../api/v1/rappels-habitude/' + format + '?' + Ext.Object.toQueryString(this.filtres()), '_blank');
+    },
+
     CANAUX: {SMS: 'par SMS', WHATSAPP: 'par WhatsApp', SMS_WHATSAPP: 'par WhatsApp (SMS si WhatsApp échoue)'},
 
     envoyerSms: function () {
@@ -246,11 +285,14 @@ Ext.define('testextjs.view.configmanagement.client.rappels.RappelsHabitudeManage
         if (!ids.length) {
             return;
         }
-        Ext.MessageBox.confirm('Rappel', 'Envoyer le rappel ' + me.CANAUX[canal] + ' aux clients choisis (un message par client) ?', function (b) {
+        var m = me.down('#modeleRappel'), rec = m && m.getValue() ? m.getStore().getById(m.getValue()) : null;
+        Ext.MessageBox.confirm('Rappel', 'Envoyer le rappel ' + me.CANAUX[canal] + ' aux clients choisis (un message par client)'
+                + (rec ? ', modèle « ' + Ext.String.htmlEncode(rec.get('libelle')) + ' »' : '') + ' ?', function (b) {
             if (b !== 'yes') {
                 return;
             }
-            me.appel('../api/v1/rappels-habitude/envoyer?canal=' + canal, ids, function (r) {
+            var modele = me.down('#modeleRappel') ? me.down('#modeleRappel').getValue() : null;
+            me.appel('../api/v1/rappels-habitude/envoyer?canal=' + canal + (modele ? '&modele=' + encodeURIComponent(modele) : ''), ids, function (r) {
                 var refus = Ext.Array.map(r.refus || [], function (x) {
                     return Ext.String.htmlEncode(x.client) + ' : ' + Ext.String.htmlEncode(x.motif);
                 });
