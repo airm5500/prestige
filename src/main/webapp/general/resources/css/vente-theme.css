@@ -3046,3 +3046,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pb-lu { color: #17795f; font-weight: 600; }
 .pb-discret { color: #8a94a0; font-weight: normal; }
 .pb-champ-requis .x-form-item-label { font-weight: 600; }
+
+/* Retours du 10/10 (3) : barre du bas de la suggestion ouverte, marges des boutons reduites */
+.sugg-barre-bas .x-btn .x-btn-inner { padding-left: 4px !important; padding-right: 4px !important; }
+.sugg-barre-bas .x-toolbar-item { margin-right: 4px; }

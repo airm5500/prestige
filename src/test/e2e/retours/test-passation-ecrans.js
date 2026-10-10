@@ -4,7 +4,8 @@
  *  - ecran de traitement d'une COMMANDE : bouton « Commander par PharmaML » : confirmation (reference, grossiste,
  *    lignes), resultat (pris en compte / rupture), bouton desactive ensuite avec la raison ; un second envoi est refuse
  *    par le serveur (commande deja repondue : pas de double commande) ;
- *  - grossiste sans lien PharmaML : bouton absent ;
+ *  - retours du 10/10 : bouton au BAS de la suggestion et de la commande ouvertes ; grossiste sans lien PharmaML :
+ *    bouton present mais grise, la raison dans son libelle ;
  *  - refus du grossiste avec code d'erreur (tableau 8) : libelle et conseil affiches (0101 -> code client) ;
  *  - mise en page : boutons entiers et dans l'ecran ; aucune erreur JavaScript ; tout est retire a la fin.
  */
@@ -72,7 +73,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   const boutonDans = (id) => p.evaluate((i) => { const c = Ext.getCmp(i); if (!c || !c.isVisible()) { return { visible: false }; } const r = c.getEl().dom.getBoundingClientRect(), t = (c.up('fieldcontainer') || c.up('toolbar')).getEl().dom.getBoundingClientRect();
     const txt = c.getEl().dom.querySelector('.x-btn-inner'); return { visible: true, actif: !c.isDisabled(), dedans: r.left >= t.left - 1 && r.right <= t.right + 1 && r.right <= window.innerWidth,
       entier: txt ? txt.scrollWidth <= txt.clientWidth + 1 : false, texte: c.getText(), info: c.tooltip,
-      fond: getComputedStyle(c.getEl().dom).backgroundColor }; }, id);
+      fond: getComputedStyle(c.getEl().dom).backgroundColor, enBas: !!(c.up('toolbar') && c.up('toolbar').dock === 'bottom') }; }, id);
   const ouvrirCommande = async (ref) => {
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('i_order_manager', {}); });
     await p.waitForFunction(() => Ext.ComponentQuery.query('i_order_manager').length > 0 && Ext.ComponentQuery.query('i_order_manager')[0].isVisible(), null, { timeout: 30000 });
@@ -105,7 +106,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     await p.waitForTimeout(800);
     const bs = await boutonDans('btn_sugg_commander_pml');
     await p.screenshot({ path: SORTIE + '/passation-suggestion.png' });
-    ok('Traitement de la suggestion : bouton « Commander par PharmaML » visible, actif, entier, dans l\'écran', bs.visible && bs.actif && bs.dedans && bs.entier && bs.texte === 'Commander par PharmaML', JSON.stringify(bs));
+    ok('Traitement de la suggestion : bouton « Commander par PharmaML » visible, actif, entier, dans l\'écran, dans la barre du BAS', bs.visible && bs.actif && bs.dedans && bs.entier && bs.enBas && bs.texte === 'Commander par PharmaML', JSON.stringify(bs));
     /* la barre du bas de la suggestion n'est pas poussee hors de l'ecran */
     const barre = await p.evaluate(() => { const c = Ext.getCmp('btn_clean_sugg'); const r = c.getEl().dom.getBoundingClientRect(); return { droite: r.right, largeur: window.innerWidth }; });
     ok('Suggestion : la barre du bas tient dans l\'écran (« Nettoyer la suggestion » visible)', barre.droite <= barre.largeur, JSON.stringify(barre));
@@ -122,7 +123,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     await ouvrirCommande(O1);
     const bc = await boutonDans('btn_cmd_envoyer_pml');
     await p.screenshot({ path: SORTIE + '/passation-commande.png' });
-    ok('Traitement de la commande : bouton « Commander par PharmaML » visible, actif, entier, dans l\'écran, mis en avant (vert)', bc.visible && bc.actif && bc.dedans && bc.entier && bc.fond === 'rgb(23, 121, 95)', JSON.stringify(bc));
+    ok('Traitement de la commande : bouton « Commander par PharmaML » visible, actif, entier, dans l\'écran, mis en avant (vert)', bc.visible && bc.actif && bc.dedans && bc.entier && bc.enBas && bc.fond === 'rgb(23, 121, 95)', JSON.stringify(bc));
     await p.click('#btn_cmd_envoyer_pml');
     const confC = await oui();
     ok('Confirmation : référence, grossiste, 2 ligne(s), ruptures vers la liste des ruptures', new RegExp(O1).test(confC) && /TEDIS/.test(confC) && /2 ligne\(s\)/.test(confC) && /liste des ruptures/.test(confC), confC);
@@ -135,11 +136,11 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Second envoi refusé par le serveur (commande déjà répondue), aucun nouvel envoi noté', second.success === false && second.dejaRepondue === true && /seconde fois/.test(second.msg)
       && q("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + O1 + "'") === '1', JSON.stringify(second));
 
-    /* 3) grossiste sans lien PharmaML : pas de bouton */
+    /* 3) grossiste sans lien PharmaML : bouton present, grise, raison dans le libelle (retours du 10/10) */
     url(null); poser(O2);
     await ouvrirCommande(O2);
     const sans = await boutonDans('btn_cmd_envoyer_pml');
-    ok('Grossiste sans lien PharmaML : bouton absent', !sans.visible, JSON.stringify(sans));
+    ok('Grossiste sans lien PharmaML : bouton présent en bas, grisé, « PharmaML : grossiste non configuré »', sans.visible && !sans.actif && sans.enBas && sans.texte === 'PharmaML : grossiste non configuré' && sans.entier, JSON.stringify(sans));
 
     /* 4) refus avec code d'erreur (tableau 8) */
     url('http://127.0.0.1:' + PORT + '/refus101/'); poser(O3);

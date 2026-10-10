@@ -3,7 +3,7 @@
  * Faux grossiste (serveur HTTP local) : produit 1 livre, produit 2 en rupture.
  *
  * Ce que le test etablit :
- *  - action de ligne « Commander par PharmaML » : confirmation (grossiste, lignes, protocole), envoi en 1.0.0.0 (defaut)
+ *  - bouton « Commander par PharmaML » au bas de la suggestion ouverte (retours du 10/10 : plus sur la ligne) : confirmation (grossiste, lignes, protocole), envoi en 1.0.0.0 (defaut)
  *    (COMMANDE avec les lignes de la suggestion) ; la suggestion est CONSERVEE (memes lignes), statut « commandee »,
  *    mode PHARMAML, commande liee ; liste « COMMANDÉE · PHARMAML », actions masquees ;
  *  - envoi en echec (grossiste injoignable) : message clair, suggestion inchangee, commande creee et liee ; nouvel
@@ -123,8 +123,13 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
 
     /* A : parcours ecran */
     const l0 = await liste(S.A + '-REF');
-    ok('Action « Commander par PharmaML » visible', l0 && l0.icone, JSON.stringify(l0));
-    await p.click('[data-e2e="cmd-' + S.A + '-REF"]');
+    ok('Retours du 10/10 : plus d\'action « Commander par PharmaML » sur la ligne', l0 && !l0.icone, JSON.stringify(l0));
+    /* la commande part du bas de la suggestion ouverte */
+    await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', r)); }, S.A + '-REF');
+    await p.waitForFunction(() => Ext.getCmp('btn_sugg_commander_pml') && Ext.getCmp('btn_sugg_commander_pml').isVisible() && Ext.getCmp('gridpanelSuggestionID') && !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
+    await p.waitForTimeout(800);
+    ok('Suggestion ouverte : « Commander par PharmaML » dans la barre du bas', await p.evaluate(() => { const t = Ext.getCmp('btn_sugg_commander_pml').up('toolbar'); return !!t && t.dock === 'bottom'; }));
+    await p.click('#btn_sugg_commander_pml');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envoyer la suggestion/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 20000 });
     const conf = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
     ok('Confirmation : référence, grossiste, 2 lignes, protocole 1.0.0.0 (défaut), « Commandée » à la réception de la réponse', /E2E-SPM-A-REF/.test(conf) && /2 ligne\(s\), valeur 5 000/.test(conf) && /1\.0\.0\.0/.test(conf) && /passera au statut « Commandée » à la réception de la réponse du grossiste/.test(conf), conf);
@@ -133,6 +138,7 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /commandée|abouti/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 60000 });
     const fin = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent);
     await p.evaluate(() => Ext.MessageBox.hide());
+    await p.waitForFunction(() => Ext.ComponentQuery.query('i_sugg_manager').length > 0 && Ext.ComponentQuery.query('i_sugg_manager')[0].isVisible(), null, { timeout: 20000 });
     ok('Envoi : COMMANDE 1.0.0.0 (défaut) avec les 2 lignes de la suggestion', recus.length === 1 && /<CSRP_ENVELOPPE[^>]*1\.0\.0\.0/.test(recus[0]) && (recus[0].match(/<LIGNE_N /g) || []).length === 2, recus.length);
     ok('Résultat affiché : réponse reçue, commandée, 1 pris en compte, 1 en rupture', /Réponse du grossiste reçue/.test(fin) && /commandée/.test(fin) && /1 produit\(s\) pris en compte, 1 en rupture sur 2/.test(fin), fin);
     ok('Suggestion conservée (2 lignes), statut commandee, mode PHARMAML, commande liée', etatSugg(S.A) === 'commandee|PHARMAML|1|2', etatSugg(S.A));

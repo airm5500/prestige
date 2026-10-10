@@ -200,18 +200,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             },
                             int_BUTOIR,
                             int_ACHAT,
-                            int_VENTE,
-                            /* retours du 08/10 (8) : action principale en haut a droite (la barre du bas est pleine) */
-                            {xtype: 'component', flex: 1},
-                            {xtype: 'button', text: 'Commander par PharmaML', id: 'btn_sugg_commander_pml', cls: 'btn-primary btn-commander-pml',
-                                tooltip: 'Envoyer cette suggestion au grossiste par PharmaML ; elle passe « Commandée » à la réception de la réponse',
-                                handler: function () {
-                                    testextjs.view.commandemanagement.order.EnvoiPharmaMl.commanderSuggestion(orderIdRef || Me_Window.getNameintern(), function (o) {
-                                        if (o && o.success) {
-                                            Me_Window.onbtncancel();
-                                        }
-                                    });
-                                }}]
+                            int_VENTE]
                     }]
             },
             {
@@ -464,7 +453,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     }]
             },
             {
-                    xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0',
+                    /* retours du 10/10 (3) : marges des boutons reduites (classe sugg-barre-bas) pour que la barre,
+                     * avec « Commander par PharmaML », tienne sur un ecran de 1366 px */
+                    xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0', cls: 'sugg-barre-bas',
                     items: ['->',
                         {text: 'Retour', id: 'btn_cancel',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
                         {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint},
@@ -511,6 +502,16 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 'border-color': '#A36A00 !important'            
                             }
                     },
+                    /* retours du 10/10 (3) : « Commander par PharmaML » au bas de la suggestion ouverte, avec les autres boutons */
+                    {xtype: 'button', text: 'Commander par PharmaML', id: 'btn_sugg_commander_pml', cls: 'btn-primary btn-commander-pml',
+                        tooltip: 'Envoyer cette suggestion au grossiste par PharmaML ; elle passe « Commandée » à la réception de la réponse',
+                        handler: function () {
+                            testextjs.view.commandemanagement.order.EnvoiPharmaMl.commanderSuggestion(orderIdRef || Me_Window.getNameintern(), function (o) {
+                                if (o && o.success) {
+                                    Me_Window.onbtncancel();
+                                }
+                            });
+                        }},
                     '->'
                 ]
             }]

@@ -83,36 +83,28 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.down('[text=Tout décocher]') && g.down('[text=Tout décocher]').handler.call(g); suggCheckedIds.length = 0; g.majCompteurCoches(); });
     await p.evaluate(() => { Ext.getCmp('rechecher').setValue('E2E-0910-SUGG'); Ext.ComponentQuery.query('i_sugg_manager')[0].onRechClick(); });
     await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('i_sugg_manager')[0].getStore(); return !st.isLoading() && st.getCount() === 2; }, null, { timeout: 30000 });
-    const bs = await p.evaluate(() => { const c = Ext.getCmp('btn_sugglist_commander_pml'), g = Ext.ComponentQuery.query('i_sugg_manager')[0];
-      if (!c || !c.isVisible()) { return { visible: false }; }
-      const r = c.getEl().dom.getBoundingClientRect(), gr = g.getEl().dom.getBoundingClientRect(), txt = c.getEl().dom.querySelector('.x-btn-inner');
-      return { visible: true, enBas: c.up('pagingtoolbar') === g.down('pagingtoolbar') && r.bottom > gr.bottom - 60, dedans: r.right <= gr.right + 1 && r.right <= window.innerWidth,
-        entier: txt.scrollWidth <= txt.clientWidth + 1, fond: getComputedStyle(c.getEl().dom).backgroundColor }; });
+    /* retours du 10/10 (3) : plus de passation PharmaML sur la liste (ni bouton du bas, ni icone de ligne) ;
+       le bouton est au bas de la suggestion ouverte */
+    const liste = await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0];
+      return { bouton: !!Ext.getCmp('btn_sugglist_commander_pml'), icones: g.getEl().dom.querySelectorAll('.x-grid-cell-commanderPharmaMl .act-envoyer:not(.x-hide-display)').length }; });
+    ok('Liste des suggestions : plus de bouton « Commander par PharmaML » en bas ni sur les lignes', !liste.bouton && liste.icones === 0, JSON.stringify(liste));
     await p.screenshot({ path: SORTIE + '/0910-sugg-bas.png' });
-    ok('Suggestions : bouton « Commander par PharmaML » en bas (barre de pagination), entier, dans l\'écran, vert', bs.visible && bs.enBas && bs.dedans && bs.entier && bs.fond === 'rgb(23, 121, 95)', JSON.stringify(bs));
-    await p.click('#btn_sugglist_commander_pml');
-    let m = await message();
-    ok('Aucune suggestion cochée : message « Cochez la suggestion à commander »', /Cochez la suggestion à commander/.test(m.t) && !m.oui, m.t);
-    await fermer('ok');
-    const cocher = async (ref) => {
-      const cell = await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0], st = g.getStore(), rec = st.getAt(st.findExact('str_REF', r));
-        const col = g.down('checkcolumn'); return g.getView().getCell(rec, col).dom.id; }, ref);
-      await p.click('#' + cell + ' div');
-      await p.waitForTimeout(300);
-    };
-    await cocher(SUGG + '-REF'); await cocher(SUGG2 + '-REF');
-    await p.click('#btn_sugglist_commander_pml');
-    m = await message();
-    ok('Deux suggestions cochées : message « cochez-en une seule », rien envoyé', /2 suggestions sont cochées/.test(m.t) && !m.oui, m.t);
-    await fermer('ok');
-    await cocher(SUGG2 + '-REF');
-    await p.click('#btn_sugglist_commander_pml');
-    m = await message();
-    ok('Une suggestion cochée : même aperçu que l\'action de la ligne (référence, 2 lignes, confirmation)', m.oui && new RegExp(SUGG + '-REF').test(m.t) && /2 ligne\(s\)/.test(m.t), m.t);
+    await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', r)); }, SUGG + '-REF');
+    await p.waitForFunction(() => Ext.getCmp('btn_sugg_commander_pml') && Ext.getCmp('btn_sugg_commander_pml').isVisible() && Ext.getCmp('gridpanelSuggestionID') && !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
+    await p.waitForTimeout(800);
+    const bs = await p.evaluate(() => { const c = Ext.getCmp('btn_sugg_commander_pml'), tb = c.up('toolbar');
+      const r = c.getEl().dom.getBoundingClientRect(), txt = c.getEl().dom.querySelector('.x-btn-inner');
+      return { enBas: !!tb && tb.dock === 'bottom', dedans: r.right <= window.innerWidth && r.bottom <= window.innerHeight, entier: txt.scrollWidth <= txt.clientWidth + 1,
+        fond: getComputedStyle(c.getEl().dom).backgroundColor, voisins: tb ? tb.items.getRange().filter((x) => x.isXType && x.isXType('button')).map((x) => x.getText()).join('|') : '' }; });
+    ok('Suggestion ouverte : « Commander par PharmaML » dans la barre du bas, avec les autres boutons, entier, vert', bs.enBas && bs.dedans && bs.entier && bs.fond === 'rgb(23, 121, 95)' && /Retour/.test(bs.voisins) && /Vérifier la disponibilité/.test(bs.voisins), JSON.stringify(bs));
+    await p.click('#btn_sugg_commander_pml');
+    const m = await message();
+    ok('Suggestion ouverte : aperçu (référence, 2 lignes, confirmation)', m.oui && new RegExp(SUGG + '-REF').test(m.t) && /2 ligne\(s\)/.test(m.t), m.t);
     await fermer('no');
-    ok('« Non » : rien n\'est envoyé (suggestion toujours en cours, aucune commande créée)',
-      q("SELECT str_STATUT FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + SUGG + "'") === 'is_Process'
-      && q("SELECT COUNT(*) FROM t_order WHERE lg_GROSSISTE_ID = '" + G + "' AND dt_CREATED >= NOW() - INTERVAL 5 MINUTE AND lg_ORDER_ID <> '" + CMD + "'") === '0');
+    ok('« Non » : rien n\'est envoyé (suggestion non commandée — « pending » = ouverte en édition —, aucune commande créée)',
+      ['is_Process', 'pending'].includes(q("SELECT str_STATUT FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + SUGG + "'"))
+      && q("SELECT COUNT(*) FROM t_order WHERE lg_GROSSISTE_ID = '" + G + "' AND dt_CREATED >= NOW() - INTERVAL 5 MINUTE AND lg_ORDER_ID <> '" + CMD + "'") === '0',
+      q("SELECT str_STATUT FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + SUGG + "'") + ' / commandes ' + q("SELECT COUNT(*) FROM t_order WHERE lg_GROSSISTE_ID = '" + G + "' AND dt_CREATED >= NOW() - INTERVAL 5 MINUTE AND lg_ORDER_ID <> '" + CMD + "'"));
     await p.evaluate(() => { suggCheckedIds.length = 0; });
 
     /* 2) Commandes en cours : bouton « VÉRIFIER L'IMPORT » retire ; 5 onglets avec les droits */
@@ -151,7 +143,8 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Bouton entier, dans l\'écran, vert', bc.dedans && bc.entier && bc.fond === 'rgb(23, 121, 95)', JSON.stringify(bc));
     url(null);
     bc = await ouvrirCommande();
-    ok('Grossiste sans lien PharmaML : bouton absent', !bc.visible, JSON.stringify(bc));
+    ok('Grossiste sans lien PharmaML (retours du 10/10) : bouton présent en bas, grisé, raison dans le libellé',
+      bc.visible && bc.barreBas && bc.dedans && bc.entier && await p.evaluate(() => { const c = Ext.getCmp('btn_cmd_envoyer_pml'); return c.isDisabled() && c.getText() === 'PharmaML : grossiste non configuré'; }), JSON.stringify(bc));
 
     /* 4) sans les droits Alertes et Tableau de bord */
     droitsRetires = RETIRES.map((n) => q("SELECT CONCAT(rp.lg_ROLE_PRIVILEGE, '|', rp.lg_ROLE_ID, '|', rp.lg_PRIVILEGE_ID) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
