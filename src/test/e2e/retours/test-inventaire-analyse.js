@@ -17,6 +17,13 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
 const ID = 'E2E-INV-ANALYSE';
 const TMP = '/tmp/inv-analyse'; fs.mkdirSync(TMP, { recursive: true });
 
+/* Les 8 zones qui ont le plus de produits utilisables (au lieu de noms de zones d'un autre banc). */
+function zonesDuBanc() {
+  return q("SELECT GROUP_CONCAT(CONCAT('''', id, '''')) FROM (SELECT z.lg_ZONE_GEO_ID id FROM t_famille f JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID=f.lg_ZONE_GEO_ID"
+    + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
+    + " WHERE f.str_STATUT='enable' AND f.int_PAF>0 AND f.int_PRICE>0 AND s.int_NUMBER_AVAILABLE>5"
+    + " GROUP BY z.lg_ZONE_GEO_ID ORDER BY COUNT(*) DESC, z.lg_ZONE_GEO_ID LIMIT 8) t") || "''";
+}
 function poser() {
   exec("DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + ID + "'; DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID='" + ID + "';"
     + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID)"
@@ -31,7 +38,7 @@ function poser() {
     + "       FROM t_famille f JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID=f.lg_ZONE_GEO_ID"
     + "        JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
     + "       WHERE f.str_STATUT='enable' AND f.int_PAF>0 AND f.int_PRICE>0 AND s.int_NUMBER_AVAILABLE>5"
-    + "        AND z.str_LIBELLEE IN ('COMPRIMES','DERMOCOSMETIQUE','FORMES INJECTABLES','SIROPS','MEDICO-CHIRURGIE','ACCESSOIRES BEBE','COLLYRES - GOUTTES AURICULO NASALES','POMMADES - CREMES')) x"
+    + "        AND z.lg_ZONE_GEO_ID IN (" + zonesDuBanc() + ")) x"
     + " WHERE x.rn <= 12;");
 }
 function retirer() {

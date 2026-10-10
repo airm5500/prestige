@@ -23,9 +23,19 @@ const MARQUE = 'E2E-R21';
    dossier existant, puis le retire. */
 function semer() {
   nettoyer();
-  const dossier = q("SELECT lg_DOSSIER_REGLEMENT_ID FROM t_dossier_reglement o"
+  let dossier = q("SELECT lg_DOSSIER_REGLEMENT_ID FROM t_dossier_reglement o"
     + " JOIN t_tiers_payant p ON p.lg_TIERS_PAYANT_ID = o.str_ORGANISME_ID"
     + " WHERE o.lg_FACTURE_ID IS NOT NULL LIMIT 1");
+  if (!dossier) {
+    /* banc sans dossier de reglement : le test pose le sien (organisme type et facture existants), retire a la fin */
+    const organisme = q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant p JOIN t_type_tiers_payant tt ON tt.lg_TYPE_TIERS_PAYANT_ID = p.lg_TYPE_TIERS_PAYANT_ID"
+      + " WHERE p.str_STATUT='enable' ORDER BY p.str_FULLNAME LIMIT 1");
+    const facture = q("SELECT lg_FACTURE_ID FROM t_facture ORDER BY dt_CREATED DESC LIMIT 1");
+    exec("INSERT INTO t_dossier_reglement (lg_DOSSIER_REGLEMENT_ID, str_LIBELLE, str_NATURE_DOSSIER, dbl_AMOUNT, str_ORGANISME_ID, dt_CREATED, dt_UPDATED,"
+      + " str_STATUT, lg_FACTURE_ID, lg_USER_ID, dbl_MONTANT_ATTENDU, dt_REGLEMENT) VALUES ('" + MARQUE + "-DOS', 'E2E reglement', 'FACTURE', 15000, '" + organisme + "',"
+      + " NOW(), NOW(), 'enable', '" + facture + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'), 15000, NOW())");
+    dossier = MARQUE + '-DOS';
+  }
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const mode = q("SELECT lg_MODE_REGLEMENT_ID FROM t_mode_reglement WHERE str_STATUT='enable' LIMIT 1");
   exec("INSERT INTO t_reglement (lg_REGLEMENT_ID, str_REF_RESSOURCE, lg_MODE_REGLEMENT_ID, dt_CREATED,"
@@ -39,6 +49,7 @@ function semer() {
 }
 function nettoyer() {
   exec("DELETE FROM t_reglement WHERE lg_REGLEMENT_ID='" + MARQUE + "'");
+  exec("DELETE FROM t_dossier_reglement WHERE lg_DOSSIER_REGLEMENT_ID='" + MARQUE + "-DOS'");
 }
 
 (async () => {

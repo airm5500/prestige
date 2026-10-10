@@ -18,6 +18,8 @@ const TMP = '/tmp/claude-0/lot-pq';
 const MARQUE = 'E2E-PQ';
 const ROLE_KGA3 = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "' LIMIT 1");
 const PRIVILEGE = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME='P_BALANCE_ANCIENNE_PRESENTATION'");
+/* compte de test sans le privilege (admin les a tous) : retire de son role le temps du test, puis remis */
+const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
 
 let PRODUITS = [], USER = '', STOCK_AVANT = null;
 const DEBUT = '2027-02-05 20:00', FIN = '2027-02-06 08:00';
@@ -55,6 +57,8 @@ function semerGarde() {
 }
 
 (async () => {
+  sansPrivilege.remettre();
+  sansPrivilege.retirer();
   fs.mkdirSync(TMP, { recursive: true });
   poserJeuDEssai();
   purgerGarde();
@@ -273,6 +277,7 @@ function semerGarde() {
     await b.close();
     purgerGarde();
     retirerJeuDEssai();
+    sansPrivilege.remettre();
     ok('jeu d essai retire', q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'") === '0'
       && q("SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE='" + MARQUE + "-PRIV'") === '0');
   }

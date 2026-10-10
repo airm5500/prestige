@@ -16,8 +16,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const TP = '1619143351587397512';
-const JOUR = '2026-06-22';
+/* tiers payant et jour du jeu d'essai : ceux d'origine s'ils existent, sinon ceux du banc (support/jeu-carnet) */
+const { TP, JOUR } = require('../support/jeu-carnet')(q);
 let compteurAvant = null;
 
 function bonsUnpaid() {

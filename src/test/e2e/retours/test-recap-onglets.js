@@ -43,8 +43,8 @@ const TMP = '/tmp/recap-a'; fs.mkdirSync(TMP, { recursive: true });
     await p.click('#' + await p.evaluate(() => Ext.ComponentQuery.query('recap #rechercher')[0].id));
     await p.waitForTimeout(5000);
     const titres = await p.evaluate(() => Ext.ComponentQuery.query('recap #ongletsRecap')[0].items.getRange().map(x => x.title.replace(/<[^>]+>/g, '')));
-    ok('Titre Achats : groupes et total TTC', /ACHATS \d+ groupe\(s\) · [\d ,]+ TTC/.test(titres[0]), titres[0]);
-    ok('Titre Credits : bons et montant', /CREDITS ACCORDES [\d ,]+ bon\(s\) · [\d ,]+/.test(titres[1]), titres[1]);
+    ok('Titre Achats : groupes et total TTC', /ACHATS \d+ groupe\(s\) · [\d .,]+ TTC/.test(titres[0]), titres[0]);
+    ok('Titre Credits : bons et montant', /CREDITS ACCORDES [\d .,]+ bon\(s\) · [\d .,]+/.test(titres[1]), titres[1]);
     ok('Titre Reglements TP : nombre de factures', /REGLEMENTS TP \d+ facture\(s\)/.test(titres[2]), titres[2]);
     await p.screenshot({ path: TMP + '/e2e-achats.png' });
 

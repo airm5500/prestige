@@ -13,7 +13,8 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, FIN_B, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
 const TMP = '/tmp/claude-0/lot-o';
-const TP = '1619143351587397512';
+/* tiers payant et jour du jeu d'essai : ceux d'origine s'ils existent, sinon ceux du banc (support/jeu-carnet) */
+const { TP, JOUR } = require('../support/jeu-carnet')(q);
 let compteAvant = '', typeAvant = '', depotAvant = '';
 
 (async () => {

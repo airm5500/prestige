@@ -10,8 +10,10 @@ const res = [];
    de test, comme tout le reste du dossier. Le premier compte (KGA3) est celui de
    l'environnement de test decrit dans ENVIRONNEMENT_ET_TESTS.md. */
 const BASE = process.env.DB_TEST || 'capitale';
-const AUTRE = process.env.SECOND_LOGIN || 'WANE';
 const sql = (q) => execFileSync('mariadb', [BASE, '-sN', '-e', q], { encoding: 'utf8' });
+/* second compte : SECOND_LOGIN, sinon WANE s'il existe, sinon le premier compte actif autre que le premier */
+const AUTRE = process.env.SECOND_LOGIN || sql("SELECT COALESCE((SELECT str_LOGIN FROM t_user WHERE str_LOGIN='WANE' AND str_STATUT='enable'),"
+  + " (SELECT str_LOGIN FROM t_user WHERE str_STATUT='enable' AND str_LOGIN <> '" + (process.env.E2E_LOGIN || 'admin') + "' ORDER BY str_LOGIN LIMIT 1))").trim();
 let empreinteOrigine = null;
 function poserMotDePasse() {
   empreinteOrigine = sql("SELECT str_PASSWORD FROM t_user WHERE str_LOGIN='" + AUTRE + "'").trim();

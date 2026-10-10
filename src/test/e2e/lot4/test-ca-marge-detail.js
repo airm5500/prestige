@@ -33,6 +33,11 @@ let ZONE = null;
 const attendu = {};
 
 function nettoyer() {
+  /* produits ranges le temps du test dans la zone d'essai : zone d'origine remise (table de sauvegarde du test) */
+  exec("CREATE TABLE IF NOT EXISTS e2e_l4_zones (lg_FAMILLE_ID VARCHAR(40) PRIMARY KEY, lg_ZONE_GEO_ID VARCHAR(40));"
+    + " UPDATE t_famille f JOIN e2e_l4_zones z ON z.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID;"
+    + " DROP TABLE e2e_l4_zones;"
+    + " DELETE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = '" + MARQUE + "-Z';");
   exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_DETAIL_ID LIKE '" + MARQUE + "%'");
   exec("DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "%'");
   // L'inventaire cree par le test porte le libelle de la ligne semee ; on le retire par sa date.
@@ -44,13 +49,18 @@ function nettoyer() {
 function semer() {
   nettoyer();
   const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
-  // Trois produits d'une meme zone : la ligne « zone » de l'analyse les regroupe tous les trois.
-  const zoneEtProduits = q("SELECT CONCAT(f.lg_ZONE_GEO_ID, '#', GROUP_CONCAT(f.lg_FAMILLE_ID))"
-    + " FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_ZONE_GEO_ID IS NOT NULL"
-    + " AND f.lg_ZONE_GEO_ID <> '' GROUP BY f.lg_ZONE_GEO_ID HAVING COUNT(*) >= 3 LIMIT 1");
-  if (!zoneEtProduits) { return false; }
-  ZONE = zoneEtProduits.split('#')[0];
-  const familles = zoneEtProduits.split('#')[1].split(',').slice(0, 3);
+  /* Trois produits d'une meme zone : la ligne « zone » de l'analyse les regroupe tous les trois. Le banc a des ventes
+     reelles dans toutes ses zones : une zone d'essai est creee et trois produits sans vente recente y sont ranges le
+     temps du test (zone d'origine sauvegardee, puis remise). */
+  exec("INSERT INTO t_zone_geographique (lg_ZONE_GEO_ID, str_LIBELLEE, str_CODE, dt_CREATED, dt_UPDATED, str_STATUT, lg_EMPLACEMENT_ID, bool_ACCOUNT)"
+    + " VALUES ('" + MARQUE + "-Z', 'ZZ ZONE E2E L4', 'E2EL4', NOW(), NOW(), 'enable', '1', 1)");
+  const familles = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> ''"
+    + " AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+    + " WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND p.dt_UPDATED >= DATE_SUB(CURDATE(), INTERVAL 4 MONTH)) ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean);
+  exec("CREATE TABLE e2e_l4_zones (lg_FAMILLE_ID VARCHAR(40) PRIMARY KEY, lg_ZONE_GEO_ID VARCHAR(40));"
+    + " INSERT INTO e2e_l4_zones SELECT lg_FAMILLE_ID, lg_ZONE_GEO_ID FROM t_famille WHERE lg_FAMILLE_ID IN ('" + familles.join("','") + "');"
+    + " UPDATE t_famille SET lg_ZONE_GEO_ID = '" + MARQUE + "-Z' WHERE lg_FAMILLE_ID IN ('" + familles.join("','") + "');");
+  ZONE = MARQUE + '-Z';
   if (familles.length < 3) { return false; }
 
   // La vente est clonee depuis une vente existante : elle porte des dizaines de colonnes liees,

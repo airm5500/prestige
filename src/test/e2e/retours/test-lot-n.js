@@ -13,10 +13,14 @@ const { chromium } = require('playwright-core');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
-const { q, MOIS_A, MOIS_B, FIN_B, jour, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
+const { q, exec, MOIS_A, MOIS_B, FIN_B, jour, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
+/* compte de test sans le privilege de l'ancienne presentation (admin les a tous) : retire le temps du test, puis remis */
+const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
 const TMP = '/tmp/claude-0/lot-n';
 
 (async () => {
+  sansPrivilege.remettre();
+  sansPrivilege.retirer();
   fs.mkdirSync(TMP, { recursive: true });
   poserJeuDEssai();
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
@@ -216,6 +220,7 @@ const TMP = '/tmp/claude-0/lot-n';
   } finally {
     await b.close();
     retirerJeuDEssai();
+    sansPrivilege.remettre();
     ok('jeu d essai retire', q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE 'E2E-LL-%'") === '0');
   }
   const ko = res.filter(r => !r.c).length;

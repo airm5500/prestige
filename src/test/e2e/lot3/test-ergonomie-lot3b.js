@@ -32,7 +32,7 @@ function semer() {
   CONTENANCE = Number(CONTENANCE);
   const emplacement = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
-  const commun = "'2026-09-06 10:00:00', CURDATE(), 0, 0, ";
+  const commun = "'2037-01-01 10:00:00', CURDATE(), 0, 0, ";
   exec("INSERT INTO hmvtproduit (uuid, createdAt, mvtdate, prixAchat, prixUn, qteDebut, qteFinale, qteMvt,"
     + " valeurTva, lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt, pkey, ug) VALUES"
     + " ('" + MARQUE + "-06', " + commun + "10, " + (10 - BOITES) + ", " + BOITES + ", 0,"
