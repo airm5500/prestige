@@ -177,6 +177,41 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Retours du 10/10 (section 16) : analyse des ecarts de caisse (negatif = manquant). */
+    @GET
+    @Path("analyse-ecarts")
+    public Response analyseEcarts(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "userId") String userId,
+            @QueryParam(value = "tolerance") Long tolerance) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        LocalDate fin = LocalDate.now(), debut = fin.minusMonths(5).withDayOfMonth(1);
+        try {
+            if (StringUtils.isNotBlank(dtStart)) {
+                debut = LocalDate.parse(dtStart.trim());
+            }
+            if (StringUtils.isNotBlank(dtEnd)) {
+                fin = LocalDate.parse(dtEnd.trim());
+            }
+        } catch (Exception e) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString()).build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        @SuppressWarnings("unchecked")
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean allActivitis = Constant.hasAuthorityByName(lstTPrivilege, Constant.P_SHOW_ALL_ACTIVITY);
+        long tol = tolerance == null ? 0 : Math.max(0, Math.min(tolerance, 1_000_000));
+        return Response.ok().entity(caisseService.analyseEcarts(debut, fin, tu, allActivitis, userId, tol).toString())
+                .build();
+    }
+
     @GET
     @Path("resumecaisse")
     public Response resumecaisse(@QueryParam(value = "dtStart") String dtStart,

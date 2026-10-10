@@ -151,4 +151,10 @@ public interface CaisseService {
      */
     JSONObject pointMobileMoney(TUser user);
 
+    /**
+     * Retours du 10/10 (section 16) : analyse des ecarts des caisses fermees ouvertes dans la periode (ecart =
+     * billetage - attendu, negatif = manquant), du depot de l'utilisateur sauf droit « toute l'activite ».
+     */
+    JSONObject analyseEcarts(LocalDate dtStart, LocalDate dtEnd, TUser u, boolean allActivite, String userId,
+            long tolerance);
 }

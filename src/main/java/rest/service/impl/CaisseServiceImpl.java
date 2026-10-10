@@ -2387,4 +2387,44 @@ public class CaisseServiceImpl implements CaisseService {
         return json;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject analyseEcarts(LocalDate dtStart, LocalDate dtEnd, TUser u, boolean allActivite, String userId,
+            long tolerance) {
+        boolean parCaissier = userId != null && !userId.trim().isEmpty();
+        javax.persistence.Query q = getEntityManager().createNativeQuery("SELECT rc.ld_CAISSE_ID,"
+                + " CONCAT_WS(' ', us.str_FIRST_NAME, us.str_LAST_NAME), rc.dt_CREATED, rc.dt_UPDATED, rc.int_SOLDE_SOIR,"
+                + " (SELECT SUM(b.int_AMOUNT) FROM t_billetage b WHERE b.ld_CAISSE_ID = rc.ld_CAISSE_ID"
+                + "   AND b.lg_USER_ID = rc.lg_USER_ID)"
+                + " FROM t_resume_caisse rc JOIN t_user us ON us.lg_USER_ID = rc.lg_USER_ID"
+                + " WHERE rc.str_STATUT <> ?1 AND DATE(rc.dt_CREATED) BETWEEN ?2 AND ?3"
+                + (allActivite ? "" : " AND us.lg_EMPLACEMENT_ID = ?4")
+                + (parCaissier ? " AND rc.lg_USER_ID = ?" + (allActivite ? 4 : 5) : ""))
+                .setParameter(1, Constant.STATUT_IS_USING).setParameter(2, java.sql.Date.valueOf(dtStart))
+                .setParameter(3, java.sql.Date.valueOf(dtEnd));
+        if (!allActivite) {
+            q.setParameter(4, u.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        }
+        /* parametres positionnels consecutifs : sans depot, le caissier prend la place 4 */
+        if (parCaissier) {
+            q.setParameter(allActivite ? 4 : 5, userId.trim());
+        }
+        rest.service.impl.caisse.AnalyseEcartsCaisse a = new rest.service.impl.caisse.AnalyseEcartsCaisse(tolerance);
+        for (Object[] r : (List<Object[]>) q.getResultList()) {
+            a.ajouter(String.valueOf(r[0]), r[1] == null ? "" : String.valueOf(r[1]), instant(r[2]), instant(r[3]),
+                    r[4] == null ? 0 : ((Number) r[4]).longValue(),
+                    r[5] == null ? null : Math.round(((Number) r[5]).doubleValue()));
+        }
+        return a.json(10).put("success", true).put("debut", dtStart.toString()).put("fin", dtEnd.toString());
+    }
+
+    private static java.time.LocalDateTime instant(Object o) {
+        if (o instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) o).toLocalDateTime();
+        }
+        if (o instanceof java.util.Date) {
+            return new java.sql.Timestamp(((java.util.Date) o).getTime()).toLocalDateTime();
+        }
+        return o instanceof java.time.LocalDateTime ? (java.time.LocalDateTime) o : null;
+    }
 }

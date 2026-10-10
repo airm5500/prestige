@@ -3102,6 +3102,17 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .fid-analyse .rf-col .ac-table { width: 100%; }
 .fid-analyse td.fid-plus { color: #17795f; }
 .fid-analyse td.fid-moins { color: #c0564b; }
+/* Retours du 10/10 (section 16) : analyse des ecarts de caisse (negatif = manquant, rouge doux ; surplus en vert) */
+.gc-analyse .gc-manquant { color: #c0392b; font-weight: 600; }
+.gc-analyse .gc-surplus { color: #17795f; font-weight: 600; }
+.gc-analyse .gc-regle { margin-bottom: 8px; color: #3b4a5a; }
+.gc-analyse .gc-pistes { margin-top: 12px; padding: 8px 10px; background: #f6f8fa; border-left: 3px solid #1f3b5a; }
+.gc-analyse .gc-pistes ul { margin: 6px 0 0 18px; padding: 0; }
+.gc-analyse .gc-hausse { color: #c0392b; }
+.gc-analyse .gc-baisse { color: #17795f; }
+.gc-analyse .rf-deux { display: flex; flex-wrap: wrap; gap: 18px; }
+.gc-analyse .rf-col { flex: 1 1 520px; min-width: 0; }
+.gc-analyse .rf-col .ac-table, .gc-analyse .gc-plus-gros { width: 100%; }
 /* Retours du 10/10 (Q1) : ventes moyennes 90 jours dans l'apercu de la fiche article */
 .vp-ap-moyennes { margin-left: 12px; color: #3b4a5a; font-size: 12px; white-space: nowrap; cursor: help; }
 .vp-ap-moyennes b { color: #1f3b5a; }
