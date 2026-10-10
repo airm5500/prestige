@@ -64,9 +64,16 @@ Le service WhatsApp Web est un petit programme à part, fourni dans `outils/what
 - `[Violation] … unload is not allowed` : ExtJS écoute `unload`, que Chrome déconseille ; sans effet fonctionnel. **Proposition** : neutraliser (écoute de `pagehide`).
 
 ### Pointage par l'application mobile `prestige_vente_app`
-- **Bonne idée** : Prestige a déjà l'API mobile (`v1/mobile` : connexion puis `POST pointages`), la table des pointages et l'appairage des téléphones par QR code (onglet RH « Pointage mobile »).
-- Recommandation : pointage depuis le **téléphone appairé** avec la position GPS ou le scan d'un QR affiché à la pharmacie (évite le pointage à distance) ; empreinte et badge restent possibles via l'import de la pointeuse.
-- **Q11** : puis-je consulter le dépôt `airm5500/prestige_vente_app` pour vérifier ce que l'application envoie déjà ?
+Dépôt consulté (application Flutter, dernière version « liste bl et pointage ») :
+- Le « Pointage » de l'application est le **« Pointage BL Stock »** : contrôle des quantités reçues ligne par ligne d'un BL (`/commande/list-bons`, `/commande/bon/items/{bl}`, `POST /commande/bon/items/checked-quantities`, `/etat-control-bon/list`) et rapport PDF « RAPPORT DE POINTAGE ».
+- Ce n'est **pas** un pointage de présence du personnel : l'application n'appelle pas l'API mobile RH de Prestige (`v1/mobile` : connexion par jeton puis `POST pointages`) ; elle se connecte par `/user/auth` (session).
+- Côté Prestige, tout existe déjà pour la présence : API mobile, table des pointages, appairage des téléphones par QR code (onglet RH « Pointage mobile »), import de la pointeuse (empreinte / badge).
+
+Deux lectures possibles de votre demande :
+1. **Présence du personnel** depuis le téléphone : il faut **ajouter un écran « Pointage présence » dans l'application** (appairage par QR, puis arrivée / départ avec position GPS ou scan d'un QR affiché à la pharmacie) qui appelle l'API existante. Je peux écrire cet écran Flutter, mais je n'ai qu'un accès en **lecture** à ce dépôt : il faudrait l'attacher en écriture (ou je vous fournis le code à intégrer).
+2. **Pointage des BL** fait dans l'application, à exploiter dans Prestige (point 4 bis « Pointer les BL / Avoirs » et État de contrôle des achats) : les quantités contrôlées sont déjà enregistrées dans Prestige ; il s'agit alors de les afficher (qui a contrôlé, quand, écarts) dans ces écrans.
+
+- **Q11** : lecture 1 (présence du personnel), lecture 2 (contrôle des BL), ou les deux ? Si 1 : écriture dans le dépôt de l'application ou code fourni ?
 
 ---
 
@@ -173,7 +180,7 @@ Tests : unitaires du calcul (existants + nouveaux paramètres), e2e : générati
 - Congés et absences : jours condensés alors qu'il reste de la place → occupation de toute la largeur.
 - Employés : création **uniquement à partir d'un utilisateur existant**.
 - Connexions : filtre par utilisateur.
-- Pointage mobile : voir réponse ci-dessus (**Q11**).
+- Pointage depuis l'application mobile : voir « Réponses » ci-dessus (**Q11**).
 
 ## 10. Ventes terminées — nature « Conseil »
 - **Défaut trouvé** : la nature de vente n'est enregistrée qu'à l'ajout du premier produit ; changée ensuite (Conseil), la vente reste en nature 1.
@@ -251,5 +258,5 @@ Tests : unitaires du calcul (existants + nouveaux paramètres), e2e : générati
 | Q8 | « Emplacements » = rangement (rayon) ou dépôt ? | rangement |
 | Q9 | Signe des écarts : négatif = manquant ? | oui |
 | Q10 | Journal : tout ou poste / IP d'abord ? | poste / IP d'abord |
-| Q11 | Accès au dépôt `prestige_vente_app` ? | — |
+| Q11 | Application mobile : pointage de présence (écran à ajouter dans l'app), contrôle des BL (à exploiter dans Prestige), ou les deux ? | les deux ; présence avec QR de la pharmacie + GPS |
 | Q12 | Couleurs : vert = ajouté, rouge doux = retranché ? | oui |
