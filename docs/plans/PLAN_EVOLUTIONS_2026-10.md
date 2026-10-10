@@ -389,7 +389,7 @@ modèles de message, consentement `bool_CONSENT_SMS`. **Le rappel de renouvellem
   d'envoi, journal des derniers envois, adresse du webhook à déclarer chez Meta.
 - Envoi : Cloud API (`graph.facebook.com/{version}/{phone_number_id}/messages`, texte libre dans la fenêtre de 24 h,
   sinon **modèle approuvé** dont le message est la variable {{1}}) ou service compagnon (`POST <url>/messages`,
-  `Authorization: Bearer <jeton>`, `{"to","text"}` → `{"id"}`). Le service compagnon Node n'est pas dans ce dépôt.
+  `Authorization: Bearer <jeton>`, `{"to","text"}` → `{"id"}`). Le service compagnon Node est fourni dans ce dépôt : `outils/whatsapp-web` (voir son README et `docs/notices/NOTICE_WHATSAPP_WEB.md`).
 - Rappels (écran « Rappels et piluliers ») : « Envoyer le rappel » par SMS, par WhatsApp, ou **WhatsApp puis SMS**
   (les destinataires non servis par WhatsApp sont repris dans une notification SMS).
 - Webhooks **sans session** : `GET v1/whatsapp/webhook` (hub.challenge si le jeton de vérification correspond),

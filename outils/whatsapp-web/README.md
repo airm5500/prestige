@@ -21,6 +21,8 @@ après un redémarrage.
    `http://127.0.0.1:3010`, jeton = `JETON`. Puis onglet *WhatsApp Web : connexion et règles* : scanner le QR code
    avec le téléphone (WhatsApp › Appareils connectés › Connecter un appareil).
 
+Notice pas à pas, avec les écrans de Prestige : `docs/notices/NOTICE_WHATSAPP_WEB.md`.
+
 ## Lancer en service Windows
 
 - avec **NSSM** : `nssm install PrestigeWhatsApp "C:\Program Files\nodejs\node.exe" "C:\prestige\whatsapp-web\src\serveur.js"`,
@@ -60,7 +62,9 @@ garder des textes utiles et personnalisés. Pour les envois de masse ou marketin
 ## Routes
 
 `GET /etat`, `GET /qr` (image data-URL), `POST /deconnecter`, `GET|PUT /regles`, `POST /messages`
-(`{numero, texte, reference}`). Les statuts (envoyé, distribué, lu, échec) et les messages entrants sont renvoyés à
+(corps `{"id", "to", "text"}` : identifiant Prestige du message, numéro du destinataire, texte ; réponse `200` avec
+l'identifiant mis en file, ou `422 {"erreur"}` si le message est refusé : doublon du jour, numéro invalide…).
+Toutes les routes demandent l'en-tête `Authorization: Bearer <JETON>`. Les statuts (envoyé, distribué, lu, échec) et les messages entrants sont renvoyés à
 `PRESTIGE_WEBHOOK`.
 
 ## Tests
