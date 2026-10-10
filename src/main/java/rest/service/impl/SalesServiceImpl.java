@@ -5757,19 +5757,18 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
-     * Retours du 10/10 (10) : la nature de vente choisie a l'ecran (Prescription, Conseil...) est enregistree a la
-     * cloture. Elle ne l'etait qu'a l'ajout du premier produit : changee ensuite, la vente gardait l'ancienne et le
-     * filtre « nature » des ventes terminees ne la retrouvait pas. La nature « depot » reste reservee aux ventes en
-     * depot (jamais posee ni retiree ici) ; un identifiant inconnu est ignore.
+     * Retours du 10/10 (10) : la nature de vente choisie a l'ecran (Prescription, Conseil, Depot...) est enregistree a
+     * la cloture. Elle ne l'etait qu'a l'ajout du premier produit : changee ensuite, la vente gardait l'ancienne et le
+     * filtre « nature » des ventes terminees ne la retrouvait pas. « Depot » est une nature comme les autres. Un
+     * identifiant vide ou inconnu est ignore.
      */
     void appliquerNatureCloture(TPreenregistrement tp, String natureVenteId) {
         String id = StringUtils.trimToNull(natureVenteId);
-        if (id == null || Constant.KEY_NATURE_VENTE_DEPOT.equals(id)) {
+        if (id == null) {
             return;
         }
         TNatureVente actuelle = tp.getLgNATUREVENTEID();
-        if (actuelle != null && (id.equals(actuelle.getLgNATUREVENTEID())
-                || Constant.KEY_NATURE_VENTE_DEPOT.equals(actuelle.getLgNATUREVENTEID()))) {
+        if (actuelle != null && id.equals(actuelle.getLgNATUREVENTEID())) {
             return;
         }
         TNatureVente nature = getEm().find(TNatureVente.class, id);

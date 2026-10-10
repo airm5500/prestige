@@ -1,7 +1,7 @@
 /* RETOURS DU 10/10/2026 — LOT 1 : DEFAUTS. Chaque defaut est reproduit puis verifie corrige.
  *  10. Ventes terminees : vente commencee en « Prescription », cloturee en « Conseil » -> enregistree Conseil et
- *      retrouvee par le filtre nature = Conseil (avant : restait Prescription) ; la nature « depot » n'est jamais
- *      posee par une vente au comptant.
+ *      retrouvee par le filtre nature = Conseil (avant : restait Prescription) ; « depot » est une nature comme les
+ *      autres (precision du 10/10) : choisie a la cloture, elle est enregistree, et on peut en sortir.
  *   2. Previsions : une commande en cours creee dans la journee change tout de suite l'en-cours, le recommande et
  *      la couverture du produit (avant : seulement apres le calcul de la nuit) ; commande retiree : retour a l'etat.
  * Tout ce que le test cree est retire (ventes, reglements, mouvements, commandes, stock remis).
@@ -98,7 +98,12 @@ function nettoyer() {
     ok('10. Filtre Prescription : la vente Conseil n\'y est plus', !(liste1.data || []).some((x) => x.lgPREENREGISTREMENTID === v1));
     const v2 = await nouvelleVente('1');
     const c2 = await cloturer(v2, '3');
-    ok('10. Nature « dépôt » envoyée par une vente au comptant : ignorée (reste Prescription)', c2.success === true && nature(v2) === '1', 'nature=' + nature(v2));
+    ok('10. Nature « dépôt » choisie à la clôture : enregistrée comme les autres', c2.success === true && nature(v2) === '3', 'nature=' + nature(v2));
+    const liste3 = await api('GET', '../api/v1/ventestats?start=0&limit=200&dtStart=' + jour + '&dtEnd=' + jour + '&hStart=00:00&hEnd=23:59&nature=3&query=');
+    ok('10. Ventes terminées, filtre dépôt : la vente est listée', (liste3.data || []).some((x) => x.lgPREENREGISTREMENTID === v2), 'total=' + liste3.total);
+    const v4 = await nouvelleVente('3');
+    const c4 = await cloturer(v4, '1');
+    ok('10. Vente commencée en dépôt, clôturée en Prescription : enregistrée Prescription', c4.success === true && nature(v4) === '1', 'nature=' + nature(v4));
     const v3 = await nouvelleVente('2');
     const c3 = await cloturer(v3, '');
     ok('10. Sans nature à la clôture : celle du premier produit est gardée (Conseil)', c3.success === true && nature(v3) === '2', 'nature=' + nature(v3));
