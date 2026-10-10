@@ -83,11 +83,12 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.down('[text=Tout décocher]') && g.down('[text=Tout décocher]').handler.call(g); suggCheckedIds.length = 0; g.majCompteurCoches(); });
     await p.evaluate(() => { Ext.getCmp('rechecher').setValue('E2E-0910-SUGG'); Ext.ComponentQuery.query('i_sugg_manager')[0].onRechClick(); });
     await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('i_sugg_manager')[0].getStore(); return !st.isLoading() && st.getCount() === 2; }, null, { timeout: 30000 });
-    /* retours du 10/10 (3) : plus de passation PharmaML sur la liste (ni bouton du bas, ni icone de ligne) ;
-       le bouton est au bas de la suggestion ouverte */
-    const liste = await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0];
-      return { bouton: !!Ext.getCmp('btn_sugglist_commander_pml'), icones: g.getEl().dom.querySelectorAll('.x-grid-cell-commanderPharmaMl .act-envoyer:not(.x-hide-display)').length }; });
-    ok('Liste des suggestions : plus de bouton « Commander par PharmaML » en bas ni sur les lignes', !liste.bouton && liste.icones === 0, JSON.stringify(liste));
+    /* precision du 10/10 : la liste garde sa passation PharmaML (bouton du bas, icone de ligne) ; le bouton du haut de
+       la suggestion ouverte est seulement descendu dans sa barre du bas */
+    const liste = await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0], c = Ext.getCmp('btn_sugglist_commander_pml');
+      return { bouton: !!c && c.isVisible(), enBas: !!c && c.up('pagingtoolbar') === g.down('pagingtoolbar'),
+        icone: g.query('actioncolumn').some((col) => (col.items || []).some((it) => /Commander par PharmaML/.test(it.tooltip || ''))) }; });
+    ok('Liste des suggestions : bouton « Commander par PharmaML » en bas et action sur les lignes, conservés', liste.bouton && liste.enBas && liste.icone, JSON.stringify(liste));
     await p.screenshot({ path: SORTIE + '/0910-sugg-bas.png' });
     await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', r)); }, SUGG + '-REF');
     await p.waitForFunction(() => Ext.getCmp('btn_sugg_commander_pml') && Ext.getCmp('btn_sugg_commander_pml').isVisible() && Ext.getCmp('gridpanelSuggestionID') && !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
@@ -143,8 +144,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Bouton entier, dans l\'écran, vert', bc.dedans && bc.entier && bc.fond === 'rgb(23, 121, 95)', JSON.stringify(bc));
     url(null);
     bc = await ouvrirCommande();
-    ok('Grossiste sans lien PharmaML (retours du 10/10) : bouton présent en bas, grisé, raison dans le libellé',
-      bc.visible && bc.barreBas && bc.dedans && bc.entier && await p.evaluate(() => { const c = Ext.getCmp('btn_cmd_envoyer_pml'); return c.isDisabled() && c.getText() === 'PharmaML : grossiste non configuré'; }), JSON.stringify(bc));
+    ok('Grossiste sans lien PharmaML : bouton absent (comme avant)', !bc.visible, JSON.stringify(bc));
 
     /* 4) sans les droits Alertes et Tableau de bord */
     droitsRetires = RETIRES.map((n) => q("SELECT CONCAT(rp.lg_ROLE_PRIVILEGE, '|', rp.lg_ROLE_ID, '|', rp.lg_PRIVILEGE_ID) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"

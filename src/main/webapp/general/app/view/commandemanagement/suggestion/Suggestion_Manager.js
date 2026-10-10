@@ -351,15 +351,23 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         }]
                 },
                 {
-                    /* Reponses PharmaML de la suggestion (l'envoi se fait depuis la suggestion ouverte) */
+                    /* Plan d'octobre 1.5 : commander par PharmaML ; la suggestion est conservee « Commandée ». */
                     xtype: 'actioncolumn',
                     itemId: 'commanderPharmaMl',
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
-                    /* retours du 10/10 (3) : plus de « Commander par PharmaML » sur les lignes : il est au bas de la
-                     * suggestion ouverte ; restent la recuperation et la lecture de la reponse du grossiste */
                     items: [{
+                            iconCls: 'act-ico act-envoyer',
+                            tooltip: 'Commander par PharmaML (la suggestion est conservée, statut « Commandée »)',
+                            getClass: function (v, meta, rec) {
+                                /* deja commandee, ou envoi recu par le grossiste en attente de reponse : pas de renvoi */
+                                return rec.get('str_STATUT') === 'commandee' || rec.get('str_STATUT') === 'enable'
+                                        || rec.get('str_ENVOI_PHARMAML') === 'EN_ATTENTE' ? 'x-hide-display' : 'act-ico act-envoyer';
+                            },
+                            scope: this,
+                            handler: this.onCommanderPharmaMlClick
+                        }, {
                             /* Retours du 08/10 : reponse en attente, recuperee depuis la ligne (meme effet qu'en commande) */
                             iconCls: 'act-ico act-telecharger',
                             tooltip: 'Récupérer la réponse PharmaML (interroge le grossiste de cette suggestion)',
@@ -579,7 +587,16 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 pageSize: itemsPerPage,
                 store: store_suggestion,
                 displayInfo: true,
-                plugins: new Ext.ux.ProgressBarPager()
+                plugins: new Ext.ux.ProgressBarPager(),
+                /* Retours du 09/10 (2) : passation PharmaML aussi en bas de l'ecran, sur la suggestion cochee */
+                items: ['-', {
+                        text: 'Commander par PharmaML',
+                        id: 'btn_sugglist_commander_pml',
+                        cls: 'btn-primary btn-commander-pml',
+                        tooltip: 'Envoyer la suggestion cochée au grossiste par PharmaML (aperçu et confirmation avant envoi)',
+                        scope: this,
+                        handler: this.onCommanderPharmaMlBas
+                    }]
             }
         });
 

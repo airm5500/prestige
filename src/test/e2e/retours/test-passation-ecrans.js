@@ -5,7 +5,7 @@
  *    lignes), resultat (pris en compte / rupture), bouton desactive ensuite avec la raison ; un second envoi est refuse
  *    par le serveur (commande deja repondue : pas de double commande) ;
  *  - retours du 10/10 : bouton au BAS de la suggestion et de la commande ouvertes ; grossiste sans lien PharmaML :
- *    bouton present mais grise, la raison dans son libelle ;
+ *    bouton absent (comme avant) ;
  *  - refus du grossiste avec code d'erreur (tableau 8) : libelle et conseil affiches (0101 -> code client) ;
  *  - mise en page : boutons entiers et dans l'ecran ; aucune erreur JavaScript ; tout est retire a la fin.
  */
@@ -136,11 +136,11 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Second envoi refusé par le serveur (commande déjà répondue), aucun nouvel envoi noté', second.success === false && second.dejaRepondue === true && /seconde fois/.test(second.msg)
       && q("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + O1 + "'") === '1', JSON.stringify(second));
 
-    /* 3) grossiste sans lien PharmaML : bouton present, grise, raison dans le libelle (retours du 10/10) */
+    /* 3) grossiste sans lien PharmaML : pas de bouton */
     url(null); poser(O2);
     await ouvrirCommande(O2);
     const sans = await boutonDans('btn_cmd_envoyer_pml');
-    ok('Grossiste sans lien PharmaML : bouton présent en bas, grisé, « PharmaML : grossiste non configuré »', sans.visible && !sans.actif && sans.enBas && sans.texte === 'PharmaML : grossiste non configuré' && sans.entier, JSON.stringify(sans));
+    ok('Grossiste sans lien PharmaML : bouton absent', !sans.visible, JSON.stringify(sans));
 
     /* 4) refus avec code d'erreur (tableau 8) */
     url('http://127.0.0.1:' + PORT + '/refus101/'); poser(O3);

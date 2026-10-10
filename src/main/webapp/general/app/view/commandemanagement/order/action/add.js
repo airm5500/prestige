@@ -887,7 +887,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                             }},
                         '->',
                         /* retours du 08/10 (8) puis du 09/10 (2) : passer la commande par PharmaML, en bas a cote des
-                         * autres boutons ; grise si le grossiste n'a pas de lien PharmaML (etatBoutonPharmaMl) */
+                         * autres boutons ; visible seulement si le grossiste a un lien PharmaML (etatBoutonPharmaMl) */
                         {
                             text: 'Commander par PharmaML',
                             id: 'btn_cmd_envoyer_pml',
@@ -1113,15 +1113,11 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         if (!b || !d) {
             return;
         }
-        /* retours du 10/10 (4) : toujours present au bas de la commande ouverte ; grise (raison dans le libelle) si le
-         * grossiste n'a pas de lien PharmaML */
-        b.setVisible(true);
-        var sansLien = !d.str_GROSSISTE_URLPHARMAML;
+        b.setVisible(!!d.str_GROSSISTE_URLPHARMAML);
         var clos = E.ENVOIS_CLOS[d.str_ENVOI_PHARMAML];
-        b.setDisabled(sansLien || !!clos);
+        b.setDisabled(!!clos);
         /* un bouton desactive n'a pas d'info-bulle : la raison est dans le libelle */
-        b.setText(sansLien ? 'PharmaML : grossiste non configuré'
-                : clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : 'Commander par PharmaML');
+        b.setText(clos ? (d.str_ENVOI_PHARMAML === 'EN_ATTENTE' ? 'Déjà envoyée (en attente)' : 'Déjà envoyée (répondue)') : 'Commander par PharmaML');
         b.setTooltip(clos ? 'Commande ' + clos + ' (' + (d.dt_ENVOI_PHARMAML || '') + ') : pas de renvoi'
                 : 'Envoyer cette commande au grossiste par PharmaML ; les produits non livrés vont dans la liste des ruptures');
     },

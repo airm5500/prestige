@@ -3,7 +3,7 @@
  * Faux grossiste (serveur HTTP local) : produit 1 livre, produit 2 en rupture.
  *
  * Ce que le test etablit :
- *  - bouton « Commander par PharmaML » au bas de la suggestion ouverte (retours du 10/10 : plus sur la ligne) : confirmation (grossiste, lignes, protocole), envoi en 1.0.0.0 (defaut)
+ *  - bouton « Commander par PharmaML » au bas de la suggestion ouverte (retours du 10/10 ; l action de ligne reste aussi) : confirmation (grossiste, lignes, protocole), envoi en 1.0.0.0 (defaut)
  *    (COMMANDE avec les lignes de la suggestion) ; la suggestion est CONSERVEE (memes lignes), statut « commandee »,
  *    mode PHARMAML, commande liee ; liste « COMMANDÉE · PHARMAML », actions masquees ;
  *  - envoi en echec (grossiste injoignable) : message clair, suggestion inchangee, commande creee et liee ; nouvel
@@ -123,7 +123,7 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
 
     /* A : parcours ecran */
     const l0 = await liste(S.A + '-REF');
-    ok('Retours du 10/10 : plus d\'action « Commander par PharmaML » sur la ligne', l0 && !l0.icone, JSON.stringify(l0));
+    ok('Action « Commander par PharmaML » sur la ligne, conservée', l0 && l0.icone, JSON.stringify(l0));
     /* la commande part du bas de la suggestion ouverte */
     await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', r)); }, S.A + '-REF');
     await p.waitForFunction(() => Ext.getCmp('btn_sugg_commander_pml') && Ext.getCmp('btn_sugg_commander_pml').isVisible() && Ext.getCmp('gridpanelSuggestionID') && !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
