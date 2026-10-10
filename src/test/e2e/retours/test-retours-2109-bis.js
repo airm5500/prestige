@@ -98,7 +98,7 @@ let KGA3 = '';
       const ordre = barre.items.items.map((i) => i.itemId).filter(Boolean);
       return { rot: cellules[iRot].getAttribute('data-qtip'), couv: cellules[iCouv].getAttribute('data-qtip'), classe: cellules[iRot].getAttribute('data-qclass'),
         largeur: cellules[iRot].getAttribute('data-qwidth'), q: r.get('quantite'), stock: r.get('stock'),
-        jours: e.derniereAnalyse.periode.jours, ordre, memeBarre: e.down('#filtreStockOp').up('toolbar') === e.down('#filtreQuadrant').up('toolbar') };
+        jours: e.derniereAnalyse.periode.jours, ordre, memeBarre: e.down('#filtreStockOp').up('toolbar') === e.down('#effacerFiltres').up('toolbar') }; /* 07/10 : seconde ligne de filtres, avec « Effacer » */
     });
     ok('La cellule Rotation porte une infobulle bleue et large avec la formule ET les nombres de la ligne et la période',
       bulles.classe === 'aa-bulle' && Number(bulles.largeur) >= 400 && /Rotation/.test(bulles.rot) && bulles.rot.indexOf(String(bulles.jours) + ' jours') >= 0
@@ -117,9 +117,13 @@ let KGA3 = '';
 
     /* ------------------------------------------------------------ gardes : comparaison « Tout » */
     const poster = (params) => p.evaluate(async (params) => { const corps = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&'); const r = await fetch('../api/v1/gardes', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: corps }); return await r.json(); }, params);
-    /* Deux gardes sur des periodes qui ont des ventes au banc (fin 2025), pour que les barres aient de quoi vivre. */
-    await poster({ libelle: MARQUE + ' A', dateDebut: '2025-11-03 20:00', dateFin: '2025-11-04 08:00' });
-    await poster({ libelle: MARQUE + ' B', dateDebut: '2025-11-10 20:00', dateFin: '2025-11-11 08:00' });
+    /* Deux gardes sur des nuits qui ont de vraies ventes au banc (les plus actives), pour que les barres aient de quoi
+       vivre ; choisies dans les donnees plutot qu'a dates fixes, qui dependaient du banc. */
+    const nuits = q("SELECT DATE(DATE_SUB(dt_UPDATED, INTERVAL 20 HOUR)) nuit FROM t_preenregistrement WHERE str_STATUT='is_Closed' AND b_IS_CANCEL=0"
+      + " AND (HOUR(dt_UPDATED) >= 20 OR HOUR(dt_UPDATED) < 8) GROUP BY nuit HAVING COUNT(*) >= 3 ORDER BY COUNT(*) DESC, nuit LIMIT 2").split('\n').sort();
+    const lendemain = (j) => q("SELECT DATE_ADD('" + j + "', INTERVAL 1 DAY)");
+    await poster({ libelle: MARQUE + ' A', dateDebut: nuits[0] + ' 20:00', dateFin: lendemain(nuits[0]) + ' 08:00' });
+    await poster({ libelle: MARQUE + ' B', dateDebut: nuits[1] + ' 20:00', dateFin: lendemain(nuits[1]) + ' 08:00' });
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('gardemanager', {}));
     await p.waitForFunction(() => Ext.ComponentQuery.query('gardemanager').length > 0 && !Ext.ComponentQuery.query('gardemanager')[0].gardeStore.isLoading(), null, { timeout: 30000 });
     await p.waitForTimeout(800);

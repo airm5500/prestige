@@ -284,13 +284,14 @@ function semer() {
     fs.writeFileSync(TMP + '/commandes.pdf', Buffer.from(pdf.octets));
     const texte = execFileSync('pdftotext', ['-layout', TMP + '/commandes.pdf', '-'], { encoding: 'utf8' });
     ok('PDF des commandes : titre, garde, la ligne P0 commandee 3 / vendue 2, statut',
-      /pdf/.test(pdf.type || '') && /COMMANDÉS NON VENDUS/.test(texte) && /nuit test/.test(texte) && /\b3\s+2\s+Vendu/.test(texte),
-      texte.replace(/\n/g, ' | ').slice(0, 400));
+      /* titre et colonnes du 22/09 : stock, preparation, % prep. / % cmd, frequence */
+      /pdf/.test(pdf.type || '') && /PRODUITS COMMANDÉS POUR LA GARDE/.test(texte) && /nuit test/.test(texte) && /\b3\s+2\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+Vendu/.test(texte),
+      texte.replace(/\n/g, ' | ').slice(0, process.env.E2E_DETAIL ? 5000 : 400));
     const xlsx = await octets('../api/v1/gardes/' + gardeId + '/commandes/excel');
     fs.writeFileSync(TMP + '/commandes.xlsx', Buffer.from(xlsx.octets));
     const feuille = execFileSync('python3', ['-c', "import openpyxl,sys,warnings\nwarnings.simplefilter('ignore')\nwb=openpyxl.load_workbook(sys.argv[1])\nws=wb.active\nprint('\\n'.join(' ; '.join('' if c.value is None else str(c.value) for c in row) for row in ws.iter_rows()))", TMP + '/commandes.xlsx'], { encoding: 'utf8' });
     ok('Excel des commandes : en-tetes et la ligne commandee 3 / vendue 2',
-      /CIP ; Produit ; Qté commandée ; Qté vendue ; Statut/.test(feuille) && /3(\.0)? ; 2(\.0)? ; Vendu/.test(feuille), feuille.replace(/\n/g, ' | ').slice(0, 300));
+      /CIP ; Produit ; .*Qté commandée[^;]* ; Qté vendue ; .*Statut/.test(feuille) && /; 3(\.0)? ; 2(\.0)? ; [^;]+ ; [^;]+ ; [^;]+ ; Vendu/.test(feuille), feuille.replace(/\n/g, ' | ').slice(0, process.env.E2E_DETAIL ? 5000 : 300));
 
     /* ------------------------------------------------------- comparaison : encodage */
     const combo = await p.evaluate(() => {
