@@ -55,7 +55,7 @@ function clonerBon(suffixe, tiersPayant) {
   const compte = MARQUE + '-CC-' + suffixe;
   const vente = MARQUE + '-V-' + suffixe;
   const bon = MARQUE + '-B-' + suffixe;
-  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   /* Les comptes clients de cette base sont tous orphelins : aucun des 6 051 ne pointe vers un
      t_compte_client existant. On rattache donc la copie au seul compte client valide, sans quoi
      la contrainte de cle etrangere refuse l'insertion. */
@@ -126,7 +126,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -316,9 +316,9 @@ function semer() {
     ok('le bouton « Créer une facture » est present', ecran.boutonCreer);
     /* Retour du 08/09 : imprimer et supprimer SUR LA LIGNE (deux icones, chacune son geste,
        l'imprimante demandant « avec ou sans les produits ») ; le bouton du haut ne sert qu'a la
-       suppression multiple. */
-    ok('imprimer et supprimer sur la ligne, suppression multiple en haut',
-       ecran.impressions === 2 && ecran.boutonImprimer === false,
+       suppression multiple. Depuis le 06/10, une troisieme icone « Voir le contenu » precede les deux autres. */
+    ok('voir, imprimer et supprimer sur la ligne, suppression multiple en haut',
+       ecran.impressions === 3 && ecran.boutonImprimer === false,
        'icones=' + ecran.impressions + ' bouton haut imprimer=' + ecran.boutonImprimer);
 
     // ---- Scenario D : l'ecran de creation ouvert en mode carnet depot

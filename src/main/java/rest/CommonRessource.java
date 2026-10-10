@@ -274,7 +274,8 @@ public class CommonRessource {
     public Response logs(@QueryParam(value = "query") String query, @QueryParam(value = "userId") String userId,
             @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "criteria") int criteria) throws JSONException {
+            @QueryParam(value = "criteria") int criteria, @QueryParam(value = "poste") String poste)
+            throws JSONException {
         LocalDate dtSt = LocalDate.now();
         LocalDate dtEd = dtSt;
         if (dtStart != null && !"".equals(dtStart)) {
@@ -283,8 +284,29 @@ public class CommonRessource {
         if (dtEnd != null && !"".equals(dtEnd)) {
             dtEd = LocalDate.parse(dtEnd);
         }
-        JSONObject json = logService.logs(query, dtSt, dtEd, start, limit, userId, criteria);
+        JSONObject json = logService.logs(query, dtSt, dtEd, start, limit, userId, criteria, poste);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Retours du 10/10 : alertes du journal (annulations en serie, operations hors horaires) sur la periode. */
+    @GET
+    @Path("logs/alertes")
+    public Response logsAlertes(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) {
+        LocalDate fin = dtEnd == null || dtEnd.isEmpty() ? LocalDate.now() : LocalDate.parse(dtEnd);
+        LocalDate debut = dtStart == null || dtStart.isEmpty() ? fin : LocalDate.parse(dtStart);
+        if (debut.isAfter(fin)) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        return Response.ok().entity(logService.alertes(debut, fin).toString()).build();
+    }
+
+    /** Retours du 10/10 : postes connus du journal (filtre). */
+    @GET
+    @Path("logs/postes")
+    public Response logsPostes() {
+        return Response.ok().entity(logService.postes().toString()).build();
     }
 
     /**
@@ -296,8 +318,8 @@ public class CommonRessource {
     @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public Response logsExportExcel(@QueryParam(value = "query") String query,
             @QueryParam(value = "userId") String userId, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "criteria") int criteria)
-            throws java.io.IOException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "criteria") int criteria,
+            @QueryParam(value = "poste") String poste) throws java.io.IOException {
         LocalDate dtSt = LocalDate.now();
         LocalDate dtEd = dtSt;
         if (dtStart != null && !"".equals(dtStart)) {
@@ -306,7 +328,7 @@ public class CommonRessource {
         if (dtEnd != null && !"".equals(dtEnd)) {
             dtEd = LocalDate.parse(dtEnd);
         }
-        byte[] data = logService.exportExcel(query, dtSt, dtEd, userId, criteria);
+        byte[] data = logService.exportExcel(query, dtSt, dtEd, userId, criteria, poste);
         String nom = "fichier_journal_"
                 + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss"))
                 + ".xlsx";

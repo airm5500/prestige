@@ -68,6 +68,45 @@ public class TEventLog implements Serializable {
     private String remoteAddr;
     @Column(name = "remote_host")
     private String remoteHost;
+    /** Retours du 10/10 : navigateur / application d'ou vient l'operation. */
+    @Column(name = "str_APPLICATION", length = 120)
+    private String strAPPLICATION;
+    /** Retours du 10/10 : detail avant / apres d'une modification. */
+    @Column(name = "str_DETAIL")
+    private String strDETAIL;
+
+    public String getStrAPPLICATION() {
+        return strAPPLICATION;
+    }
+
+    public void setStrAPPLICATION(String strAPPLICATION) {
+        this.strAPPLICATION = strAPPLICATION;
+    }
+
+    public String getStrDETAIL() {
+        return strDETAIL;
+    }
+
+    public void setStrDETAIL(String strDETAIL) {
+        this.strDETAIL = strDETAIL;
+    }
+
+    /**
+     * Retours du 10/10 : toute ligne de journal porte le poste, l'adresse IP et l'application de la requete en cours,
+     * quel que soit le code qui l'ecrit (les valeurs deja posees, comme a la connexion, sont gardees).
+     */
+    @javax.persistence.PrePersist
+    void completerContexte() {
+        if (remoteAddr == null) {
+            remoteAddr = util.ContexteRequete.ip();
+        }
+        if (remoteHost == null) {
+            remoteHost = util.ContexteRequete.poste();
+        }
+        if (strAPPLICATION == null) {
+            strAPPLICATION = util.ContexteRequete.application();
+        }
+    }
 
     public String getRemoteAddr() {
         return remoteAddr;

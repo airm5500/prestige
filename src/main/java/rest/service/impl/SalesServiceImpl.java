@@ -2703,6 +2703,7 @@ public class SalesServiceImpl implements SalesService {
             if (clotureVenteParams.getMontantRemis() > 0) {
                 afficheurMontantAPayer(clotureVenteParams.getMontantRemis(), " MONNAIE:");
             }
+            journaliserVente(tp, "assurance");
             json.put("success", true).put("copy", tp.getCopy()).put("msg", "Opération effectuée avec success")
                     .put("ref", tp.getLgPREENREGISTREMENTID());
         } catch (FideliteService.PaiementPointsRefuse e) {
@@ -2961,6 +2962,7 @@ public class SalesServiceImpl implements SalesService {
             emg.merge(tp);
             afficheurMontantAPayer(clotureVenteParams.getMontantRemis(), " MONNAIE:");
 
+            journaliserVente(tp, "comptant");
             json.put("success", true).put("msg", "Opération effectuée avec success").put("copy", tp.getCopy())
                     .put("ref", tp.getLgPREENREGISTREMENTID());
         } catch (FideliteService.PaiementPointsRefuse e) {
@@ -3804,6 +3806,7 @@ public class SalesServiceImpl implements SalesService {
                     client.orElse(null));
             mvtProduitService.updateVenteStockDepot(tp, lstTPreenregistrementDetail, emplacement);
             emg.merge(tp);
+            journaliserVente(tp, "dépôt");
             json.put("success", true).put("msg", "Opération effectuée avec success").put("ref",
                     tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
@@ -3942,6 +3945,7 @@ public class SalesServiceImpl implements SalesService {
             emg.persist(mvtTransaction);
             emg.merge(tp);
             addReglement(tp, mvtTransaction, clotureVenteParams);
+            journaliserVente(tp, "dépôt");
             json.put("success", true).put("msg", "Opération effectuée avec success").put("ref",
                     tp.getLgPREENREGISTREMENTID());
         } catch (Exception e) {
@@ -5207,7 +5211,20 @@ public class SalesServiceImpl implements SalesService {
         p.setLgUSERID(ooTUser);
         p.setCompletionDate(new Date());
         getEm().merge(p);
+        /* retours du 10/10 (journal) : prevente tracee (poste, adresse, application) */
+        logService.journaliserSansRisque(ooTUser, p.getStrREF(),
+                "Prévente N° " + p.getStrREF() + " enregistrée, montant " + p.getIntPRICE(), TypeLog.PREVENTE,
+                "TPreenregistrement", null);
         return new JSONObject().put("success", true);
+    }
+
+    /** Retours du 10/10 (journal) : vente cloturee tracee (poste, adresse, application). */
+    private void journaliserVente(TPreenregistrement tp, String nature) {
+        logService.journaliserSansRisque(tp.getLgUSERID(), tp.getStrREF(),
+                "Vente " + nature + " N° " + tp.getStrREF() + " clôturée, montant " + tp.getIntPRICE()
+                        + (tp.getIntPRICEREMISE() != null && tp.getIntPRICEREMISE() > 0
+                                ? ", remise " + tp.getIntPRICEREMISE() : ""),
+                TypeLog.VENTE, "TPreenregistrement", null);
     }
 
     private TPreenregistrement copyDevis(TPreenregistrement tp) {

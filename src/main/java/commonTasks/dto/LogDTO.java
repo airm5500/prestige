@@ -22,6 +22,25 @@ public class LogDTO implements Serializable {
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
     private String dtCREATED, HEURE, strDESCRIPTION, typeLog, userFullName, strTYPELOG;
+    /** Retours du 10/10 : poste, adresse IP, application et detail avant / apres. */
+    private String poste, ip, application, detail;
+
+    public String getPoste() {
+        return poste;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public String getApplication() {
+        return application;
+    }
+
+    public String getDetail() {
+        return detail;
+    }
+
     private int order;
     private LocalDateTime operationDate;
 
@@ -102,6 +121,10 @@ public class LogDTO implements Serializable {
         this.userFullName = u.getStrFIRSTNAME() + " " + u.getStrLASTNAME();
         this.strTYPELOG = eventLog.getStrTYPELOG();
         this.operationDate = DateConverter.convertDateToLocalDateTime(eventLog.getDtCREATED());
+        this.poste = eventLog.getRemoteHost() == null ? "" : eventLog.getRemoteHost();
+        this.ip = eventLog.getRemoteAddr() == null ? "" : eventLog.getRemoteAddr();
+        this.application = eventLog.getStrAPPLICATION() == null ? "" : eventLog.getStrAPPLICATION();
+        this.detail = eventLog.getStrDETAIL() == null ? "" : eventLog.getStrDETAIL();
     }
 
     public LocalDateTime getOperationDate() {

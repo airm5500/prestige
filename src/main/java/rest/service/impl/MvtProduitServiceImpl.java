@@ -196,7 +196,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 String desc = "Modification du prix du produit [ " + tFamille.getIntCIP() + " ] de "
                         + tFamille.getIntPRICE() + " à " + it.getIntPRICEUNITAIR() + " à la vente par "
                         + tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
-                logService.updateItem(tu, tp.getStrREF(), desc, TypeLog.MODIFICATION_PRIX_VENTE_PRODUIT, tp);
+                logService.journaliser(tu, tp.getStrREF(), desc, TypeLog.MODIFICATION_PRIX_VENTE_PRODUIT, tp,
+                        "Prix de vente : avant " + tFamille.getIntPRICE() + " → après " + it.getIntPRICEUNITAIR());
                 /*
                  * notificationService.save(new Notification().canal(Canal.EMAIL)
                  * .typeNotification(TypeNotification.MODIFICATION_PRIX_VENTE_PRODUIT).message(desc).addUser(tu));
@@ -682,7 +683,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         String desc = "Ajustement RESERVE du produit :[  " + famille.getIntCIP() + "  " + famille.getStrNAME()
                 + " ] : Quantite initiale : [ " + avant + " ] : Quantite ajustee [ " + it.getIntNUMBER()
                 + " ] :Quantite finale [ " + apres + " ]";
-        logService.updateItem(tUser, famille.getIntCIP(), desc, TypeLog.AJUSTEMENT_DE_PRODUIT, famille);
+        logService.journaliser(tUser, famille.getIntCIP(), desc, TypeLog.AJUSTEMENT_DE_PRODUIT, famille,
+                "Stock réserve : avant " + avant + " → après " + apres);
 
         JSONObject jsonItem = new JSONObject();
         jsonItem.put(NotificationUtils.ITEM_KEY.getId(), famille.getIntCIP());
@@ -795,7 +797,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 String desc = "Ajustement du produit :[  " + famille.getIntCIP() + "  " + famille.getStrNAME()
                         + " ] : Quantité initiale : [ " + initStock + " ] : Quantité ajustée [ " + it.getIntNUMBER()
                         + " ] :Quantité finale [ " + familleStock.getIntNUMBERAVAILABLE() + " ]";
-                logService.updateItem(tUser, famille.getIntCIP(), desc, TypeLog.AJUSTEMENT_DE_PRODUIT, famille);
+                logService.journaliser(tUser, famille.getIntCIP(), desc, TypeLog.AJUSTEMENT_DE_PRODUIT, famille,
+                        "Stock : avant " + initStock + " → après " + familleStock.getIntNUMBERAVAILABLE());
 
                 emg.merge(it);
                 JSONObject jsonItemUg = new JSONObject();

@@ -1471,3 +1471,43 @@ window.PrestigeAffichage.choixLignes = function (store, valeurs) {
         }
     };
 };
+
+/*
+ * Retours du 10/10 (journal) : nom du poste, saisi une fois sur le poste (Fichier journal › « Ce poste ») et memorise
+ * par le navigateur ; il part avec chaque requete (en-tete X-Poste) et figure dans le journal. Sans nom saisi, le
+ * serveur reprend le nom reseau du poste.
+ */
+window.PrestigePoste = {
+    CLE: 'prestige.poste',
+    lire: function () {
+        'use strict';
+        try {
+            return window.localStorage.getItem(this.CLE) || '';
+        } catch (e) {
+            return '';
+        }
+    },
+    ecrire: function (nom) {
+        'use strict';
+        var v = String(nom || '').replace(/[^0-9A-Za-zÀ-ÿ ._\-]/g, '').trim().substring(0, 60);
+        try {
+            if (v) {
+                window.localStorage.setItem(this.CLE, v);
+            } else {
+                window.localStorage.removeItem(this.CLE);
+            }
+        } catch (e) {
+            // stockage indisponible (navigation privee) : le nom reseau sera utilise
+        }
+        return v;
+    }
+};
+Ext.onReady(function () {
+    'use strict';
+    Ext.Ajax.on('beforerequest', function (connexion, options) {
+        var nom = window.PrestigePoste.lire();
+        if (nom) {
+            options.headers = Ext.apply(options.headers || {}, {'X-Poste': encodeURIComponent(nom)});
+        }
+    });
+});

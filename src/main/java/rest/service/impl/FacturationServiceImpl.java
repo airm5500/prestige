@@ -611,10 +611,28 @@ public class FacturationServiceImpl implements FacturationService {
         return factures;
     }
 
+    @javax.ejb.EJB
+    private rest.service.LogService logService;
+    @javax.ejb.EJB
+    private rest.service.SessionHelperService sessionHelperService;
+
+    /** Retours du 10/10 (journal) : suppression de facture tracee (poste, adresse, application). */
+    private void journaliserSuppression(TFacture f, String quoi) {
+        if (f == null) {
+            return;
+        }
+        logService.journaliserSansRisque(sessionHelperService.getCurrentUser(), f.getStrCODEFACTURE(),
+                "Suppression " + quoi + " N° " + f.getStrCODEFACTURE()
+                        + (f.getTiersPayant() != null ? " (" + f.getTiersPayant().getStrFULLNAME() + ")" : "")
+                        + ", montant " + (f.getDblMONTANTCMDE() != null ? Math.round(f.getDblMONTANTCMDE()) : 0),
+                dal.enumeration.TypeLog.SUPPRESION_DE_FACTURE, "TFacture", null);
+    }
+
     @Override
     public void removeFacture(String idFacture) {
         TFacture facture = getEntityManager().find(TFacture.class, idFacture);
         deleteFactureDetails(facture);
+        journaliserSuppression(facture, "de la facture");
         getEntityManager().remove(facture);
     }
 
@@ -659,6 +677,7 @@ public class FacturationServiceImpl implements FacturationService {
                     continue;
                 }
                 deleteFactureDetails(facture);
+                journaliserSuppression(facture, "de la facture provisoire");
                 getEntityManager().remove(facture);
                 supprimees++;
             } catch (Exception e) {
@@ -756,6 +775,7 @@ public class FacturationServiceImpl implements FacturationService {
                     }
                 }
                 deleteFactureDetails(facture);
+                journaliserSuppression(facture, "de la facture de carnet dépôt");
                 getEntityManager().remove(facture);
                 supprimees++;
             } catch (Exception e) {

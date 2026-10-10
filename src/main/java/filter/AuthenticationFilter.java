@@ -72,6 +72,8 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         // on ne doit jamais heriter de l'utilisateur d'une requete precedente.
         sessionHelperService.setCurrentUser(null);
         sessionHelperService.setData(null);
+        /* retours du 10/10 : poste, adresse et application de la requete, pour le fichier journal */
+        util.ContexteRequete.poser(servletRequest);
         String path = requestContext.getUriInfo().getPath();
         /*
          * L13 : les nouveaux chemins des telephones exigent le jeton signe, et rien d'autre (ni session, ni
@@ -150,6 +152,7 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             throws IOException {
         sessionHelperService.setCurrentUser(null);
         sessionHelperService.setData(null);
+        util.ContexteRequete.effacer();
     }
 
     private boolean shouldSkipPath(String path) {

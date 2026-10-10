@@ -47,7 +47,9 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                 },
                 {
                     name: 'strTYPELOG', type: 'string'
-                }
+                },
+                /* retours du 10/10 : poste, adresse IP, application, detail avant / apres */
+                'poste', 'ip', 'application', 'detail'
             ],
             autoLoad: false,
             pageSize: 15,
@@ -88,6 +90,19 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                 }
             }
         });
+        /* retours du 10/10 : le filtre de poste suit toutes les recherches (bouton, pagination, Entree) */
+        store.on('beforeload', function (st) {
+            var c = Ext.getCmp('cmbposte');
+            st.getProxy().setExtraParam('poste', c ? (c.getRawValue() || '') : '');
+        });
+        var postes = Ext.create('Ext.data.Store', {fields: ['poste'], autoLoad: true,
+            proxy: {type: 'ajax', url: '../api/v1/common/logs/postes', reader: {type: 'json', root: 'data'}}});
+        var rechercher = function () {
+            var b = Ext.ComponentQuery.query('#logfileGrid button[text=Rechercher]')[0];
+            if (b) {
+                b.fireEvent('click', b);
+            }
+        };
         store.load();
         Ext.apply(this, {
 
@@ -103,8 +118,10 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                     ftype: 'rowbody',
                     getAdditionalData: function (data) {
                         return {
-                            rowBody: "<p style='margin-left:5%;font-size:14px;font-weight:700;'>" + data.strDESCRIPTION + "</p>",
-                            rowBodyColspan: 3
+                            rowBody: "<p style='margin-left:5%;font-size:14px;font-weight:700;'>" + data.strDESCRIPTION + "</p>"
+                                    + (data.detail ? "<p class='journal-detail' style='margin:-6px 0 6px 5%;color:#1f5f9e;font-size:12px'>Avant / après : "
+                                            + Ext.String.htmlEncode(data.detail) + "</p>" : ''),
+                            rowBodyColspan: 6
                         };
                     }
                 }],
@@ -136,7 +153,17 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                     dataIndex: 'userFullName',
                     flex: 1
 
-                }
+                },
+                /* retours du 10/10 : d'ou vient l'operation */
+                {header: 'Poste', dataIndex: 'poste', flex: 0.8, renderer: function (v) {
+                        return Ext.String.htmlEncode(v || '');
+                    }},
+                {header: 'Adresse IP', dataIndex: 'ip', flex: 0.7, renderer: function (v) {
+                        return Ext.String.htmlEncode(v || '');
+                    }},
+                {header: 'Application', dataIndex: 'application', flex: 0.9, renderer: function (v) {
+                        return Ext.String.htmlEncode(v || '');
+                    }}
 
             ],
             selModel: {
@@ -372,7 +399,8 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                                         dtEnd: Ext.getCmp('dt_end_log').getSubmitValue(),
                                         userId: Ext.getCmp('cmbousers').getValue() || '',
                                         criteria: criteria,
-                                        query: Ext.getCmp('rechlog').getValue() || ''
+                                        query: Ext.getCmp('rechlog').getValue() || '',
+                                        poste: Ext.getCmp('cmbposte').getRawValue() || ''
                                     });
                                     window.location = lien;
                                 }
@@ -383,6 +411,44 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                     ]
                 },
 
+                {
+                    xtype: 'toolbar', dock: 'top', itemId: 'barreJournal2',
+                    items: [
+                        {xtype: 'combobox', id: 'cmbposte', itemId: 'cmbposte', width: 230, emptyText: 'Tous les postes', store: postes,
+                            displayField: 'poste', valueField: 'poste', queryMode: 'local', typeAhead: true, anyMatch: true,
+                            tooltip: 'Opérations faites depuis ce poste (nom ou adresse IP)',
+                            listeners: {select: rechercher, specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        rechercher();
+                                    }
+                                }}},
+                        {xtype: 'button', text: 'Alertes', itemId: 'btnAlertesJournal', enableToggle: true,
+                            tooltip: 'Annulations en série et opérations hors horaires sur la période',
+                            toggleHandler: function (b, actif) {
+                                var p = Ext.getCmp('logfileGrid').down('#alertesJournal');
+                                p.setVisible(actif);
+                                if (actif) {
+                                    Ext.getCmp('logfileGrid').chargerAlertes();
+                                }
+                            }},
+                        '->',
+                        {xtype: 'textfield', itemId: 'nomCePoste', fieldLabel: 'Ce poste', labelWidth: 55, width: 230, maxLength: 60,
+                            enforceMaxLength: true, emptyText: 'Ex. : Caisse 1', value: window.PrestigePoste ? window.PrestigePoste.lire() : '',
+                            tooltip: 'Nom de ce poste, saisi une fois et mémorisé sur ce poste : il figure dans le journal (sinon le nom réseau)'},
+                        {xtype: 'button', text: 'Enregistrer', itemId: 'btnNomPoste', tooltip: 'Mémoriser le nom de ce poste',
+                            handler: function (b) {
+                                var v = Ext.String.trim(b.up('toolbar').down('#nomCePoste').getValue() || '');
+                                if (window.PrestigePoste) {
+                                    window.PrestigePoste.ecrire(v);
+                                }
+                                b.up('toolbar').down('#nomCePoste').setValue(window.PrestigePoste ? window.PrestigePoste.lire() : v);
+                            }}
+                    ]
+                },
+                {
+                    xtype: 'component', dock: 'top', itemId: 'alertesJournal', hidden: true, cls: 'journal-alertes',
+                    style: 'padding:6px 10px;background:#fff8e1;border-bottom:1px solid #f0d58c;max-height:220px;overflow:auto', html: ''
+                },
                 {
                     xtype: 'pagingtoolbar',
                     store: store,
@@ -426,6 +492,31 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                 }]
         });
         this.callParent();
+    },
+
+    /** Retours du 10/10 : alertes du journal sur la periode affichee. */
+    chargerAlertes: function () {
+        var me = this, zone = me.down('#alertesJournal'), enc = Ext.String.htmlEncode;
+        zone.update('Calcul des alertes…');
+        Ext.Ajax.request({url: '../api/v1/common/logs/alertes', method: 'GET',
+            params: {dtStart: Ext.getCmp('dt_log_start').getSubmitValue(), dtEnd: Ext.getCmp('dt_end_log').getSubmitValue()},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    zone.update('<span style="color:#b42318">' + enc(o.msg || 'Alertes indisponibles') + '</span>');
+                    return;
+                }
+                var h = '<b>Annulations en série</b> (' + o.seuil + ' ventes ou plus en ' + o.minutes + ' min) : ';
+                h += o.annulationsEnSerie.length ? '<ul class="journal-series">' + Ext.Array.map(o.annulationsEnSerie, function (a) {
+                    return '<li>' + enc(a.utilisateur) + ' : <b>' + a.nombre + '</b> annulations du ' + enc(a.debut) + ' au ' + enc(a.fin)
+                            + (a.poste ? ' (' + enc(a.poste) + ')' : '') + '</li>';
+                }).join('') + '</ul>' : 'aucune.<br>';
+                h += '<b>Opérations hors horaires</b> (avant ' + enc(o.debut) + ' ou après ' + enc(o.fin) + ') : ';
+                h += o.horsHoraires.length ? o.nbHorsHoraires + '<ul class="journal-hors-horaires">' + Ext.Array.map(o.horsHoraires, function (a) {
+                    return '<li>' + enc(a.quand) + ' — ' + enc(a.utilisateur) + ' — ' + enc(a.action) + (a.poste ? ' (' + enc(a.poste) + ')' : '') + '</li>';
+                }).join('') + '</ul>' : 'aucune.';
+                zone.update(h);
+            }});
     }
 });
 

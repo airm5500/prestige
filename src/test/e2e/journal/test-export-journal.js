@@ -15,7 +15,7 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -72,9 +72,9 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
   ok('le classeur a un contenu', resume.taille > 1000, 'taille=' + resume.taille);
 
   // --- le coeur de la demande : le resultat COMPLET, pas la seule page affichee ---
-  await p.evaluate(([d, f]) => Ext.getCmp('logfileGrid').getStore().load({
+  await p.evaluate(([d, f]) => { Ext.getCmp('logfileGrid').getStore().load({
     params: { dtStart: d, dtEnd: f, criteria: -1, query: '', userId: '' }
-  }), [debut, fin]);
+  }); }, [debut, fin]);
   await p.waitForTimeout(4000);
   const ecran = await p.evaluate(() => {
     const st = Ext.getCmp('logfileGrid').getStore();
