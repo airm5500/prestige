@@ -3095,6 +3095,13 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Retours du 10/10 (section 13) : analyse des rappels, tuile de statut cliquable vers la liste */
 .rp-analyse .rp-cliquable { cursor: pointer; }
 .rp-analyse .rp-cliquable:hover { box-shadow: 0 0 0 2px #1f3b5a33; }
+/* Retours du 10/10 (section 15) : analyse des points fidelite (vert ce qui s'ajoute, rouge doux ce qui se retranche) */
+.fid-analyse td.rf-barre div { height: 10px; border-radius: 5px; background: #9cc9b8; }
+.fid-analyse .rf-deux { display: flex; flex-wrap: wrap; gap: 18px; }
+.fid-analyse .rf-col { flex: 1 1 420px; min-width: 0; }
+.fid-analyse .rf-col .ac-table { width: 100%; }
+.fid-analyse td.fid-plus { color: #17795f; }
+.fid-analyse td.fid-moins { color: #c0564b; }
 /* Retours du 10/10 (Q1) : ventes moyennes 90 jours dans l'apercu de la fiche article */
 .vp-ap-moyennes { margin-left: 12px; color: #3b4a5a; font-size: 12px; white-space: nowrap; cursor: help; }
 .vp-ap-moyennes b { color: #1f3b5a; }

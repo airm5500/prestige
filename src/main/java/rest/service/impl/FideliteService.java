@@ -53,6 +53,17 @@ public class FideliteService {
         int montantPoint, valeurPoint, seuil, expirationMois;
         LocalDate debut;
         String synchro;
+        /** Retours du 10/10 : exclusions par familles d'articles (FAMILLES) ou par emplacements (EMPLACEMENTS). */
+        String modeExclusion = FAMILLES;
+    }
+
+    public static final String FAMILLES = "FAMILLES", EMPLACEMENTS = "EMPLACEMENTS";
+
+    /** Condition SQL « le produit f rapporte des points » selon le mode d'exclusion (un seul mode s'applique). */
+    static String produitEligible(String modeExclusion) {
+        return EMPLACEMENTS.equals(modeExclusion)
+                ? "(f.lg_ZONE_GEO_ID IS NULL OR f.lg_ZONE_GEO_ID NOT IN (SELECT z.lg_ZONE_GEO_ID FROM t_fidelite_exclusion_zone z))"
+                : "(f.lg_FAMILLEARTICLE_ID IS NULL OR f.lg_FAMILLEARTICLE_ID NOT IN (SELECT e.lg_FAMILLEARTICLE_ID FROM t_fidelite_exclusion e))";
     }
 
     private static int entier(Object o) {
@@ -96,10 +107,9 @@ public class FideliteService {
 
     @SuppressWarnings("unchecked")
     Parametres parametres(boolean verrou) {
-        List<Object[]> l = em
-                .createNativeQuery("SELECT bool_ACTIF, int_MONTANT_POINT, int_VALEUR_POINT,"
-                        + " int_SEUIL_UTILISATION, int_EXPIRATION_MOIS, bool_ASSURANCE, dt_DEBUT, dt_SYNCHRO"
-                        + " FROM t_fidelite_parametre WHERE lg_PARAMETRE_ID = ?1" + (verrou ? " FOR UPDATE" : ""))
+        List<Object[]> l = em.createNativeQuery("SELECT bool_ACTIF, int_MONTANT_POINT, int_VALEUR_POINT,"
+                + " int_SEUIL_UTILISATION, int_EXPIRATION_MOIS, bool_ASSURANCE, dt_DEBUT, dt_SYNCHRO, str_MODE_EXCLUSION"
+                + " FROM t_fidelite_parametre WHERE lg_PARAMETRE_ID = ?1" + (verrou ? " FOR UPDATE" : ""))
                 .setParameter(1, ID).getResultList();
         Parametres p = new Parametres();
         if (l.isEmpty()) {
@@ -120,6 +130,7 @@ public class FideliteService {
         p.debut = jour(r[6]);
         LocalDateTime s = instant(r[7]);
         p.synchro = s == null ? "" : s.format(JJ_MM_AAAA_HH);
+        p.modeExclusion = EMPLACEMENTS.equals(texte(r[8])) ? EMPLACEMENTS : FAMILLES;
         return p;
     }
 
@@ -156,10 +167,24 @@ public class FideliteService {
                     .put(new JSONObject().put("id", texte(r[0])).put("libelle", StringUtils.defaultString(texte(r[1])))
                             .put("produits", grand(r[2])).put("exclue", vrai(r[3])));
         }
+        JSONArray emplacements = new JSONArray();
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT z.lg_ZONE_GEO_ID, z.str_LIBELLEE, z.str_CODE,"
+                        + " (SELECT COUNT(*) FROM t_famille f WHERE f.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID"
+                        + " AND f.str_STATUT = 'enable'), EXISTS (SELECT 1 FROM t_fidelite_exclusion_zone e"
+                        + " WHERE e.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID)"
+                        + " FROM t_zone_geographique z WHERE z.str_STATUT = 'enable' ORDER BY z.str_LIBELLEE")
+                .getResultList()) {
+            emplacements
+                    .put(new JSONObject().put("id", texte(r[0])).put("libelle", StringUtils.defaultString(texte(r[1])))
+                            .put("code", StringUtils.defaultString(texte(r[2]))).put("produits", grand(r[3]))
+                            .put("exclue", vrai(r[4])));
+        }
         return new JSONObject().put("success", true).put("actif", p.actif).put("montantPoint", p.montantPoint)
                 .put("valeurPoint", p.valeurPoint).put("seuil", p.seuil).put("expirationMois", p.expirationMois)
                 .put("assurance", p.assurance).put("debut", p.debut == null ? "" : p.debut.toString())
-                .put("synchro", p.synchro).put("paliers", paliers).put("categories", categories);
+                .put("synchro", p.synchro).put("paliers", paliers).put("categories", categories)
+                .put("modeExclusion", p.modeExclusion).put("emplacements", emplacements);
     }
 
     private static JSONObject echec(String msg) {
@@ -269,6 +294,42 @@ public class FideliteService {
         return new JSONObject().put("success", true);
     }
 
+    /** Retours du 10/10 : exclut (ou reintegre) un emplacement de rangement (zone geographique / rayon). */
+    public JSONObject exclureEmplacement(String zoneId, boolean exclue) {
+        if (exclue) {
+            List<?> l = em.createNativeQuery("SELECT 1 FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = ?1")
+                    .setParameter(1, zoneId).getResultList();
+            if (l.isEmpty()) {
+                return echec("Emplacement introuvable.");
+            }
+            em.createNativeQuery(
+                    "INSERT IGNORE INTO t_fidelite_exclusion_zone (lg_ZONE_GEO_ID, dt_CREATED)" + " VALUES (?1, NOW())")
+                    .setParameter(1, zoneId).executeUpdate();
+        } else {
+            em.createNativeQuery("DELETE FROM t_fidelite_exclusion_zone WHERE lg_ZONE_GEO_ID = ?1")
+                    .setParameter(1, zoneId).executeUpdate();
+        }
+        return new JSONObject().put("success", true);
+    }
+
+    /**
+     * Retours du 10/10 : exclusions par familles OU par emplacements, jamais les deux. Les deux listes sont gardees ;
+     * seule celle du mode choisi s'applique aux ventes traitees ensuite (les points deja acquis ne changent pas).
+     */
+    public JSONObject changerModeExclusion(String mode, String userId) {
+        String m = StringUtils.trimToEmpty(mode).toUpperCase(java.util.Locale.ROOT);
+        if (!FAMILLES.equals(m) && !EMPLACEMENTS.equals(m)) {
+            return echec("Mode d'exclusion inconnu (familles ou emplacements).");
+        }
+        em.createNativeQuery("UPDATE t_fidelite_parametre SET str_MODE_EXCLUSION = ?1, dt_UPDATED = NOW(),"
+                + " lg_USER_ID = ?2 WHERE lg_PARAMETRE_ID = ?3").setParameter(1, m).setParameter(2, userId)
+                .setParameter(3, ID).executeUpdate();
+        return lireParametres().put("msg",
+                FAMILLES.equals(m)
+                        ? "Exclusions par familles d'articles : les emplacements exclus ne s'appliquent plus."
+                        : "Exclusions par emplacements : les familles exclues ne s'appliquent plus.");
+    }
+
     // ------------------------------------------------------------------ synchronisation
 
     private void inserer(String client, String type, int points, int restants, Long base, Double coef, String vente,
@@ -319,8 +380,8 @@ public class FideliteService {
                 + "   WHERE t.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID),"
                 + " (SELECT COALESCE(SUM(d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)), 0)"
                 + "   FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
-                + "   WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND (f.lg_FAMILLEARTICLE_ID IS NULL"
-                + "   OR f.lg_FAMILLEARTICLE_ID NOT IN (SELECT e.lg_FAMILLEARTICLE_ID FROM t_fidelite_exclusion e))),"
+                + "   WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND "
+                + produitEligible(p.modeExclusion) + "),"
                 + " (SELECT COALESCE(SUM(u.int_VALEUR), 0) FROM t_fidelite_mouvement u"
                 + "   WHERE u.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND u.str_TYPE = 'UTILISATION')"
                 + " FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID"
@@ -414,6 +475,16 @@ public class FideliteService {
      */
     @SuppressWarnings("unchecked")
     public JSONObject clients(String recherche, int start, int limit) {
+        return clients(recherche, start, limit, 200);
+    }
+
+    /** Retours du 10/10 : tous les clients de la recherche pour les editions (5 000 au plus). */
+    public JSONObject clientsEdition(String recherche) {
+        return clients(recherche, 0, 5000, 5000);
+    }
+
+    @SuppressWarnings("unchecked")
+    private JSONObject clients(String recherche, int start, int limit, int plafond) {
         Parametres p = parametres(false);
         List<Palier> paliers = paliers();
         String r = StringUtils.trimToEmpty(recherche);
@@ -441,7 +512,7 @@ public class FideliteService {
         long total = grand(qn.getSingleResult());
         JSONArray data = new JSONArray();
         for (Object[] x : (List<Object[]>) q.setFirstResult(Math.max(0, start))
-                .setMaxResults(Math.min(Math.max(1, limit), 200)).getResultList()) {
+                .setMaxResults(Math.min(Math.max(1, limit), plafond)).getResultList()) {
             long solde = grand(x[3]), acquis = grand(x[4]);
             Palier pal = FideliteCalcul.palier(paliers, acquis), suivant = FideliteCalcul.prochain(paliers, acquis);
             LocalDateTime der = instant(x[6]);
@@ -663,5 +734,61 @@ public class FideliteService {
         m.put("valeur", FideliteCalcul.valeur(points, p.valeurPoint));
         m.put("expirent30j", exp);
         return new JSONObject(m).put("success", true).put("actif", p.actif).put("synchro", p.synchro);
+    }
+
+    /** Nom de l'officine (en-tete des editions). */
+    @SuppressWarnings("unchecked")
+    public String nomOfficine() {
+        List<Object> r = em.createNativeQuery("SELECT str_NOM_COMPLET FROM t_officine LIMIT 1").getResultList();
+        return r.isEmpty() || r.get(0) == null ? "" : String.valueOf(r.get(0));
+    }
+
+    public int valeurPoint() {
+        return parametres(false).valeurPoint;
+    }
+
+    /**
+     * Retours du 10/10 (section 15) : analyse des points de la periode (date de l'operation) — gagnes, utilises,
+     * expires par mois, clients actifs, repartition par palier, taux d'utilisation, cout des points, meilleurs clients.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject analyse(LocalDate du, LocalDate au, int nbMeilleurs) {
+        Parametres p = parametres(false);
+        List<Palier> paliers = paliers();
+        rest.service.impl.fidelite.AnalyseFidelite a = new rest.service.impl.fidelite.AnalyseFidelite();
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT DATE_FORMAT(dt_MOUVEMENT, '%Y-%m'), lg_CLIENT_ID,"
+                        + " str_TYPE, SUM(int_POINTS), SUM(COALESCE(int_VALEUR, 0)) FROM t_fidelite_mouvement"
+                        + " WHERE dt_MOUVEMENT >= ?1 AND dt_MOUVEMENT < ?2 GROUP BY 1, 2, 3")
+                .setParameter(1, Timestamp.valueOf(du.atStartOfDay()))
+                .setParameter(2, Timestamp.valueOf(au.plusDays(1).atStartOfDay())).getResultList()) {
+            a.ajouter(texte(r[0]), texte(r[1]), texte(r[2]), grand(r[3]), grand(r[4]));
+        }
+        List<String> ids = a.clientsActifs();
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> lot = ids.subList(i, Math.min(ids.size(), i + 500));
+            for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT c.lg_CLIENT_ID,"
+                    + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME),"
+                    + " (SELECT COALESCE(SUM(m.int_POINTS), 0) FROM t_fidelite_mouvement m WHERE m.lg_CLIENT_ID = c.lg_CLIENT_ID),"
+                    + " (SELECT COALESCE(SUM(m.int_POINTS), 0) FROM t_fidelite_mouvement m WHERE m.lg_CLIENT_ID = c.lg_CLIENT_ID"
+                    + "   AND m.str_TYPE IN ('GAIN', 'ANNULATION') AND m.dt_MOUVEMENT >= NOW() - INTERVAL 12 MONTH)"
+                    + " FROM t_client c WHERE c.lg_CLIENT_ID IN (?1)").setParameter(1, lot).getResultList()) {
+                Palier pal = FideliteCalcul.palier(paliers, grand(r[3]));
+                a.decrire(texte(r[0]), texte(r[1]), grand(r[2]), pal == null ? "" : pal.libelle);
+            }
+        }
+        List<String> ordre = new ArrayList<>();
+        paliers.forEach(x -> ordre.add(x.libelle));
+        return a.json(nbMeilleurs, ordre).put("success", true).put("debut", du.toString()).put("fin", au.toString())
+                .put("valeurPoint", p.valeurPoint);
+    }
+
+    /** Nom du client (titre des editions). */
+    @SuppressWarnings("unchecked")
+    public String nomClient(String client) {
+        List<Object> r = em.createNativeQuery(
+                "SELECT CONCAT_WS(' ', str_FIRST_NAME, str_LAST_NAME) FROM t_client" + " WHERE lg_CLIENT_ID = ?1")
+                .setParameter(1, client).getResultList();
+        return r.isEmpty() || r.get(0) == null ? "" : String.valueOf(r.get(0)).trim();
     }
 }

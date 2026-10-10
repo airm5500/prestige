@@ -113,4 +113,71 @@ public final class TableauPdf {
             throw new IllegalStateException("Édition PDF impossible", ex);
         }
     }
+
+    /** Retours du 10/10 : une section d'une edition a plusieurs tableaux (titre de section, puis son tableau). */
+    public static final class Section {
+        public String titre;
+        public String[] entetes;
+        public float[] largeurs;
+        public boolean[] droite;
+        public List<String[]> lignes;
+    }
+
+    /** Edition a plusieurs tableaux : en-tete (officine, titre, sous-titre, pied) de e, puis chaque section. */
+    public static byte[] genererSections(Edition e, List<Section> sections) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4.rotate(), 18, 18, 20, 30);
+            PdfWriter writer = PdfWriter.getInstance(doc, out);
+            writer.setPageEvent(
+                    new Pied("Imprimé le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            + (e.imprimePar == null || e.imprimePar.isEmpty() ? "" : " par " + e.imprimePar)));
+            doc.open();
+            if (e.officine != null && !e.officine.trim().isEmpty()) {
+                doc.add(new Paragraph(e.officine, OFFICINE));
+            }
+            Paragraph t = new Paragraph(e.titre == null ? "" : e.titre, TITRE);
+            t.setAlignment(Element.ALIGN_CENTER);
+            doc.add(t);
+            Paragraph st = new Paragraph(e.sousTitre == null ? "" : e.sousTitre, SOUS_TITRE);
+            st.setAlignment(Element.ALIGN_CENTER);
+            st.setSpacingAfter(8f);
+            doc.add(st);
+            for (Section x : sections) {
+                Paragraph h = new Paragraph(x.titre == null ? "" : x.titre, OFFICINE);
+                h.setSpacingBefore(6f);
+                h.setSpacingAfter(4f);
+                doc.add(h);
+                PdfPTable table = x.largeurs != null ? new PdfPTable(x.largeurs) : new PdfPTable(x.entetes.length);
+                table.setWidthPercentage(100f);
+                table.setHeaderRows(1);
+                for (String en : x.entetes) {
+                    PdfPCell c = new PdfPCell(new Phrase(en, ENTETE));
+                    c.setBackgroundColor(GRIS_ENTETE);
+                    c.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    c.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    c.setPadding(3f);
+                    table.addCell(c);
+                }
+                for (String[] l : x.lignes) {
+                    for (int i = 0; i < x.entetes.length; i++) {
+                        PdfPCell c = new PdfPCell(new Phrase(i < l.length && l[i] != null ? l[i] : "", CELLULE));
+                        c.setHorizontalAlignment(x.droite != null && i < x.droite.length && x.droite[i]
+                                ? Element.ALIGN_RIGHT : Element.ALIGN_LEFT);
+                        c.setPadding(2.5f);
+                        table.addCell(c);
+                    }
+                }
+                if (x.lignes.isEmpty()) {
+                    PdfPCell c = new PdfPCell(new Phrase("Aucune ligne.", CELLULE));
+                    c.setColspan(x.entetes.length);
+                    table.addCell(c);
+                }
+                doc.add(table);
+            }
+            doc.close();
+            return out.toByteArray();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Édition PDF impossible", ex);
+        }
+    }
 }
