@@ -18,18 +18,18 @@ const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' 
 
 let PRODUITS = [], USER = '';
 
-/* Une nuit de garde du 5 au 6 septembre 2026, de 20 h a 8 h.
+/* Une nuit de garde du 5 au 6 septembre 2030 (aucune vente reelle : le banc a des ventes en 2026), de 20 h a 8 h.
    Dedans  : 20h30 (P1 x2, 1000), 23h15 (P2 x1, 4000), 03h00 (P1 x3, 1500), 07h45 (P3 x1, 500)
    Dehors  : 14h00 le 5 (activite de jour), 12h00 le 6 (activite de jour)
    Les deux ventes « dehors » tombent dans les journees du 5 et du 6 : une analyse au jour les
    compterait, et ferait basculer le classement. */
 const VENTES = [
-  { id: 'E2EG-IN-1', ref: 'E2EG-1', quand: '2026-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, dedans: true },
-  { id: 'E2EG-IN-2', ref: 'E2EG-2', quand: '2026-09-05 23:15:00', prod: 1, qte: 1, montant: 4000, dedans: true },
-  { id: 'E2EG-IN-3', ref: 'E2EG-3', quand: '2026-09-06 03:00:00', prod: 0, qte: 3, montant: 1500, dedans: true },
-  { id: 'E2EG-IN-4', ref: 'E2EG-4', quand: '2026-09-06 07:45:00', prod: 2, qte: 1, montant: 500, dedans: true },
-  { id: 'E2EG-OUT-1', ref: 'E2EG-J1', quand: '2026-09-05 14:00:00', prod: 2, qte: 90, montant: 90000, dedans: false },
-  { id: 'E2EG-OUT-2', ref: 'E2EG-J2', quand: '2026-09-06 12:00:00', prod: 2, qte: 80, montant: 80000, dedans: false }
+  { id: 'E2EG-IN-1', ref: 'E2EG-1', quand: '2030-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, dedans: true },
+  { id: 'E2EG-IN-2', ref: 'E2EG-2', quand: '2030-09-05 23:15:00', prod: 1, qte: 1, montant: 4000, dedans: true },
+  { id: 'E2EG-IN-3', ref: 'E2EG-3', quand: '2030-09-06 03:00:00', prod: 0, qte: 3, montant: 1500, dedans: true },
+  { id: 'E2EG-IN-4', ref: 'E2EG-4', quand: '2030-09-06 07:45:00', prod: 2, qte: 1, montant: 500, dedans: true },
+  { id: 'E2EG-OUT-1', ref: 'E2EG-J1', quand: '2030-09-05 14:00:00', prod: 2, qte: 90, montant: 90000, dedans: false },
+  { id: 'E2EG-OUT-2', ref: 'E2EG-J2', quand: '2030-09-06 12:00:00', prod: 2, qte: 80, montant: 80000, dedans: false }
 ];
 
 function purger() {
@@ -91,25 +91,25 @@ function semer() {
   let gardeId = null;
   try {
     // ------------------------------------------------------------------ enregistrement
-    let r = await poster({ libelle: 'E2E Nuit du 5 au 6', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-06 08:00' });
+    let r = await poster({ libelle: 'E2E Nuit du 5 au 6', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-06 08:00' });
     ok('Une garde valide s\'enregistre', r.success === true, JSON.stringify(r));
     gardeId = (r.data || {}).id;
     ok('Elle porte des bornes a l\'heure pres',
-      (r.data || {}).dateDebut === '2026-09-05 20:00:00' && (r.data || {}).dateFin === '2026-09-06 08:00:00',
+      (r.data || {}).dateDebut === '2030-09-05 20:00:00' && (r.data || {}).dateFin === '2030-09-06 08:00:00',
       JSON.stringify(r.data));
     ok('Sa duree est calculee', (r.data || {}).dureeMinutes === 720 && (r.data || {}).duree === '12 h',
       JSON.stringify(r.data));
 
-    r = await poster({ libelle: 'E2E Fin avant debut', dateDebut: '2026-09-06 08:00', dateFin: '2026-09-05 20:00' });
+    r = await poster({ libelle: 'E2E Fin avant debut', dateDebut: '2030-09-06 08:00', dateFin: '2030-09-05 20:00' });
     ok('Une fin anterieure au debut est refusee', r.success === false && /post/i.test(r.msg || ''), JSON.stringify(r));
 
-    r = await poster({ libelle: 'E2E Bornes egales', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-05 20:00' });
+    r = await poster({ libelle: 'E2E Bornes egales', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-05 20:00' });
     ok('Des bornes egales sont refusees', r.success === false, JSON.stringify(r));
 
-    r = await poster({ libelle: '', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-06 08:00' });
+    r = await poster({ libelle: '', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-06 08:00' });
     ok('Un libelle vide est refuse', r.success === false && /libell/i.test(r.msg || ''), JSON.stringify(r));
 
-    r = await poster({ libelle: 'E2E Doublon', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-06 08:00' });
+    r = await poster({ libelle: 'E2E Doublon', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-06 08:00' });
     ok('Une periode deja prise est refusee', r.success === false && /d.j./i.test(r.msg || ''), JSON.stringify(r));
 
     r = await lire('');
@@ -186,7 +186,7 @@ function semer() {
       resume.reduce((s, c) => s + c.produits, 0) === abc.length, JSON.stringify(resume));
 
     // ------------------------------------------------------------------ comparaison
-    r = await poster({ libelle: 'E2E Nuit precedente', dateDebut: '2026-09-04 20:00', dateFin: '2026-09-05 08:00' });
+    r = await poster({ libelle: 'E2E Nuit precedente', dateDebut: '2030-09-04 20:00', dateFin: '2030-09-05 08:00' });
     const gardeVideId = (r.data || {}).id;
     const comparaison = await lire('/comparaison');
     ok('La comparaison rend les gardes', (comparaison.data || []).length >= 2,
@@ -253,8 +253,8 @@ function semer() {
     ok('Le selecteur de garde est pose sur les ventes terminees', reutilisation.selecteurPresent);
     ok('Il liste les gardes enregistrees', reutilisation.gardeTrouvee);
     ok('Il rappelle les bornes dans le libelle',
-      /2026-09-05 20:00:00/.test(reutilisation.libelleListe || ''), reutilisation.libelleListe);
-    ok('Il pose les deux dates', reutilisation.jourDebut === '2026-09-05' && reutilisation.jourFin === '2026-09-06',
+      /2030-09-05 20:00:00/.test(reutilisation.libelleListe || ''), reutilisation.libelleListe);
+    ok('Il pose les deux dates', reutilisation.jourDebut === '2030-09-05' && reutilisation.jourFin === '2030-09-06',
       reutilisation.jourDebut + ' -> ' + reutilisation.jourFin);
     ok('Il pose AUSSI les heures sur un ecran qui les gere',
       reutilisation.heureDebut === '20:00' && reutilisation.heureFin === '08:00',

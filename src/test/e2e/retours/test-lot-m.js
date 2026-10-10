@@ -27,15 +27,15 @@ const EMPL2 = MARQUE + '-EMPL';
 const USER2 = MARQUE + '-USER';
 
 let PRODUITS = [], USER = '', GROSSISTES = [], TP = '', STOCK_AVANT = null;
-const DEBUT = '2027-01-05 20:00', FIN = '2027-01-06 08:00';
+const DEBUT = '2031-01-05 20:00', FIN = '2031-01-06 08:00';
 /* P0 et P2 partagent un grossiste, P1 en a un autre : le filtre grossiste doit separer les deux. */
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2027-01-05 20:30:00', prod: 0, qte: 2, montant: 1000, achat: 300 },
-  { id: MARQUE + '-2', quand: '2027-01-05 23:15:00', prod: 1, qte: 10, montant: 4000, achat: 200 },
-  { id: MARQUE + '-3', quand: '2027-01-06 03:00:00', prod: 2, qte: 1, montant: 600, achat: 900 },
-  { id: MARQUE + '-IMP', quand: '2027-01-05 21:00:00', prod: 0, qte: 5, montant: 5000, achat: 300, imported: 1 },
-  { id: MARQUE + '-AUTRE', quand: '2027-01-05 22:00:00', prod: 1, qte: 7, montant: 7000, achat: 200, autreEmplacement: true },
-  { id: MARQUE + '-EXCLUE', quand: '2027-01-05 23:00:00', prod: 2, qte: 9, montant: 9000, achat: 900, exclue: true }
+  { id: MARQUE + '-1', quand: '2031-01-05 20:30:00', prod: 0, qte: 2, montant: 1000, achat: 300 },
+  { id: MARQUE + '-2', quand: '2031-01-05 23:15:00', prod: 1, qte: 10, montant: 4000, achat: 200 },
+  { id: MARQUE + '-3', quand: '2031-01-06 03:00:00', prod: 2, qte: 1, montant: 600, achat: 900 },
+  { id: MARQUE + '-IMP', quand: '2031-01-05 21:00:00', prod: 0, qte: 5, montant: 5000, achat: 300, imported: 1 },
+  { id: MARQUE + '-AUTRE', quand: '2031-01-05 22:00:00', prod: 1, qte: 7, montant: 7000, achat: 200, autreEmplacement: true },
+  { id: MARQUE + '-EXCLUE', quand: '2031-01-05 23:00:00', prod: 2, qte: 9, montant: 9000, achat: 900, exclue: true }
 ];
 
 function purger() {
@@ -109,9 +109,9 @@ function semer() {
   }
   // une commande de P1 (vendu) et de P2 x 0 ? non : P2 commande et vendu, plus un produit jamais vendu (P0 commande 3)
   exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-    + " VALUES ('" + MARQUE + "-CMD','" + MARQUE + "-CMD',2,'" + GROSSISTES[0] + "','" + USER + "','is_Process','2027-01-05 22:30:00','2027-01-05 22:30:00',0,0,0)");
+    + " VALUES ('" + MARQUE + "-CMD','" + MARQUE + "-CMD',2,'" + GROSSISTES[0] + "','" + USER + "','is_Process','2031-01-05 22:30:00','2031-01-05 22:30:00',0,0,0)");
   exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, str_STATUT, dt_CREATED, dt_UPDATED)"
-    + " VALUES ('" + MARQUE + "-CMD-0','" + MARQUE + "-CMD','" + PRODUITS[0] + "','" + GROSSISTES[0] + "',3,0,'is_Process','2027-01-05 22:30:00','2027-01-05 22:30:00')");
+    + " VALUES ('" + MARQUE + "-CMD-0','" + MARQUE + "-CMD','" + PRODUITS[0] + "','" + GROSSISTES[0] + "',3,0,'is_Process','2031-01-05 22:30:00','2031-01-05 22:30:00')");
   return true;
 }
 

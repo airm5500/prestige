@@ -29,14 +29,14 @@ const DEBUT_TEST = q('SELECT NOW()');
 let PRODUITS = [], KGA3 = '', GROSSISTE = '';
 
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2026-09-05 20:30:00', prod: 0, qte: 2, montant: 1000 },
-  { id: MARQUE + '-2', quand: '2026-09-05 21:00:00', prod: 1, qte: 1, montant: 4000 },
-  { id: MARQUE + '-3', quand: '2026-09-06 07:00:00', prod: 0, qte: 3, montant: 1500 }
+  { id: MARQUE + '-1', quand: '2030-09-05 20:30:00', prod: 0, qte: 2, montant: 1000 },
+  { id: MARQUE + '-2', quand: '2030-09-05 21:00:00', prod: 1, qte: 1, montant: 4000 },
+  { id: MARQUE + '-3', quand: '2030-09-06 07:00:00', prod: 0, qte: 3, montant: 1500 }
 ];
 const COMMANDES = [
-  { id: MARQUE + '-ORD-PREP', quand: '2026-09-03 10:00:00', lignes: [[0, 6], [2, 3]] },
-  { id: MARQUE + '-ORD-1', quand: '2026-09-05 23:00:00', lignes: [[0, 5], [2, 4]] },
-  { id: MARQUE + '-ORD-2', quand: '2026-09-06 12:00:00', lignes: [[1, 9]] }
+  { id: MARQUE + '-ORD-PREP', quand: '2030-09-03 10:00:00', lignes: [[0, 6], [2, 3]] },
+  { id: MARQUE + '-ORD-1', quand: '2030-09-05 23:00:00', lignes: [[0, 5], [2, 4]] },
+  { id: MARQUE + '-ORD-2', quand: '2030-09-06 12:00:00', lignes: [[1, 9]] }
 ];
 
 function purger() {
@@ -94,8 +94,8 @@ function semer() {
       const r = await fetch('../api/v1/gardes', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: corps });
       return await r.json();
     }, params);
-    const g1 = await poster({ libelle: MARQUE + ' nuit', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-06 08:00' });
-    const g2 = await poster({ libelle: MARQUE + ' nuit 2', dateDebut: '2026-09-12 20:00', dateFin: '2026-09-13 08:00' });
+    const g1 = await poster({ libelle: MARQUE + ' nuit', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-06 08:00' });
+    const g2 = await poster({ libelle: MARQUE + ' nuit 2', dateDebut: '2030-09-12 20:00', dateFin: '2030-09-13 08:00' });
     ok('Deux gardes de jeu d essai', g1.success && g2.success, JSON.stringify([g1.msg, g2.msg]));
     const idGarde = q("SELECT id FROM garde WHERE libelle='" + MARQUE + " nuit'");
 
@@ -172,7 +172,7 @@ function semer() {
     const sugg = q("SELECT CONCAT(o.str_COMMENTAIRE, '|', d.lg_FAMILLE_ID, '|', d.int_NUMBER) FROM t_suggestion_order o JOIN t_suggestion_order_details d ON d.lg_SUGGESTION_ORDER_ID=o.lg_SUGGESTION_ORDER_ID WHERE o.str_COMMENTAIRE LIKE 'Suggestion de garde - " + MARQUE + "%' AND o.dt_CREATED >= '" + DEBUT_TEST + "'").split('\n').filter(Boolean);
     ok('« Suggérer » sur le filtre « non vendus » demande confirmation pour 1 produit puis crée la suggestion', /1 produit\(s\) affich/.test(question) && /suggestion/.test(reponse), question.slice(0, 80) + ' / ' + reponse.slice(0, 80));
     ok('La suggestion porte P2 avec 7 unités (préparé 3 + commandé 4, faute de vente) et le commentaire « Suggestion de garde - ... (du ... au ...) »',
-      sugg.length === 1 && sugg[0].indexOf('|' + PRODUITS[2] + '|7') > 0 && /^Suggestion de garde - E2E-G21 nuit \(du 05\/09\/2026 20h00 au 06\/09\/2026 08h00\)\|/.test(sugg[0]), JSON.stringify(sugg));
+      sugg.length === 1 && sugg[0].indexOf('|' + PRODUITS[2] + '|7') > 0 && /^Suggestion de garde - E2E-G21 nuit \(du 05\/09\/2030 20h00 au 06\/09\/2030 08h00\)\|/.test(sugg[0]), JSON.stringify(sugg));
     const listeSugg = await p.evaluate(async () => (await fetch('../api/v1/suggestion/list?query=&start=0&limit=200', { credentials: 'same-origin' })).json());
     const trouvee = (listeSugg.data || listeSugg.results || []).filter(s => /Suggestion de garde - E2E-G21/.test(s.str_COMMENTAIRE || ''));
     ok('Et le menu des suggestions la liste avec son commentaire (colonne ajoutée sans toucher aux autres)', trouvee.length === 1 && trouvee[0].str_REF, JSON.stringify(trouvee[0] || listeSugg).slice(0, 200));

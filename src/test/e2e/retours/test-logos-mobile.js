@@ -9,7 +9,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'") === '1' ? 'KGA3' : 'admin');
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
 const SORTIE = process.env.SORTIE || '/tmp';
 
 // un client par defaut sur un mode de chaque operateur mobile, pour que les tuiles existent ; retabli a la fin
