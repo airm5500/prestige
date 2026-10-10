@@ -28,7 +28,7 @@ function produits() {
   return q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split('\n').filter(Boolean);
 }
 function poserVente(jour) {
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const ps = produits();
   const quand = jour + ' 10:00:00';
   exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"
@@ -51,7 +51,7 @@ function poserVente(jour) {
 }
 /* Deux lots pour le premier produit : l'un perime dans 2 mois (clignote), l'autre dans 2 ans ; un lot a 1 an pour le second. */
 function poserLots(ps) {
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   [[ps[0], 'A1', 2, 5], [ps[0], 'A2', 24, 9], [ps[1], 'B1', 12, 7]].forEach(function (l, i) {
     exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, int_NUMBER_GRATUIT, str_STATUT, int_QTY_VENDUE, current_stock)"
       + " VALUES ('" + LOT + i + "','" + user + "','" + l[0] + "','" + l[1] + "'," + l[3] + ",NOW(),NOW(),DATE_ADD(CURDATE(), INTERVAL " + l[2] + " MONTH),0,'enable',0," + l[3] + ")");
@@ -68,7 +68,7 @@ function poserLots(ps) {
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(1500);
