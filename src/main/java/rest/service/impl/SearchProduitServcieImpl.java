@@ -301,12 +301,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         try {
             String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT DISTINCT t.lg_FAMILLE_ID FROM t_famille t ");
+            sql.append("SELECT t.lg_FAMILLE_ID FROM t_famille t ");
             sql.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
-            sql.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
-            if (StringUtils.isNotEmpty(diciId)) {
-                sql.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
-            }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // L'inventaire cree depuis la fiche article doit porter sur la MEME liste que celle
@@ -410,13 +406,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             int limit) {
         try {
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT DISTINCT {t.*}, fs.int_NUMBER_AVAILABLE as stock, ");
+            sql.append("SELECT {t.*}, fs.int_NUMBER_AVAILABLE as stock, ");
             sql.append("{gamme.*}, {labo.*}, {farticle.*}, {grossiste.*}, {zone.*}, ");
             sql.append("{etiquette.*}, {acte.*}, {gestion.*}, {fabriquant.*}, ");
             sql.append("{indicateur.*}, {remise.*}, {tva.*} ");
             sql.append("FROM t_famille t ");
             sql.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
-            sql.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
             sql.append("LEFT JOIN gamme_produit gamme ON t.gamme_id = gamme.id ");
             sql.append("LEFT JOIN laboratoire labo ON t.laboratoire_id = labo.id ");
             sql.append(
@@ -431,9 +426,6 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     "LEFT JOIN t_indicateur_reapprovisionnement indicateur ON t.lg_INDICATEUR_REAPPROVISIONNEMENT_ID = indicateur.lg_INDICATEUR_REAPPROVISIONNEMENT_ID ");
             sql.append("LEFT JOIN t_remise remise ON t.lg_REMISE_ID = remise.lg_REMISE_ID ");
             sql.append("LEFT JOIN t_code_tva tva ON t.lg_CODE_TVA_ID = tva.lg_CODE_TVA_ID ");
-            if (StringUtils.isNotEmpty(diciId)) {
-                sql.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
-            }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
@@ -477,14 +469,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             int start, int limit) {
         try {
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT DISTINCT {t.*}, fs.int_NUMBER_AVAILABLE as stock, {zone.*} ");
+            sql.append("SELECT {t.*}, fs.int_NUMBER_AVAILABLE as stock, {zone.*} ");
             sql.append("FROM t_famille t ");
             sql.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
-            sql.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
             sql.append("LEFT JOIN t_zone_geographique zone ON t.lg_ZONE_GEO_ID = zone.lg_ZONE_GEO_ID ");
-            if (StringUtils.isNotEmpty(diciId)) {
-                sql.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
-            }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
@@ -516,12 +504,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             String stockOperator, String stockValue, String tvaId, boolean checkDeconditionne) {
         try {
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT COUNT(DISTINCT t.lg_FAMILLE_ID) FROM t_famille t ");
+            sql.append("SELECT COUNT(*) FROM t_famille t ");
             sql.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
-            sql.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
-            if (StringUtils.isNotEmpty(diciId)) {
-                sql.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
-            }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
@@ -546,15 +530,22 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      */
     private void applyFilters(StringBuilder sql, String search, String diciId, String type, String zoneGeoId,
             String stockOperator, String stockValue, String tvaId, boolean checkDeconditionne) {
+        // Retours du 10/10 (recherche DCI lente) : grossistes et DCI en EXISTS plutot qu'en jointures. Une jointure
+        // donnait une ligne par grossiste (et par lien DCI) qu'un DISTINCT sur toutes les colonnes de l'article devait
+        // ensuite fusionner. Meme resultat : l'article doit toujours avoir au moins un grossiste ; la recherche sur le
+        // code article porte sur n'importe lequel de ses grossistes.
+        sql.append("AND EXISTS (SELECT 1 FROM t_famille_grossiste fg WHERE fg.lg_FAMILLE_ID = t.lg_FAMILLE_ID) ");
         if (StringUtils.isNotEmpty(search)) {
-            sql.append(
-                    "AND (t.int_CIP LIKE :search  OR fg.str_CODE_ARTICLE LIKE :search OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ) ");
+            sql.append("AND (t.int_CIP LIKE :search OR EXISTS (SELECT 1 FROM t_famille_grossiste fgc ")
+                    .append("WHERE fgc.lg_FAMILLE_ID = t.lg_FAMILLE_ID AND fgc.str_CODE_ARTICLE LIKE :search) ")
+                    .append("OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ) ");
         }
         if (!checkDeconditionne) {
             sql.append("AND t.bool_DECONDITIONNE = 0 ");
         }
         if (StringUtils.isNotEmpty(diciId)) {
-            sql.append("AND fd.lg_DCI_ID = :diciId ");
+            sql.append("AND EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID = t.lg_FAMILLE_ID ")
+                    .append("AND fd.lg_DCI_ID = :diciId) ");
         }
         if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
             sql.append("AND t.lg_ZONE_GEO_ID = :zoneGeoId ");
