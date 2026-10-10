@@ -4,7 +4,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const DOSSIERS = ['/opt/CONF/LABOREX/REPORTS/pdf', '/opt/CONF/reports/pdf'];
+/* Linux (banc), puis Windows (postes des officines : C:, D: ou F:\CONF\LABOREX\REPORTS, sous-dossier pdf ou non) */
+const DOSSIERS = ['/opt/CONF/LABOREX/REPORTS/pdf', '/opt/CONF/LABOREX/REPORTS', '/opt/CONF/reports/pdf']
+  .concat(...['C', 'D', 'F'].map((l) => [l + ':\\CONF\\LABOREX\\REPORTS\\pdf', l + ':\\CONF\\LABOREX\\REPORTS']));
 
 /** Chemin du fichier designe par l'URL (ou le nom) d'une edition ; le premier candidat s'il n'existe nulle part. */
 function fichierEdition(url) {
