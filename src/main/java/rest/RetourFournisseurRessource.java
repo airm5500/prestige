@@ -16,6 +16,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -24,6 +25,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import rest.service.RetourFournisseurService;
+import rest.service.mobile.MobileClientRefService;
 import rest.service.dto.UpdateRetourDTO;
 import rest.service.dto.UpdateRetourItemDTO;
 
@@ -38,6 +40,8 @@ public class RetourFournisseurRessource {
 
     @EJB
     private RetourFournisseurService retourFournisseurService;
+    @EJB
+    private MobileClientRefService mobileClientRefService;
     @EJB
     private rest.service.MvtProduitService mvtProduitService;
     @EJB
@@ -151,9 +155,26 @@ public class RetourFournisseurRessource {
 
     @POST
     @Path("new")
-    public Response create(RetourFournisseurDTO params) {
+    public Response create(RetourFournisseurDTO params, @HeaderParam("X-Client-Ref") String clientRef) {
 
-        RetourFournisseurDTO data = retourFournisseurService.createRetour(params);
+        RetourFournisseurDTO data;
+        if (MobileClientRefService.normaliser(clientRef) == null) {
+            data = retourFournisseurService.createRetour(params);
+        } else {
+            // H4 (Prestige Mobile) : meme cle = meme retour ; la creation n'est jamais refaite.
+            String[] refus = new String[1];
+            data = mobileClientRefService.executer(clientRef, MobileClientRefService.TYPE_RETOUR_FOURNISSEUR,
+                    () -> retourFournisseurService.createRetour(params),
+                    d -> d.getLgRETOURFRSID() == null ? null
+                            : new MobileClientRefService.Cree(d.getLgRETOURFRSID(), d.getStrREFRETOURFRS(), null),
+                    e -> mobileClientRefService.retour(e.entityId), msg -> {
+                        refus[0] = msg;
+                        return null;
+                    });
+            if (data == null && refus[0] != null) {
+                return Response.ok().entity(ResultFactory.getFailResult(refus[0])).build();
+            }
+        }
         if (data != null) {
             return Response.ok().entity(ResultFactory.getSuccessResult(data, 1)).build();
         }

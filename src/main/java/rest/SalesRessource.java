@@ -20,6 +20,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -34,6 +35,7 @@ import rest.service.GenerateTicketService;
 import rest.service.SalesService;
 import rest.service.SmsService;
 import rest.service.dto.UpdateVenteParamDTO;
+import rest.service.mobile.MobileClientRefService;
 import util.CommonUtils;
 
 import util.Constant;
@@ -72,6 +74,12 @@ public class SalesRessource {
         }
         return u == null ? "" : u.getStrLOGIN();
     }
+
+    @EJB
+    private MobileClientRefService mobileClientRefService;
+
+    /** H4 : cle client anti-doublon envoyee par Prestige Mobile (facultative). */
+    static final String X_CLIENT_REF = "X-Client-Ref";
 
     @POST
     @Path("ticket/vno")
@@ -135,20 +143,44 @@ public class SalesRessource {
 
     @POST
     @Path("add/vno")
-    public Response addVente(SalesParams params) {
+    public Response addVente(SalesParams params, @HeaderParam(X_CLIENT_REF) String clientRef) {
 
         params.setStatut(params.isPrevente() ? Constant.STATUT_PENDING : Constant.STATUT_IS_PROGRESS);
-        JSONObject json = salesService.createPreVente(params);
-        return Response.ok().entity(json.toString()).build();
+        String json = creerVente(clientRef, () -> salesService.createPreVente(params));
+        return Response.ok().entity(json).build();
     }
 
     @POST
     @Path("add/assurance")
-    public Response addVenteAssurance(SalesParams params) {
+    public Response addVenteAssurance(SalesParams params, @HeaderParam(X_CLIENT_REF) String clientRef) {
 
         params.setStatut(params.isPrevente() ? Constant.STATUT_PENDING : Constant.STATUT_IS_PROGRESS);
-        JSONObject json = salesService.createPreVenteVo(params);
-        return Response.ok().entity(json.toString()).build();
+        String json = creerVente(clientRef, () -> salesService.createPreVenteVo(params));
+        return Response.ok().entity(json).build();
+    }
+
+    /**
+     * H4 (Prestige Mobile) : creation de vente idempotente si le telephone envoie l'en-tete {@code X-Client-Ref} (meme
+     * cle = meme vente, la reponse initiale est renvoyee). Sans en-tete : creation d'origine, inchangee.
+     */
+    private String creerVente(String clientRef, java.util.function.Supplier<JSONObject> creation) {
+        if (MobileClientRefService.normaliser(clientRef) == null) {
+            return creation.get().toString();
+        }
+        return mobileClientRefService.executer(clientRef, MobileClientRefService.TYPE_VENTE,
+                () -> creation.get().toString(), SalesRessource::venteCreee, e -> e.reponse,
+                msg -> new JSONObject().put("success", false).put("msg", msg).toString());
+    }
+
+    private static MobileClientRefService.Cree venteCreee(String reponse) {
+        try {
+            JSONObject o = new JSONObject(reponse);
+            JSONObject data = o.optBoolean("success") ? o.optJSONObject("data") : null;
+            String id = data == null ? null : data.optString("lgPREENREGISTREMENTID", null);
+            return id == null ? null : new MobileClientRefService.Cree(id, data.optString("strREF", null), reponse);
+        } catch (JSONException e) {
+            return null;
+        }
     }
 
     @POST
@@ -479,7 +511,8 @@ public class SalesRessource {
 
     @POST
     @Path("add/depot")
-    public Response addVenteDepot(SalesParams params) throws JSONException {
+    public Response addVenteDepot(SalesParams params, @HeaderParam(X_CLIENT_REF) String clientRef)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
@@ -487,8 +520,8 @@ public class SalesRessource {
         params.setDepot(true);
         params.setTypeVenteId((params.getTypeDepoId().equals("1") ? "4" : "5"));
         params.setStatut(Constant.STATUT_IS_PROGRESS);
-        JSONObject json = salesService.createPreVenteVo(params);
-        return Response.ok().entity(json.toString()).build();
+        String json = creerVente(clientRef, () -> salesService.createPreVenteVo(params));
+        return Response.ok().entity(json).build();
     }
 
     @POST
