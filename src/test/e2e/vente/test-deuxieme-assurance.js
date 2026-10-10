@@ -20,13 +20,24 @@ function nettoyer() {
      + "DELETE FROM t_compte_client_tiers_payant WHERE lg_COMPTE_CLIENT_ID IN (SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE str_LAST_NAME LIKE '" + MARQUE + "%'));"
      + "DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE str_LAST_NAME LIKE '" + MARQUE + "%');"
      + "DELETE FROM t_ayant_droit WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE str_LAST_NAME LIKE '" + MARQUE + "%');"
-     + "DELETE FROM t_client WHERE str_LAST_NAME LIKE '" + MARQUE + "%';");
+     + "DELETE FROM t_client WHERE str_LAST_NAME LIKE '" + MARQUE + "%';"
+     + "DELETE FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID LIKE '" + MARQUE + "%';");
 }
 
 (async () => {
   nettoyer();
   // Trois assurances distinctes : la principale, la seconde, et celle vers laquelle on bascule.
-  const assurances = q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE lg_TYPE_TIERS_PAYANT_ID='1' AND str_STATUT='enable' LIMIT 3").split('\n');
+  // Le banc peut n'en compter que deux : une assurance d'essai (copie de la premiere) complete alors, retiree a la fin.
+  const lister = () => q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE lg_TYPE_TIERS_PAYANT_ID='1' AND str_STATUT='enable'"
+    + " ORDER BY lg_TIERS_PAYANT_ID LIKE '" + MARQUE + "%', lg_TIERS_PAYANT_ID LIMIT 3").split('\n').filter(Boolean);
+  let assurances = lister();
+  for (let i = assurances.length; i > 0 && i < 3; i++) {
+    const id = MARQUE + '-TP' + i;
+    exec("CREATE TEMPORARY TABLE tmp_tp SELECT * FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='" + assurances[0] + "';"
+      + " UPDATE tmp_tp SET lg_TIERS_PAYANT_ID='" + id + "', str_CODE_ORGANISME='" + id + "', str_NAME='" + id + "', str_FULLNAME='" + id + "';"
+      + " INSERT INTO t_tiers_payant SELECT * FROM tmp_tp;");
+    assurances = lister();
+  }
   if (assurances.length < 3) { console.error('Pas assez d assurances en base'); process.exit(2); }
   const [TP1, TP2, TP3] = assurances;
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
