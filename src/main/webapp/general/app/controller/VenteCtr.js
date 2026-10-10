@@ -1690,6 +1690,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         // 1) Si la liste est ouverte, on évite toute validation en arrière plan
         const store = (combo.getStore) ? combo.getStore() : combo.store;
 
+        // Retours du 10/10 : liste ouverte mais VIDE (recherche precedente sans resultat, ex. etiquette 2D lue avec
+        // KEY_VENTE_LECTURE_GS1 = 0) : Entree n'est plus avalee, le code saisi est cherche comme liste fermee (douchette).
+        if (combo.isExpanded && store && store.getCount && store.getCount() === 0) {
+            combo.collapse();
+        }
+
         if (combo.isExpanded && store) {
             const count = store.getCount ? store.getCount() : 0;
 
