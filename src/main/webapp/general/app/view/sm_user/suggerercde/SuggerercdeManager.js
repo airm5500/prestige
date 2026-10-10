@@ -313,12 +313,15 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {text: '', itemId: 'colDispo', width: 40, sortable: false, menuDisabled: true, align: 'center', resizable: false,
                                     tooltip: 'Disponibilité PharmaML',
                                     renderer: function (v, meta, record) {
+                                        /* Retours du 10/10 : meme fond que la ligne (pas de trou blanc). */
+                                        meta.style = Me_Window.manageColor(record);
                                         return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.renduAvecVerif(
                                                 (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta, Me_Window.dispoActive === false);
                                     }},
                                 /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
                                 {text: 'DCI', itemId: 'colEquivalentDci', width: 64, sortable: false, menuDisabled: true, hidden: true, align: 'center',
                                     renderer: function (v, meta, record) {
+                                        meta.style = Me_Window.manageColor(record);
                                         var l = Me_Window.marquesDci && Me_Window.marquesDci[record.get('lg_SUGGESTION_ORDER_DETAILS_ID')];
                                         if (!l) {
                                             return '';
@@ -345,7 +348,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
                                 /* Colisage (plan d'octobre 1.6) : rappel, informatif ; rien n'est arrondi. */
                                 {text: 'COLIS.', width: 58, sortable: false, menuDisabled: true, dataIndex: 'int_COLISAGE', align: 'right',
-                                    renderer: function (v) {
+                                    renderer: function (v, meta, record) {
+                                        meta.style = Me_Window.manageColor(record);
                                         return v ? v : '<span style="color:#9aa8b6">—</span>';
                                     }},
 

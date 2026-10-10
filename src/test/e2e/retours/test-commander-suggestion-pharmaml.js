@@ -128,6 +128,19 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     await p.evaluate((r) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', r)); }, S.A + '-REF');
     await p.waitForFunction(() => Ext.getCmp('btn_sugg_commander_pml') && Ext.getCmp('btn_sugg_commander_pml').isVisible() && Ext.getCmp('gridpanelSuggestionID') && !Ext.getCmp('gridpanelSuggestionID').getStore().isLoading(), null, { timeout: 30000 });
     await p.waitForTimeout(800);
+    /* retours du 10/10 : les colonnes Disponibilite, DCI et Colisage prennent la couleur de la ligne (plus de trou blanc) */
+    const fonds = await p.evaluate(() => {
+      const g = Ext.getCmp('gridpanelSuggestionID'), r = g.getStore().getAt(0), sortie = {};
+      const colore = r.copy(); colore.data = Ext.apply({}, r.data); colore.data.produitState = { enSuggestion: 2, enCommande: 0, entree: 0 };
+      ['colDispo', 'colEquivalentDci'].forEach((id) => { const m = {}; g.down('#' + id).renderer(null, m, colore); sortie[id] = m.style; });
+      const colis = g.headerCt.getGridColumns().filter((c) => c.dataIndex === 'int_COLISAGE')[0], m = {};
+      colis.renderer(0, m, colore); sortie.colis = m.style;
+      const lib = g.headerCt.getGridColumns().filter((c) => c.dataIndex === 'str_FAMILLE_NAME')[0], ml = {};
+      lib.renderer('x', ml, colore); sortie.libelle = ml.style;
+      return sortie;
+    });
+    ok('Disponibilité, DCI et Colisage : même fond que la ligne (vert « en suggestion »)', /#73C774/.test(fonds.libelle) && fonds.colDispo === fonds.libelle
+        && fonds.colEquivalentDci === fonds.libelle && fonds.colis === fonds.libelle, JSON.stringify(fonds));
     ok('Suggestion ouverte : « Commander par PharmaML » dans la barre du bas', await p.evaluate(() => { const t = Ext.getCmp('btn_sugg_commander_pml').up('toolbar'); return !!t && t.dock === 'bottom'; }));
     await p.click('#btn_sugg_commander_pml');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Envoyer la suggestion/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 20000 });
