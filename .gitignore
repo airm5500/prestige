@@ -16,3 +16,4 @@ nb-configuration.xml
 src/main/resources/build.properties
 *.md
 __pycache__/
+/captures/
